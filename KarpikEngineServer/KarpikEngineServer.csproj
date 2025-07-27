@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>13</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\KarpikEngineShared\KarpikEngineShared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="EcsCore\Modules\" />
+      <Folder Include="EcsRunners\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Box2D.NET.Debug" Version="3.1.0" />
+        <PackageReference Include="Box2D.NET.Release" Version="*-*" Condition="'$(Configuration)' == 'Release'" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+                          ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+        <ProjectReference Include="..\Network\Network.csproj" />
+        
+        <ProjectReference Include="..\Dragon\Dragon.csproj" />
+        <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+                          ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+        <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
+    </ItemGroup>
+
+</Project>

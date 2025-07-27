@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\KarpikEngineClient\KarpikEngineClient.csproj" />
+      <ProjectReference Include="..\KarpikEngineServer\KarpikEngineServer.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Content\" />
+    </ItemGroup>
+
+    <ItemGroup>
+		<ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+				  ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+		<ProjectReference Include="..\Network\Network.csproj" />
+
+		<ProjectReference Include="..\Dragon\Dragon.csproj" />
+        <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+                          ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+        <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
+    </ItemGroup>
+    
+    
+
+</Project>
