@@ -68,6 +68,12 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("        private static ThreadLocal<TargetClientRpcSender> _instance = new ThreadLocal<TargetClientRpcSender>(() => new TargetClientRpcSender());");
         sb.AppendLine("        public static TargetClientRpcSender Instance => _instance.Value;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
+        sb.AppendLine("        private NetManager _netManager;");
+        sb.AppendLine();
+        sb.AppendLine("        public void Initialize(NetManager netManager)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            _netManager = netManager;");
+        sb.AppendLine("        }");
         sb.AppendLine();
 
         // Найти все структуры, реализующие ITargetRpcCommand
@@ -110,6 +116,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
         sb.AppendLine("        public static TargetClientRpcDispatcher Instance { get; } = new();");
         sb.AppendLine();
+        
         sb.AppendLine("        private TargetClientRpcDispatcher() { }");
         sb.AppendLine();
         sb.AppendLine("        public void Dispatch(NetDataReader reader)");
@@ -276,7 +283,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             sb.AppendLine();
 
             // Method to send to all clients
-            sb.AppendLine($"        public void {cmd.Name.Replace("ClientRpc", "")}All(NetManager netManager, {cmd.FullName} {paramName}, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)");
+            sb.AppendLine($"        public void {cmd.Name.Replace("ClientRpc", "")}All({cmd.FullName} {paramName}, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)");
             sb.AppendLine("        {");
             sb.AppendLine("            _writer.Reset();");
             sb.AppendLine("            _writer.Put((byte)PacketType.Command);");
@@ -285,7 +292,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"            _writer.Put({paramName}.{field.Name});");
             }
-            sb.AppendLine("            netManager.SendToAll(_writer, deliveryMethod);");
+            sb.AppendLine("            _netManager.SendToAll(_writer, deliveryMethod);");
             sb.AppendLine("        }");
             sb.AppendLine();
         }

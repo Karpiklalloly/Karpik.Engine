@@ -22,7 +22,7 @@ public static class SerializerExtensions
 
     public static void Put(this NetDataWriter writer, entlong entity)
     {
-        //TODO: сделать конвертацию из локальных id в серверные
+        
         writer.Put(entity.ID);
     }
 

@@ -57,6 +57,7 @@ public class Server
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         _network.Start(9051);
+        TargetClientRpcSender.Instance.Initialize(_network);
         listener.ConnectionRequestEvent += req => req.AcceptIfKey("MyGame");
         listener.PeerConnectedEvent += peer =>
         {
@@ -112,7 +113,8 @@ public class Server
 
         for (int i = 0; i < 100; i++)
         {
-            Worlds.Instance.World.NewEntity();
+            var entity =  Worlds.Instance.World.NewEntityLong();
+            entity.Add<Health>();
         }
     }
 
