@@ -156,10 +156,10 @@ public class NetworkGenerator : IIncrementalGenerator
         id = 1;
         foreach (var s in structsToGenerate)
         {
-            sb.AppendLine($"            var pool_{id} = world.GetPool<{s.FullName}>();");
-            sb.AppendLine($"            bool has_{id} = pool_{id}.Has(entityId);");
-            sb.AppendLine($"            writer.Put(has_{id});");
-            sb.AppendLine($"            if (has_{id}) {{ _serializers[{id}].Write(writer, pool_{id}.Get(entityId)); }}");
+            sb.AppendLine($"                var pool_{id} = world.GetPool<{s.FullName}>();");
+            sb.AppendLine($"                bool has_{id} = pool_{id}.Has(entityId);");
+            sb.AppendLine($"                writer.Put(has_{id});");
+            sb.AppendLine($"                if (has_{id}) _serializers[{id}].Write(writer, pool_{id}.Get(entityId));");
             id++;
         }
         sb.AppendLine("            }");
@@ -199,14 +199,8 @@ public class NetworkGenerator : IIncrementalGenerator
         foreach (var s in structsToGenerate)
         {
             sb.AppendLine($"                bool has_{id} = reader.GetBool();");
-            sb.AppendLine($"                if (has_{id})");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                   _serializers[(short){id}].ReadAndApply(world, localEntityId, reader);");
-            sb.AppendLine("                }");
-            sb.AppendLine("                else");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    world.GetPool<{s.FullName}>().TryDel(localEntityId);");
-            sb.AppendLine("                }");
+            sb.AppendLine($"                if (has_{id}) _serializers[(short){id}].ReadAndApply(world, localEntityId, reader);");
+            sb.AppendLine($"                else world.GetPool<{s.FullName}>().TryDel(localEntityId);");
             id++;
         }
         sb.AppendLine("            }");
