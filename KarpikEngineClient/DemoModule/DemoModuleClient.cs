@@ -3,6 +3,7 @@ using Game.Generated.Client;
 using ImGuiNET;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.DEMO;
+using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Modding;
 using Network;
 using Raylib_cs;
@@ -14,8 +15,10 @@ public class DemoModuleClient : IEcsModule
     public void Import(EcsPipeline.Builder b)
     {
         b.Add(new MySystem())
+            .Add(new SetLocalPlayerSystem())
             .Add(new DisplaySystem())
-            .Add(new InputSystem());
+            .Add(new InputSystem())
+            .AddCaller<SetLocalPlayerTargetRpc>();
     }
 }
 
@@ -126,7 +129,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         {
             var world = Worlds.Instance.World;
             var span = world.Where(EcsStaticMask
-                .Inc<Player>()
+                .Inc<LocalPlayer>()
                 .Inc<Position>()
                 .Inc<NetworkId>().Build());
             if (span.Count == 0) return;

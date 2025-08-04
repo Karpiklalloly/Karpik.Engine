@@ -13,6 +13,7 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
     {
         public EcsPool<Position> position = Inc;
         public EcsPool<NetworkId> networkId = Inc;
+        public EcsPool<LocalPlayer> player = Inc;
     }
     
     private EcsDefaultWorld _world;

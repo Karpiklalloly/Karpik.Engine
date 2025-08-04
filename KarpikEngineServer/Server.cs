@@ -29,6 +29,7 @@ public class Server
     private int _nextNetworkId = 1;
     private List<int> _destroyedNetworkIds = [];
     private Dictionary<NetPeer, int> _peerToEntity = [];
+    private Queue<(NetPeer, int)> _needSendLocalPlayer = [];
     
     private CommandDispatcher _commandDispatcher;
     
@@ -73,6 +74,7 @@ public class Server
             world.GetPool<Health>().Add(player).Value = 1;
             world.GetPool<Player>().Add(player);
             _peerToEntity.Add(peer, player);
+            _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };
         listener.NetworkReceiveEvent += OnNetworkReceive;
         _commandDispatcher = new CommandDispatcher();
@@ -129,6 +131,14 @@ public class Server
         _network.PollEvents();
         _pipeline.Run();
         SendSnapshotToAll();
+        if (_needSendLocalPlayer.Count > 0)
+        {
+            var (peer, netID) = _needSendLocalPlayer.Dequeue();
+            TargetClientRpcSender.Instance.SetLocalPlayer(peer, new SetLocalPlayerTargetRpc()
+            {
+                LocalPlayerNetId = netID,
+            });
+        }
     }
 
     private void Stop()

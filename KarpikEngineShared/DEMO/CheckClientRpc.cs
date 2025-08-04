@@ -15,3 +15,10 @@ public struct ShowEffectClientRpc : IClientRpcCommand
     public int Target { get; set; }
     public string Message;
 }
+
+public struct SetLocalPlayerTargetRpc : ITargetRpcCommand
+{
+    public int Source { get; set; }
+    public int Target { get; set; }
+    public int LocalPlayerNetId;
+}
