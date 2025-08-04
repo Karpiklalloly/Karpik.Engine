@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using System.Net;
+using System.Net.Sockets;
+using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
 using Karpik.Engine.Client.VisualElements;
@@ -40,7 +42,8 @@ public class Client
         
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
-        _network.Start(9050);
+        var port = GetFreePort();
+        _network.Start(port);
         _network.Connect("localhost", 9051, "MyGame");
         Rpc.Instance.Initialize(_network);
         listener.NetworkReceiveEvent += OnNetworkReceive;
@@ -160,5 +163,12 @@ public class Client
             return path + extension;
         }
         return path;
+    }
+    
+    public static int GetFreePort()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        socket.Bind(new IPEndPoint(IPAddress.Any, 0));
+        return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 }
