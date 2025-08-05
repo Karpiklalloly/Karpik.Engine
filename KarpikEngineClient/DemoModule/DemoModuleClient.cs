@@ -51,10 +51,14 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ShowButtons();
         ShowStats();
         var world = Worlds.Instance.World;
-        var span = world.Where(EcsStaticMask.Inc<Position>().Build());
+        var span = world.Where(EcsStaticMask
+            .Inc<LocalPlayer>()
+            .Inc<Position>()
+            .Inc<NetworkId>().Build());
         if (span.Count > 0)
         {
-            ImGui.Text($"{span[0]}");
+            ImGui.Text($"Local Player (net id): {world.GetEntityLong(span[0]).Get<NetworkId>().Id}");
+            ImGui.Text($"Local Player (local id): {span[0]}");
         }
         else
         {
@@ -110,7 +114,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         if (Worlds.Instance.World.Entities.Count > 0)
         {
             var span = Worlds.Instance.World.Where(EcsStaticMask
-                .Inc<Player>()
+                .Inc<LocalPlayer>()
                 .Inc<Position>()
                 .Inc<NetworkId>().Build());
             var pos = Worlds.Instance.World.GetPool<Position>().Get(span[0]);

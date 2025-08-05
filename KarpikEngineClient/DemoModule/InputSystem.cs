@@ -31,6 +31,16 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
         {
             currentInput.X += 1;
         }
+        
+        if (Input.IsDown(KeyboardKey.W) || Input.IsDown(KeyboardKey.Up))
+        {
+            currentInput.Y += 1;
+        }
+        
+        if (Input.IsDown(KeyboardKey.S) || Input.IsDown(KeyboardKey.Down))
+        {
+            currentInput.Y -= 1;
+        }
 
         if (Input.IsPressed(KeyboardKey.Space))
         {
