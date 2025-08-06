@@ -7,63 +7,65 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
+public class InputSystem : IEcsRun
 {
-    class Aspect : EcsAspect
-    {
-        public EcsPool<Position> position = Inc;
-        public EcsPool<NetworkId> networkId = Inc;
-        public EcsPool<LocalPlayer> player = Inc;
-    }
-    
-    private EcsDefaultWorld _world;
+    private const float SPACE_SPEED_MULTIPLIER = 5f;
     
     public void Run()
     {
-        Vector2 currentInput = Vector2.Zero;
-
-        if (Input.IsDown(KeyboardKey.A) || Input.IsDown(KeyboardKey.Left))
+        if (Input.IsMouseRightButtonDown)
         {
-            currentInput.X -= 1;
-        }
-
-        if (Input.IsDown(KeyboardKey.D) || Input.IsDown(KeyboardKey.Right))
-        {
-            currentInput.X += 1;
+            Raylib.DisableCursor();
+            return;
         }
         
-        if (Input.IsDown(KeyboardKey.W) || Input.IsDown(KeyboardKey.Up))
+        if (Input.IsMouseRightButtonUp)
         {
-            currentInput.Y += 1;
+            Raylib.EnableCursor();
+            return;
         }
-        
-        if (Input.IsDown(KeyboardKey.S) || Input.IsDown(KeyboardKey.Down))
+        if (Raylib.IsCursorHidden())
         {
-            currentInput.Y -= 1;
-        }
+            Vector3 currentInput = Vector3.Zero;
 
-        if (Input.IsPressed(KeyboardKey.Space))
-        {
-            currentInput.Y += 1;
-        }
-
-        if (currentInput.LengthSquared() > 0.001f)
-        {
-            foreach (var e in _world.Where(out Aspect a))
+            if (Input.IsDown(KeyboardKey.A) || Input.IsDown(KeyboardKey.Left))
             {
-                var netId = a.networkId.Get(e).Id;
-                Rpc.Instance.Move(new MoveCommand()
-                {
-                    Direction = currentInput,
-                    Source = netId,
-                    Target = netId
-                });
+                currentInput.Y -= 1;
             }
-        }
-    }
 
-    public void Inject(EcsDefaultWorld obj)
-    {
-        _world = obj;
+            if (Input.IsDown(KeyboardKey.D) || Input.IsDown(KeyboardKey.Right))
+            {
+                currentInput.Y += 1;
+            }
+
+            if (Input.IsDown(KeyboardKey.W) || Input.IsDown(KeyboardKey.Up))
+            {
+                currentInput.X += 1;
+            }
+
+            if (Input.IsDown(KeyboardKey.S) || Input.IsDown(KeyboardKey.Down))
+            {
+                currentInput.X -= 1;
+            }
+
+            if (Input.IsDown(KeyboardKey.Q))
+            {
+                currentInput.Z += 1;
+            }
+
+            if (Input.IsDown(KeyboardKey.E))
+            {
+                currentInput.Z -= 1;
+            }
+
+            if (Input.IsPressing(KeyboardKey.Space))
+            {
+                currentInput *= SPACE_SPEED_MULTIPLIER;
+            }
+
+            Camera.Main.Rotate(Input.MouseDelta * (float)Time.DeltaTime);
+            Camera.Main.Move(currentInput * (float)Time.DeltaTime * 2);
+        }
+        
     }
 }

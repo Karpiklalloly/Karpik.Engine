@@ -19,15 +19,4 @@ public static class SerializerExtensions
             reader.GetFloat()
         );
     }
-
-    public static void Put(this NetDataWriter writer, entlong entity)
-    {
-        
-        writer.Put(entity.ID);
-    }
-
-    public static entlong Getentlong(this NetDataReader reader)
-    {
-        return new entlong(reader.GetInt(), 0, 0);
-    }
 }

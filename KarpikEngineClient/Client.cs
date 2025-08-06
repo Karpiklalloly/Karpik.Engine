@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
+using ImGuiNET;
 using Karpik.Engine.Client.VisualElements;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
@@ -19,18 +20,20 @@ public class Client
     private EcsPipeline _pipeline;
     private EcsPipeline.Builder _builder;
     private ModManager _modManager;
-    private Camera2D _camera = new();
     private NetManager _network;
     private WorldEventListener[] _listeners;
     
     public void Run(in bool isRunning)
     {
-        SpinWait wait = new SpinWait();
+        DateTime last = DateTime.Now;
+        
         while (isRunning && !Raylib.WindowShouldClose())
         {
+            var now = DateTime.Now;
+            var deltaTime = (now - last).TotalSeconds;
+            Time.Update(deltaTime);
+            last = now;
             Update();
-            wait.SpinOnce();
-            //Thread.Sleep(1);
         }
 
         Stop();
@@ -84,16 +87,21 @@ public class Client
             .Inject(Worlds.Instance.EventWorld)
             .Inject(Worlds.Instance.MetaWorld)
             .Inject(_modManager)
-            .Inject(_camera)
+            .Inject(Camera.Main)
             .Inject(_network);
         
         InitEcs();
         
-        _pipeline = _builder.BuildAndInit();
+        _pipeline = _builder.Build();
+        _pipeline.Init();
         Worlds.Instance.Init(_pipeline);
         Raylib.InitWindow(800, 600, "Console Launcher");
-        Raylib.EnableCursor();
+        Raylib.SetWindowState(ConfigFlags.ResizableWindow);
+        Raylib.SetWindowMinSize(400, 300);
         rlImGui.Setup();
+        
+        Camera.Main.Position = new Vector3(10, 10, 10);
+        Camera.Main.LookAt(Vector3.Zero);
     }
 
     private void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliveryMethod)
@@ -123,6 +131,7 @@ public class Client
         Raylib.ClearBackground(Color.SkyBlue);
         
         rlImGui.Begin();
+        Raylib.BeginMode3D(Camera.Main.CameraReference);
         _network.PollEvents();
         //Raylib.PollInputEvents();
         _pipeline.Run();
@@ -130,6 +139,7 @@ public class Client
         _pipeline.GetRunner<PausableLateRunner>().PausableLateRun();
         //TODO: Добавить прием ивента от сервака на фиксед апдейт
             
+        Raylib.EndMode3D();
         Raylib.DrawText("Hello", 12, 12, 20, Color.Black);
         rlImGui.End();
         Raylib.EndDrawing();
@@ -137,6 +147,7 @@ public class Client
     
     private void Stop()
     {
+        Raylib.EnableCursor();
         rlImGui.Shutdown();
         Raylib.CloseWindow();
         _network.Stop();

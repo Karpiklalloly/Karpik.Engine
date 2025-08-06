@@ -35,7 +35,6 @@ public class Server
     
     public void Run(in bool isRunning)
     {
-        SpinWait wait = new SpinWait();
         Time.FixedDeltaTime = 1.0 / TICKS_PER_SECOND; 
         _nextTickTime = DateTime.Now;
         while (isRunning)
@@ -46,7 +45,6 @@ public class Server
                 Update();
                 _nextTickTime = now + _tickInterval;
             }
-            wait.SpinOnce();
         }
 
         Stop();

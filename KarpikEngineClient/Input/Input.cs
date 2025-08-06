@@ -26,6 +26,7 @@ public static class Input
     private static ConcurrentDictionary<char, State> _charStates = new();
     
     public static Vector2 MousePosition => Raylib.GetMousePosition();
+    public static Vector2 MouseDelta => Raylib.GetMouseDelta();
     
     public static IEnumerable<KeyboardKey> PressedKeys => _keyStates.Keys.Where(IsPressed);
     

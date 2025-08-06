@@ -5,8 +5,9 @@ using Karpik.Engine.Shared.DragonECS;
 
 namespace Karpik.Engine.Shared;
 
-[Serializable] [NetworkedComponent]
-[StructLayout(LayoutKind.Explicit, Pack = 2, Size = 16)]
+[Serializable]
+[NetworkedComponent]
+[StructLayout(LayoutKind.Explicit, Pack = 2, Size = 24)]
 public struct Position : IEcsComponent
 {
     [FieldOffset(0)]
@@ -15,6 +16,8 @@ public struct Position : IEcsComponent
     public double X;
     [NetworkedField][FieldOffset(8)]
     public double Y;
+    [NetworkedField][FieldOffset(16)]
+    public double Z;
 }
 
 [Serializable] [NetworkedComponent]
