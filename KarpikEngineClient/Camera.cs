@@ -42,7 +42,7 @@ public class Camera
     public void Rotate(Vector2 delta)
     {
         Raylib.CameraYaw(ref _camera, -delta.X, false);
-        Raylib.CameraPitch(ref _camera, -delta.Y, true ,false ,false);
+        Raylib.CameraPitch(ref _camera, -delta.Y, true ,false ,true);
     }
     
     /// <summary>
