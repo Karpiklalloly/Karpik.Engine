@@ -21,7 +21,6 @@ public class Client
     private EcsPipeline.Builder _builder;
     private ModManager _modManager;
     private NetManager _network;
-    private WorldEventListener[] _listeners;
     
     public void Run(in bool isRunning)
     {
@@ -74,13 +73,6 @@ public class Client
             Pivot = Vector2.Zero
         };
         UI.DefaultFont = Raylib.GetFontDefault();
-        
-        _listeners =
-        [
-            new WorldEventListener(Worlds.Instance.World),
-            new WorldEventListener(Worlds.Instance.EventWorld),
-            new WorldEventListener(Worlds.Instance.MetaWorld)
-        ];
         
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
