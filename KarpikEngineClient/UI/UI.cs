@@ -1,9 +1,8 @@
 ﻿using System.Numerics;
-using Karpik.Engine.Client.VisualElements;
 using Karpik.Engine.Shared;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public static class UI
 {
@@ -12,18 +11,15 @@ public static class UI
 
     internal static void Update()
     {
-        Root.Size = new Vector2(Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
+        Root.Style.Width = Raylib.GetRenderWidth() - 200;
+        Root.Style.Height = Raylib.GetRenderHeight() - 200;
+        var computed = Root.GetComputedStyle();
+        Root.Position = new Vector2(Raylib.GetRenderWidth() / 2 - computed.Width / 2, Raylib.GetRenderHeight() / 2 - computed.Height / 2);
         Root.Update(Time.DeltaTime);
     }
 
     internal static void Draw()
     {
-        var elements = Root.AllChildren.Concat([Root]).OrderBy(x => x.Order);
-        
-        foreach (var element in elements)
-        {
-            element.Draw(Time.DeltaTime);
-        }
-        Root.Draw(Time.DeltaTime);
+        Root.Render();
     }
 }

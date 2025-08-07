@@ -3,8 +3,7 @@ using System.Net.Sockets;
 using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
-using ImGuiNET;
-using Karpik.Engine.Client.VisualElements;
+using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
@@ -21,6 +20,7 @@ public class Client
     private EcsPipeline.Builder _builder;
     private ModManager _modManager;
     private NetManager _network;
+    private MouseEventSystem _eventSystem = new();
     
     public void Run(in bool isRunning)
     {
@@ -65,13 +65,36 @@ public class Client
         });
         _modManager = new ModManager();
         _modManager.LoadMods("Mods");
-        UI.Root = new VisualElement(new Vector2(Raylib.GetScreenWidth(), Raylib.GetScreenHeight()))
+        UI.Root = new VisualElement();
+        // Ui.Root.Style.BackgroundColor = new Color(255, 0, 0, 128);
+        // Ui.Root.Style.BorderWidth = 20;
+        // Ui.Root.Style.BorderColor = Color.Black;
+        // Ui.Root.Style.BorderRadius = 50;
+        var root = UI.Root;
+        var rule1 = new StyleRule(".centered")
         {
-            OffsetPosition = Vector2.Zero,
-            Anchor = Anchor.TopLeft,
-            Stretch = StretchMode.Both,
-            Pivot = Vector2.Zero
+            Properties =
+            {
+                ["background-color"] = "rgba(255, 0, 0, 128)",
+                ["border-width"] = "20px",
+                ["border-color"] = "black",
+                ["border-radius"] = "50px"
+            },
+            PseudoClasses =
+            {
+                [":hover"] = new StyleRule(".center")
+                {
+                    Properties =
+                    {
+                        ["background-color"] = "rgba(0, 255, 0, 128)",
+                        ["border-color"] = "blue"
+                    }
+                }
+            }
         };
+        root.AddClass("centered");
+        var sheet = root.StyleSheet;
+        sheet.AddRule(rule1);
         UI.DefaultFont = Raylib.GetFontDefault();
         
         _builder = EcsPipeline.New()
@@ -132,6 +155,9 @@ public class Client
         //TODO: Добавить прием ивента от сервака на фиксед апдейт
             
         Raylib.EndMode3D();
+        _eventSystem.Update(UI.Root);
+        UI.Update();
+        UI.Draw();
         Raylib.DrawText("Hello", 12, 12, 20, Color.Black);
         rlImGui.End();
         Raylib.EndDrawing();

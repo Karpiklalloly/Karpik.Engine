@@ -27,22 +27,10 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
     private bool[] _bools = new bool[1];
     
     private ModManager _modManager;
-    private string _text = string.Empty;
     
     public void Init()
     {
-        Input.CharPressed += c =>
-        {
-            _text += c;
-        };
         
-        Input.KeyPressed += key =>
-        {
-            if (key == KeyboardKey.Backspace && _text.Length > 0)
-            {
-                _text = _text.Substring(0, _text.Length - 1);
-            }
-        };
     }
     
     public void Run()
@@ -64,7 +52,6 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         {
             ImGui.Text("No entities with Position component found.");
         }
-        ImGui.Text(_text);
         ImGui.End();
 
 
@@ -120,13 +107,6 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
             var pos = Worlds.Instance.World.GetPool<Position>().Get(span[0]);
             ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
         }
-        // if (!Worlds.Instance.MetaWorld.GetPlayer().Player.IsNull)
-        // {
-        //     var health = Worlds.Instance.MetaWorld.GetPlayer().Player.Get<Health>();
-        //     var pos = Worlds.Instance.MetaWorld.GetPlayer().Player.Get<Transform>().Position;
-        //     ImGui.Text($"Player Health: {health.Value} of {health.Max.ModifiedValue}");
-        //     ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
-        // }
 
         ImGui.Checkbox("Auto move player", ref _bools[0]);
         if (_bools[0])
