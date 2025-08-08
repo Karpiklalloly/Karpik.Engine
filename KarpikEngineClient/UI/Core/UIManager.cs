@@ -24,7 +24,16 @@ public class UIManager
         
         // Рассчитываем layout
         var screenSize = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
-        LayoutEngine.CalculateLayout(Root, StyleSheet, screenSize);
+        try
+        {
+            LayoutEngine.CalculateLayout(Root, StyleSheet, screenSize);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+        
         
         // Рендерим UI
         Root.Render();

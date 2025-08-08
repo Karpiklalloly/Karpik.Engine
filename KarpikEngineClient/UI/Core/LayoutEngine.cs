@@ -11,10 +11,6 @@ public static class LayoutEngine
         root.Size = new Vector2(availableSpace.Width, availableSpace.Height);
 
         var style = StyleSheet.Combine(globalStyleSheet, root.StyleSheet);
-        
-        // Если у корневого элемента нет StyleSheet, используем глобальный
-        // if (root.StyleSheet == null && globalStyleSheet != null)
-            // root.StyleSheet = globalStyleSheet;
 
         var old = root.StyleSheet;
         root.StyleSheet = style;
@@ -28,7 +24,6 @@ public static class LayoutEngine
         
         var computedStyle = element.ComputeStyle();
         
-        // Применяем вычисленные стили к элементу
         element.Style.CopyFrom(computedStyle);
         
         // 1. Рассчитываем размеры элемента
@@ -51,26 +46,16 @@ public static class LayoutEngine
     {
         var size = element.Size;
         
-        // Применяем заданные размеры
-        if (style.Width.HasValue)
-            size.X = style.Width.Value;
-        else if (element.Parent == null) // Корневой элемент
-            size.X = availableSpace.Width;
+        if (style.Width.HasValue) size.X = style.Width.Value;
+        else if (element.Parent == null) size.X = availableSpace.Width;
             
-        if (style.Height.HasValue)
-            size.Y = style.Height.Value;
-        else if (element.Parent == null) // Корневой элемент
-            size.Y = availableSpace.Height;
+        if (style.Height.HasValue) size.Y = style.Height.Value;
+        else if (element.Parent == null) size.Y = availableSpace.Height;
         
-        // Применяем ограничения
-        if (style.MinWidth.HasValue)
-            size.X = Math.Max(size.X, style.MinWidth.Value);
-        if (style.MaxWidth.HasValue)
-            size.X = Math.Min(size.X, style.MaxWidth.Value);
-        if (style.MinHeight.HasValue)
-            size.Y = Math.Max(size.Y, style.MinHeight.Value);
-        if (style.MaxHeight.HasValue)
-            size.Y = Math.Min(size.Y, style.MaxHeight.Value);
+        if (style.MinWidth.HasValue) size.X = Math.Max(size.X, style.MinWidth.Value);
+        if (style.MaxWidth.HasValue) size.X = Math.Min(size.X, style.MaxWidth.Value);
+        if (style.MinHeight.HasValue) size.Y = Math.Max(size.Y, style.MinHeight.Value);
+        if (style.MaxHeight.HasValue) size.Y = Math.Min(size.Y, style.MaxHeight.Value);
         
         element.Size = size;
     }
@@ -96,7 +81,6 @@ public static class LayoutEngine
     {
         if (parent.Children.Count == 0) return;
         
-        // Рассчитываем доступное пространство с учетом padding
         var contentArea = new Rectangle(
             parent.Position.X + parentStyle.Padding.Left,
             parent.Position.Y + parentStyle.Padding.Top,
@@ -104,25 +88,22 @@ public static class LayoutEngine
             parent.Size.Y - parentStyle.Padding.Top - parentStyle.Padding.Bottom
         );
         
-        // Фильтруем видимые дети
-        var visibleChildren = parent.Children.Where(c => c.Visible).ToList();
+        var visibleChildren = parent.Children.Where(static c => c.Visible).ToList();
         if (visibleChildren.Count == 0) return;
         
-        // Рассчитываем layout в зависимости от направления
-        if (parentStyle.FlexDirection == FlexDirection.Column || 
-            parentStyle.FlexDirection == FlexDirection.ColumnReverse)
+        switch (parentStyle.FlexDirection)
         {
-            LayoutColumn(visibleChildren, parentStyle, contentArea);
+            case FlexDirection.Column or FlexDirection.ColumnReverse:
+                LayoutColumn(visibleChildren, parentStyle, contentArea);
+                break;
+            case FlexDirection.Row or FlexDirection.RowReverse:
+                LayoutRow(visibleChildren, parentStyle, contentArea);
+                break;
         }
-        else
-        {
-            LayoutRow(visibleChildren, parentStyle, contentArea);
-        }
-        
+
         // Рекурсивно рассчитываем layout для детей
         foreach (var child in visibleChildren)
         {
-            // Для абсолютно позиционированных элементов используем весь экран
             var childStyle = child.ComputeStyle();
             Rectangle childContentArea;
             
@@ -149,16 +130,14 @@ public static class LayoutEngine
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
         
-        // Первый проход: собираем информацию о детях
+        // Собираем информацию о детях
         foreach (var child in children)
         {
             var childStyle = child.ComputeStyle();
             var info = new ChildInfo { Element = child, Style = childStyle };
             
-            // Рассчитываем размеры
             CalculateElementSize(child, childStyle, contentArea);
             
-            // Добавляем margin
             totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
             
             if (childStyle.FlexGrow > 0)
@@ -174,32 +153,52 @@ public static class LayoutEngine
             childInfos.Add(info);
         }
         
-        // Второй проход: позиционируем элементы
+        // Позиционируем элементы
         float currentY = contentArea.Y;
         float remainingHeight = Math.Max(0, contentArea.Height - totalHeight);
         
-        // Применяем justify-content
-        if (parentStyle.JustifyContent == JustifyContent.Center)
-            currentY += remainingHeight / 2;
-        else if (parentStyle.JustifyContent == JustifyContent.FlexEnd)
-            currentY += remainingHeight;
+        switch (parentStyle.JustifyContent)
+        {
+            case JustifyContent.Center:
+                currentY += remainingHeight / 2;
+                break;
+            case JustifyContent.FlexEnd:
+                currentY += remainingHeight;
+                break;
+            case JustifyContent.FlexStart:
+                break;
+            case JustifyContent.SpaceBetween:
+            case JustifyContent.SpaceAround:
+            case JustifyContent.SpaceEvenly:
+            default:
+                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent));
+        }
         
         foreach (var info in childInfos)
         {
             var child = info.Element;
             var childStyle = info.Style;
             
-            // Добавляем margin-top
             currentY += childStyle.Margin.Top;
             
-            // Рассчитываем X позицию с учетом align-items
             float childX = contentArea.X + childStyle.Margin.Left;
-            if (parentStyle.AlignItems == AlignItems.Center)
-                childX = contentArea.X + (contentArea.Width - child.Size.X) / 2;
-            else if (parentStyle.AlignItems == AlignItems.FlexEnd)
-                childX = contentArea.X + contentArea.Width - child.Size.X - childStyle.Margin.Right;
-            else if (parentStyle.AlignItems == AlignItems.Stretch && !childStyle.Width.HasValue)
-                child.Size = new Vector2(contentArea.Width - childStyle.Margin.Left - childStyle.Margin.Right, child.Size.Y);
+            switch (parentStyle.AlignItems)
+            {
+                case AlignItems.Center:
+                    childX = contentArea.X + (contentArea.Width - child.Size.X) / 2;
+                    break;
+                case AlignItems.FlexEnd:
+                    childX = contentArea.X + contentArea.Width - child.Size.X - childStyle.Margin.Right;
+                    break;
+                case AlignItems.Stretch when !childStyle.Width.HasValue:
+                    child.Size = new Vector2(contentArea.Width - childStyle.Margin.Left - childStyle.Margin.Right, child.Size.Y);
+                    break;
+                case AlignItems.FlexStart:
+                    break;
+                case AlignItems.Baseline:
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems));
+            }
             
             // Устанавливаем позицию
             child.Position = new Vector2(childX, currentY);
@@ -216,7 +215,6 @@ public static class LayoutEngine
                 currentY += child.Size.Y;
             }
             
-            // Добавляем margin-bottom
             currentY += childStyle.Margin.Bottom;
         }
     }
@@ -227,16 +225,14 @@ public static class LayoutEngine
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
         
-        // Первый проход: собираем информацию о детей
+        // Собираем информацию о детях
         foreach (var child in children)
         {
             var childStyle = child.ComputeStyle();
             var info = new ChildInfo { Element = child, Style = childStyle };
             
-            // Рассчитываем размеры
             CalculateElementSize(child, childStyle, contentArea);
             
-            // Добавляем margin
             totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
             
             if (childStyle.FlexGrow > 0)
@@ -252,34 +248,53 @@ public static class LayoutEngine
             childInfos.Add(info);
         }
         
-        // Второй проход: позиционируем элементы
+        // Позиционируем элементы
         float currentX = contentArea.X;
         float remainingWidth = Math.Max(0, contentArea.Width - totalWidth);
-        
-        // Применяем justify-content
-        if (parentStyle.JustifyContent == JustifyContent.Center)
-            currentX += remainingWidth / 2;
-        else if (parentStyle.JustifyContent == JustifyContent.FlexEnd)
-            currentX += remainingWidth;
+
+        switch (parentStyle.JustifyContent)
+        {
+            case JustifyContent.Center:
+                currentX += remainingWidth / 2;
+                break;
+            case JustifyContent.FlexEnd:
+                currentX += remainingWidth;
+                break;
+            case JustifyContent.FlexStart:
+                break;
+            case JustifyContent.SpaceBetween:
+            case JustifyContent.SpaceAround:
+            case JustifyContent.SpaceEvenly:
+            default:
+                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent));
+        }
         
         foreach (var info in childInfos)
         {
             var child = info.Element;
             var childStyle = info.Style;
             
-            // Добавляем margin-left
             currentX += childStyle.Margin.Left;
             
-            // Рассчитываем Y позицию с учетом align-items
             float childY = contentArea.Y + childStyle.Margin.Top;
-            if (parentStyle.AlignItems == AlignItems.Center)
-                childY = contentArea.Y + (contentArea.Height - child.Size.Y) / 2;
-            else if (parentStyle.AlignItems == AlignItems.FlexEnd)
-                childY = contentArea.Y + contentArea.Height - child.Size.Y - childStyle.Margin.Bottom;
-            else if (parentStyle.AlignItems == AlignItems.Stretch && !childStyle.Height.HasValue)
-                child.Size = new Vector2(child.Size.X, contentArea.Height - childStyle.Margin.Top - childStyle.Margin.Bottom);
+            switch (parentStyle.AlignItems)
+            {
+                case AlignItems.Center:
+                    childY = contentArea.Y + (contentArea.Height - child.Size.Y) / 2;
+                    break;
+                case AlignItems.FlexEnd:
+                    childY = contentArea.Y + contentArea.Height - child.Size.Y - childStyle.Margin.Bottom;
+                    break;
+                case AlignItems.Stretch when !childStyle.Height.HasValue:
+                    child.Size = new Vector2(child.Size.X, contentArea.Height - childStyle.Margin.Top - childStyle.Margin.Bottom);
+                    break;
+                case AlignItems.FlexStart:
+                    break;
+                case AlignItems.Baseline:
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems));
+            }
             
-            // Устанавливаем позицию
             child.Position = new Vector2(currentX, childY);
             
             // Рассчитываем ширину для flex элементов
@@ -294,7 +309,6 @@ public static class LayoutEngine
                 currentX += child.Size.X;
             }
             
-            // Добавляем margin-right
             currentX += childStyle.Margin.Right;
         }
     }

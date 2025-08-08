@@ -223,9 +223,9 @@ public class Client
                     content.AddChild(button2);
                 }
 
-                // var footer = new VisualElement();
-                // footer.AddClass("footer");
-                // panel.AddChild(footer);
+                var footer = new VisualElement();
+                footer.AddClass("footer");
+                panel.AddChild(footer);
             }
             root.AddChild(panel);
         }
