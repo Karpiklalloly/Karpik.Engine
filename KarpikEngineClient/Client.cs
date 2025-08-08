@@ -141,6 +141,12 @@ public class Client
         
         // Рендерим новую UI систему
         _uiManager.Render();
+        
+        // Отладочная информация о псевдоклассах
+        Raylib.DrawText("Pseudo-classes Demo:", 12, 12, 16, Color.Black);
+        Raylib.DrawText("Hover over buttons to see :hover effect", 12, 32, 16, Color.Black);
+        Raylib.DrawText("Click and hold to see :active effect", 12, 52, 16, Color.Black);
+        Raylib.DrawText("Third button shows :disabled state", 12, 72, 16, Color.Black);
 
         rlImGui.End();
         Raylib.EndDrawing();
@@ -197,6 +203,12 @@ public class Client
         {
             BackgroundColor = Color.Red
         });
+        
+        // Добавляем псевдоклассы для демонстрации
+        root.StyleSheet.AddHover("custom-header", new Style()
+        {
+            BackgroundColor = Color.White // Оранжевый при наведении
+        });
         {
             var panel = new VisualElement();
             panel.AddClass("panel");
@@ -217,7 +229,7 @@ public class Client
                     content.AddChild(button1);
                     
                     var button2 = new Button();
-                    button2.Text = "2";
+                    button2.Text = "22222";
                     button2.OnClick += () => Logger.Instance.Log(button2.Text);
                     button2.AddClass("button");
                     content.AddChild(button2);

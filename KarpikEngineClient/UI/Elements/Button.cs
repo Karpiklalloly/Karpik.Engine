@@ -20,11 +20,7 @@ public class Button : VisualElement
         var clickable = new ClickableManipulator();
         clickable.OnClicked += () => OnClick?.Invoke();
         AddManipulator(clickable);
-        AddManipulator(new HoverEffectManipulator
-        {
-            HoverColor = new Color(25, 118, 210, 255),
-            PressedColor = new Color(13, 71, 161, 255)
-        });
+        AddManipulator(new HoverEffectManipulator());
     }
     
     protected override void RenderSelf()
@@ -39,7 +35,6 @@ public class Button : VisualElement
                 Position.X + (Size.X - textSize) / 2,
                 Position.Y + (Size.Y - Style.FontSize) / 2
             );
-            
             Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, Style.FontSize, Style.TextColor);
         }
     }

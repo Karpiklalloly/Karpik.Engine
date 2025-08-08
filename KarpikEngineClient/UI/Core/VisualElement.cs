@@ -1,4 +1,5 @@
 using System.Numerics;
+using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -27,6 +28,7 @@ public class VisualElement
     public VisualElement(string name = "UIElement")
     {
         Name = name;
+        AddManipulator(new HoverEffectManipulator());
     }
     
     public void AddChild(VisualElement child)
@@ -192,7 +194,11 @@ public class VisualElement
             var tempStyle = styleSheet.ComputeStyle(this);
             computedStyle.CopyFrom(tempStyle);
         }
-        
+
+        if (HasClass("button") && !IsHovered)
+        {
+            
+        }
         computedStyle.CopyFrom(Style);
         
         return computedStyle;

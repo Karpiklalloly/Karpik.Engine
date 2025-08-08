@@ -192,3 +192,15 @@ public enum AlignText
     Center,
     Right
 }
+
+public enum PseudoClass
+{
+    None = 0,
+    Hover = 1,
+    Active = 2,
+    Focus = 4,
+    Disabled = 8,
+    Checked = 16,
+    FirstChild = 32,
+    LastChild = 64
+}

@@ -33,10 +33,18 @@ public class UIManager
             Console.WriteLine(e);
             throw;
         }
+
+        try
+        {
+            // Рендерим UI
+            Root.Render();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
         
-        
-        // Рендерим UI
-        Root.Render();
     }
     
     public void SetRoot(VisualElement root)

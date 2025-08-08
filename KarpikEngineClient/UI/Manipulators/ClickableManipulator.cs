@@ -19,7 +19,6 @@ public class ClickableManipulator : Manipulator
         bool isPressed = isHovered && Raylib.IsMouseButtonDown(MouseButton.Left);
         bool wasClicked = isHovered && Raylib.IsMouseButtonReleased(MouseButton.Left) && _wasPressed;
         
-        Element.HandleHover(isHovered);
         Element.HandlePress(isPressed);
         
         if (wasClicked)
