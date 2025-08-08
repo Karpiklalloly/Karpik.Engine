@@ -11,10 +11,8 @@ public static class UI
 
     internal static void Update()
     {
-        Root.Style.Width = Raylib.GetRenderWidth() - 200;
-        Root.Style.Height = Raylib.GetRenderHeight() - 200;
-        var computed = Root.GetComputedStyle();
-        Root.Position = new Vector2(Raylib.GetRenderWidth() / 2 - computed.Width / 2, Raylib.GetRenderHeight() / 2 - computed.Height / 2);
+        Root.Style.Width = Raylib.GetRenderWidth();
+        Root.Style.Height = Raylib.GetRenderHeight();
         Root.Update(Time.DeltaTime);
     }
 

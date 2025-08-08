@@ -41,6 +41,19 @@ public class Style
     public StyleValue<Color> Color { get; set; } = new StyleValue<Color>(Raylib_cs.Color.Black);
     public StyleValue<int> FontSize { get; set; } = new StyleValue<int>(16);
     public StyleValue<TextAlign> TextAlign { get; set; } = new StyleValue<TextAlign>(UIToolkit.TextAlign.Left);
+    
+    public StyleValue<PositionType> Position { get; set; } = new StyleValue<PositionType>(PositionType.Relative);
+    public StyleValue<float> Top { get; set; }
+    public StyleValue<float> Right { get; set; }
+    public StyleValue<float> Bottom { get; set; }
+    public StyleValue<float> Left { get; set; }
+    
+    // Упрощенные padding/margin как одно значение
+    public StyleValue<float> Padding { get; set; }
+    public StyleValue<float> Margin { get; set; }
+    
+    // Box-sizing
+    public StyleValue<BoxSizing> BoxSizing { get; set; } = new StyleValue<BoxSizing>(UIToolkit.BoxSizing.ContentBox);
 }
 
 // Вспомогательные типы
@@ -101,4 +114,18 @@ public enum TextAlign
     Left,
     Center,
     Right
+}
+
+public enum PositionType
+{
+    Static,
+    Relative,
+    Absolute,
+    Fixed
+}
+
+public enum BoxSizing
+{
+    ContentBox,
+    BorderBox
 }

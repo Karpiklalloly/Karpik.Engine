@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Client.UIToolkit;
 
-public class StyleSheet
+public class StyleSheet : ICloneable
 {
     public List<StyleRule> Rules { get; } = [];
     
@@ -23,5 +23,24 @@ public class StyleSheet
         }
         
         return computedStyles;
+    }
+
+    public object Clone()
+    {
+        var clone = new StyleSheet();
+        foreach (var rule in Rules)
+        {
+            clone.Rules.Add((StyleRule)rule.Clone());
+        }
+        return clone;
+    }
+    
+    public void CopyFrom(StyleSheet other)
+    {
+        Rules.Clear();
+        foreach (var rule in other.Rules)
+        {
+            Rules.Add((StyleRule)rule.Clone());
+        }
     }
 }

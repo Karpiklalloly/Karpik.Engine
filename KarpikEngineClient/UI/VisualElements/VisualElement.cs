@@ -58,6 +58,7 @@ public class VisualElement
     {
         var computedStyle = GetComputedStyle();
         
+        // Применяем размеры из стилей
         ApplySizeStyles(computedStyle);
     }
     
@@ -98,28 +99,46 @@ public class VisualElement
     
     public Style GetComputedStyle()
     {
+        // Базовые стили элемента
         var computed = new Style();
-        
-        if (StyleSheet != null)
+    
+        // Получаем StyleSheet от корня через родителей
+        var styleSheet = GetRootStyleSheet();
+    
+        // Если есть StyleSheet, применяем его правила
+        if (styleSheet != null)
         {
             // Применяем базовые стили
-            ApplyStyleSheetRules(StyleSheet, computed, "");
-            
+            ApplyStyleSheetRules(styleSheet, computed, "");
+        
             // Применяем псевдоклассы
             if (IsHovered)
-                ApplyStyleSheetRules(StyleSheet, computed, ":hover");
+                ApplyStyleSheetRules(styleSheet, computed, ":hover");
             if (IsActive)
-                ApplyStyleSheetRules(StyleSheet, computed, ":active");
+                ApplyStyleSheetRules(styleSheet, computed, ":active");
             if (!Enabled)
-                ApplyStyleSheetRules(StyleSheet, computed, ":disabled");
+                ApplyStyleSheetRules(styleSheet, computed, ":disabled");
             if (IsFocused)
-                ApplyStyleSheetRules(StyleSheet, computed, ":focus");
+                ApplyStyleSheetRules(styleSheet, computed, ":focus");
         }
-        
+    
         // Применяем inline-стили (они имеют больший приоритет)
         ApplyInlineStyles(computed);
-        
+    
         return computed;
+    }
+    
+    private StyleSheet GetRootStyleSheet()
+    {
+        // Ищем StyleSheet у себя или у родителей
+        var current = this;
+        while (current != null)
+        {
+            if (current.StyleSheet != null)
+                return current.StyleSheet;
+            current = current.Parent as VisualElement;
+        }
+        return null;
     }
     
     // 📋 Применение стилей из StyleSheet
@@ -189,12 +208,30 @@ public class VisualElement
         // Текст
         if (Style.FontSize.IsSet) target.FontSize = Style.FontSize;
         if (Style.TextAlign.IsSet) target.TextAlign = Style.TextAlign;
+        
+        if (Style.Position.IsSet) target.Position = Style.Position;
+        if (Style.Top.IsSet) target.Top = Style.Top;
+        if (Style.Right.IsSet) target.Right = Style.Right;
+        if (Style.Bottom.IsSet) target.Bottom = Style.Bottom;
+        if (Style.Left.IsSet) target.Left = Style.Left;
+    
+        if (Style.Padding.IsSet) target.Padding = Style.Padding;
+        if (Style.Margin.IsSet) target.Margin = Style.Margin;
+    
+        if (Style.BoxSizing.IsSet) target.BoxSizing = Style.BoxSizing;
     }
 
     public virtual void Update(double deltaTime)
     {
-        // Применяем стили каждый кадр (или можно оптимизировать)
+        // Применяем стили
         ApplyStyles();
+        
+        // Рассчитываем layout если это корневой элемент
+        if (Parent == null)
+        {
+            var availableSpace = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight()); // Размеры окна
+            LayoutEngine.CalculateLayout(this, availableSpace);
+        }
         
         // Обновляем всех детей
         foreach (var child in Children)
@@ -206,31 +243,51 @@ public class VisualElement
     public virtual void Render()
     {
         if (!Visible) return;
-        
+    
         var computedStyle = GetComputedStyle();
-        
-        // Рендерим фон
+    
+        // Применяем padding для расчета внутренней области
+        Rectangle contentRect = CalculateContentRect(computedStyle);
+    
+        // Рендерим фон с учетом padding
         if (computedStyle.BackgroundColor.IsSet && computedStyle.BackgroundColor.Value.A > 0)
         {
             var bgColor = computedStyle.BackgroundColor.Value;
-            Raylib.DrawRectangle((int)Position.X, (int)Position.Y, 
-                               (int)Size.X, (int)Size.Y, bgColor);
+            Raylib.DrawRectangle(
+                (int)contentRect.X, (int)contentRect.Y,
+                (int)contentRect.Width, (int)contentRect.Height, 
+                bgColor);
         }
-        
-        // Рендерим рамку
+    
+        // Рендерим рамку (внешнюю, вокруг padding)
         if (computedStyle.BorderWidth.IsSet && computedStyle.BorderWidth.Value > 0 && 
             computedStyle.BorderColor.IsSet && computedStyle.BorderColor.Value.A > 0)
         {
+            Rectangle borderRect = new Rectangle(
+                Position.X, Position.Y, 
+                Size.X, Size.Y);
+            
             Raylib.DrawRectangleLinesEx(
-                new Rectangle(Position.X, Position.Y, Size.X, Size.Y),
-                computedStyle.BorderWidth.Value, computedStyle.BorderColor.Value);
+                borderRect,
+                computedStyle.BorderWidth.Value, 
+                computedStyle.BorderColor.Value);
         }
-        
+    
         // Рендерим детей
         foreach (var child in Children)
         {
             child.Render();
         }
+    }
+    
+    public void CalculateLayout()
+    {
+        var availableSpace = new Rectangle(
+            Position.X, Position.Y, 
+            Size.X, Size.Y
+        );
+        
+        LayoutEngine.CalculateLayout(this, availableSpace);
     }
     
     // Работа с манипуляторами
@@ -325,5 +382,20 @@ public class VisualElement
         }
         
         ClassList = string.Join(" ", newClasses);
+    }
+    
+    private Rectangle CalculateContentRect(Style style)
+    {
+        float paddingLeft = style.PaddingLeft.IsSet ? style.PaddingLeft.Value : 0;
+        float paddingRight = style.PaddingRight.IsSet ? style.PaddingRight.Value : 0;
+        float paddingTop = style.PaddingTop.IsSet ? style.PaddingTop.Value : 0;
+        float paddingBottom = style.PaddingBottom.IsSet ? style.PaddingBottom.Value : 0;
+    
+        return new Rectangle(
+            Position.X + paddingLeft,
+            Position.Y + paddingTop,
+            Size.X - paddingLeft - paddingRight,
+            Size.Y - paddingTop - paddingBottom
+        );
     }
 }

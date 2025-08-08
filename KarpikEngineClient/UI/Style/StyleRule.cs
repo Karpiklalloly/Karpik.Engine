@@ -2,11 +2,11 @@
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public class StyleRule
+public class StyleRule : ICloneable
 {
     public string Selector { get; set; }
-    public Dictionary<string, string> Properties { get; } = new();
-    public Dictionary<string, StyleRule> PseudoClasses { get; } = new();
+    public Dictionary<string, string> Properties { get; init; } = new();
+    public Dictionary<string, StyleRule> PseudoClasses { get; init; } = new();
 
     public StyleRule(string selector)
     {
@@ -23,13 +23,24 @@ public class StyleRule
         }
         else if (Selector.StartsWith("."))
         {
-            // Class selector (пока упрощенно)
-            return element.ClassList?.Contains(Selector.Substring(1)) ?? false;
+            // Class selector
+            return element.HasClass(Selector.Substring(1));
         }
         else
         {
-            // Type selector
-            return element.GetType().Name.ToLower() == Selector.ToLower();
+            // Type selector - проверяем по имени элемента или типу
+            var elementType = element.GetType().Name.ToLower();
+            var selectorType = Selector.ToLower();
+        
+            // Для общих элементов
+            if (elementType == selectorType)
+                return true;
+            
+            // Для кнопок
+            if (selectorType == "button" && element is Button)
+                return true;
+            
+            return false;
         }
     }
 
@@ -162,6 +173,26 @@ public class StyleRule
             case "text-align":
                 target.TextAlign = new StyleValue<TextAlign>(ParseTextAlign(value));
                 break;
+            case "position":
+                target.Position = new StyleValue<PositionType>(ParsePositionType(value));
+                break;
+            case "top":
+                target.Top = new StyleValue<float>(ParseFloat(value));
+                break;
+            case "right":
+                target.Right = new StyleValue<float>(ParseFloat(value));
+                break;
+            case "bottom":
+                target.Bottom = new StyleValue<float>(ParseFloat(value));
+                break;
+            case "left":
+                target.Left = new StyleValue<float>(ParseFloat(value));
+                break;
+            case "box-sizing":
+                target.BoxSizing = new StyleValue<BoxSizing>(ParseBoxSizing(value));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(name), name, "Out of range property name");
         }
     }
 
@@ -335,5 +366,37 @@ public class StyleRule
             case "right": return TextAlign.Right;
             default: return TextAlign.Left;
         }
+    }
+    
+    private PositionType ParsePositionType(string value)
+    {
+        switch (value.ToLower())
+        {
+            case "static": return PositionType.Static;
+            case "relative": return PositionType.Relative;
+            case "absolute": return PositionType.Absolute;
+            case "fixed": return PositionType.Fixed;
+            default: return PositionType.Relative;
+        }
+    }
+
+    private BoxSizing ParseBoxSizing(string value)
+    {
+        switch (value.ToLower())
+        {
+            case "content-box": return BoxSizing.ContentBox;
+            case "border-box": return BoxSizing.BorderBox;
+            default: return BoxSizing.ContentBox;
+        }
+    }
+
+    public object Clone()
+    {
+        var clone = new StyleRule(Selector)
+        {
+            Properties = new Dictionary<string, string>(Properties),
+            PseudoClasses = new Dictionary<string, StyleRule>(PseudoClasses)
+        };
+        return clone;
     }
 }
