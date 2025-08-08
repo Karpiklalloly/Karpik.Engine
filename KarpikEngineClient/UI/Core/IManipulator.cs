@@ -1,0 +1,30 @@
+namespace Karpik.Engine.Client.UIToolkit.Core;
+
+public interface IManipulator
+{
+    void Attach(VisualElement element);
+    void Detach(VisualElement element);
+    void Update(float deltaTime);
+}
+
+public abstract class Manipulator : IManipulator
+{
+    protected VisualElement? Element { get; private set; }
+    
+    public virtual void Attach(VisualElement element)
+    {
+        Element = element;
+        OnAttach();
+    }
+    
+    public virtual void Detach(VisualElement element)
+    {
+        OnDetach();
+        Element = null;
+    }
+    
+    public abstract void Update(float deltaTime);
+    
+    protected virtual void OnAttach() { }
+    protected virtual void OnDetach() { }
+}
