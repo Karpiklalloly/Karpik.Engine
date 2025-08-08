@@ -80,6 +80,9 @@ public static class LayoutEngine
         else if (style.Bottom.HasValue)
             position.Y = availableSpace.Y + availableSpace.Height - element.Size.Y - style.Bottom.Value;
         
+        // Отладка
+        Console.WriteLine($"Absolute element {element.Name}: availableSpace={availableSpace}, calculated position=({position.X}, {position.Y})");
+        
         element.Position = position;
     }
     
@@ -113,10 +116,23 @@ public static class LayoutEngine
         // Рекурсивно рассчитываем layout для детей
         foreach (var child in visibleChildren)
         {
-            var childContentArea = new Rectangle(
-                child.Position.X, child.Position.Y,
-                child.Size.X, child.Size.Y
-            );
+            // Для абсолютно позиционированных элементов используем весь экран
+            var childStyle = styleSheet.ComputeStyle(child);
+            Rectangle childContentArea;
+            
+            if (childStyle.Position == Position.Absolute)
+            {
+                // Абсолютно позиционированные элементы позиционируются относительно корня
+                childContentArea = GetRootAvailableSpace(parent);
+            }
+            else
+            {
+                childContentArea = new Rectangle(
+                    child.Position.X, child.Position.Y,
+                    child.Size.X, child.Size.Y
+                );
+            }
+            
             CalculateLayoutRecursive(child, styleSheet, childContentArea);
         }
     }
@@ -282,5 +298,15 @@ public static class LayoutEngine
         public VisualElement Element { get; set; } = null!;
         public Style Style { get; set; } = null!;
         public bool IsFlexItem { get; set; }
+    }
+    
+    private static Rectangle GetRootAvailableSpace(VisualElement element)
+    {
+        // Поднимаемся до корневого элемента
+        var root = element;
+        while (root.Parent != null)
+            root = root.Parent;
+            
+        return new Rectangle(0, 0, root.Size.X, root.Size.Y);
     }
 }
