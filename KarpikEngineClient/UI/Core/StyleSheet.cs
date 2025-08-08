@@ -175,6 +175,82 @@ public class StyleSheet
         };
         styleSheet.AddClass("content", contentStyle);
         
+        // Стиль для лейблов
+        var labelStyle = new Style
+        {
+            Height = 25,
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 14,
+            Padding = new Padding(5, 2),
+            Margin = new Margin(0, 0, 0, 5)
+        };
+        styleSheet.AddClass("label", labelStyle);
+        
+        // Стиль для текстовых полей
+        var textInputStyle = new Style
+        {
+            Height = 35,
+            BackgroundColor = Color.White,
+            BorderColor = new Color(200, 200, 200, 255),
+            BorderWidth = 1,
+            BorderRadius = 4,
+            Padding = new Padding(10, 8),
+            Margin = new Margin(0, 0, 0, 10),
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 14
+        };
+        styleSheet.AddClass("textinput", textInputStyle);
+        
+        // Псевдоклассы для текстовых полей
+        styleSheet.AddFocus("textinput", new Style 
+        { 
+            BorderColor = new Color(33, 150, 243, 255),
+            BorderWidth = 2
+        });
+        
+        // Стиль для чекбоксов
+        var checkboxStyle = new Style
+        {
+            Height = 25,
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 14,
+            Margin = new Margin(0, 0, 0, 8)
+        };
+        styleSheet.AddClass("checkbox", checkboxStyle);
+        
+        // Стиль для слайдеров
+        var sliderStyle = new Style
+        {
+            Height = 30,
+            Margin = new Margin(0, 0, 0, 15)
+        };
+        styleSheet.AddClass("slider", sliderStyle);
+        
+        // Стиль для прогресс-баров
+        var progressBarStyle = new Style
+        {
+            Height = 25,
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 12,
+            Margin = new Margin(0, 0, 0, 10)
+        };
+        styleSheet.AddClass("progressbar", progressBarStyle);
+        
+        // Стиль для выпадающих списков
+        var dropdownStyle = new Style
+        {
+            Height = 35,
+            BackgroundColor = Color.White,
+            BorderColor = new Color(200, 200, 200, 255),
+            BorderWidth = 1,
+            BorderRadius = 4,
+            Padding = new Padding(10, 8),
+            Margin = new Margin(0, 0, 0, 10),
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 14
+        };
+        styleSheet.AddClass("dropdown", dropdownStyle);
+        
         return styleSheet;
     }
 

@@ -1,4 +1,5 @@
 using System.Numerics;
+using Karpik.Engine.Client.UIToolkit.Elements;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -7,6 +8,7 @@ public class UIManager
 {
     public VisualElement? Root { get; set; }
     public StyleSheet StyleSheet { get; set; }
+    public ToastManager? ToastManager { get; private set; }
     
     public UIManager()
     {
@@ -50,5 +52,11 @@ public class UIManager
     public void SetRoot(VisualElement root)
     {
         Root = root;
+        ToastManager = new ToastManager(root);
+    }
+    
+    public void ShowToast(string message, ToastType type = ToastType.Info, float duration = 3f)
+    {
+        ToastManager?.ShowToast(message, type, duration);
     }
 }

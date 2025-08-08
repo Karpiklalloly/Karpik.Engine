@@ -24,7 +24,7 @@ public static class LayoutEngine
         
         var computedStyle = element.ComputeStyle();
         
-        element.Style.CopyFrom(computedStyle);
+        element.ResolvedStyle.CopyFrom(computedStyle);
         
         // 1. Рассчитываем размеры элемента
         CalculateElementSize(element, computedStyle, availableSpace);

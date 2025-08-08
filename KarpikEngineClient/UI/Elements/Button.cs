@@ -30,12 +30,12 @@ public class Button : VisualElement
         // Рендерим текст
         if (!string.IsNullOrEmpty(Text))
         {
-            var textSize = Raylib.MeasureText(Text, Style.FontSize);
+            var textSize = Raylib.MeasureText(Text, ResolvedStyle.FontSize);
             var textPos = new System.Numerics.Vector2(
                 Position.X + (Size.X - textSize) / 2,
-                Position.Y + (Size.Y - Style.FontSize) / 2
+                Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
             );
-            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, Style.FontSize, Style.TextColor);
+            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
         }
     }
 }

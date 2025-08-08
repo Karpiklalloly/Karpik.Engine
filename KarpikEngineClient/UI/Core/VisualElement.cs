@@ -15,11 +15,16 @@ public class VisualElement
     public VisualElement? Parent { get; private set; }
     public List<VisualElement> Children { get; } = new();
     
+    // Стили
     public Style Style { get; } = new();
     public List<string> Classes { get; } = new();
     public StyleSheet StyleSheet { get; set; } = new();
     
+    // Финальные вычисленные стили (обновляются в LayoutEngine)
+    public Style ResolvedStyle { get; private set; } = new();
+    
     private readonly List<IManipulator> _manipulators = new();
+    private readonly AnimationManager _animationManager = new();
     
     public bool IsHovered { get; private set; }
     public bool IsFocused { get; private set; }
@@ -85,10 +90,12 @@ public class VisualElement
     
     public virtual void Update(float deltaTime)
     {
+        _animationManager.Update(deltaTime);
+        
         foreach (var manipulator in _manipulators)
             manipulator.Update(deltaTime);
             
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
             child.Update(deltaTime);
     }
     
@@ -105,41 +112,41 @@ public class VisualElement
     protected virtual void RenderSelf()
     {
         // Рендерим фон
-        if (Style.BackgroundColor.A > 0)
+        if (ResolvedStyle.BackgroundColor.A > 0)
         {
             // Если BorderRadius больше половины размера - рендерим как круг
-            if (Style.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+            if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
             {
                 var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
                 var radius = Math.Min(Size.X, Size.Y) / 2;
-                Raylib.DrawCircleV(center, radius, Style.BackgroundColor);
+                Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor);
             }
             else
             {
                 Raylib.DrawRectangle(
                     (int)Position.X, (int)Position.Y,
                     (int)Size.X, (int)Size.Y,
-                    Style.BackgroundColor
+                    ResolvedStyle.BackgroundColor
                 );
             }
         }
         
         // Рендерим рамку
-        if (Style.BorderWidth > 0 && Style.BorderColor.A > 0)
+        if (ResolvedStyle.BorderWidth > 0 && ResolvedStyle.BorderColor.A > 0)
         {
             // Если BorderRadius больше половины размера - рендерим как круг
-            if (Style.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+            if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
             {
                 var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
                 var radius = Math.Min(Size.X, Size.Y) / 2;
-                Raylib.DrawCircleLinesV(center, radius, Style.BorderColor);
+                Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor);
             }
             else
             {
                 Raylib.DrawRectangleLinesEx(
                     new Rectangle(Position.X, Position.Y, Size.X, Size.Y),
-                    Style.BorderWidth,
-                    Style.BorderColor
+                    ResolvedStyle.BorderWidth,
+                    ResolvedStyle.BorderColor
                 );
             }
         }
@@ -218,5 +225,35 @@ public class VisualElement
         hierarchy.Reverse();
 
         return hierarchy.Select(element => element.StyleSheet).ToList();
+    }
+    
+    // Методы для работы с анимациями
+    public void AddAnimation(Animation animation)
+    {
+        _animationManager.AddAnimation(animation);
+    }
+    
+    public void FadeIn(float duration = 0.3f, Action? onComplete = null)
+    {
+        var animation = Animation.FadeIn(this, duration, onComplete);
+        AddAnimation(animation);
+    }
+    
+    public void FadeOut(float duration = 0.3f, Action? onComplete = null)
+    {
+        var animation = Animation.FadeOut(this, duration, onComplete);
+        AddAnimation(animation);
+    }
+    
+    public void SlideIn(Vector2 fromOffset, float duration = 0.3f, Action? onComplete = null)
+    {
+        var animation = Animation.SlideIn(this, fromOffset, duration, onComplete);
+        AddAnimation(animation);
+    }
+    
+    public void ScaleIn(float duration = 0.3f, Action? onComplete = null)
+    {
+        var animation = Animation.Scale(this, Vector2.Zero, Vector2.One, duration, onComplete);
+        AddAnimation(animation);
     }
 }
