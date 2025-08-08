@@ -1,6 +1,6 @@
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Core;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class StyleSheet
 {
@@ -25,16 +25,13 @@ public class StyleSheet
     {
         var computedStyle = new Style();
         
-        // Применяем стили классов в порядке добавления
+        // Применяем только стили классов (inline стили применяются в VisualElement)
         foreach (var className in element.Classes)
         {
             var classStyle = GetClassStyle(className);
             if (classStyle != null)
                 computedStyle.CopyFrom(classStyle);
         }
-        
-        // Применяем inline стили (они имеют наивысший приоритет)
-        computedStyle.CopyFrom(element.Style);
         
         return computedStyle;
     }
@@ -76,7 +73,6 @@ public class StyleSheet
             TextColor = Color.White,
             FontSize = 18,
             Text = AlignText.Center,
-            BorderRadius = 5,
             Margin = new Margin(0, 0, 0, 10)
         };
         styleSheet.AddClass("header", headerStyle);
@@ -94,5 +90,27 @@ public class StyleSheet
         styleSheet.AddClass("content", contentStyle);
         
         return styleSheet;
+    }
+
+    public static StyleSheet Combine(StyleSheet first, StyleSheet second)
+    {
+        StyleSheet s = new();
+        if (first != null)
+        {
+            foreach (var style in first._classStyles)
+            {
+                s._classStyles[style.Key] = style.Value;
+            }
+        }
+
+        if (second != null)
+        {
+            foreach (var style in second._classStyles)
+            {
+                s._classStyles[style.Key] = style.Value;
+            }
+        }
+
+        return s;
     }
 }

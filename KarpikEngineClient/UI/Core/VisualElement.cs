@@ -1,11 +1,11 @@
 using System.Numerics;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Core;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class VisualElement
 {
-    public string Name { get; set; } = "";
+    public string Name { get; set; }
     public Vector2 Position { get; set; }
     public Vector2 Size { get; set; }
     public bool Visible { get; set; } = true;
@@ -17,14 +17,10 @@ public class VisualElement
     // Стили
     public Style Style { get; } = new();
     public List<string> Classes { get; } = new();
+    public StyleSheet? StyleSheet { get; set; }
     
     // Манипуляторы
     private readonly List<IManipulator> _manipulators = new();
-    
-    // События
-    public event Action<VisualElement>? OnClick;
-    public event Action<VisualElement>? OnHover;
-    public event Action<VisualElement>? OnFocus;
     
     // Состояние
     public bool IsHovered { get; private set; }
@@ -77,6 +73,11 @@ public class VisualElement
             _manipulators.Add(manipulator);
             manipulator.Attach(this);
         }
+    }
+    
+    public T? GetManipulator<T>() where T : IManipulator
+    {
+        return (T?)_manipulators.FirstOrDefault(x => x.GetType() == typeof(T));
     }
     
     public void RemoveManipulator(IManipulator manipulator)
@@ -151,7 +152,7 @@ public class VisualElement
     // Обработка событий
     public virtual void HandleClick()
     {
-        OnClick?.Invoke(this);
+        
     }
     
     public virtual void HandleHover(bool isHovered)
@@ -159,8 +160,6 @@ public class VisualElement
         if (IsHovered != isHovered)
         {
             IsHovered = isHovered;
-            if (isHovered)
-                OnHover?.Invoke(this);
         }
     }
     
@@ -169,8 +168,6 @@ public class VisualElement
         if (IsFocused != isFocused)
         {
             IsFocused = isFocused;
-            if (isFocused)
-                OnFocus?.Invoke(this);
         }
     }
     
@@ -189,5 +186,131 @@ public class VisualElement
     public Rectangle GetBounds()
     {
         return new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
+    }
+    
+    // Получение эффективного StyleSheet (свой или родительский)
+    public StyleSheet? GetEffectiveStyleSheet()
+    {
+        // Сначала проверяем свой StyleSheet
+        if (StyleSheet != null)
+            return StyleSheet;
+            
+        // Если нет своего, ищем у родителей
+        var current = Parent;
+        while (current != null)
+        {
+            if (current.StyleSheet != null)
+                return current.StyleSheet;
+            current = current.Parent;
+        }
+        
+        return null;
+    }
+    
+    // Вычисление стилей с учетом иерархии StyleSheet
+    public Style ComputeStyle()
+    {
+        var computedStyle = new Style();
+        
+        // Собираем все StyleSheet от корня к текущему элементу
+        var styleSheets = GetAllStyleSheetsInHierarchy();
+        
+        // Применяем стили в порядке от корня к листу (каскадно)
+        foreach (var styleSheet in styleSheets)
+        {
+            var tempStyle = styleSheet.ComputeStyle(this);
+            computedStyle.CopyFrom(tempStyle);
+        }
+        
+        // Применяем inline стили (наивысший приоритет)
+        computedStyle.CopyFrom(Style);
+        
+        return computedStyle;
+    }
+    
+    // Получение всех StyleSheet в иерархии от корня к текущему элементу
+    private List<StyleSheet> GetAllStyleSheetsInHierarchy()
+    {
+        var styleSheets = new List<StyleSheet>();
+        var hierarchy = new List<VisualElement>();
+        
+        // Собираем путь от корня к текущему элементу
+        var current = this;
+        while (current != null)
+        {
+            hierarchy.Add(current);
+            current = current.Parent;
+        }
+        
+        // Переворачиваем, чтобы идти от корня к листу
+        hierarchy.Reverse();
+        
+        // Собираем StyleSheet в правильном порядке
+        foreach (var element in hierarchy)
+        {
+            if (element.StyleSheet != null)
+                styleSheets.Add(element.StyleSheet);
+        }
+        
+        return styleSheets;
+    }
+    
+    // Удобные методы для работы со StyleSheet
+    public void SetStyleSheet(StyleSheet styleSheet)
+    {
+        StyleSheet = styleSheet;
+    }
+    
+    public void ApplyStyleSheet(StyleSheet styleSheet, bool recursive = false)
+    {
+        StyleSheet = styleSheet;
+        
+        if (recursive)
+        {
+            foreach (var child in Children)
+                child.ApplyStyleSheet(styleSheet, true);
+        }
+    }
+    
+    public void ClearStyleSheet(bool recursive = false)
+    {
+        StyleSheet = null;
+        
+        if (recursive)
+        {
+            foreach (var child in Children)
+                child.ClearStyleSheet(true);
+        }
+    }
+    
+    // Отладочный метод - получить информацию о применяемых стилях
+    public string GetStyleDebugInfo()
+    {
+        var info = new List<string>();
+        var styleSheets = GetAllStyleSheetsInHierarchy();
+        
+        info.Add($"Element: {Name}");
+        info.Add($"Classes: [{string.Join(", ", Classes)}]");
+        info.Add($"StyleSheets in hierarchy: {styleSheets.Count}");
+        
+        for (int i = 0; i < styleSheets.Count; i++)
+        {
+            var owner = GetStyleSheetOwner(styleSheets[i]);
+            info.Add($"  {i + 1}. StyleSheet from: {owner?.Name ?? "Unknown"}");
+        }
+        
+        return string.Join("\n", info);
+    }
+    
+    private VisualElement? GetStyleSheetOwner(StyleSheet targetStyleSheet)
+    {
+        var current = this;
+        while (current != null)
+        {
+            if (current.StyleSheet == targetStyleSheet)
+                return current;
+            current = current.Parent;
+        }
+        return null;
     }
 }

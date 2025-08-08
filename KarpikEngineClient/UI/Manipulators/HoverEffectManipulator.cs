@@ -1,4 +1,4 @@
-using Karpik.Engine.Client.UIToolkit.Core;
+using Karpik.Engine.Client.UIToolkit;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit.Manipulators;

@@ -1,23 +1,32 @@
 using System.Numerics;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Core;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public static class LayoutEngine
 {
-    public static void CalculateLayout(VisualElement root, StyleSheet styleSheet, Rectangle availableSpace)
+    public static void CalculateLayout(VisualElement root, StyleSheet? globalStyleSheet, Rectangle availableSpace)
     {
         root.Position = new Vector2(availableSpace.X, availableSpace.Y);
         root.Size = new Vector2(availableSpace.Width, availableSpace.Height);
+
+        var style = StyleSheet.Combine(globalStyleSheet, root.StyleSheet);
         
-        CalculateLayoutRecursive(root, styleSheet, availableSpace);
+        // Если у корневого элемента нет StyleSheet, используем глобальный
+        // if (root.StyleSheet == null && globalStyleSheet != null)
+            // root.StyleSheet = globalStyleSheet;
+
+        var old = root.StyleSheet;
+        root.StyleSheet = style;
+        CalculateLayoutRecursive(root, availableSpace);
+        root.StyleSheet = old;
     }
     
-    private static void CalculateLayoutRecursive(VisualElement element, StyleSheet styleSheet, Rectangle availableSpace)
+    private static void CalculateLayoutRecursive(VisualElement element, Rectangle availableSpace)
     {
         if (!element.Visible) return;
         
-        var computedStyle = styleSheet.ComputeStyle(element);
+        var computedStyle = element.ComputeStyle();
         
         // Применяем вычисленные стили к элементу
         element.Style.CopyFrom(computedStyle);
@@ -34,7 +43,7 @@ public static class LayoutEngine
         // 3. Рассчитываем layout для детей
         if (element.Children.Count > 0)
         {
-            CalculateChildrenLayout(element, computedStyle, styleSheet);
+            CalculateChildrenLayout(element, computedStyle);
         }
     }
     
@@ -80,13 +89,10 @@ public static class LayoutEngine
         else if (style.Bottom.HasValue)
             position.Y = availableSpace.Y + availableSpace.Height - element.Size.Y - style.Bottom.Value;
         
-        // Отладка
-        Console.WriteLine($"Absolute element {element.Name}: availableSpace={availableSpace}, calculated position=({position.X}, {position.Y})");
-        
         element.Position = position;
     }
     
-    private static void CalculateChildrenLayout(VisualElement parent, Style parentStyle, StyleSheet styleSheet)
+    private static void CalculateChildrenLayout(VisualElement parent, Style parentStyle)
     {
         if (parent.Children.Count == 0) return;
         
@@ -106,18 +112,18 @@ public static class LayoutEngine
         if (parentStyle.FlexDirection == FlexDirection.Column || 
             parentStyle.FlexDirection == FlexDirection.ColumnReverse)
         {
-            LayoutColumn(visibleChildren, parentStyle, styleSheet, contentArea);
+            LayoutColumn(visibleChildren, parentStyle, contentArea);
         }
         else
         {
-            LayoutRow(visibleChildren, parentStyle, styleSheet, contentArea);
+            LayoutRow(visibleChildren, parentStyle, contentArea);
         }
         
         // Рекурсивно рассчитываем layout для детей
         foreach (var child in visibleChildren)
         {
             // Для абсолютно позиционированных элементов используем весь экран
-            var childStyle = styleSheet.ComputeStyle(child);
+            var childStyle = child.ComputeStyle();
             Rectangle childContentArea;
             
             if (childStyle.Position == Position.Absolute)
@@ -133,11 +139,11 @@ public static class LayoutEngine
                 );
             }
             
-            CalculateLayoutRecursive(child, styleSheet, childContentArea);
+            CalculateLayoutRecursive(child, childContentArea);
         }
     }
     
-    private static void LayoutColumn(List<VisualElement> children, Style parentStyle, StyleSheet styleSheet, Rectangle contentArea)
+    private static void LayoutColumn(List<VisualElement> children, Style parentStyle, Rectangle contentArea)
     {
         float totalHeight = 0;
         float totalFlexGrow = 0;
@@ -146,7 +152,7 @@ public static class LayoutEngine
         // Первый проход: собираем информацию о детях
         foreach (var child in children)
         {
-            var childStyle = styleSheet.ComputeStyle(child);
+            var childStyle = child.ComputeStyle();
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             // Рассчитываем размеры
@@ -215,16 +221,16 @@ public static class LayoutEngine
         }
     }
     
-    private static void LayoutRow(List<VisualElement> children, Style parentStyle, StyleSheet styleSheet, Rectangle contentArea)
+    private static void LayoutRow(List<VisualElement> children, Style parentStyle, Rectangle contentArea)
     {
         float totalWidth = 0;
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
         
-        // Первый проход: собираем информацию о детях
+        // Первый проход: собираем информацию о детей
         foreach (var child in children)
         {
-            var childStyle = styleSheet.ComputeStyle(child);
+            var childStyle = child.ComputeStyle();
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             // Рассчитываем размеры

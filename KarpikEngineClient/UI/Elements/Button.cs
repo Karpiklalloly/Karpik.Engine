@@ -1,4 +1,4 @@
-using Karpik.Engine.Client.UIToolkit.Core;
+using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
 
@@ -7,6 +7,7 @@ namespace Karpik.Engine.Client.UIToolkit.Elements;
 public class Button : VisualElement
 {
     public string Text { get; set; }
+    public event Action OnClick;
     
     public Button(string text = "Button") : base("Button")
     {
@@ -16,7 +17,9 @@ public class Button : VisualElement
         AddClass("button");
         
         // Добавляем базовые манипуляторы
-        AddManipulator(new ClickableManipulator());
+        var clickable = new ClickableManipulator();
+        clickable.OnClicked += () => OnClick?.Invoke();
+        AddManipulator(clickable);
         AddManipulator(new HoverEffectManipulator
         {
             HoverColor = new Color(25, 118, 210, 255),

@@ -1,4 +1,4 @@
-namespace Karpik.Engine.Client.UIToolkit.Core;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public interface IManipulator
 {

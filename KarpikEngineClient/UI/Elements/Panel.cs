@@ -1,4 +1,4 @@
-using Karpik.Engine.Client.UIToolkit.Core;
+using Karpik.Engine.Client.UIToolkit;
 
 namespace Karpik.Engine.Client.UIToolkit.Elements;
 
@@ -10,6 +10,6 @@ public class Panel : VisualElement
         AddClass("panel");
         
         // Устанавливаем flexbox по умолчанию
-        Style.FlexDirection = Core.FlexDirection.Column;
+        Style.FlexDirection = UIToolkit.FlexDirection.Column;
     }
 }

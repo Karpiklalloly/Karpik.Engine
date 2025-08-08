@@ -1,7 +1,7 @@
 using System.Numerics;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Core;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class Style
 {

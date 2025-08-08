@@ -4,7 +4,6 @@ using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
 using Karpik.Engine.Client.UIToolkit;
-using Karpik.Engine.Client.UIToolkit.Core;
 using Karpik.Engine.Client.UIToolkit.Elements;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Karpik.Engine.Shared;
@@ -14,7 +13,7 @@ using LiteNetLib;
 using Network;
 using Raylib_cs;
 using rlImGui_cs;
-using Position = Karpik.Engine.Client.UIToolkit.Core.Position;
+using Position = Karpik.Engine.Client.UIToolkit.Position;
 
 namespace Karpik.Engine.Client;
 
@@ -139,17 +138,10 @@ public class Client
         //TODO: Добавить прием ивента от сервака на фиксед апдейт
 
         Raylib.EndMode3D();
-
-
+        
         // Рендерим новую UI систему
         _uiManager.Render();
-        
-        // Простая отладочная информация
-        if (_uiManager.Root != null)
-        {
-            Raylib.DrawText($"New UI System - Root: {_uiManager.Root.Size.X}x{_uiManager.Root.Size.Y}", 12, 12, 16, Color.Black);
-            Raylib.DrawText($"Children: {_uiManager.Root.Children.Count}", 12, 32, 16, Color.Black);
-        }
+
         rlImGui.End();
         Raylib.EndDrawing();
     }
@@ -198,62 +190,45 @@ public class Client
 
     private void CreateNewUI()
     {
-        // Создаем корневой элемент
+        // Создаем корневой элемент с глобальными стилями
         var root = new VisualElement("root");
-        
-        // Создаем главную панель
-        var mainPanel = new Panel("main-panel");
-        mainPanel.Style.Width = 350;
-        mainPanel.Style.Height = 450;
-        mainPanel.Style.Margin = new Margin(20);
-        
-        // Создаем заголовок
-        var header = new VisualElement("header");
-        header.AddClass("header");
-        
-        // Создаем область контента
-        var content = new VisualElement("content");
-        content.AddClass("content");
-        
-        // Создаем кнопки
-        var button1 = new Button("Primary Button");
-        var clickable1 = new ClickableManipulator();
-        clickable1.OnClicked += () => Console.WriteLine("Primary button clicked!");
-        button1.AddManipulator(clickable1);
-        
-        var button2 = new Button("Secondary Button");
-        button2.Style.BackgroundColor = Color.Gray;
-        var clickable2 = new ClickableManipulator();
-        clickable2.OnClicked += () => Console.WriteLine("Secondary button clicked!");
-        button2.AddManipulator(clickable2);
-        
-        var button3 = new Button("Danger Button");
-        button3.Style.BackgroundColor = Color.Red;
-        var clickable3 = new ClickableManipulator();
-        clickable3.OnClicked += () => Console.WriteLine("Danger button clicked!");
-        button3.AddManipulator(clickable3);
-        
-        // Собираем иерархию
-        content.AddChild(button1);
-        content.AddChild(button2);
-        content.AddChild(button3);
-        
-        mainPanel.AddChild(header);
-        mainPanel.AddChild(content);
-        
-        root.AddChild(mainPanel);
-        
-        // Создаем абсолютно позиционированный элемент
-        var absoluteElement = new VisualElement("absolute-element");
-        absoluteElement.Style.Width = 100;
-        absoluteElement.Style.Height = 100;
-        absoluteElement.Style.BackgroundColor = Color.Purple;
-        absoluteElement.Style.Position = Position.Absolute;
-        absoluteElement.Style.Right = 20;
-        absoluteElement.Style.Top = 20;
-        absoluteElement.Style.BorderRadius = 50; // Круг
-        
-        root.AddChild(absoluteElement);
+        root.StyleSheet = new StyleSheet();
+        root.StyleSheet.AddClass("custom-header", new Style()
+        {
+            BackgroundColor = Color.Red
+        });
+        {
+            var panel = new VisualElement();
+            panel.AddClass("panel");
+            {
+                var header = new VisualElement();
+                header.AddClass("header");
+                header.AddClass("custom-header");
+                panel.AddChild(header);
+
+                var content = new VisualElement();
+                content.AddClass("content");
+                panel.AddChild(content);
+                {
+                    var button1 = new Button();
+                    button1.Text = "My first button!";
+                    button1.OnClick += () => Logger.Instance.Log(button1.Text);
+                    button1.AddClass("button");
+                    content.AddChild(button1);
+                    
+                    var button2 = new Button();
+                    button2.Text = "2";
+                    button2.OnClick += () => Logger.Instance.Log(button2.Text);
+                    button2.AddClass("button");
+                    content.AddChild(button2);
+                }
+
+                // var footer = new VisualElement();
+                // footer.AddClass("footer");
+                // panel.AddChild(footer);
+            }
+            root.AddChild(panel);
+        }
         
         _uiManager.SetRoot(root);
     }
