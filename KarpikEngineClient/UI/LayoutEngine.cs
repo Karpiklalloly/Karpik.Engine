@@ -7,6 +7,9 @@ public static class LayoutEngine
 {
     public static void CalculateLayout(VisualElement root, Rectangle availableSpace)
     {
+        // Устанавливаем позицию корневого элемента
+        root.Position = new Vector2(availableSpace.X, availableSpace.Y);
+        
         CalculateLayoutRecursive(root, availableSpace);
     }
     
@@ -19,8 +22,12 @@ public static class LayoutEngine
         // 1. Рассчитываем размеры элемента с учетом всех стилей
         CalculateElementSize(element, computedStyle, availableSpace);
         
-        // 2. Рассчитываем позицию элемента (учитывая margin)
-        CalculateElementPosition(element, computedStyle, availableSpace);
+        // 2. Рассчитываем позицию только для абсолютно позиционированных элементов
+        // Для обычных элементов позиция устанавливается родительским контейнером
+        if (computedStyle.Position.IsSet && computedStyle.Position.Value == PositionType.Absolute)
+        {
+            CalculateElementPosition(element, computedStyle, availableSpace);
+        }
         
         // 3. Рассчитываем layout для детей с учетом padding
         if (element.Children.Count > 0)
@@ -29,15 +36,21 @@ public static class LayoutEngine
         }
         
         // 4. Рекурсивно рассчитываем layout для всех детей
+        // Используем внутреннее пространство элемента (с учетом padding)
+        var paddingLeft = computedStyle.PaddingLeft.IsSet ? computedStyle.PaddingLeft.Value : 0;
+        var paddingRight = computedStyle.PaddingRight.IsSet ? computedStyle.PaddingRight.Value : 0;
+        var paddingTop = computedStyle.PaddingTop.IsSet ? computedStyle.PaddingTop.Value : 0;
+        var paddingBottom = computedStyle.PaddingBottom.IsSet ? computedStyle.PaddingBottom.Value : 0;
+        
+        var childSpace = new Rectangle(
+            element.Position.X + paddingLeft,
+            element.Position.Y + paddingTop,
+            element.Size.X - paddingLeft - paddingRight,
+            element.Size.Y - paddingTop - paddingBottom
+        );
+        
         foreach (var child in element.Children)
         {
-            var childSpace = new Rectangle(
-                child.Position.X,
-                child.Position.Y,
-                child.Size.X,
-                child.Size.Y
-            );
-            
             CalculateLayoutRecursive(child, childSpace);
         }
     }
@@ -74,7 +87,7 @@ public static class LayoutEngine
     
     private static void ApplySizeConstraints(ref Vector2 size, Style style)
     {
-        // Min/Max ограничения
+        // Min/Max ограничения применяются всегда
         if (style.MinWidth.IsSet)
             size.X = Math.Max(size.X, style.MinWidth.Value);
         if (style.MaxWidth.IsSet)
@@ -87,7 +100,7 @@ public static class LayoutEngine
     
     private static void CalculateElementPosition(VisualElement element, Style style, Rectangle availableSpace)
     {
-        Vector2 position = element.Position;
+        Vector2 position = Vector2.Zero; // Начинаем с нуля, а не с текущей позиции
     
         // Обработка разных типов позиционирования
         if (style.Position.IsSet && style.Position.Value == PositionType.Absolute)
@@ -105,7 +118,11 @@ public static class LayoutEngine
         }
         else
         {
-            // Относительное позиционирование (по умолчанию)
+            // Относительное позиционирование - начинаем с позиции доступного пространства
+            position.X = availableSpace.X;
+            position.Y = availableSpace.Y;
+            
+            // Добавляем margin
             if (style.MarginLeft.IsSet)
                 position.X += style.MarginLeft.Value;
             if (style.MarginTop.IsSet)
@@ -181,7 +198,7 @@ public static class LayoutEngine
             else
             {
                 info.IsFlexItem = false;
-                CalculateElementSize(child, childStyle, availableSpace);
+                // Не пересчитываем размер здесь - он уже рассчитан в CalculateLayoutRecursive
                 info.Size = child.Size;
                 totalHeight += child.Size.Y;
             }
@@ -218,17 +235,25 @@ public static class LayoutEngine
             // Устанавливаем X позицию с учетом alignItems
             AlignChildHorizontally(info.Element, info.Style, availableSpace, alignItems);
             
+            // Добавляем margin к текущей позиции
+            float marginTop = info.Style.MarginTop.IsSet ? info.Style.MarginTop.Value : 
+                             (info.Style.Margin.IsSet ? info.Style.Margin.Value : 0);
+            float marginLeft = info.Style.MarginLeft.IsSet ? info.Style.MarginLeft.Value : 
+                              (info.Style.Margin.IsSet ? info.Style.Margin.Value : 0);
+            
+            currentY += marginTop;
+            
             // Устанавливаем Y позицию и размеры
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
                 float flexHeight = (info.Style.FlexGrow.Value / totalFlexGrow) * remainingHeight;
                 info.Element.Size = new Vector2(info.Element.Size.X, flexHeight);
-                info.Element.Position = new Vector2(info.Element.Position.X, currentY);
+                info.Element.Position = new Vector2(availableSpace.X + marginLeft, currentY);
                 currentY += flexHeight + gap;
             }
             else
             {
-                info.Element.Position = new Vector2(info.Element.Position.X, currentY);
+                info.Element.Position = new Vector2(availableSpace.X + marginLeft, currentY);
                 currentY += info.Element.Size.Y + gap;
             }
         }
@@ -257,7 +282,7 @@ public static class LayoutEngine
             else
             {
                 info.IsFlexItem = false;
-                CalculateElementSize(child, childStyle, availableSpace);
+                // Не пересчитываем размер здесь - он уже рассчитан в CalculateLayoutRecursive
                 info.Size = child.Size;
                 totalWidth += child.Size.X;
             }
@@ -290,17 +315,25 @@ public static class LayoutEngine
             // Устанавливаем Y позицию с учетом alignItems
             AlignChildVertically(info.Element, info.Style, availableSpace, alignItems);
             
+            // Добавляем margin к текущей позиции
+            float marginTop = info.Style.MarginTop.IsSet ? info.Style.MarginTop.Value : 
+                             (info.Style.Margin.IsSet ? info.Style.Margin.Value : 0);
+            float marginLeft = info.Style.MarginLeft.IsSet ? info.Style.MarginLeft.Value : 
+                              (info.Style.Margin.IsSet ? info.Style.Margin.Value : 0);
+            
+            currentX += marginLeft;
+            
             // Устанавливаем X позицию и размеры
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
                 float flexWidth = (info.Style.FlexGrow.Value / totalFlexGrow) * remainingWidth;
                 info.Element.Size = new Vector2(flexWidth, info.Element.Size.Y);
-                info.Element.Position = new Vector2(currentX, info.Element.Position.Y);
+                info.Element.Position = new Vector2(currentX, availableSpace.Y + marginTop);
                 currentX += flexWidth + gap;
             }
             else
             {
-                info.Element.Position = new Vector2(currentX, info.Element.Position.Y);
+                info.Element.Position = new Vector2(currentX, availableSpace.Y + marginTop);
                 currentX += info.Element.Size.X + gap;
             }
         }
@@ -311,14 +344,11 @@ public static class LayoutEngine
     {
         float parentWidth = parentSpace.Width;
         float childWidth = child.Size.X;
-        float childX = child.Position.X;
         
         // Учитываем alignSelf, если задан
-        Align alignSelf = Align.Auto;
+        Align alignSelf = alignItems;
         if (childStyle.AlignSelf.IsSet)
             alignSelf = childStyle.AlignSelf.Value;
-        else if (alignItems != Align.Auto)
-            alignSelf = alignItems;
         
         switch (alignSelf)
         {
@@ -348,14 +378,11 @@ public static class LayoutEngine
     {
         float parentHeight = parentSpace.Height;
         float childHeight = child.Size.Y;
-        float childY = child.Position.Y;
         
         // Учитываем alignSelf, если задан
-        Align alignSelf = Align.Auto;
+        Align alignSelf = alignItems;
         if (childStyle.AlignSelf.IsSet)
             alignSelf = childStyle.AlignSelf.Value;
-        else if (alignItems != Align.Auto)
-            alignSelf = alignItems;
         
         switch (alignSelf)
         {
@@ -383,8 +410,8 @@ public static class LayoutEngine
 
 public class ChildLayoutInfo
 {
-    public VisualElement Element { get; set; }
-    public Style Style { get; set; }
+    public required VisualElement Element { get; set; }
+    public required Style Style { get; set; }
     public bool IsFlexItem { get; set; }
     public Vector2 Size { get; set; }
 }

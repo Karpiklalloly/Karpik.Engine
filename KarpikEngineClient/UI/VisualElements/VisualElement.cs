@@ -2,20 +2,23 @@
 using Karpik.Engine.Client.UIToolkit;
 using Raylib_cs;
 
+namespace Karpik.Engine.Client.UIToolkit;
+
 public class VisualElement
 {
     public string Name { get; set; }
-    public string ClassList { get; set; }
+    public string? ClassList { get; set; }
     public Vector2 Position { get; set; }
     public Vector2 Size { get; set; }
     public bool Visible { get; set; } = true;
     public bool Enabled { get; set; } = true;
     
-    public VisualElement Parent { get; set; }
+    public VisualElement? Parent { get; set; }
     public List<VisualElement> Children { get; } = [];
     
     // Стили
     public Style Style { get; private set; } = new();
+    public Style ResolvedStyle => GetComputedStyle();
     public StyleSheet StyleSheet { get; private set; } = new();
     
     // Состояния для псевдоклассов
@@ -27,11 +30,11 @@ public class VisualElement
     private List<IManipulator> _manipulators = new List<IManipulator>();
     
     // События
-    public event Action<MouseEvent> OnMouseDown;
-    public event Action<MouseEvent> OnMouseUp;
-    public event Action<MouseEvent> OnClick;
-    public event Action OnFocus;
-    public event Action OnBlur;
+    public event Action<MouseEvent>? OnMouseDown;
+    public event Action<MouseEvent>? OnMouseUp;
+    public event Action<MouseEvent>? OnClick;
+    public event Action? OnFocus;
+    public event Action? OnBlur;
     
     public VisualElement(string name = "VisualElement")
     {
@@ -71,25 +74,27 @@ public class VisualElement
         {
             newSize.X = computedStyle.Width.Value;
         }
-        else if (computedStyle.MinWidth.IsSet)
-        {
-            newSize.X = Math.Max(newSize.X, computedStyle.MinWidth.Value);
-        }
-        else if (computedStyle.MaxWidth.IsSet)
-        {
-            newSize.X = Math.Min(newSize.X, computedStyle.MaxWidth.Value);
-        }
         
         // Применяем высоту
         if (computedStyle.Height.IsSet)
         {
             newSize.Y = computedStyle.Height.Value;
         }
-        else if (computedStyle.MinHeight.IsSet)
+        
+        // Применяем ограничения (всегда, независимо от основных размеров)
+        if (computedStyle.MinWidth.IsSet)
+        {
+            newSize.X = Math.Max(newSize.X, computedStyle.MinWidth.Value);
+        }
+        if (computedStyle.MaxWidth.IsSet)
+        {
+            newSize.X = Math.Min(newSize.X, computedStyle.MaxWidth.Value);
+        }
+        if (computedStyle.MinHeight.IsSet)
         {
             newSize.Y = Math.Max(newSize.Y, computedStyle.MinHeight.Value);
         }
-        else if (computedStyle.MaxHeight.IsSet)
+        if (computedStyle.MaxHeight.IsSet)
         {
             newSize.Y = Math.Min(newSize.Y, computedStyle.MaxHeight.Value);
         }
@@ -128,7 +133,7 @@ public class VisualElement
         return computed;
     }
     
-    private StyleSheet GetRootStyleSheet()
+    private StyleSheet? GetRootStyleSheet()
     {
         // Ищем StyleSheet у себя или у родителей
         var current = this;
@@ -136,7 +141,7 @@ public class VisualElement
         {
             if (current.StyleSheet != null)
                 return current.StyleSheet;
-            current = current.Parent as VisualElement;
+            current = current.Parent;
         }
         return null;
     }
@@ -223,13 +228,10 @@ public class VisualElement
 
     public virtual void Update(double deltaTime)
     {
-        // Применяем стили
-        ApplyStyles();
-        
-        // Рассчитываем layout если это корневой элемент
+        // Рассчитываем layout только для корневого элемента
         if (Parent == null)
         {
-            var availableSpace = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight()); // Размеры окна
+            var availableSpace = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
             LayoutEngine.CalculateLayout(this, availableSpace);
         }
         

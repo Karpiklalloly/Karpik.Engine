@@ -66,12 +66,26 @@ public class Client
         _modManager = new ModManager();
         _modManager.LoadMods("Mods");
 
+        // Инициализируем окно сначала
+        Raylib.InitWindow(800, 600, "Console Launcher");
+        Raylib.SetWindowState(ConfigFlags.ResizableWindow);
+        Raylib.SetWindowMinSize(400, 300);
+        rlImGui.Setup();
+        
+        // Инициализируем UI после создания окна
+        UI.DefaultFont = Raylib.GetFontDefault();
         
         // Создаем корневой элемент
         var root = new VisualElement("root");
+        root.Size = new Vector2(Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
+        root.Position = Vector2.Zero; // Устанавливаем позицию корневого элемента
+        
+        // Устанавливаем базовые стили для корневого элемента
+        root.Style.Width = new StyleValue<float>(Raylib.GetRenderWidth());
+        root.Style.Height = new StyleValue<float>(Raylib.GetRenderHeight());
+        root.Style.FlexDirection = new StyleValue<FlexDirection>(FlexDirection.Column);
         
         UI.Root = root;
-        UI.Root.Style.BackgroundColor = new Color(255, 0, 0, 128);
         
         // Создаем таблицу стилей
         var styleSheet = CreateStyleSheet();
@@ -79,8 +93,6 @@ public class Client
         
         // Создаем UI элементы
         CreateUI(root);
-        
-        UI.DefaultFont = Raylib.GetFontDefault();
 
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
@@ -95,10 +107,6 @@ public class Client
         _pipeline = _builder.Build();
         _pipeline.Init();
         Worlds.Instance.Init(_pipeline);
-        Raylib.InitWindow(800, 600, "Console Launcher");
-        Raylib.SetWindowState(ConfigFlags.ResizableWindow);
-        Raylib.SetWindowMinSize(400, 300);
-        rlImGui.Setup();
 
         Camera.Main.Position = new Vector3(10, 10, 10);
         Camera.Main.LookAt(Vector3.Zero);
@@ -128,8 +136,19 @@ public class Client
     private void Update()
     {
         Input.Update();
-        _eventSystem.Update(UI.Root);
-        UI.Update();
+        
+        // Обновляем размер корневого элемента при изменении окна
+        if (UI.Root != null)
+        {
+            var newSize = new Vector2(Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
+            UI.Root.Size = newSize;
+            UI.Root.Style.Width = new StyleValue<float>(newSize.X);
+            UI.Root.Style.Height = new StyleValue<float>(newSize.Y);
+            
+            _eventSystem.Update(UI.Root);
+            UI.Update();
+        }
+        
         Raylib.BeginDrawing();
         Raylib.ClearBackground(Color.SkyBlue);
 
@@ -146,13 +165,36 @@ public class Client
 
 
         UI.Draw();
-        Raylib.DrawText("Hello", 12, 12, 20, Color.Black);
+        
+        // Отладочная информация
+        if (UI.Root != null)
+        {
+            Raylib.DrawText($"Root: {UI.Root.Size.X}x{UI.Root.Size.Y} at {UI.Root.Position.X},{UI.Root.Position.Y}", 12, 12, 16, Color.Black);
+            Raylib.DrawText($"Children: {UI.Root.Children.Count}", 12, 32, 16, Color.Black);
+            
+            if (UI.Root.Children.Count > 0)
+            {
+                var mainPanel = UI.Root.Children[0];
+                Raylib.DrawText($"Panel: {mainPanel.Size.X}x{mainPanel.Size.Y} at {mainPanel.Position.X},{mainPanel.Position.Y}", 12, 52, 16, Color.Black);
+                Raylib.DrawText($"Panel visible: {mainPanel.Visible}", 12, 72, 16, Color.Black);
+                Raylib.DrawText($"Panel BG: {mainPanel.Style.BackgroundColor.IsSet}", 12, 92, 16, Color.Black);
+                
+                if (mainPanel.Children.Count > 0)
+                {
+                    var header = mainPanel.Children[0];
+                    Raylib.DrawText($"Header: {header.Size.X}x{header.Size.Y} at {header.Position.X},{header.Position.Y}", 12, 112, 16, Color.Black);
+                }
+            }
+        }
         rlImGui.End();
         Raylib.EndDrawing();
     }
 
     private void Stop()
     {
+        // Очищаем UI ресурсы
+        UI.Root = null;
+        
         Raylib.EnableCursor();
         rlImGui.Shutdown();
         Raylib.CloseWindow();
@@ -192,7 +234,23 @@ public class Client
 
 static StyleSheet CreateStyleSheet()
     {
+        // Пока что создаем пустой StyleSheet, чтобы проверить работу без стилей
         var styleSheet = new StyleSheet();
+        return styleSheet;
+    }
+    
+    static StyleSheet CreateStyleSheetOld()
+    {
+        var styleSheet = new StyleSheet();
+        
+        // Стили для корневого элемента
+        var rootRule = new StyleRule("root");
+        rootRule.Properties["width"] = "100%";
+        rootRule.Properties["height"] = "100%";
+        rootRule.Properties["flex-direction"] = "column";
+        rootRule.Properties["justify-content"] = "flex-start";
+        rootRule.Properties["align-items"] = "flex-start";
+        styleSheet.AddRule(rootRule);
         
         // Стили для панели
         var panelRule = new StyleRule(".panel");
@@ -270,38 +328,71 @@ static StyleSheet CreateStyleSheet()
     
     static void CreateUI(VisualElement root)
     {
-        // Создаем основную панель
+        // Создаем основную панель с inline стилями
         var mainPanel = new VisualElement("main-panel");
-        mainPanel.ClassList = "panel";
-        // Не нужно устанавливать Position вручную - стили сделают это
+        mainPanel.Style.Width = new StyleValue<float>(300);
+        mainPanel.Style.Height = new StyleValue<float>(400);
+        mainPanel.Style.BackgroundColor = new StyleValue<Color>(new Color(240, 240, 240, 255));
+        mainPanel.Style.BorderWidth = new StyleValue<float>(2);
+        mainPanel.Style.BorderColor = new StyleValue<Color>(new Color(204, 204, 204, 255));
+        mainPanel.Style.BorderRadius = new StyleValue<float>(10);
+        mainPanel.Style.Padding = new StyleValue<float>(20);
+        mainPanel.Style.Margin = new StyleValue<float>(20);
+        mainPanel.Style.FlexDirection = new StyleValue<FlexDirection>(FlexDirection.Column);
         
         // Создаем заголовок
         var header = new VisualElement("header");
-        header.ClassList = "header";
+        header.Style.Height = new StyleValue<float>(60);
+        header.Style.BackgroundColor = new StyleValue<Color>(new Color(76, 175, 80, 255));
+        header.Style.MarginBottom = new StyleValue<float>(15);
+        header.Style.BorderRadius = new StyleValue<float>(5);
         
         // Создаем контент
         var content = new VisualElement("content");
-        content.ClassList = "content";
+        content.Style.FlexGrow = new StyleValue<float>(1);
+        content.Style.BackgroundColor = new StyleValue<Color>(Color.Yellow);
+        content.Style.BorderWidth = new StyleValue<float>(1);
+        content.Style.BorderColor = new StyleValue<Color>(new Color(221, 221, 221, 255));
+        content.Style.BorderRadius = new StyleValue<float>(5);
+        content.Style.Padding = new StyleValue<float>(15);
+        content.Style.MarginBottom = new StyleValue<float>(15);
+        content.Style.FlexDirection = new StyleValue<FlexDirection>(FlexDirection.Column);
         
         // Создаем кнопки
         var button1 = new Button("Primary Button");
         button1.Name = "btn-primary";
+        button1.Style.Height = new StyleValue<float>(40);
+        button1.Style.BackgroundColor = new StyleValue<Color>(new Color(33, 150, 243, 255));
+        button1.Style.Color = new StyleValue<Color>(Color.White);
+        button1.Style.BorderRadius = new StyleValue<float>(5);
+        button1.Style.MarginBottom = new StyleValue<float>(10);
         
         var button2 = new Button("Secondary Button");
         button2.Name = "btn-secondary";
+        button2.Style.Height = new StyleValue<float>(40);
         button2.Style.BackgroundColor = new StyleValue<Color>(Color.Gray);
+        button2.Style.Color = new StyleValue<Color>(Color.White);
+        button2.Style.BorderRadius = new StyleValue<float>(5);
+        button2.Style.MarginBottom = new StyleValue<float>(10);
         
         var button3 = new Button("Danger Button");
         button3.Name = "btn-danger";
+        button3.Style.Height = new StyleValue<float>(40);
         button3.Style.BackgroundColor = new StyleValue<Color>(Color.Red);
+        button3.Style.Color = new StyleValue<Color>(Color.White);
+        button3.Style.BorderRadius = new StyleValue<float>(5);
+        button3.Style.MarginBottom = new StyleValue<float>(10);
         
-        content.AddChild(button1);
-        content.AddChild(button2);
-        content.AddChild(button3);
+        //content.AddChild(button1);
+        //content.AddChild(button2);
+        //content.AddChild(button3);
         
         // Создаем футер
         var footer = new VisualElement("footer");
-        footer.ClassList = "footer";
+        footer.Style.Height = new StyleValue<float>(40);
+        footer.Style.BackgroundColor = new StyleValue<Color>(new Color(255, 152, 0, 255));
+        footer.Style.BorderRadius = new StyleValue<float>(5);
+        footer.Style.Color = new StyleValue<Color>(Color.White);
         
         // Добавляем манипуляторы
         var clickable1 = new Clickable();

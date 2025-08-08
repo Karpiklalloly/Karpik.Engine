@@ -4,7 +4,7 @@ public class TweenUpdateSystem : IEcsRun
 {
     public void Run()
     {
-        Tween.Update(Time.DeltaTime);
+        Tween.Instance.Update(Time.DeltaTime);
     }
 }
 
@@ -14,7 +14,7 @@ public class TweenUpdatePausableSystem : IEcsRun
     {
         if (!Time.IsPaused)
         {
-            Tween.UpdatePausable(Time.DeltaTime);
+            Tween.Instance.UpdatePausable(Time.DeltaTime);
         }
     }
 }
