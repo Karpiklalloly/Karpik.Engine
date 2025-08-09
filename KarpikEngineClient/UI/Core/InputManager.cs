@@ -120,30 +120,18 @@ public class InputManager
         {
             if (inputEvent.Handled) continue;
             
-            // Отладочная информация для кликов мыши
-            if (inputEvent.Type == InputEventType.MouseClick)
-            {
-                Console.WriteLine($"InputManager: Processing MouseClick at {inputEvent.MousePosition}");
-            }
-            
             // Передаем события слоям в порядке приоритета (сверху вниз)
             for (int i = _layerManager.Layers.Count - 1; i >= 0; i--)
             {
                 var layer = _layerManager.Layers[i];
-                Console.WriteLine($"InputManager: Sending event to layer {layer.Name} (visible: {layer.Visible}, interactive: {layer.Interactive})");
-                
+
                 if (layer.HandleInputEvent(inputEvent))
                 {
-                    Console.WriteLine($"InputManager: Event handled by layer {layer.Name}");
                     inputEvent.Handled = true;
                     break; // Событие обработано, прекращаем передачу
                 }
             }
             
-            if (!inputEvent.Handled && inputEvent.Type == InputEventType.MouseClick)
-            {
-                Console.WriteLine("InputManager: MouseClick event was not handled by any layer");
-            }
         }
     }
     

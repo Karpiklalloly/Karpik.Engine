@@ -182,31 +182,17 @@ public class VisualElement
     {
         if (!Visible || !Enabled) return false;
         
-        // Отладочная информация для кликов
-        if (inputEvent.Type == InputEventType.MouseClick)
-        {
-            Console.WriteLine($"VisualElement {Name}: Handling MouseClick event at {inputEvent.MousePosition}");
-        }
-        
         // Сначала проверяем дочерние элементы (в обратном порядке для правильного z-order)
         for (int i = Children.Count - 1; i >= 0; i--)
         {
             if (Children[i].HandleInputEvent(inputEvent))
             {
-                if (inputEvent.Type == InputEventType.MouseClick)
-                {
-                    Console.WriteLine($"VisualElement {Name}: Event handled by child {Children[i].Name}");
-                }
                 return true; // Событие обработано дочерним элементом
             }
         }
         
         // Если событие не обработано дочерними элементами, обрабатываем сами
         bool result = HandleSelfInputEvent(inputEvent);
-        if (inputEvent.Type == InputEventType.MouseClick)
-        {
-            Console.WriteLine($"VisualElement {Name}: HandleSelfInputEvent returned {result}");
-        }
         return result;
     }
     
