@@ -9,6 +9,7 @@ public class UIManager
     public VisualElement? Root { get; set; }
     public StyleSheet StyleSheet { get; set; }
     public LayerManager LayerManager { get; private set; }
+    public InputManager InputManager { get; private set; }
     public ToastManager? ToastManager { get; private set; }
     public ModalManager? ModalManager { get; private set; }
     public ContextMenuManager? ContextMenuManager { get; private set; }
@@ -18,10 +19,14 @@ public class UIManager
     {
         StyleSheet = StyleSheet.CreateDefault();
         LayerManager = new LayerManager();
+        InputManager = new InputManager(LayerManager);
     }
     
     public void Update(float deltaTime)
     {
+        // Обновляем систему ввода
+        InputManager.Update();
+        
         // Обновляем основной UI
         Root?.Update(deltaTime);
         

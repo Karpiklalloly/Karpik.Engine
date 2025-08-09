@@ -45,6 +45,40 @@ public class UILayer
         return BlocksInput || hitElement;
     }
     
+    public bool HandleInputEvent(InputEvent inputEvent)
+    {
+        if (!Visible || !Interactive) return false;
+        
+        bool eventHandled = false;
+        
+        // Отладочная информация
+        if (inputEvent.Type == InputEventType.MouseClick)
+        {
+            Console.WriteLine($"UILayer {Name}: Handling MouseClick event");
+        }
+        
+        // Передаем событие корневому элементу слоя
+        if (Root != null)
+        {
+            eventHandled = Root.HandleInputEvent(inputEvent);
+            if (inputEvent.Type == InputEventType.MouseClick)
+            {
+                Console.WriteLine($"UILayer {Name}: Root element handled event: {eventHandled}");
+            }
+        }
+        
+        // Если слой блокирует ввод, возвращаем true независимо от того, было ли событие обработано
+        // Это предотвращает передачу события нижним слоям
+        bool result = eventHandled || BlocksInput;
+        
+        if (inputEvent.Type == InputEventType.MouseClick)
+        {
+            Console.WriteLine($"UILayer {Name}: Returning {result} (eventHandled: {eventHandled}, BlocksInput: {BlocksInput})");
+        }
+        
+        return result;
+    }
+    
     public void Render(Rectangle screenBounds, StyleSheet? globalStyleSheet = null)
     {
         if (!Visible) return;

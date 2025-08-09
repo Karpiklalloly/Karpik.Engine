@@ -1,5 +1,6 @@
 using System.Numerics;
 using Raylib_cs;
+using Karpik.Engine.Client.UIToolkit.Elements;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
@@ -50,11 +51,33 @@ public static class LayoutEngine
     {
         var size = element.Size;
         
-        if (style.Width.HasValue) size.X = style.Width.Value;
-        else if (element.Parent == null) size.X = availableSpace.Width;
+        if (style.Width.HasValue) 
+        {
+            size.X = style.Width.Value;
+        }
+        else if (element.Parent == null) 
+        {
+            size.X = availableSpace.Width;
+        }
+        else
+        {
+            // Автоматическое вычисление размера для элементов с содержимым
+            size.X = CalculateIntrinsicWidth(element, style);
+        }
             
-        if (style.Height.HasValue) size.Y = style.Height.Value;
-        else if (element.Parent == null) size.Y = availableSpace.Height;
+        if (style.Height.HasValue) 
+        {
+            size.Y = style.Height.Value;
+        }
+        else if (element.Parent == null) 
+        {
+            size.Y = availableSpace.Height;
+        }
+        else
+        {
+            // Автоматическое вычисление высоты для элементов с содержимым
+            size.Y = CalculateIntrinsicHeight(element, style);
+        }
         
         if (style.MinWidth.HasValue) size.X = Math.Max(size.X, style.MinWidth.Value);
         if (style.MaxWidth.HasValue) size.X = Math.Min(size.X, style.MaxWidth.Value);
@@ -472,4 +495,123 @@ public static class LayoutEngine
             return element.Size.Y * 0.8f;
         }
     }
-}
+    
+    private static float CalculateIntrinsicWidth(VisualElement element, Style style)
+    {
+        // Для кнопок вычисляем ширину на основе текста
+        if (element is Elements.Button button)
+        {
+            if (!string.IsNullOrEmpty(button.Text))
+            {
+                var textWidth = Raylib.MeasureText(button.Text, style.FontSize);
+                var padding = style.Padding.Left + style.Padding.Right;
+                return textWidth + padding + 20; // +20 для внутренних отступов кнопки
+            }
+        }
+        
+        // Для лейблов вычисляем ширину на основе текста
+        if (element is Elements.Label label)
+        {
+            if (!string.IsNullOrEmpty(label.Text))
+            {
+                var textWidth = Raylib.MeasureText(label.Text, style.FontSize);
+                var padding = style.Padding.Left + style.Padding.Right;
+                return textWidth + padding;
+            }
+        }
+        
+        // Для контейнеров вычисляем минимальную ширину на основе детей
+        if (element.Children.Count > 0)
+        {
+            if (style.FlexDirection == FlexDirection.Row)
+            {
+                // В горизонтальном layout суммируем ширины детей
+                float totalWidth = 0;
+                foreach (var child in element.Children)
+                {
+                    if (child.Visible)
+                    {
+                        var childStyle = child.ComputeStyle();
+                        totalWidth += CalculateIntrinsicWidth(child, childStyle);
+                        totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
+                    }
+                }
+                return totalWidth;
+            }
+            else
+            {
+                // В вертикальном layout берем максимальную ширину среди детей
+                float maxWidth = 0;
+                foreach (var child in element.Children)
+                {
+                    if (child.Visible)
+                    {
+                        var childStyle = child.ComputeStyle();
+                        var childWidth = CalculateIntrinsicWidth(child, childStyle);
+                        childWidth += childStyle.Margin.Left + childStyle.Margin.Right;
+                        maxWidth = Math.Max(maxWidth, childWidth);
+                    }
+                }
+                return maxWidth;
+            }
+        }
+        
+        // По умолчанию возвращаем минимальную ширину
+        return style.MinWidth ?? 100;
+    }
+    
+    private static float CalculateIntrinsicHeight(VisualElement element, Style style)
+    {
+        // Для кнопок используем высоту шрифта + отступы
+        if (element is Elements.Button)
+        {
+            var padding = style.Padding.Top + style.Padding.Bottom;
+            return style.FontSize + padding + 10; // +10 для внутренних отступов кнопки
+        }
+        
+        // Для лейблов используем высоту шрифта + отступы
+        if (element is Elements.Label)
+        {
+            var padding = style.Padding.Top + style.Padding.Bottom;
+            return style.FontSize + padding;
+        }
+        
+        // Для контейнеров вычисляем минимальную высоту на основе детей
+        if (element.Children.Count > 0)
+        {
+            if (style.FlexDirection == FlexDirection.Column)
+            {
+                // В вертикальном layout суммируем высоты детей
+                float totalHeight = 0;
+                foreach (var child in element.Children)
+                {
+                    if (child.Visible)
+                    {
+                        var childStyle = child.ComputeStyle();
+                        totalHeight += CalculateIntrinsicHeight(child, childStyle);
+                        totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
+                    }
+                }
+                return totalHeight;
+            }
+            else
+            {
+                // В горизонтальном layout берем максимальную высоту среди детей
+                float maxHeight = 0;
+                foreach (var child in element.Children)
+                {
+                    if (child.Visible)
+                    {
+                        var childStyle = child.ComputeStyle();
+                        var childHeight = CalculateIntrinsicHeight(child, childStyle);
+                        childHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
+                        maxHeight = Math.Max(maxHeight, childHeight);
+                    }
+                }
+                return maxHeight;
+            }
+        }
+        
+        // По умолчанию возвращаем минимальную высоту
+        return style.MinHeight ?? 40;
+    }}

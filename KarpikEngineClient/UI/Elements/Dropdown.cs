@@ -29,6 +29,30 @@ public class Dropdown : VisualElement
         AddManipulator(new HoverEffectManipulator());
     }
     
+    protected override bool HandleSelfInputEvent(InputEvent inputEvent)
+    {
+        // Обрабатываем клик на dropdown
+        if (inputEvent.Type == InputEventType.MouseClick && 
+            inputEvent.MouseButton == MouseButton.Left &&
+            ContainsPoint(inputEvent.MousePosition))
+        {
+            Console.WriteLine($"Dropdown clicked: {Name}");
+            ToggleDropdown();
+            return true;
+        }
+        
+        // Обрабатываем нажатие Escape для закрытия
+        if (inputEvent.Type == InputEventType.KeyDown && 
+            inputEvent.Key == KeyboardKey.Escape && 
+            _isOpen)
+        {
+            CloseDropdown();
+            return true;
+        }
+        
+        return base.HandleSelfInputEvent(inputEvent);
+    }
+    
     public void SetLayerManager(LayerManager layerManager)
     {
         _layerManager = layerManager;
@@ -114,12 +138,7 @@ public class Dropdown : VisualElement
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime);
-        
-        // Закрываем dropdown при нажатии Escape
-        if (_isOpen && Raylib.IsKeyPressed(KeyboardKey.Escape))
-        {
-            CloseDropdown();
-        }
+        // События теперь обрабатываются через HandleSelfInputEvent
     }
     
     private Rectangle GetDropdownRect()
@@ -291,14 +310,12 @@ internal class DropdownList : VisualElement
         );
     }
     
-    public override void Update(float deltaTime)
+    protected override bool HandleSelfInputEvent(InputEvent inputEvent)
     {
-        base.Update(deltaTime);
-        
-        // Обрабатываем клики
-        if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+        if (inputEvent.Type == InputEventType.MouseClick && 
+            inputEvent.MouseButton == MouseButton.Left)
         {
-            var mousePos = Raylib.GetMousePosition();
+            var mousePos = inputEvent.MousePosition;
             var bounds = GetBounds();
             
             if (Raylib.CheckCollisionPointRec(mousePos, bounds))
@@ -309,16 +326,22 @@ internal class DropdownList : VisualElement
                 
                 if (itemIndex >= 0 && itemIndex < _parentDropdown.Items.Count)
                 {
+                    Console.WriteLine($"Dropdown item selected: {_parentDropdown.Items[itemIndex]}");
                     _parentDropdown.SelectItem(itemIndex);
                     _parentDropdown.CloseDropdown();
+                    return true;
                 }
             }
             else if (!_parentDropdown.ContainsPoint(mousePos))
             {
                 // Клик вне dropdown'а - закрываем
+                Console.WriteLine("Dropdown closed by outside click");
                 _parentDropdown.CloseDropdown();
+                return true;
             }
         }
+        
+        return base.HandleSelfInputEvent(inputEvent);
     }
     
     protected override void RenderSelf()

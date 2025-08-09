@@ -12,22 +12,21 @@ public class ClickableManipulator : Manipulator
     
     public override void Update(float deltaTime)
     {
+        // Манипулятор теперь работает через систему событий
+        // Основная логика обработки кликов перенесена в HandleSelfInputEvent элементов
+        
         if (Element == null || !Element.Enabled) return;
         
+        // Обновляем состояние hover на основе текущей позиции мыши
         var mousePos = Raylib.GetMousePosition();
         bool isHovered = Element.ContainsPoint(mousePos);
-        bool isPressed = isHovered && Raylib.IsMouseButtonDown(MouseButton.Left);
-        bool wasClicked = isHovered && Raylib.IsMouseButtonReleased(MouseButton.Left) && _wasPressed;
-        
-        Element.HandlePress(isPressed);
-        
-        if (wasClicked)
-        {
-            Console.WriteLine($"Button clicked: {Element.Name}");
-            Element.HandleClick();
-            OnClicked?.Invoke();
-        }
-        
-        _wasPressed = isPressed;
+        Element.HandleHover(isHovered);
+    }
+    
+    // Этот метод вызывается из Button.HandleSelfInputEvent
+    public void TriggerClick()
+    {
+        Console.WriteLine($"Button clicked via manipulator: {Element?.Name}");
+        OnClicked?.Invoke();
     }
 }

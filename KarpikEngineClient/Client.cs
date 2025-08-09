@@ -383,6 +383,7 @@ public class Client
         var okButton = new Button("OK");
         okButton.OnClick += () => 
         {
+            Logger.Instance.Log("CLICK");
             _uiManager.ShowToast($"You entered: {inputField.Text}", ToastType.Success);
             modal.Close();
         };

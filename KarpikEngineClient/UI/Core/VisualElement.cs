@@ -178,6 +178,84 @@ public class VisualElement
         IsPressed = isPressed;
     }
     
+    public virtual bool HandleInputEvent(InputEvent inputEvent)
+    {
+        if (!Visible || !Enabled) return false;
+        
+        // Отладочная информация для кликов
+        if (inputEvent.Type == InputEventType.MouseClick)
+        {
+            Console.WriteLine($"VisualElement {Name}: Handling MouseClick event at {inputEvent.MousePosition}");
+        }
+        
+        // Сначала проверяем дочерние элементы (в обратном порядке для правильного z-order)
+        for (int i = Children.Count - 1; i >= 0; i--)
+        {
+            if (Children[i].HandleInputEvent(inputEvent))
+            {
+                if (inputEvent.Type == InputEventType.MouseClick)
+                {
+                    Console.WriteLine($"VisualElement {Name}: Event handled by child {Children[i].Name}");
+                }
+                return true; // Событие обработано дочерним элементом
+            }
+        }
+        
+        // Если событие не обработано дочерними элементами, обрабатываем сами
+        bool result = HandleSelfInputEvent(inputEvent);
+        if (inputEvent.Type == InputEventType.MouseClick)
+        {
+            Console.WriteLine($"VisualElement {Name}: HandleSelfInputEvent returned {result}");
+        }
+        return result;
+    }
+    
+    protected virtual bool HandleSelfInputEvent(InputEvent inputEvent)
+    {
+        // Проверяем, попадает ли событие мыши в этот элемент
+        if (inputEvent.Type == InputEventType.MouseMove ||
+            inputEvent.Type == InputEventType.MouseDown ||
+            inputEvent.Type == InputEventType.MouseUp ||
+            inputEvent.Type == InputEventType.MouseClick)
+        {
+            bool isInBounds = ContainsPoint(inputEvent.MousePosition);
+            
+            if (!isInBounds) return false;
+            
+            // Обрабатываем события мыши
+            switch (inputEvent.Type)
+            {
+                case InputEventType.MouseMove:
+                    HandleHover(true);
+                    break;
+                    
+                case InputEventType.MouseDown:
+                    if (inputEvent.MouseButton == MouseButton.Left)
+                    {
+                        HandlePress(true);
+                    }
+                    break;
+                    
+                case InputEventType.MouseUp:
+                    if (inputEvent.MouseButton == MouseButton.Left)
+                    {
+                        HandlePress(false);
+                    }
+                    break;
+                    
+                case InputEventType.MouseClick:
+                    if (inputEvent.MouseButton == MouseButton.Left)
+                    {
+                        HandleClick();
+                        return true; // Клик обработан
+                    }
+                    break;
+            }
+        }
+        
+        return false;
+    }
+    
     public bool ContainsPoint(Vector2 point)
     {
         return point.X >= Position.X && point.X <= Position.X + Size.X &&
