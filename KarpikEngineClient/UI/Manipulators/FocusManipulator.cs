@@ -24,40 +24,46 @@ public class FocusManipulator : IManipulator
     
     public void Update(float deltaTime)
     {
-        if (_element == null) return;
         
-        // Проверяем клик мыши для установки/снятия фокуса
-        if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+    }
+
+    public bool Handle(InputEvent inputEvent)
+    {
+        if (_element == null) return false;
+
+        bool handled = false;
+
+        if (inputEvent is { Type: InputEventType.MouseClick, MouseButton: MouseButton.Left })
         {
-            var mousePos = Raylib.GetMousePosition();
-            
-            if (_element.ContainsPoint(mousePos))
+            if (_element.ContainsPoint(inputEvent.MousePosition))
             {
-                // Устанавливаем фокус на этот элемент
                 SetFocus(_element);
+                handled = true;
             }
             else if (_currentFocusedElement == _element)
             {
                 // Снимаем фокус если кликнули вне элемента
                 ClearFocus();
+                handled = true;
             }
         }
-        
-        // Проверяем Tab для переключения фокуса
-        if (Raylib.IsKeyPressed(KeyboardKey.Tab))
-        {
-            // Простая реализация - снимаем фокус
-            // В более сложной реализации можно переключаться между элементами
-            ClearFocus();
-        }
-        
-        // Проверяем Escape для снятия фокуса
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+
+        if (inputEvent is { Type: InputEventType.KeyDown, Key: KeyboardKey.Tab })
         {
             ClearFocus();
+            // TODO: Фокуситься на следующем элементу
+            handled = true;
         }
+        
+        if (inputEvent is { Type: InputEventType.KeyDown, Key: KeyboardKey.Escape })
+        {
+            ClearFocus();
+            handled = true;
+        }
+
+        return handled;
     }
-    
+
     public static void SetFocus(VisualElement element)
     {
         if (_currentFocusedElement == element) return;

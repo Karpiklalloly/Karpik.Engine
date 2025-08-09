@@ -185,10 +185,22 @@ public class VisualElement
         // Сначала проверяем дочерние элементы (в обратном порядке для правильного z-order)
         for (int i = Children.Count - 1; i >= 0; i--)
         {
+            for (int j = 0; j < Children[i]._manipulators.Count; j++)
+            {
+                var manipulator = Children[i]._manipulators[j];
+                // if (manipulator.Handle(inputEvent))
+                // {
+                //     return true;
+                // }
+                manipulator.Handle(inputEvent);
+            }
+            
             if (Children[i].HandleInputEvent(inputEvent))
             {
                 return true; // Событие обработано дочерним элементом
             }
+
+
         }
         
         // Если событие не обработано дочерними элементами, обрабатываем сами

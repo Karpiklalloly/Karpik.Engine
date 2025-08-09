@@ -24,6 +24,19 @@ public class TextInput : VisualElement
         AddClass("textinput");
         
         AddManipulator(new FocusManipulator());
+        Input.CharPressed += c =>
+        {
+            if (IsFocused)
+            {
+                if (Text.Length < MaxLength) // Печатные символы
+                {
+                    Text = Text.Insert(_cursorPosition, c.ToString());
+                    _cursorPosition++;
+                    OnTextChanged?.Invoke(Text);
+                }
+            }
+
+        };
     }
     
     public override void Update(float deltaTime)
@@ -47,19 +60,6 @@ public class TextInput : VisualElement
     private void HandleTextInput()
     {
         if (IsReadOnly) return;
-        
-        // Обработка ввода символов
-        int key = Raylib.GetCharPressed();
-        while (key > 0)
-        {
-            if (key >= 32 && key <= 126 && Text.Length < MaxLength) // Печатные символы
-            {
-                Text = Text.Insert(_cursorPosition, ((char)key).ToString());
-                _cursorPosition++;
-                OnTextChanged?.Invoke(Text);
-            }
-            key = Raylib.GetCharPressed();
-        }
         
         // Обработка специальных клавиш
         if (Raylib.IsKeyPressed(KeyboardKey.Backspace) && _cursorPosition > 0)

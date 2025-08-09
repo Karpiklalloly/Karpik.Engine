@@ -5,6 +5,7 @@ using Game.Generated;
 using Game.Generated.Client;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Client.UIToolkit.Elements;
+using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
@@ -216,21 +217,6 @@ public class Client
                 content.AddClass("content");
                 panel.AddChild(content);
                 {
-                    // Секция кнопок
-                    var buttonsLabel = new Label("Buttons:");
-                    buttonsLabel.AddClass("label");
-                    content.AddChild(buttonsLabel);
-                    
-                    var button1 = new Button("Click me!");
-                    button1.OnClick += () => Logger.Instance.Log("Button 1 clicked!");
-                    button1.AddClass("button");
-                    content.AddChild(button1);
-                    
-                    var button2 = new Button("Disabled Button");
-                    button2.Enabled = false;
-                    button2.AddClass("button");
-                    content.AddChild(button2);
-                    
                     // Секция текстового ввода
                     var inputLabel = new Label("Text Input:");
                     inputLabel.AddClass("label");
@@ -241,34 +227,12 @@ public class Client
                     textInput.OnEnterPressed += () => Logger.Instance.Log("Enter pressed!");
                     content.AddChild(textInput);
                     
-                    // Секция чекбоксов
-                    var checkboxLabel = new Label("Checkboxes:");
-                    checkboxLabel.AddClass("label");
-                    content.AddChild(checkboxLabel);
-                    
                     var checkbox1 = new Checkbox("Enable notifications");
                     checkbox1.OnCheckedChanged += (isChecked) => Logger.Instance.Log($"Notifications: {isChecked}");
                     content.AddChild(checkbox1);
                     
-                    var checkbox2 = new Checkbox("Auto-save (disabled)");
-                    checkbox2.Enabled = false;
-                    checkbox2.IsChecked = true;
-                    content.AddChild(checkbox2);
-                    
-                    // Секция слайдеров
-                    var sliderLabel = new Label("Sliders:");
-                    sliderLabel.AddClass("label");
-                    content.AddChild(sliderLabel);
-                    
                     var slider1 = new Slider(0f, 100f, 50f);
-                    slider1.OnValueChanged += (value) => Logger.Instance.Log($"Volume: {value:F1}%");
                     content.AddChild(slider1);
-                    
-                    var slider2 = new Slider(0f, 10f, 5f);
-                    slider2.Step = 0.5f;
-                    slider2.Enabled = false;
-                    slider2.OnValueChanged += (value) => Logger.Instance.Log($"Quality: {value:F1}");
-                    content.AddChild(slider2);
                     
                     // Секция прогресс-баров
                     var progressLabel = new Label("Progress Bars:");
@@ -278,30 +242,6 @@ public class Client
                     var progressBar1 = new ProgressBar(0f, 100f, 75f);
                     progressBar1.Text = "Loading...";
                     content.AddChild(progressBar1);
-                    
-                    var progressBar2 = new ProgressBar(0f, 100f, 30f);
-                    progressBar2.ShowPercentage = true;
-                    content.AddChild(progressBar2);
-                    
-                    // Секция выпадающих списков
-                    var dropdownLabel = new Label("Dropdowns:");
-                    dropdownLabel.AddClass("label");
-                    content.AddChild(dropdownLabel);
-                    
-                    var dropdown1 = new Dropdown();
-                    dropdown1.Placeholder = "Choose a language...";
-                    dropdown1.AddItem("C#");
-                    dropdown1.AddItem("JavaScript");
-                    dropdown1.AddItem("Python");
-                    dropdown1.AddItem("Rust");
-                    dropdown1.AddItem("Go");
-                    dropdown1.OnSelectionChanged += (index, item) => 
-                    {
-                        Logger.Instance.Log($"Selected: {item}");
-                        _uiManager.ShowToast($"Selected: {item}", ToastType.Success);
-                    };
-                    dropdown1.SetLayerManager(_uiManager.LayerManager);
-                    content.AddChild(dropdown1);
                     
                     // Секция уведомлений
                     var toastLabel = new Label("Toast Notifications:");
@@ -313,21 +253,6 @@ public class Client
                     toastButton1.AddClass("button");
                     content.AddChild(toastButton1);
                     
-                    var toastButton2 = new Button("Show Success Toast");
-                    toastButton2.OnClick += () => _uiManager.ShowToast("Operation completed successfully!", ToastType.Success);
-                    toastButton2.AddClass("button");
-                    content.AddChild(toastButton2);
-                    
-                    var toastButton3 = new Button("Show Warning Toast");
-                    toastButton3.OnClick += () => _uiManager.ShowToast("This is a warning message!", ToastType.Warning);
-                    toastButton3.AddClass("button");
-                    content.AddChild(toastButton3);
-                    
-                    var toastButton4 = new Button("Show Error Toast");
-                    toastButton4.OnClick += () => _uiManager.ShowToast("An error occurred!", ToastType.Error);
-                    toastButton4.AddClass("button");
-                    content.AddChild(toastButton4);
-                    
                     // Секция слоев и модальных окон
                     var layersLabel = new Label("Layers & Modals:");
                     layersLabel.AddClass("label");
@@ -337,11 +262,6 @@ public class Client
                     modalButton.OnClick += ShowModalDemo;
                     modalButton.AddClass("button");
                     content.AddChild(modalButton);
-                    
-                    var contextMenuButton = new Button("Show Context Menu");
-                    contextMenuButton.OnClick += () => ShowContextMenuDemo(contextMenuButton);
-                    contextMenuButton.AddClass("button");
-                    content.AddChild(contextMenuButton);
                     
                     var tooltipButton = new Button("Hover for Tooltip");
                     tooltipButton.AddManipulator(new TooltipManipulator("This is a helpful tooltip that appears on hover!"));
@@ -401,25 +321,5 @@ public class Client
         modal.SetContent(modalContent);
         
         _uiManager.ShowModal(modal, true);
-    }
-    
-    private void ShowContextMenuDemo(VisualElement targetElement)
-    {
-        var contextMenu = new ContextMenu();
-        
-        contextMenu.AddItem("Copy", () => _uiManager.ShowToast("Copied!", ToastType.Info));
-        contextMenu.AddItem("Paste", () => _uiManager.ShowToast("Pasted!", ToastType.Info));
-        contextMenu.AddSeparator();
-        contextMenu.AddItem("Delete", () => _uiManager.ShowToast("Deleted!", ToastType.Warning));
-        contextMenu.AddSeparator();
-        contextMenu.AddItem("Properties", () => ShowModalDemo());
-        
-        // Показываем меню рядом с кнопкой
-        var menuPosition = new Vector2(
-            targetElement.Position.X + targetElement.Size.X,
-            targetElement.Position.Y
-        );
-        
-        _uiManager.ShowContextMenu(contextMenu, menuPosition);
     }
 }

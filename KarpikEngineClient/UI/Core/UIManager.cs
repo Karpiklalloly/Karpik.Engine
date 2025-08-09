@@ -27,8 +27,8 @@ public class UIManager
         // Обновляем систему ввода
         InputManager.Update();
         
-        // Обновляем основной UI
-        Root?.Update(deltaTime);
+        // // Обновляем основной UI
+        // Root?.Update(deltaTime);
         
         // Обновляем слои
         LayerManager.Update(deltaTime);
@@ -78,6 +78,9 @@ public class UIManager
         ModalManager = new ModalManager(LayerManager);
         ContextMenuManager = new ContextMenuManager(LayerManager);
         TooltipManager = new TooltipManager(LayerManager);
+        
+        // Устанавливаем статическую ссылку
+        UIManagerInstance.Current = this;
     }
     
     public void ShowToast(string message, ToastType type = ToastType.Info, float duration = 3f)
@@ -106,4 +109,10 @@ public class UIManager
         // Затем основной UI
         return Root?.ContainsPoint(mousePos) ?? false;
     }
+}
+
+// Статический доступ к текущему UIManager
+public static class UIManagerInstance
+{
+    public static UIManager? Current { get; set; }
 }

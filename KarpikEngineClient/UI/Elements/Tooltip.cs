@@ -17,10 +17,19 @@ public class Tooltip : VisualElement
         Text = text;
         AddClass("tooltip");
         Visible = false;
+        
+        // Устанавливаем базовые стили
+        Style.FontSize = 12;
+        Style.Padding = new Padding(8, 6);
+        Style.BackgroundColor = new Color(50, 50, 50, 240);
+        Style.TextColor = Color.White;
     }
     
     public void Show(Vector2 position)
     {
+        // Сначала рассчитываем размер
+        CalculateSize();
+        
         Position = position + Offset;
         
         // Проверяем границы экрана
@@ -40,8 +49,8 @@ public class Tooltip : VisualElement
         Visible = true;
         _isShowing = true;
         
-        // Анимация появления
-        FadeIn(0.2f);
+        // Убираем анимацию для стабильности
+        // FadeIn(0.2f);
     }
     
     public void Hide()
@@ -50,8 +59,10 @@ public class Tooltip : VisualElement
         
         _isShowing = false;
         _showTimer = 0f;
+        Visible = false;
         
-        FadeOut(0.1f, () => Visible = false);
+        // Убираем анимацию, чтобы избежать проблем с состоянием
+        // FadeOut(0.1f, () => Visible = false);
     }
     
     public void UpdatePosition(Vector2 mousePosition)
@@ -72,6 +83,11 @@ public class Tooltip : VisualElement
         if (Position.Y < 0)
         {
             Position = new Vector2(Position.X, mousePosition.Y + Math.Abs(Offset.Y) + 20);
+        }
+        
+        if (Position.Y + Size.Y > screenHeight)
+        {
+            Position = new Vector2(Position.X, mousePosition.Y - Size.Y - Math.Abs(Offset.Y));
         }
     }
     
@@ -118,82 +134,22 @@ public class Tooltip : VisualElement
             textWidth + Style.Padding.Left + Style.Padding.Right,
             Style.FontSize + Style.Padding.Top + Style.Padding.Bottom
         );
+        
+        // Принудительно устанавливаем размер, чтобы избежать растягивания
+        Style.Width = Size.X;
+        Style.Height = Size.Y;
+        Style.FlexShrink = 0;
+        Style.FlexGrow = 0;
     }
 }
 
 // Манипулятор для добавления tooltip к элементам
-public class TooltipManipulator : IManipulator
-{
-    private VisualElement? _element;
-    private Tooltip? _tooltip;
-    private float _hoverTimer = 0f;
-    private bool _isHovering = false;
-    private readonly string _tooltipText;
-    private readonly float _showDelay;
-    
-    public TooltipManipulator(string tooltipText, float showDelay = 0.5f)
-    {
-        _tooltipText = tooltipText;
-        _showDelay = showDelay;
-    }
-    
-    public void Attach(VisualElement element)
-    {
-        _element = element;
-        _tooltip = new Tooltip(_tooltipText) { ShowDelay = _showDelay };
-        _tooltip.CalculateSize();
-    }
-    
-    public void Detach(VisualElement element)
-    {
-        _tooltip?.Hide();
-        _element = null;
-        _tooltip = null;
-        _isHovering = false;
-        _hoverTimer = 0f;
-    }
-    
-    public void Update(float deltaTime)
-    {
-        if (_element == null || _tooltip == null) return;
-        
-        var mousePos = Raylib.GetMousePosition();
-        var isCurrentlyHovering = _element.ContainsPoint(mousePos);
-        
-        if (isCurrentlyHovering && !_isHovering)
-        {
-            // Начинаем наведение
-            _isHovering = true;
-            _hoverTimer = 0f;
-        }
-        else if (!isCurrentlyHovering && _isHovering)
-        {
-            // Заканчиваем наведение
-            _isHovering = false;
-            _hoverTimer = 0f;
-            _tooltip.Hide();
-        }
-        
-        if (_isHovering)
-        {
-            _hoverTimer += deltaTime;
-            
-            if (_hoverTimer >= _showDelay && !_tooltip.Visible)
-            {
-                _tooltip.Show(mousePos);
-            }
-            else if (_tooltip.Visible)
-            {
-                _tooltip.UpdatePosition(mousePos);
-            }
-        }
-    }
-}
+
 
 public class TooltipManager
 {
     private readonly LayerManager _layerManager;
-    private readonly List<Tooltip> _activeTooltips = new();
+    private readonly Dictionary<Tooltip, string> _tooltipLayers = new();
     
     public TooltipManager(LayerManager layerManager)
     {
@@ -202,31 +158,52 @@ public class TooltipManager
     
     public void ShowTooltip(Tooltip tooltip, Vector2 position)
     {
-        var layerName = $"tooltip_{DateTime.Now.Ticks}";
-        var layer = _layerManager.CreateLayer(layerName, 3000); // Очень высокий Z-индекс
+        var layerName = $"tooltip_{tooltip.GetHashCode()}";
         
+        // Если tooltip уже показан, просто обновляем позицию
+        if (_tooltipLayers.ContainsKey(tooltip))
+        {
+            // Проверяем, что слой все еще существует
+            var existingLayer = _layerManager.GetLayer(layerName);
+            if (existingLayer != null && tooltip.Visible)
+            {
+                tooltip.UpdatePosition(position);
+                return;
+            }
+            else
+            {
+                // Слой был удален или tooltip скрыт, удаляем из отслеживания
+                _tooltipLayers.Remove(tooltip);
+            }
+        }
+        
+        // Удаляем старый слой если он существует
+        if (_layerManager.GetLayer(layerName) != null)
+        {
+            _layerManager.RemoveLayer(layerName);
+        }
+        
+        var layer = _layerManager.CreateLayer(layerName, 3000); // Очень высокий Z-индекс
         layer.Root = tooltip;
         layer.BlocksInput = false;
         
         tooltip.Show(position);
-        _activeTooltips.Add(tooltip);
+        _tooltipLayers[tooltip] = layerName;
     }
     
     public void HideTooltip(Tooltip tooltip)
     {
-        _activeTooltips.Remove(tooltip);
-        
-        var layer = _layerManager.Layers.FirstOrDefault(l => l.Root == tooltip);
-        if (layer != null)
+        if (_tooltipLayers.TryGetValue(tooltip, out var layerName))
         {
             tooltip.Hide();
-            _layerManager.RemoveLayer(layer.Name);
+            _layerManager.RemoveLayer(layerName);
+            _tooltipLayers.Remove(tooltip);
         }
     }
     
     public void HideAllTooltips()
     {
-        var tooltipsToHide = _activeTooltips.ToList();
+        var tooltipsToHide = _tooltipLayers.Keys.ToList();
         foreach (var tooltip in tooltipsToHide)
         {
             HideTooltip(tooltip);

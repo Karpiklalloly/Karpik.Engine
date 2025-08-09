@@ -5,6 +5,7 @@ public interface IManipulator
     void Attach(VisualElement element);
     void Detach(VisualElement element);
     void Update(float deltaTime);
+    bool Handle(InputEvent inputEvent);
 }
 
 public abstract class Manipulator : IManipulator
@@ -24,7 +25,8 @@ public abstract class Manipulator : IManipulator
     }
     
     public abstract void Update(float deltaTime);
-    
+    public abstract bool Handle(InputEvent inputEvent);
+
     protected virtual void OnAttach() { }
     protected virtual void OnDetach() { }
 }

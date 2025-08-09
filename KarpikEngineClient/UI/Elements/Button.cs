@@ -23,23 +23,6 @@ public class Button : VisualElement
         AddManipulator(new HoverEffectManipulator());
     }
     
-    protected override bool HandleSelfInputEvent(InputEvent inputEvent)
-    {
-        // Обрабатываем клик на кнопке
-        if (inputEvent.Type == InputEventType.MouseClick && 
-            inputEvent.MouseButton == MouseButton.Left &&
-            ContainsPoint(inputEvent.MousePosition))
-        {
-            // Вызываем событие только через манипулятор, чтобы избежать дублирования
-            var clickableManipulator = GetManipulator<ClickableManipulator>();
-            clickableManipulator?.TriggerClick();
-            
-            return true;
-        }
-        
-        return base.HandleSelfInputEvent(inputEvent);
-    }
-    
     protected override void RenderSelf()
     {
         base.RenderSelf();
