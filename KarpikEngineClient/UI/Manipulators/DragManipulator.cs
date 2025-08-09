@@ -32,17 +32,17 @@ public class DragManipulator : IManipulator
         bool handled = true;
         var mousePos = inputEvent.MousePosition;
         
-        if (inputEvent is { Type: InputEventType.MouseClick, MouseButton: MouseButton.Left })
+        if (inputEvent is { Type: InputEventType.MouseDown, MouseButton: MouseButton.Left })
         {
             if (_element.ContainsPoint(mousePos))
             {
                 _isDragging = true;
-                _dragOffset = mousePos - _element.Position;
+                _dragOffset = inputEvent.MouseDelta;
                 handled = true;
             }
         }
 
-        if (_isDragging && inputEvent is { Type: InputEventType.MouseDown, MouseButton: MouseButton.Left })
+        if (_isDragging)
         {
             // Перетаскиваем родительский элемент (модальное окно)
             if (_element.Parent != null)

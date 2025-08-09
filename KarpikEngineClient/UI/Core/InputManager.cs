@@ -45,7 +45,7 @@ public class InputManager
         // Проверяем движение мыши
         if (currentMousePos != _lastMousePosition)
         {
-            _currentFrameEvents.Add(InputEvent.MouseMove(currentMousePos));
+            _currentFrameEvents.Add(InputEvent.MouseMove(currentMousePos, _lastMousePosition));
             _lastMousePosition = currentMousePos;
         }
         

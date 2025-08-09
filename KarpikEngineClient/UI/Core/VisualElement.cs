@@ -210,47 +210,6 @@ public class VisualElement
     
     protected virtual bool HandleSelfInputEvent(InputEvent inputEvent)
     {
-        // Проверяем, попадает ли событие мыши в этот элемент
-        if (inputEvent.Type == InputEventType.MouseMove ||
-            inputEvent.Type == InputEventType.MouseDown ||
-            inputEvent.Type == InputEventType.MouseUp ||
-            inputEvent.Type == InputEventType.MouseClick)
-        {
-            bool isInBounds = ContainsPoint(inputEvent.MousePosition);
-            
-            if (!isInBounds) return false;
-            
-            // Обрабатываем события мыши
-            switch (inputEvent.Type)
-            {
-                case InputEventType.MouseMove:
-                    HandleHover(true);
-                    break;
-                    
-                case InputEventType.MouseDown:
-                    if (inputEvent.MouseButton == MouseButton.Left)
-                    {
-                        HandlePress(true);
-                    }
-                    break;
-                    
-                case InputEventType.MouseUp:
-                    if (inputEvent.MouseButton == MouseButton.Left)
-                    {
-                        HandlePress(false);
-                    }
-                    break;
-                    
-                case InputEventType.MouseClick:
-                    if (inputEvent.MouseButton == MouseButton.Left)
-                    {
-                        HandleClick();
-                        return true; // Клик обработан
-                    }
-                    break;
-            }
-        }
-        
         return false;
     }
     

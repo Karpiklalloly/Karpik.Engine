@@ -18,17 +18,19 @@ public class InputEvent
 {
     public InputEventType Type { get; set; }
     public Vector2 MousePosition { get; set; }
+    public Vector2 MouseDelta { get; set; }
     public MouseButton MouseButton { get; set; }
     public KeyboardKey Key { get; set; }
     public char Character { get; set; }
     public bool Handled { get; set; } = false;
     
-    public static InputEvent MouseMove(Vector2 position)
+    public static InputEvent MouseMove(Vector2 position, Vector2 lastPosition)
     {
         return new InputEvent
         {
             Type = InputEventType.MouseMove,
-            MousePosition = position
+            MousePosition = position,
+            MouseDelta = position - lastPosition
         };
     }
     
