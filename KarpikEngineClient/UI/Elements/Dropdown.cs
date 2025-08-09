@@ -16,6 +16,8 @@ public class Dropdown : VisualElement
     private bool _isOpen = false;
     private const float ItemHeight = 30f;
     private const float MaxDropdownHeight = 150f;
+    private LayerManager? _layerManager;
+    private string? _dropdownLayerName;
     
     public Dropdown() : base("Dropdown")
     {
@@ -25,6 +27,11 @@ public class Dropdown : VisualElement
         clickable.OnClicked += ToggleDropdown;
         AddManipulator(clickable);
         AddManipulator(new HoverEffectManipulator());
+    }
+    
+    public void SetLayerManager(LayerManager layerManager)
+    {
+        _layerManager = layerManager;
     }
     
     public void AddItem(string item)
@@ -65,41 +72,53 @@ public class Dropdown : VisualElement
     private void ToggleDropdown()
     {
         if (!Enabled) return;
-        _isOpen = !_isOpen;
+        
+        if (_isOpen)
+        {
+            CloseDropdown();
+        }
+        else
+        {
+            OpenDropdown();
+        }
+    }
+    
+    private void OpenDropdown()
+    {
+        _isOpen = true;
+        
+        if (_layerManager != null)
+        {
+            // Создаем слой для dropdown'а с высоким z-index
+            _dropdownLayerName = $"dropdown_{Name}_{DateTime.Now.Ticks}";
+            var layer = _layerManager.CreateLayer(_dropdownLayerName, 500);
+            
+            // Создаем элемент для dropdown списка
+            var dropdownList = new DropdownList(this);
+            layer.Root = dropdownList;
+            layer.BlocksInput = false; // Не блокируем весь ввод, только обрабатываем клики
+        }
+    }
+    
+    public void CloseDropdown()
+    {
+        _isOpen = false;
+        
+        if (_layerManager != null && _dropdownLayerName != null)
+        {
+            _layerManager.RemoveLayer(_dropdownLayerName);
+            _dropdownLayerName = null;
+        }
     }
     
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime);
         
-        // Закрываем dropdown при клике вне его
-        if (_isOpen && Raylib.IsMouseButtonPressed(MouseButton.Left))
-        {
-            var mousePos = Raylib.GetMousePosition();
-            var dropdownRect = GetDropdownRect();
-            
-            if (!ContainsPoint(mousePos) && !Raylib.CheckCollisionPointRec(mousePos, dropdownRect))
-            {
-                _isOpen = false;
-            }
-            else if (Raylib.CheckCollisionPointRec(mousePos, dropdownRect))
-            {
-                // Обработка клика по элементу списка
-                var relativeY = mousePos.Y - dropdownRect.Y;
-                var itemIndex = (int)(relativeY / ItemHeight);
-                
-                if (itemIndex >= 0 && itemIndex < Items.Count)
-                {
-                    SelectItem(itemIndex);
-                    _isOpen = false;
-                }
-            }
-        }
-        
         // Закрываем dropdown при нажатии Escape
         if (_isOpen && Raylib.IsKeyPressed(KeyboardKey.Escape))
         {
-            _isOpen = false;
+            CloseDropdown();
         }
     }
     
@@ -172,11 +191,7 @@ public class Dropdown : VisualElement
             );
         }
         
-        // Рендерим выпадающий список
-        if (_isOpen && Items.Count > 0)
-        {
-            RenderDropdownList();
-        }
+        // Dropdown список теперь рендерится через отдельный слой
     }
     
     private void RenderDropdownList()
@@ -238,5 +253,118 @@ public class Dropdown : VisualElement
         }
         
         return "...";
+    }
+}
+
+// Отдельный элемент для отображения списка dropdown'а в слое
+internal class DropdownList : VisualElement
+{
+    private readonly Dropdown _parentDropdown;
+    private const float ItemHeight = 30f;
+    private const float MaxDropdownHeight = 150f;
+    
+    public DropdownList(Dropdown parentDropdown) : base("DropdownList")
+    {
+        _parentDropdown = parentDropdown;
+        
+        // Позиционируем список под родительским dropdown'ом
+        var dropdownRect = GetDropdownRect();
+        Position = new Vector2(dropdownRect.X, dropdownRect.Y);
+        Size = new Vector2(dropdownRect.Width, dropdownRect.Height);
+        
+        // Устанавливаем абсолютное позиционирование
+        Style.Position = Karpik.Engine.Client.UIToolkit.Position.Fixed;
+        Style.Left = Position.X;
+        Style.Top = Position.Y;
+    }
+    
+    private Rectangle GetDropdownRect()
+    {
+        var itemCount = Math.Min(_parentDropdown.Items.Count, (int)(MaxDropdownHeight / ItemHeight));
+        var dropdownHeight = itemCount * ItemHeight;
+        
+        return new Rectangle(
+            _parentDropdown.Position.X, 
+            _parentDropdown.Position.Y + _parentDropdown.Size.Y, 
+            _parentDropdown.Size.X, 
+            dropdownHeight
+        );
+    }
+    
+    public override void Update(float deltaTime)
+    {
+        base.Update(deltaTime);
+        
+        // Обрабатываем клики
+        if (Raylib.IsMouseButtonPressed(MouseButton.Left))
+        {
+            var mousePos = Raylib.GetMousePosition();
+            var bounds = GetBounds();
+            
+            if (Raylib.CheckCollisionPointRec(mousePos, bounds))
+            {
+                // Клик по элементу списка
+                var relativeY = mousePos.Y - bounds.Y;
+                var itemIndex = (int)(relativeY / ItemHeight);
+                
+                if (itemIndex >= 0 && itemIndex < _parentDropdown.Items.Count)
+                {
+                    _parentDropdown.SelectItem(itemIndex);
+                    _parentDropdown.CloseDropdown();
+                }
+            }
+            else if (!_parentDropdown.ContainsPoint(mousePos))
+            {
+                // Клик вне dropdown'а - закрываем
+                _parentDropdown.CloseDropdown();
+            }
+        }
+    }
+    
+    protected override void RenderSelf()
+    {
+        var bounds = GetBounds();
+        
+        // Фон списка
+        Raylib.DrawRectangleRounded(bounds, 0.2f, 8, Color.White);
+        
+        // Рамка списка
+        Raylib.DrawRectangleLinesEx(bounds, 1f, new Color(200, 200, 200, 255));
+        
+        // Элементы списка
+        var mousePos = Raylib.GetMousePosition();
+        
+        for (int i = 0; i < _parentDropdown.Items.Count && i < (int)(MaxDropdownHeight / ItemHeight); i++)
+        {
+            var itemRect = new Rectangle(
+                bounds.X,
+                bounds.Y + i * ItemHeight,
+                bounds.Width,
+                ItemHeight
+            );
+            
+            // Подсветка при наведении
+            if (Raylib.CheckCollisionPointRec(mousePos, itemRect))
+            {
+                Raylib.DrawRectangle((int)itemRect.X, (int)itemRect.Y, (int)itemRect.Width, (int)itemRect.Height, 
+                    new Color(240, 240, 240, 255));
+            }
+            
+            // Подсветка выбранного элемента
+            if (i == _parentDropdown.SelectedIndex)
+            {
+                Raylib.DrawRectangle((int)itemRect.X, (int)itemRect.Y, (int)itemRect.Width, (int)itemRect.Height, 
+                    new Color(33, 150, 243, 50));
+            }
+            
+            // Текст элемента
+            var itemTextPos = new Vector2(
+                itemRect.X + 10,
+                itemRect.Y + (ItemHeight - _parentDropdown.ResolvedStyle.FontSize) / 2
+            );
+            
+            Raylib.DrawText(_parentDropdown.Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, 
+                _parentDropdown.ResolvedStyle.FontSize, _parentDropdown.ResolvedStyle.TextColor);
+        }
     }
 }

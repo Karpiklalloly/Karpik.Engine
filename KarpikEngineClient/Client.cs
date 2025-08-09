@@ -300,6 +300,7 @@ public class Client
                         Logger.Instance.Log($"Selected: {item}");
                         _uiManager.ShowToast($"Selected: {item}", ToastType.Success);
                     };
+                    dropdown1.SetLayerManager(_uiManager.LayerManager);
                     content.AddChild(dropdown1);
                     
                     // Секция уведомлений
@@ -326,11 +327,98 @@ public class Client
                     toastButton4.OnClick += () => _uiManager.ShowToast("An error occurred!", ToastType.Error);
                     toastButton4.AddClass("button");
                     content.AddChild(toastButton4);
+                    
+                    // Секция слоев и модальных окон
+                    var layersLabel = new Label("Layers & Modals:");
+                    layersLabel.AddClass("label");
+                    content.AddChild(layersLabel);
+                    
+                    var modalButton = new Button("Show Modal Dialog");
+                    modalButton.OnClick += ShowModalDemo;
+                    modalButton.AddClass("button");
+                    content.AddChild(modalButton);
+                    
+                    var contextMenuButton = new Button("Show Context Menu");
+                    contextMenuButton.OnClick += () => ShowContextMenuDemo(contextMenuButton);
+                    contextMenuButton.AddClass("button");
+                    content.AddChild(contextMenuButton);
+                    
+                    var tooltipButton = new Button("Hover for Tooltip");
+                    tooltipButton.AddManipulator(new TooltipManipulator("This is a helpful tooltip that appears on hover!"));
+                    tooltipButton.AddClass("button");
+                    content.AddChild(tooltipButton);
                 }
             }
             root.AddChild(panel);
         }
         
         _uiManager.SetRoot(root);
+    }
+    
+    private void ShowModalDemo()
+    {
+        var modal = new Modal("Demo Modal Window");
+        modal.Size = new Vector2(400, 300);
+        
+        // Создаем содержимое модального окна
+        var modalContent = new VisualElement();
+        modalContent.Style.FlexDirection = FlexDirection.Column;
+        
+        var welcomeLabel = new Label("Welcome to the modal dialog!");
+        welcomeLabel.AddClass("label");
+        modalContent.AddChild(welcomeLabel);
+        
+        var descriptionLabel = new Label("This is a demonstration of the layered UI system.");
+        descriptionLabel.AddClass("label");
+        modalContent.AddChild(descriptionLabel);
+        
+        var inputField = new TextInput("Enter some text...");
+        modalContent.AddChild(inputField);
+        
+        var buttonContainer = new VisualElement();
+        buttonContainer.Style.FlexDirection = FlexDirection.Row;
+        buttonContainer.Style.JustifyContent = JustifyContent.SpaceEvenly;
+        buttonContainer.Style.Margin = new Margin(0, 10, 0, 0);
+        
+        var okButton = new Button("OK");
+        okButton.OnClick += () => 
+        {
+            _uiManager.ShowToast($"You entered: {inputField.Text}", ToastType.Success);
+            modal.Close();
+        };
+        okButton.AddClass("button");
+        okButton.Style.Margin = new Margin(5);
+        buttonContainer.AddChild(okButton);
+        
+        var cancelButton = new Button("Cancel");
+        cancelButton.OnClick += () => modal.Close();
+        cancelButton.AddClass("button");
+        cancelButton.Style.Margin = new Margin(5);
+        buttonContainer.AddChild(cancelButton);
+        
+        modalContent.AddChild(buttonContainer);
+        modal.SetContent(modalContent);
+        
+        _uiManager.ShowModal(modal, true);
+    }
+    
+    private void ShowContextMenuDemo(VisualElement targetElement)
+    {
+        var contextMenu = new ContextMenu();
+        
+        contextMenu.AddItem("Copy", () => _uiManager.ShowToast("Copied!", ToastType.Info));
+        contextMenu.AddItem("Paste", () => _uiManager.ShowToast("Pasted!", ToastType.Info));
+        contextMenu.AddSeparator();
+        contextMenu.AddItem("Delete", () => _uiManager.ShowToast("Deleted!", ToastType.Warning));
+        contextMenu.AddSeparator();
+        contextMenu.AddItem("Properties", () => ShowModalDemo());
+        
+        // Показываем меню рядом с кнопкой
+        var menuPosition = new Vector2(
+            targetElement.Position.X + targetElement.Size.X,
+            targetElement.Position.Y
+        );
+        
+        _uiManager.ShowContextMenu(contextMenu, menuPosition);
     }
 }

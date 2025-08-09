@@ -29,10 +29,14 @@ public static class LayoutEngine
         // 1. Рассчитываем размеры элемента
         CalculateElementSize(element, computedStyle, availableSpace);
         
-        // 2. Рассчитываем позицию для абсолютно позиционированных элементов
+        // 2. Рассчитываем позицию для абсолютно и фиксированно позиционированных элементов
         if (computedStyle.Position == Position.Absolute)
         {
             CalculateAbsolutePosition(element, computedStyle, availableSpace);
+        }
+        else if (computedStyle.Position == Position.Fixed)
+        {
+            CalculateFixedPosition(element, computedStyle);
         }
         
         // 3. Рассчитываем layout для детей
@@ -77,6 +81,24 @@ public static class LayoutEngine
         element.Position = position;
     }
     
+    private static void CalculateFixedPosition(VisualElement element, Style style)
+    {
+        var position = element.Position;
+        
+        // Fixed позиционирование относительно viewport (экрана)
+        if (style.Left.HasValue)
+            position.X = style.Left.Value;
+        else if (style.Right.HasValue)
+            position.X = Raylib.GetScreenWidth() - element.Size.X - style.Right.Value;
+            
+        if (style.Top.HasValue)
+            position.Y = style.Top.Value;
+        else if (style.Bottom.HasValue)
+            position.Y = Raylib.GetScreenHeight() - element.Size.Y - style.Bottom.Value;
+        
+        element.Position = position;
+    }
+    
     private static void CalculateChildrenLayout(VisualElement parent, Style parentStyle)
     {
         if (parent.Children.Count == 0) return;
@@ -93,11 +115,17 @@ public static class LayoutEngine
         
         switch (parentStyle.FlexDirection)
         {
-            case FlexDirection.Column or FlexDirection.ColumnReverse:
-                LayoutColumn(visibleChildren, parentStyle, contentArea);
+            case FlexDirection.Column:
+                LayoutColumn(visibleChildren, parentStyle, contentArea, false);
                 break;
-            case FlexDirection.Row or FlexDirection.RowReverse:
-                LayoutRow(visibleChildren, parentStyle, contentArea);
+            case FlexDirection.ColumnReverse:
+                LayoutColumn(visibleChildren, parentStyle, contentArea, true);
+                break;
+            case FlexDirection.Row:
+                LayoutRow(visibleChildren, parentStyle, contentArea, false);
+                break;
+            case FlexDirection.RowReverse:
+                LayoutRow(visibleChildren, parentStyle, contentArea, true);
                 break;
         }
 
@@ -112,6 +140,11 @@ public static class LayoutEngine
                 // Абсолютно позиционированные элементы позиционируются относительно корня
                 childContentArea = GetRootAvailableSpace(parent);
             }
+            else if (childStyle.Position == Position.Fixed)
+            {
+                // Фиксированно позиционированные элементы позиционируются относительно viewport
+                childContentArea = new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+            }
             else
             {
                 childContentArea = new Rectangle(
@@ -124,11 +157,15 @@ public static class LayoutEngine
         }
     }
     
-    private static void LayoutColumn(List<VisualElement> children, Style parentStyle, Rectangle contentArea)
+    private static void LayoutColumn(List<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
     {
         float totalHeight = 0;
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
+        
+        // Обращаем порядок детей если нужно
+        if (reverse)
+            children = children.AsEnumerable().Reverse().ToList();
         
         // Собираем информацию о детях
         foreach (var child in children)
@@ -137,6 +174,9 @@ public static class LayoutEngine
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             CalculateElementSize(child, childStyle, contentArea);
+            
+            // Вычисляем baseline для каждого элемента
+            info.Baseline = CalculateBaseline(child, childStyle);
             
             totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
             
@@ -157,6 +197,7 @@ public static class LayoutEngine
         float currentY = contentArea.Y;
         float remainingHeight = Math.Max(0, contentArea.Height - totalHeight);
         
+        float spaceBetween = 0;
         switch (parentStyle.JustifyContent)
         {
             case JustifyContent.Center:
@@ -168,14 +209,31 @@ public static class LayoutEngine
             case JustifyContent.FlexStart:
                 break;
             case JustifyContent.SpaceBetween:
+                spaceBetween = childInfos.Count > 1 ? remainingHeight / (childInfos.Count - 1) : 0;
+                break;
             case JustifyContent.SpaceAround:
+                spaceBetween = remainingHeight / childInfos.Count;
+                currentY += spaceBetween / 2;
+                break;
             case JustifyContent.SpaceEvenly:
+                spaceBetween = remainingHeight / (childInfos.Count + 1);
+                currentY += spaceBetween;
+                break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent));
+                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.JustifyContent.ToString());
         }
         
-        foreach (var info in childInfos)
+        // Для baseline выравнивания в колонке находим максимальный baseline среди элементов в одной строке
+        // В вертикальном layout baseline менее актуален, но для совместимости поддерживаем
+        float maxBaseline = 0;
+        if (parentStyle.AlignItems == AlignItems.Baseline)
         {
+            maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Left);
+        }
+        
+        for (int i = 0; i < childInfos.Count; i++)
+        {
+            var info = childInfos[i];
             var child = info.Element;
             var childStyle = info.Style;
             
@@ -184,20 +242,28 @@ public static class LayoutEngine
             float childX = contentArea.X + childStyle.Margin.Left;
             switch (parentStyle.AlignItems)
             {
-                case AlignItems.Center:
-                    childX = contentArea.X + (contentArea.Width - child.Size.X) / 2;
+                case AlignItems.FlexStart:
+                    // Позиция по умолчанию - уже установлена выше
                     break;
                 case AlignItems.FlexEnd:
                     childX = contentArea.X + contentArea.Width - child.Size.X - childStyle.Margin.Right;
                     break;
-                case AlignItems.Stretch when !childStyle.Width.HasValue:
-                    child.Size = new Vector2(contentArea.Width - childStyle.Margin.Left - childStyle.Margin.Right, child.Size.Y);
+                case AlignItems.Center:
+                    childX = contentArea.X + (contentArea.Width - child.Size.X) / 2;
                     break;
-                case AlignItems.FlexStart:
+                case AlignItems.Stretch:
+                    if (!childStyle.Width.HasValue)
+                    {
+                        child.Size = new Vector2(contentArea.Width - childStyle.Margin.Left - childStyle.Margin.Right, child.Size.Y);
+                    }
                     break;
                 case AlignItems.Baseline:
+                    // В вертикальном layout baseline применяется по горизонтали
+                    // Выравниваем по baseline текста внутри элементов
+                    childX = contentArea.X + maxBaseline - info.Baseline;
+                    break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems));
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.AlignItems.ToString());
             }
             
             // Устанавливаем позицию
@@ -206,7 +272,7 @@ public static class LayoutEngine
             // Рассчитываем высоту для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
-                float flexHeight = (childStyle.FlexGrow / totalFlexGrow) * remainingHeight;
+                float flexHeight = childStyle.FlexGrow / totalFlexGrow * remainingHeight;
                 child.Size = new Vector2(child.Size.X, flexHeight);
                 currentY += flexHeight;
             }
@@ -216,14 +282,24 @@ public static class LayoutEngine
             }
             
             currentY += childStyle.Margin.Bottom;
+            
+            // Добавляем пространство между элементами для SpaceBetween, SpaceAround, SpaceEvenly
+            if (spaceBetween > 0 && i < childInfos.Count - 1)
+            {
+                currentY += spaceBetween;
+            }
         }
     }
     
-    private static void LayoutRow(List<VisualElement> children, Style parentStyle, Rectangle contentArea)
+    private static void LayoutRow(List<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
     {
         float totalWidth = 0;
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
+        
+        // Обращаем порядок детей если нужно
+        if (reverse)
+            children = children.AsEnumerable().Reverse().ToList();
         
         // Собираем информацию о детях
         foreach (var child in children)
@@ -232,6 +308,9 @@ public static class LayoutEngine
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             CalculateElementSize(child, childStyle, contentArea);
+            
+            // Вычисляем baseline для каждого элемента
+            info.Baseline = CalculateBaseline(child, childStyle);
             
             totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
             
@@ -252,6 +331,7 @@ public static class LayoutEngine
         float currentX = contentArea.X;
         float remainingWidth = Math.Max(0, contentArea.Width - totalWidth);
 
+        float spaceBetween = 0;
         switch (parentStyle.JustifyContent)
         {
             case JustifyContent.Center:
@@ -263,14 +343,30 @@ public static class LayoutEngine
             case JustifyContent.FlexStart:
                 break;
             case JustifyContent.SpaceBetween:
+                spaceBetween = childInfos.Count > 1 ? remainingWidth / (childInfos.Count - 1) : 0;
+                break;
             case JustifyContent.SpaceAround:
+                spaceBetween = remainingWidth / childInfos.Count;
+                currentX += spaceBetween / 2;
+                break;
             case JustifyContent.SpaceEvenly:
+                spaceBetween = remainingWidth / (childInfos.Count + 1);
+                currentX += spaceBetween;
+                break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent));
+                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.JustifyContent.ToString());
         }
         
-        foreach (var info in childInfos)
+        // Для baseline выравнивания находим максимальный baseline
+        float maxBaseline = 0;
+        if (parentStyle.AlignItems == AlignItems.Baseline)
         {
+            maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Top);
+        }
+        
+        for (int i = 0; i < childInfos.Count; i++)
+        {
+            var info = childInfos[i];
             var child = info.Element;
             var childStyle = info.Style;
             
@@ -279,20 +375,27 @@ public static class LayoutEngine
             float childY = contentArea.Y + childStyle.Margin.Top;
             switch (parentStyle.AlignItems)
             {
-                case AlignItems.Center:
-                    childY = contentArea.Y + (contentArea.Height - child.Size.Y) / 2;
+                case AlignItems.FlexStart:
+                    // Позиция по умолчанию - уже установлена выше
                     break;
                 case AlignItems.FlexEnd:
                     childY = contentArea.Y + contentArea.Height - child.Size.Y - childStyle.Margin.Bottom;
                     break;
-                case AlignItems.Stretch when !childStyle.Height.HasValue:
-                    child.Size = new Vector2(child.Size.X, contentArea.Height - childStyle.Margin.Top - childStyle.Margin.Bottom);
+                case AlignItems.Center:
+                    childY = contentArea.Y + (contentArea.Height - child.Size.Y) / 2;
                     break;
-                case AlignItems.FlexStart:
+                case AlignItems.Stretch:
+                    if (!childStyle.Height.HasValue)
+                    {
+                        child.Size = new Vector2(child.Size.X, contentArea.Height - childStyle.Margin.Top - childStyle.Margin.Bottom);
+                    }
                     break;
                 case AlignItems.Baseline:
+                    // Выравниваем по baseline - позиционируем так чтобы baseline всех элементов совпадал
+                    childY = contentArea.Y + maxBaseline - info.Baseline;
+                    break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems));
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.AlignItems.ToString());
             }
             
             child.Position = new Vector2(currentX, childY);
@@ -300,7 +403,7 @@ public static class LayoutEngine
             // Рассчитываем ширину для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
-                float flexWidth = (childStyle.FlexGrow / totalFlexGrow) * remainingWidth;
+                float flexWidth = childStyle.FlexGrow / totalFlexGrow * remainingWidth;
                 child.Size = new Vector2(flexWidth, child.Size.Y);
                 currentX += flexWidth;
             }
@@ -310,6 +413,12 @@ public static class LayoutEngine
             }
             
             currentX += childStyle.Margin.Right;
+            
+            // Добавляем пространство между элементами для SpaceBetween, SpaceAround, SpaceEvenly
+            if (spaceBetween > 0 && i < childInfos.Count - 1)
+            {
+                currentX += spaceBetween;
+            }
         }
     }
     
@@ -318,6 +427,7 @@ public static class LayoutEngine
         public VisualElement Element { get; set; } = null!;
         public Style Style { get; set; } = null!;
         public bool IsFlexItem { get; set; }
+        public float Baseline { get; set; }
     }
     
     private static Rectangle GetRootAvailableSpace(VisualElement element)
@@ -328,5 +438,38 @@ public static class LayoutEngine
             root = root.Parent;
             
         return new Rectangle(0, 0, root.Size.X, root.Size.Y);
+    }
+    
+    private static float CalculateBaseline(VisualElement element, Style style)
+    {
+        // Baseline для текстовых элементов - это позиция где должна располагаться базовая линия текста
+        // Для простоты используем 80% от высоты элемента (примерно где располагается baseline текста)
+        // В более сложной реализации можно было бы учитывать реальные метрики шрифта
+        
+        if (element.Children.Count == 0)
+        {
+            // Листовой элемент - вычисляем baseline на основе размера шрифта
+            float fontSize = style.FontSize;
+            float elementHeight = element.Size.Y;
+            
+            // Baseline обычно находится на расстоянии примерно 0.8 от высоты шрифта от верха
+            float baselineFromTop = Math.Max(fontSize * 0.8f, elementHeight * 0.8f);
+            return Math.Min(baselineFromTop, elementHeight);
+        }
+        else
+        {
+            // Для контейнеров используем baseline первого текстового дочернего элемента
+            foreach (var child in element.Children)
+            {
+                if (child.Visible)
+                {
+                    var childStyle = child.ComputeStyle();
+                    return CalculateBaseline(child, childStyle);
+                }
+            }
+            
+            // Если нет дочерних элементов, используем 80% высоты
+            return element.Size.Y * 0.8f;
+        }
     }
 }

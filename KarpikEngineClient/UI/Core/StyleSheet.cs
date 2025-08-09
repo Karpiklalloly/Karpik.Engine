@@ -251,6 +251,82 @@ public class StyleSheet
         };
         styleSheet.AddClass("dropdown", dropdownStyle);
         
+        // Стили для модальных окон
+        var modalStyle = new Style
+        {
+            BackgroundColor = Color.White,
+            BorderColor = new Color(200, 200, 200, 255),
+            BorderWidth = 1,
+            BorderRadius = 8,
+            Padding = new Padding(0)
+        };
+        styleSheet.AddClass("modal", modalStyle);
+        
+        var modalTitleBarStyle = new Style
+        {
+            Height = 40,
+            BackgroundColor = new Color(245, 245, 245, 255),
+            BorderColor = new Color(220, 220, 220, 255),
+            BorderWidth = 1,
+            Padding = new Padding(15, 10),
+            FlexDirection = FlexDirection.Row
+        };
+        styleSheet.AddClass("modal-title-bar", modalTitleBarStyle);
+        
+        var modalTitleStyle = new Style
+        {
+            TextColor = new Color(60, 60, 60, 255),
+            FontSize = 16,
+            FlexGrow = 1
+        };
+        styleSheet.AddClass("modal-title", modalTitleStyle);
+        
+        var modalCloseButtonStyle = new Style
+        {
+            Width = 30,
+            Height = 30,
+            BackgroundColor = new Color(0, 0, 0, 0),
+            TextColor = new Color(100, 100, 100, 255),
+            FontSize = 18,
+            BorderRadius = 15
+        };
+        styleSheet.AddClass("modal-close-button", modalCloseButtonStyle);
+        
+        styleSheet.AddHover("modal-close-button", new Style 
+        { 
+            BackgroundColor = new Color(220, 220, 220, 255),
+            TextColor = new Color(60, 60, 60, 255)
+        });
+        
+        var modalContentStyle = new Style
+        {
+            Padding = new Padding(20),
+            FlexGrow = 1
+        };
+        styleSheet.AddClass("modal-content", modalContentStyle);
+        
+        // Стили для контекстного меню
+        var contextMenuStyle = new Style
+        {
+            BackgroundColor = Color.White,
+            BorderColor = new Color(200, 200, 200, 255),
+            BorderWidth = 1,
+            BorderRadius = 4,
+            FontSize = 14
+        };
+        styleSheet.AddClass("context-menu", contextMenuStyle);
+        
+        // Стили для tooltip
+        var tooltipStyle = new Style
+        {
+            BackgroundColor = new Color(50, 50, 50, 240),
+            TextColor = Color.White,
+            FontSize = 12,
+            Padding = new Padding(8, 6),
+            BorderRadius = 4
+        };
+        styleSheet.AddClass("tooltip", tooltipStyle);
+        
         return styleSheet;
     }
 

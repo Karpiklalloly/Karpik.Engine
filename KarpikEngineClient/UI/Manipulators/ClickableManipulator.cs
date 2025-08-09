@@ -23,6 +23,7 @@ public class ClickableManipulator : Manipulator
         
         if (wasClicked)
         {
+            Console.WriteLine($"Button clicked: {Element.Name}");
             Element.HandleClick();
             OnClicked?.Invoke();
         }
