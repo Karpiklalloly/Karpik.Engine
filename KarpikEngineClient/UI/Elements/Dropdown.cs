@@ -121,6 +121,7 @@ public class Dropdown : VisualElement
             var dropdownList = new DropdownList(this);
             layer.Root = dropdownList;
             layer.BlocksInput = false; // Не блокируем весь ввод, только обрабатываем клики
+            
         }
     }
     
@@ -295,19 +296,25 @@ internal class DropdownList : VisualElement
         Style.Position = Karpik.Engine.Client.UIToolkit.Position.Fixed;
         Style.Left = Position.X;
         Style.Top = Position.Y;
+        Style.Width = Size.X;
+        Style.Height = Size.Y;
+        
+
     }
     
     private Rectangle GetDropdownRect()
     {
         var itemCount = Math.Min(_parentDropdown.Items.Count, (int)(MaxDropdownHeight / ItemHeight));
-        var dropdownHeight = itemCount * ItemHeight;
+        var dropdownHeight = Math.Max(itemCount * ItemHeight, ItemHeight); // Минимум одна строка
         
-        return new Rectangle(
+        var rect = new Rectangle(
             _parentDropdown.Position.X, 
             _parentDropdown.Position.Y + _parentDropdown.Size.Y, 
             _parentDropdown.Size.X, 
             dropdownHeight
         );
+        
+        return rect;
     }
     
     protected override bool HandleSelfInputEvent(InputEvent inputEvent)
@@ -326,7 +333,6 @@ internal class DropdownList : VisualElement
                 
                 if (itemIndex >= 0 && itemIndex < _parentDropdown.Items.Count)
                 {
-                    Console.WriteLine($"Dropdown item selected: {_parentDropdown.Items[itemIndex]}");
                     _parentDropdown.SelectItem(itemIndex);
                     _parentDropdown.CloseDropdown();
                     return true;
@@ -335,7 +341,6 @@ internal class DropdownList : VisualElement
             else if (!_parentDropdown.ContainsPoint(mousePos))
             {
                 // Клик вне dropdown'а - закрываем
-                Console.WriteLine("Dropdown closed by outside click");
                 _parentDropdown.CloseDropdown();
                 return true;
             }
@@ -348,6 +353,8 @@ internal class DropdownList : VisualElement
     {
         var bounds = GetBounds();
         
+
+        
         // Фон списка
         Raylib.DrawRectangleRounded(bounds, 0.2f, 8, Color.White);
         
@@ -356,8 +363,9 @@ internal class DropdownList : VisualElement
         
         // Элементы списка
         var mousePos = Raylib.GetMousePosition();
+        var maxItems = Math.Min(_parentDropdown.Items.Count, (int)(MaxDropdownHeight / ItemHeight));
         
-        for (int i = 0; i < _parentDropdown.Items.Count && i < (int)(MaxDropdownHeight / ItemHeight); i++)
+        for (int i = 0; i < maxItems; i++)
         {
             var itemRect = new Rectangle(
                 bounds.X,
@@ -381,13 +389,15 @@ internal class DropdownList : VisualElement
             }
             
             // Текст элемента
+            var fontSize = _parentDropdown.ResolvedStyle?.FontSize ?? 16;
+            var textColor = _parentDropdown.ResolvedStyle?.TextColor ?? Color.Black;
+            
             var itemTextPos = new Vector2(
                 itemRect.X + 10,
-                itemRect.Y + (ItemHeight - _parentDropdown.ResolvedStyle.FontSize) / 2
+                itemRect.Y + (ItemHeight - fontSize) / 2
             );
             
-            Raylib.DrawText(_parentDropdown.Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, 
-                _parentDropdown.ResolvedStyle.FontSize, _parentDropdown.ResolvedStyle.TextColor);
+            Raylib.DrawText(_parentDropdown.Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, fontSize, textColor);
         }
     }
 }

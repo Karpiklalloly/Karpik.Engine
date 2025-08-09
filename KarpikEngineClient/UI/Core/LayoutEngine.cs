@@ -498,6 +498,12 @@ public static class LayoutEngine
     
     private static float CalculateIntrinsicWidth(VisualElement element, Style style)
     {
+        // Если у элемента уже есть размер, используем его
+        if (element.Size.X > 0)
+        {
+            return element.Size.X;
+        }
+        
         // Для кнопок вычисляем ширину на основе текста
         if (element is Elements.Button button)
         {
@@ -505,8 +511,9 @@ public static class LayoutEngine
             {
                 var textWidth = Raylib.MeasureText(button.Text, style.FontSize);
                 var padding = style.Padding.Left + style.Padding.Right;
-                return textWidth + padding + 20; // +20 для внутренних отступов кнопки
+                return Math.Max(textWidth + padding + 20, 60); // Минимум 60px для кнопки
             }
+            return 80; // Кнопка без текста
         }
         
         // Для лейблов вычисляем ширину на основе текста
@@ -518,55 +525,75 @@ public static class LayoutEngine
                 var padding = style.Padding.Left + style.Padding.Right;
                 return textWidth + padding;
             }
+            return 0; // Пустой лейбл
         }
         
-        // Для контейнеров вычисляем минимальную ширину на основе детей
+        // Для dropdown вычисляем ширину на основе самого длинного элемента
+        if (element is Elements.Dropdown dropdown)
+        {
+            float maxWidth = 0;
+            
+            // Проверяем placeholder
+            if (!string.IsNullOrEmpty(dropdown.Placeholder))
+            {
+                maxWidth = Math.Max(maxWidth, Raylib.MeasureText(dropdown.Placeholder, style.FontSize));
+            }
+            
+            // Проверяем все элементы
+            foreach (var item in dropdown.Items)
+            {
+                if (!string.IsNullOrEmpty(item))
+                {
+                    maxWidth = Math.Max(maxWidth, Raylib.MeasureText(item, style.FontSize));
+                }
+            }
+            
+            var padding = style.Padding.Left + style.Padding.Right;
+            return Math.Max(maxWidth + padding + 30, 150); // +30 для стрелки, минимум 150px
+        }
+        
+        // Для контейнеров используем разумные значения по умолчанию
         if (element.Children.Count > 0)
         {
+            // Если есть MinWidth, используем его
+            if (style.MinWidth.HasValue)
+            {
+                return style.MinWidth.Value;
+            }
+            
+            // Для разных типов контейнеров используем разные значения по умолчанию
+            if (element.Name == "ContentArea" || element.Name == "Modal")
+            {
+                return 400; // Разумный размер для модальных окон
+            }
+            
             if (style.FlexDirection == FlexDirection.Row)
             {
-                // В горизонтальном layout суммируем ширины детей
-                float totalWidth = 0;
-                foreach (var child in element.Children)
-                {
-                    if (child.Visible)
-                    {
-                        var childStyle = child.ComputeStyle();
-                        totalWidth += CalculateIntrinsicWidth(child, childStyle);
-                        totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
-                    }
-                }
-                return totalWidth;
+                return 300; // Для горизонтальных контейнеров
             }
             else
             {
-                // В вертикальном layout берем максимальную ширину среди детей
-                float maxWidth = 0;
-                foreach (var child in element.Children)
-                {
-                    if (child.Visible)
-                    {
-                        var childStyle = child.ComputeStyle();
-                        var childWidth = CalculateIntrinsicWidth(child, childStyle);
-                        childWidth += childStyle.Margin.Left + childStyle.Margin.Right;
-                        maxWidth = Math.Max(maxWidth, childWidth);
-                    }
-                }
-                return maxWidth;
+                return 250; // Для вертикальных контейнеров
             }
         }
         
-        // По умолчанию возвращаем минимальную ширину
-        return style.MinWidth ?? 100;
+        // По умолчанию возвращаем минимальную ширину или 0
+        return style.MinWidth ?? 0;
     }
     
     private static float CalculateIntrinsicHeight(VisualElement element, Style style)
     {
+        // Если у элемента уже есть размер, используем его
+        if (element.Size.Y > 0)
+        {
+            return element.Size.Y;
+        }
+        
         // Для кнопок используем высоту шрифта + отступы
         if (element is Elements.Button)
         {
             var padding = style.Padding.Top + style.Padding.Bottom;
-            return style.FontSize + padding + 10; // +10 для внутренних отступов кнопки
+            return Math.Max(style.FontSize + padding + 10, 30); // Минимум 30px для кнопки
         }
         
         // Для лейблов используем высоту шрифта + отступы
@@ -576,42 +603,38 @@ public static class LayoutEngine
             return style.FontSize + padding;
         }
         
-        // Для контейнеров вычисляем минимальную высоту на основе детей
+        // Для dropdown используем стандартную высоту
+        if (element is Elements.Dropdown)
+        {
+            var padding = style.Padding.Top + style.Padding.Bottom;
+            return Math.Max(style.FontSize + padding + 10, 35); // Минимум 35px для dropdown
+        }
+        
+        // Для контейнеров используем разумные значения по умолчанию
         if (element.Children.Count > 0)
         {
+            // Если есть MinHeight, используем его
+            if (style.MinHeight.HasValue)
+            {
+                return style.MinHeight.Value;
+            }
+            
+            // Для разных типов контейнеров используем разные значения по умолчанию
+            if (element.Name == "ContentArea" || element.Name == "Modal")
+            {
+                return 300; // Разумный размер для модальных окон
+            }
+            
             if (style.FlexDirection == FlexDirection.Column)
             {
-                // В вертикальном layout суммируем высоты детей
-                float totalHeight = 0;
-                foreach (var child in element.Children)
-                {
-                    if (child.Visible)
-                    {
-                        var childStyle = child.ComputeStyle();
-                        totalHeight += CalculateIntrinsicHeight(child, childStyle);
-                        totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
-                    }
-                }
-                return totalHeight;
+                return 200; // Для вертикальных контейнеров
             }
             else
             {
-                // В горизонтальном layout берем максимальную высоту среди детей
-                float maxHeight = 0;
-                foreach (var child in element.Children)
-                {
-                    if (child.Visible)
-                    {
-                        var childStyle = child.ComputeStyle();
-                        var childHeight = CalculateIntrinsicHeight(child, childStyle);
-                        childHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
-                        maxHeight = Math.Max(maxHeight, childHeight);
-                    }
-                }
-                return maxHeight;
+                return 150; // Для горизонтальных контейнеров
             }
         }
         
-        // По умолчанию возвращаем минимальную высоту
-        return style.MinHeight ?? 40;
+        // По умолчанию возвращаем минимальную высоту или 0
+        return style.MinHeight ?? 0;
     }}

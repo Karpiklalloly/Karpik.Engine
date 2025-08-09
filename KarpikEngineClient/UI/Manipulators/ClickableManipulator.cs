@@ -26,7 +26,6 @@ public class ClickableManipulator : Manipulator
     // Этот метод вызывается из Button.HandleSelfInputEvent
     public void TriggerClick()
     {
-        Console.WriteLine($"Button clicked via manipulator: {Element?.Name}");
         OnClicked?.Invoke();
     }
 }

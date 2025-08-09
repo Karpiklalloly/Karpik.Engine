@@ -166,7 +166,7 @@ public class StyleSheet
         // Стиль для контента
         var contentStyle = new Style
         {
-            BackgroundColor = Color.White,
+            BackgroundColor = Color.Red,
             BorderColor = new Color(220, 220, 220, 255),
             BorderWidth = 1,
             BorderRadius = 5,
@@ -179,7 +179,7 @@ public class StyleSheet
         var labelStyle = new Style
         {
             Height = 25,
-            TextColor = new Color(60, 60, 60, 255),
+            TextColor = Color.Green,
             FontSize = 14,
             Padding = new Padding(5, 2),
             Margin = new Margin(0, 0, 0, 5)

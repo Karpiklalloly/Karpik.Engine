@@ -30,9 +30,7 @@ public class Button : VisualElement
             inputEvent.MouseButton == MouseButton.Left &&
             ContainsPoint(inputEvent.MousePosition))
         {
-            // Вызываем событие напрямую и через манипулятор
-            OnClick?.Invoke();
-            
+            // Вызываем событие только через манипулятор, чтобы избежать дублирования
             var clickableManipulator = GetManipulator<ClickableManipulator>();
             clickableManipulator?.TriggerClick();
             
