@@ -71,7 +71,7 @@ public class UIManager
         
         // Создаем основной слой для главного UI
         var mainLayer = LayerManager.CreateLayer("main", 0);
-        mainLayer.Root = root;
+        mainLayer.AddElement(root);
         
         // Инициализируем менеджеры
         ToastManager = new ToastManager(root);

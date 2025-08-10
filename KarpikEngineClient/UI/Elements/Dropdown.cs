@@ -119,7 +119,7 @@ public class Dropdown : VisualElement
             
             // Создаем элемент для dropdown списка
             var dropdownList = new DropdownList(this);
-            layer.Root = dropdownList;
+            layer.AddElement(dropdownList);
             layer.BlocksInput = false; // Не блокируем весь ввод, только обрабатываем клики
             
         }

@@ -251,7 +251,7 @@ public class ContextMenuManager
         var layerName = $"context_menu_{DateTime.Now.Ticks}";
         var layer = _layerManager.CreateLayer(layerName, 2000); // Высокий Z-индекс
         
-        layer.Root = menu;
+        layer.AddElement(menu);
         layer.BlocksInput = false; // Не блокируем ввод полностью
         
         menu.ShowAt(position);

@@ -40,8 +40,6 @@ public class TooltipManipulator : IManipulator
             else
             {
                 _tooltip.Hide();
-                // Удаляем tooltip из родительского элемента
-                _tooltip.Parent?.RemoveChild(_tooltip);
             }
         }
         _element = null;
@@ -67,27 +65,15 @@ public class TooltipManipulator : IManipulator
                     _tooltipManager = FindTooltipManager();
                 }
                 
-                // Используем TooltipManager если доступен, иначе простое решение
+                // Используем TooltipManager если доступен
                 if (_tooltipManager != null)
                 {
                     _tooltipManager.ShowTooltip(_tooltip, mousePos);
                 }
                 else
                 {
-                    // Позиционируем tooltip относительно мыши
-                    if (!_tooltip.Visible)
-                    {
-                        var root = FindRootElement(_element);
-                        if (root != null)
-                        {
-                            root.AddChild(_tooltip);
-                            _tooltip.Show(mousePos);
-                        }
-                    }
-                    else
-                    {
-                        _tooltip.UpdatePosition(mousePos);
-                    }
+                    // Если TooltipManager недоступен, логируем предупреждение
+                    Console.WriteLine("Warning: TooltipManager not available, tooltip will not be shown");
                 }
             }
         }
@@ -127,28 +113,18 @@ public class TooltipManipulator : IManipulator
             if (_tooltipManager != null)
             {
                 _tooltipManager.HideTooltip(_tooltip);
-                handled = true;
             }
             else
             {
                 _tooltip.Hide();
-                _tooltip.Parent?.RemoveChild(_tooltip);
-                handled = true;
             }
+            handled = true;
         }
 
         return handled;
     }
 
-    private VisualElement? FindRootElement(VisualElement element)
-    {
-        var current = element;
-        while (current.Parent != null)
-        {
-            current = current.Parent;
-        }
-        return current;
-    }
+
     
     private static TooltipManager? FindTooltipManager()
     {

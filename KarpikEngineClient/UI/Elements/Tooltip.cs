@@ -23,6 +23,14 @@ public class Tooltip : VisualElement
         Style.Padding = new Padding(8, 6);
         Style.BackgroundColor = new Color(50, 50, 50, 240);
         Style.TextColor = Color.White;
+        
+        // Важно: устанавливаем абсолютное позиционирование
+        Style.Position = Karpik.Engine.Client.UIToolkit.Position.Absolute;
+        Style.FlexShrink = 0;
+        Style.FlexGrow = 0;
+        
+        // Рассчитываем размер сразу
+        CalculateSize();
     }
     
     public void Show(Vector2 position)
@@ -32,6 +40,11 @@ public class Tooltip : VisualElement
         
         Position = position + Offset;
         
+        // Устанавливаем позицию через стили для абсолютного позиционирования
+        Style.Left = Position.X;
+        Style.Top = Position.Y;
+        Style.Position = Karpik.Engine.Client.UIToolkit.Position.Absolute;
+        
         // Проверяем границы экрана
         var screenWidth = Raylib.GetRenderWidth();
         var screenHeight = Raylib.GetRenderHeight();
@@ -39,11 +52,13 @@ public class Tooltip : VisualElement
         if (Position.X + Size.X > screenWidth)
         {
             Position = new Vector2(position.X - Size.X - Math.Abs(Offset.X), Position.Y);
+            Style.Left = Position.X;
         }
         
         if (Position.Y < 0)
         {
             Position = new Vector2(Position.X, position.Y + Math.Abs(Offset.Y) + 20);
+            Style.Top = Position.Y;
         }
         
         Visible = true;
@@ -71,6 +86,10 @@ public class Tooltip : VisualElement
         
         Position = mousePosition + Offset;
         
+        // Устанавливаем позицию через стили для абсолютного позиционирования
+        Style.Left = Position.X;
+        Style.Top = Position.Y;
+        
         // Проверяем границы экрана
         var screenWidth = Raylib.GetRenderWidth();
         var screenHeight = Raylib.GetRenderHeight();
@@ -78,16 +97,19 @@ public class Tooltip : VisualElement
         if (Position.X + Size.X > screenWidth)
         {
             Position = new Vector2(mousePosition.X - Size.X - Math.Abs(Offset.X), Position.Y);
+            Style.Left = Position.X;
         }
         
         if (Position.Y < 0)
         {
             Position = new Vector2(Position.X, mousePosition.Y + Math.Abs(Offset.Y) + 20);
+            Style.Top = Position.Y;
         }
         
         if (Position.Y + Size.Y > screenHeight)
         {
             Position = new Vector2(Position.X, mousePosition.Y - Size.Y - Math.Abs(Offset.Y));
+            Style.Top = Position.Y;
         }
     }
     
@@ -126,6 +148,8 @@ public class Tooltip : VisualElement
         if (string.IsNullOrEmpty(Text))
         {
             Size = new Vector2(0, 0);
+            Style.Width = 0;
+            Style.Height = 0;
             return;
         }
         
@@ -135,11 +159,10 @@ public class Tooltip : VisualElement
             Style.FontSize + Style.Padding.Top + Style.Padding.Bottom
         );
         
-        // Принудительно устанавливаем размер, чтобы избежать растягивания
+        // Принудительно устанавливаем размер в стилях, чтобы LayoutEngine не переопределил его
         Style.Width = Size.X;
         Style.Height = Size.Y;
-        Style.FlexShrink = 0;
-        Style.FlexGrow = 0;
+        Style.Position = Karpik.Engine.Client.UIToolkit.Position.Absolute;
     }
 }
 
@@ -184,7 +207,7 @@ public class TooltipManager
         }
         
         var layer = _layerManager.CreateLayer(layerName, 3000); // Очень высокий Z-индекс
-        layer.Root = tooltip;
+        layer.AddElement(tooltip); // Добавляем tooltip как дочерний элемент root'а
         layer.BlocksInput = false;
         
         tooltip.Show(position);

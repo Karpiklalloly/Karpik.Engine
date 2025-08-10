@@ -126,7 +126,7 @@ public class ModalManager
         var layer = _layerManager.CreateLayer(layerName, _nextZIndex++);
         
         // Настраиваем слой
-        layer.Root = modal;
+        layer.AddElement(modal);
         layer.BlocksInput = true; // Блокируем ввод для нижних слоев, но не для элементов модального окна
         
         // Добавляем полупрозрачный фон если нужно
@@ -164,7 +164,7 @@ public class ModalManager
             else
             {
                 // Ищем слой по модальному окну
-                var layer = _layerManager.Layers.FirstOrDefault(l => l.Root == modal);
+                var layer = _layerManager.Layers.FirstOrDefault(l => l.Root.Children.Contains(modal));
                 if (layer != null)
                 {
                     _layerManager.RemoveLayer(layer.Name);

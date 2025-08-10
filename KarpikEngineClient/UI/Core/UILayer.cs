@@ -10,7 +10,9 @@ public class UILayer
     public bool Visible { get; set; } = true;
     public bool Interactive { get; set; } = true;
     public bool BlocksInput { get; set; } = false; // Блокирует ли слой ввод для нижних слоев
-    public VisualElement? Root { get; set; }
+    
+    private VisualElement _root;
+    public VisualElement Root => _root;
     
     // Настройки фона слоя
     public Color? BackgroundColor { get; set; }
@@ -20,25 +22,56 @@ public class UILayer
     {
         Name = name;
         ZIndex = zIndex;
+        
+        // Автоматически создаем root элемент для слоя
+        _root = new VisualElement();
+        _root.Name = $"{name}_Root";
+        // Root элемент занимает весь экран по умолчанию
+        _root.Style.Width = null; // Будет установлено LayoutEngine
+        _root.Style.Height = null; // Будет установлено LayoutEngine
+    }
+    
+    /// <summary>
+    /// Добавляет элемент в корень слоя
+    /// </summary>
+    public void AddElement(VisualElement element)
+    {
+        _root.AddChild(element);
+    }
+    
+    /// <summary>
+    /// Удаляет элемент из корня слоя
+    /// </summary>
+    public void RemoveElement(VisualElement element)
+    {
+        _root.RemoveChild(element);
+    }
+    
+    /// <summary>
+    /// Очищает все элементы в слое
+    /// </summary>
+    public void Clear()
+    {
+        // Правильно очищаем дочерние элементы
+        var children = _root.Children.ToList(); // Создаем копию списка
+        foreach (var child in children)
+        {
+            _root.RemoveChild(child);
+        }
     }
     
     public void Update(float deltaTime)
     {
         if (!Visible || !Interactive) return;
-        Root?.Update(deltaTime);
+        Root.Update(deltaTime);
     }
     
     public bool ProcessMouseEvents(Vector2 mousePos)
     {
         if (!Visible || !Interactive) return false;
         
-        bool hitElement = false;
-        
         // Проверяем, попал ли клик в элементы этого слоя
-        if (Root != null)
-        {
-            hitElement = Root.ContainsPoint(mousePos);
-        }
+        bool hitElement = Root.ContainsPoint(mousePos);
         
         // Если слой блокирует ввод, всегда возвращаем true (блокируем нижние слои)
         // Если не блокирует, возвращаем true только если попали в элемент
@@ -49,18 +82,12 @@ public class UILayer
     {
         if (!Visible || !Interactive) return false;
         
-        bool eventHandled = false;
-        
         // Передаем событие корневому элементу слоя
-        if (Root != null)
-        {
-            eventHandled = Root.HandleInputEvent(inputEvent);
-        }
+        bool eventHandled = Root.HandleInputEvent(inputEvent);
         
         // Если слой блокирует ввод, возвращаем true независимо от того, было ли событие обработано
         // Это предотвращает передачу события нижним слоям
-        bool result = eventHandled || BlocksInput;
-        return result;
+        return eventHandled || BlocksInput;
     }
     
     public void Render(Rectangle screenBounds, StyleSheet? globalStyleSheet = null)
@@ -76,17 +103,14 @@ public class UILayer
         }
         
         // Рассчитываем layout и рендерим содержимое слоя
-        if (Root != null)
+        try
         {
-            try
-            {
-                LayoutEngine.CalculateLayout(Root, globalStyleSheet, screenBounds);
-                Root.Render();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Error rendering layer {Name}: {e}");
-            }
+            LayoutEngine.CalculateLayout(Root, globalStyleSheet, screenBounds);
+            Root.Render();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error rendering layer {Name}: {e}");
         }
     }
     
@@ -94,13 +118,8 @@ public class UILayer
     {
         if (!Visible || !Interactive) return false;
         
-        bool inputHandled = false;
-        
         // Проверяем, попадает ли ввод в элементы этого слоя
-        if (Root != null)
-        {
-            inputHandled = Root.ContainsPoint(mousePos);
-        }
+        bool inputHandled = Root.ContainsPoint(mousePos);
         
         // Если слой блокирует ввод, возвращаем true независимо от того, попали ли в элементы
         // Это предотвращает обработку ввода нижними слоями
