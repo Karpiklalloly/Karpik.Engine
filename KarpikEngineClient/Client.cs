@@ -219,7 +219,6 @@ public class Client
                 {
                     // Секция текстового ввода
                     var inputLabel = new Label("Text Input:");
-                    inputLabel.AddClass("label");
                     content.AddChild(inputLabel);
                     
                     var textInput = new TextInput("Enter your name...");
@@ -236,7 +235,6 @@ public class Client
                     
                     // Секция прогресс-баров
                     var progressLabel = new Label("Progress Bars:");
-                    progressLabel.AddClass("label");
                     content.AddChild(progressLabel);
                     
                     var progressBar1 = new ProgressBar(0f, 100f, 75f);
@@ -245,27 +243,22 @@ public class Client
                     
                     // Секция уведомлений
                     var toastLabel = new Label("Toast Notifications:");
-                    toastLabel.AddClass("label");
                     content.AddChild(toastLabel);
                     
                     var toastButton1 = new Button("Show Info Toast");
                     toastButton1.OnClick += () => _uiManager.ShowToast("This is an info message!", ToastType.Info);
-                    toastButton1.AddClass("button");
                     content.AddChild(toastButton1);
                     
                     // Секция слоев и модальных окон
                     var layersLabel = new Label("Layers & Modals:");
-                    layersLabel.AddClass("label");
                     content.AddChild(layersLabel);
                     
                     var modalButton = new Button("Show Modal Dialog");
                     modalButton.OnClick += ShowModalDemo;
-                    modalButton.AddClass("button");
                     content.AddChild(modalButton);
                     
                     var tooltipButton = new Button("Hover for Tooltip");
                     tooltipButton.AddManipulator(new TooltipManipulator("This is a helpful tooltip that appears on hover!"));
-                    tooltipButton.AddClass("button");
                     content.AddChild(tooltipButton);
                 }
             }

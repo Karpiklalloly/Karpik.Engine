@@ -117,7 +117,7 @@ public class StyleSheet
             Height = 40,
             BackgroundColor = new Color(33, 150, 243, 255),
             TextColor = Color.White,
-            BorderRadius = 5,
+            BorderRadius = 0.8f,
             Padding = new Padding(15, 10),
             Margin = new Margin(0, 0, 0, 5)
         };
@@ -143,9 +143,6 @@ public class StyleSheet
         var panelStyle = new Style
         {
             BackgroundColor = new Color(240, 240, 240, 255),
-            BorderColor = new Color(200, 200, 200, 255),
-            BorderWidth = 1,
-            BorderRadius = 8,
             Padding = new Padding(15),
             Margin = new Margin(10)
         };
@@ -160,9 +157,6 @@ public class StyleSheet
             FontSize = 18,
             Text = AlignText.Center,
             Margin = new Margin(0, 0, 0, 10),
-            BorderRadius = 0.3f,
-            BorderWidth = 2,
-            BorderColor = Color.Black
         };
         styleSheet.AddClass("header", headerStyle);
         
@@ -171,8 +165,6 @@ public class StyleSheet
         {
             BackgroundColor = Color.Red,
             BorderColor = new Color(220, 220, 220, 255),
-            BorderWidth = 1,
-            BorderRadius = 5,
             Padding = new Padding(15),
             FlexGrow = 1
         };
@@ -225,7 +217,9 @@ public class StyleSheet
         var sliderStyle = new Style
         {
             Height = 30,
-            Margin = new Margin(0, 0, 0, 15)
+            Margin = new Margin(0, 0, 0, 15),
+            BackgroundColor = Color.Gray,
+            BorderRadius = 0.3f,
         };
         styleSheet.AddClass("slider", sliderStyle);
         

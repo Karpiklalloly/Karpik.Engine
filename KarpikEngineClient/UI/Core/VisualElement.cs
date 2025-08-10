@@ -157,9 +157,9 @@ public class VisualElement
                 }
                 else
                 {
-                    // Рамка с закругленными углами - используем несколько линий для имитации
-                    // К сожалению, Raylib не имеет DrawRectangleRoundedLines, поэтому рисуем обычную рамку
-                    Raylib.DrawRectangleLinesEx(bounds, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
+                    // Рамка с закругленными углами - используем встроенную функцию Raylib
+                    var roundness = Math.Min(ResolvedStyle.BorderRadius, 1);
+                    Raylib.DrawRectangleRoundedLinesEx(bounds, roundness, 8, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
                 }
             }
             else
@@ -309,4 +309,5 @@ public class VisualElement
         var animation = Animation.Scale(this, Vector2.Zero, Vector2.One, duration, onComplete);
         AddAnimation(animation);
     }
+
 }
