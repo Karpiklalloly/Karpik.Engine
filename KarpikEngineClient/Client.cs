@@ -4,7 +4,6 @@ using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
 using Karpik.Engine.Client.UIToolkit;
-using Karpik.Engine.Client.UIToolkit.Elements;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;

@@ -2,7 +2,7 @@ using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Elements;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class Button : VisualElement
 {
@@ -27,15 +27,6 @@ public class Button : VisualElement
     {
         base.RenderSelf();
         
-        // Рендерим текст
-        if (!string.IsNullOrEmpty(Text))
-        {
-            var textSize = Raylib.MeasureText(Text, ResolvedStyle.FontSize);
-            var textPos = new System.Numerics.Vector2(
-                Position.X + (Size.X - textSize) / 2,
-                Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
-            );
-            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
-        }
+        DrawText(Text);
     }
 }

@@ -1,6 +1,6 @@
 using System.Numerics;
 using Raylib_cs;
-using Karpik.Engine.Client.UIToolkit.Elements;
+using Karpik.Engine.Client.UIToolkit;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
@@ -505,7 +505,7 @@ public static class LayoutEngine
         }
         
         // Для кнопок вычисляем ширину на основе текста
-        if (element is Elements.Button button)
+        if (element is Button button)
         {
             if (!string.IsNullOrEmpty(button.Text))
             {
@@ -517,7 +517,7 @@ public static class LayoutEngine
         }
         
         // Для лейблов вычисляем ширину на основе текста
-        if (element is Elements.Label label)
+        if (element is Label label)
         {
             if (!string.IsNullOrEmpty(label.Text))
             {
@@ -529,7 +529,7 @@ public static class LayoutEngine
         }
         
         // Для dropdown вычисляем ширину на основе самого длинного элемента
-        if (element is Elements.Dropdown dropdown)
+        if (element is Dropdown dropdown)
         {
             float maxWidth = 0;
             
@@ -590,21 +590,21 @@ public static class LayoutEngine
         }
         
         // Для кнопок используем высоту шрифта + отступы
-        if (element is Elements.Button)
+        if (element is Button)
         {
             var padding = style.Padding.Top + style.Padding.Bottom;
             return Math.Max(style.FontSize + padding + 10, 30); // Минимум 30px для кнопки
         }
         
         // Для лейблов используем высоту шрифта + отступы
-        if (element is Elements.Label)
+        if (element is Label)
         {
             var padding = style.Padding.Top + style.Padding.Bottom;
             return style.FontSize + padding;
         }
         
         // Для dropdown используем стандартную высоту
-        if (element is Elements.Dropdown)
+        if (element is Dropdown)
         {
             var padding = style.Padding.Top + style.Padding.Bottom;
             return Math.Max(style.FontSize + padding + 10, 35); // Минимум 35px для dropdown

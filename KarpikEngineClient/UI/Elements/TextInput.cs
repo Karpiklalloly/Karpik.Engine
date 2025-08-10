@@ -2,7 +2,7 @@ using System.Numerics;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Elements;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class TextInput : VisualElement
 {
@@ -106,20 +106,14 @@ public class TextInput : VisualElement
         base.RenderSelf();
         
         var displayText = string.IsNullOrEmpty(Text) ? Placeholder : Text;
-        var textColor = string.IsNullOrEmpty(Text) ? Color.Gray : ResolvedStyle.TextColor;
         
         if (!string.IsNullOrEmpty(displayText))
         {
-            var textPos = new Vector2(
-                Position.X + ResolvedStyle.Padding.Left,
-                Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
-            );
-            
             // Обрезаем текст если он не помещается
             var availableWidth = Size.X - ResolvedStyle.Padding.Left - ResolvedStyle.Padding.Right;
             var clippedText = ClipText(displayText, availableWidth);
             
-            Raylib.DrawText(clippedText, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, textColor);
+            DrawText(clippedText, TextAlign.Left);
         }
         
         // Рендерим курсор если элемент в фокусе

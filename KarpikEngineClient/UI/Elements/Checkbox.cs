@@ -2,7 +2,7 @@ using System.Numerics;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Elements;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class Checkbox : VisualElement
 {

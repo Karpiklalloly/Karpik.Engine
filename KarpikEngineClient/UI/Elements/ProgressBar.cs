@@ -1,7 +1,7 @@
 using System.Numerics;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UIToolkit.Elements;
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class ProgressBar : VisualElement
 {
@@ -55,15 +55,8 @@ public class ProgressBar : VisualElement
         
         if (!string.IsNullOrEmpty(displayText))
         {
+            DrawText(displayText);
             var textSize = Raylib.MeasureText(displayText, ResolvedStyle.FontSize);
-            var textPos = new Vector2(
-                Position.X + (Size.X - textSize) / 2,
-                Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
-            );
-            
-            // Используем контрастный цвет для текста
-            var textColor = ResolvedStyle.TextColor;
-            Raylib.DrawText(displayText, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, textColor);
         }
     }
     
