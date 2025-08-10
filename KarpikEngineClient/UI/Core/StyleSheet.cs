@@ -159,7 +159,10 @@ public class StyleSheet
             TextColor = Color.White,
             FontSize = 18,
             Text = AlignText.Center,
-            Margin = new Margin(0, 0, 0, 10)
+            Margin = new Margin(0, 0, 0, 10),
+            BorderRadius = 0.3f,
+            BorderWidth = 2,
+            BorderColor = Color.Black
         };
         styleSheet.AddClass("header", headerStyle);
         

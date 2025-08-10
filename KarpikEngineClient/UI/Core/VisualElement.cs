@@ -111,18 +111,30 @@ public class VisualElement
     
     protected virtual void RenderSelf()
     {
+        var bounds = new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
+        
         // Рендерим фон
         if (ResolvedStyle.BackgroundColor.A > 0)
         {
-            // Если BorderRadius больше половины размера - рендерим как круг
-            if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+            if (ResolvedStyle.BorderRadius > 0)
             {
-                var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
-                var radius = Math.Min(Size.X, Size.Y) / 2;
-                Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor);
+                // Если BorderRadius больше половины размера - рендерим как круг
+                if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+                {
+                    var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
+                    var radius = Math.Min(Size.X, Size.Y) / 2;
+                    Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor);
+                }
+                else
+                {
+                    // Рендерим с закругленными углами
+                    var roundness = Math.Min(ResolvedStyle.BorderRadius, 1f);
+                    Raylib.DrawRectangleRounded(bounds, roundness, 8, ResolvedStyle.BackgroundColor);
+                }
             }
             else
             {
+                // Обычный прямоугольник без закругления
                 Raylib.DrawRectangle(
                     (int)Position.X, (int)Position.Y,
                     (int)Size.X, (int)Size.Y,
@@ -134,20 +146,26 @@ public class VisualElement
         // Рендерим рамку
         if (ResolvedStyle.BorderWidth > 0 && ResolvedStyle.BorderColor.A > 0)
         {
-            // Если BorderRadius больше половины размера - рендерим как круг
-            if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+            if (ResolvedStyle.BorderRadius > 0)
             {
-                var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
-                var radius = Math.Min(Size.X, Size.Y) / 2;
-                Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor);
+                // Если BorderRadius больше половины размера - рендерим как круг
+                if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+                {
+                    var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
+                    var radius = Math.Min(Size.X, Size.Y) / 2;
+                    Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor);
+                }
+                else
+                {
+                    // Рамка с закругленными углами - используем несколько линий для имитации
+                    // К сожалению, Raylib не имеет DrawRectangleRoundedLines, поэтому рисуем обычную рамку
+                    Raylib.DrawRectangleLinesEx(bounds, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
+                }
             }
             else
             {
-                Raylib.DrawRectangleLinesEx(
-                    new Rectangle(Position.X, Position.Y, Size.X, Size.Y),
-                    ResolvedStyle.BorderWidth,
-                    ResolvedStyle.BorderColor
-                );
+                // Обычная прямоугольная рамка
+                Raylib.DrawRectangleLinesEx(bounds, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
             }
         }
     }
