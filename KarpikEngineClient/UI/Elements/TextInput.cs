@@ -4,7 +4,7 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public class TextInput : VisualElement
+public class TextInput : VisualElement, ITextProvider
 {
     public string Text { get; set; } = "";
     public string Placeholder { get; set; } = "";
@@ -113,7 +113,7 @@ public class TextInput : VisualElement
             var availableWidth = Size.X - ResolvedStyle.Padding.Left - ResolvedStyle.Padding.Right;
             var clippedText = ClipText(displayText, availableWidth);
             
-            DrawText(clippedText, TextAlign.Left);
+            DrawText(clippedText);
         }
         
         // Рендерим курсор если элемент в фокусе
@@ -142,4 +142,9 @@ public class TextInput : VisualElement
         
         return "...";
     }
+    
+    // Реализация ITextProvider для LayoutEngine
+    public string? GetDisplayText() => string.IsNullOrEmpty(Text) ? Placeholder : Text;
+    public IEnumerable<string>? GetTextOptions() => null;
+    public string? GetPlaceholderText() => Placeholder;
 }

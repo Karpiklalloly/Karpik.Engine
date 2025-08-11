@@ -24,6 +24,8 @@ public class VisualElement
     // Финальные вычисленные стили (обновляются в LayoutEngine)
     public Style ResolvedStyle { get; private set; } = new();
     
+    // Виртуальные методы убраны - теперь используется интерфейс ITextProvider
+    
     private readonly List<IManipulator> _manipulators = new();
     private readonly AnimationManager _animationManager = new();
     
@@ -311,23 +313,23 @@ public class VisualElement
         AddAnimation(animation);
     }
 
-    protected void DrawText(string text, TextAlign align = TextAlign.Center)
+    protected void DrawText(string text)
     {
         if (!string.IsNullOrEmpty(text))
         {
             var textSize = Raylib.MeasureText(text, ResolvedStyle.FontSize);
-            var textPos = CalculateTextPosition(textSize, align);
+            var textPos = CalculateTextPosition(textSize, ResolvedStyle.TextAlign);
             Raylib.DrawText(text, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
         }
     }
 
-    private Vector2 CalculateTextPosition(int textWidth, TextAlign alignment)
+    private Vector2 CalculateTextPosition(int textWidth, AlignText? alignment)
     {
-        var x = alignment switch
+        var x = (alignment ?? AlignText.Left) switch
         {
-            TextAlign.Left => Position.X + ResolvedStyle.Padding.Left,
-            TextAlign.Center => Position.X + (Size.X - textWidth) / 2,
-            TextAlign.Right => Position.X + Size.X - textWidth - ResolvedStyle.Padding.Right,
+            AlignText.Left => Position.X + ResolvedStyle.Padding.Left,
+            AlignText.Center => Position.X + (Size.X - textWidth) / 2,
+            AlignText.Right => Position.X + Size.X - textWidth - ResolvedStyle.Padding.Right,
             _ => Position.X + ResolvedStyle.Padding.Left
         };
         

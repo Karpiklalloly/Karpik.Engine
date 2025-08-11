@@ -4,7 +4,7 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public class Dropdown : VisualElement
+public class Dropdown : VisualElement, ITextProvider
 {
     public List<string> Items { get; } = new();
     public int SelectedIndex { get; set; } = -1;
@@ -28,6 +28,11 @@ public class Dropdown : VisualElement
         AddManipulator(clickable);
         AddManipulator(new HoverEffectManipulator());
     }
+    
+    // Реализация ITextProvider для LayoutEngine
+    public string? GetDisplayText() => SelectedItem ?? Placeholder;
+    public IEnumerable<string>? GetTextOptions() => Items;
+    public string? GetPlaceholderText() => Placeholder;
     
     protected override bool HandleSelfInputEvent(InputEvent inputEvent)
     {

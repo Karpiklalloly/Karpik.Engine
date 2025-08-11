@@ -115,6 +115,8 @@ public class StyleSheet
         var buttonStyle = new Style
         {
             Height = 40,
+            MinWidth = 60,
+            MinHeight = 30,
             BackgroundColor = new Color(33, 150, 243, 255),
             TextColor = Color.White,
             BorderRadius = 0.8f,
@@ -155,7 +157,7 @@ public class StyleSheet
             BackgroundColor = new Color(76, 175, 80, 255),
             TextColor = Color.White,
             FontSize = 18,
-            Text = AlignText.Center,
+            TextAlign = AlignText.Center,
             Margin = new Margin(0, 0, 0, 10),
         };
         styleSheet.AddClass("header", headerStyle);
@@ -192,7 +194,8 @@ public class StyleSheet
             Padding = new Padding(10, 8),
             Margin = new Margin(0, 0, 0, 10),
             TextColor = new Color(60, 60, 60, 255),
-            FontSize = 14
+            FontSize = 14,
+            TextAlign = AlignText.Left
         };
         styleSheet.AddClass("textinput", textInputStyle);
         
@@ -237,6 +240,8 @@ public class StyleSheet
         var dropdownStyle = new Style
         {
             Height = 35,
+            MinWidth = 150,
+            MinHeight = 35,
             BackgroundColor = Color.White,
             BorderColor = new Color(200, 200, 200, 255),
             BorderWidth = 1,

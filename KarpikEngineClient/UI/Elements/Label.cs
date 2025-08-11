@@ -2,10 +2,9 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public class Label : VisualElement
+public class Label : VisualElement, ITextProvider
 {
     public string Text { get; set; }
-    public TextAlign Alignment { get; set; } = TextAlign.Left;
     
     public Label(string text = "") : base("Label")
     {
@@ -13,17 +12,15 @@ public class Label : VisualElement
         AddClass("label");
     }
     
+    // Реализация ITextProvider для LayoutEngine
+    public string? GetDisplayText() => Text;
+    public IEnumerable<string>? GetTextOptions() => null;
+    public string? GetPlaceholderText() => null;
+    
     protected override void RenderSelf()
     {
         base.RenderSelf();
         
-        DrawText(Text, Alignment);
+        DrawText(Text);
     }
-}
-
-public enum TextAlign
-{
-    Left,
-    Center,
-    Right
 }

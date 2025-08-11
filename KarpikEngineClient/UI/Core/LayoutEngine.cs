@@ -504,52 +504,58 @@ public static class LayoutEngine
             return element.Size.X;
         }
         
-        // Для кнопок вычисляем ширину на основе текста
-        if (element is Button button)
-        {
-            if (!string.IsNullOrEmpty(button.Text))
-            {
-                var textWidth = Raylib.MeasureText(button.Text, style.FontSize);
-                var padding = style.Padding.Left + style.Padding.Right;
-                return Math.Max(textWidth + padding + 20, 60); // Минимум 60px для кнопки
-            }
-            return 80; // Кнопка без текста
-        }
+        // Универсальный расчет ширины на основе текстового содержимого
+        float calculatedWidth = 0;
+        var padding = style.Padding.Left + style.Padding.Right;
         
-        // Для лейблов вычисляем ширину на основе текста
-        if (element is Label label)
+        // Проверяем текстовое содержимое элемента (если он реализует ITextProvider)
+        if (element is ITextProvider textProvider)
         {
-            if (!string.IsNullOrEmpty(label.Text))
+            // Проверяем основной текст элемента
+            var displayText = textProvider.GetDisplayText();
+            if (!string.IsNullOrEmpty(displayText))
             {
-                var textWidth = Raylib.MeasureText(label.Text, style.FontSize);
-                var padding = style.Padding.Left + style.Padding.Right;
-                return textWidth + padding;
-            }
-            return 0; // Пустой лейбл
-        }
-        
-        // Для dropdown вычисляем ширину на основе самого длинного элемента
-        if (element is Dropdown dropdown)
-        {
-            float maxWidth = 0;
-            
-            // Проверяем placeholder
-            if (!string.IsNullOrEmpty(dropdown.Placeholder))
-            {
-                maxWidth = Math.Max(maxWidth, Raylib.MeasureText(dropdown.Placeholder, style.FontSize));
+                var textWidth = Raylib.MeasureText(displayText, style.FontSize);
+                calculatedWidth = Math.Max(calculatedWidth, textWidth);
             }
             
-            // Проверяем все элементы
-            foreach (var item in dropdown.Items)
+            // Проверяем placeholder текст
+            var placeholderText = textProvider.GetPlaceholderText();
+            if (!string.IsNullOrEmpty(placeholderText))
             {
-                if (!string.IsNullOrEmpty(item))
+                var placeholderWidth = Raylib.MeasureText(placeholderText, style.FontSize);
+                calculatedWidth = Math.Max(calculatedWidth, placeholderWidth);
+            }
+            
+            // Проверяем все опции (для dropdown и подобных элементов)
+            var textOptions = textProvider.GetTextOptions();
+            if (textOptions != null)
+            {
+                foreach (var option in textOptions)
                 {
-                    maxWidth = Math.Max(maxWidth, Raylib.MeasureText(item, style.FontSize));
+                    if (!string.IsNullOrEmpty(option))
+                    {
+                        var optionWidth = Raylib.MeasureText(option, style.FontSize);
+                        calculatedWidth = Math.Max(calculatedWidth, optionWidth);
+                    }
                 }
+                
+                // Добавляем дополнительное место для UI элементов (стрелки, иконки и т.д.)
+                calculatedWidth += 30;
             }
-            
-            var padding = style.Padding.Left + style.Padding.Right;
-            return Math.Max(maxWidth + padding + 30, 150); // +30 для стрелки, минимум 150px
+        }
+        
+        // Добавляем padding
+        calculatedWidth += padding;
+        
+        // Применяем минимальную ширину из стилей
+        var minimumWidth = style.MinWidth ?? 0;
+        calculatedWidth = Math.Max(calculatedWidth, minimumWidth);
+        
+        // Если есть рассчитанная ширина, используем её
+        if (calculatedWidth > 0)
+        {
+            return calculatedWidth;
         }
         
         // Для контейнеров используем разумные значения по умолчанию
@@ -589,25 +595,28 @@ public static class LayoutEngine
             return element.Size.Y;
         }
         
-        // Для кнопок используем высоту шрифта + отступы
-        if (element is Button)
+        // Универсальный расчет высоты для элементов с текстом
+        var padding = style.Padding.Top + style.Padding.Bottom;
+        var calculatedHeight = style.FontSize + padding;
+        
+        // Добавляем дополнительное место для UI элементов (если есть текст)
+        if (element is ITextProvider textProvider)
         {
-            var padding = style.Padding.Top + style.Padding.Bottom;
-            return Math.Max(style.FontSize + padding + 10, 30); // Минимум 30px для кнопки
+            var displayText = textProvider.GetDisplayText();
+            if (!string.IsNullOrEmpty(displayText))
+            {
+                calculatedHeight += 10; // Дополнительное место для интерактивных элементов
+            }
         }
         
-        // Для лейблов используем высоту шрифта + отступы
-        if (element is Label)
-        {
-            var padding = style.Padding.Top + style.Padding.Bottom;
-            return style.FontSize + padding;
-        }
+        // Применяем минимальную высоту из стилей
+        var minimumHeight = style.MinHeight ?? 0;
+        calculatedHeight = Math.Max(calculatedHeight, minimumHeight);
         
-        // Для dropdown используем стандартную высоту
-        if (element is Dropdown)
+        // Если есть рассчитанная высота, используем её
+        if (calculatedHeight > 0)
         {
-            var padding = style.Padding.Top + style.Padding.Bottom;
-            return Math.Max(style.FontSize + padding + 10, 35); // Минимум 35px для dropdown
+            return calculatedHeight;
         }
         
         // Для контейнеров используем разумные значения по умолчанию
