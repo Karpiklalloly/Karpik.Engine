@@ -158,7 +158,7 @@ public class Dropdown : VisualElement, ITextProvider
     protected override void RenderSelf()
     {
         // Рендерим основную кнопку
-        var bgColor = ResolvedStyle.BackgroundColor;
+        var bgColor = ResolvedStyle.GetBackgroundColorOrDefault();
         if (!Enabled)
             bgColor = new Color(240, 240, 240, 255);
         else if (IsHovered || _isOpen)
@@ -175,20 +175,20 @@ public class Dropdown : VisualElement, ITextProvider
         
         // Текст
         var displayText = SelectedItem ?? Placeholder;
-        var textColor = SelectedItem != null ? ResolvedStyle.TextColor : Color.Gray;
+        var textColor = SelectedItem != null ? ResolvedStyle.GetTextColorOrDefault() : Color.Gray;
         if (!Enabled)
             textColor = new Color(150, 150, 150, 255);
             
         var textPos = new Vector2(
             Position.X + ResolvedStyle.Padding.Left,
-            Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
+            Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2
         );
         
         // Обрезаем текст если не помещается
         var availableWidth = Size.X - ResolvedStyle.Padding.Left - ResolvedStyle.Padding.Right - 20; // -20 для стрелки
         var clippedText = ClipText(displayText, availableWidth);
         
-        Raylib.DrawText(clippedText, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, textColor);
+        Raylib.DrawText(clippedText, (int)textPos.X, (int)textPos.Y, ResolvedStyle.GetFontSizeOrDefault(), textColor);
         
         // Стрелка
         var arrowColor = Enabled ? new Color(100, 100, 100, 255) : new Color(180, 180, 180, 255);
@@ -258,22 +258,22 @@ public class Dropdown : VisualElement, ITextProvider
             // Текст элемента
             var itemTextPos = new Vector2(
                 itemRect.X + 10,
-                itemRect.Y + (ItemHeight - ResolvedStyle.FontSize) / 2
+                itemRect.Y + (ItemHeight - ResolvedStyle.GetFontSizeOrDefault()) / 2
             );
             
-            Raylib.DrawText(Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
+            Raylib.DrawText(Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, ResolvedStyle.GetFontSizeOrDefault(), ResolvedStyle.GetTextColorOrDefault());
         }
     }
     
     private string ClipText(string text, float maxWidth)
     {
-        if (Raylib.MeasureText(text, ResolvedStyle.FontSize) <= maxWidth)
+        if (Raylib.MeasureText(text, ResolvedStyle.GetFontSizeOrDefault()) <= maxWidth)
             return text;
             
         for (int i = text.Length - 1; i >= 0; i--)
         {
             var substring = text.Substring(0, i) + "...";
-            if (Raylib.MeasureText(substring, ResolvedStyle.FontSize) <= maxWidth)
+            if (Raylib.MeasureText(substring, ResolvedStyle.GetFontSizeOrDefault()) <= maxWidth)
                 return substring;
         }
         
@@ -394,8 +394,8 @@ internal class DropdownList : VisualElement
             }
             
             // Текст элемента
-            var fontSize = _parentDropdown.ResolvedStyle?.FontSize ?? 16;
-            var textColor = _parentDropdown.ResolvedStyle?.TextColor ?? Color.Black;
+            var fontSize = _parentDropdown.ResolvedStyle?.GetFontSizeOrDefault() ?? StyleDefaults.FontSize;
+            var textColor = _parentDropdown.ResolvedStyle?.GetTextColorOrDefault() ?? StyleDefaults.TextColor;
             
             var itemTextPos = new Vector2(
                 itemRect.X + 10,

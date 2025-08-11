@@ -139,7 +139,7 @@ public class Tooltip : VisualElement
                 Position.Y + Style.Padding.Top
             );
             
-            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, Style.FontSize, Color.White);
+            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, Style.GetFontSizeOrDefault(), Color.White);
         }
     }
     
@@ -153,10 +153,10 @@ public class Tooltip : VisualElement
             return;
         }
         
-        var textWidth = Raylib.MeasureText(Text, Style.FontSize);
+        var textWidth = Raylib.MeasureText(Text, Style.GetFontSizeOrDefault());
         Size = new Vector2(
             textWidth + Style.Padding.Left + Style.Padding.Right,
-            Style.FontSize + Style.Padding.Top + Style.Padding.Bottom
+            Style.GetFontSizeOrDefault() + Style.Padding.Top + Style.Padding.Bottom
         );
         
         // Принудительно устанавливаем размер в стилях, чтобы LayoutEngine не переопределил его

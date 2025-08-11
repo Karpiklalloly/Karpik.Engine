@@ -79,10 +79,10 @@ public class Checkbox : VisualElement
         if (!string.IsNullOrEmpty(Label))
         {
             var textX = Position.X + CheckboxSize + LabelSpacing;
-            var textY = Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2;
-            var textColor = Enabled ? ResolvedStyle.TextColor : new Color(150, 150, 150, 255);
+            var textY = Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2;
+            var textColor = Enabled ? ResolvedStyle.GetTextColorOrDefault() : new Color(150, 150, 150, 255);
             
-            Raylib.DrawText(Label, (int)textX, (int)textY, ResolvedStyle.FontSize, textColor);
+            Raylib.DrawText(Label, (int)textX, (int)textY, ResolvedStyle.GetFontSizeOrDefault(), textColor);
         }
     }
 }

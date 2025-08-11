@@ -25,7 +25,8 @@ public class Toast : VisualElement
         SetupStyle();
         
         // Начинаем невидимыми
-        Style.BackgroundColor = new Color(Style.BackgroundColor.R, Style.BackgroundColor.G, Style.BackgroundColor.B, (byte)0);
+        var currentColor = Style.GetBackgroundColorOrDefault();
+        Style.BackgroundColor = new Color(currentColor.R, currentColor.G, currentColor.B, (byte)0);
     }
     
     private void SetupStyle()
@@ -104,10 +105,10 @@ public class Toast : VisualElement
         {
             var textPos = new Vector2(
                 Position.X + ResolvedStyle.Padding.Left,
-                Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2
+                Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2
             );
             
-            Raylib.DrawText(Message, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
+            Raylib.DrawText(Message, (int)textPos.X, (int)textPos.Y, ResolvedStyle.GetFontSizeOrDefault(), ResolvedStyle.GetTextColorOrDefault());
         }
     }
 }

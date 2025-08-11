@@ -31,11 +31,11 @@ public static class LayoutEngine
         CalculateElementSize(element, computedStyle, availableSpace);
         
         // 2. Рассчитываем позицию для абсолютно и фиксированно позиционированных элементов
-        if (computedStyle.Position == Position.Absolute)
+        if ((computedStyle.Position ?? Position.Relative) == Position.Absolute)
         {
             CalculateAbsolutePosition(element, computedStyle, availableSpace);
         }
-        else if (computedStyle.Position == Position.Fixed)
+        else if ((computedStyle.Position ?? Position.Relative) == Position.Fixed)
         {
             CalculateFixedPosition(element, computedStyle);
         }
@@ -136,7 +136,7 @@ public static class LayoutEngine
         var visibleChildren = parent.Children.Where(static c => c.Visible).ToList();
         if (visibleChildren.Count == 0) return;
         
-        switch (parentStyle.FlexDirection)
+        switch (parentStyle.GetFlexDirectionOrDefault())
         {
             case FlexDirection.Column:
                 LayoutColumn(visibleChildren, parentStyle, contentArea, false);
@@ -158,12 +158,12 @@ public static class LayoutEngine
             var childStyle = child.ComputeStyle();
             Rectangle childContentArea;
             
-            if (childStyle.Position == Position.Absolute)
+            if ((childStyle.Position ?? Position.Relative) == Position.Absolute)
             {
                 // Абсолютно позиционированные элементы позиционируются относительно корня
                 childContentArea = GetRootAvailableSpace(parent);
             }
-            else if (childStyle.Position == Position.Fixed)
+            else if ((childStyle.Position ?? Position.Relative) == Position.Fixed)
             {
                 // Фиксированно позиционированные элементы позиционируются относительно viewport
                 childContentArea = new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
@@ -203,9 +203,9 @@ public static class LayoutEngine
             
             totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
             
-            if (childStyle.FlexGrow > 0)
+            if (childStyle.GetFlexGrowOrDefault() > 0)
             {
-                totalFlexGrow += childStyle.FlexGrow;
+                totalFlexGrow += childStyle.GetFlexGrowOrDefault();
                 info.IsFlexItem = true;
             }
             else
@@ -221,7 +221,7 @@ public static class LayoutEngine
         float remainingHeight = Math.Max(0, contentArea.Height - totalHeight);
         
         float spaceBetween = 0;
-        switch (parentStyle.JustifyContent)
+        switch (parentStyle.GetJustifyContentOrDefault())
         {
             case JustifyContent.Center:
                 currentY += remainingHeight / 2;
@@ -243,13 +243,13 @@ public static class LayoutEngine
                 currentY += spaceBetween;
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.JustifyContent.ToString());
+                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent), parentStyle.GetJustifyContentOrDefault().ToString());
         }
         
         // Для baseline выравнивания в колонке находим максимальный baseline среди элементов в одной строке
         // В вертикальном layout baseline менее актуален, но для совместимости поддерживаем
         float maxBaseline = 0;
-        if (parentStyle.AlignItems == AlignItems.Baseline)
+        if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
         {
             maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Left);
         }
@@ -263,7 +263,7 @@ public static class LayoutEngine
             currentY += childStyle.Margin.Top;
             
             float childX = contentArea.X + childStyle.Margin.Left;
-            switch (parentStyle.AlignItems)
+            switch (parentStyle.GetAlignItemsOrDefault())
             {
                 case AlignItems.FlexStart:
                     // Позиция по умолчанию - уже установлена выше
@@ -286,7 +286,7 @@ public static class LayoutEngine
                     childX = contentArea.X + maxBaseline - info.Baseline;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.AlignItems.ToString());
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems), parentStyle.GetAlignItemsOrDefault().ToString());
             }
             
             // Устанавливаем позицию
@@ -295,7 +295,7 @@ public static class LayoutEngine
             // Рассчитываем высоту для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
-                float flexHeight = childStyle.FlexGrow / totalFlexGrow * remainingHeight;
+                float flexHeight = childStyle.GetFlexGrowOrDefault() / totalFlexGrow * remainingHeight;
                 child.Size = new Vector2(child.Size.X, flexHeight);
                 currentY += flexHeight;
             }
@@ -337,9 +337,9 @@ public static class LayoutEngine
             
             totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
             
-            if (childStyle.FlexGrow > 0)
+            if (childStyle.GetFlexGrowOrDefault() > 0)
             {
-                totalFlexGrow += childStyle.FlexGrow;
+                totalFlexGrow += childStyle.GetFlexGrowOrDefault();
                 info.IsFlexItem = true;
             }
             else
@@ -355,7 +355,7 @@ public static class LayoutEngine
         float remainingWidth = Math.Max(0, contentArea.Width - totalWidth);
 
         float spaceBetween = 0;
-        switch (parentStyle.JustifyContent)
+        switch (parentStyle.GetJustifyContentOrDefault())
         {
             case JustifyContent.Center:
                 currentX += remainingWidth / 2;
@@ -377,12 +377,12 @@ public static class LayoutEngine
                 currentX += spaceBetween;
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.JustifyContent.ToString());
+                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetJustifyContentOrDefault().ToString());
         }
         
         // Для baseline выравнивания находим максимальный baseline
         float maxBaseline = 0;
-        if (parentStyle.AlignItems == AlignItems.Baseline)
+        if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
         {
             maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Top);
         }
@@ -396,7 +396,7 @@ public static class LayoutEngine
             currentX += childStyle.Margin.Left;
             
             float childY = contentArea.Y + childStyle.Margin.Top;
-            switch (parentStyle.AlignItems)
+            switch (parentStyle.GetAlignItemsOrDefault())
             {
                 case AlignItems.FlexStart:
                     // Позиция по умолчанию - уже установлена выше
@@ -418,7 +418,7 @@ public static class LayoutEngine
                     childY = contentArea.Y + maxBaseline - info.Baseline;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.AlignItems.ToString());
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetAlignItemsOrDefault().ToString());
             }
             
             child.Position = new Vector2(currentX, childY);
@@ -426,7 +426,7 @@ public static class LayoutEngine
             // Рассчитываем ширину для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
-                float flexWidth = childStyle.FlexGrow / totalFlexGrow * remainingWidth;
+                float flexWidth = childStyle.GetFlexGrowOrDefault() / totalFlexGrow * remainingWidth;
                 child.Size = new Vector2(flexWidth, child.Size.Y);
                 currentX += flexWidth;
             }
@@ -472,7 +472,7 @@ public static class LayoutEngine
         if (element.Children.Count == 0)
         {
             // Листовой элемент - вычисляем baseline на основе размера шрифта
-            float fontSize = style.FontSize;
+            float fontSize = style.GetFontSizeOrDefault();
             float elementHeight = element.Size.Y;
             
             // Baseline обычно находится на расстоянии примерно 0.8 от высоты шрифта от верха
@@ -515,7 +515,7 @@ public static class LayoutEngine
             var displayText = textProvider.GetDisplayText();
             if (!string.IsNullOrEmpty(displayText))
             {
-                var textWidth = Raylib.MeasureText(displayText, style.FontSize);
+                var textWidth = Raylib.MeasureText(displayText, style.GetFontSizeOrDefault());
                 calculatedWidth = Math.Max(calculatedWidth, textWidth);
             }
             
@@ -523,7 +523,7 @@ public static class LayoutEngine
             var placeholderText = textProvider.GetPlaceholderText();
             if (!string.IsNullOrEmpty(placeholderText))
             {
-                var placeholderWidth = Raylib.MeasureText(placeholderText, style.FontSize);
+                var placeholderWidth = Raylib.MeasureText(placeholderText, style.GetFontSizeOrDefault());
                 calculatedWidth = Math.Max(calculatedWidth, placeholderWidth);
             }
             
@@ -535,7 +535,7 @@ public static class LayoutEngine
                 {
                     if (!string.IsNullOrEmpty(option))
                     {
-                        var optionWidth = Raylib.MeasureText(option, style.FontSize);
+                        var optionWidth = Raylib.MeasureText(option, style.GetFontSizeOrDefault());
                         calculatedWidth = Math.Max(calculatedWidth, optionWidth);
                     }
                 }
@@ -549,7 +549,7 @@ public static class LayoutEngine
         calculatedWidth += padding;
         
         // Применяем минимальную ширину из стилей
-        var minimumWidth = style.MinWidth ?? 0;
+        var minimumWidth = style.GetMinWidthOrDefault();
         calculatedWidth = Math.Max(calculatedWidth, minimumWidth);
         
         // Если есть рассчитанная ширина, используем её
@@ -573,18 +573,18 @@ public static class LayoutEngine
                 return 400; // Разумный размер для модальных окон
             }
             
-            if (style.FlexDirection == FlexDirection.Row)
+            if (style.GetFlexDirectionOrDefault() == FlexDirection.Row)
             {
-                return 300; // Для горизонтальных контейнеров
+                return StyleDefaults.HorizontalContainerWidth;
             }
             else
             {
-                return 250; // Для вертикальных контейнеров
+                return StyleDefaults.VerticalContainerWidth;
             }
         }
         
         // По умолчанию возвращаем минимальную ширину или 0
-        return style.MinWidth ?? 0;
+        return style.GetMinWidthOrDefault();
     }
     
     private static float CalculateIntrinsicHeight(VisualElement element, Style style)
@@ -597,7 +597,7 @@ public static class LayoutEngine
         
         // Универсальный расчет высоты для элементов с текстом
         var padding = style.Padding.Top + style.Padding.Bottom;
-        var calculatedHeight = style.FontSize + padding;
+        var calculatedHeight = style.GetFontSizeOrDefault() + padding;
         
         // Добавляем дополнительное место для UI элементов (если есть текст)
         if (element is ITextProvider textProvider)
@@ -610,7 +610,7 @@ public static class LayoutEngine
         }
         
         // Применяем минимальную высоту из стилей
-        var minimumHeight = style.MinHeight ?? 0;
+        var minimumHeight = style.GetMinHeightOrDefault();
         calculatedHeight = Math.Max(calculatedHeight, minimumHeight);
         
         // Если есть рассчитанная высота, используем её
@@ -634,16 +634,16 @@ public static class LayoutEngine
                 return 300; // Разумный размер для модальных окон
             }
             
-            if (style.FlexDirection == FlexDirection.Column)
+            if (style.GetFlexDirectionOrDefault() == FlexDirection.Column)
             {
-                return 200; // Для вертикальных контейнеров
+                return StyleDefaults.VerticalContainerHeight;
             }
             else
             {
-                return 150; // Для горизонтальных контейнеров
+                return StyleDefaults.HorizontalContainerHeight;
             }
         }
         
         // По умолчанию возвращаем минимальную высоту или 0
-        return style.MinHeight ?? 0;
+        return style.GetMinHeightOrDefault();
     }}

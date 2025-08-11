@@ -14,7 +14,7 @@ public class Style
     public float? MaxHeight { get; set; }
 
     // Позиционирование
-    public Position Position { get; set; } = Position.Relative;
+    public Position? Position { get; set; } = null;
     public float? Left { get; set; }
     public float? Top { get; set; }
     public float? Right { get; set; }
@@ -25,21 +25,21 @@ public class Style
     public Margin Margin { get; set; } = new();
 
     // Внешний вид
-    public Color BackgroundColor { get; set; } = Color.Blank;
-    public Color BorderColor { get; set; } = Color.Blank;
-    public float BorderWidth { get; set; } = 0;
-    public float BorderRadius { get; set; } = 0;
+    public Color? BackgroundColor { get; set; } = null;
+    public Color? BorderColor { get; set; } = null;
+    public float? BorderWidth { get; set; } = null;
+    public float? BorderRadius { get; set; } = null;
 
     // Flexbox
-    public FlexDirection FlexDirection { get; set; } = FlexDirection.Column;
-    public JustifyContent JustifyContent { get; set; } = JustifyContent.FlexStart;
-    public AlignItems AlignItems { get; set; } = AlignItems.Stretch;
-    public float FlexGrow { get; set; } = 0;
-    public float FlexShrink { get; set; } = 1;
+    public FlexDirection? FlexDirection { get; set; } = null;
+    public JustifyContent? JustifyContent { get; set; } = null;
+    public AlignItems? AlignItems { get; set; } = null;
+    public float? FlexGrow { get; set; } = null;
+    public float? FlexShrink { get; set; } = null;
 
     // Текст
-    public Color TextColor { get; set; } = Color.Black;
-    public int FontSize { get; set; } = 16;
+    public Color? TextColor { get; set; } = null;
+    public int? FontSize { get; set; } = null;
     public AlignText? TextAlign { get; set; } = null;
 
     // Копирование стилей
@@ -52,7 +52,7 @@ public class Style
         MinHeight = other.MinHeight ?? MinHeight;
         MaxHeight = other.MaxHeight ?? MaxHeight;
 
-        Position = other.Position;
+        if (other.Position.HasValue) Position = other.Position;
         Left = other.Left ?? Left;
         Top = other.Top ?? Top;
         Right = other.Right ?? Right;
@@ -61,19 +61,19 @@ public class Style
         Padding.CopyFrom(other.Padding);
         Margin.CopyFrom(other.Margin);
 
-        if (other.BackgroundColor.A > 0) BackgroundColor = other.BackgroundColor;
-        if (other.BorderColor.A > 0) BorderColor = other.BorderColor;
-        if (other.BorderWidth > 0) BorderWidth = other.BorderWidth;
-        if (other.BorderRadius > 0) BorderRadius = other.BorderRadius;
+        if (other.BackgroundColor.HasValue) BackgroundColor = other.BackgroundColor;
+        if (other.BorderColor.HasValue) BorderColor = other.BorderColor;
+        if (other.BorderWidth.HasValue) BorderWidth = other.BorderWidth;
+        if (other.BorderRadius.HasValue) BorderRadius = other.BorderRadius;
 
-        FlexDirection = other.FlexDirection;
-        JustifyContent = other.JustifyContent;
-        AlignItems = other.AlignItems;
-        if (other.FlexGrow > 0) FlexGrow = other.FlexGrow;
-        if (other.FlexShrink != 1) FlexShrink = other.FlexShrink;
+        if (other.FlexDirection.HasValue) FlexDirection = other.FlexDirection;
+        if (other.JustifyContent.HasValue) JustifyContent = other.JustifyContent;
+        if (other.AlignItems.HasValue) AlignItems = other.AlignItems;
+        if (other.FlexGrow.HasValue) FlexGrow = other.FlexGrow;
+        if (other.FlexShrink.HasValue) FlexShrink = other.FlexShrink;
 
-        if (other.TextColor.A > 0) TextColor = other.TextColor;
-        if (other.FontSize != 16) FontSize = other.FontSize;
+        if (other.TextColor.HasValue) TextColor = other.TextColor;
+        if (other.FontSize.HasValue) FontSize = other.FontSize;
         if (other.TextAlign.HasValue) TextAlign = other.TextAlign;
     }
 }

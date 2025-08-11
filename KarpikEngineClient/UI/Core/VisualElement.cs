@@ -117,22 +117,22 @@ public class VisualElement
         var bounds = new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
         
         // Рендерим фон
-        if (ResolvedStyle.BackgroundColor.A > 0)
+        if (ResolvedStyle.BackgroundColor?.A > 0)
         {
-            if (ResolvedStyle.BorderRadius > 0)
+            if ((ResolvedStyle.BorderRadius ?? 0) > 0)
             {
                 // Если BorderRadius больше половины размера - рендерим как круг
-                if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+                if ((ResolvedStyle.BorderRadius ?? 0) >= Math.Min(Size.X, Size.Y) / 2)
                 {
                     var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
                     var radius = Math.Min(Size.X, Size.Y) / 2;
-                    Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor);
+                    Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor.Value);
                 }
                 else
                 {
                     // Рендерим с закругленными углами
-                    var roundness = Math.Min(ResolvedStyle.BorderRadius, 1f);
-                    Raylib.DrawRectangleRounded(bounds, roundness, 8, ResolvedStyle.BackgroundColor);
+                    var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1f);
+                    Raylib.DrawRectangleRounded(bounds, roundness, 8, ResolvedStyle.BackgroundColor.Value);
                 }
             }
             else
@@ -141,34 +141,34 @@ public class VisualElement
                 Raylib.DrawRectangle(
                     (int)Position.X, (int)Position.Y,
                     (int)Size.X, (int)Size.Y,
-                    ResolvedStyle.BackgroundColor
+                    ResolvedStyle.BackgroundColor.Value
                 );
             }
         }
         
         // Рендерим рамку
-        if (ResolvedStyle.BorderWidth > 0 && ResolvedStyle.BorderColor.A > 0)
+        if ((ResolvedStyle.BorderWidth ?? 0) > 0 && (ResolvedStyle.BorderColor?.A ?? 0) > 0)
         {
-            if (ResolvedStyle.BorderRadius > 0)
+            if ((ResolvedStyle.BorderRadius ?? 0) > 0)
             {
                 // Если BorderRadius больше половины размера - рендерим как круг
-                if (ResolvedStyle.BorderRadius >= Math.Min(Size.X, Size.Y) / 2)
+                if ((ResolvedStyle.BorderRadius ?? 0) >= Math.Min(Size.X, Size.Y) / 2)
                 {
                     var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
                     var radius = Math.Min(Size.X, Size.Y) / 2;
-                    Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor);
+                    Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor.Value);
                 }
                 else
                 {
                     // Рамка с закругленными углами - используем встроенную функцию Raylib
-                    var roundness = Math.Min(ResolvedStyle.BorderRadius, 1);
-                    Raylib.DrawRectangleRoundedLinesEx(bounds, roundness, 8, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
+                    var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1);
+                    Raylib.DrawRectangleRoundedLinesEx(bounds, roundness, 8, ResolvedStyle.BorderWidth ?? 0, ResolvedStyle.BorderColor.Value);
                 }
             }
             else
             {
                 // Обычная прямоугольная рамка
-                Raylib.DrawRectangleLinesEx(bounds, ResolvedStyle.BorderWidth, ResolvedStyle.BorderColor);
+                Raylib.DrawRectangleLinesEx(bounds, ResolvedStyle.BorderWidth ?? 0, ResolvedStyle.BorderColor.Value);
             }
         }
     }
@@ -317,9 +317,11 @@ public class VisualElement
     {
         if (!string.IsNullOrEmpty(text))
         {
-            var textSize = Raylib.MeasureText(text, ResolvedStyle.FontSize);
+            var fontSize = ResolvedStyle.FontSize ?? 16;
+            var textColor = ResolvedStyle.TextColor ?? Color.Black;
+            var textSize = Raylib.MeasureText(text, fontSize);
             var textPos = CalculateTextPosition(textSize, ResolvedStyle.TextAlign);
-            Raylib.DrawText(text, (int)textPos.X, (int)textPos.Y, ResolvedStyle.FontSize, ResolvedStyle.TextColor);
+            Raylib.DrawText(text, (int)textPos.X, (int)textPos.Y, fontSize, textColor);
         }
     }
 
@@ -333,7 +335,7 @@ public class VisualElement
             _ => Position.X + ResolvedStyle.Padding.Left
         };
         
-        var y = Position.Y + (Size.Y - ResolvedStyle.FontSize) / 2;
+        var y = Position.Y + (Size.Y - (ResolvedStyle.FontSize ?? 16)) / 2;
         
         return new Vector2(x, y);
     }

@@ -120,23 +120,23 @@ public class TextInput : VisualElement, ITextProvider
         if (IsFocused && _showCursor && !IsReadOnly)
         {
             var cursorText = Text.Substring(0, Math.Min(_cursorPosition, Text.Length));
-            var cursorX = Position.X + ResolvedStyle.Padding.Left + Raylib.MeasureText(cursorText, ResolvedStyle.FontSize);
+            var cursorX = Position.X + ResolvedStyle.Padding.Left + Raylib.MeasureText(cursorText, ResolvedStyle.GetFontSizeOrDefault());
             var cursorY = Position.Y + ResolvedStyle.Padding.Top;
             var cursorHeight = Size.Y - ResolvedStyle.Padding.Top - ResolvedStyle.Padding.Bottom;
             
-            Raylib.DrawRectangle((int)cursorX, (int)cursorY, 2, (int)cursorHeight, ResolvedStyle.TextColor);
+            Raylib.DrawRectangle((int)cursorX, (int)cursorY, 2, (int)cursorHeight, ResolvedStyle.GetTextColorOrDefault());
         }
     }
     
     private string ClipText(string text, float maxWidth)
     {
-        if (Raylib.MeasureText(text, ResolvedStyle.FontSize) <= maxWidth)
+        if (Raylib.MeasureText(text, ResolvedStyle.GetFontSizeOrDefault()) <= maxWidth)
             return text;
             
         for (int i = text.Length - 1; i >= 0; i--)
         {
             var substring = text.Substring(0, i) + "...";
-            if (Raylib.MeasureText(substring, ResolvedStyle.FontSize) <= maxWidth)
+            if (Raylib.MeasureText(substring, ResolvedStyle.GetFontSizeOrDefault()) <= maxWidth)
                 return substring;
         }
         

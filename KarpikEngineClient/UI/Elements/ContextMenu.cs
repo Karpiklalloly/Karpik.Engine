@@ -74,7 +74,7 @@ public class ContextMenu : VisualElement
         var maxWidth = MinWidth;
         foreach (var item in _items.Where(i => !i.IsSeparator))
         {
-            var textWidth = Raylib.MeasureText(item.Text, Style.FontSize) + 20; // +20 для отступов
+            var textWidth = Raylib.MeasureText(item.Text, Style.GetFontSizeOrDefault()) + 20; // +20 для отступов
             maxWidth = Math.Max(maxWidth, textWidth);
         }
         
@@ -224,7 +224,7 @@ public class ContextMenu : VisualElement
                 var textColor = item.Enabled ? Color.Black : new Color(150, 150, 150, 255);
                 var textY = currentY + (ItemHeight - Style.FontSize) / 2;
                 
-                Raylib.DrawText(item.Text, (int)(Position.X + 10), (int)textY, Style.FontSize, textColor);
+                Raylib.DrawText(item.Text, (int)(Position.X + 10), (int)textY, Style.GetFontSizeOrDefault(), textColor);
                 
                 currentY += ItemHeight;
             }

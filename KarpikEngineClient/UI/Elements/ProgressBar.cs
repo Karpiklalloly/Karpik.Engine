@@ -3,7 +3,7 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public class ProgressBar : VisualElement
+public class ProgressBar : VisualElement, ITextProvider
 {
     public float Value { get; set; } = 0f;
     public float MinValue { get; set; } = 0f;
@@ -49,14 +49,13 @@ public class ProgressBar : VisualElement
         var displayText = Text;
         if (string.IsNullOrEmpty(displayText) && ShowPercentage)
         {
-            var percentage = (Value - MinValue) / (MaxValue - MinValue) * 100f;
+            var percentage = GetPercentage();
             displayText = $"{percentage:F0}%";
         }
         
         if (!string.IsNullOrEmpty(displayText))
         {
             DrawText(displayText);
-            var textSize = Raylib.MeasureText(displayText, ResolvedStyle.FontSize);
         }
     }
     
@@ -69,4 +68,20 @@ public class ProgressBar : VisualElement
     {
         return (Value - MinValue) / (MaxValue - MinValue) * 100f;
     }
+
+    public string? GetDisplayText()
+    {
+        var displayText = Text;
+        if (string.IsNullOrEmpty(displayText) && ShowPercentage)
+        {
+            var percentage = GetPercentage();
+            displayText = $"{percentage:F0}%";
+        }
+
+        return displayText;
+    }
+
+    public IEnumerable<string>? GetTextOptions() => null;
+
+    public string? GetPlaceholderText() => null;
 }
