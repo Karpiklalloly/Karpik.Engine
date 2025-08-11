@@ -78,7 +78,7 @@ public class Animation
     // Статические методы для создания распространенных анимаций
     public static Animation FadeIn(VisualElement element, float duration = 0.3f, Action? onComplete = null)
     {
-        var currentColor = element.Style.BackgroundColor ?? Color.White;
+        var currentColor = element.Style.GetBackgroundColorOrDefault();
         var startAlpha = currentColor.A;
         var targetAlpha = 255;
         
@@ -91,7 +91,7 @@ public class Animation
     
     public static Animation FadeOut(VisualElement element, float duration = 0.3f, Action? onComplete = null)
     {
-        var currentColor = element.Style.BackgroundColor ?? Color.White;
+        var currentColor = element.Style.GetBackgroundColorOrDefault();
         var startAlpha = currentColor.A;
         
         return new Animation(duration, progress =>

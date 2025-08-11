@@ -31,11 +31,11 @@ public static class LayoutEngine
         CalculateElementSize(element, computedStyle, availableSpace);
         
         // 2. Рассчитываем позицию для абсолютно и фиксированно позиционированных элементов
-        if ((computedStyle.Position ?? Position.Relative) == Position.Absolute)
+        if (computedStyle.GetPositionOrDefault() == Position.Absolute)
         {
             CalculateAbsolutePosition(element, computedStyle, availableSpace);
         }
-        else if ((computedStyle.Position ?? Position.Relative) == Position.Fixed)
+        else if (computedStyle.GetPositionOrDefault() == Position.Fixed)
         {
             CalculateFixedPosition(element, computedStyle);
         }
@@ -158,12 +158,12 @@ public static class LayoutEngine
             var childStyle = child.ComputeStyle();
             Rectangle childContentArea;
             
-            if ((childStyle.Position ?? Position.Relative) == Position.Absolute)
+            if (childStyle.GetPositionOrDefault() == Position.Absolute)
             {
                 // Абсолютно позиционированные элементы позиционируются относительно корня
                 childContentArea = GetRootAvailableSpace(parent);
             }
-            else if ((childStyle.Position ?? Position.Relative) == Position.Fixed)
+            else if (childStyle.GetPositionOrDefault() == Position.Fixed)
             {
                 // Фиксированно позиционированные элементы позиционируются относительно viewport
                 childContentArea = new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
@@ -568,19 +568,15 @@ public static class LayoutEngine
             }
             
             // Для разных типов контейнеров используем разные значения по умолчанию
-            if (element.Name == "ContentArea" || element.Name == "Modal")
+            if (element.Name is "ContentArea" or "Modal")
             {
                 return 400; // Разумный размер для модальных окон
             }
-            
+
             if (style.GetFlexDirectionOrDefault() == FlexDirection.Row)
-            {
                 return StyleDefaults.HorizontalContainerWidth;
-            }
-            else
-            {
-                return StyleDefaults.VerticalContainerWidth;
-            }
+            
+            return StyleDefaults.VerticalContainerWidth;
         }
         
         // По умолчанию возвращаем минимальную ширину или 0

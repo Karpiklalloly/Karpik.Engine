@@ -232,7 +232,8 @@ public class StyleSheet
             Height = 25,
             TextColor = new Color(60, 60, 60, 255),
             FontSize = 12,
-            Margin = new Margin(0, 0, 0, 10)
+            Margin = new Margin(0, 0, 0, 10),
+            TextAlign = AlignText.Center
         };
         styleSheet.AddClass("progressbar", progressBarStyle);
         

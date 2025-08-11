@@ -37,8 +37,7 @@ public class Dropdown : VisualElement, ITextProvider
     protected override bool HandleSelfInputEvent(InputEvent inputEvent)
     {
         // Обрабатываем клик на dropdown
-        if (inputEvent.Type == InputEventType.MouseClick && 
-            inputEvent.MouseButton == MouseButton.Left &&
+        if (inputEvent is { Type: InputEventType.MouseClick, MouseButton: MouseButton.Left } &&
             ContainsPoint(inputEvent.MousePosition))
         {
             Console.WriteLine($"Dropdown clicked: {Name}");
@@ -394,8 +393,8 @@ internal class DropdownList : VisualElement
             }
             
             // Текст элемента
-            var fontSize = _parentDropdown.ResolvedStyle?.GetFontSizeOrDefault() ?? StyleDefaults.FontSize;
-            var textColor = _parentDropdown.ResolvedStyle?.GetTextColorOrDefault() ?? StyleDefaults.TextColor;
+            var fontSize = _parentDropdown.ResolvedStyle.GetFontSizeOrDefault();
+            var textColor = _parentDropdown.ResolvedStyle.GetTextColorOrDefault();
             
             var itemTextPos = new Vector2(
                 itemRect.X + 10,

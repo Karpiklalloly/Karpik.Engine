@@ -317,8 +317,8 @@ public class VisualElement
     {
         if (!string.IsNullOrEmpty(text))
         {
-            var fontSize = ResolvedStyle.FontSize ?? 16;
-            var textColor = ResolvedStyle.TextColor ?? Color.Black;
+            var fontSize = ResolvedStyle.GetFontSizeOrDefault();
+            var textColor = ResolvedStyle.GetTextColorOrDefault();
             var textSize = Raylib.MeasureText(text, fontSize);
             var textPos = CalculateTextPosition(textSize, ResolvedStyle.TextAlign);
             Raylib.DrawText(text, (int)textPos.X, (int)textPos.Y, fontSize, textColor);
@@ -335,7 +335,7 @@ public class VisualElement
             _ => Position.X + ResolvedStyle.Padding.Left
         };
         
-        var y = Position.Y + (Size.Y - (ResolvedStyle.FontSize ?? 16)) / 2;
+        var y = Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2;
         
         return new Vector2(x, y);
     }
