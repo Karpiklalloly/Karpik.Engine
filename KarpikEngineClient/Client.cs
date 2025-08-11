@@ -259,6 +259,13 @@ public class Client
                     var tooltipButton = new Button("Hover for Tooltip");
                     tooltipButton.AddManipulator(new TooltipManipulator("This is a helpful tooltip that appears on hover!"));
                     content.AddChild(tooltipButton);
+
+                    var dropdown = new Dropdown();
+                    dropdown.SetLayerManager(_uiManager.LayerManager);
+                    dropdown.AddItem("1");
+                    dropdown.AddItem("2");
+                    dropdown.AddItem("111");
+                    content.AddChild(dropdown);
                 }
             }
             root.AddChild(panel);
