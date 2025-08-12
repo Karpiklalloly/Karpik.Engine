@@ -22,7 +22,7 @@ public class FocusManipulator : IManipulator
         _element = null;
     }
     
-    public void Update(float deltaTime)
+    public void Update(double deltaTime)
     {
         
     }

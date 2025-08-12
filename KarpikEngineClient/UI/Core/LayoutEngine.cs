@@ -23,6 +23,13 @@ public static class LayoutEngine
     {
         if (!element.Visible) return;
         
+        // Пропускаем элементы, которые игнорируют layout (например, во время анимации)
+        if (element.IgnoreLayout) 
+        {
+            Console.WriteLine($"[LAYOUT] Skipping layout for {element.Name} (IgnoreLayout=true)");
+            return;
+        }
+        
         var computedStyle = element.ComputeStyle();
         
         element.ResolvedStyle.CopyFrom(computedStyle);
@@ -155,6 +162,19 @@ public static class LayoutEngine
         // Рекурсивно рассчитываем layout для детей
         foreach (var child in visibleChildren)
         {
+            // Пропускаем детей, которые игнорируют layout
+            if (child.IgnoreLayout) 
+            {
+                Console.WriteLine($"[LAYOUT] Skipping child {child.Name} (IgnoreLayout=true)");
+                continue;
+            }
+            
+            // Отладка для AnimatedBox
+            if (child.Name == "AnimatedBox")
+            {
+                Console.WriteLine($"[LAYOUT] Processing child AnimatedBox - current pos: {child.Position}, IgnoreLayout: {child.IgnoreLayout}");
+            }
+            
             var childStyle = child.ComputeStyle();
             Rectangle childContentArea;
             
@@ -290,7 +310,11 @@ public static class LayoutEngine
             }
             
             // Устанавливаем позицию
-            child.Position = new Vector2(childX, currentY);
+            if (child.Name == "AnimatedBox")
+            {
+                Console.WriteLine($"[LAYOUT] LayoutColumn setting AnimatedBox position to ({childX}, {currentY}) - IgnoreLayout: {child.IgnoreLayout}");
+            }
+            if (!child.IgnoreLayout) child.Position = new Vector2(childX, currentY);
             
             // Рассчитываем высоту для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
@@ -421,7 +445,11 @@ public static class LayoutEngine
                     throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetAlignItemsOrDefault().ToString());
             }
             
-            child.Position = new Vector2(currentX, childY);
+            if (child.Name == "AnimatedBox")
+            {
+                Console.WriteLine($"[LAYOUT] LayoutRow setting AnimatedBox position to ({currentX}, {childY}) - IgnoreLayout: {child.IgnoreLayout}");
+            }
+            if (!child.IgnoreLayout) child.Position = new Vector2(currentX, childY);
             
             // Рассчитываем ширину для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)

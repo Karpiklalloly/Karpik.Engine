@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Karpik.Engine.Client.UI.Extensions;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -6,10 +7,10 @@ namespace Karpik.Engine.Client.UIToolkit;
 public class Toast : VisualElement
 {
     public string Message { get; set; }
-    public ToastType Type { get; set; } = ToastType.Info;
-    public float Duration { get; set; } = 3f;
-    
-    private float _timeRemaining;
+    public ToastType Type { get; set; }
+    public float Duration { get; set; }
+
+    private double _timeRemaining;
     private bool _isShowing = false;
     
     public event Action? OnDismissed;
@@ -55,39 +56,33 @@ public class Toast : VisualElement
         _timeRemaining = Duration;
         
         // Анимация появления
-        SlideIn(new Vector2(0, -50), 0.3f, () =>
+        this.SlideIn(new Vector2(0, -50), 0.3f).OnComplete(() =>
         {
-            // Начинаем отсчет времени после появления
-            var fadeAnimation = new Animation(Duration, progress =>
+            // Запускаем таймер автоматического исчезновения
+            Task.Delay(TimeSpan.FromSeconds(Duration)).ContinueWith(_ =>
             {
-                // Ничего не делаем во время ожидания
-            }, () =>
-            {
-                // Анимация исчезновения
-                FadeOut(0.3f, () =>
+                if (_isShowing)
                 {
-                    OnDismissed?.Invoke();
-                });
+                    Dismiss();
+                }
             });
-            
-            AddAnimation(fadeAnimation);
         });
         
         // Анимация появления прозрачности
-        FadeIn(0.3f);
+        this.FadeIn(0.3f);
     }
     
     public void Dismiss()
     {
         if (!_isShowing) return;
         
-        FadeOut(0.3f, () =>
+        this.FadeOut(0.3f).OnComplete(() =>
         {
             OnDismissed?.Invoke();
         });
     }
     
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         base.Update(deltaTime);
         
@@ -165,16 +160,7 @@ public class ToastManager
             var targetY = 20 + i * 60f;
             
             // Анимируем перемещение
-            var moveAnimation = new Animation(0.3f, progress =>
-            {
-                toast.Position = new Vector2(toast.Position.X, 
-                    toast.Position.Y + (targetY - toast.Position.Y) * progress);
-            })
-            {
-                Easing = EasingFunction.EaseOutCubic
-            };
-            
-            toast.AddAnimation(moveAnimation);
+            toast.TweenPosition(new Vector2(toast.Position.X, targetY), 0.3f);
         }
     }
 }

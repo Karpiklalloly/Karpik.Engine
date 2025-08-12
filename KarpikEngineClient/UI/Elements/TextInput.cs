@@ -12,7 +12,7 @@ public class TextInput : VisualElement, ITextProvider
     public int MaxLength { get; set; } = 100;
     
     private int _cursorPosition = 0;
-    private float _cursorBlinkTimer = 0f;
+    private double _cursorBlinkTimer = 0f;
     private bool _showCursor = true;
     
     public event Action<string>? OnTextChanged;
@@ -39,7 +39,7 @@ public class TextInput : VisualElement, ITextProvider
         };
     }
     
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         base.Update(deltaTime);
         

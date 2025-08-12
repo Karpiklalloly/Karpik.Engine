@@ -22,7 +22,7 @@ public class HoverEffectManipulator : Manipulator
         
     }
     
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         
     }

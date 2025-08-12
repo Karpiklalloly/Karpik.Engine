@@ -1,5 +1,6 @@
 using System.Numerics;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
+using Karpik.Engine.Client.UI.Extensions;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -154,7 +155,7 @@ public class ModalManager
         _activeModals.Remove(modal);
         
         // Анимация исчезновения
-        modal.FadeOut(0.2f, () =>
+        modal.FadeOut(0.2f).OnComplete(() =>
         {
             // Удаляем слой после анимации
             if (layerName != null)

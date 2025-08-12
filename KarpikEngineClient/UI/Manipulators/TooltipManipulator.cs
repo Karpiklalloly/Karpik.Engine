@@ -7,7 +7,7 @@ public class TooltipManipulator : IManipulator
 {
     private VisualElement? _element;
     private Tooltip? _tooltip;
-    private float _hoverTimer = 0f;
+    private double _hoverTimer = 0f;
     private bool _isHovering = false;
     private readonly string _tooltipText;
     private readonly float _showDelay;
@@ -49,7 +49,7 @@ public class TooltipManipulator : IManipulator
         _hoverTimer = 0f;
     }
     
-    public void Update(float deltaTime)
+    public void Update(double deltaTime)
     {
         var mousePos = Raylib.GetMousePosition();
         

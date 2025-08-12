@@ -27,7 +27,7 @@ public class Slider : VisualElement
         AddManipulator(new HoverEffectManipulator());
     }
     
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         base.Update(deltaTime);
         

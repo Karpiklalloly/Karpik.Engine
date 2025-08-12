@@ -1,5 +1,6 @@
 using System.Numerics;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
+using Karpik.Engine.Client.UI.Extensions;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -109,19 +110,19 @@ public class ContextMenu : VisualElement
         Visible = true;
         
         // Анимация появления
-        SlideIn(new Vector2(0, -10), 0.15f);
+        this.SlideIn(new Vector2(0, -10), 0.15f);
     }
     
     public void Hide()
     {
-        FadeOut(0.1f, () =>
+        this.FadeOut(0.1f).OnComplete(() =>
         {
             Visible = false;
             OnClose?.Invoke();
         });
     }
     
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         base.Update(deltaTime);
         

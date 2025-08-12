@@ -20,7 +20,7 @@ public class DragManipulator : IManipulator
         _isDragging = false;
     }
     
-    public void Update(float deltaTime)
+    public void Update(double deltaTime)
     {
         
     }

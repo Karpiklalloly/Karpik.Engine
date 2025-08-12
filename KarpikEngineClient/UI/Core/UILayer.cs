@@ -60,7 +60,7 @@ public class UILayer
         }
     }
     
-    public void Update(float deltaTime)
+    public void Update(double deltaTime)
     {
         if (!Visible || !Interactive) return;
         Root.Update(deltaTime);
@@ -201,7 +201,7 @@ public class LayerManager
         }
     }
     
-    public void Update(float deltaTime)
+    public void Update(double deltaTime)
     {
         // Обновляем слои в обратном порядке (сверху вниз) для правильной обработки ввода
         for (int i = _layers.Count - 1; i >= 0; i--)

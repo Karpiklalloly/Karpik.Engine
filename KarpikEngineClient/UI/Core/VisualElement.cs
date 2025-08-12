@@ -27,11 +27,13 @@ public class VisualElement
     // Виртуальные методы убраны - теперь используется интерфейс ITextProvider
 
     private readonly List<IManipulator> _manipulators = new();
-    private readonly AnimationManager _animationManager = new();
 
     public bool IsHovered { get; private set; }
     public bool IsFocused { get; private set; }
     public bool IsPressed { get; private set; }
+
+    // Флаг для отключения автоматического layout во время анимации
+    public bool IgnoreLayout { get; set; } = false;
 
     public VisualElement(string name = "UIElement")
     {
@@ -159,10 +161,8 @@ public class VisualElement
             manipulator.Detach(this);
     }
 
-    public virtual void Update(float deltaTime)
+    public virtual void Update(double deltaTime)
     {
-        _animationManager.Update(deltaTime);
-
         foreach (var manipulator in _manipulators)
             manipulator.Update(deltaTime);
 
@@ -351,35 +351,7 @@ public class VisualElement
         return hierarchy.Select(element => element.StyleSheet).ToList();
     }
 
-    // Методы для работы с анимациями
-    public void AddAnimation(Animation animation)
-    {
-        _animationManager.AddAnimation(animation);
-    }
 
-    public void FadeIn(float duration = 0.3f, Action? onComplete = null)
-    {
-        var animation = Animation.FadeIn(this, duration, onComplete);
-        AddAnimation(animation);
-    }
-
-    public void FadeOut(float duration = 0.3f, Action? onComplete = null)
-    {
-        var animation = Animation.FadeOut(this, duration, onComplete);
-        AddAnimation(animation);
-    }
-
-    public void SlideIn(Vector2 fromOffset, float duration = 0.3f, Action? onComplete = null)
-    {
-        var animation = Animation.SlideIn(this, fromOffset, duration, onComplete);
-        AddAnimation(animation);
-    }
-
-    public void ScaleIn(float duration = 0.3f, Action? onComplete = null)
-    {
-        var animation = Animation.Scale(this, Vector2.Zero, Vector2.One, duration, onComplete);
-        AddAnimation(animation);
-    }
 
     protected void DrawText(string text)
     {

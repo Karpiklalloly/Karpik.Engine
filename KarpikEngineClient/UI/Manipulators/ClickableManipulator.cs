@@ -10,7 +10,7 @@ public class ClickableManipulator : Manipulator
     
     private bool _wasPressed = false;
 
-    public override void Update(float deltaTime)
+    public override void Update(double deltaTime)
     {
         if (Element == null || !Element.Enabled) return;
 

@@ -3,8 +3,9 @@ using System.Net.Sockets;
 using System.Numerics;
 using Game.Generated;
 using Game.Generated.Client;
+using GTweens.Extensions;
 using Karpik.Engine.Client.UIToolkit;
-using Karpik.Engine.Client.UIToolkit.Manipulators;
+using Karpik.Engine.Client.UI.Extensions;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
@@ -12,7 +13,6 @@ using LiteNetLib;
 using Network;
 using Raylib_cs;
 using rlImGui_cs;
-using Position = Karpik.Engine.Client.UIToolkit.Position;
 
 namespace Karpik.Engine.Client;
 
@@ -207,105 +207,115 @@ public class Client
             var panel = new VisualElement();
             panel.AddClass("panel");
             {
-                var header = new Label("KarpikEngine UI Demo");
-                header.AddClass("header");
-                header.AddClass("custom-header");
-                panel.AddChild(header);
-
                 var content = new VisualElement();
                 content.AddClass("content");
                 panel.AddChild(content);
                 {
-                    // Тест автоматического расширения родителей
-                    var autoResizeLabel = new Label("Auto-resize test:");
-                    content.AddChild(autoResizeLabel);
+                    // Демонстрация новой системы твинов
+                    var tweenLabel = new Label("Tween Animation Demo:");
+                    content.AddChild(tweenLabel);
                     
-                    var container = new VisualElement("AutoResizeContainer");
-                    container.Position = new Vector2(50, 0);
-                    container.Size = new Vector2(100, 50); // Начальный маленький размер
-                    container.Style.BackgroundColor = Color.SkyBlue;
-                    container.Style.BorderWidth = 2;
-                    container.Style.BorderColor = Color.Blue;
-                    container.Style.Padding.Left = 10;
-                    container.Style.Padding.Top = 10;
-                    container.Style.Padding.Right = 10;
-                    container.Style.Padding.Bottom = 10;
+                    // Кнопки для демонстрации различных анимаций
+                    var buttonContainer = new VisualElement("ButtonContainer");
+                    buttonContainer.Position = new Vector2(0, 30);
+                    buttonContainer.Size = new Vector2(600, 200);
                     
-                    // Добавляем детей, которые должны расширить родителя
-                    var child1 = new Button("Child 1");
-                    child1.Position = new Vector2(20, 20);
-                    child1.Size = new Vector2(80, 30);
+                    // Анимируемый элемент
+                    var animatedBox = new VisualElement("AnimatedBox");
+                    animatedBox.Position = new Vector2(300, 50);
+                    animatedBox.Size = new Vector2(50, 50);
+                    animatedBox.Style.BackgroundColor = Color.Red;
+                    animatedBox.Style.BorderRadius = 10;
+                    buttonContainer.AddChild(animatedBox);
                     
-                    var child2 = new Button("Child 2");
-                    child2.Position = new Vector2(120, 60);
-                    child2.Size = new Vector2(100, 30);
+                    // Кнопки управления анимациями
+                    var fadeInBtn = new Button("Fade In");
+                    fadeInBtn.Position = new Vector2(10, 10);
+                    fadeInBtn.Size = new Vector2(80, 30);
+                    fadeInBtn.OnClick += () => animatedBox.FadeIn(0.5f);
+                    buttonContainer.AddChild(fadeInBtn);
                     
-                    Console.WriteLine($"Container size before adding children: {container.Size}");
-                    Console.WriteLine($"Child1 - Pos: {child1.Position}, Size: {child1.Size}");
-                    Console.WriteLine($"Child2 - Pos: {child2.Position}, Size: {child2.Size}");
+                    var fadeOutBtn = new Button("Fade Out");
+                    fadeOutBtn.Position = new Vector2(100, 10);
+                    fadeOutBtn.Size = new Vector2(80, 30);
+                    fadeOutBtn.OnClick += () => animatedBox.FadeOut(0.5f);
+                    buttonContainer.AddChild(fadeOutBtn);
                     
-                    Console.WriteLine("=== Adding child1 ===");
-                    container.AddChild(child1);
-                    Console.WriteLine($"Container size after adding child1: {container.Size}");
+                    var scaleInBtn = new Button("Scale In");
+                    scaleInBtn.Position = new Vector2(190, 10);
+                    scaleInBtn.Size = new Vector2(80, 30);
+                    scaleInBtn.OnClick += () => animatedBox.ScaleIn(0.5f);
+                    buttonContainer.AddChild(scaleInBtn);
                     
-                    Console.WriteLine("=== Adding child2 ===");
-                    container.AddChild(child2);
-                    Console.WriteLine($"Container size after adding child2: {container.Size}");
+                    var shakeBtn = new Button("Shake");
+                    shakeBtn.Position = new Vector2(280, 10);
+                    shakeBtn.Size = new Vector2(80, 30);
+                    shakeBtn.OnClick += () => animatedBox.Shake(30f, 1.5f); // Увеличиваем интенсивность и время
+                    buttonContainer.AddChild(shakeBtn);
                     
-                    content.AddChild(container);
+                    var pulseBtn = new Button("Pulse");
+                    pulseBtn.Position = new Vector2(370, 10);
+                    pulseBtn.Size = new Vector2(80, 30);
+                    pulseBtn.OnClick += () => animatedBox.Pulse(1.3f, 0.6f);
+                    buttonContainer.AddChild(pulseBtn);
+                    
+                    var slideBtn = new Button("Slide");
+                    slideBtn.Position = new Vector2(460, 10);
+                    slideBtn.Size = new Vector2(80, 30);
+                    slideBtn.OnClick += () => animatedBox.SlideIn(new Vector2(-200, -50), 1.0f); // Увеличиваем смещение и время
+                    buttonContainer.AddChild(slideBtn);
+                    
+                    var colorBtn = new Button("Color");
+                    colorBtn.Position = new Vector2(10, 50);
+                    colorBtn.Size = new Vector2(80, 30);
+                    colorBtn.OnClick += () => 
+                    {
+                        var colors = new[] { Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Purple };
+                        var randomColor = colors[new Random().Next(colors.Length)];
+                        animatedBox.TweenBackgroundColor(randomColor, 0.5f);
+                    };
+                    buttonContainer.AddChild(colorBtn);
+                    
+                    var moveBtn = new Button("Move");
+                    moveBtn.Position = new Vector2(100, 50);
+                    moveBtn.Size = new Vector2(80, 30);
+                    moveBtn.OnClick += () => 
+                    {
+                        var newPos = new Vector2(
+                            new Random().Next(50, 500),
+                            new Random().Next(50, 150)
+                        );
+                        animatedBox.TweenPosition(newPos, 0.5f);
+                    };
+                    buttonContainer.AddChild(moveBtn);
+                    
+                    var testBtn = new Button("Test");
+                    testBtn.Position = new Vector2(190, 50);
+                    testBtn.Size = new Vector2(80, 30);
+                    testBtn.OnClick += () => 
+                    {
+                        Console.WriteLine("=== TEST BUTTON CLICKED ===");
+                        Console.WriteLine($"Box current position: {animatedBox.Position}");
+                        Console.WriteLine($"Box IgnoreLayout: {animatedBox.IgnoreLayout}");
+                        Console.WriteLine($"Box Size: {animatedBox.Size}");
+                        Console.WriteLine($"Box Visible: {animatedBox.Visible}");
+                        
+                        // Простой тест - короткая анимация
+                        var targetPos = animatedBox.Position + new Vector2(100, 50);
+                        Console.WriteLine($"Target position: {targetPos}");
+                        
+                        var tween = animatedBox.TweenPosition(targetPos, 1.0f); // Длинная анимация для лучшей видимости
+                        Console.WriteLine($"Tween created: {tween != null}");
+                        Console.WriteLine($"Box IgnoreLayout after tween: {animatedBox.IgnoreLayout}");
+                    };
+                    buttonContainer.AddChild(testBtn);
+                    
+                    content.AddChild(buttonContainer);
                 }
             }
             root.AddChild(panel);
         }
         
         _uiManager.SetRoot(root);
-    }
-    
-    private void ShowModalDemo()
-    {
-        var modal = new Modal("Demo Modal Window");
-        modal.Size = new Vector2(400, 300);
-        
-        // Создаем содержимое модального окна
-        var modalContent = new VisualElement();
-        modalContent.Style.FlexDirection = FlexDirection.Column;
-        
-        var welcomeLabel = new Label("Welcome to the modal dialog!");
-        welcomeLabel.AddClass("label");
-        modalContent.AddChild(welcomeLabel);
-        
-        var descriptionLabel = new Label("This is a demonstration of the layered UI system.");
-        descriptionLabel.AddClass("label");
-        modalContent.AddChild(descriptionLabel);
-        
-        var inputField = new TextInput("Enter some text...");
-        modalContent.AddChild(inputField);
-        
-        var buttonContainer = new VisualElement();
-        buttonContainer.Style.FlexDirection = FlexDirection.Row;
-        buttonContainer.Style.JustifyContent = JustifyContent.SpaceEvenly;
-        buttonContainer.Style.Margin = new Margin(0, 10, 0, 0);
-        
-        var okButton = new Button("OK");
-        okButton.OnClick += () => 
-        {
-            Logger.Instance.Log("CLICK");
-            _uiManager.ShowToast($"You entered: {inputField.Text}", ToastType.Success);
-            modal.Close();
-        };
-        okButton.AddClass("button");
-        okButton.Style.Margin = new Margin(5);
-        buttonContainer.AddChild(okButton);
-        
-        var cancelButton = new Button("Cancel");
-        cancelButton.OnClick += () => modal.Close();
-        cancelButton.AddClass("button");
-        cancelButton.Style.Margin = new Margin(5);
-        buttonContainer.AddChild(cancelButton);
-        
-        modalContent.AddChild(buttonContainer);
-        modal.SetContent(modalContent);
-        
-        _uiManager.ShowModal(modal, true);
     }
 }
