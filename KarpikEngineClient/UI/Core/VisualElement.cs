@@ -12,64 +12,132 @@ public class VisualElement
     public Vector2 Size { get; set; }
     public bool Visible { get; set; } = true;
     public bool Enabled { get; set; } = true;
-    
+
     public VisualElement? Parent { get; private set; }
     public List<VisualElement> Children { get; } = new();
-    
+
     // Стили
     public Style Style { get; } = new();
     public List<string> Classes { get; } = new();
     public StyleSheet StyleSheet { get; set; } = new();
-    
+
     // Финальные вычисленные стили (обновляются в LayoutEngine)
     public Style ResolvedStyle { get; private set; } = new();
-    
+
     // Виртуальные методы убраны - теперь используется интерфейс ITextProvider
-    
+
     private readonly List<IManipulator> _manipulators = new();
     private readonly AnimationManager _animationManager = new();
-    
+
     public bool IsHovered { get; private set; }
     public bool IsFocused { get; private set; }
     public bool IsPressed { get; private set; }
-    
+
     public VisualElement(string name = "UIElement")
     {
         Name = name;
         AddManipulator(new HoverEffectManipulator());
     }
-    
+
     public void AddChild(VisualElement child)
     {
         if (child.Parent != null)
             child.Parent.RemoveChild(child);
-            
+
         Children.Add(child);
         child.Parent = this;
+
+        // Автоматически расширяем родителя для размещения всех детей
+        AutoResizeToFitChildren();
     }
-    
+
     public void RemoveChild(VisualElement child)
     {
         if (Children.Remove(child))
+        {
             child.Parent = null;
+            // После удаления ребенка также пересчитываем размер
+            AutoResizeToFitChildren();
+        }
     }
-    
+
+    /// <summary>
+    /// Автоматически изменяет размер элемента чтобы вместить всех детей
+    /// </summary>
+    private void AutoResizeToFitChildren()
+    {
+
+
+        if (Children.Count == 0)
+            return;
+
+        // Получаем padding из стилей (используем Style вместо ResolvedStyle)
+        var paddingLeft = Style.Padding?.Left ?? 0;
+        var paddingTop = Style.Padding?.Top ?? 0;
+        var paddingRight = Style.Padding?.Right ?? 0;
+        var paddingBottom = Style.Padding?.Bottom ?? 0;
+
+
+
+        // Находим границы всех детей
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+
+        foreach (var child in Children)
+        {
+
+
+            if (!child.Visible) continue;
+
+            var childLeft = child.Position.X;
+            var childTop = child.Position.Y;
+            var childRight = child.Position.X + child.Size.X;
+            var childBottom = child.Position.Y + child.Size.Y;
+
+            minX = Math.Min(minX, childLeft);
+            minY = Math.Min(minY, childTop);
+            maxX = Math.Max(maxX, childRight);
+            maxY = Math.Max(maxY, childBottom);
+
+
+        }
+
+        // Если нет видимых детей, не изменяем размер
+        if (minX == float.MaxValue)
+        {
+            Console.WriteLine("No visible children, returning");
+            return;
+        }
+
+        // Вычисляем новый размер с учетом padding
+        // Размер должен быть от (0,0) до самой дальней точки детей
+        var requiredWidth = maxX + paddingLeft + paddingRight;
+        var requiredHeight = maxY + paddingTop + paddingBottom;
+        var newWidth = Math.Max(Size.X, requiredWidth);
+        var newHeight = Math.Max(Size.Y, requiredHeight);
+
+        // Обновляем размер только если он увеличивается
+        Size = new Vector2(newWidth, newHeight);
+    }
+
     public void AddClass(string className)
     {
         if (!Classes.Contains(className))
             Classes.Add(className);
     }
-    
+
     public void RemoveClass(string className)
     {
         Classes.Remove(className);
     }
-    
+
     public bool HasClass(string className)
     {
         return Classes.Contains(className);
     }
-    
+
     // Управление манипуляторами
     public void AddManipulator(IManipulator manipulator)
     {
@@ -79,43 +147,43 @@ public class VisualElement
             manipulator.Attach(this);
         }
     }
-    
+
     public T? GetManipulator<T>() where T : IManipulator
     {
         return (T?)_manipulators.FirstOrDefault(x => x.GetType() == typeof(T));
     }
-    
+
     public void RemoveManipulator(IManipulator manipulator)
     {
         if (_manipulators.Remove(manipulator))
             manipulator.Detach(this);
     }
-    
+
     public virtual void Update(float deltaTime)
     {
         _animationManager.Update(deltaTime);
-        
+
         foreach (var manipulator in _manipulators)
             manipulator.Update(deltaTime);
-            
+
         foreach (var child in Children.ToArray())
             child.Update(deltaTime);
     }
-    
+
     public virtual void Render()
     {
         if (!Visible) return;
-        
+
         RenderSelf();
-        
+
         foreach (var child in Children)
             child.Render();
     }
-    
+
     protected virtual void RenderSelf()
     {
         var bounds = new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
-        
+
         // Рендерим фон
         if (ResolvedStyle.BackgroundColor?.A > 0)
         {
@@ -145,7 +213,7 @@ public class VisualElement
                 );
             }
         }
-        
+
         // Рендерим рамку
         if ((ResolvedStyle.BorderWidth ?? 0) > 0 && (ResolvedStyle.BorderColor?.A ?? 0) > 0)
         {
@@ -172,12 +240,12 @@ public class VisualElement
             }
         }
     }
-    
+
     public virtual void HandleClick()
     {
-        
+
     }
-    
+
     public virtual void HandleHover(bool isHovered)
     {
         if (IsHovered != isHovered)
@@ -185,7 +253,7 @@ public class VisualElement
             IsHovered = isHovered;
         }
     }
-    
+
     public virtual void HandleFocus(bool isFocused)
     {
         if (IsFocused != isFocused)
@@ -193,16 +261,16 @@ public class VisualElement
             IsFocused = isFocused;
         }
     }
-    
+
     public virtual void HandlePress(bool isPressed)
     {
         IsPressed = isPressed;
     }
-    
+
     public virtual bool HandleInputEvent(InputEvent inputEvent)
     {
         if (!Visible || !Enabled) return false;
-        
+
         // Сначала проверяем дочерние элементы (в обратном порядке для правильного z-order)
         for (int i = Children.Count - 1; i >= 0; i--)
         {
@@ -215,7 +283,7 @@ public class VisualElement
                 // }
                 manipulator.Handle(inputEvent);
             }
-            
+
             if (Children[i].HandleInputEvent(inputEvent))
             {
                 return true; // Событие обработано дочерним элементом
@@ -223,35 +291,35 @@ public class VisualElement
 
 
         }
-        
+
         // Если событие не обработано дочерними элементами, обрабатываем сами
         bool result = HandleSelfInputEvent(inputEvent);
         return result;
     }
-    
+
     protected virtual bool HandleSelfInputEvent(InputEvent inputEvent)
     {
         return false;
     }
-    
+
     public bool ContainsPoint(Vector2 point)
     {
         return point.X >= Position.X && point.X <= Position.X + Size.X &&
                point.Y >= Position.Y && point.Y <= Position.Y + Size.Y;
     }
-    
+
     public Rectangle GetBounds()
     {
         return new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
     }
-    
+
     // Вычисление стилей с учетом иерархии StyleSheet
     public Style ComputeStyle()
     {
         var computedStyle = new Style();
-        
+
         var styleSheets = GetAllStyleSheetsInHierarchy();
-        
+
         foreach (var styleSheet in styleSheets)
         {
             var tempStyle = styleSheet.ComputeStyle(this);
@@ -260,53 +328,53 @@ public class VisualElement
 
         if (HasClass("button") && !IsHovered)
         {
-            
+
         }
         computedStyle.CopyFrom(Style);
-        
+
         return computedStyle;
     }
-    
+
     private List<StyleSheet> GetAllStyleSheetsInHierarchy()
     {
         var hierarchy = new List<VisualElement>();
-        
+
         var current = this;
         while (current != null)
         {
             hierarchy.Add(current);
             current = current.Parent;
         }
-        
+
         hierarchy.Reverse();
 
         return hierarchy.Select(element => element.StyleSheet).ToList();
     }
-    
+
     // Методы для работы с анимациями
     public void AddAnimation(Animation animation)
     {
         _animationManager.AddAnimation(animation);
     }
-    
+
     public void FadeIn(float duration = 0.3f, Action? onComplete = null)
     {
         var animation = Animation.FadeIn(this, duration, onComplete);
         AddAnimation(animation);
     }
-    
+
     public void FadeOut(float duration = 0.3f, Action? onComplete = null)
     {
         var animation = Animation.FadeOut(this, duration, onComplete);
         AddAnimation(animation);
     }
-    
+
     public void SlideIn(Vector2 fromOffset, float duration = 0.3f, Action? onComplete = null)
     {
         var animation = Animation.SlideIn(this, fromOffset, duration, onComplete);
         AddAnimation(animation);
     }
-    
+
     public void ScaleIn(float duration = 0.3f, Action? onComplete = null)
     {
         var animation = Animation.Scale(this, Vector2.Zero, Vector2.One, duration, onComplete);
@@ -334,9 +402,9 @@ public class VisualElement
             AlignText.Right => Position.X + Size.X - textWidth - ResolvedStyle.Padding.Right,
             _ => Position.X + ResolvedStyle.Padding.Left
         };
-        
+
         var y = Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2;
-        
+
         return new Vector2(x, y);
     }
 }

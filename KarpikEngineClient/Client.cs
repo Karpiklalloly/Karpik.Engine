@@ -216,56 +216,43 @@ public class Client
                 content.AddClass("content");
                 panel.AddChild(content);
                 {
-                    // Секция текстового ввода
-                    var inputLabel = new Label("Text Input:");
-                    content.AddChild(inputLabel);
+                    // Тест автоматического расширения родителей
+                    var autoResizeLabel = new Label("Auto-resize test:");
+                    content.AddChild(autoResizeLabel);
                     
-                    var textInput = new TextInput("Enter your name...");
-                    textInput.OnTextChanged += (text) => Logger.Instance.Log($"Text changed: {text}");
-                    textInput.OnEnterPressed += () => Logger.Instance.Log("Enter pressed!");
-                    content.AddChild(textInput);
+                    var container = new VisualElement("AutoResizeContainer");
+                    container.Position = new Vector2(50, 0);
+                    container.Size = new Vector2(100, 50); // Начальный маленький размер
+                    container.Style.BackgroundColor = Color.SkyBlue;
+                    container.Style.BorderWidth = 2;
+                    container.Style.BorderColor = Color.Blue;
+                    container.Style.Padding.Left = 10;
+                    container.Style.Padding.Top = 10;
+                    container.Style.Padding.Right = 10;
+                    container.Style.Padding.Bottom = 10;
                     
-                    var checkbox1 = new Checkbox("Enable notifications");
-                    checkbox1.OnCheckedChanged += (isChecked) => Logger.Instance.Log($"Notifications: {isChecked}");
-                    content.AddChild(checkbox1);
+                    // Добавляем детей, которые должны расширить родителя
+                    var child1 = new Button("Child 1");
+                    child1.Position = new Vector2(20, 20);
+                    child1.Size = new Vector2(80, 30);
                     
-                    var slider1 = new Slider(0f, 100f, 50f);
-                    content.AddChild(slider1);
+                    var child2 = new Button("Child 2");
+                    child2.Position = new Vector2(120, 60);
+                    child2.Size = new Vector2(100, 30);
                     
-                    // Секция прогресс-баров
-                    var progressLabel = new Label("Progress Bars:");
-                    content.AddChild(progressLabel);
+                    Console.WriteLine($"Container size before adding children: {container.Size}");
+                    Console.WriteLine($"Child1 - Pos: {child1.Position}, Size: {child1.Size}");
+                    Console.WriteLine($"Child2 - Pos: {child2.Position}, Size: {child2.Size}");
                     
-                    var progressBar1 = new ProgressBar(0f, 100f, 75f);
-                    progressBar1.Text = "Loading...";
-                    content.AddChild(progressBar1);
+                    Console.WriteLine("=== Adding child1 ===");
+                    container.AddChild(child1);
+                    Console.WriteLine($"Container size after adding child1: {container.Size}");
                     
-                    // Секция уведомлений
-                    var toastLabel = new Label("Toast Notifications:");
-                    content.AddChild(toastLabel);
+                    Console.WriteLine("=== Adding child2 ===");
+                    container.AddChild(child2);
+                    Console.WriteLine($"Container size after adding child2: {container.Size}");
                     
-                    var toastButton1 = new Button("Show Info Toast");
-                    toastButton1.OnClick += () => _uiManager.ShowToast("This is an info message!", ToastType.Info);
-                    content.AddChild(toastButton1);
-                    
-                    // Секция слоев и модальных окон
-                    var layersLabel = new Label("Layers & Modals:");
-                    content.AddChild(layersLabel);
-                    
-                    var modalButton = new Button("Show Modal Dialog");
-                    modalButton.OnClick += ShowModalDemo;
-                    content.AddChild(modalButton);
-                    
-                    var tooltipButton = new Button("Hover for Tooltip");
-                    tooltipButton.AddManipulator(new TooltipManipulator("This is a helpful tooltip that appears on hover!"));
-                    content.AddChild(tooltipButton);
-
-                    var dropdown = new Dropdown();
-                    dropdown.SetLayerManager(_uiManager.LayerManager);
-                    dropdown.AddItem("1");
-                    dropdown.AddItem("2");
-                    dropdown.AddItem("111");
-                    content.AddChild(dropdown);
+                    content.AddChild(container);
                 }
             }
             root.AddChild(panel);
