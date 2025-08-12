@@ -16,28 +16,23 @@ public class Tween
 
     public static void Add(GTween tween, bool pausable)
     {
-        Console.WriteLine($"[TWEEN_SYSTEM] Adding tween (pausable: {pausable})");
         if (pausable)
         {
             _pausableContext.Play(tween);
-            Console.WriteLine($"[TWEEN_SYSTEM] Added to pausable context");
         }
         else
         {
             _context.Play(tween);
-            Console.WriteLine($"[TWEEN_SYSTEM] Added to main context");
         }
     }
 
     public void Update(double deltaTime)
     {
-        Console.WriteLine($"[TWEEN_SYSTEM] Ticking main context with deltaTime: {deltaTime}");
         _context.Tick((float)deltaTime);
     }
 
     public void UpdatePausable(double deltaTime)
     {
-        Console.WriteLine($"[TWEEN_SYSTEM] Ticking pausable context with deltaTime: {deltaTime}");
         _pausableContext.Tick((float)deltaTime);
     }
 }

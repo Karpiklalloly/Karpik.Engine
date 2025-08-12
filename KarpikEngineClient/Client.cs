@@ -215,59 +215,50 @@ public class Client
                     var tweenLabel = new Label("Tween Animation Demo:");
                     content.AddChild(tweenLabel);
                     
-                    // Кнопки для демонстрации различных анимаций
-                    var buttonContainer = new VisualElement("ButtonContainer");
-                    buttonContainer.Position = new Vector2(0, 30);
-                    buttonContainer.Size = new Vector2(600, 200);
-                    
                     // Анимируемый элемент
                     var animatedBox = new VisualElement("AnimatedBox");
-                    animatedBox.Position = new Vector2(300, 50);
                     animatedBox.Size = new Vector2(50, 50);
                     animatedBox.Style.BackgroundColor = Color.Red;
-                    animatedBox.Style.BorderRadius = 10;
-                    buttonContainer.AddChild(animatedBox);
+                    animatedBox.Style.BorderRadius = 0.9f;
+                    content.AddChild(animatedBox);
+                    
+                    // Кнопки для демонстрации различных анимаций
+                    var buttonContainer = new VisualElement("ButtonContainer");
+                    buttonContainer.Style.FlexDirection = FlexDirection.Row;
                     
                     // Кнопки управления анимациями
                     var fadeInBtn = new Button("Fade In");
-                    fadeInBtn.Position = new Vector2(10, 10);
-                    fadeInBtn.Size = new Vector2(80, 30);
+                    fadeInBtn.Style.Margin = new Margin(5);
                     fadeInBtn.OnClick += () => animatedBox.FadeIn(0.5f);
                     buttonContainer.AddChild(fadeInBtn);
                     
                     var fadeOutBtn = new Button("Fade Out");
-                    fadeOutBtn.Position = new Vector2(100, 10);
-                    fadeOutBtn.Size = new Vector2(80, 30);
+                    fadeOutBtn.Style.Margin = new Margin(5);
                     fadeOutBtn.OnClick += () => animatedBox.FadeOut(0.5f);
                     buttonContainer.AddChild(fadeOutBtn);
                     
                     var scaleInBtn = new Button("Scale In");
-                    scaleInBtn.Position = new Vector2(190, 10);
-                    scaleInBtn.Size = new Vector2(80, 30);
+                    scaleInBtn.Style.Margin = new Margin(5);
                     scaleInBtn.OnClick += () => animatedBox.ScaleIn(0.5f);
                     buttonContainer.AddChild(scaleInBtn);
                     
                     var shakeBtn = new Button("Shake");
-                    shakeBtn.Position = new Vector2(280, 10);
-                    shakeBtn.Size = new Vector2(80, 30);
+                    shakeBtn.Style.Margin = new Margin(5);
                     shakeBtn.OnClick += () => animatedBox.Shake(30f, 1.5f); // Увеличиваем интенсивность и время
                     buttonContainer.AddChild(shakeBtn);
                     
                     var pulseBtn = new Button("Pulse");
-                    pulseBtn.Position = new Vector2(370, 10);
-                    pulseBtn.Size = new Vector2(80, 30);
+                    pulseBtn.Style.Margin = new Margin(5);
                     pulseBtn.OnClick += () => animatedBox.Pulse(1.3f, 0.6f);
                     buttonContainer.AddChild(pulseBtn);
                     
                     var slideBtn = new Button("Slide");
-                    slideBtn.Position = new Vector2(460, 10);
-                    slideBtn.Size = new Vector2(80, 30);
+                    slideBtn.Style.Margin = new Margin(5);
                     slideBtn.OnClick += () => animatedBox.SlideIn(new Vector2(-200, -50), 1.0f); // Увеличиваем смещение и время
                     buttonContainer.AddChild(slideBtn);
                     
                     var colorBtn = new Button("Color");
-                    colorBtn.Position = new Vector2(10, 50);
-                    colorBtn.Size = new Vector2(80, 30);
+                    colorBtn.Style.Margin = new Margin(5);
                     colorBtn.OnClick += () => 
                     {
                         var colors = new[] { Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Purple };
@@ -277,8 +268,7 @@ public class Client
                     buttonContainer.AddChild(colorBtn);
                     
                     var moveBtn = new Button("Move");
-                    moveBtn.Position = new Vector2(100, 50);
-                    moveBtn.Size = new Vector2(80, 30);
+                    moveBtn.Style.Margin = new Margin(5);
                     moveBtn.OnClick += () => 
                     {
                         var newPos = new Vector2(
@@ -290,23 +280,12 @@ public class Client
                     buttonContainer.AddChild(moveBtn);
                     
                     var testBtn = new Button("Test");
-                    testBtn.Position = new Vector2(190, 50);
-                    testBtn.Size = new Vector2(80, 30);
-                    testBtn.OnClick += () => 
+                    testBtn.Style.Margin = new Margin(5);
+                    testBtn.OnClick += () =>
                     {
-                        Console.WriteLine("=== TEST BUTTON CLICKED ===");
-                        Console.WriteLine($"Box current position: {animatedBox.Position}");
-                        Console.WriteLine($"Box IgnoreLayout: {animatedBox.IgnoreLayout}");
-                        Console.WriteLine($"Box Size: {animatedBox.Size}");
-                        Console.WriteLine($"Box Visible: {animatedBox.Visible}");
-                        
-                        // Простой тест - короткая анимация
                         var targetPos = animatedBox.Position + new Vector2(100, 50);
-                        Console.WriteLine($"Target position: {targetPos}");
-                        
-                        var tween = animatedBox.TweenPosition(targetPos, 1.0f); // Длинная анимация для лучшей видимости
-                        Console.WriteLine($"Tween created: {tween != null}");
-                        Console.WriteLine($"Box IgnoreLayout after tween: {animatedBox.IgnoreLayout}");
+
+                        animatedBox.TweenPosition(targetPos, 1.0f);
                     };
                     buttonContainer.AddChild(testBtn);
                     

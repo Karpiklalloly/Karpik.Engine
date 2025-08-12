@@ -15,20 +15,13 @@ public static class VisualElementTweenExtensions
     /// </summary>
     public static GTween TweenPosition(this VisualElement element, Vector2 to, float duration, bool pausable = false)
     {
-        Console.WriteLine($"[TWEEN] TweenPosition: {element.Name} from {element.Position} to {to} over {duration}s");
-        
         // Отключаем layout во время анимации позиции
         element.IgnoreLayout = true;
-        Console.WriteLine($"[TWEEN] Set IgnoreLayout=true for {element.Name}");
         
-        // Попробуем создать твин для каждой координаты отдельно
-        var startPos = element.Position;
-        Console.WriteLine($"[TWEEN] Creating separate tweens for X and Y coordinates");
-        
+        // Создаем твин для каждой координаты отдельно
         var tweenX = GTweenExtensions.Tween(
             () => element.Position.X,
             valueX => {
-                Console.WriteLine($"[TWEEN] Setting {element.Name} X to {valueX} (current Y: {element.Position.Y})");
                 element.Position = new Vector2(valueX, element.Position.Y);
             },
             to.X,
@@ -38,7 +31,6 @@ public static class VisualElementTweenExtensions
         var tweenY = GTweenExtensions.Tween(
             () => element.Position.Y,
             valueY => {
-                Console.WriteLine($"[TWEEN] Setting {element.Name} Y to {valueY} (current X: {element.Position.X})");
                 element.Position = new Vector2(element.Position.X, valueY);
             },
             to.Y,
@@ -46,17 +38,13 @@ public static class VisualElementTweenExtensions
         );
         
         var tween = tweenX.OnComplete(() => {
-            Console.WriteLine($"[TWEEN] TweenPosition completed for {element.Name}");
             element.IgnoreLayout = false;
         }).OnKill(() => {
-            Console.WriteLine($"[TWEEN] TweenPosition killed for {element.Name}");
             element.IgnoreLayout = false;
         });
         
-        Console.WriteLine($"[TWEEN] Created tweens: X={tweenX != null}, Y={tweenY != null}");
         Tween.Add(tweenX, pausable);
         Tween.Add(tweenY, pausable);
-        Console.WriteLine($"[TWEEN] Added both tweens to system (pausable: {pausable})");
         return tween;
     }
 
@@ -217,8 +205,6 @@ public static class VisualElementTweenExtensions
         var originalPosition = element.Position;
         var random = new Random();
         
-        Console.WriteLine($"[TWEEN] Shake: {element.Name} original pos: {originalPosition}, intensity: {intensity}, duration: {duration}");
-        
         // Отключаем layout во время анимации
         element.IgnoreLayout = true;
         
@@ -232,17 +218,14 @@ public static class VisualElementTweenExtensions
                 var offsetX = (float)Math.Sin(progress * frequency * Math.PI) * shake * (float)(random.NextDouble() * 2 - 1);
                 var offsetY = (float)Math.Cos(progress * frequency * Math.PI * 1.1) * shake * (float)(random.NextDouble() * 2 - 1);
                 var newPos = originalPosition + new Vector2(offsetX, offsetY);
-                Console.WriteLine($"[TWEEN] Shake progress: {progress:F2}, shake: {shake:F2}, offset: ({offsetX:F2}, {offsetY:F2}), newPos: {newPos}");
                 element.Position = newPos;
             },
             1f,
             duration
         ).OnComplete(() => {
-            Console.WriteLine($"[TWEEN] Shake completed for {element.Name}, restoring to {originalPosition}");
             element.Position = originalPosition;
             element.IgnoreLayout = false;
         }).OnKill(() => {
-            Console.WriteLine($"[TWEEN] Shake killed for {element.Name}");
             element.Position = originalPosition;
             element.IgnoreLayout = false;
         });

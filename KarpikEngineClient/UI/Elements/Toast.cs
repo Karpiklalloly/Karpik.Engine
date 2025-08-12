@@ -146,10 +146,19 @@ public class ToastManager
     private void PositionToast(Toast toast)
     {
         var index = _toasts.IndexOf(toast);
-        var yOffset = index * 60f; // 60px между уведомлениями
         
-        toast.Position = new Vector2(_container.Size.X - 300 - 20, 20 + yOffset); // Правый верхний угол
-        toast.Size = new Vector2(300, 50);
+        // Вычисляем размер на основе текста
+        var textWidth = Raylib.MeasureText(toast.Message, toast.Style.GetFontSizeOrDefault());
+        var padding = toast.Style.Padding.Left + toast.Style.Padding.Right;
+        var margin = toast.Style.Margin.Left + toast.Style.Margin.Right;
+        
+        var toastWidth = Math.Max(200, textWidth + padding + 20); // Минимум 200px, плюс отступы
+        var toastHeight = toast.Style.GetFontSizeOrDefault() + toast.Style.Padding.Top + toast.Style.Padding.Bottom + 10;
+        
+        var yOffset = index * (toastHeight + 10); // Расстояние между уведомлениями
+        
+        toast.Position = new Vector2(_container.Size.X - toastWidth - 20, 20 + yOffset);
+        toast.Size = new Vector2(toastWidth, toastHeight);
     }
     
     private void RepositionToasts()
@@ -157,7 +166,8 @@ public class ToastManager
         for (int i = 0; i < _toasts.Count; i++)
         {
             var toast = _toasts[i];
-            var targetY = 20 + i * 60f;
+            var toastHeight = toast.Size.Y;
+            var targetY = 20 + i * (toastHeight + 10);
             
             // Анимируем перемещение
             toast.TweenPosition(new Vector2(toast.Position.X, targetY), 0.3f);

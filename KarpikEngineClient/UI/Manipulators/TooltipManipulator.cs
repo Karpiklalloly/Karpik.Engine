@@ -72,8 +72,7 @@ public class TooltipManipulator : IManipulator
                 }
                 else
                 {
-                    // Если TooltipManager недоступен, логируем предупреждение
-                    Console.WriteLine("Warning: TooltipManager not available, tooltip will not be shown");
+                    // Если TooltipManager недоступен, ничего не делаем
                 }
             }
         }

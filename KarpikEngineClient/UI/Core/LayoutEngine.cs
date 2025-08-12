@@ -26,7 +26,6 @@ public static class LayoutEngine
         // Пропускаем элементы, которые игнорируют layout (например, во время анимации)
         if (element.IgnoreLayout) 
         {
-            Console.WriteLine($"[LAYOUT] Skipping layout for {element.Name} (IgnoreLayout=true)");
             return;
         }
         
@@ -165,14 +164,7 @@ public static class LayoutEngine
             // Пропускаем детей, которые игнорируют layout
             if (child.IgnoreLayout) 
             {
-                Console.WriteLine($"[LAYOUT] Skipping child {child.Name} (IgnoreLayout=true)");
                 continue;
-            }
-            
-            // Отладка для AnimatedBox
-            if (child.Name == "AnimatedBox")
-            {
-                Console.WriteLine($"[LAYOUT] Processing child AnimatedBox - current pos: {child.Position}, IgnoreLayout: {child.IgnoreLayout}");
             }
             
             var childStyle = child.ComputeStyle();
@@ -197,6 +189,13 @@ public static class LayoutEngine
             }
             
             CalculateLayoutRecursive(child, childContentArea);
+        }
+        
+        // После позиционирования всех детей, обновляем размер родителя если нужно
+        // Это нужно для контейнеров, которые должны автоматически подгоняться под содержимое
+        if (parent.Children.Count > 0 && !parent.Style.Width.HasValue && !parent.Style.Height.HasValue)
+        {
+            parent.AutoResizeToFitChildren();
         }
     }
     
@@ -310,10 +309,6 @@ public static class LayoutEngine
             }
             
             // Устанавливаем позицию
-            if (child.Name == "AnimatedBox")
-            {
-                Console.WriteLine($"[LAYOUT] LayoutColumn setting AnimatedBox position to ({childX}, {currentY}) - IgnoreLayout: {child.IgnoreLayout}");
-            }
             if (!child.IgnoreLayout) child.Position = new Vector2(childX, currentY);
             
             // Рассчитываем высоту для flex элементов
@@ -445,10 +440,6 @@ public static class LayoutEngine
                     throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetAlignItemsOrDefault().ToString());
             }
             
-            if (child.Name == "AnimatedBox")
-            {
-                Console.WriteLine($"[LAYOUT] LayoutRow setting AnimatedBox position to ({currentX}, {childY}) - IgnoreLayout: {child.IgnoreLayout}");
-            }
             if (!child.IgnoreLayout) child.Position = new Vector2(currentX, childY);
             
             // Рассчитываем ширину для flex элементов

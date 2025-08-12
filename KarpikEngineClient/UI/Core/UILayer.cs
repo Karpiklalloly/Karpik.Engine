@@ -110,7 +110,7 @@ public class UILayer
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Error rendering layer {Name}: {e}");
+            // Игнорируем ошибки рендеринга
         }
     }
     

@@ -66,22 +66,18 @@ public class VisualElement
     /// <summary>
     /// Автоматически изменяет размер элемента чтобы вместить всех детей
     /// </summary>
-    private void AutoResizeToFitChildren()
+    public void AutoResizeToFitChildren()
     {
-
-
         if (Children.Count == 0)
             return;
 
-        // Получаем padding из стилей (используем Style вместо ResolvedStyle)
+        // Получаем padding из стилей
         var paddingLeft = Style.Padding?.Left ?? 0;
         var paddingTop = Style.Padding?.Top ?? 0;
         var paddingRight = Style.Padding?.Right ?? 0;
         var paddingBottom = Style.Padding?.Bottom ?? 0;
 
-
-
-        // Находим границы всех детей
+        // Находим границы всех видимых детей относительно позиции родителя
         float minX = float.MaxValue;
         float minY = float.MaxValue;
         float maxX = float.MinValue;
@@ -89,39 +85,43 @@ public class VisualElement
 
         foreach (var child in Children)
         {
-
-
             if (!child.Visible) continue;
 
-            var childLeft = child.Position.X;
-            var childTop = child.Position.Y;
-            var childRight = child.Position.X + child.Size.X;
-            var childBottom = child.Position.Y + child.Size.Y;
+            // Вычисляем относительные координаты ребенка
+            var relativeLeft = child.Position.X - Position.X;
+            var relativeTop = child.Position.Y - Position.Y;
+            var relativeRight = relativeLeft + child.Size.X;
+            var relativeBottom = relativeTop + child.Size.Y;
 
-            minX = Math.Min(minX, childLeft);
-            minY = Math.Min(minY, childTop);
-            maxX = Math.Max(maxX, childRight);
-            maxY = Math.Max(maxY, childBottom);
-
-
+            minX = Math.Min(minX, relativeLeft);
+            minY = Math.Min(minY, relativeTop);
+            maxX = Math.Max(maxX, relativeRight);
+            maxY = Math.Max(maxY, relativeBottom);
         }
 
         // Если нет видимых детей, не изменяем размер
         if (minX == float.MaxValue)
-        {
-            Console.WriteLine("No visible children, returning");
             return;
+
+        // Вычисляем требуемый размер с учетом padding
+        // Учитываем отрицательные позиции детей (если они выходят за границы)
+        var contentLeft = Math.Min(0, minX - paddingLeft);
+        var contentTop = Math.Min(0, minY - paddingTop);
+        var contentRight = Math.Max(maxX + paddingRight, Size.X);
+        var contentBottom = Math.Max(maxY + paddingBottom, Size.Y);
+
+        var requiredWidth = contentRight - contentLeft;
+        var requiredHeight = contentBottom - contentTop;
+
+        // Обновляем размер если требуется
+        var oldSize = Size;
+        Size = new Vector2(requiredWidth, requiredHeight);
+
+        // Если размер изменился, уведомляем родителя
+        if (Size != oldSize && Parent != null)
+        {
+            Parent.AutoResizeToFitChildren();
         }
-
-        // Вычисляем новый размер с учетом padding
-        // Размер должен быть от (0,0) до самой дальней точки детей
-        var requiredWidth = maxX + paddingLeft + paddingRight;
-        var requiredHeight = maxY + paddingTop + paddingBottom;
-        var newWidth = Math.Max(Size.X, requiredWidth);
-        var newHeight = Math.Max(Size.Y, requiredHeight);
-
-        // Обновляем размер только если он увеличивается
-        Size = new Vector2(newWidth, newHeight);
     }
 
     public void AddClass(string className)

@@ -48,7 +48,6 @@ public class UIManager
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
                 throw;
             }
         }
@@ -60,7 +59,6 @@ public class UIManager
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
             throw;
         }
     }
