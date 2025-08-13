@@ -1,3 +1,4 @@
+using System.Buffers;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -28,14 +29,14 @@ public class StyleSheet
     
     public Style? GetClassStyle(string className)
     {
-        return _classStyles.TryGetValue(className, out var style) ? style : null;
+        return _classStyles.GetValueOrDefault(className);
     }
     
     public Style? GetPseudoClassStyle(string className, PseudoClass pseudoClass)
     {
         if (_pseudoClassStyles.TryGetValue(className, out var pseudoStyles))
         {
-            return pseudoStyles.TryGetValue(pseudoClass, out var style) ? style : null;
+            return pseudoStyles.GetValueOrDefault(pseudoClass);
         }
         return null;
     }
@@ -48,7 +49,7 @@ public class StyleSheet
         foreach (var className in element.Classes)
         {
             var classStyle = GetClassStyle(className);
-            if (classStyle != null)
+            if (classStyle is not null)
                 computedStyle.CopyFrom(classStyle);
         }
         
@@ -59,7 +60,7 @@ public class StyleSheet
             foreach (var className in element.Classes)
             {
                 var pseudoStyle = GetPseudoClassStyle(className, pseudoClass);
-                if (pseudoStyle != null)
+                if (pseudoStyle is not null)
                     computedStyle.CopyFrom(pseudoStyle);
             }
         }
@@ -67,43 +68,36 @@ public class StyleSheet
         return computedStyle;
     }
     
+    private static List<PseudoClass> _list = [];
     private static List<PseudoClass> GetActivePseudoClasses(VisualElement element)
     {
-        var activeClasses = new List<PseudoClass>();
+        _list.Clear();
         
-        if (!element.Enabled)
-            activeClasses.Add(PseudoClass.Disabled);
-
-        if (element.IsHovered)
-        {
-            if (element.HasClass("button"))
-            {
-                
-            }
-            activeClasses.Add(PseudoClass.Hover);
-        }
-            
-            
-        if (element.IsPressed)
-            activeClasses.Add(PseudoClass.Active);
-            
-        if (element.IsFocused)
-            activeClasses.Add(PseudoClass.Focus);
-            
         // Проверяем позицию в родителе
         if (element.Parent != null)
         {
-            var siblings = element.Parent.Children.Where(c => c.Visible).ToList();
-            if (siblings.Count > 0)
+            var siblings = element.Parent.Children.Where(static c => c.Visible);
+            if (siblings.Any())
             {
                 if (siblings.First() == element)
-                    activeClasses.Add(PseudoClass.FirstChild);
+                    _list.Add(PseudoClass.FirstChild);
                 if (siblings.Last() == element)
-                    activeClasses.Add(PseudoClass.LastChild);
+                    _list.Add(PseudoClass.LastChild);
             }
         }
         
-        return activeClasses;
+        if (!element.Enabled)
+            _list.Add(PseudoClass.Disabled);
+        if (element.IsHovered)
+            _list.Add(PseudoClass.Hover);
+        if (element.IsPressed)
+            _list.Add(PseudoClass.Active);
+        if (element.IsFocused)
+            _list.Add(PseudoClass.Focus);
+            
+
+        
+        return _list;
     }
     
     // Предустановленные стили

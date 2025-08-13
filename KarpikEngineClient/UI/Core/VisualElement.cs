@@ -181,7 +181,7 @@ public class VisualElement
 
     public T? GetManipulator<T>() where T : IManipulator
     {
-        return (T?)_manipulators.FirstOrDefault(x => x.GetType() == typeof(T));
+        return (T?)_manipulators.FirstOrDefault(static x => x.GetType() == typeof(T));
     }
 
     public void RemoveManipulator(IManipulator manipulator)
@@ -333,7 +333,7 @@ public class VisualElement
         return computedStyle;
     }
 
-    private List<StyleSheet> GetAllStyleSheetsInHierarchy()
+    private IEnumerable<StyleSheet> GetAllStyleSheetsInHierarchy()
     {
         var hierarchy = new List<VisualElement>();
 
@@ -346,7 +346,7 @@ public class VisualElement
 
         hierarchy.Reverse();
 
-        return hierarchy.Select(element => element.StyleSheet).ToList();
+        return hierarchy.Select(static element => element.StyleSheet);
     }
 
     protected void DrawText(string text)

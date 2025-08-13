@@ -57,7 +57,7 @@ public class Server
         _network = new NetManager(listener);
         _network.Start(9051);
         TargetClientRpcSender.Instance.Initialize(_network);
-        listener.ConnectionRequestEvent += req => req.AcceptIfKey("MyGame");
+        listener.ConnectionRequestEvent += static req => req.AcceptIfKey("MyGame");
         listener.PeerConnectedEvent += peer =>
         {
             Console.WriteLine($"Player connected: {peer.Id}");

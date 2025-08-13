@@ -6,57 +6,57 @@ namespace Karpik.Engine.Client.UIToolkit;
 public class Style
 {
     // Размеры
-    public float? Width { get; set; }
-    public float? Height { get; set; }
-    public float? MinWidth { get; set; }
-    public float? MaxWidth { get; set; }
-    public float? MinHeight { get; set; }
-    public float? MaxHeight { get; set; }
+    public float? Width;
+    public float? Height;
+    public float? MinWidth;
+    public float? MaxWidth;
+    public float? MinHeight;
+    public float? MaxHeight;
 
     // Позиционирование
-    public Position? Position { get; set; } = null;
-    public float? Left { get; set; }
-    public float? Top { get; set; }
-    public float? Right { get; set; }
-    public float? Bottom { get; set; }
+    public Position? Position;
+    public float? Left;
+    public float? Top;
+    public float? Right;
+    public float? Bottom;
 
     // Отступы
-    public Padding Padding { get; set; } = new();
-    public Margin Margin { get; set; } = new();
+    public Padding Padding = new();
+    public Margin Margin = new();
 
     // Внешний вид
-    public Color? BackgroundColor { get; set; } = null;
-    public Color? BorderColor { get; set; } = null;
-    public float? BorderWidth { get; set; } = null;
-    public float? BorderRadius { get; set; } = null;
+    public Color? BackgroundColor;
+    public Color? BorderColor;
+    public float? BorderWidth;
+    public float? BorderRadius;
 
     // Flexbox
-    public FlexDirection? FlexDirection { get; set; } = null;
-    public JustifyContent? JustifyContent { get; set; } = null;
-    public AlignItems? AlignItems { get; set; } = null;
-    public float? FlexGrow { get; set; } = null;
-    public float? FlexShrink { get; set; } = null;
+    public FlexDirection? FlexDirection;
+    public JustifyContent? JustifyContent;
+    public AlignItems? AlignItems;
+    public float? FlexGrow;
+    public float? FlexShrink;
 
     // Текст
-    public Color? TextColor { get; set; } = null;
-    public int? FontSize { get; set; } = null;
-    public AlignText? TextAlign { get; set; } = null;
+    public Color? TextColor;
+    public int? FontSize;
+    public AlignText? TextAlign;
 
     // Копирование стилей
     public void CopyFrom(Style other)
     {
-        Width = other.Width ?? Width;
-        Height = other.Height ?? Height;
-        MinWidth = other.MinWidth ?? MinWidth;
-        MaxWidth = other.MaxWidth ?? MaxWidth;
-        MinHeight = other.MinHeight ?? MinHeight;
-        MaxHeight = other.MaxHeight ?? MaxHeight;
+        if (other.Width.HasValue) Width = other.Width;
+        if (other.Height.HasValue) Height = other.Height;
+        if (other.MinWidth.HasValue) MinWidth = other.MinWidth;
+        if (other.MaxWidth.HasValue) MaxWidth = other.MaxWidth;
+        if (other.MinHeight.HasValue) MinHeight = other.MinHeight;
+        if (other.MaxHeight.HasValue) MaxHeight = other.MaxHeight;
 
         if (other.Position.HasValue) Position = other.Position;
-        Left = other.Left ?? Left;
-        Top = other.Top ?? Top;
-        Right = other.Right ?? Right;
-        Bottom = other.Bottom ?? Bottom;
+        if (other.Left.HasValue) Left = other.Left;
+        if (other.Top.HasValue) Top = other.Top;
+        if (other.Right.HasValue) Right = other.Right;
+        if (other.Bottom.HasValue) Bottom = other.Bottom;
 
         Padding.CopyFrom(other.Padding);
         Margin.CopyFrom(other.Margin);
@@ -80,10 +80,10 @@ public class Style
 
 public class Padding
 {
-    public float Left { get; set; }
-    public float Top { get; set; }
-    public float Right { get; set; }
-    public float Bottom { get; set; }
+    public float Left;
+    public float Top;
+    public float Right;
+    public float Bottom;
 
     public Padding() { }
 
@@ -117,10 +117,10 @@ public class Padding
 
 public class Margin
 {
-    public float Left { get; set; }
-    public float Top { get; set; }
-    public float Right { get; set; }
-    public float Bottom { get; set; }
+    public float Left;
+    public float Top;
+    public float Right;
+    public float Bottom;
 
     public Margin() { }
 

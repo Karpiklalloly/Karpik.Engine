@@ -270,7 +270,7 @@ public static class LayoutEngine
         float maxBaseline = 0;
         if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
         {
-            maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Left);
+            maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Left);
         }
         
         for (int i = 0; i < childInfos.Count; i++)
@@ -403,7 +403,7 @@ public static class LayoutEngine
         float maxBaseline = 0;
         if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
         {
-            maxBaseline = childInfos.Max(info => info.Baseline + info.Style.Margin.Top);
+            maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Top);
         }
         
         for (int i = 0; i < childInfos.Count; i++)
