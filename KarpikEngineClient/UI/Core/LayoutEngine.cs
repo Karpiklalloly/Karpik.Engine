@@ -6,8 +6,11 @@ namespace Karpik.Engine.Client.UIToolkit;
 
 public static class LayoutEngine
 {
-    public static void CalculateLayout(VisualElement root, StyleSheet? globalStyleSheet, Rectangle availableSpace)
+    private static readonly Dictionary<VisualElement, Style> _computedStyles = new();
+    
+    public static void CalculateLayout(VisualElement root, StyleSheet globalStyleSheet, Rectangle availableSpace)
     {
+        _computedStyles.Clear();
         root.Position = new Vector2(availableSpace.X, availableSpace.Y);
         root.Size = new Vector2(availableSpace.Width, availableSpace.Height);
 
@@ -28,8 +31,8 @@ public static class LayoutEngine
         {
             return;
         }
-        
-        var computedStyle = element.ComputeStyle();
+
+        var computedStyle = GetStyle(element);
         
         element.ResolvedStyle.CopyFrom(computedStyle);
         
@@ -51,6 +54,10 @@ public static class LayoutEngine
         {
             CalculateChildrenLayout(element, computedStyle);
         }
+        
+        // После позиционирования всех детей, обновляем размер родителя если нужно
+        // Это нужно для контейнеров, которые должны автоматически подгоняться под содержимое
+        element.AutoResizeToFitChildren();
     }
     
     private static void CalculateElementSize(VisualElement element, Style style, Rectangle availableSpace)
@@ -139,8 +146,8 @@ public static class LayoutEngine
             parent.Size.Y - parentStyle.Padding.Top - parentStyle.Padding.Bottom
         );
         
-        var visibleChildren = parent.Children.Where(static c => c.Visible).ToList();
-        if (visibleChildren.Count == 0) return;
+        var visibleChildren = parent.Children.Where(static c => c.Visible);
+        if (!visibleChildren.Any()) return;
         
         switch (parentStyle.GetFlexDirectionOrDefault())
         {
@@ -156,6 +163,8 @@ public static class LayoutEngine
             case FlexDirection.RowReverse:
                 LayoutRow(visibleChildren, parentStyle, contentArea, true);
                 break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
 
         // Рекурсивно рассчитываем layout для детей
@@ -166,16 +175,17 @@ public static class LayoutEngine
             {
                 continue;
             }
-            
-            var childStyle = child.ComputeStyle();
+
+            var childStyle = GetStyle(child);
             Rectangle childContentArea;
-            
-            if (childStyle.GetPositionOrDefault() == Position.Absolute)
+
+            var position = childStyle.GetPositionOrDefault();
+            if (position == Position.Absolute)
             {
                 // Абсолютно позиционированные элементы позиционируются относительно корня
                 childContentArea = GetRootAvailableSpace(parent);
             }
-            else if (childStyle.GetPositionOrDefault() == Position.Fixed)
+            else if (position == Position.Fixed)
             {
                 // Фиксированно позиционированные элементы позиционируются относительно viewport
                 childContentArea = new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
@@ -190,41 +200,39 @@ public static class LayoutEngine
             
             CalculateLayoutRecursive(child, childContentArea);
         }
-        
-        // После позиционирования всех детей, обновляем размер родителя если нужно
-        // Это нужно для контейнеров, которые должны автоматически подгоняться под содержимое
-        if (parent.Children.Count > 0 && !parent.Style.Width.HasValue && !parent.Style.Height.HasValue)
-        {
-            parent.AutoResizeToFitChildren();
-        }
     }
     
-    private static void LayoutColumn(List<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
+    private static void LayoutColumn(IEnumerable<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
     {
         float totalHeight = 0;
         float totalFlexGrow = 0;
+        var parentAlignItems = parentStyle.GetAlignItemsOrDefault();
         var childInfos = new List<ChildInfo>();
         
         // Обращаем порядок детей если нужно
         if (reverse)
-            children = children.AsEnumerable().Reverse().ToList();
+            children = children.Reverse();
         
         // Собираем информацию о детях
         foreach (var child in children)
         {
-            var childStyle = child.ComputeStyle();
+            var childStyle = GetStyle(child);
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             CalculateElementSize(child, childStyle, contentArea);
-            
-            // Вычисляем baseline для каждого элемента
-            info.Baseline = CalculateBaseline(child, childStyle);
+
+            if (parentAlignItems == AlignItems.Baseline)
+            {
+                // Вычисляем baseline для каждого элемента
+                info.Baseline = CalculateBaseline(child, childStyle);
+            }
             
             totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
-            
-            if (childStyle.GetFlexGrowOrDefault() > 0)
+
+            var grow = childStyle.GetFlexGrowOrDefault();
+            if (grow > 0)
             {
-                totalFlexGrow += childStyle.GetFlexGrowOrDefault();
+                totalFlexGrow += grow;
                 info.IsFlexItem = true;
             }
             else
@@ -268,7 +276,7 @@ public static class LayoutEngine
         // Для baseline выравнивания в колонке находим максимальный baseline среди элементов в одной строке
         // В вертикальном layout baseline менее актуален, но для совместимости поддерживаем
         float maxBaseline = 0;
-        if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
+        if (parentAlignItems == AlignItems.Baseline)
         {
             maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Left);
         }
@@ -333,32 +341,37 @@ public static class LayoutEngine
         }
     }
     
-    private static void LayoutRow(List<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
+    private static void LayoutRow(IEnumerable<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
     {
         float totalWidth = 0;
         float totalFlexGrow = 0;
         var childInfos = new List<ChildInfo>();
+        var parentAlignItems = parentStyle.GetAlignItemsOrDefault();
         
         // Обращаем порядок детей если нужно
         if (reverse)
-            children = children.AsEnumerable().Reverse().ToList();
+            children = children.Reverse();
         
         // Собираем информацию о детях
         foreach (var child in children)
         {
-            var childStyle = child.ComputeStyle();
+            var childStyle = GetStyle(child);
             var info = new ChildInfo { Element = child, Style = childStyle };
             
             CalculateElementSize(child, childStyle, contentArea);
-            
-            // Вычисляем baseline для каждого элемента
-            info.Baseline = CalculateBaseline(child, childStyle);
+
+            if (parentAlignItems == AlignItems.Baseline)
+            {
+                // Вычисляем baseline для каждого элемента
+                info.Baseline = CalculateBaseline(child, childStyle);
+            }
             
             totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
-            
-            if (childStyle.GetFlexGrowOrDefault() > 0)
+
+            var grow = childStyle.GetFlexGrowOrDefault();
+            if (grow > 0)
             {
-                totalFlexGrow += childStyle.GetFlexGrowOrDefault();
+                totalFlexGrow += grow;
                 info.IsFlexItem = true;
             }
             else
@@ -401,7 +414,7 @@ public static class LayoutEngine
         
         // Для baseline выравнивания находим максимальный baseline
         float maxBaseline = 0;
-        if (parentStyle.GetAlignItemsOrDefault() == AlignItems.Baseline)
+        if (parentAlignItems == AlignItems.Baseline)
         {
             maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Top);
         }
@@ -415,7 +428,7 @@ public static class LayoutEngine
             currentX += childStyle.Margin.Left;
             
             float childY = contentArea.Y + childStyle.Margin.Top;
-            switch (parentStyle.GetAlignItemsOrDefault())
+            switch (parentAlignItems)
             {
                 case AlignItems.FlexStart:
                     // Позиция по умолчанию - уже установлена выше
@@ -437,7 +450,7 @@ public static class LayoutEngine
                     childY = contentArea.Y + maxBaseline - info.Baseline;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetAlignItemsOrDefault().ToString());
+                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentAlignItems.ToString());
             }
             
             if (!child.IgnoreLayout) child.Position = new Vector2(currentX, childY);
@@ -463,13 +476,27 @@ public static class LayoutEngine
             }
         }
     }
+
+    private static Style GetStyle(VisualElement element)
+    {
+        if (_computedStyles.TryGetValue(element, out var style))
+        {
+            return style;
+        }
+
+        var style2 = element.ComputeStyle();
+        _computedStyles.Add(element, style2);
+        return style2;
+    }
     
-    private class ChildInfo
+    private struct ChildInfo
     {
         public VisualElement Element { get; set; } = null!;
         public Style Style { get; set; } = null!;
         public bool IsFlexItem { get; set; }
         public float Baseline { get; set; }
+        
+        public ChildInfo() { }
     }
     
     private static Rectangle GetRootAvailableSpace(VisualElement element)
@@ -487,32 +514,26 @@ public static class LayoutEngine
         // Baseline для текстовых элементов - это позиция где должна располагаться базовая линия текста
         // Для простоты используем 80% от высоты элемента (примерно где располагается baseline текста)
         // В более сложной реализации можно было бы учитывать реальные метрики шрифта
-        
-        if (element.Children.Count == 0)
+
+        var visible = element.Children.Where(static x => x.Visible);
+        if (!visible.Any())
         {
-            // Листовой элемент - вычисляем baseline на основе размера шрифта
             float fontSize = style.GetFontSizeOrDefault();
             float elementHeight = element.Size.Y;
             
-            // Baseline обычно находится на расстоянии примерно 0.8 от высоты шрифта от верха
             float baselineFromTop = Math.Max(fontSize * 0.8f, elementHeight * 0.8f);
             return Math.Min(baselineFromTop, elementHeight);
         }
-        else
+
+        // Для контейнеров используем baseline первого текстового дочернего элемента
+        foreach (var child in visible)
         {
-            // Для контейнеров используем baseline первого текстового дочернего элемента
-            foreach (var child in element.Children)
-            {
-                if (child.Visible)
-                {
-                    var childStyle = child.ComputeStyle();
-                    return CalculateBaseline(child, childStyle);
-                }
-            }
-            
-            // Если нет дочерних элементов, используем 80% высоты
-            return element.Size.Y * 0.8f;
+            var childStyle = GetStyle(child);
+            return CalculateBaseline(child, childStyle);
         }
+        
+        // Should never happen
+        return element.Size.Y * 0.8f;
     }
     
     private static float CalculateIntrinsicWidth(VisualElement element, Style style)
@@ -527,7 +548,6 @@ public static class LayoutEngine
         float calculatedWidth = 0;
         var padding = style.Padding.Left + style.Padding.Right;
         
-        // Проверяем текстовое содержимое элемента (если он реализует ITextProvider)
         if (element is ITextProvider textProvider)
         {
             // Проверяем основной текст элемента
@@ -575,27 +595,6 @@ public static class LayoutEngine
         if (calculatedWidth > 0)
         {
             return calculatedWidth;
-        }
-        
-        // Для контейнеров используем разумные значения по умолчанию
-        if (element.Children.Count > 0)
-        {
-            // Если есть MinWidth, используем его
-            if (style.MinWidth.HasValue)
-            {
-                return style.MinWidth.Value;
-            }
-            
-            // Для разных типов контейнеров используем разные значения по умолчанию
-            if (element.Name is "ContentArea" or "Modal")
-            {
-                return 400; // Разумный размер для модальных окон
-            }
-
-            if (style.GetFlexDirectionOrDefault() == FlexDirection.Row)
-                return StyleDefaults.HorizontalContainerWidth;
-            
-            return StyleDefaults.VerticalContainerWidth;
         }
         
         // По умолчанию возвращаем минимальную ширину или 0
@@ -661,4 +660,6 @@ public static class LayoutEngine
         
         // По умолчанию возвращаем минимальную высоту или 0
         return style.GetMinHeightOrDefault();
-    }}
+    }
+    
+}

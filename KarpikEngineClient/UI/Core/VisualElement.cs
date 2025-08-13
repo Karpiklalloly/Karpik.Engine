@@ -50,7 +50,7 @@ public class VisualElement
         child.Parent = this;
 
         // Автоматически расширяем родителя для размещения всех детей
-        AutoResizeToFitChildren();
+        // AutoResizeToFitChildren();
     }
 
     public void RemoveChild(VisualElement child)
@@ -60,7 +60,7 @@ public class VisualElement
             OnChildRemoved(child);
             child.Parent = null;
             // После удаления ребенка также пересчитываем размер
-            AutoResizeToFitChildren();
+            // AutoResizeToFitChildren();
         }
     }
 
@@ -147,10 +147,10 @@ public class VisualElement
         Size = new Vector2(requiredWidth, requiredHeight);
 
         // Если размер изменился, уведомляем родителя
-        if (Size != oldSize && Parent != null)
-        {
-            Parent.AutoResizeToFitChildren();
-        }
+        // if (Size != oldSize && Parent != null)
+        // {
+        //     Parent.AutoResizeToFitChildren();
+        // }
     }
 
     public void AddClass(string className)
@@ -333,20 +333,20 @@ public class VisualElement
         return computedStyle;
     }
 
-    private IEnumerable<StyleSheet> GetAllStyleSheetsInHierarchy()
+    private List<StyleSheet> GetAllStyleSheetsInHierarchy()
     {
-        var hierarchy = new List<VisualElement>();
+        var hierarchy = new List<StyleSheet>();
 
         var current = this;
         while (current != null)
         {
-            hierarchy.Add(current);
+            hierarchy.Add(current.StyleSheet);
             current = current.Parent;
         }
 
         hierarchy.Reverse();
 
-        return hierarchy.Select(static element => element.StyleSheet);
+        return hierarchy;
     }
 
     protected void DrawText(string text)

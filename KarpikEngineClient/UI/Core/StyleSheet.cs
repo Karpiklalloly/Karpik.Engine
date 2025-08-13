@@ -326,6 +326,16 @@ public class StyleSheet
         };
         styleSheet.AddClass("tooltip", tooltipStyle);
         
+        var toastStyle = new Style
+        {
+            BackgroundColor = new Color(50, 50, 50, 240),
+            TextColor = Color.White,
+            FontSize = 12,
+            Padding = new Padding(8, 6),
+            BorderRadius = 4
+        };
+        styleSheet.AddClass("toast", toastStyle);
+        
         return styleSheet;
     }
 

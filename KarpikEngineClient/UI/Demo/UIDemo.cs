@@ -1,4 +1,5 @@
 using System.Numerics;
+using Karpik.Engine.Client;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Client.UIToolkit.Manipulators;
 using Raylib_cs;
@@ -455,14 +456,7 @@ public static class UIDemo
     {
         // Здесь должна быть логика показа toast уведомления
         // Пока что просто выводим в консоль
+        Client.UIManager.ShowToast(message, type);
         Console.WriteLine($"[{type}] {message}");
     }
-}
-
-public enum ToastType
-{
-    Info,
-    Success,
-    Warning,
-    Error
 }

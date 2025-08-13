@@ -40,6 +40,6 @@ public class HBox : VisualElement
         }
         
         // Автоматически подгоняем размер контейнера
-        AutoResizeToFitChildren();
+        // AutoResizeToFitChildren();
     }
 }

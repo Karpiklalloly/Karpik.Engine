@@ -58,9 +58,6 @@ public class Style
         if (other.Right.HasValue) Right = other.Right;
         if (other.Bottom.HasValue) Bottom = other.Bottom;
 
-        Padding.CopyFrom(other.Padding);
-        Margin.CopyFrom(other.Margin);
-
         if (other.BackgroundColor.HasValue) BackgroundColor = other.BackgroundColor;
         if (other.BorderColor.HasValue) BorderColor = other.BorderColor;
         if (other.BorderWidth.HasValue) BorderWidth = other.BorderWidth;
@@ -75,6 +72,9 @@ public class Style
         if (other.TextColor.HasValue) TextColor = other.TextColor;
         if (other.FontSize.HasValue) FontSize = other.FontSize;
         if (other.TextAlign.HasValue) TextAlign = other.TextAlign;
+        
+        Padding.CopyFrom(other.Padding);
+        Margin.CopyFrom(other.Margin);
     }
 }
 

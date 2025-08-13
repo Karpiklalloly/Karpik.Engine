@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using System.Runtime;
 using Game.Generated;
 using Game.Generated.Client;
 using GTweens.Extensions;
@@ -23,7 +24,7 @@ public class Client
     private EcsPipeline.Builder _builder;
     private ModManager _modManager;
     private NetManager _network;
-    private UIManager _uiManager = null!;
+    public static UIManager UIManager = null!;
 
     public void Run(in bool isRunning)
     {
@@ -76,8 +77,8 @@ public class Client
         rlImGui.Setup();
         
         // Инициализируем новую UI систему
-        _uiManager = new UIManager();
-        _uiManager.SetRoot(DemoLauncher.CreateDemo());
+        UIManager = new UIManager();
+        UIManager.SetRoot(DemoLauncher.CreateDemo());
         //CreateNewUI();
 
         _builder = EcsPipeline.New()
@@ -124,7 +125,7 @@ public class Client
         Input.Update();
         
         // Обновляем новую UI систему
-        _uiManager.Update((float)Time.DeltaTime);
+        UIManager.Update((float)Time.DeltaTime);
         
         Raylib.BeginDrawing();
         Raylib.ClearBackground(Color.SkyBlue);
@@ -141,7 +142,7 @@ public class Client
         Raylib.EndMode3D();
         
         // Рендерим новую UI систему
-        _uiManager.Render();
+        UIManager.Render();
 
         rlImGui.End();
         Raylib.EndDrawing();
@@ -150,7 +151,7 @@ public class Client
     private void Stop()
     {
         // Очищаем UI ресурсы
-        _uiManager.Root = null;
+        UIManager.Root = null;
         
         Raylib.EnableCursor();
         rlImGui.Shutdown();
@@ -291,6 +292,6 @@ public class Client
             }
         }
         
-        _uiManager.SetRoot(root);
+        UIManager.SetRoot(root);
     }
 }

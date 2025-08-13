@@ -40,6 +40,6 @@ public class VBox : VisualElement
         }
         
         // Автоматически подгоняем размер контейнера
-        AutoResizeToFitChildren();
+        // AutoResizeToFitChildren();
     }
 }

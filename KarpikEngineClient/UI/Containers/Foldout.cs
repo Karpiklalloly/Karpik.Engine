@@ -129,7 +129,7 @@ public class Foldout : VisualElement
             // Временно делаем видимым для измерения размера
             var wasVisible = _contentContainer.Visible;
             _contentContainer.Visible = true;
-            _contentContainer.AutoResizeToFitChildren();
+            // _contentContainer.AutoResizeToFitChildren();
             _targetHeight = _contentContainer.Size.Y;
             _contentContainer.Visible = wasVisible;
         }
@@ -163,7 +163,7 @@ public class Foldout : VisualElement
                 _contentContainer.Visible = IsExpanded;
                 if (IsExpanded)
                 {
-                    _contentContainer.AutoResizeToFitChildren();
+                    // _contentContainer.AutoResizeToFitChildren();
                 }
             }
         }
