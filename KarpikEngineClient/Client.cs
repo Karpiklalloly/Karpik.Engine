@@ -5,7 +5,7 @@ using Game.Generated;
 using Game.Generated.Client;
 using GTweens.Extensions;
 using Karpik.Engine.Client.UIToolkit;
-using Karpik.Engine.Client.UI.Extensions;
+using Karpik.Engine.Client.UIToolkit.Extensions;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;

@@ -6,7 +6,7 @@ using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
 using Raylib_cs;
 
-namespace Karpik.Engine.Client.UI.Extensions;
+namespace Karpik.Engine.Client.UIToolkit.Extensions;
 
 public static class VisualElementTweenExtensions
 {

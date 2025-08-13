@@ -1,5 +1,5 @@
 ﻿using System.Numerics;
-using Karpik.Engine.Client.UI.Extensions;
+using Karpik.Engine.Client.UIToolkit.Extensions;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;

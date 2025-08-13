@@ -57,10 +57,16 @@ public class VisualElement
     {
         if (Children.Remove(child))
         {
+            OnChildRemoved(child);
             child.Parent = null;
             // После удаления ребенка также пересчитываем размер
             AutoResizeToFitChildren();
         }
+    }
+
+    protected virtual void OnChildRemoved(VisualElement child)
+    {
+        
     }
 
     /// <summary>
