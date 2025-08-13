@@ -9,6 +9,7 @@ using Karpik.Engine.Client.UIToolkit.Extensions;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
+using KarpikEngineClient.UI.Demo;
 using LiteNetLib;
 using Network;
 using Raylib_cs;
@@ -76,7 +77,8 @@ public class Client
         
         // Инициализируем новую UI систему
         _uiManager = new UIManager();
-        CreateNewUI();
+        _uiManager.SetRoot(DemoLauncher.CreateDemo());
+        //CreateNewUI();
 
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
