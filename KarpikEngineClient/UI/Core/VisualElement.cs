@@ -212,19 +212,9 @@ public class VisualElement
         {
             if ((ResolvedStyle.BorderRadius ?? 0) > 0)
             {
-                // Если BorderRadius больше половины размера - рендерим как круг
-                if ((ResolvedStyle.BorderRadius ?? 0) >= Math.Min(Size.X, Size.Y) / 2)
-                {
-                    var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
-                    var radius = Math.Min(Size.X, Size.Y) / 2;
-                    Raylib.DrawCircleV(center, radius, ResolvedStyle.BackgroundColor.Value);
-                }
-                else
-                {
-                    // Рендерим с закругленными углами
-                    var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1f);
-                    Raylib.DrawRectangleRounded(bounds, roundness, 8, ResolvedStyle.BackgroundColor.Value);
-                }
+                // Рендерим с закругленными углами
+                var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1f);
+                Raylib.DrawRectangleRounded(bounds, roundness, 8, ResolvedStyle.BackgroundColor.Value);
             }
             else
             {
@@ -242,19 +232,9 @@ public class VisualElement
         {
             if ((ResolvedStyle.BorderRadius ?? 0) > 0)
             {
-                // Если BorderRadius больше половины размера - рендерим как круг
-                if ((ResolvedStyle.BorderRadius ?? 0) >= Math.Min(Size.X, Size.Y) / 2)
-                {
-                    var center = new Vector2(Position.X + Size.X / 2, Position.Y + Size.Y / 2);
-                    var radius = Math.Min(Size.X, Size.Y) / 2;
-                    Raylib.DrawCircleLinesV(center, radius, ResolvedStyle.BorderColor.Value);
-                }
-                else
-                {
-                    // Рамка с закругленными углами - используем встроенную функцию Raylib
-                    var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1);
-                    Raylib.DrawRectangleRoundedLinesEx(bounds, roundness, 8, ResolvedStyle.BorderWidth ?? 0, ResolvedStyle.BorderColor.Value);
-                }
+                // Рамка с закругленными углами - используем встроенную функцию Raylib
+                var roundness = Math.Min(ResolvedStyle.BorderRadius ?? 0, 1);
+                Raylib.DrawRectangleRoundedLinesEx(bounds, roundness, 8, ResolvedStyle.BorderWidth ?? 0, ResolvedStyle.BorderColor.Value);
             }
             else
             {
@@ -300,22 +280,17 @@ public class VisualElement
             for (int j = 0; j < Children[i]._manipulators.Count; j++)
             {
                 var manipulator = Children[i]._manipulators[j];
-                // if (manipulator.Handle(inputEvent))
-                // {
-                //     return true;
-                // }
                 manipulator.Handle(inputEvent);
             }
 
             if (Children[i].HandleInputEvent(inputEvent))
             {
-                return true; // Событие обработано дочерним элементом
+                return true;
             }
 
 
         }
 
-        // Если событие не обработано дочерними элементами, обрабатываем сами
         bool result = HandleSelfInputEvent(inputEvent);
         return result;
     }
@@ -336,7 +311,6 @@ public class VisualElement
         return new Rectangle(Position.X, Position.Y, Size.X, Size.Y);
     }
 
-    // Вычисление стилей с учетом иерархии StyleSheet
     public Style ComputeStyle()
     {
         var computedStyle = new Style();
@@ -347,11 +321,6 @@ public class VisualElement
         {
             var tempStyle = styleSheet.ComputeStyle(this);
             computedStyle.CopyFrom(tempStyle);
-        }
-
-        if (HasClass("button") && !IsHovered)
-        {
-
         }
         computedStyle.CopyFrom(Style);
 
@@ -373,8 +342,6 @@ public class VisualElement
 
         return hierarchy.Select(element => element.StyleSheet).ToList();
     }
-
-
 
     protected void DrawText(string text)
     {

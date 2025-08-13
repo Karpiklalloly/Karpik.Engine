@@ -12,12 +12,7 @@ public class ClickableManipulator : Manipulator
 
     public override void Update(double deltaTime)
     {
-        if (Element == null || !Element.Enabled) return;
-
-        // Обновляем состояние hover на основе текущей позиции мыши
-        var mousePos = Raylib.GetMousePosition();
-        bool isHovered = Element.ContainsPoint(mousePos);
-        Element.HandleHover(isHovered);
+        
     }
 
     public override bool Handle(InputEvent inputEvent)
