@@ -191,40 +191,35 @@ public class Client
     {
         // Создаем корневой элемент с глобальными стилями
         var root = new VisualElement("root");
-        root.StyleSheet = new StyleSheet();
-        root.StyleSheet.AddClass("custom-header", new Style()
-        {
-            BackgroundColor = new Color(76, 175, 80, 255)
-        });
-        
-        // Добавляем псевдоклассы для демонстрации
-        root.StyleSheet.AddHover("custom-header", new Style()
-        {
-            BackgroundColor = new Color(56, 142, 60, 255) // Темнее при наведении
-        });
-        
         {
             var panel = new VisualElement();
             panel.AddClass("panel");
+            root.AddChild(panel);
             {
                 var content = new VisualElement();
                 content.AddClass("content");
+                content.Style.FlexDirection = FlexDirection.Column;
                 panel.AddChild(content);
                 {
                     // Демонстрация новой системы твинов
                     var tweenLabel = new Label("Tween Animation Demo:");
+                    tweenLabel.Style.BackgroundColor = Color.White;
+                    tweenLabel.Style.TextColor = Color.Black;
                     content.AddChild(tweenLabel);
                     
                     // Анимируемый элемент
                     var animatedBox = new VisualElement("AnimatedBox");
                     animatedBox.Size = new Vector2(50, 50);
-                    animatedBox.Style.BackgroundColor = Color.Red;
+                    animatedBox.Style.BackgroundColor = Color.Yellow;
                     animatedBox.Style.BorderRadius = 0.9f;
                     content.AddChild(animatedBox);
                     
                     // Кнопки для демонстрации различных анимаций
                     var buttonContainer = new VisualElement("ButtonContainer");
+                    buttonContainer.Style.BackgroundColor = new Color(0, 0, 0, 128);
+                    buttonContainer.Style.BorderRadius = 0.5f;
                     buttonContainer.Style.FlexDirection = FlexDirection.Row;
+                    buttonContainer.Style.JustifyContent = JustifyContent.SpaceBetween;
                     
                     // Кнопки управления анимациями
                     var fadeInBtn = new Button("Fade In");
@@ -292,7 +287,6 @@ public class Client
                     content.AddChild(buttonContainer);
                 }
             }
-            root.AddChild(panel);
         }
         
         _uiManager.SetRoot(root);

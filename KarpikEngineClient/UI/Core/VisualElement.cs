@@ -72,10 +72,10 @@ public class VisualElement
             return;
 
         // Получаем padding из стилей
-        var paddingLeft = Style.Padding?.Left ?? 0;
-        var paddingTop = Style.Padding?.Top ?? 0;
-        var paddingRight = Style.Padding?.Right ?? 0;
-        var paddingBottom = Style.Padding?.Bottom ?? 0;
+        var paddingLeft = ResolvedStyle.Padding?.Left ?? 0;
+        var paddingTop = ResolvedStyle.Padding?.Top ?? 0;
+        var paddingRight = ResolvedStyle.Padding?.Right ?? 0;
+        var paddingBottom = ResolvedStyle.Padding?.Bottom ?? 0;
 
         // Находим границы всех видимых детей относительно позиции родителя
         float minX = float.MaxValue;
@@ -86,12 +86,19 @@ public class VisualElement
         foreach (var child in Children)
         {
             if (!child.Visible) continue;
+            if (child.IgnoreLayout) continue;
 
-            // Вычисляем относительные координаты ребенка
-            var relativeLeft = child.Position.X - Position.X;
-            var relativeTop = child.Position.Y - Position.Y;
-            var relativeRight = relativeLeft + child.Size.X;
-            var relativeBottom = relativeTop + child.Size.Y;
+            // Получаем margin ребенка
+            var childMarginLeft = child.ResolvedStyle.Margin?.Left ?? 0;
+            var childMarginTop = child.ResolvedStyle.Margin?.Top ?? 0;
+            var childMarginRight = child.ResolvedStyle.Margin?.Right ?? 0;
+            var childMarginBottom = child.ResolvedStyle.Margin?.Bottom ?? 0;
+
+            // Вычисляем относительные координаты ребенка с учетом margin
+            var relativeLeft = child.Position.X - Position.X - childMarginLeft;
+            var relativeTop = child.Position.Y - Position.Y - childMarginTop;
+            var relativeRight = relativeLeft + child.Size.X + childMarginLeft + childMarginRight;
+            var relativeBottom = relativeTop + child.Size.Y + childMarginTop + childMarginBottom;
 
             minX = Math.Min(minX, relativeLeft);
             minY = Math.Min(minY, relativeTop);

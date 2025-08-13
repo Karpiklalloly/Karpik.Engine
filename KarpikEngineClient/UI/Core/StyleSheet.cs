@@ -146,7 +146,8 @@ public class StyleSheet
         {
             BackgroundColor = new Color(240, 240, 240, 255),
             Padding = new Padding(15),
-            Margin = new Margin(10)
+            Margin = new Margin(10),
+            FlexShrink = 1
         };
         styleSheet.AddClass("panel", panelStyle);
         
@@ -168,7 +169,8 @@ public class StyleSheet
             BackgroundColor = Color.Red,
             BorderColor = new Color(220, 220, 220, 255),
             Padding = new Padding(15),
-            FlexGrow = 1
+            FlexGrow = 1,
+            FlexShrink = 1
         };
         styleSheet.AddClass("content", contentStyle);
         

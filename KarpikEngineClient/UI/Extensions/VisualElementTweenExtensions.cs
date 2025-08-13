@@ -17,6 +17,10 @@ public static class VisualElementTweenExtensions
     {
         // Отключаем layout во время анимации позиции
         element.IgnoreLayout = true;
+        var flexGrowOld = element.Style.FlexGrow;
+        var flexShrinkOld = element.Style.FlexShrink;
+        element.Style.FlexGrow = 0;
+        element.Style.FlexShrink = 0;
         
         // Создаем твин для каждой координаты отдельно
         var tweenX = GTweenExtensions.Tween(
@@ -39,8 +43,12 @@ public static class VisualElementTweenExtensions
         
         var tween = tweenX.OnComplete(() => {
             element.IgnoreLayout = false;
+            element.Style.FlexGrow = flexGrowOld;
+            element.Style.FlexShrink = flexShrinkOld;
         }).OnKill(() => {
             element.IgnoreLayout = false;
+            element.Style.FlexGrow = flexGrowOld;
+            element.Style.FlexShrink = flexShrinkOld;
         });
         
         Tween.Add(tweenX, pausable);
@@ -55,14 +63,28 @@ public static class VisualElementTweenExtensions
     {
         // Отключаем layout во время анимации размера
         element.IgnoreLayout = true;
+        var flexGrowOld = element.Style.FlexGrow;
+        var flexShrinkOld = element.Style.FlexShrink;
+        element.Style.FlexGrow = 0;
+        element.Style.FlexShrink = 0;
         
         var tween = GTweenExtensions.Tween(
             () => element.Size,
             value => element.Size = value,
             to,
             duration
-        ).OnComplete(() => element.IgnoreLayout = false)
-         .OnKill(() => element.IgnoreLayout = false);
+        ).OnComplete(() =>
+        {
+            element.IgnoreLayout = false;
+            element.Style.FlexGrow = flexGrowOld;
+            element.Style.FlexShrink = flexShrinkOld;
+        })
+         .OnKill(() =>
+         {
+             element.IgnoreLayout = false;
+             element.Style.FlexGrow = flexGrowOld;
+             element.Style.FlexShrink = flexShrinkOld;
+         });
         
         Tween.Add(tween, pausable);
         return tween;
@@ -168,6 +190,10 @@ public static class VisualElementTweenExtensions
         
         // Отключаем layout сразу, чтобы предотвратить перезапись позиции
         element.IgnoreLayout = true;
+        var flexGrowOld = element.Style.FlexGrow;
+        var flexShrinkOld = element.Style.FlexShrink;
+        element.Style.FlexGrow = 0;
+        element.Style.FlexShrink = 0;
         
         // Устанавливаем начальную позицию
         element.Position = startPosition;
@@ -179,8 +205,18 @@ public static class VisualElementTweenExtensions
             targetPosition,
             duration
         ).SetEasing(Easing.OutCubic)
-         .OnComplete(() => element.IgnoreLayout = false)
-         .OnKill(() => element.IgnoreLayout = false);
+         .OnComplete(() =>
+         {
+             element.IgnoreLayout = false;
+             element.Style.FlexGrow = flexGrowOld;
+             element.Style.FlexShrink = flexShrinkOld;
+         })
+         .OnKill(() =>
+         {
+             element.IgnoreLayout = false;
+             element.Style.FlexGrow = flexGrowOld;
+             element.Style.FlexShrink = flexShrinkOld;
+         });
         
         Tween.Add(tween, pausable);
         return tween;
@@ -207,6 +243,10 @@ public static class VisualElementTweenExtensions
         
         // Отключаем layout во время анимации
         element.IgnoreLayout = true;
+        var flexGrowOld = element.Style.FlexGrow;
+        var flexShrinkOld = element.Style.FlexShrink;
+        element.Style.FlexGrow = 0;
+        element.Style.FlexShrink = 0;
         
         var tween = GTweenExtensions.Tween(
             () => 0f,
@@ -225,9 +265,13 @@ public static class VisualElementTweenExtensions
         ).OnComplete(() => {
             element.Position = originalPosition;
             element.IgnoreLayout = false;
+            element.Style.FlexGrow = flexGrowOld;
+            element.Style.FlexShrink = flexShrinkOld;
         }).OnKill(() => {
             element.Position = originalPosition;
             element.IgnoreLayout = false;
+            element.Style.FlexGrow = flexGrowOld;
+            element.Style.FlexShrink = flexShrinkOld;
         });
         
         Tween.Add(tween, pausable);
