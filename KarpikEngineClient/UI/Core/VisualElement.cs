@@ -70,6 +70,10 @@ public class VisualElement
     {
         if (Children.Count == 0)
             return;
+            
+        // Не изменяем размер если он явно задан в стилях
+        if (Style.Width.HasValue && Style.Height.HasValue)
+            return;
 
         // Получаем padding из стилей
         var paddingLeft = ResolvedStyle.Padding?.Left ?? 0;
@@ -111,14 +115,26 @@ public class VisualElement
             return;
 
         // Вычисляем требуемый размер с учетом padding
-        // Учитываем отрицательные позиции детей (если они выходят за границы)
-        var contentLeft = Math.Min(0, minX - paddingLeft);
-        var contentTop = Math.Min(0, minY - paddingTop);
-        var contentRight = Math.Max(maxX + paddingRight, Size.X);
-        var contentBottom = Math.Max(maxY + paddingBottom, Size.Y);
+        // Размер должен точно соответствовать содержимому плюс padding
+        var requiredWidth = maxX + paddingRight;
+        var requiredHeight = maxY + paddingBottom;
+        
+        // Если есть отрицательные позиции (дети выходят за левую/верхнюю границу)
+        if (minX < paddingLeft)
+        {
+            requiredWidth += (paddingLeft - minX);
+        }
+        if (minY < paddingTop)
+        {
+            requiredHeight += (paddingTop - minY);
+        }
 
-        var requiredWidth = contentRight - contentLeft;
-        var requiredHeight = contentBottom - contentTop;
+        // Применяем минимальные размеры из стилей
+        var minWidth = Style.MinWidth ?? 0;
+        var minHeight = Style.MinHeight ?? 0;
+        
+        requiredWidth = Math.Max(requiredWidth, minWidth);
+        requiredHeight = Math.Max(requiredHeight, minHeight);
 
         // Обновляем размер если требуется
         var oldSize = Size;
