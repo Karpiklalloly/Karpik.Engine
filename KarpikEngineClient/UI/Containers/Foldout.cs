@@ -10,7 +10,7 @@ public class Foldout : VisualElement
 {
     public string Title { get; set; }
     public bool IsExpanded { get; set; } = false;
-    public bool AnimateToggle { get; set; } = true;
+    public bool AnimateToggle { get; set; } = false;
     
     private Button? _toggleButton;
     private VisualElement? _contentContainer;
@@ -37,13 +37,9 @@ public class Foldout : VisualElement
         // Заголовок с кнопкой переключения
         var headerContainer = new HBox { Gap = 8f };
         headerContainer.AddClass("foldout-header");
-        headerContainer.Style.Padding = new Padding(4);
-        headerContainer.Style.BackgroundColor = new Color(240, 240, 240, 255);
         
         _toggleButton = new Button(IsExpanded ? "▼" : "▶");
         _toggleButton.AddClass("foldout-toggle");
-        _toggleButton.Style.Width = 20;
-        _toggleButton.Style.Height = 20;
         _toggleButton.OnClick += Toggle;
         
         var titleLabel = new Label(Title);
@@ -57,7 +53,6 @@ public class Foldout : VisualElement
         // Контейнер для содержимого
         _contentContainer = new VisualElement("FoldoutContent");
         _contentContainer.AddClass("foldout-content");
-        _contentContainer.Style.Padding = new Padding(8);
         _contentContainer.Visible = IsExpanded;
         
         if (AnimateToggle)

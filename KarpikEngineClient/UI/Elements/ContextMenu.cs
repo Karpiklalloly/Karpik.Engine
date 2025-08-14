@@ -225,7 +225,7 @@ public class ContextMenu : VisualElement
                 var textColor = item.Enabled ? Color.Black : new Color(150, 150, 150, 255);
                 var textY = currentY + (ItemHeight - Style.FontSize) / 2;
                 
-                Raylib.DrawText(item.Text, (int)(Position.X + 10), (int)textY, Style.GetFontSizeOrDefault(), textColor);
+                Raylib.DrawTextEx(Client.UIManager.Font, item.Text, new Vector2(Position.X + 10, textY.Value), Style.GetFontSizeOrDefault(), 0, textColor);
                 
                 currentY += ItemHeight;
             }

@@ -139,7 +139,7 @@ public class Tooltip : VisualElement
                 Position.Y + Style.Padding.Top
             );
             
-            Raylib.DrawText(Text, (int)textPos.X, (int)textPos.Y, Style.GetFontSizeOrDefault(), Color.White);
+            Raylib.DrawTextEx(Client.UIManager.Font, Text, textPos, Style.GetFontSizeOrDefault(), 0, Color.White);
         }
     }
     

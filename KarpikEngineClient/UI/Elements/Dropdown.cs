@@ -154,7 +154,7 @@ public class Dropdown : VisualElement, ITextProvider
         var availableWidth = Size.X - ResolvedStyle.Padding.Left - ResolvedStyle.Padding.Right - 20;
         var clippedText = ClipText(displayText, availableWidth);
         
-        Raylib.DrawText(clippedText, (int)textPos.X, (int)textPos.Y, ResolvedStyle.GetFontSizeOrDefault(), textColor);
+        Raylib.DrawTextEx(Client.UIManager.Font, clippedText, textPos, ResolvedStyle.GetFontSizeOrDefault(), 0, textColor);
         
         var arrowColor = Enabled ? new Color(100, 100, 100, 255) : new Color(180, 180, 180, 255);
         var arrowX = Position.X + Size.X - 15;
@@ -302,7 +302,7 @@ internal class DropdownList : VisualElement
                 itemRect.Y + (ItemHeight - fontSize) / 2
             );
             
-            Raylib.DrawText(_parentDropdown.Items[i], (int)itemTextPos.X, (int)itemTextPos.Y, fontSize, textColor);
+            Raylib.DrawTextEx(Client.UIManager.Font, _parentDropdown.Items[i], itemTextPos, fontSize, 0, textColor);
         }
     }
 }

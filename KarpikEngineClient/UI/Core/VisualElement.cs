@@ -116,12 +116,9 @@ public class VisualElement
             maxY = Math.Max(maxY, relativeBottom);
         }
 
-        // Если нет видимых детей, не изменяем размер
         if (minX == float.MaxValue)
             return;
 
-        // Вычисляем требуемый размер с учетом padding
-        // Размер должен точно соответствовать содержимому плюс padding
         var requiredWidth = maxX + paddingRight;
         var requiredHeight = maxY + paddingBottom;
         
@@ -135,22 +132,13 @@ public class VisualElement
             requiredHeight += (paddingTop - minY);
         }
 
-        // Применяем минимальные размеры из стилей
         var minWidth = Style.MinWidth ?? 0;
         var minHeight = Style.MinHeight ?? 0;
         
         requiredWidth = Math.Max(requiredWidth, minWidth);
         requiredHeight = Math.Max(requiredHeight, minHeight);
-
-        // Обновляем размер если требуется
-        var oldSize = Size;
+        
         Size = new Vector2(requiredWidth, requiredHeight);
-
-        // Если размер изменился, уведомляем родителя
-        // if (Size != oldSize && Parent != null)
-        // {
-        //     Parent.AutoResizeToFitChildren();
-        // }
     }
 
     public void AddClass(string className)
@@ -355,13 +343,13 @@ public class VisualElement
         {
             var fontSize = ResolvedStyle.GetFontSizeOrDefault();
             var textColor = ResolvedStyle.GetTextColorOrDefault();
-            var textSize = Raylib.MeasureText(text, fontSize);
+            var textSize = Raylib.MeasureTextEx(Client.UIManager.Font, text, fontSize, 0).X;
             var textPos = CalculateTextPosition(textSize, ResolvedStyle.TextAlign);
-            Raylib.DrawText(text, (int)textPos.X, (int)textPos.Y, fontSize, textColor);
+            Raylib.DrawTextEx(Client.UIManager.Font, text, textPos, fontSize, 0, textColor);
         }
     }
 
-    private Vector2 CalculateTextPosition(int textWidth, AlignText? alignment)
+    private Vector2 CalculateTextPosition(float textWidth, AlignText? alignment)
     {
         var x = (alignment ?? AlignText.Left) switch
         {

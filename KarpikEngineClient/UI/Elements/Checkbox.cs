@@ -82,7 +82,7 @@ public class Checkbox : VisualElement
             var textY = Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2;
             var textColor = Enabled ? ResolvedStyle.GetTextColorOrDefault() : new Color(150, 150, 150, 255);
             
-            Raylib.DrawText(Label, (int)textX, (int)textY, ResolvedStyle.GetFontSizeOrDefault(), textColor);
+            Raylib.DrawTextEx(Client.UIManager.Font, Label, new Vector2(textX, textY), ResolvedStyle.GetFontSizeOrDefault(), 0, textColor);
         }
     }
 }

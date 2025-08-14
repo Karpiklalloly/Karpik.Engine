@@ -22,9 +22,6 @@ public class Card : VisualElement
         AddClass("card");
         
         // Устанавливаем стили по умолчанию
-        Style.BackgroundColor = Color.White;
-        Style.BorderRadius = 8f;
-        Style.Padding = new Padding(16);
         
         CreateLayout();
     }
@@ -69,30 +66,30 @@ public class Card : VisualElement
     
     protected override void RenderSelf()
     {
-        // Рендерим тень если включена
-        if (ShowShadow)
-        {
-            var shadowBounds = new Rectangle(
-                Position.X + ShadowOffset,
-                Position.Y + ShadowOffset,
-                Size.X,
-                Size.Y
-            );
-            
-            var borderRadius = ResolvedStyle.BorderRadius ?? 0;
-            if (borderRadius > 0)
-            {
-                Raylib.DrawRectangleRounded(shadowBounds, Math.Min(borderRadius, 1f), 8, ShadowColor);
-            }
-            else
-            {
-                Raylib.DrawRectangle(
-                    (int)shadowBounds.X, (int)shadowBounds.Y,
-                    (int)shadowBounds.Width, (int)shadowBounds.Height,
-                    ShadowColor
-                );
-            }
-        }
+        // // Рендерим тень если включена
+        // if (ShowShadow)
+        // {
+        //     var shadowBounds = new Rectangle(
+        //         Position.X + ShadowOffset,
+        //         Position.Y + ShadowOffset,
+        //         Size.X,
+        //         Size.Y
+        //     );
+        //     
+        //     var borderRadius = ResolvedStyle.BorderRadius ?? 0;
+        //     if (borderRadius > 0)
+        //     {
+        //         Raylib.DrawRectangleRounded(shadowBounds, Math.Min(borderRadius, 1f), 8, ShadowColor);
+        //     }
+        //     else
+        //     {
+        //         Raylib.DrawRectangle(
+        //             (int)shadowBounds.X, (int)shadowBounds.Y,
+        //             (int)shadowBounds.Width, (int)shadowBounds.Height,
+        //             ShadowColor
+        //         );
+        //     }
+        // }
         
         // Рендерим саму карточку
         base.RenderSelf();

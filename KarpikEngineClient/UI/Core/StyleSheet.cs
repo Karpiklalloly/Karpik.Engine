@@ -186,7 +186,7 @@ public class StyleSheet
             BackgroundColor = Color.White,
             BorderColor = new Color(200, 200, 200, 255),
             BorderWidth = 1,
-            BorderRadius = 4,
+            BorderRadius = 0.8f,
             Padding = new Padding(10, 8),
             Margin = new Margin(0, 0, 0, 10),
             TextColor = new Color(60, 60, 60, 255),
@@ -242,7 +242,7 @@ public class StyleSheet
             BackgroundColor = Color.White,
             BorderColor = new Color(200, 200, 200, 255),
             BorderWidth = 1,
-            BorderRadius = 4,
+            BorderRadius = 0.2f,
             Padding = new Padding(10, 8),
             Margin = new Margin(0, 0, 0, 10),
             TextColor = new Color(60, 60, 60, 255),
@@ -256,7 +256,7 @@ public class StyleSheet
             BackgroundColor = Color.White,
             BorderColor = new Color(200, 200, 200, 255),
             BorderWidth = 1,
-            BorderRadius = 8,
+            BorderRadius = 0.4f,
             Padding = new Padding(0)
         };
         styleSheet.AddClass("modal", modalStyle);
@@ -287,7 +287,7 @@ public class StyleSheet
             BackgroundColor = new Color(0, 0, 0, 0),
             TextColor = new Color(100, 100, 100, 255),
             FontSize = 18,
-            BorderRadius = 15
+            BorderRadius = 0.7f
         };
         styleSheet.AddClass("modal-close-button", modalCloseButtonStyle);
         
@@ -310,7 +310,7 @@ public class StyleSheet
             BackgroundColor = Color.White,
             BorderColor = new Color(200, 200, 200, 255),
             BorderWidth = 1,
-            BorderRadius = 4,
+            BorderRadius = 0.3f,
             FontSize = 14
         };
         styleSheet.AddClass("context-menu", contextMenuStyle);
@@ -322,7 +322,7 @@ public class StyleSheet
             TextColor = Color.White,
             FontSize = 12,
             Padding = new Padding(8, 6),
-            BorderRadius = 4
+            BorderRadius = 0.3f
         };
         styleSheet.AddClass("tooltip", tooltipStyle);
         
@@ -332,9 +332,44 @@ public class StyleSheet
             TextColor = Color.White,
             FontSize = 12,
             Padding = new Padding(8, 6),
-            BorderRadius = 4
+            BorderRadius = 0.4f
         };
         styleSheet.AddClass("toast", toastStyle);
+
+        var cardStyle = new Style()
+        {
+            Padding = new Padding(16),
+            BorderRadius = 0.3f,
+            BackgroundColor = new Color(250, 250, 250, 255),
+            
+        };
+        styleSheet.AddClass("card", cardStyle);
+
+        var foldoutHeader = new Style()
+        {
+            Padding = new Padding(4),
+            BackgroundColor = new Color(240, 240, 240, 255)
+        };
+        styleSheet.AddClass("foldout-header", foldoutHeader);
+
+        var foldoutToggle = new Style()
+        {
+            Width = 20,
+            Height = 20
+        };
+        styleSheet.AddClass("foldout-toggle", foldoutToggle);
+
+        var foldoutTitle = new Style()
+        {
+            
+        };
+        styleSheet.AddClass("foldout-title", foldoutTitle);
+
+        var foldoutContainer = new Style()
+        {
+            Padding = new Padding(8)
+        };
+        styleSheet.AddClass("foldout-content", foldoutContainer);
         
         return styleSheet;
     }

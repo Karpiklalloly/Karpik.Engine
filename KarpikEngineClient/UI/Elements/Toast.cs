@@ -103,7 +103,7 @@ public class Toast : VisualElement
                 Position.Y + (Size.Y - ResolvedStyle.GetFontSizeOrDefault()) / 2
             );
             
-            Raylib.DrawText(Message, (int)textPos.X, (int)textPos.Y, ResolvedStyle.GetFontSizeOrDefault(), ResolvedStyle.GetTextColorOrDefault());
+            Raylib.DrawTextEx(Client.UIManager.Font, Message, textPos, ResolvedStyle.GetFontSizeOrDefault(), 0, ResolvedStyle.GetTextColorOrDefault());
         }
     }
 }

@@ -1,16 +1,12 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
-using System.Runtime;
 using Game.Generated;
 using Game.Generated.Client;
-using GTweens.Extensions;
 using Karpik.Engine.Client.UIToolkit;
-using Karpik.Engine.Client.UIToolkit.Extensions;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
-using KarpikEngineClient.UI.Demo;
 using LiteNetLib;
 using Network;
 using Raylib_cs;
@@ -74,11 +70,25 @@ public class Client
         Raylib.InitWindow(800, 600, "Console Launcher");
         Raylib.SetWindowState(ConfigFlags.ResizableWindow);
         Raylib.SetWindowMinSize(400, 300);
+        
         rlImGui.Setup();
         
         // Инициализируем новую UI систему
         UIManager = new UIManager();
-        UIManager.SetRoot(DemoLauncher.CreateDemo());
+        var root = new VisualElement("root");
+        root.AddChild(CreateDemoUI());
+        UIManager.SetRoot(root);
+        UIManager.Font = Raylib.GetFontDefault();
+        var codes = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+                    + "0123456789"
+                    + ".,!?-+()[]{}:;/\\\"'`~@#$%^&*=_|<> "
+                    + "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                    + "▼" + "▶";
+        int count = 0;
+        var chars = Raylib.LoadCodepoints(codes, ref count);
+        var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
+        Console.WriteLine((bool)Raylib.IsFontValid(font));
+        UIManager.Font = font;
         //CreateNewUI();
 
         _builder = EcsPipeline.New()
@@ -190,108 +200,42 @@ public class Client
         return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
-    private void CreateNewUI()
+    private VisualElement CreateDemoUI()
     {
-        // Создаем корневой элемент с глобальными стилями
-        var root = new VisualElement("root");
+        VisualElement root = new VisualElement("root");
         {
-            var panel = new VisualElement();
-            panel.AddClass("panel");
-            root.AddChild(panel);
-            {
-                var content = new VisualElement();
-                content.AddClass("content");
-                content.Style.FlexDirection = FlexDirection.Column;
-                panel.AddChild(content);
-                {
-                    // Демонстрация новой системы твинов
-                    var tweenLabel = new Label("Tween Animation Demo:");
-                    tweenLabel.Style.BackgroundColor = Color.White;
-                    tweenLabel.Style.TextColor = Color.Black;
-                    content.AddChild(tweenLabel);
-                    
-                    // Анимируемый элемент
-                    var animatedBox = new VisualElement("AnimatedBox");
-                    animatedBox.Size = new Vector2(50, 50);
-                    animatedBox.Style.BackgroundColor = Color.Yellow;
-                    animatedBox.Style.BorderRadius = 0.9f;
-                    content.AddChild(animatedBox);
-                    
-                    // Кнопки для демонстрации различных анимаций
-                    var buttonContainer = new VisualElement("ButtonContainer");
-                    buttonContainer.Style.BackgroundColor = new Color(0, 0, 0, 128);
-                    buttonContainer.Style.BorderRadius = 0.5f;
-                    buttonContainer.Style.FlexDirection = FlexDirection.Row;
-                    buttonContainer.Style.JustifyContent = JustifyContent.SpaceBetween;
-                    
-                    // Кнопки управления анимациями
-                    var fadeInBtn = new Button("Fade In");
-                    fadeInBtn.Style.Margin = new Margin(5);
-                    fadeInBtn.OnClick += () => animatedBox.FadeIn(0.5f);
-                    buttonContainer.AddChild(fadeInBtn);
-                    
-                    var fadeOutBtn = new Button("Fade Out");
-                    fadeOutBtn.Style.Margin = new Margin(5);
-                    fadeOutBtn.OnClick += () => animatedBox.FadeOut(0.5f);
-                    buttonContainer.AddChild(fadeOutBtn);
-                    
-                    var scaleInBtn = new Button("Scale In");
-                    scaleInBtn.Style.Margin = new Margin(5);
-                    scaleInBtn.OnClick += () => animatedBox.ScaleIn(0.5f);
-                    buttonContainer.AddChild(scaleInBtn);
-                    
-                    var shakeBtn = new Button("Shake");
-                    shakeBtn.Style.Margin = new Margin(5);
-                    shakeBtn.OnClick += () => animatedBox.Shake(30f, 1.5f); // Увеличиваем интенсивность и время
-                    buttonContainer.AddChild(shakeBtn);
-                    
-                    var pulseBtn = new Button("Pulse");
-                    pulseBtn.Style.Margin = new Margin(5);
-                    pulseBtn.OnClick += () => animatedBox.Pulse(1.3f, 0.6f);
-                    buttonContainer.AddChild(pulseBtn);
-                    
-                    var slideBtn = new Button("Slide");
-                    slideBtn.Style.Margin = new Margin(5);
-                    slideBtn.OnClick += () => animatedBox.SlideIn(new Vector2(-200, -50), 1.0f); // Увеличиваем смещение и время
-                    buttonContainer.AddChild(slideBtn);
-                    
-                    var colorBtn = new Button("Color");
-                    colorBtn.Style.Margin = new Margin(5);
-                    colorBtn.OnClick += () => 
-                    {
-                        var colors = new[] { Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Purple };
-                        var randomColor = colors[new Random().Next(colors.Length)];
-                        animatedBox.TweenBackgroundColor(randomColor, 0.5f);
-                    };
-                    buttonContainer.AddChild(colorBtn);
-                    
-                    var moveBtn = new Button("Move");
-                    moveBtn.Style.Margin = new Margin(5);
-                    moveBtn.OnClick += () => 
-                    {
-                        var newPos = new Vector2(
-                            new Random().Next(50, 500),
-                            new Random().Next(50, 150)
-                        );
-                        animatedBox.TweenPosition(newPos, 0.5f);
-                    };
-                    buttonContainer.AddChild(moveBtn);
-                    
-                    var testBtn = new Button("Test");
-                    testBtn.Style.Margin = new Margin(5);
-                    testBtn.OnClick += () =>
-                    {
-                        var targetPos = animatedBox.Position + new Vector2(100, 50);
+            VisualElement content = new VisualElement();
+            root.AddChild(content);
 
-                        animatedBox.TweenPosition(targetPos, 1.0f);
-                    };
-                    buttonContainer.AddChild(testBtn);
-                    
-                    content.AddChild(buttonContainer);
-                }
-            }
+            Foldout foldout1 = new Foldout("Дота 2");
+            content.AddChild(foldout1);
+            foldout1.AddContent(new Label("Пудж"));
+            foldout1.AddContent(new Label("Рудге"));
+
+            Card card = new Card("My card");
+            content.AddChild(card);
+            card.AddContent(new Label("Card Content"));
+
+            Grid grid = new Grid(2, 2);
+            content.AddChild(grid);
+            grid.ColumnGap = 2;
+            grid.RowGap = 2;
+            Button button1 = new Button("X");
+            button1.OnClick += () => Console.WriteLine("X");
+            grid.AddChildAuto(button1);
+            
+            Button button2 = new Button("V");
+            button2.OnClick += () => Console.WriteLine("V");
+            grid.AddChildAuto(button2);
+
+            Checkbox chekBox = new Checkbox("My check box");
+            chekBox.OnCheckedChanged += Console.WriteLine;
+            grid.AddChildAuto(chekBox);
+
+            TextInput input = new TextInput();
+            grid.AddChildAuto(input);
         }
-        
-        UIManager.SetRoot(root);
+
+        return root;
     }
 }

@@ -32,4 +32,10 @@
         <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Pressstart2p.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

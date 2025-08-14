@@ -120,7 +120,7 @@ public class TextInput : VisualElement, ITextProvider
         if (IsFocused && _showCursor && !IsReadOnly)
         {
             var cursorText = Text.Substring(0, Math.Min(_cursorPosition, Text.Length));
-            var cursorX = Position.X + ResolvedStyle.Padding.Left + Raylib.MeasureText(cursorText, ResolvedStyle.GetFontSizeOrDefault());
+            var cursorX = Position.X + ResolvedStyle.Padding.Left + Raylib.MeasureTextEx(Client.UIManager.Font, cursorText, ResolvedStyle.GetFontSizeOrDefault(), 0).X;
             var cursorY = Position.Y + ResolvedStyle.Padding.Top;
             var cursorHeight = Size.Y - ResolvedStyle.Padding.Top - ResolvedStyle.Padding.Bottom;
             

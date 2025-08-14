@@ -273,8 +273,6 @@ public static class LayoutEngine
                 throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent), parentStyle.GetJustifyContentOrDefault().ToString());
         }
         
-        // Для baseline выравнивания в колонке находим максимальный baseline среди элементов в одной строке
-        // В вертикальном layout baseline менее актуален, но для совместимости поддерживаем
         float maxBaseline = 0;
         if (parentAlignItems == AlignItems.Baseline)
         {
@@ -289,11 +287,10 @@ public static class LayoutEngine
             
             currentY += childStyle.Margin.Top;
             
-            float childX = contentArea.X + childStyle.Margin.Left;
+            float childX = childX = contentArea.X + childStyle.Margin.Left;
             switch (parentStyle.GetAlignItemsOrDefault())
             {
                 case AlignItems.FlexStart:
-                    // Позиция по умолчанию - уже установлена выше
                     break;
                 case AlignItems.FlexEnd:
                     childX = contentArea.X + contentArea.Width - child.Size.X - childStyle.Margin.Right;
@@ -308,18 +305,14 @@ public static class LayoutEngine
                     }
                     break;
                 case AlignItems.Baseline:
-                    // В вертикальном layout baseline применяется по горизонтали
-                    // Выравниваем по baseline текста внутри элементов
                     childX = contentArea.X + maxBaseline - info.Baseline;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems), parentStyle.GetAlignItemsOrDefault().ToString());
             }
             
-            // Устанавливаем позицию
             if (!child.IgnoreLayout) child.Position = new Vector2(childX, currentY);
             
-            // Рассчитываем высоту для flex элементов
             if (info.IsFlexItem && totalFlexGrow > 0)
             {
                 float flexHeight = childStyle.GetFlexGrowOrDefault() / totalFlexGrow * remainingHeight;

@@ -1,5 +1,4 @@
 using System.Numerics;
-using Karpik.Engine.Client.UIToolkit;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -14,9 +13,11 @@ public class UIManager
     public ModalManager? ModalManager { get; private set; }
     public ContextMenuManager? ContextMenuManager { get; private set; }
     public TooltipManager? TooltipManager { get; private set; }
+    public Font Font { get; set; }
     
     public UIManager()
     {
+        //StyleSheet = StyleSheet.CreateDefault();
         StyleSheet = StyleSheet.CreateDefault();
         LayerManager = new LayerManager();
         InputManager = new InputManager(LayerManager);
