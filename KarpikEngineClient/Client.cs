@@ -67,7 +67,7 @@ public class Client
         _modManager.LoadMods("Mods");
 
         // Инициализируем окно сначала
-        Raylib.InitWindow(800, 600, "Console Launcher");
+        Raylib.InitWindow(1024, 768, "Console Launcher");
         Raylib.SetWindowState(ConfigFlags.ResizableWindow);
         Raylib.SetWindowMinSize(400, 300);
         
@@ -204,15 +204,27 @@ public class Client
     {
         // 2. Создаем иерархию элементов с текстом
         var root = new UIElement("main");
-        var headerCard = new UIElement("card") { Classes = { "card" }, Text = "Header Title" };
-        var popupContainer = new UIElement { Classes = { "content-panel", "popup-container" } };
-        var popup = new UIElement { Classes = { "popup" }, Text = "I am a popup!"};
-        var hidden = new UIElement { Classes = { "hidden-element" } };
+        var topBar = new UIElement { Classes = { "top-bar" } };
+        var navFile = new UIElement { Classes = { "nav-item" }, Text = "File" };
+        var navEdit = new UIElement { Classes = { "nav-item" }, Text = "Edit" };
+        var navView = new UIElement { Classes = { "nav-item" }, Text = "View" };
+        var navHelp = new UIElement { Classes = { "nav-item" }, Text = "Help" };
+        topBar.AddChild(navFile);
+        topBar.AddChild(navEdit);
+        topBar.AddChild(navView);
+        topBar.AddChild(navHelp);
+
+        var mainContent = new UIElement { Classes = { "main-content" } };
+        var textLine1 = new UIElement { Classes = { "content-text" }, Text = "This is the main content area." };
+        var textLine2 = new UIElement { Classes = { "content-text" }, Text = "It sits behind the fixed top and bottom bars." };
+        mainContent.AddChild(textLine1);
+        mainContent.AddChild(textLine2);
         
-        root.AddChild(headerCard);
-        root.AddChild(popupContainer);
-        popupContainer.AddChild(popup); // Всплывающее окно - дочерний элемент
-        popupContainer.AddChild(hidden); // Этот элемент не будет виден
+        var statusBar = new UIElement { Classes = { "status-bar" }, Text = "Ready" };
+
+        root.AddChild(mainContent);
+        root.AddChild(topBar);
+        root.AddChild(statusBar);
 
         return root;
     }

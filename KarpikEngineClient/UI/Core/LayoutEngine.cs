@@ -2,16 +2,41 @@
 
 namespace Karpik.Engine.Client.UIToolkit;
 
+public enum LayoutType
+{
+    Block,
+    InlineBlock
+}
+
 /// <summary>
 /// Движок компоновки, отвечающий за расчет геометрии (позиции и размера) UI-элементов.
 /// </summary>
 public class LayoutEngine
 {
     private List<UIElement> _absoluteElements;
+    private List<UIElement> _fixedElements;
 
-     public void Layout(UIElement root, Rectangle viewport)
+    public void Layout(UIElement root, Rectangle viewport)
     {
+        _absoluteElements = new List<UIElement>();
+        _fixedElements = new List<UIElement>();
+
+        // Проход 1: Элементы в потоке
         LayoutNode(root, viewport);
+
+        // Проход 2: Абсолютно позиционированные элементы
+        foreach (var element in _absoluteElements)
+        {
+            var offsetParent = FindOffsetParent(element);
+            var containingBlock = offsetParent?.LayoutBox.PaddingRect ?? viewport;
+            LayoutNode(element, containingBlock);
+        }
+        
+        // Проход 3: Фиксированно позиционированные элементы
+        foreach (var element in _fixedElements)
+        {
+            LayoutNode(element, viewport);
+        }
     }
 
     private void LayoutNode(UIElement element, Rectangle containingBlock)
@@ -25,17 +50,25 @@ public class LayoutEngine
         }
 
         var position = style.GetValueOrDefault("position", "static");
-        if (position == "absolute")
+        if ((position == "absolute" && !_absoluteElements.Contains(element)) ||
+            (position == "fixed" && !_fixedElements.Contains(element)))
         {
-            var offsetParent = FindOffsetParent(element);
-            containingBlock = offsetParent?.LayoutBox.PaddingRect ?? FindRoot(element).LayoutBox.PaddingRect;
+            // Откладываем обработку элементов, которые не в потоке
+            if (position == "absolute") _absoluteElements.Add(element);
+            if (position == "fixed") _fixedElements.Add(element);
+
+            // Для элементов вне потока, мы не должны оставлять "дыру" в макете,
+            // поэтому их LayoutBox изначально пустой в контексте родителя.
+            element.LayoutBox = new LayoutBox
+                { MarginRect = new Rectangle(containingBlock.X, containingBlock.Y, 0, 0) };
+            return;
         }
 
         bool isBorderBox = style.GetValueOrDefault("box-sizing") == "border-box";
         var margin = ParseEdges(style.GetValueOrDefault("margin", "0"));
         var padding = ParseEdges(style.GetValueOrDefault("padding", "0"));
         var border = ParseEdges(style.GetValueOrDefault("border-width", "0"));
-        
+
         float marginLeft = margin.Left.ToPx(containingBlock.Width);
         float marginRight = margin.Right.ToPx(containingBlock.Width);
         float paddingTop = padding.Top.ToPx(containingBlock.Height);
@@ -50,59 +83,145 @@ public class LayoutEngine
         float marginBottom = margin.Bottom.ToPx(containingBlock.Height);
 
         var widthVal = ParseValue(style.GetValueOrDefault("width", "auto"));
-        float horizontalSpacing = marginLeft + borderLeft + paddingLeft + paddingRight + borderRight + marginRight;
+        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
+        var displayType = style.GetValueOrDefault("display", "block") == "inline-block"
+            ? LayoutType.InlineBlock
+            : LayoutType.Block;
+
+        float top = ParseValue(style.GetValueOrDefault("top", "auto")).ToPx(containingBlock.Height, float.NaN);
+        float bottom = ParseValue(style.GetValueOrDefault("bottom", "auto")).ToPx(containingBlock.Height, float.NaN);
+        float left = ParseValue(style.GetValueOrDefault("left", "auto")).ToPx(containingBlock.Width, float.NaN);
+        float right = ParseValue(style.GetValueOrDefault("right", "auto")).ToPx(containingBlock.Width, float.NaN);
+
         float contentWidth;
         if (widthVal.Unit == Unit.Auto)
         {
-            contentWidth = Math.Max(0, containingBlock.Width - horizontalSpacing);
+            if (position == "absolute" || position == "fixed")
+            {
+                if (!float.IsNaN(left) && !float.IsNaN(right))
+                    contentWidth = Math.Max(0,
+                        containingBlock.Width - (left + right + marginLeft + marginRight + borderLeft + borderRight +
+                                                 paddingLeft + paddingRight));
+                else
+                    contentWidth = 0; // TODO: Shrink-to-fit
+            }
+            else if (displayType == LayoutType.InlineBlock)
+            {
+                contentWidth = 0; // TODO: Shrink-to-fit
+            }
+            else // Block
+            {
+                contentWidth = Math.Max(0,
+                    containingBlock.Width -
+                    (marginLeft + marginRight + borderLeft + borderRight + paddingLeft + paddingRight));
+            }
         }
         else
         {
             float totalWidth = widthVal.ToPx(containingBlock.Width);
-            contentWidth = isBorderBox 
-                ? Math.Max(0, totalWidth - borderLeft - borderRight - paddingLeft - paddingRight) 
+            contentWidth = isBorderBox
+                ? Math.Max(0, totalWidth - borderLeft - borderRight - paddingLeft - paddingRight)
                 : totalWidth;
         }
-        
+
         var minWidth = ParseValue(style.GetValueOrDefault("min-width", "0px")).ToPx(containingBlock.Width);
-        var maxWidth = ParseValue(style.GetValueOrDefault("max-width", "auto")).ToPx(containingBlock.Width, float.PositiveInfinity);
+        var maxWidth = ParseValue(style.GetValueOrDefault("max-width", "auto"))
+            .ToPx(containingBlock.Width, float.PositiveInfinity);
         contentWidth = Math.Clamp(contentWidth, minWidth, maxWidth);
 
-        float staticX = containingBlock.X + marginLeft + borderLeft + paddingLeft;
-        float staticY = containingBlock.Y + marginTop + borderTop + paddingTop;
-        
+        float staticX = containingBlock.X + marginLeft;
+        float staticY = containingBlock.Y + marginTop;
+
         float finalX = staticX;
         float finalY = staticY;
-        
-        if (position == "relative" || position == "absolute")
+
+        if (position == "relative")
         {
-            float top = ParseValue(style.GetValueOrDefault("top", "auto")).ToPx(containingBlock.Height, float.NaN);
-            float left = ParseValue(style.GetValueOrDefault("left", "auto")).ToPx(containingBlock.Width, float.NaN);
-            
-            if (!float.IsNaN(left)) finalX = containingBlock.X + left + marginLeft;
-            if (!float.IsNaN(top)) finalY = containingBlock.Y + top + marginTop;
+            if (!float.IsNaN(left)) finalX += left;
+            else if (!float.IsNaN(right)) finalX -= right;
+            if (!float.IsNaN(top)) finalY += top;
+            else if (!float.IsNaN(bottom)) finalY -= bottom;
+        }
+        else if (position == "absolute" || position == "fixed")
+        {
+            if (!float.IsNaN(left)) finalX = containingBlock.X + left;
+            else if (!float.IsNaN(right))
+                finalX = containingBlock.X + containingBlock.Width - right - (contentWidth + paddingLeft +
+                                                                              paddingRight + borderLeft + borderRight +
+                                                                              marginRight);
+
+            if (!float.IsNaN(top)) finalY = containingBlock.Y + top;
         }
 
-        var childContainingBlock = new Rectangle(finalX, finalY, contentWidth, float.PositiveInfinity);
+        var childContainingBlock = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop,
+            contentWidth, float.PositiveInfinity);
         float childrenInFlowHeight = 0;
+        float currentLineX = 0;
+        float currentLineHeight = 0;
+
         foreach (var child in element.Children)
         {
+            var childDisplay = child.ComputedStyle.GetValueOrDefault("display", "block") == "inline-block"
+                ? LayoutType.InlineBlock
+                : LayoutType.Block;
             var childPosition = child.ComputedStyle.GetValueOrDefault("position", "static");
             bool isChildInFlow = childPosition == "static" || childPosition == "relative";
 
-            var currentChildBlock = isChildInFlow 
-                ? new Rectangle(childContainingBlock.X, childContainingBlock.Y + childrenInFlowHeight, childContainingBlock.Width, childContainingBlock.Height)
-                : childContainingBlock;
-            
-            LayoutNode(child, currentChildBlock);
-            
             if (isChildInFlow)
             {
-                childrenInFlowHeight += child.LayoutBox.MarginRect.Height;
+                Rectangle currentChildBlock;
+                float childWidthWithMargin = ParseValue(child.ComputedStyle.GetValueOrDefault("width", "0"))
+                                                 .ToPx(childContainingBlock.Width)
+                                             + ParseValue(child.ComputedStyle.GetValueOrDefault("margin-left", "0"))
+                                                 .ToPx(childContainingBlock.Width)
+                                             + ParseValue(child.ComputedStyle.GetValueOrDefault("margin-right", "0"))
+                                                 .ToPx(childContainingBlock.Width);
+
+                if (childDisplay == LayoutType.InlineBlock &&
+                    (currentLineX + childWidthWithMargin > childContainingBlock.Width))
+                {
+                    childrenInFlowHeight += currentLineHeight;
+                    currentLineHeight = 0;
+                    currentLineX = 0;
+                }
+
+                if (childDisplay == LayoutType.InlineBlock)
+                {
+                    currentChildBlock = new Rectangle(childContainingBlock.X + currentLineX,
+                        childContainingBlock.Y + childrenInFlowHeight, childContainingBlock.Width - currentLineX,
+                        childContainingBlock.Height);
+                }
+                else
+                {
+                    childrenInFlowHeight += currentLineHeight;
+                    currentLineHeight = 0;
+                    currentLineX = 0;
+                    currentChildBlock = new Rectangle(childContainingBlock.X,
+                        childContainingBlock.Y + childrenInFlowHeight, childContainingBlock.Width,
+                        childContainingBlock.Height);
+                }
+
+                LayoutNode(child, currentChildBlock);
+
+                if (childDisplay == LayoutType.InlineBlock)
+                {
+                    currentLineX += child.LayoutBox.MarginRect.Width;
+                    currentLineHeight = Math.Max(currentLineHeight, child.LayoutBox.MarginRect.Height);
+                }
+                else
+                {
+                    childrenInFlowHeight += child.LayoutBox.MarginRect.Height;
+                }
+            }
+            else
+            {
+                // Дети вне потока наследуют containing block родителя
+                LayoutNode(child, containingBlock);
             }
         }
 
-        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
+        childrenInFlowHeight += currentLineHeight;
+
         float contentHeight;
         if (heightVal.Unit == Unit.Auto)
         {
@@ -117,11 +236,22 @@ public class LayoutEngine
         }
 
         var minHeight = ParseValue(style.GetValueOrDefault("min-height", "0px")).ToPx(containingBlock.Height);
-        var maxHeight = ParseValue(style.GetValueOrDefault("max-height", "auto")).ToPx(containingBlock.Height, float.PositiveInfinity);
+        var maxHeight = ParseValue(style.GetValueOrDefault("max-height", "auto"))
+            .ToPx(containingBlock.Height, float.PositiveInfinity);
         contentHeight = Math.Clamp(contentHeight, minHeight, maxHeight);
 
+        if (position == "absolute" || position == "fixed")
+        {
+            if (!float.IsNaN(bottom) && float.IsNaN(top))
+            {
+                finalY = containingBlock.Y + containingBlock.Height - bottom - (contentHeight + paddingTop +
+                    paddingBottom + borderTop + borderBottom + marginBottom);
+            }
+        }
+
         var box = new LayoutBox();
-        box.ContentRect = new Rectangle(finalX, finalY, contentWidth, contentHeight);
+        box.ContentRect = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop,
+            contentWidth, contentHeight);
         box.PaddingRect = box.ContentRect.Inflate(paddingLeft, paddingTop, paddingRight, paddingBottom);
         box.BorderRect = box.PaddingRect.Inflate(borderLeft, borderTop, borderRight, borderBottom);
         box.MarginRect = box.BorderRect.Inflate(marginLeft, marginTop, marginRight, marginBottom);
