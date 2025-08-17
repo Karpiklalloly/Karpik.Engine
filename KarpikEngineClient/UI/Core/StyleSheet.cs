@@ -1,439 +1,59 @@
-using System.Buffers;
-using Raylib_cs;
-
-namespace Karpik.Engine.Client.UIToolkit;
+﻿namespace Karpik.Engine.Client.UIToolkit;
 
 public class StyleSheet
 {
-    private readonly Dictionary<string, Style> _classStyles = new();
-    private readonly Dictionary<string, Dictionary<PseudoClass, Style>> _pseudoClassStyles = new();
+    public List<StyleRule> Rules { get; } = new();
     
-    public void AddClass(string className, Style style)
-    {
-        _classStyles[className] = style;
-    }
-    
-    public void AddClass(string className, PseudoClass pseudoClass, Style style)
-    {
-        if (!_pseudoClassStyles.ContainsKey(className))
-            _pseudoClassStyles[className] = new Dictionary<PseudoClass, Style>();
-            
-        _pseudoClassStyles[className][pseudoClass] = style;
-    }
-    
-    public void RemoveClass(string className)
-    {
-        _classStyles.Remove(className);
-        _pseudoClassStyles.Remove(className);
-    }
-    
-    public Style? GetClassStyle(string className)
-    {
-        return _classStyles.GetValueOrDefault(className);
-    }
-    
-    public Style? GetPseudoClassStyle(string className, PseudoClass pseudoClass)
-    {
-        if (_pseudoClassStyles.TryGetValue(className, out var pseudoStyles))
-        {
-            return pseudoStyles.GetValueOrDefault(pseudoClass);
-        }
-        return null;
-    }
-    
-    public Style ComputeStyle(VisualElement element)
-    {
-        var computedStyle = new Style();
-        
-        // Применяем базовые стили классов
-        foreach (var className in element.Classes)
-        {
-            var classStyle = GetClassStyle(className);
-            if (classStyle is not null)
-                computedStyle.CopyFrom(classStyle);
-        }
-        
-        // Применяем псевдоклассы в порядке приоритета
-        var pseudoClasses = GetActivePseudoClasses(element);
-        foreach (var pseudoClass in pseudoClasses)
-        {
-            foreach (var className in element.Classes)
-            {
-                var pseudoStyle = GetPseudoClassStyle(className, pseudoClass);
-                if (pseudoStyle is not null)
-                    computedStyle.CopyFrom(pseudoStyle);
-            }
-        }
-        
-        return computedStyle;
-    }
-    
-    private static List<PseudoClass> _list = [];
-    private static List<PseudoClass> GetActivePseudoClasses(VisualElement element)
-    {
-        _list.Clear();
-        
-        // Проверяем позицию в родителе
-        if (element.Parent != null)
-        {
-            var siblings = element.Parent.Children.Where(static c => c.Visible);
-            if (siblings.Any())
-            {
-                if (siblings.First() == element)
-                    _list.Add(PseudoClass.FirstChild);
-                if (siblings.Last() == element)
-                    _list.Add(PseudoClass.LastChild);
-            }
-        }
-        
-        if (!element.Enabled)
-            _list.Add(PseudoClass.Disabled);
-        if (element.IsHovered)
-            _list.Add(PseudoClass.Hover);
-        if (element.IsPressed)
-            _list.Add(PseudoClass.Active);
-        if (element.IsFocused)
-            _list.Add(PseudoClass.Focus);
-            
+    public static StyleSheet Default => _default;
+    private static StyleSheet _default;
 
-        
-        return _list;
-    }
-    
-    // Предустановленные стили
-    public static StyleSheet CreateDefault()
+    static StyleSheet()
     {
-        var styleSheet = new StyleSheet();
-        
-        // Стиль для кнопок
-        var buttonStyle = new Style
+        _default = new StyleSheet();
+        _default.Rules.Add(new StyleRule(new Selector("#main"))
         {
-            Height = 40,
-            MinWidth = 60,
-            MinHeight = 30,
-            BackgroundColor = new Color(33, 150, 243, 255),
-            TextColor = Color.White,
-            BorderRadius = 0.8f,
-            Padding = new Padding(15, 10),
-            Margin = new Margin(0, 0, 0, 5)
-        };
-        styleSheet.AddClass("button", buttonStyle);
-        
-        // Псевдоклассы для кнопок
-        styleSheet.AddHover("button", new Style 
-        { 
-            BackgroundColor = new Color(25, 118, 210, 255) // Темнее при наведении
+            Properties = {
+                ["width"] = "500px",
+                ["height"] = "auto",
+                ["padding"] = "20px",
+                ["background-color"] = "lightgray"
+            }
         });
-        
-        styleSheet.AddActive("button", new Style 
-        { 
-            BackgroundColor = new Color(13, 71, 161, 255) // Еще темнее при нажатии
-        });
-        
-        styleSheet.AddDisabled("button", new Style 
-        { 
-            BackgroundColor = new Color(189, 189, 189, 255), // Серый
-            TextColor = new Color(158, 158, 158, 255) // Серый текст
-        });
-        // Стиль для панелей
-        var panelStyle = new Style
+        _default.Rules.Add(new StyleRule(new Selector(".card"))
         {
-            BackgroundColor = new Color(240, 240, 240, 255),
-            Padding = new Padding(15),
-            Margin = new Margin(10),
-            FlexShrink = 1
-        };
-        styleSheet.AddClass("panel", panelStyle);
-        
-        // Стиль для заголовков
-        var headerStyle = new Style
-        {
-            Height = 50,
-            BackgroundColor = new Color(76, 175, 80, 255),
-            TextColor = Color.White,
-            FontSize = 18,
-            TextAlign = AlignText.Center,
-            Margin = new Margin(0, 0, 0, 10),
-        };
-        styleSheet.AddClass("header", headerStyle);
-        
-        // Стиль для контента
-        var contentStyle = new Style
-        {
-            BackgroundColor = Color.Red,
-            BorderColor = new Color(220, 220, 220, 255),
-            Padding = new Padding(15),
-            FlexGrow = 1,
-            FlexShrink = 1
-        };
-        styleSheet.AddClass("content", contentStyle);
-        
-        // Стиль для лейблов
-        var labelStyle = new Style
-        {
-            Height = 25,
-            TextColor = Color.Green,
-            FontSize = 14,
-            Padding = new Padding(5, 2),
-            Margin = new Margin(0, 0, 0, 5)
-        };
-        styleSheet.AddClass("label", labelStyle);
-        
-        // Стиль для текстовых полей
-        var textInputStyle = new Style
-        {
-            Height = 35,
-            BackgroundColor = Color.White,
-            BorderColor = new Color(200, 200, 200, 255),
-            BorderWidth = 1,
-            BorderRadius = 0.8f,
-            Padding = new Padding(10, 8),
-            Margin = new Margin(0, 0, 0, 10),
-            TextColor = new Color(60, 60, 60, 255),
-            FontSize = 14,
-            TextAlign = AlignText.Left
-        };
-        styleSheet.AddClass("textinput", textInputStyle);
-        
-        // Псевдоклассы для текстовых полей
-        styleSheet.AddFocus("textinput", new Style 
-        { 
-            BorderColor = new Color(33, 150, 243, 255),
-            BorderWidth = 2
-        });
-        
-        // Стиль для чекбоксов
-        var checkboxStyle = new Style
-        {
-            Height = 25,
-            TextColor = new Color(60, 60, 60, 255),
-            FontSize = 14,
-            Margin = new Margin(0, 0, 0, 8)
-        };
-        styleSheet.AddClass("checkbox", checkboxStyle);
-        
-        // Стиль для слайдеров
-        var sliderStyle = new Style
-        {
-            Height = 30,
-            Margin = new Margin(0, 0, 0, 15),
-            BackgroundColor = Color.Gray,
-            BorderRadius = 0.3f,
-        };
-        styleSheet.AddClass("slider", sliderStyle);
-        
-        // Стиль для прогресс-баров
-        var progressBarStyle = new Style
-        {
-            Height = 25,
-            TextColor = new Color(60, 60, 60, 255),
-            FontSize = 12,
-            Margin = new Margin(0, 0, 0, 10),
-            TextAlign = AlignText.Center
-        };
-        styleSheet.AddClass("progressbar", progressBarStyle);
-        
-        // Стиль для выпадающих списков
-        var dropdownStyle = new Style
-        {
-            Height = 35,
-            MinWidth = 150,
-            MinHeight = 35,
-            BackgroundColor = Color.White,
-            BorderColor = new Color(200, 200, 200, 255),
-            BorderWidth = 1,
-            BorderRadius = 0.2f,
-            Padding = new Padding(10, 8),
-            Margin = new Margin(0, 0, 0, 10),
-            TextColor = new Color(60, 60, 60, 255),
-            FontSize = 14
-        };
-        styleSheet.AddClass("dropdown", dropdownStyle);
-        
-        // Стили для модальных окон
-        var modalStyle = new Style
-        {
-            BackgroundColor = Color.White,
-            BorderColor = new Color(200, 200, 200, 255),
-            BorderWidth = 1,
-            BorderRadius = 0.4f,
-            Padding = new Padding(0)
-        };
-        styleSheet.AddClass("modal", modalStyle);
-        
-        var modalTitleBarStyle = new Style
-        {
-            Height = 40,
-            BackgroundColor = new Color(245, 245, 245, 255),
-            BorderColor = new Color(220, 220, 220, 255),
-            BorderWidth = 1,
-            Padding = new Padding(15, 10),
-            FlexDirection = FlexDirection.Row
-        };
-        styleSheet.AddClass("modal-title-bar", modalTitleBarStyle);
-        
-        var modalTitleStyle = new Style
-        {
-            TextColor = new Color(60, 60, 60, 255),
-            FontSize = 16,
-            FlexGrow = 1
-        };
-        styleSheet.AddClass("modal-title", modalTitleStyle);
-        
-        var modalCloseButtonStyle = new Style
-        {
-            Width = 30,
-            Height = 30,
-            BackgroundColor = new Color(0, 0, 0, 0),
-            TextColor = new Color(100, 100, 100, 255),
-            FontSize = 18,
-            BorderRadius = 0.7f
-        };
-        styleSheet.AddClass("modal-close-button", modalCloseButtonStyle);
-        
-        styleSheet.AddHover("modal-close-button", new Style 
-        { 
-            BackgroundColor = new Color(220, 220, 220, 255),
-            TextColor = new Color(60, 60, 60, 255)
-        });
-        
-        var modalContentStyle = new Style
-        {
-            Padding = new Padding(20),
-            FlexGrow = 1
-        };
-        styleSheet.AddClass("modal-content", modalContentStyle);
-        
-        // Стили для контекстного меню
-        var contextMenuStyle = new Style
-        {
-            BackgroundColor = Color.White,
-            BorderColor = new Color(200, 200, 200, 255),
-            BorderWidth = 1,
-            BorderRadius = 0.3f,
-            FontSize = 14
-        };
-        styleSheet.AddClass("context-menu", contextMenuStyle);
-        
-        // Стили для tooltip
-        var tooltipStyle = new Style
-        {
-            BackgroundColor = new Color(50, 50, 50, 240),
-            TextColor = Color.White,
-            FontSize = 12,
-            Padding = new Padding(8, 6),
-            BorderRadius = 0.3f
-        };
-        styleSheet.AddClass("tooltip", tooltipStyle);
-        
-        var toastStyle = new Style
-        {
-            BackgroundColor = new Color(50, 50, 50, 240),
-            TextColor = Color.White,
-            FontSize = 12,
-            Padding = new Padding(8, 6),
-            BorderRadius = 0.4f
-        };
-        styleSheet.AddClass("toast", toastStyle);
-
-        var cardStyle = new Style()
-        {
-            Padding = new Padding(16),
-            BorderRadius = 0.3f,
-            BackgroundColor = new Color(250, 250, 250, 255),
-            
-        };
-        styleSheet.AddClass("card", cardStyle);
-
-        var foldoutHeader = new Style()
-        {
-            Padding = new Padding(4),
-            BackgroundColor = new Color(240, 240, 240, 255)
-        };
-        styleSheet.AddClass("foldout-header", foldoutHeader);
-
-        var foldoutToggle = new Style()
-        {
-            Width = 20,
-            Height = 20
-        };
-        styleSheet.AddClass("foldout-toggle", foldoutToggle);
-
-        var foldoutTitle = new Style()
-        {
-            
-        };
-        styleSheet.AddClass("foldout-title", foldoutTitle);
-
-        var foldoutContainer = new Style()
-        {
-            Padding = new Padding(8)
-        };
-        styleSheet.AddClass("foldout-content", foldoutContainer);
-        
-        return styleSheet;
-    }
-
-    public static StyleSheet Combine(StyleSheet first, StyleSheet second)
-    {
-        StyleSheet s = new();
-        if (first != null)
-        {
-            foreach (var style in first._classStyles)
-            {
-                s._classStyles[style.Key] = style.Value;
+            Properties = {
+                ["width"] = "100%",
+                ["height"] = "50px",
+                ["padding"] = "10px",
+                ["margin-bottom"] = "20px",
+                ["background-color"] = "lightblue",
+                ["box-sizing"] = "border-box" 
             }
-
-            foreach (var style in first._pseudoClassStyles)
-            {
-                foreach (var pseudoStyle in first._pseudoClassStyles[style.Key])
-                {
-                    s.AddClass(style.Key, pseudoStyle.Key, pseudoStyle.Value);
-                }
-            }
-        }
-
-        if (second != null)
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".content-panel"))
         {
-            foreach (var style in second._classStyles)
-            {
-                s._classStyles[style.Key] = style.Value;
+            Properties = {
+                ["width"] = "auto",
+                ["height"] = "auto",
+                ["background-color"] = "lightyellow",
+                ["padding"] = "15px"
             }
-            
-            foreach (var style in second._pseudoClassStyles)
-            {
-                foreach (var pseudoStyle in second._pseudoClassStyles[style.Key])
-                {
-                    s.AddClass(style.Key, pseudoStyle.Key, pseudoStyle.Value);
-                }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".paragraph"))
+        {
+            Properties = { 
+                ["height"] = "25px",
+                ["margin-bottom"] = "10px",
+                ["background-color"] = "white" 
             }
-        }
-
-        return s;
-    }
-    
-    // Удобные методы для добавления псевдоклассов
-    public StyleSheet AddHover(string className, Style hoverStyle)
-    {
-        AddClass(className, PseudoClass.Hover, hoverStyle);
-        return this;
-    }
-    
-    public StyleSheet AddActive(string className, Style activeStyle)
-    {
-        AddClass(className, PseudoClass.Active, activeStyle);
-        return this;
-    }
-    
-    public StyleSheet AddFocus(string className, Style focusStyle)
-    {
-        AddClass(className, PseudoClass.Focus, focusStyle);
-        return this;
-    }
-    
-    public StyleSheet AddDisabled(string className, Style disabledStyle)
-    {
-        AddClass(className, PseudoClass.Disabled, disabledStyle);
-        return this;
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".paragraph--last"))
+        {
+            // Модификатор для последнего параграфа
+            Properties =
+            {
+                ["margin-bottom"] = "0"
+            }
+        });
     }
 }

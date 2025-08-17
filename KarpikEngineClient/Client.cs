@@ -75,7 +75,7 @@ public class Client
         
         // Инициализируем новую UI систему
         UIManager = new UIManager();
-        var root = new VisualElement("root");
+        var root = new UIElement("root");
         root.AddChild(CreateDemoUI());
         UIManager.SetRoot(root);
         UIManager.Font = Raylib.GetFontDefault();
@@ -135,10 +135,10 @@ public class Client
         Input.Update();
         
         // Обновляем новую UI систему
-        UIManager.Update((float)Time.DeltaTime);
+        UIManager.Update(Time.DeltaTime);
         
         Raylib.BeginDrawing();
-        Raylib.ClearBackground(Color.SkyBlue);
+        Raylib.ClearBackground(Color.DarkGray);
 
         rlImGui.Begin();
         Raylib.BeginMode3D(Camera.Main.CameraReference);
@@ -152,7 +152,7 @@ public class Client
         Raylib.EndMode3D();
         
         // Рендерим новую UI систему
-        UIManager.Render();
+        UIManager.Render(Time.DeltaTime);
 
         rlImGui.End();
         Raylib.EndDrawing();
@@ -161,7 +161,7 @@ public class Client
     private void Stop()
     {
         // Очищаем UI ресурсы
-        UIManager.Root = null;
+        // UIManager.Root = null;
         
         Raylib.EnableCursor();
         rlImGui.Shutdown();
@@ -200,41 +200,21 @@ public class Client
         return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
-    private VisualElement CreateDemoUI()
+    private UIElement CreateDemoUI()
     {
-        VisualElement root = new VisualElement("root");
-        {
-            VisualElement content = new VisualElement();
-            root.AddChild(content);
-
-            Foldout foldout1 = new Foldout("Дота 2");
-            content.AddChild(foldout1);
-            foldout1.AddContent(new Label("Пудж"));
-            foldout1.AddContent(new Label("Рудге"));
-
-            Card card = new Card("My card");
-            content.AddChild(card);
-            card.AddContent(new Label("Card Content"));
-
-            Grid grid = new Grid(2, 2);
-            content.AddChild(grid);
-            grid.ColumnGap = 2;
-            grid.RowGap = 2;
-            Button button1 = new Button("X");
-            button1.OnClick += () => Console.WriteLine("X");
-            grid.AddChildAuto(button1);
-            
-            Button button2 = new Button("V");
-            button2.OnClick += () => Console.WriteLine("V");
-            grid.AddChildAuto(button2);
-
-            Checkbox chekBox = new Checkbox("My check box");
-            chekBox.OnCheckedChanged += Console.WriteLine;
-            grid.AddChildAuto(chekBox);
-
-            TextInput input = new TextInput();
-            grid.AddChildAuto(input);
-        }
+        // 2. Создаем иерархию элементов с текстом
+        var root = new UIElement("main");
+        var headerCard = new UIElement("card") { Classes = { "card" }, Text = "Header Title" };
+        var contentPanel = new UIElement("content") { Classes = { "content-panel" } };
+        var p1 = new UIElement("p1") { Classes = { "paragraph" }, Text = "This is the first line." };
+        var p2 = new UIElement("p2") { Classes = { "paragraph" }, Text = "This is the second line." };
+        var p3 = new UIElement("p3") { Classes = { "paragraph", "paragraph--last" }, Text = "This is the last line." };
+        
+        root.AddChild(headerCard);
+        root.AddChild(contentPanel);
+        contentPanel.AddChild(p1);
+        contentPanel.AddChild(p2);
+        contentPanel.AddChild(p3);
 
         return root;
     }

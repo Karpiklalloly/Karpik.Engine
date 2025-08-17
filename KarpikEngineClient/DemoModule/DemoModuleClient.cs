@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Game.Generated.Client;
 using ImGuiNET;
+using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.DEMO;
 using Karpik.Engine.Shared.DragonECS;
@@ -52,6 +53,10 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         {
             ImGui.Text("No entities with Position component found.");
         }
+        ImGui.End();
+
+        ImGui.Begin("UI");
+        PrintUI(Client.UIManager.Root);
         ImGui.End();
 
 
@@ -123,6 +128,18 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
                 Target = world.GetPool<NetworkId>().Get(span[0]).Id,
                 Direction = new Vector2(1, 0) // Move right
             });
+        }
+    }
+
+    private void PrintUI(UIElement element, int indent = 0)
+    {
+        string ind = new string(' ', indent * 2);
+        ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'>");
+        var box = element.LayoutBox;
+        ImGui.Text($"{ind}  Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
+        foreach (var child in element.Children)
+        {
+            PrintUI(child, indent + 1);
         }
     }
 

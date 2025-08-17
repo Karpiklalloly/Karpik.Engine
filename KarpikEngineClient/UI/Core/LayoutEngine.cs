@@ -1,658 +1,217 @@
-using System.Numerics;
-using Raylib_cs;
-using Karpik.Engine.Client.UIToolkit;
+﻿using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-public static class LayoutEngine
+/// <summary>
+/// Движок компоновки, отвечающий за расчет геометрии (позиции и размера) UI-элементов.
+/// </summary>
+public class LayoutEngine
 {
-    private static readonly Dictionary<VisualElement, Style> _computedStyles = new();
-    
-    public static void CalculateLayout(VisualElement root, StyleSheet globalStyleSheet, Rectangle availableSpace)
+    public void Layout(UIElement root, Rectangle viewport)
     {
-        _computedStyles.Clear();
-        root.Position = new Vector2(availableSpace.X, availableSpace.Y);
-        root.Size = new Vector2(availableSpace.Width, availableSpace.Height);
-
-        var style = StyleSheet.Combine(globalStyleSheet, root.StyleSheet);
-
-        var old = root.StyleSheet;
-        root.StyleSheet = style;
-        CalculateLayoutRecursive(root, availableSpace);
-        root.StyleSheet = old;
+        LayoutNode(root, viewport);
     }
-    
-    private static void CalculateLayoutRecursive(VisualElement element, Rectangle availableSpace)
-    {
-        if (!element.Visible) return;
-        
-        // Пропускаем элементы, которые игнорируют layout (например, во время анимации)
-        if (element.IgnoreLayout) 
-        {
-            return;
-        }
 
-        var computedStyle = GetStyle(element);
-        
-        element.ResolvedStyle.CopyFrom(computedStyle);
-        
-        // 1. Рассчитываем размеры элемента
-        CalculateElementSize(element, computedStyle, availableSpace);
-        
-        // 2. Рассчитываем позицию для абсолютно и фиксированно позиционированных элементов
-        if (computedStyle.GetPositionOrDefault() == Position.Absolute)
-        {
-            CalculateAbsolutePosition(element, computedStyle, availableSpace);
-        }
-        else if (computedStyle.GetPositionOrDefault() == Position.Fixed)
-        {
-            CalculateFixedPosition(element, computedStyle);
-        }
-        
-        // 3. Рассчитываем layout для детей
-        if (element.Children.Count > 0)
-        {
-            CalculateChildrenLayout(element, computedStyle);
-        }
-        
-        // После позиционирования всех детей, обновляем размер родителя если нужно
-        // Это нужно для контейнеров, которые должны автоматически подгоняться под содержимое
-        element.AutoResizeToFitChildren();
-    }
-    
-    private static void CalculateElementSize(VisualElement element, Style style, Rectangle availableSpace)
+       private void LayoutNode(UIElement element, Rectangle containingBlock)
     {
-        var size = element.Size;
+        // --- ШАГ 1: Парсинг стилей ---
+        var style = element.ComputedStyle;
+        bool isBorderBox = style.GetValueOrDefault("box-sizing") == "border-box";
+        var widthVal = ParseValue(style.GetValueOrDefault("width", "auto"));
+        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
+        var margin = ParseEdges(style.GetValueOrDefault("margin", "0"));
+        var padding = ParseEdges(style.GetValueOrDefault("padding", "0"));
+        var border = ParseEdges(style.GetValueOrDefault("border-width", "0"));
+
+        // --- ШАГ 2: Вычисление ВСЕХ отступов в пикселях (КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ) ---
+        // Горизонтальные отступы зависят от ширины родителя
+        float marginLeft = margin.Left.ToPx(containingBlock.Width);
+        float marginRight = margin.Right.ToPx(containingBlock.Width);
+        float paddingLeft = padding.Left.ToPx(containingBlock.Width);
+        float paddingRight = padding.Right.ToPx(containingBlock.Width);
+        float borderLeft = border.Left.ToPx(containingBlock.Width);
+        float borderRight = border.Right.ToPx(containingBlock.Width);
         
-        if (style.Width.HasValue) 
+        // Вертикальные отступы зависят от высоты родителя
+        float marginTop = margin.Top.ToPx(containingBlock.Height);
+        float marginBottom = margin.Bottom.ToPx(containingBlock.Height);
+        float paddingTop = padding.Top.ToPx(containingBlock.Height);
+        float paddingBottom = padding.Bottom.ToPx(containingBlock.Height);
+        float borderTop = border.Top.ToPx(containingBlock.Height);
+        float borderBottom = border.Bottom.ToPx(containingBlock.Height);
+
+        // --- ШАГ 3: Расчет ширины контента ---
+        float horizontalSpacing = marginLeft + borderLeft + paddingLeft + paddingRight + borderRight + marginRight;
+        float contentWidth;
+        if (widthVal.Unit == Unit.Auto)
         {
-            size.X = style.Width.Value;
-        }
-        else if (element.Parent == null) 
-        {
-            size.X = availableSpace.Width;
+            contentWidth = Math.Max(0, containingBlock.Width - horizontalSpacing);
         }
         else
         {
-            // Автоматическое вычисление размера для элементов с содержимым
-            size.X = CalculateIntrinsicWidth(element, style);
+            float totalWidth = widthVal.ToPx(containingBlock.Width);
+            contentWidth = isBorderBox 
+                ? Math.Max(0, totalWidth - borderLeft - borderRight - paddingLeft - paddingRight) 
+                : totalWidth;
         }
+
+        // --- ШАГ 4: Расчет абсолютной позиции для ContentRect элемента ---
+        // Абсолютная позиция контента = позиция родительского блока + отступы родителя
+        float contentX = containingBlock.X + marginLeft + borderLeft + paddingLeft;
+        float contentY = containingBlock.Y + marginTop + borderTop + paddingTop;
+        
+        // --- ШАГ 5: Рекурсия для дочерних элементов ---
+        // Создаем containing block для детей на основе рассчитанной абсолютной позиции и ширины контента родителя
+        var childContainingBlock = new Rectangle(contentX, contentY, contentWidth, float.PositiveInfinity);
+        float childrenTotalHeight = 0;
+        foreach (var child in element.Children)
+        {
+            // Смещаем блок для следующего ребенка вниз на высоту предыдущего
+            var currentChildBlock = new Rectangle(
+                childContainingBlock.X,
+                childContainingBlock.Y + childrenTotalHeight,
+                childContainingBlock.Width,
+                childContainingBlock.Height
+            );
             
-        if (style.Height.HasValue) 
-        {
-            size.Y = style.Height.Value;
+            LayoutNode(child, currentChildBlock);
+            
+            childrenTotalHeight += child.LayoutBox.MarginRect.Height;
         }
-        else if (element.Parent == null) 
+
+        // --- ШАГ 6: Расчет высоты контента (Bottom-Up) ---
+        float contentHeight;
+        if (heightVal.Unit == Unit.Auto)
         {
-            size.Y = availableSpace.Height;
+            contentHeight = childrenTotalHeight;
         }
         else
         {
-            // Автоматическое вычисление высоты для элементов с содержимым
-            size.Y = CalculateIntrinsicHeight(element, style);
+            float totalHeight = heightVal.ToPx(containingBlock.Height);
+            contentHeight = isBorderBox
+                ? Math.Max(0, totalHeight - borderTop - borderBottom - paddingTop - paddingBottom)
+                : totalHeight;
         }
         
-        if (style.MinWidth.HasValue) size.X = Math.Max(size.X, style.MinWidth.Value);
-        if (style.MaxWidth.HasValue) size.X = Math.Min(size.X, style.MaxWidth.Value);
-        if (style.MinHeight.HasValue) size.Y = Math.Max(size.Y, style.MinHeight.Value);
-        if (style.MaxHeight.HasValue) size.Y = Math.Min(size.Y, style.MaxHeight.Value);
-        
-        element.Size = size;
+        // --- ШАГ 7: Финализация геометрии (построение всех Rect'ов) ---
+        // Теперь у нас есть все для построения LayoutBox с абсолютными координатами
+        var box = new LayoutBox();
+        box.ContentRect = new Rectangle(contentX, contentY, contentWidth, contentHeight);
+        box.PaddingRect = box.ContentRect.Inflate(paddingLeft, paddingTop, paddingRight, paddingBottom);
+        box.BorderRect = box.PaddingRect.Inflate(borderLeft, borderTop, borderRight, borderBottom);
+        box.MarginRect = box.BorderRect.Inflate(marginLeft, marginTop, marginRight, marginBottom);
+        element.LayoutBox = box;
+    }
+
+    #region Парсеры (без изменений)
+    private StyleValue ParseValue(string value)
+    {
+        // Безопасная обработка пустых или некорректных строк
+        if (string.IsNullOrWhiteSpace(value)) return StyleValue.Px(0);
+        value = value.Trim();
+
+        // Обработка ключевых слов
+        if (value == "auto") return StyleValue.Auto;
+
+        // Обработка значений с единицами измерения
+        if (value.EndsWith("px")) return StyleValue.Px(float.Parse(value.Substring(0, value.Length - 2)));
+        if (value.EndsWith("%")) return StyleValue.Percent(float.Parse(value.Substring(0, value.Length - 1)));
+
+        // Обработка числовых значений без единиц измерения (по умолчанию считаем их пикселями)
+        if (float.TryParse(value, out float num)) return StyleValue.Px(num);
+
+        // Если ничего не подошло, возвращаем безопасное значение по умолчанию
+        return StyleValue.Px(0);
     }
     
-    private static void CalculateAbsolutePosition(VisualElement element, Style style, Rectangle availableSpace)
+    private Edges ParseEdges(string value)
     {
-        var position = element.Position;
-        
-        if (style.Left.HasValue)
-            position.X = availableSpace.X + style.Left.Value;
-        else if (style.Right.HasValue)
-            position.X = availableSpace.X + availableSpace.Width - element.Size.X - style.Right.Value;
-            
-        if (style.Top.HasValue)
-            position.Y = availableSpace.Y + style.Top.Value;
-        else if (style.Bottom.HasValue)
-            position.Y = availableSpace.Y + availableSpace.Height - element.Size.Y - style.Bottom.Value;
-        
-        element.Position = position;
-    }
+        if (string.IsNullOrWhiteSpace(value)) return new Edges();
     
-    private static void CalculateFixedPosition(VisualElement element, Style style)
-    {
-        var position = element.Position;
-        
-        // Fixed позиционирование относительно viewport (экрана)
-        if (style.Left.HasValue)
-            position.X = style.Left.Value;
-        else if (style.Right.HasValue)
-            position.X = Raylib.GetScreenWidth() - element.Size.X - style.Right.Value;
-            
-        if (style.Top.HasValue)
-            position.Y = style.Top.Value;
-        else if (style.Bottom.HasValue)
-            position.Y = Raylib.GetScreenHeight() - element.Size.Y - style.Bottom.Value;
-        
-        element.Position = position;
-    }
+        // Разбиваем строку по пробелам и парсим каждую часть в StyleValue
+        var parts = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(ParseValue)
+            .ToArray();
     
-    private static void CalculateChildrenLayout(VisualElement parent, Style parentStyle)
-    {
-        if (parent.Children.Count == 0) return;
-        
-        var contentArea = new Rectangle(
-            parent.Position.X + parentStyle.Padding.Left,
-            parent.Position.Y + parentStyle.Padding.Top,
-            parent.Size.X - parentStyle.Padding.Left - parentStyle.Padding.Right,
-            parent.Size.Y - parentStyle.Padding.Top - parentStyle.Padding.Bottom
-        );
-        
-        var visibleChildren = parent.Children.Where(static c => c.Visible);
-        if (!visibleChildren.Any()) return;
-        
-        switch (parentStyle.GetFlexDirectionOrDefault())
+        var result = new Edges();
+
+        // Применяем правила сокращенной записи CSS
+        switch (parts.Length)
         {
-            case FlexDirection.Column:
-                LayoutColumn(visibleChildren, parentStyle, contentArea, false);
+            case 1: // e.g., margin: 10px; (применяется ко всем сторонам)
+                result.Top = result.Right = result.Bottom = result.Left = parts[0];
                 break;
-            case FlexDirection.ColumnReverse:
-                LayoutColumn(visibleChildren, parentStyle, contentArea, true);
+            case 2: // e.g., margin: 10px 20px; (top/bottom, left/right)
+                result.Top = result.Bottom = parts[0];
+                result.Right = result.Left = parts[1];
                 break;
-            case FlexDirection.Row:
-                LayoutRow(visibleChildren, parentStyle, contentArea, false);
+            case 3: // e.g., margin: 10px 20px 30px; (top, left/right, bottom)
+                result.Top = parts[0];
+                result.Right = result.Left = parts[1];
+                result.Bottom = parts[2];
                 break;
-            case FlexDirection.RowReverse:
-                LayoutRow(visibleChildren, parentStyle, contentArea, true);
+            case 4: // e.g., margin: 10px 20px 30px 40px; (top, right, bottom, left)
+                result.Top = parts[0];
+                result.Right = parts[1];
+                result.Bottom = parts[2];
+                result.Left = parts[3];
                 break;
-            default:
-                throw new ArgumentOutOfRangeException();
         }
-
-        // Рекурсивно рассчитываем layout для детей
-        foreach (var child in visibleChildren)
-        {
-            // Пропускаем детей, которые игнорируют layout
-            if (child.IgnoreLayout) 
-            {
-                continue;
-            }
-
-            var childStyle = GetStyle(child);
-            Rectangle childContentArea;
-
-            var position = childStyle.GetPositionOrDefault();
-            if (position == Position.Absolute)
-            {
-                // Абсолютно позиционированные элементы позиционируются относительно корня
-                childContentArea = GetRootAvailableSpace(parent);
-            }
-            else if (position == Position.Fixed)
-            {
-                // Фиксированно позиционированные элементы позиционируются относительно viewport
-                childContentArea = new Rectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
-            }
-            else
-            {
-                childContentArea = new Rectangle(
-                    child.Position.X, child.Position.Y,
-                    child.Size.X, child.Size.Y
-                );
-            }
-            
-            CalculateLayoutRecursive(child, childContentArea);
-        }
+        return result;
     }
-    
-    private static void LayoutColumn(IEnumerable<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
-    {
-        float totalHeight = 0;
-        float totalFlexGrow = 0;
-        var parentAlignItems = parentStyle.GetAlignItemsOrDefault();
-        var childInfos = new List<ChildInfo>();
-        
-        // Обращаем порядок детей если нужно
-        if (reverse)
-            children = children.Reverse();
-        
-        // Собираем информацию о детях
-        foreach (var child in children)
-        {
-            var childStyle = GetStyle(child);
-            var info = new ChildInfo { Element = child, Style = childStyle };
-            
-            CalculateElementSize(child, childStyle, contentArea);
-
-            if (parentAlignItems == AlignItems.Baseline)
-            {
-                // Вычисляем baseline для каждого элемента
-                info.Baseline = CalculateBaseline(child, childStyle);
-            }
-            
-            totalHeight += childStyle.Margin.Top + childStyle.Margin.Bottom;
-
-            var grow = childStyle.GetFlexGrowOrDefault();
-            if (grow > 0)
-            {
-                totalFlexGrow += grow;
-                info.IsFlexItem = true;
-            }
-            else
-            {
-                totalHeight += child.Size.Y;
-            }
-            
-            childInfos.Add(info);
-        }
-        
-        // Позиционируем элементы
-        float currentY = contentArea.Y;
-        float remainingHeight = Math.Max(0, contentArea.Height - totalHeight);
-        
-        float spaceBetween = 0;
-        switch (parentStyle.GetJustifyContentOrDefault())
-        {
-            case JustifyContent.Center:
-                currentY += remainingHeight / 2;
-                break;
-            case JustifyContent.FlexEnd:
-                currentY += remainingHeight;
-                break;
-            case JustifyContent.FlexStart:
-                break;
-            case JustifyContent.SpaceBetween:
-                spaceBetween = childInfos.Count > 1 ? remainingHeight / (childInfos.Count - 1) : 0;
-                break;
-            case JustifyContent.SpaceAround:
-                spaceBetween = remainingHeight / childInfos.Count;
-                currentY += spaceBetween / 2;
-                break;
-            case JustifyContent.SpaceEvenly:
-                spaceBetween = remainingHeight / (childInfos.Count + 1);
-                currentY += spaceBetween;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle.JustifyContent), parentStyle.GetJustifyContentOrDefault().ToString());
-        }
-        
-        float maxBaseline = 0;
-        if (parentAlignItems == AlignItems.Baseline)
-        {
-            maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Left);
-        }
-        
-        for (int i = 0; i < childInfos.Count; i++)
-        {
-            var info = childInfos[i];
-            var child = info.Element;
-            var childStyle = info.Style;
-            
-            currentY += childStyle.Margin.Top;
-            
-            float childX = childX = contentArea.X + childStyle.Margin.Left;
-            switch (parentStyle.GetAlignItemsOrDefault())
-            {
-                case AlignItems.FlexStart:
-                    break;
-                case AlignItems.FlexEnd:
-                    childX = contentArea.X + contentArea.Width - child.Size.X - childStyle.Margin.Right;
-                    break;
-                case AlignItems.Center:
-                    childX = contentArea.X + (contentArea.Width - child.Size.X) / 2;
-                    break;
-                case AlignItems.Stretch:
-                    if (!childStyle.Width.HasValue)
-                    {
-                        child.Size = new Vector2(contentArea.Width - childStyle.Margin.Left - childStyle.Margin.Right, child.Size.Y);
-                    }
-                    break;
-                case AlignItems.Baseline:
-                    childX = contentArea.X + maxBaseline - info.Baseline;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle.AlignItems), parentStyle.GetAlignItemsOrDefault().ToString());
-            }
-            
-            if (!child.IgnoreLayout) child.Position = new Vector2(childX, currentY);
-            
-            if (info.IsFlexItem && totalFlexGrow > 0)
-            {
-                float flexHeight = childStyle.GetFlexGrowOrDefault() / totalFlexGrow * remainingHeight;
-                child.Size = new Vector2(child.Size.X, flexHeight);
-                currentY += flexHeight;
-            }
-            else
-            {
-                currentY += child.Size.Y;
-            }
-            
-            currentY += childStyle.Margin.Bottom;
-            
-            // Добавляем пространство между элементами для SpaceBetween, SpaceAround, SpaceEvenly
-            if (spaceBetween > 0 && i < childInfos.Count - 1)
-            {
-                currentY += spaceBetween;
-            }
-        }
-    }
-    
-    private static void LayoutRow(IEnumerable<VisualElement> children, Style parentStyle, Rectangle contentArea, bool reverse)
-    {
-        float totalWidth = 0;
-        float totalFlexGrow = 0;
-        var childInfos = new List<ChildInfo>();
-        var parentAlignItems = parentStyle.GetAlignItemsOrDefault();
-        
-        // Обращаем порядок детей если нужно
-        if (reverse)
-            children = children.Reverse();
-        
-        // Собираем информацию о детях
-        foreach (var child in children)
-        {
-            var childStyle = GetStyle(child);
-            var info = new ChildInfo { Element = child, Style = childStyle };
-            
-            CalculateElementSize(child, childStyle, contentArea);
-
-            if (parentAlignItems == AlignItems.Baseline)
-            {
-                // Вычисляем baseline для каждого элемента
-                info.Baseline = CalculateBaseline(child, childStyle);
-            }
-            
-            totalWidth += childStyle.Margin.Left + childStyle.Margin.Right;
-
-            var grow = childStyle.GetFlexGrowOrDefault();
-            if (grow > 0)
-            {
-                totalFlexGrow += grow;
-                info.IsFlexItem = true;
-            }
-            else
-            {
-                totalWidth += child.Size.X;
-            }
-            
-            childInfos.Add(info);
-        }
-        
-        // Позиционируем элементы
-        float currentX = contentArea.X;
-        float remainingWidth = Math.Max(0, contentArea.Width - totalWidth);
-
-        float spaceBetween = 0;
-        switch (parentStyle.GetJustifyContentOrDefault())
-        {
-            case JustifyContent.Center:
-                currentX += remainingWidth / 2;
-                break;
-            case JustifyContent.FlexEnd:
-                currentX += remainingWidth;
-                break;
-            case JustifyContent.FlexStart:
-                break;
-            case JustifyContent.SpaceBetween:
-                spaceBetween = childInfos.Count > 1 ? remainingWidth / (childInfos.Count - 1) : 0;
-                break;
-            case JustifyContent.SpaceAround:
-                spaceBetween = remainingWidth / childInfos.Count;
-                currentX += spaceBetween / 2;
-                break;
-            case JustifyContent.SpaceEvenly:
-                spaceBetween = remainingWidth / (childInfos.Count + 1);
-                currentX += spaceBetween;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(parentStyle), parentStyle.GetJustifyContentOrDefault().ToString());
-        }
-        
-        // Для baseline выравнивания находим максимальный baseline
-        float maxBaseline = 0;
-        if (parentAlignItems == AlignItems.Baseline)
-        {
-            maxBaseline = childInfos.Max(static info => info.Baseline + info.Style.Margin.Top);
-        }
-        
-        for (int i = 0; i < childInfos.Count; i++)
-        {
-            var info = childInfos[i];
-            var child = info.Element;
-            var childStyle = info.Style;
-            
-            currentX += childStyle.Margin.Left;
-            
-            float childY = contentArea.Y + childStyle.Margin.Top;
-            switch (parentAlignItems)
-            {
-                case AlignItems.FlexStart:
-                    // Позиция по умолчанию - уже установлена выше
-                    break;
-                case AlignItems.FlexEnd:
-                    childY = contentArea.Y + contentArea.Height - child.Size.Y - childStyle.Margin.Bottom;
-                    break;
-                case AlignItems.Center:
-                    childY = contentArea.Y + (contentArea.Height - child.Size.Y) / 2;
-                    break;
-                case AlignItems.Stretch:
-                    if (!childStyle.Height.HasValue)
-                    {
-                        child.Size = new Vector2(child.Size.X, contentArea.Height - childStyle.Margin.Top - childStyle.Margin.Bottom);
-                    }
-                    break;
-                case AlignItems.Baseline:
-                    // Выравниваем по baseline - позиционируем так чтобы baseline всех элементов совпадал
-                    childY = contentArea.Y + maxBaseline - info.Baseline;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(parentStyle), parentAlignItems.ToString());
-            }
-            
-            if (!child.IgnoreLayout) child.Position = new Vector2(currentX, childY);
-            
-            // Рассчитываем ширину для flex элементов
-            if (info.IsFlexItem && totalFlexGrow > 0)
-            {
-                float flexWidth = childStyle.GetFlexGrowOrDefault() / totalFlexGrow * remainingWidth;
-                child.Size = new Vector2(flexWidth, child.Size.Y);
-                currentX += flexWidth;
-            }
-            else
-            {
-                currentX += child.Size.X;
-            }
-            
-            currentX += childStyle.Margin.Right;
-            
-            // Добавляем пространство между элементами для SpaceBetween, SpaceAround, SpaceEvenly
-            if (spaceBetween > 0 && i < childInfos.Count - 1)
-            {
-                currentX += spaceBetween;
-            }
-        }
-    }
-
-    private static Style GetStyle(VisualElement element)
-    {
-        if (_computedStyles.TryGetValue(element, out var style))
-        {
-            return style;
-        }
-
-        var style2 = element.ComputeStyle();
-        _computedStyles.Add(element, style2);
-        return style2;
-    }
-    
-    private struct ChildInfo
-    {
-        public VisualElement Element { get; set; } = null!;
-        public Style Style { get; set; } = null!;
-        public bool IsFlexItem { get; set; }
-        public float Baseline { get; set; }
-        
-        public ChildInfo() { }
-    }
-    
-    private static Rectangle GetRootAvailableSpace(VisualElement element)
-    {
-        // Поднимаемся до корневого элемента
-        var root = element;
-        while (root.Parent != null)
-            root = root.Parent;
-            
-        return new Rectangle(0, 0, root.Size.X, root.Size.Y);
-    }
-    
-    private static float CalculateBaseline(VisualElement element, Style style)
-    {
-        // Baseline для текстовых элементов - это позиция где должна располагаться базовая линия текста
-        // Для простоты используем 80% от высоты элемента (примерно где располагается baseline текста)
-        // В более сложной реализации можно было бы учитывать реальные метрики шрифта
-
-        var visible = element.Children.Where(static x => x.Visible);
-        if (!visible.Any())
-        {
-            float fontSize = style.GetFontSizeOrDefault();
-            float elementHeight = element.Size.Y;
-            
-            float baselineFromTop = Math.Max(fontSize * 0.8f, elementHeight * 0.8f);
-            return Math.Min(baselineFromTop, elementHeight);
-        }
-
-        // Для контейнеров используем baseline первого текстового дочернего элемента
-        foreach (var child in visible)
-        {
-            var childStyle = GetStyle(child);
-            return CalculateBaseline(child, childStyle);
-        }
-        
-        // Should never happen
-        return element.Size.Y * 0.8f;
-    }
-    
-    private static float CalculateIntrinsicWidth(VisualElement element, Style style)
-    {
-        // Если у элемента уже есть размер, используем его
-        if (element.Size.X > 0)
-        {
-            return element.Size.X;
-        }
-        
-        // Универсальный расчет ширины на основе текстового содержимого
-        float calculatedWidth = 0;
-        var padding = style.Padding.Left + style.Padding.Right;
-        
-        if (element is ITextProvider textProvider)
-        {
-            // Проверяем основной текст элемента
-            var displayText = textProvider.GetDisplayText();
-            if (!string.IsNullOrEmpty(displayText))
-            {
-                var textWidth = Raylib.MeasureText(displayText, style.GetFontSizeOrDefault());
-                calculatedWidth = Math.Max(calculatedWidth, textWidth);
-            }
-            
-            // Проверяем placeholder текст
-            var placeholderText = textProvider.GetPlaceholderText();
-            if (!string.IsNullOrEmpty(placeholderText))
-            {
-                var placeholderWidth = Raylib.MeasureText(placeholderText, style.GetFontSizeOrDefault());
-                calculatedWidth = Math.Max(calculatedWidth, placeholderWidth);
-            }
-            
-            // Проверяем все опции (для dropdown и подобных элементов)
-            var textOptions = textProvider.GetTextOptions();
-            if (textOptions != null)
-            {
-                foreach (var option in textOptions)
-                {
-                    if (!string.IsNullOrEmpty(option))
-                    {
-                        var optionWidth = Raylib.MeasureText(option, style.GetFontSizeOrDefault());
-                        calculatedWidth = Math.Max(calculatedWidth, optionWidth);
-                    }
-                }
-                
-                // Добавляем дополнительное место для UI элементов (стрелки, иконки и т.д.)
-                calculatedWidth += 30;
-            }
-        }
-        
-        // Добавляем padding
-        calculatedWidth += padding;
-        
-        // Применяем минимальную ширину из стилей
-        var minimumWidth = style.GetMinWidthOrDefault();
-        calculatedWidth = Math.Max(calculatedWidth, minimumWidth);
-        
-        // Если есть рассчитанная ширина, используем её
-        if (calculatedWidth > 0)
-        {
-            return calculatedWidth;
-        }
-        
-        // По умолчанию возвращаем минимальную ширину или 0
-        return style.GetMinWidthOrDefault();
-    }
-    
-    private static float CalculateIntrinsicHeight(VisualElement element, Style style)
-    {
-        // Если у элемента уже есть размер, используем его
-        if (element.Size.Y > 0)
-        {
-            return element.Size.Y;
-        }
-        
-        // Универсальный расчет высоты для элементов с текстом
-        var padding = style.Padding.Top + style.Padding.Bottom;
-        var calculatedHeight = style.GetFontSizeOrDefault() + padding;
-        
-        // Добавляем дополнительное место для UI элементов (если есть текст)
-        if (element is ITextProvider textProvider)
-        {
-            var displayText = textProvider.GetDisplayText();
-            if (!string.IsNullOrEmpty(displayText))
-            {
-                calculatedHeight += 10; // Дополнительное место для интерактивных элементов
-            }
-        }
-        
-        // Применяем минимальную высоту из стилей
-        var minimumHeight = style.GetMinHeightOrDefault();
-        calculatedHeight = Math.Max(calculatedHeight, minimumHeight);
-        
-        // Если есть рассчитанная высота, используем её
-        if (calculatedHeight > 0)
-        {
-            return calculatedHeight;
-        }
-        
-        // Для контейнеров используем разумные значения по умолчанию
-        if (element.Children.Count > 0)
-        {
-            // Если есть MinHeight, используем его
-            if (style.MinHeight.HasValue)
-            {
-                return style.MinHeight.Value;
-            }
-            
-            // Для разных типов контейнеров используем разные значения по умолчанию
-            if (element.Name == "ContentArea" || element.Name == "Modal")
-            {
-                return 300; // Разумный размер для модальных окон
-            }
-            
-            if (style.GetFlexDirectionOrDefault() == FlexDirection.Column)
-            {
-                return StyleDefaults.VerticalContainerHeight;
-            }
-            else
-            {
-                return StyleDefaults.HorizontalContainerHeight;
-            }
-        }
-        
-        // По умолчанию возвращаем минимальную высоту или 0
-        return style.GetMinHeightOrDefault();
-    }
-    
+    #endregion
 }
+
+#region Классы-расширения (адаптированные под Raylib.Rectangle)
+
+public static class StyleValueExtensions
+{
+    public static float ToPx(this StyleValue val, float baseValue)
+    {
+        if (float.IsPositiveInfinity(baseValue) && val.Unit == Unit.Percent) return 0;
+        return val.Unit == Unit.Percent ? (val.Value / 100f) * baseValue : val.Value;
+    }
+}
+
+public static class RectangleExtensions
+{
+    // "Надувает" прямоугольник на заданные значения с каждой стороны
+    public static Rectangle Inflate(this Rectangle rect, float left, float top, float right, float bottom)
+    {
+        return new Rectangle(
+            rect.X - left,
+            rect.Y - top,
+            rect.Width + left + right,
+            rect.Height + top + bottom
+        );
+    }
+    
+    public static Rectangle Deflate(this Rectangle rect, float left, float top, float right, float bottom)
+    {
+        return new Rectangle(
+            rect.X + left,
+            rect.Y + top,
+            rect.Width - left - right,
+            rect.Height - top - bottom
+        );
+    }
+}
+
+public static class LayoutBoxExtensions
+{
+    // Сдвигает все прямоугольники внутри LayoutBox на заданное смещение
+    public static void Shift(this LayoutBox box, float dx, float dy)
+    {
+        box.MarginRect = box.MarginRect.Shifted(dx, dy);
+        box.BorderRect = box.BorderRect.Shifted(dx, dy);
+        box.PaddingRect = box.PaddingRect.Shifted(dx, dy);
+        box.ContentRect = box.ContentRect.Shifted(dx, dy);
+    }
+
+    private static Rectangle Shifted(this Rectangle rect, float dx, float dy)
+    {
+        return new Rectangle(rect.X + dx, rect.Y + dy, rect.Width, rect.Height);
+    }
+}
+
+#endregion
