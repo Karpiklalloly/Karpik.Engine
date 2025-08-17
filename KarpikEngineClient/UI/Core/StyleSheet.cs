@@ -55,5 +55,32 @@ public class StyleSheet
                 ["margin-bottom"] = "0"
             }
         });
+        _default.Rules.Add(new StyleRule(new Selector(".popup-container")) {
+            Properties =
+            {
+                ["position"] = "relative",
+                ["background-color"] = "lightyellow",
+                ["min-height"] = "150px"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".popup")) {
+            Properties = { 
+                ["position"] = "absolute",
+                ["top"] = "10px",
+                ["left"] = "100px", 
+                ["width"] = "200px",
+                ["height"] = "100px",
+                ["padding"] = "10px",
+                ["background-color"] = "red",
+                ["z-index"] = "10",
+                ["color"] = "white"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".hidden-element")) {
+            Properties =
+            {
+                ["display"] = "none"
+            }
+        });
     }
 }

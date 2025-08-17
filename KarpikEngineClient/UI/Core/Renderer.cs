@@ -6,25 +6,55 @@ namespace Karpik.Engine.Client.UIToolkit;
 
 public class Renderer
 {
+        private List<UIElement> _renderList;
+
     public void Render(UIElement root)
     {
-        RenderNode(root);
+        _renderList = new List<UIElement>();
+        BuildRenderList(root);
+
+        _renderList = _renderList.OrderBy(el => 
+            ParseInt(el.ComputedStyle.GetValueOrDefault("z-index", "0"))
+        ).ToList();
+
+        foreach (var element in _renderList)
+        {
+            RenderElement(element);
+        }
+    }
+    
+    private void BuildRenderList(UIElement element)
+    {
+        if (element.ComputedStyle.GetValueOrDefault("display") == "none")
+        {
+            return;
+        }
+
+        _renderList.Add(element);
+
+        foreach (var child in element.Children)
+        {
+            BuildRenderList(child);
+        }
     }
 
-    private void RenderNode(UIElement element)
+    private void RenderElement(UIElement element)
     {
         var style = element.ComputedStyle;
         var box = element.LayoutBox;
+        
+        bool hasOverflowHidden = style.GetValueOrDefault("overflow") == "hidden";
+        if (hasOverflowHidden)
+        {
+            Raylib.BeginScissorMode((int)box.PaddingRect.X, (int)box.PaddingRect.Y, (int)box.PaddingRect.Width, (int)box.PaddingRect.Height);
+        }
 
-        // --- 1. Отрисовка фона ---
         var bgColor = ParseColor(style.GetValueOrDefault("background-color", "transparent"));
         if (bgColor.A > 0)
         {
-            // Метод ToRaylibRect больше не нужен!
             Raylib.DrawRectangleRec(box.PaddingRect, bgColor);
         }
 
-        // --- 2. Отрисовка границ ---
         var borderColor = ParseColor(style.GetValueOrDefault("border-color", "black"));
         if (borderColor.A > 0)
         {
@@ -35,7 +65,6 @@ public class Renderer
             }
         }
 
-        // --- 3. Отрисовка текста ---
         if (!string.IsNullOrEmpty(element.Text))
         {
             var textColor = ParseColor(style.GetValueOrDefault("color", "black"));
@@ -49,11 +78,10 @@ public class Renderer
                 textColor
             );
         }
-
-        // --- 4. Рекурсивная отрисовка дочерних элементов ---
-        foreach (var child in element.Children)
+        
+        if (hasOverflowHidden)
         {
-            RenderNode(child);
+            Raylib.EndScissorMode();
         }
     }
 
@@ -69,6 +97,11 @@ public class Renderer
             return result;
         }
         return defaultValue;
+    }
+    
+    private int ParseInt(string value, int defaultValue = 0)
+    {
+        return int.TryParse(value, out int result) ? result : defaultValue;
     }
 
     // Парсит строку с названием цвета или hex-кодом в цвет Raylib

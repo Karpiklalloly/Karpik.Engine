@@ -7,40 +7,49 @@ namespace Karpik.Engine.Client.UIToolkit;
 /// </summary>
 public class LayoutEngine
 {
-    public void Layout(UIElement root, Rectangle viewport)
+    private List<UIElement> _absoluteElements;
+
+     public void Layout(UIElement root, Rectangle viewport)
     {
         LayoutNode(root, viewport);
     }
 
-       private void LayoutNode(UIElement element, Rectangle containingBlock)
+    private void LayoutNode(UIElement element, Rectangle containingBlock)
     {
-        // --- ШАГ 1: Парсинг стилей ---
         var style = element.ComputedStyle;
+
+        if (style.GetValueOrDefault("display") == "none")
+        {
+            element.LayoutBox = new LayoutBox { ContentRect = new Rectangle(0, 0, 0, 0) };
+            return;
+        }
+
+        var position = style.GetValueOrDefault("position", "static");
+        if (position == "absolute")
+        {
+            var offsetParent = FindOffsetParent(element);
+            containingBlock = offsetParent?.LayoutBox.PaddingRect ?? FindRoot(element).LayoutBox.PaddingRect;
+        }
+
         bool isBorderBox = style.GetValueOrDefault("box-sizing") == "border-box";
-        var widthVal = ParseValue(style.GetValueOrDefault("width", "auto"));
-        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
         var margin = ParseEdges(style.GetValueOrDefault("margin", "0"));
         var padding = ParseEdges(style.GetValueOrDefault("padding", "0"));
         var border = ParseEdges(style.GetValueOrDefault("border-width", "0"));
-
-        // --- ШАГ 2: Вычисление ВСЕХ отступов в пикселях (КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ) ---
-        // Горизонтальные отступы зависят от ширины родителя
+        
         float marginLeft = margin.Left.ToPx(containingBlock.Width);
         float marginRight = margin.Right.ToPx(containingBlock.Width);
+        float paddingTop = padding.Top.ToPx(containingBlock.Height);
+        float paddingBottom = padding.Bottom.ToPx(containingBlock.Height);
         float paddingLeft = padding.Left.ToPx(containingBlock.Width);
         float paddingRight = padding.Right.ToPx(containingBlock.Width);
         float borderLeft = border.Left.ToPx(containingBlock.Width);
         float borderRight = border.Right.ToPx(containingBlock.Width);
-        
-        // Вертикальные отступы зависят от высоты родителя
-        float marginTop = margin.Top.ToPx(containingBlock.Height);
-        float marginBottom = margin.Bottom.ToPx(containingBlock.Height);
-        float paddingTop = padding.Top.ToPx(containingBlock.Height);
-        float paddingBottom = padding.Bottom.ToPx(containingBlock.Height);
         float borderTop = border.Top.ToPx(containingBlock.Height);
         float borderBottom = border.Bottom.ToPx(containingBlock.Height);
+        float marginTop = margin.Top.ToPx(containingBlock.Height);
+        float marginBottom = margin.Bottom.ToPx(containingBlock.Height);
 
-        // --- ШАГ 3: Расчет ширины контента ---
+        var widthVal = ParseValue(style.GetValueOrDefault("width", "auto"));
         float horizontalSpacing = marginLeft + borderLeft + paddingLeft + paddingRight + borderRight + marginRight;
         float contentWidth;
         if (widthVal.Unit == Unit.Auto)
@@ -54,36 +63,50 @@ public class LayoutEngine
                 ? Math.Max(0, totalWidth - borderLeft - borderRight - paddingLeft - paddingRight) 
                 : totalWidth;
         }
-
-        // --- ШАГ 4: Расчет абсолютной позиции для ContentRect элемента ---
-        // Абсолютная позиция контента = позиция родительского блока + отступы родителя
-        float contentX = containingBlock.X + marginLeft + borderLeft + paddingLeft;
-        float contentY = containingBlock.Y + marginTop + borderTop + paddingTop;
         
-        // --- ШАГ 5: Рекурсия для дочерних элементов ---
-        // Создаем containing block для детей на основе рассчитанной абсолютной позиции и ширины контента родителя
-        var childContainingBlock = new Rectangle(contentX, contentY, contentWidth, float.PositiveInfinity);
-        float childrenTotalHeight = 0;
+        var minWidth = ParseValue(style.GetValueOrDefault("min-width", "0px")).ToPx(containingBlock.Width);
+        var maxWidth = ParseValue(style.GetValueOrDefault("max-width", "auto")).ToPx(containingBlock.Width, float.PositiveInfinity);
+        contentWidth = Math.Clamp(contentWidth, minWidth, maxWidth);
+
+        float staticX = containingBlock.X + marginLeft + borderLeft + paddingLeft;
+        float staticY = containingBlock.Y + marginTop + borderTop + paddingTop;
+        
+        float finalX = staticX;
+        float finalY = staticY;
+        
+        if (position == "relative" || position == "absolute")
+        {
+            float top = ParseValue(style.GetValueOrDefault("top", "auto")).ToPx(containingBlock.Height, float.NaN);
+            float left = ParseValue(style.GetValueOrDefault("left", "auto")).ToPx(containingBlock.Width, float.NaN);
+            
+            if (!float.IsNaN(left)) finalX = containingBlock.X + left + marginLeft;
+            if (!float.IsNaN(top)) finalY = containingBlock.Y + top + marginTop;
+        }
+
+        var childContainingBlock = new Rectangle(finalX, finalY, contentWidth, float.PositiveInfinity);
+        float childrenInFlowHeight = 0;
         foreach (var child in element.Children)
         {
-            // Смещаем блок для следующего ребенка вниз на высоту предыдущего
-            var currentChildBlock = new Rectangle(
-                childContainingBlock.X,
-                childContainingBlock.Y + childrenTotalHeight,
-                childContainingBlock.Width,
-                childContainingBlock.Height
-            );
+            var childPosition = child.ComputedStyle.GetValueOrDefault("position", "static");
+            bool isChildInFlow = childPosition == "static" || childPosition == "relative";
+
+            var currentChildBlock = isChildInFlow 
+                ? new Rectangle(childContainingBlock.X, childContainingBlock.Y + childrenInFlowHeight, childContainingBlock.Width, childContainingBlock.Height)
+                : childContainingBlock;
             
             LayoutNode(child, currentChildBlock);
             
-            childrenTotalHeight += child.LayoutBox.MarginRect.Height;
+            if (isChildInFlow)
+            {
+                childrenInFlowHeight += child.LayoutBox.MarginRect.Height;
+            }
         }
 
-        // --- ШАГ 6: Расчет высоты контента (Bottom-Up) ---
+        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
         float contentHeight;
         if (heightVal.Unit == Unit.Auto)
         {
-            contentHeight = childrenTotalHeight;
+            contentHeight = childrenInFlowHeight;
         }
         else
         {
@@ -92,18 +115,19 @@ public class LayoutEngine
                 ? Math.Max(0, totalHeight - borderTop - borderBottom - paddingTop - paddingBottom)
                 : totalHeight;
         }
-        
-        // --- ШАГ 7: Финализация геометрии (построение всех Rect'ов) ---
-        // Теперь у нас есть все для построения LayoutBox с абсолютными координатами
+
+        var minHeight = ParseValue(style.GetValueOrDefault("min-height", "0px")).ToPx(containingBlock.Height);
+        var maxHeight = ParseValue(style.GetValueOrDefault("max-height", "auto")).ToPx(containingBlock.Height, float.PositiveInfinity);
+        contentHeight = Math.Clamp(contentHeight, minHeight, maxHeight);
+
         var box = new LayoutBox();
-        box.ContentRect = new Rectangle(contentX, contentY, contentWidth, contentHeight);
+        box.ContentRect = new Rectangle(finalX, finalY, contentWidth, contentHeight);
         box.PaddingRect = box.ContentRect.Inflate(paddingLeft, paddingTop, paddingRight, paddingBottom);
         box.BorderRect = box.PaddingRect.Inflate(borderLeft, borderTop, borderRight, borderBottom);
         box.MarginRect = box.BorderRect.Inflate(marginLeft, marginTop, marginRight, marginBottom);
         element.LayoutBox = box;
     }
 
-    #region Парсеры (без изменений)
     private StyleValue ParseValue(string value)
     {
         // Безопасная обработка пустых или некорректных строк
@@ -159,16 +183,37 @@ public class LayoutEngine
         }
         return result;
     }
-    #endregion
+    
+    private UIElement FindOffsetParent(UIElement element)
+    {
+        var parent = element.Parent;
+        while (parent != null)
+        {
+            var position = parent.ComputedStyle.GetValueOrDefault("position", "static");
+            if (position == "relative" || position == "absolute")
+            {
+                return parent;
+            }
+            parent = parent.Parent;
+        }
+        return null; // Если не найден, вернем null (будет позиционироваться от viewport)
+    }
+    
+    private UIElement FindRoot(UIElement element)
+    {
+        while (element.Parent != null) element = element.Parent;
+        return element;
+    }
 }
 
 #region Классы-расширения (адаптированные под Raylib.Rectangle)
 
 public static class StyleValueExtensions
 {
-    public static float ToPx(this StyleValue val, float baseValue)
+    public static float ToPx(this StyleValue val, float baseValue, float defaultValue = 0f)
     {
-        if (float.IsPositiveInfinity(baseValue) && val.Unit == Unit.Percent) return 0;
+        if (val.Unit == Unit.Auto) return defaultValue;
+        if (float.IsPositiveInfinity(baseValue) && val.Unit == Unit.Percent) return defaultValue;
         return val.Unit == Unit.Percent ? (val.Value / 100f) * baseValue : val.Value;
     }
 }

@@ -205,16 +205,14 @@ public class Client
         // 2. Создаем иерархию элементов с текстом
         var root = new UIElement("main");
         var headerCard = new UIElement("card") { Classes = { "card" }, Text = "Header Title" };
-        var contentPanel = new UIElement("content") { Classes = { "content-panel" } };
-        var p1 = new UIElement("p1") { Classes = { "paragraph" }, Text = "This is the first line." };
-        var p2 = new UIElement("p2") { Classes = { "paragraph" }, Text = "This is the second line." };
-        var p3 = new UIElement("p3") { Classes = { "paragraph", "paragraph--last" }, Text = "This is the last line." };
+        var popupContainer = new UIElement { Classes = { "content-panel", "popup-container" } };
+        var popup = new UIElement { Classes = { "popup" }, Text = "I am a popup!"};
+        var hidden = new UIElement { Classes = { "hidden-element" } };
         
         root.AddChild(headerCard);
-        root.AddChild(contentPanel);
-        contentPanel.AddChild(p1);
-        contentPanel.AddChild(p2);
-        contentPanel.AddChild(p3);
+        root.AddChild(popupContainer);
+        popupContainer.AddChild(popup); // Всплывающее окно - дочерний элемент
+        popupContainer.AddChild(hidden); // Этот элемент не будет виден
 
         return root;
     }
