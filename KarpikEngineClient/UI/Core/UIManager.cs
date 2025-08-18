@@ -23,7 +23,7 @@ public class UIManager
     {
         _styleComputer.ComputeStyles(Root, StyleSheet.Default);
         Rectangle viewport = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
-        _layoutEngine.Layout(Root, viewport);
+        _layoutEngine.Layout(Root, viewport, Font);
     }
 
     public void Render(double dt)

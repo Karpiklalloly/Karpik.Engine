@@ -118,7 +118,7 @@ public class Renderer
     {
         var style = element.ComputedStyle;
         var box = element.LayoutBox;
-        
+    
         bool hasOverflowHidden = style.GetValueOrDefault("overflow") == "hidden";
         if (hasOverflowHidden)
         {
@@ -135,13 +135,28 @@ public class Renderer
             if (borderWidth > 0) Raylib.DrawRectangleLinesEx(box.BorderRect, borderWidth, borderColor);
         }
 
-        if (!string.IsNullOrEmpty(element.Text))
+        // *** ИЗМЕНЕННЫЙ БЛОК ОТРИСОВКИ ТЕКСТА ***
+        if (element.WrappedTextLines.Any())
         {
             var textColor = ParseColor(style.GetValueOrDefault("color", "black"));
             var fontSize = (int)ParseFloat(style.GetValueOrDefault("font-size", "16"));
-            Raylib.DrawText(element.Text, (int)box.ContentRect.X, (int)box.ContentRect.Y, fontSize, textColor);
+            var lineHeight = ParseFloat(style.GetValueOrDefault("line-height", "auto"), fontSize * 1.2f);
+
+            for (int i = 0; i < element.WrappedTextLines.Count; i++)
+            {
+                var line = element.WrappedTextLines[i];
+                float yPos = box.ContentRect.Y + (i * lineHeight);
+            
+                Raylib.DrawText(
+                    line,
+                    (int)box.ContentRect.X,
+                    (int)yPos,
+                    fontSize,
+                    textColor
+                );
+            }
         }
-        
+    
         if (hasOverflowHidden)
         {
             Raylib.EndScissorMode();

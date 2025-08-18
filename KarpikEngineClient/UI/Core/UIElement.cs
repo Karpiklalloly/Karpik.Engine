@@ -7,6 +7,7 @@ public class UIElement
     public Dictionary<string, string> InlineStyles { get; } = new();
     
     public string Text { get; set; } = "";
+    public List<string> WrappedTextLines { get; set; } = new List<string>();
 
     public UIElement Parent { get; private set; }
     public List<UIElement> Children { get; } = new();

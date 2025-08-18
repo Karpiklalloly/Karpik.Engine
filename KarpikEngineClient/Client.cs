@@ -217,8 +217,11 @@ public class Client
         var mainContent = new UIElement { Classes = { "main-content" } };
         var textLine1 = new UIElement { Classes = { "content-text" }, Text = "This is the main content area." };
         var textLine2 = new UIElement { Classes = { "content-text" }, Text = "It sits behind the fixed top and bottom bars." };
+        var longTextBlock = new UIElement { Classes = {"wrapping-text-box"} };
+        longTextBlock.Text = "This is a long sentence of text that is explicitly designed to be too wide for its container, forcing the layout engine to wrap it into multiple lines.";
         mainContent.AddChild(textLine1);
         mainContent.AddChild(textLine2);
+        mainContent.AddChild(longTextBlock);
         
         var statusBar = new UIElement { Classes = { "status-bar" }, Text = "Ready" };
 

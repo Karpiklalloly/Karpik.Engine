@@ -1,4 +1,5 @@
-﻿using Raylib_cs;
+﻿using System.Text;
+using Raylib_cs;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
@@ -16,30 +17,30 @@ public class LayoutEngine
     private List<UIElement> _absoluteElements;
     private List<UIElement> _fixedElements;
 
-    public void Layout(UIElement root, Rectangle viewport)
+    public void Layout(UIElement root, Rectangle viewport, Font defaultFont)
     {
         _absoluteElements = new List<UIElement>();
         _fixedElements = new List<UIElement>();
 
         // Проход 1: Элементы в потоке
-        LayoutNode(root, viewport);
+        LayoutNode(root, viewport, defaultFont);
 
         // Проход 2: Абсолютно позиционированные элементы
         foreach (var element in _absoluteElements)
         {
             var offsetParent = FindOffsetParent(element);
-            var containingBlock = offsetParent?.LayoutBox.PaddingRect ?? viewport;
-            LayoutNode(element, containingBlock);
+            var containingBlock = offsetParent?.LayoutBox.PaddingRect ?? FindRoot(element).LayoutBox.PaddingRect;
+            LayoutNode(element, containingBlock, defaultFont);
         }
-        
+    
         // Проход 3: Фиксированно позиционированные элементы
         foreach (var element in _fixedElements)
         {
-            LayoutNode(element, viewport);
+            LayoutNode(element, viewport, defaultFont);
         }
     }
 
-    private void LayoutNode(UIElement element, Rectangle containingBlock)
+    private void LayoutNode(UIElement element, Rectangle containingBlock, Font defaultFont)
     {
         var style = element.ComputedStyle;
 
@@ -53,12 +54,8 @@ public class LayoutEngine
         if ((position == "absolute" && !_absoluteElements.Contains(element)) ||
             (position == "fixed" && !_fixedElements.Contains(element)))
         {
-            // Откладываем обработку элементов, которые не в потоке
             if (position == "absolute") _absoluteElements.Add(element);
             if (position == "fixed") _fixedElements.Add(element);
-
-            // Для элементов вне потока, мы не должны оставлять "дыру" в макете,
-            // поэтому их LayoutBox изначально пустой в контексте родителя.
             element.LayoutBox = new LayoutBox
                 { MarginRect = new Rectangle(containingBlock.X, containingBlock.Y, 0, 0) };
             return;
@@ -94,20 +91,40 @@ public class LayoutEngine
         float right = ParseValue(style.GetValueOrDefault("right", "auto")).ToPx(containingBlock.Width, float.NaN);
 
         float contentWidth;
+        bool isWidthStretched = (position == "absolute" || position == "fixed") && !float.IsNaN(left) &&
+                                !float.IsNaN(right);
+
         if (widthVal.Unit == Unit.Auto)
         {
-            if (position == "absolute" || position == "fixed")
+            if (isWidthStretched)
             {
-                if (!float.IsNaN(left) && !float.IsNaN(right))
-                    contentWidth = Math.Max(0,
-                        containingBlock.Width - (left + right + marginLeft + marginRight + borderLeft + borderRight +
-                                                 paddingLeft + paddingRight));
-                else
-                    contentWidth = 0; // TODO: Shrink-to-fit
+                contentWidth = Math.Max(0,
+                    containingBlock.Width - (left + right + marginLeft + marginRight + borderLeft + borderRight +
+                                             paddingLeft + paddingRight));
             }
-            else if (displayType == LayoutType.InlineBlock)
+            else if (displayType == LayoutType.InlineBlock || position == "absolute" || position == "fixed")
             {
-                contentWidth = 0; // TODO: Shrink-to-fit
+                // *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+                // Ужимаемся под размер текста, ТОЛЬКО если ширина не растянута
+                if (!string.IsNullOrEmpty(element.Text))
+                {
+                    var fontSize = ParseValue(style.GetValueOrDefault("font-size", "16")).ToPx(0);
+                    // Для измерения нам не нужен перенос, поэтому передаем большую ширину
+                    WrapText(element, float.PositiveInfinity, defaultFont, fontSize);
+
+                    float maxLineWidth = 0;
+                    foreach (var line in element.WrappedTextLines)
+                    {
+                        var measured = Raylib.MeasureTextEx(defaultFont, line, fontSize, 1);
+                        if (measured.X > maxLineWidth) maxLineWidth = measured.X;
+                    }
+
+                    contentWidth = maxLineWidth;
+                }
+                else
+                {
+                    contentWidth = 0; // Если текста нет, ширина 0
+                }
             }
             else // Block
             {
@@ -124,6 +141,18 @@ public class LayoutEngine
                 : totalWidth;
         }
 
+        float textContentHeight = 0;
+        if (!string.IsNullOrEmpty(element.Text))
+        {
+            var fontSize = ParseValue(style.GetValueOrDefault("font-size", "16")).ToPx(0);
+            var lineHeight = ParseValue(style.GetValueOrDefault("line-height", "auto")).ToPx(fontSize, fontSize * 1.2f);
+
+            // Перезапускаем перенос текста с уже финальной шириной
+            WrapText(element, contentWidth, defaultFont, fontSize);
+
+            textContentHeight = element.WrappedTextLines.Count * lineHeight;
+        }
+
         var minWidth = ParseValue(style.GetValueOrDefault("min-width", "0px")).ToPx(containingBlock.Width);
         var maxWidth = ParseValue(style.GetValueOrDefault("max-width", "auto"))
             .ToPx(containingBlock.Width, float.PositiveInfinity);
@@ -131,9 +160,7 @@ public class LayoutEngine
 
         float staticX = containingBlock.X + marginLeft;
         float staticY = containingBlock.Y + marginTop;
-
-        float finalX = staticX;
-        float finalY = staticY;
+        float finalX = staticX, finalY = staticY;
 
         if (position == "relative")
         {
@@ -149,7 +176,6 @@ public class LayoutEngine
                 finalX = containingBlock.X + containingBlock.Width - right - (contentWidth + paddingLeft +
                                                                               paddingRight + borderLeft + borderRight +
                                                                               marginRight);
-
             if (!float.IsNaN(top)) finalY = containingBlock.Y + top;
         }
 
@@ -170,15 +196,17 @@ public class LayoutEngine
             if (isChildInFlow)
             {
                 Rectangle currentChildBlock;
-                float childWidthWithMargin = ParseValue(child.ComputedStyle.GetValueOrDefault("width", "0"))
-                                                 .ToPx(childContainingBlock.Width)
+                float childWidthWithMargin = (child.ComputedStyle.ContainsKey("width")
+                                                 ? ParseValue(child.ComputedStyle["width"])
+                                                     .ToPx(childContainingBlock.Width)
+                                                 : 0)
                                              + ParseValue(child.ComputedStyle.GetValueOrDefault("margin-left", "0"))
                                                  .ToPx(childContainingBlock.Width)
                                              + ParseValue(child.ComputedStyle.GetValueOrDefault("margin-right", "0"))
                                                  .ToPx(childContainingBlock.Width);
 
                 if (childDisplay == LayoutType.InlineBlock &&
-                    (currentLineX + childWidthWithMargin > childContainingBlock.Width))
+                    (currentLineX + childWidthWithMargin > childContainingBlock.Width) && currentLineX > 0)
                 {
                     childrenInFlowHeight += currentLineHeight;
                     currentLineHeight = 0;
@@ -201,7 +229,7 @@ public class LayoutEngine
                         childContainingBlock.Height);
                 }
 
-                LayoutNode(child, currentChildBlock);
+                LayoutNode(child, currentChildBlock, defaultFont);
 
                 if (childDisplay == LayoutType.InlineBlock)
                 {
@@ -215,8 +243,7 @@ public class LayoutEngine
             }
             else
             {
-                // Дети вне потока наследуют containing block родителя
-                LayoutNode(child, containingBlock);
+                LayoutNode(child, containingBlock, defaultFont);
             }
         }
 
@@ -225,7 +252,7 @@ public class LayoutEngine
         float contentHeight;
         if (heightVal.Unit == Unit.Auto)
         {
-            contentHeight = childrenInFlowHeight;
+            contentHeight = Math.Max(textContentHeight, childrenInFlowHeight);
         }
         else
         {
@@ -333,6 +360,45 @@ public class LayoutEngine
     {
         while (element.Parent != null) element = element.Parent;
         return element;
+    }
+    
+    private void WrapText(UIElement element, float maxWidth, Font font, float fontSize)
+    {
+        element.WrappedTextLines.Clear();
+        if (string.IsNullOrEmpty(element.Text)) return;
+
+        // Простая защита от бесконечного цикла, если ширина нулевая
+        if (maxWidth <= 0)
+        {
+            element.WrappedTextLines.Add(element.Text);
+            return;
+        }
+
+        var words = element.Text.Split(' ');
+        var currentLine = new StringBuilder();
+
+        foreach (var word in words)
+        {
+            var testLine = currentLine.Length > 0 ? currentLine.ToString() + " " + word : word;
+            var dimensions = Raylib.MeasureTextEx(font, testLine, fontSize, 1);
+
+            if (dimensions.X > maxWidth && currentLine.Length > 0)
+            {
+                element.WrappedTextLines.Add(currentLine.ToString());
+                currentLine.Clear();
+                currentLine.Append(word);
+            }
+            else
+            {
+                if (currentLine.Length > 0) currentLine.Append(' ');
+                currentLine.Append(word);
+            }
+        }
+    
+        if (currentLine.Length > 0)
+        {
+            element.WrappedTextLines.Add(currentLine.ToString());
+        }
     }
 }
 
