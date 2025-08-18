@@ -28,6 +28,6 @@ public class UIManager
 
     public void Render(double dt)
     {
-        _renderer.Render(Root);
+        _renderer.Render(Root, Font);
     }
 }

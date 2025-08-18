@@ -52,6 +52,9 @@ public class StyleSheet
     public const string z_index = "z-index";
     
     public const string flex_grow = "flex-grow";
+    public const string flex_basis = "flex-basis";
+    public const string flex_shrink = "flex-shrink";
+    public const string align_self = "align-self";
     public const string flex_direction = "flex-direction";
 
     #endregion
@@ -63,76 +66,173 @@ public class StyleSheet
     static StyleSheet()
     {
         _default = new StyleSheet();
-        _default.Rules.Add(new StyleRule(new Selector("#root"))
-        {
-            Properties = {
-                ["display"] = "flex",
-                ["flex-direction"] = "column", // Располагаем top-bar, content и status-bar друг под другом
-                ["width"] = "100%", // Занимаем все окно
-                ["height"] = "100%"
-            }
-        });
-        
         _default.Rules.Add(new StyleRule(new Selector(".root-container"))
         {
-            Properties = {
+            Properties =
+            {
                 ["display"] = "flex",
-                ["flex-direction"] = "column", // Располагаем top-bar, content и status-bar друг под другом
-                ["width"] = "100%", // Занимаем все окно
-                ["height"] = "100%"
+                ["flex-direction"] = "column",
+                ["width"] = "100%",
+                ["height"] = "100%",
+                ["background-color"] = "darkgray"
             }
         });
 
-// Верхняя панель. Тоже flex-контейнер, но уже в виде строки.
-        _default.Rules.Add(new StyleRule(new Selector(".top-bar"))
+        // --- Общие стили для тестовых контейнеров и элементов ---
+        _default.Rules.Add(new StyleRule(new Selector(".test-container"))
         {
-            Properties = {
+            Properties =
+            {
                 ["display"] = "flex",
-                ["flex-direction"] = "row",   // Элементы меню располагаются в ряд
-                ["align-items"] = "center",   // Выравниваем элементы меню по центру по вертикали
-                ["height"] = "40px",
-                ["background-color"] = "lightgray",
-                ["padding"] = "0 10px",       // 0 сверху/снизу, 10 слева/справа
+                ["flex-direction"] = "row",
+                ["margin"] = "10px",
+                ["padding"] = "10px",
+                ["border-width"] = "2px",
+                ["border-color"] = "black",
             }
         });
-
-// Элементы меню внутри верхней панели
-        _default.Rules.Add(new StyleRule(new Selector(".nav-item"))
+        _default.Rules.Add(new StyleRule(new Selector(".label"))
         {
-            Properties = {
-                // display: inline-block или block не нужен, так как они теперь flex-элементы
-                ["padding"] = "5px 10px",
-                ["margin-right"] = "5px",
+            Properties =
+            {
+                ["display"] = "inline-block",
+                ["color"] = "white",
+                ["font-size"] = "22",
+                ["margin-right"] = "15px",
+                // Этот элемент не должен участвовать в flex-расчетах
+                ["flex-shrink"] = "0"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".test-item"))
+        {
+            Properties =
+            {
+                ["padding"] = "10px",
                 ["color"] = "black",
-                ["font-size"] = "20",
-                ["background-color"] = "raywhite",
+                ["font-size"] = "18",
+                ["border-width"] = "1px",
+                ["border-color"] = "darkblue",
             }
         });
 
-// Основная область контента.
-        _default.Rules.Add(new StyleRule(new Selector(".main-content"))
+        // --- 1. Стили для GROW теста ---
+        _default.Rules.Add(new StyleRule(new Selector(".grow-container"))
         {
-            Properties = {
-                // *** КЛЮЧЕВОЕ СВОЙСТВО FLEXBOX ***
-                // Этот блок растянется и займет все доступное вертикальное пространство
+            Properties =
+            {
+                ["background-color"] = "lightgray"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".no-grow"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "150px",
+                ["background-color"] = "lightblue"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".grows-1"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "100px",
                 ["flex-grow"] = "1",
-                ["background-color"] = "white",
-                ["padding"] = "15px",
-                ["color"] = "black",
-                ["font-size"] = "20",
+                ["background-color"] = "lightgreen"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".grows-2"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "100px",
+                ["flex-grow"] = "2",
+                ["background-color"] = "lightyellow"
             }
         });
 
-// Нижняя статусная строка.
-        _default.Rules.Add(new StyleRule(new Selector(".status-bar"))
+        // --- 2. Стили для SHRINK теста ---
+        // Обрати внимание: контейнер имеет фиксированную ширину, чтобы заставить элементы сжиматься
+        _default.Rules.Add(new StyleRule(new Selector(".shrink-container"))
         {
-            Properties = {
-                ["height"] = "25px",
-                ["background-color"] = "lightblue",
-                ["padding"] = "5px 10px",
-                ["color"] = "black",
-                ["font-size"] = "18"
+            Properties =
+            {
+                ["background-color"] = "lightgray",
+                ["width"] = "800px"
             }
         });
+        _default.Rules.Add(new StyleRule(new Selector(".shrinks-1"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "400px",
+                ["flex-shrink"] = "1",
+                ["background-color"] = "lightblue"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".shrinks-2"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "200px",
+                ["flex-shrink"] = "2",
+                ["background-color"] = "lightgreen"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".no-shrink"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "200px",
+                ["flex-shrink"] = "0", 
+                ["background-color"] = "lightyellow"
+            }
+        });
+
+        // --- 3. Стили для ALIGNMENT теста ---
+        // Высокий контейнер с выравниванием по центру
+        _default.Rules.Add(new StyleRule(new Selector(".align-container"))
+        {
+            Properties =
+            {
+                ["background-color"] = "lightgray",
+                ["height"] = "150px",
+                ["align-items"] = "center"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".align-center"))
+        {
+            Properties =
+            {
+                ["height"] = "50%",
+                ["background-color"] = "lightblue"
+            }
+        }); // Унаследует align-items: center
+        _default.Rules.Add(new StyleRule(new Selector(".align-start"))
+        {
+            Properties =
+            {
+                ["height"] = "60px", 
+                ["align-self"] = "flex-start", 
+                ["background-color"] = "lightgreen"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".align-end"))
+        {
+            Properties =
+            {
+                ["height"] = "80px", 
+                ["align-self"] = "flex-end",
+                ["background-color"] = "lightyellow"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".align-stretch"))
+        {
+            Properties =
+            {
+                ["height"] = "auto", 
+                ["align-self"] = "stretch", 
+                ["background-color"] = "red"
+            }
+        }); // height: auto важно для stretch
     }
 }

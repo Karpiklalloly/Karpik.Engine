@@ -75,8 +75,7 @@ public class Client
         
         // Инициализируем новую UI систему
         UIManager = new UIManager();
-        var root = new UIElement("root");
-        root.AddChild(CreateDemoUI());
+        var root = CreateDemoUI();
         UIManager.SetRoot(root);
         UIManager.Font = Raylib.GetFontDefault();
         var codes = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
@@ -86,9 +85,9 @@ public class Client
                     + "▼" + "▶";
         int count = 0;
         var chars = Raylib.LoadCodepoints(codes, ref count);
-        var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
-        Console.WriteLine((bool)Raylib.IsFontValid(font));
-        UIManager.Font = font;
+        // var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
+        // Console.WriteLine((bool)Raylib.IsFontValid(font));
+        UIManager.Font = Raylib.GetFontDefault();
         //CreateNewUI();
 
         _builder = EcsPipeline.New()
@@ -202,25 +201,46 @@ public class Client
 
     private UIElement CreateDemoUI()
     {
-        var root = new UIElement { Classes = { "root-container" } }; 
-        
-        var topBar = new UIElement { Classes = { "top-bar" } };
-        var navFile = new UIElement { Classes = { "nav-item" }, Text = "File" };
-        var navEdit = new UIElement { Classes = { "nav-item" }, Text = "Edit" };
-        var navHelp = new UIElement { Classes = { "nav-item" }, Text = "Help" };
-        
-        var mainContent = new UIElement { Classes = { "main-content" } };
-        mainContent.Text = "Main content area now grows automatically!";
-        
-        var statusBar = new UIElement { Classes = { "status-bar" }, Text = "Ready" };
+        var root = new UIElement("root") { Classes = { "root-container" } };
 
-        root.AddChild(topBar);
-        root.AddChild(mainContent);
-        root.AddChild(statusBar);
-        
-        topBar.AddChild(navFile);
-        topBar.AddChild(navEdit);
-        topBar.AddChild(navHelp);
+        // --- 1. GROW TEST CONTAINER ---
+        var growContainer = new UIElement { Classes = { "test-container", "grow-container" } };
+        var growItem1 = new UIElement { Classes = { "test-item", "no-grow" }, Text = "Basis: 150px" };
+        var growItem2 = new UIElement { Classes = { "test-item", "grows-1" }, Text = "Grow: 1" };
+        var growItem3 = new UIElement { Classes = { "test-item", "grows-2" }, Text = "Grow: 2" };
+
+        growContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Grow Test (flex-grow):" });
+        growContainer.AddChild(growItem1);
+        growContainer.AddChild(growItem2);
+        growContainer.AddChild(growItem3);
+
+        // --- 2. SHRINK TEST CONTAINER ---
+        var shrinkContainer = new UIElement { Classes = { "test-container", "shrink-container" } };
+        var shrinkItem1 = new UIElement { Classes = { "test-item", "shrinks-1" }, Text = "Basis: 400, Shrink: 1" };
+        var shrinkItem2 = new UIElement { Classes = { "test-item", "shrinks-2" }, Text = "Basis: 200, Shrink: 2" };
+        var shrinkItem3 = new UIElement { Classes = { "test-item", "no-shrink" }, Text = "NO SHRINK" };
+
+        shrinkContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Shrink Test (flex-shrink):" });
+        shrinkContainer.AddChild(shrinkItem1);
+        shrinkContainer.AddChild(shrinkItem2);
+        shrinkContainer.AddChild(shrinkItem3);
+
+        // --- 3. ALIGNMENT TEST CONTAINER ---
+        var alignContainer = new UIElement { Classes = { "test-container", "align-container" } };
+        var alignItem1 = new UIElement { Classes = { "test-item", "align-center" }, Text = "Default (Center)" };
+        var alignItem2 = new UIElement { Classes = { "test-item", "align-start" }, Text = "Self: Start" };
+        var alignItem3 = new UIElement { Classes = { "test-item", "align-end" }, Text = "Self: End" };
+        var alignItem4 = new UIElement { Classes = { "test-item", "align-stretch" }, Text = "Self: Stretch" };
+
+        alignContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Alignment Test (align-self):" });
+        alignContainer.AddChild(alignItem1);
+        alignContainer.AddChild(alignItem2);
+        alignContainer.AddChild(alignItem3);
+        alignContainer.AddChild(alignItem4);
+
+        root.AddChild(growContainer);
+        root.AddChild(shrinkContainer);
+        root.AddChild(alignContainer);
 
         return root;
     }

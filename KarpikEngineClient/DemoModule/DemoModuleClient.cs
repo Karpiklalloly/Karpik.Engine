@@ -136,7 +136,10 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         string ind = new string(' ', indent * 2);
         var box = element.LayoutBox;
         // ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
-        if (ImGui.CollapsingHeader($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}"))
+        var text =
+            $"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
+        // Console.WriteLine(text);
+        if (ImGui.CollapsingHeader(text))
         {
             foreach (var (key, value) in element.ComputedStyle)
             {
