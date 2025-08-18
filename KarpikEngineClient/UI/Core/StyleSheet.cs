@@ -50,6 +50,9 @@ public class StyleSheet
     public const string display_inline_block = "inline-block";
 
     public const string z_index = "z-index";
+    
+    public const string flex_grow = "flex-grow";
+    public const string flex_direction = "flex-direction";
 
     #endregion
     public List<StyleRule> Rules { get; } = new();
@@ -60,158 +63,75 @@ public class StyleSheet
     static StyleSheet()
     {
         _default = new StyleSheet();
-        // _default.Rules.Add(new StyleRule(new Selector("#main"))
-        // {
-        //     Properties = {
-        //         [width] = "500px",
-        //         [height] = "auto",
-        //         [padding] = "20px",
-        //         [background_color] = "lightgray"
-        //     }
-        // });
-        _default.Rules.Add(new StyleRule(new Selector(".card"))
+        _default.Rules.Add(new StyleRule(new Selector("#root"))
         {
             Properties = {
-                [width] = "100%",
-                [height] = "50px",
-                [padding] = "10px",
-                [margin_bottom] = "20px",
-                [background_color] = "lightblue",
-                [box_sizing] = "border-box" 
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".content-panel"))
-        {
-            Properties = {
-                [width] = "auto",
-                [height] = "auto",
-                [background_color] = "lightyellow",
-                [padding] = "15px"
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".paragraph"))
-        {
-            Properties = { 
-                [height] = "25px",
-                [margin_bottom] = "10px",
-                [background_color] = "white" 
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".paragraph--last"))
-        {
-            // Модификатор для последнего параграфа
-            Properties =
-            {
-                [margin_bottom] = "0"
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".popup-container")) {
-            Properties =
-            {
-                [position] = "relative",
-                [background_color] = "lightyellow",
-                [min_height] = "150px"
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".popup")) {
-            Properties = { 
-                [position] = "absolute",
-                [top] = "10px",
-                [left] = "100px", 
-                [width] = "200px",
-                [height] = "100px",
-                [padding] = "10px",
-                [background_color] = "red",
-                [z_index] = "10",
-                [color] = "white"
-            }
-        });
-        _default.Rules.Add(new StyleRule(new Selector(".hidden-element")) {
-            Properties =
-            {
-                [display] = "none"
+                ["display"] = "flex",
+                ["flex-direction"] = "column", // Располагаем top-bar, content и status-bar друг под другом
+                ["width"] = "100%", // Занимаем все окно
+                ["height"] = "100%"
             }
         });
         
+        _default.Rules.Add(new StyleRule(new Selector(".root-container"))
+        {
+            Properties = {
+                ["display"] = "flex",
+                ["flex-direction"] = "column", // Располагаем top-bar, content и status-bar друг под другом
+                ["width"] = "100%", // Занимаем все окно
+                ["height"] = "100%"
+            }
+        });
+
+// Верхняя панель. Тоже flex-контейнер, но уже в виде строки.
         _default.Rules.Add(new StyleRule(new Selector(".top-bar"))
         {
             Properties = {
-                [position] = "fixed", // Всегда на экране
-                [top] = "0",
-                [left] = "0",
-                [right] = "0", // Растягиваем на всю ширину с помощью left/right
-                [height] = "40px",
-                [background_color] = "lightgray",
-                [padding] = "5px 10px", // 5px сверху/снизу, 10px слева/справа
-                [z_index] = "100" // Поверх всего остального
-            }
-        });
-        
-        _default.Rules.Add(new StyleRule(new Selector(".status-bar"))
-        {
-            Properties = {
-                [position] = "fixed", // Всегда на экране
-                [bottom] = "0",
-                [left] = "0",
-                [right] = "0", // Растягиваем на всю ширину
-                [height] = "25px",
-                [background_color] = "lightblue",
-                [padding] = "5px 10px",
-                [color] = "black",
-                [z_index] = "100"
+                ["display"] = "flex",
+                ["flex-direction"] = "row",   // Элементы меню располагаются в ряд
+                ["align-items"] = "center",   // Выравниваем элементы меню по центру по вертикали
+                ["height"] = "40px",
+                ["background-color"] = "lightgray",
+                ["padding"] = "0 10px",       // 0 сверху/снизу, 10 слева/справа
             }
         });
 
-        _default.Rules.Add(new StyleRule(new Selector(".main-content"))
-        {
-            Properties = {
-                // Отступы, чтобы контент не залезал под fixed-панели
-                [margin_top] = "50px", 
-                [margin_bottom] = "35px",
-                [margin_left] = "20px",
-                [margin_right] = "20px",
-                [padding] = "15px",
-                [height] = "auto",
-                [background_color] = "white"
-            }
-        });
-
-        // --- Стили для элементов меню ---
+// Элементы меню внутри верхней панели
         _default.Rules.Add(new StyleRule(new Selector(".nav-item"))
         {
             Properties = {
-                [display] = "inline-block",
-                [padding] = "5px 10px",
-                [margin_right] = "5px",
-                [color] = "black",
-                [font_size] = "20",
-                [background_color] = "raywhite",
-                
-                [min_width] = "50px", 
-                [min_height] = "20px"
+                // display: inline-block или block не нужен, так как они теперь flex-элементы
+                ["padding"] = "5px 10px",
+                ["margin-right"] = "5px",
+                ["color"] = "black",
+                ["font-size"] = "20",
+                ["background-color"] = "raywhite",
             }
         });
-        
-        _default.Rules.Add(new StyleRule(new Selector(".content-text"))
+
+// Основная область контента.
+        _default.Rules.Add(new StyleRule(new Selector(".main-content"))
         {
             Properties = {
-                [height] = "30px",
-                [font_size] = "20",
-                [color] = "black"
+                // *** КЛЮЧЕВОЕ СВОЙСТВО FLEXBOX ***
+                // Этот блок растянется и займет все доступное вертикальное пространство
+                ["flex-grow"] = "1",
+                ["background-color"] = "white",
+                ["padding"] = "15px",
+                ["color"] = "black",
+                ["font-size"] = "20",
             }
         });
-        
-        _default.Rules.Add(new StyleRule(new Selector(".wrapping-text-box"))
+
+// Нижняя статусная строка.
+        _default.Rules.Add(new StyleRule(new Selector(".status-bar"))
         {
             Properties = {
-                [width] = "400px", // Задаем фиксированную ширину для демонстрации переноса
-                [height] = "auto",
-                [background_color] = "red",
-                [padding] = "10px",
-                [margin_top] = "10px",
-                [color] = "black",
-                [font_size] = "20",
-                [line_height] = "24px" // Межстрочный интервал
+                ["height"] = "25px",
+                ["background-color"] = "lightblue",
+                ["padding"] = "5px 10px",
+                ["color"] = "black",
+                ["font-size"] = "18"
             }
         });
     }

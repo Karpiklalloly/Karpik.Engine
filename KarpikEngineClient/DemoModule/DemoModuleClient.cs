@@ -134,9 +134,15 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
     private void PrintUI(UIElement element, int indent = 0)
     {
         string ind = new string(' ', indent * 2);
-        ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'>");
         var box = element.LayoutBox;
-        ImGui.Text($"{ind}  Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
+        // ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
+        if (ImGui.CollapsingHeader($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}"))
+        {
+            foreach (var (key, value) in element.ComputedStyle)
+            {
+                ImGui.Text($"\t{ind}{key}: {value}");
+            }
+        }
         foreach (var child in element.Children)
         {
             PrintUI(child, indent + 1);

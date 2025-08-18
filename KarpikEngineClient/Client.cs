@@ -202,32 +202,25 @@ public class Client
 
     private UIElement CreateDemoUI()
     {
-        // 2. Создаем иерархию элементов с текстом
-        var root = new UIElement("main");
+        var root = new UIElement { Classes = { "root-container" } }; 
+        
         var topBar = new UIElement { Classes = { "top-bar" } };
         var navFile = new UIElement { Classes = { "nav-item" }, Text = "File" };
         var navEdit = new UIElement { Classes = { "nav-item" }, Text = "Edit" };
-        var navView = new UIElement { Classes = { "nav-item" }, Text = "View" };
         var navHelp = new UIElement { Classes = { "nav-item" }, Text = "Help" };
-        topBar.AddChild(navFile);
-        topBar.AddChild(navEdit);
-        topBar.AddChild(navView);
-        topBar.AddChild(navHelp);
-
+        
         var mainContent = new UIElement { Classes = { "main-content" } };
-        var textLine1 = new UIElement { Classes = { "content-text" }, Text = "This is the main content area." };
-        var textLine2 = new UIElement { Classes = { "content-text" }, Text = "It sits behind the fixed top and bottom bars." };
-        var longTextBlock = new UIElement { Classes = {"wrapping-text-box"} };
-        longTextBlock.Text = "This is a long sentence of text that is explicitly designed to be too wide for its container, forcing the layout engine to wrap it into multiple lines.";
-        mainContent.AddChild(textLine1);
-        mainContent.AddChild(textLine2);
-        mainContent.AddChild(longTextBlock);
+        mainContent.Text = "Main content area now grows automatically!";
         
         var statusBar = new UIElement { Classes = { "status-bar" }, Text = "Ready" };
 
-        root.AddChild(mainContent);
         root.AddChild(topBar);
+        root.AddChild(mainContent);
         root.AddChild(statusBar);
+        
+        topBar.AddChild(navFile);
+        topBar.AddChild(navEdit);
+        topBar.AddChild(navHelp);
 
         return root;
     }
