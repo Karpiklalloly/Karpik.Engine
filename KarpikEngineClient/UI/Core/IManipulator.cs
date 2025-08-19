@@ -7,4 +7,5 @@ public interface IManipulator
     public void OnMouseLeave();
     public void OnMouseDown();
     public void OnMouseUp();
+    public void OnClick();
 }

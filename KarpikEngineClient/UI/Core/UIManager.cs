@@ -47,40 +47,52 @@ public class UIManager
             if (_hoveredElement != null)
             {
                 _hoveredElement.IsHovered = false;
-                foreach (var manipulator in _hoveredElement.Manipulators) manipulator.OnMouseLeave();
+                foreach (var m in _hoveredElement.Manipulators) m.OnMouseLeave();
             }
             if (currentHover != null)
             {
                 currentHover.IsHovered = true;
-                foreach (var manipulator in currentHover.Manipulators) manipulator.OnMouseEnter();
+                foreach (var m in currentHover.Manipulators) m.OnMouseEnter();
             }
             _hoveredElement = currentHover;
         }
+        
+        // --- ОБНОВЛЕННАЯ ЛОГИКА НАЖАТИЯ И КЛИКОВ ---
 
-        // Обработка кликов
+        // Обрабатываем НАЖАТИЕ мыши
         if (Input.IsMouseLeftButtonDown)
         {
             if (_hoveredElement != null)
             {
+                // Запоминаем элемент, на котором началось нажатие
                 _pressedElement = _hoveredElement;
-                foreach (var m in _hoveredElement.Manipulators) m.OnMouseDown();
+                _pressedElement.IsActive = true;
+                foreach (var m in _pressedElement.Manipulators) m.OnMouseDown();
             }
         }
-
+        
+        // Обрабатываем ОТПУСКАНИЕ мыши
         if (Input.IsMouseLeftButtonUp)
         {
-            if (_hoveredElement != null)
+            if (_pressedElement != null)
             {
-                foreach (var m in _hoveredElement.Manipulators) m.OnMouseUp();
+                _pressedElement.IsActive = false; // Элемент больше не "активен"
                 
-                // Клик засчитывается, если мышь отпущена над тем же элементом, над которым была нажата
-                if (_pressedElement == _hoveredElement)
+                // Вызываем OnMouseUp для элемента, который был под курсором в момент отпускания
+                if (_hoveredElement != null)
                 {
-                    // Добавьте метод OnClick в Manipulator, чтобы это заработало
-                    // foreach (var m in _hoveredElement.Manipulators) m.OnClick(); 
+                    foreach (var m in _hoveredElement.Manipulators) m.OnMouseUp();
                 }
+
+                // Если мышь отпущена над ТЕМ ЖЕ элементом, над которым была нажата - это КЛИК
+                if (_pressedElement == _hoveredElement && _hoveredElement != null)
+                {
+                    foreach (var m in _pressedElement.Manipulators) m.OnClick();
+                }
+
+                // Сбрасываем состояние нажатия в любом случае
+                _pressedElement = null;
             }
-            _pressedElement = null;
         }
     }
     

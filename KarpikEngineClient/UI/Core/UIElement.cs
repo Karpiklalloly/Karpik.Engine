@@ -16,6 +16,7 @@ public class UIElement
     public LayoutBox LayoutBox { get; set; } = new();
     
     public bool IsHovered { get; internal set; }
+    public bool IsActive { get; internal set; }
     
     internal IReadOnlyList<IManipulator> Manipulators => _manipulators;
     

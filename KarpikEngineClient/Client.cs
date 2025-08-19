@@ -205,34 +205,43 @@ public class Client
 
         // --- 1. GROW TEST CONTAINER ---
         var growContainer = new UIElement { Classes = { "test-container", "grow-container" } };
+        var label1 = new UIElement { Classes = { "label" }, Text = "Grow Test (flex-grow):" };
         var growItem1 = new UIElement { Classes = { "test-item", "no-grow" }, Text = "Basis: 150px" };
         var growItem2 = new UIElement { Classes = { "test-item", "grows-1" }, Text = "Grow: 1" };
         var growItem3 = new UIElement { Classes = { "test-item", "grows-2" }, Text = "Grow: 2" };
 
-        growContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Grow Test (flex-grow):" });
+        label1.AddManipulator(new TestManipulator());
+        
+        growContainer.AddChild(label1);
         growContainer.AddChild(growItem1);
         growContainer.AddChild(growItem2);
         growContainer.AddChild(growItem3);
 
         // --- 2. SHRINK TEST CONTAINER ---
         var shrinkContainer = new UIElement { Classes = { "test-container", "shrink-container" } };
+        var label2 = new UIElement { Classes = { "label" }, Text = "Shrink Test (flex-shrink):" };
         var shrinkItem1 = new UIElement { Classes = { "test-item", "shrinks-1" }, Text = "Basis: 400, Shrink: 1" };
         var shrinkItem2 = new UIElement { Classes = { "test-item", "shrinks-2" }, Text = "Basis: 200, Shrink: 2" };
         var shrinkItem3 = new UIElement { Classes = { "test-item", "no-shrink" }, Text = "NO SHRINK" };
 
-        shrinkContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Shrink Test (flex-shrink):" });
+        label2.AddManipulator(new TestManipulator());
+        
+        shrinkContainer.AddChild(label2);
         shrinkContainer.AddChild(shrinkItem1);
         shrinkContainer.AddChild(shrinkItem2);
         shrinkContainer.AddChild(shrinkItem3);
 
         // --- 3. ALIGNMENT TEST CONTAINER ---
         var alignContainer = new UIElement { Classes = { "test-container", "align-container" } };
+        var label3 = new UIElement { Classes = { "label" }, Text = "Alignment Test (align-self):" };
         var alignItem1 = new UIElement { Classes = { "test-item", "align-center" }, Text = "Default (Center)" };
         var alignItem2 = new UIElement { Classes = { "test-item", "align-start" }, Text = "Self: Start" };
         var alignItem3 = new UIElement { Classes = { "test-item", "align-end" }, Text = "Self: End" };
         var alignItem4 = new UIElement { Classes = { "test-item", "align-stretch" }, Text = "Self: Stretch" };
 
-        alignContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Alignment Test (align-self):" });
+        label3.AddManipulator(new TestManipulator());
+        
+        alignContainer.AddChild(label3);
         alignContainer.AddChild(alignItem1);
         alignContainer.AddChild(alignItem2);
         alignContainer.AddChild(alignItem3);

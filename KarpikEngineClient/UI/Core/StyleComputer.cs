@@ -60,16 +60,16 @@ public class StyleComputer
     private bool DoesSelectorMatch(Selector selector, UIElement element)
     {
         var rawSelector = selector.Raw;
-        bool requiresHover = rawSelector.Contains(":hover");
     
-        // Если селектор требует :hover, а элемент не в этом состоянии, сразу выходим
-        if (requiresHover && !element.IsHovered)
-        {
-            return false;
-        }
+        bool requiresHover = rawSelector.Contains(":hover");
+        bool requiresActive = rawSelector.Contains(":active");
 
-        // Убираем псевдо-класс для основной проверки по ID/классу
-        string baseSelector = rawSelector.Replace(":hover", "");
+        // Проверка состояний
+        if (requiresHover && !element.IsHovered) return false;
+        if (requiresActive && !element.IsActive) return false;
+
+        // Убираем псевдо-классы для основной проверки по ID/классу
+        string baseSelector = rawSelector.Replace(":hover", "").Replace(":active", "");
 
         if (baseSelector.StartsWith("#"))
         {
