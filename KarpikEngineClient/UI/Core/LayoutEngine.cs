@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Raylib_cs;
+using System.Globalization;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
@@ -14,7 +15,6 @@ public class LayoutEngine
     {
         _absoluteElements = new List<UIElement>();
         _fixedElements = new List<UIElement>();
-        
         LayoutNode(root, viewport, defaultFont, LayoutContext.Block);
 
         foreach (var element in _absoluteElements)
@@ -23,7 +23,7 @@ public class LayoutEngine
             var containingBlock = offsetParent?.LayoutBox.PaddingRect ?? viewport;
             LayoutNode(element, containingBlock, defaultFont, LayoutContext.Block);
         }
-        
+
         foreach (var element in _fixedElements)
         {
             LayoutNode(element, viewport, defaultFont, LayoutContext.Block);
@@ -32,235 +32,332 @@ public class LayoutEngine
 
     private void LayoutNode(UIElement element, Rectangle containingBlock, Font defaultFont, LayoutContext context)
     {
-        var style = element.ComputedStyle;
-        var display = style.GetValueOrDefault("display", "block");
-
-        if (display == "none")
+        if (element.ComputedStyle.GetValueOrDefault("display") == "none")
         {
-            element.LayoutBox = new LayoutBox { ContentRect = new Rectangle(0, 0, 0, 0) };
+            element.LayoutBox = new LayoutBox();
             return;
         }
 
-        var position = style.GetValueOrDefault("position", "static");
-        if ((position == "absolute" && !_absoluteElements.Contains(element)) || (position == "fixed" && !_fixedElements.Contains(element)))
+        var position = element.ComputedStyle.GetValueOrDefault("position", "static");
+        if ((position == "absolute" && !_absoluteElements.Contains(element)) ||
+            (position == "fixed" && !_fixedElements.Contains(element)))
         {
             if (position == "absolute") _absoluteElements.Add(element);
             if (position == "fixed") _fixedElements.Add(element);
             return;
         }
-        
-        var (marginLeft, marginRight, marginTop, marginBottom) = ParseAllMargins(style, containingBlock);
-        var (paddingLeft, paddingRight, paddingTop, paddingBottom) = ParseAllPaddings(style, containingBlock);
-        var (borderLeft, borderRight, borderTop, borderBottom) = ParseAllBorders(style, containingBlock);
-        
-        // ======================== НОВАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ РАЗМЕРОВ ========================
-        var widthVal = ParseValue(style.GetValueOrDefault("width", "auto"));
-        var heightVal = ParseValue(style.GetValueOrDefault("height", "auto"));
-        bool isBorderBox = style.GetValueOrDefault("box-sizing") == "border-box";
-        
-        float contentWidth, contentHeight;
 
-        // --- Определяем ширину ---
-        if (widthVal.Unit == Unit.Auto)
+        var (mLeft, mRight, mTop, mBottom) = ParseAllMargins(element.ComputedStyle, containingBlock);
+        var (pLeft, pRight, pTop, pBottom) = ParseAllPaddings(element.ComputedStyle, containingBlock);
+        var (bLeft, bRight, bTop, bBottom) = ParseAllBorders(element.ComputedStyle, containingBlock);
+
+        float finalX = containingBlock.X + mLeft;
+        float finalY = containingBlock.Y + mTop;
+
+        float availableWidth = containingBlock.Width - mLeft - mRight;
+        float availableHeight = containingBlock.Height - mTop - mBottom;
+
+        var widthVal = ParseValue(element.ComputedStyle.GetValueOrDefault("width", "auto"));
+        var heightVal = ParseValue(element.ComputedStyle.GetValueOrDefault("height", "auto"));
+
+        // --- НАЧАЛО ИСПРАВЛЕННОГО БЛОКА ---
+        float contentWidth;
+        float? resolvedWidth = ResolveSize(widthVal, availableWidth, pLeft + pRight + bLeft + bRight);
+
+        if (resolvedWidth.HasValue)
         {
-            // Если родитель дал нам конечную ширину, мы её используем
-            if (containingBlock.Width < float.PositiveInfinity && context != LayoutContext.FlexItem)
+            // Ширина явно задана (px или %)
+            contentWidth = resolvedWidth.Value;
+        }
+        else // Это означает, что width: 'auto'
+        {
+            if (context == LayoutContext.FlexItem)
             {
-                contentWidth = containingBlock.Width - marginLeft - marginRight - borderLeft - borderRight - paddingLeft - paddingRight;
+                // Для flex-элемента 'auto' означает "естественную" ширину контента.
+                // Передаем null в wrapWidth, чтобы текст не переносился и мы измерили его полную длину.
+                contentWidth = CalculateNaturalSize(element, defaultFont, null).width;
             }
-            else // Иначе измеряем "естественную" ширину
+            else
             {
-                contentWidth = CalculateNaturalSize(element, defaultFont).width;
+                // Для обычного блочного элемента 'auto' означает "занять всю доступную ширину".
+                contentWidth = availableWidth - pLeft - pRight - bLeft - bRight;
             }
         }
-        else // Если ширина задана явно (px или %)
-        {
-            float totalWidth = widthVal.ToPx(containingBlock.Width);
-            contentWidth = isBorderBox ? (totalWidth - borderLeft - borderRight - paddingLeft - paddingRight) : totalWidth;
-        }
+        // --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
 
-        // --- Определяем высоту ---
-        if (heightVal.Unit == Unit.Auto)
+        float contentHeight = ResolveSize(heightVal, availableHeight, pTop + pBottom + bTop + bBottom) ?? 0;
+
+        contentWidth = Math.Max(0, contentWidth);
+
+        if (element.ComputedStyle.GetValueOrDefault("display") == "flex")
         {
-            // Если родитель дал нам конечную высоту (как при align-self: stretch), мы её используем
-            if (containingBlock.Height < float.PositiveInfinity)
-            {
-                contentHeight = containingBlock.Height - marginTop - marginBottom - borderTop - borderBottom - paddingTop - paddingBottom;
-            }
-            else // Иначе измеряем "естественную" высоту
+            // NOTE: elementBox для flex-контейнера - это его border-box.
+            // Ширина уже включает padding и border, поэтому передаем `contentWidth + pLeft + pRight + bLeft + bRight`
+            var borderBoxWidth = contentWidth + pLeft + pRight + bLeft + bRight;
+            var borderBoxHeight = contentHeight + pTop + pBottom + bTop + bBottom;
+            RunFlexLayout(element, new Rectangle(finalX, finalY, borderBoxWidth, borderBoxHeight), defaultFont);
+        }
+        else
+        {
+            if (heightVal.Unit == Unit.Auto)
             {
                 contentHeight = CalculateNaturalSize(element, defaultFont, contentWidth).height;
             }
-        }
-        else // Если высота задана явно (px или %)
-        {
-            float totalHeight = heightVal.ToPx(containingBlock.Height);
-            contentHeight = isBorderBox ? (totalHeight - borderTop - borderBottom - paddingTop - paddingBottom) : totalHeight;
-        }
-        
-        // Применяем min/max
-        var minWidth = ParseValue(style.GetValueOrDefault("min-width", "0px")).ToPx(containingBlock.Width);
-        contentWidth = Math.Max(contentWidth, minWidth);
-        var minHeight = ParseValue(style.GetValueOrDefault("min-height", "0px")).ToPx(containingBlock.Height);
-        contentHeight = Math.Max(contentHeight, minHeight);
-        
-        contentWidth = Math.Max(0, contentWidth);
-        contentHeight = Math.Max(0, contentHeight);
-        // =================================================================================
 
-        float finalX = containingBlock.X + marginLeft;
-        float finalY = containingBlock.Y + marginTop;
-
-        element.LayoutBox.ContentRect = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop, contentWidth, contentHeight);
-        RecalculateOuterRects(element, containingBlock);
-
-        if (display == "flex")
-        {
-            var flexItems = element.Children.Where(c => c.ComputedStyle.GetValueOrDefault("position", "static") == "static").ToList();
-            if (!flexItems.Any()) return;
-
-            var flexDirection = style.GetValueOrDefault("flex-direction", "row");
-            bool isRow = flexDirection.StartsWith("row");
-
-            foreach (var item in flexItems)
+            element.LayoutBox = new LayoutBox
             {
-                var unconstrainedBlock = new Rectangle(0, 0, isRow ? float.PositiveInfinity : contentWidth, isRow ? contentHeight : float.PositiveInfinity);
-                LayoutNode(item, unconstrainedBlock, defaultFont, LayoutContext.FlexItem);
-            }
-
-            if (isRow)
-            {
-                if (style.GetValueOrDefault("height", "auto") == "auto") contentHeight = flexItems.Any() ? flexItems.Max(item => item.LayoutBox.MarginRect.Height) : 0;
-            }
-            else 
-            {
-                if (style.GetValueOrDefault("height", "auto") == "auto") contentHeight = flexItems.Any() ? flexItems.Sum(item => item.LayoutBox.MarginRect.Height) : 0;
-            }
-            
-            element.LayoutBox.ContentRect = new Rectangle(element.LayoutBox.ContentRect.X, element.LayoutBox.ContentRect.Y, contentWidth, contentHeight);
+                ContentRect = new Rectangle(finalX + bLeft + pLeft, finalY + bTop + pTop, contentWidth, contentHeight)
+            };
             RecalculateOuterRects(element, containingBlock);
-
-            var baseSizes = new Dictionary<UIElement, float>();
-            float totalBaseSize = 0, totalFlexGrow = 0;
-            foreach (var item in flexItems)
-            {
-                var basisValue = ParseValue(item.ComputedStyle.GetValueOrDefault("flex-basis", "auto"));
-                float baseSize = basisValue.Unit != Unit.Auto ? basisValue.ToPx(isRow ? contentWidth : contentHeight) : (isRow ? item.LayoutBox.MarginRect.Width : item.LayoutBox.MarginRect.Height);
-                baseSizes[item] = baseSize;
-                totalBaseSize += baseSize;
-                totalFlexGrow += ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-grow", "0"));
-            }
-            float containerMainSize = isRow ? contentWidth : contentHeight;
-            float freeSpace = containerMainSize - totalBaseSize;
-            var finalSizes = new Dictionary<UIElement, float>(baseSizes);
-            if (freeSpace > 0 && totalFlexGrow > 0)
-            {
-                foreach (var item in flexItems)
-                {
-                    var grow = ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-grow", "0"));
-                    if (grow > 0) finalSizes[item] += (grow / totalFlexGrow) * freeSpace;
-                }
-            }
-            else if (freeSpace < 0)
-            {
-                float totalWeightedShrink = flexItems.Sum(item => ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-shrink", "1")) * baseSizes[item]);
-                if (totalWeightedShrink > 0)
-                {
-                    foreach (var item in flexItems)
-                    {
-                        var shrink = ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-shrink", "1"));
-                        if (shrink > 0) finalSizes[item] -= ((shrink * baseSizes[item]) / totalWeightedShrink) * Math.Abs(freeSpace);
-                    }
-                }
-            }
-            
-            var justifyContent = style.GetValueOrDefault("justify-content", "flex-start");
-            var alignItems = style.GetValueOrDefault("align-items", "stretch");
-            float actualFreeSpace = containerMainSize - finalSizes.Values.Sum();
-            float initialMainAxisOffset = 0;
-            if (actualFreeSpace > 0)
-            {
-                if (justifyContent == "center") initialMainAxisOffset = actualFreeSpace / 2;
-                else if (justifyContent == "flex-end") initialMainAxisOffset = actualFreeSpace;
-            }
-            float spaceBetween = (justifyContent == "space-between" && flexItems.Count > 1 && actualFreeSpace > 0) ? actualFreeSpace / (flexItems.Count - 1) : 0;
-            float currentMainAxisPos = initialMainAxisOffset;
-            
-            var childRects = new Dictionary<UIElement, Rectangle>();
-
-            foreach (var item in flexItems)
-            {
-                var (itemMarginL, itemMarginR, itemMarginT, itemMarginB) = ParseAllMargins(item.ComputedStyle, element.LayoutBox.ContentRect);
-                float finalMainSize = Math.Max(0, finalSizes[item]);
-                
-                float itemTotalWidth = isRow ? finalMainSize : item.LayoutBox.MarginRect.Width;
-                float itemTotalHeight = !isRow ? finalMainSize : item.LayoutBox.MarginRect.Height;
-                
-                var alignSelf = item.ComputedStyle.GetValueOrDefault("align-self", "auto");
-                var effectiveAlign = (alignSelf == "auto") ? alignItems : alignSelf;
-                float containerCrossSize = isRow ? contentHeight : contentWidth;
-                
-                if (effectiveAlign == "stretch" && (isRow ? item.ComputedStyle.GetValueOrDefault("height", "auto") == "auto" : item.ComputedStyle.GetValueOrDefault("width", "auto") == "auto"))
-                {
-                    if (isRow) itemTotalHeight = containerCrossSize;
-                    else itemTotalWidth = containerCrossSize;
-                }
-                
-                float crossAxisOffset = 0;
-                if (effectiveAlign == "center") crossAxisOffset = (containerCrossSize - (isRow ? itemTotalHeight : itemTotalWidth)) / 2;
-                else if (effectiveAlign == "flex-end") crossAxisOffset = containerCrossSize - (isRow ? itemTotalHeight : itemTotalWidth);
-                
-                float childX = element.LayoutBox.ContentRect.X + (isRow ? currentMainAxisPos : crossAxisOffset) ;
-                float childY = element.LayoutBox.ContentRect.Y + (isRow ? crossAxisOffset : currentMainAxisPos);
-                
-                childRects[item] = new Rectangle(childX, childY, itemTotalWidth, itemTotalHeight);
-
-                currentMainAxisPos += isRow ? finalMainSize : finalMainSize;
-                if (justifyContent == "space-between") currentMainAxisPos += spaceBetween;
-            }
-            
-            foreach (var item in flexItems)
-            {
-                LayoutNode(item, childRects[item], defaultFont, LayoutContext.Block);
-            }
         }
     }
 
-    // Упрощенная функция для измерения "естественных" размеров по контенту
-    private (float width, float height) CalculateNaturalSize(UIElement element, Font defaultFont, float? wrapWidth = null)
+    private void RunFlexLayout(UIElement element, Rectangle elementBox, Font defaultFont)
+    {
+        var (pLeft, pRight, pTop, pBottom) = ParseAllPaddings(element.ComputedStyle, elementBox);
+        var (bLeft, bRight, bTop, bBottom) = ParseAllBorders(element.ComputedStyle, elementBox);
+
+        // Content area of the flex container
+        float contentWidth = elementBox.Width - pLeft - pRight - bLeft - bRight;
+        float contentHeight = 0; // Will be determined
+
+        var flexItems = element.Children.Where(c => c.ComputedStyle.GetValueOrDefault("position", "static") == "static")
+            .ToList();
+        if (!flexItems.Any())
+        {
+            element.LayoutBox = new LayoutBox
+            {
+                ContentRect = new Rectangle(elementBox.X + bLeft + pLeft, elementBox.Y + bTop + pTop, contentWidth,
+                    contentHeight)
+            };
+            RecalculateOuterRects(element, new Rectangle(0, 0, elementBox.Width, elementBox.Height));
+            return;
+        }
+
+        bool isRow = this.isRow(element);
+
+        // --- Шаг 1: Измерение детей ---
+        foreach (var item in flexItems)
+        {
+            LayoutNode(item, new Rectangle(0, 0, isRow ? float.PositiveInfinity : contentWidth, float.PositiveInfinity),
+                defaultFont, LayoutContext.FlexItem);
+        }
+
+        // --- Шаг 2: Расчёт размеров контейнера (если auto) ---
+        if (ParseValue(element.ComputedStyle.GetValueOrDefault("height", "auto")).Unit == Unit.Auto)
+        {
+            contentHeight = isRow
+                ? (flexItems.Any() ? flexItems.Max(i => i.LayoutBox.MarginRect.Height) : 0)
+                : flexItems.Sum(i => i.LayoutBox.MarginRect.Height);
+        }
+        else
+        {
+            contentHeight = elementBox.Height - pTop - pBottom - bTop - bBottom;
+        }
+
+        // --- Шаг 3: Распределение пространства (Flexing) ---
+        var baseSizes = new Dictionary<UIElement, float>();
+        float totalBaseSize = 0, totalFlexGrow = 0;
+        float mainSize = isRow ? contentWidth : contentHeight;
+
+        foreach (var item in flexItems)
+        {
+            var basis = ParseValue(item.ComputedStyle.GetValueOrDefault("flex-basis", "auto"));
+            // Если flex-basis: auto, то используется размер из 'измерительного' прохода
+            float baseSize = basis.Unit == Unit.Auto
+                ? (isRow ? item.LayoutBox.MarginRect.Width : item.LayoutBox.MarginRect.Height)
+                : basis.ToPx(mainSize);
+            baseSizes[item] = baseSize;
+            totalBaseSize += baseSize;
+            totalFlexGrow += ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-grow", "0"));
+        }
+
+        float freeSpace = mainSize - totalBaseSize;
+        var finalSizes = new Dictionary<UIElement, float>(baseSizes);
+
+        if (freeSpace > 0 && totalFlexGrow > 0)
+        {
+            foreach (var item in flexItems)
+                finalSizes[item] +=
+                    (ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-grow", "0")) / totalFlexGrow) * freeSpace;
+        }
+        else if (freeSpace < 0)
+        {
+            float totalWeightedShrink = flexItems.Sum(item =>
+                ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-shrink", "1")) * baseSizes[item]);
+            if (totalWeightedShrink > 0)
+            {
+                foreach (var item in flexItems)
+                    finalSizes[item] -=
+                        ((ParseFloat(item.ComputedStyle.GetValueOrDefault("flex-shrink", "1")) * baseSizes[item]) /
+                         totalWeightedShrink) * Math.Abs(freeSpace);
+            }
+        }
+
+        // --- Шаг 4 и 5: Финальная компоновка, выравнивание и рекурсия ---
+        element.LayoutBox = new LayoutBox
+        {
+            ContentRect = new Rectangle(elementBox.X + bLeft + pLeft, elementBox.Y + bTop + pTop, contentWidth,
+                contentHeight)
+        };
+        RecalculateOuterRects(element, new Rectangle(0, 0, elementBox.Width, elementBox.Height));
+
+        var justifyContent = element.ComputedStyle.GetValueOrDefault("justify-content", "flex-start");
+        float actualFreeSpace = mainSize - finalSizes.Values.Sum();
+        float initialOffset = actualFreeSpace > 0
+            ? (justifyContent == "center" ? actualFreeSpace / 2 : (justifyContent == "flex-end" ? actualFreeSpace : 0))
+            : 0;
+        float spaceBetween = (justifyContent == "space-between" && flexItems.Count > 1 && actualFreeSpace > 0)
+            ? actualFreeSpace / (flexItems.Count - 1)
+            : 0;
+
+        float currentMainPos = initialOffset;
+        foreach (var item in flexItems)
+        {
+            float finalMainSize = Math.Max(0, finalSizes[item]);
+
+            var alignItems = element.ComputedStyle.GetValueOrDefault("align-items", "stretch");
+            var alignSelf = item.ComputedStyle.GetValueOrDefault("align-self", "auto");
+            var effectiveAlign = (alignSelf == "auto") ? alignItems : alignSelf;
+
+            float crossSize = isRow ? contentHeight : contentWidth;
+            float itemTotalCrossSize;
+
+            if (isRow)
+            {
+                var (imL, imR, imT, imB) = ParseAllMargins(item.ComputedStyle, element.LayoutBox.ContentRect);
+                var (ibL, ibR, ibT, ibB) = ParseAllBorders(item.ComputedStyle, element.LayoutBox.ContentRect);
+                var (ipL, ipR, ipT, ipB) = ParseAllPaddings(item.ComputedStyle, element.LayoutBox.ContentRect);
+                // Ширина для расчета высоты текста - это финальная ширина ОСНОВНОЙ оси минус горизонтальные отступы/границы/паддинги
+                float itemContentWidth = finalMainSize - imL - imR - ibL - ibR - ipL - ipR;
+                var naturalHeight = CalculateNaturalSize(item, defaultFont, itemContentWidth).height;
+                itemTotalCrossSize = naturalHeight + ipT + ipB + ibT + ibB + imT + imB;
+            }
+            else
+            {
+                itemTotalCrossSize = item.LayoutBox.MarginRect.Width;
+            }
+
+            if (effectiveAlign == "stretch" &&
+                ParseValue(item.ComputedStyle.GetValueOrDefault(isRow ? "height" : "width", "auto")).Unit == Unit.Auto)
+            {
+                itemTotalCrossSize = crossSize;
+            }
+
+            float crossOffset = 0;
+            if (effectiveAlign == "center") crossOffset = (crossSize - itemTotalCrossSize) / 2;
+            else if (effectiveAlign == "flex-end") crossOffset = crossSize - itemTotalCrossSize;
+
+            float childX = element.LayoutBox.ContentRect.X + (isRow ? currentMainPos : crossOffset);
+            float childY = element.LayoutBox.ContentRect.Y + (isRow ? crossOffset : currentMainPos);
+
+            var finalRect = new Rectangle(childX, childY, isRow ? finalMainSize : itemTotalCrossSize,
+                isRow ? itemTotalCrossSize : finalMainSize);
+
+            var (imL_final, imR_final, imT_final, imB_final) =
+                ParseAllMargins(item.ComputedStyle, element.LayoutBox.ContentRect);
+            var (ipL_final, ipR_final, ipT_final, ipB_final) =
+                ParseAllPaddings(item.ComputedStyle, element.LayoutBox.ContentRect);
+            var (ibL_final, ibR_final, ibT_final, ibB_final) =
+                ParseAllBorders(item.ComputedStyle, element.LayoutBox.ContentRect);
+
+            item.LayoutBox = new LayoutBox
+            {
+                MarginRect = finalRect
+            };
+
+            item.LayoutBox.BorderRect = new Rectangle(
+                finalRect.X + imL_final,
+                finalRect.Y + imT_final,
+                Math.Max(0, finalRect.Width - imL_final - imR_final),
+                Math.Max(0, finalRect.Height - imT_final - imB_final)
+            );
+
+            item.LayoutBox.PaddingRect = new Rectangle(
+                item.LayoutBox.BorderRect.X + ibL_final,
+                item.LayoutBox.BorderRect.Y + ibT_final,
+                Math.Max(0, item.LayoutBox.BorderRect.Width - ibL_final - ibR_final),
+                Math.Max(0, item.LayoutBox.BorderRect.Height - ibT_final - ibB_final)
+            );
+
+            item.LayoutBox.ContentRect = new Rectangle(
+                item.LayoutBox.PaddingRect.X + ipL_final,
+                item.LayoutBox.PaddingRect.Y + ipT_final,
+                Math.Max(0, item.LayoutBox.PaddingRect.Width - ipL_final - ipR_final),
+                Math.Max(0, item.LayoutBox.PaddingRect.Height - ipT_final - ipB_final)
+            );
+
+            if (item.Children.Any())
+            {
+                if (item.ComputedStyle.GetValueOrDefault("display") == "flex")
+                {
+                    RunFlexLayout(item, item.LayoutBox.BorderRect, defaultFont);
+                }
+                else
+                {
+                    CalculateNaturalSize(item, defaultFont, item.LayoutBox.ContentRect.Width);
+                }
+            }
+            else if (!string.IsNullOrEmpty(item.Text))
+            {
+                CalculateNaturalSize(item, defaultFont, item.LayoutBox.ContentRect.Width);
+            }
+
+            currentMainPos += finalMainSize + spaceBetween;
+        }
+    }
+
+    private (float width, float height) CalculateNaturalSize(UIElement element, Font defaultFont,
+        float? wrapWidth = null)
     {
         var style = element.ComputedStyle;
-        float naturalWidth = 0;
-        float naturalHeight = 0;
 
+        float textWidth = 0, textHeight = 0;
         if (!string.IsNullOrEmpty(element.Text))
         {
             var fontSize = ParseValue(style.GetValueOrDefault("font-size", "16")).ToPx(0);
             WrapText(element, wrapWidth ?? float.PositiveInfinity, defaultFont, fontSize);
             if (element.WrappedTextLines.Any())
             {
-                naturalWidth = element.WrappedTextLines.Max(line => Raylib.MeasureTextEx(defaultFont, line, fontSize, 1).X);
-                var lineHeight = ParseValue(style.GetValueOrDefault("line-height", "auto")).ToPx(fontSize, fontSize * 1.2f);
-                naturalHeight = element.WrappedTextLines.Count * lineHeight;
+                textWidth = element.WrappedTextLines.Max(line =>
+                    Raylib.MeasureTextEx(defaultFont, line, fontSize, 1).X);
+                var lineHeight = ParseValue(style.GetValueOrDefault("line-height", "auto"))
+                    .ToPx(fontSize, fontSize * 1.2f);
+                textHeight = element.WrappedTextLines.Count * lineHeight;
             }
         }
-        return (naturalWidth, naturalHeight);
+
+        return (textWidth, textHeight);
     }
-    
+
+    private float? ResolveSize(StyleValue val, float baseValue, float borderAndPadding)
+    {
+        if (val.Unit == Unit.Auto) return null;
+        return val.ToPx(baseValue);
+    }
+
+    #region Unchanged Helper Methods
+
+    private bool isRow(UIElement element) =>
+        element.ComputedStyle.GetValueOrDefault("flex-direction", "row").StartsWith("row");
+
     private void RecalculateOuterRects(UIElement element, Rectangle parentContentBox)
     {
-        var style = element.ComputedStyle;
-        var (marginLeft, marginRight, marginTop, marginBottom) = ParseAllMargins(style, parentContentBox);
-        var (paddingLeft, paddingRight, paddingTop, paddingBottom) = ParseAllPaddings(style, parentContentBox);
-        var (borderLeft, borderRight, borderTop, borderBottom) = ParseAllBorders(style, parentContentBox);
-        
-        element.LayoutBox.PaddingRect = element.LayoutBox.ContentRect.Inflate(paddingLeft, paddingTop, paddingRight, paddingBottom);
-        element.LayoutBox.BorderRect = element.LayoutBox.PaddingRect.Inflate(borderLeft, borderTop, borderRight, borderBottom);
-        element.LayoutBox.MarginRect = element.LayoutBox.BorderRect.Inflate(marginLeft, marginTop, marginRight, marginBottom);
+        var (marginLeft, marginRight, marginTop, marginBottom) =
+            ParseAllMargins(element.ComputedStyle, parentContentBox);
+        var (paddingLeft, paddingRight, paddingTop, paddingBottom) =
+            ParseAllPaddings(element.ComputedStyle, parentContentBox);
+        var (borderLeft, borderRight, borderTop, borderBottom) =
+            ParseAllBorders(element.ComputedStyle, parentContentBox);
+
+        element.LayoutBox.PaddingRect =
+            element.LayoutBox.ContentRect.Inflate(paddingLeft, paddingTop, paddingRight, paddingBottom);
+        element.LayoutBox.BorderRect =
+            element.LayoutBox.PaddingRect.Inflate(borderLeft, borderTop, borderRight, borderBottom);
+        element.LayoutBox.MarginRect =
+            element.LayoutBox.BorderRect.Inflate(marginLeft, marginTop, marginRight, marginBottom);
     }
-    
-    // ... (остальные вспомогательные методы без изменений)
-    #region Unchanged Helper Methods
+
     private UIElement FindOffsetParent(UIElement element)
     {
         var parent = element.Parent;
@@ -270,17 +367,30 @@ public class LayoutEngine
             if (position is "relative" or "absolute" or "fixed") return parent;
             parent = parent.Parent;
         }
+
         return null;
     }
-    
+
     private StyleValue ParseValue(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return StyleValue.Px(0);
         value = value.Trim();
         if (value == "auto") return StyleValue.Auto;
-        if (value.EndsWith("px")) return StyleValue.Px(float.Parse(value[..^2]));
-        if (value.EndsWith("%")) return StyleValue.Percent(float.Parse(value[..^1]));
-        return float.TryParse(value, out float num) ? StyleValue.Px(num) : StyleValue.Px(0);
+        if (value.EndsWith("px"))
+        {
+            if (float.TryParse(value[..^2], NumberStyles.Any, CultureInfo.InvariantCulture, out float pxVal))
+                return StyleValue.Px(pxVal);
+        }
+
+        if (value.EndsWith("%"))
+        {
+            if (float.TryParse(value[..^1], NumberStyles.Any, CultureInfo.InvariantCulture, out float percentVal))
+                return StyleValue.Percent(percentVal);
+        }
+
+        if (float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out float numVal))
+            return StyleValue.Px(numVal);
+        return StyleValue.Px(0);
     }
 
     private Edges ParseEdges(string value)
@@ -301,69 +411,72 @@ public class LayoutEngine
     {
         if (string.IsNullOrWhiteSpace(value)) return defaultValue;
         value = value.Replace("px", "").Trim();
-        return float.TryParse(value, out float result) ? result : defaultValue;
+        return float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out float result)
+            ? result
+            : defaultValue;
     }
 
-    private (float, float, float, float) ParseAllMargins(Dictionary<string, string> style, Rectangle containingBlock)
-    {
-        var margin = ParseEdges(style.GetValueOrDefault("margin", "0"));
-        return (margin.Left.ToPx(containingBlock.Width), margin.Right.ToPx(containingBlock.Width), margin.Top.ToPx(containingBlock.Height), margin.Bottom.ToPx(containingBlock.Height));
-    }
+    private (float, float, float, float) ParseAllMargins(Dictionary<string, string> style, Rectangle c) => (
+        ParseEdges(style.GetValueOrDefault("margin", "0")).Left.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("margin", "0")).Right.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("margin", "0")).Top.ToPx(c.Height),
+        ParseEdges(style.GetValueOrDefault("margin", "0")).Bottom.ToPx(c.Height));
 
-    private (float, float, float, float) ParseAllPaddings(Dictionary<string, string> style, Rectangle containingBlock)
-    {
-        var padding = ParseEdges(style.GetValueOrDefault("padding", "0"));
-        return (padding.Left.ToPx(containingBlock.Width), padding.Right.ToPx(containingBlock.Width), padding.Top.ToPx(containingBlock.Height), padding.Bottom.ToPx(containingBlock.Height));
-    }
+    private (float, float, float, float) ParseAllPaddings(Dictionary<string, string> style, Rectangle c) => (
+        ParseEdges(style.GetValueOrDefault("padding", "0")).Left.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("padding", "0")).Right.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("padding", "0")).Top.ToPx(c.Height),
+        ParseEdges(style.GetValueOrDefault("padding", "0")).Bottom.ToPx(c.Height));
 
-    private (float, float, float, float) ParseAllBorders(Dictionary<string, string> style, Rectangle containingBlock)
+    private (float, float, float, float) ParseAllBorders(Dictionary<string, string> style, Rectangle c) => (
+        ParseEdges(style.GetValueOrDefault("border-width", "0")).Left.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("border-width", "0")).Right.ToPx(c.Width),
+        ParseEdges(style.GetValueOrDefault("border-width", "0")).Top.ToPx(c.Height),
+        ParseEdges(style.GetValueOrDefault("border-width", "0")).Bottom.ToPx(c.Height));
+
+    private void WrapText(UIElement e, float maxWidth, Font font, float fontSize)
     {
-        var border = ParseEdges(style.GetValueOrDefault("border-width", "0"));
-        return (border.Left.ToPx(containingBlock.Width), border.Right.ToPx(containingBlock.Width), border.Top.ToPx(containingBlock.Height), border.Bottom.ToPx(containingBlock.Height));
-    }
-    
-    private void WrapText(UIElement element, float maxWidth, Font font, float fontSize)
-    {
-        element.WrappedTextLines.Clear();
-        if (string.IsNullOrEmpty(element.Text)) return;
+        e.WrappedTextLines.Clear();
+        if (string.IsNullOrEmpty(e.Text)) return;
         if (maxWidth <= 0) maxWidth = float.MaxValue;
-        
-        var words = element.Text.Split(' ');
-        var currentLine = new StringBuilder();
+        var words = e.Text.Split(' ');
+        var line = new StringBuilder();
         foreach (var word in words)
         {
-            var testLine = currentLine.Length > 0 ? currentLine + " " + word : word;
-            if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth && currentLine.Length > 0)
+            var testLine = line.Length > 0 ? line + " " + word : word;
+            if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth && line.Length > 0)
             {
-                element.WrappedTextLines.Add(currentLine.ToString());
-                currentLine.Clear().Append(word);
+                e.WrappedTextLines.Add(line.ToString());
+                line.Clear().Append(word);
             }
             else
             {
-                if (currentLine.Length > 0) currentLine.Append(' ');
-                currentLine.Append(word);
+                if (line.Length > 0) line.Append(' ');
+                line.Append(word);
             }
         }
-        if (currentLine.Length > 0) element.WrappedTextLines.Add(currentLine.ToString());
+
+        if (line.Length > 0) e.WrappedTextLines.Add(line.ToString());
     }
+
     #endregion
 }
 
-#region Extension Classes
+#region Extension Classes and Structs
+
 public static class StyleValueExtensions
 {
-    public static float ToPx(this StyleValue val, float baseValue, float defaultValue = 0f)
+    public static float ToPx(this StyleValue val, float baseValue, float defaultValue = 0f) => val.Unit switch
     {
-        if (val.Unit == Unit.Auto || (val.Unit == Unit.Percent && float.IsInfinity(baseValue)))
-        {
-            return defaultValue;
-        }
-        return val.Unit == Unit.Percent ? (val.Value / 100f) * baseValue : val.Value;
-    }
+        Unit.Auto => defaultValue, Unit.Percent when float.IsInfinity(baseValue) => defaultValue,
+        Unit.Percent => (val.Value / 100f) * baseValue, _ => val.Value
+    };
 }
 
 public static class RectangleExtensions
 {
-    public static Rectangle Inflate(this Rectangle rect, float left, float top, float right, float bottom) => new(rect.X - left, rect.Y - top, rect.Width + left + right, rect.Height + top + bottom);
+    public static Rectangle Inflate(this Rectangle rect, float left, float top, float right, float bottom) =>
+        new(rect.X - left, rect.Y - top, rect.Width + left + right, rect.Height + top + bottom);
 }
+
 #endregion
