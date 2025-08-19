@@ -85,8 +85,6 @@ public static class Input
         _keys.Clear();
         _chars.Clear();
         
-        
-        
         while (true)
         {
             var key = (KeyboardKey)Raylib.GetKeyPressed();

@@ -57,18 +57,27 @@ public class StyleComputer
         }
     }
 
-    // *** КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ***
-    // Проверка на тег удалена.
     private bool DoesSelectorMatch(Selector selector, UIElement element)
     {
-        var s = selector.Raw;
-        if (s.StartsWith("#"))
+        var rawSelector = selector.Raw;
+        bool requiresHover = rawSelector.Contains(":hover");
+    
+        // Если селектор требует :hover, а элемент не в этом состоянии, сразу выходим
+        if (requiresHover && !element.IsHovered)
         {
-            return element.Id == s.Substring(1);
+            return false;
         }
-        if (s.StartsWith("."))
+
+        // Убираем псевдо-класс для основной проверки по ID/классу
+        string baseSelector = rawSelector.Replace(":hover", "");
+
+        if (baseSelector.StartsWith("#"))
         {
-            return element.Classes.Contains(s.Substring(1));
+            return element.Id == baseSelector.Substring(1);
+        }
+        if (baseSelector.StartsWith("."))
+        {
+            return element.Classes.Contains(baseSelector.Substring(1));
         }
         return false;
     }

@@ -14,6 +14,12 @@ public class UIElement
 
     public Dictionary<string, string> ComputedStyle { get; set; } = new();
     public LayoutBox LayoutBox { get; set; } = new();
+    
+    public bool IsHovered { get; internal set; }
+    
+    internal IReadOnlyList<IManipulator> Manipulators => _manipulators;
+    
+    private readonly List<IManipulator> _manipulators = new List<IManipulator>();
 
     public UIElement(string id = "")
     {
@@ -24,5 +30,11 @@ public class UIElement
     {
         Children.Add(child);
         child.Parent = this;
+    }
+    
+    public void AddManipulator(IManipulator manipulator)
+    {
+        _manipulators.Add(manipulator);
+        manipulator.Target = this;
     }
 }

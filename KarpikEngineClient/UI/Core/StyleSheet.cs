@@ -103,6 +103,14 @@ public class StyleSheet
                 ["flex-shrink"] = "0"
             }
         });
+        _default.Rules.Add(new StyleRule(new Selector(".label:hover"))
+        {
+            Properties =
+            {
+                ["background-color"] = "darkblue",
+                ["color"] = "red",
+            }
+        });
         _default.Rules.Add(new StyleRule(new Selector(".test-item"))
         {
             Properties =

@@ -4,6 +4,6 @@ public class InputUpdateSystem : IEcsRun
 {
     public void Run()
     {
-        //Input.Update();
+        // Input.Update();
     }
 }

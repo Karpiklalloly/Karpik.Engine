@@ -3,31 +3,40 @@
 public class Selector : IComparable<Selector>
 {
     public string Raw { get; }
-    public (int Ids, int Classes) Specificity { get; }
+    // Специфичность теперь (IDs, Classes, PseudoClasses)
+    public (int Ids, int Classes, int PseudoClasses) Specificity { get; }
 
     public Selector(string raw)
     {
-        if (string.IsNullOrWhiteSpace(raw) || !(raw.StartsWith('.') || raw.StartsWith('#')))
+        if (string.IsNullOrWhiteSpace(raw))
         {
-            throw new ArgumentException("Selector must start with '.' for a class or '#' for an ID.");
+            throw new ArgumentException("Selector cannot be empty.");
         }
         Raw = raw;
         Specificity = CalculateSpecificity(raw);
     }
     
-    private static (int, int) CalculateSpecificity(string s)
+    private static (int, int, int) CalculateSpecificity(string s)
     {
-        if (s.StartsWith('#')) return (1, 0);
-        if (s.StartsWith('.')) return (0, 1);
-        return (0, 0); // Недостижимо из-за проверки в конструкторе
+        int ids = 0;
+        int classes = 0;
+        int pseudoClasses = 0;
+
+        // Простое разделение для примера. Более сложный парсер мог бы обрабатывать комбинации.
+        if (s.Contains(':')) pseudoClasses++;
+        if (s.StartsWith('#')) ids++;
+        else if (s.StartsWith('.')) classes++;
+        
+        return (ids, classes, pseudoClasses);
     }
 
-    // Сравнение стало проще
     public int CompareTo(Selector? other)
     {
         if (other is null) return 1;
         if (Specificity.Ids != other.Specificity.Ids) 
             return Specificity.Ids.CompareTo(other.Specificity.Ids);
-        return Specificity.Classes.CompareTo(other.Specificity.Classes);
+        if (Specificity.Classes != other.Specificity.Classes)
+            return Specificity.Classes.CompareTo(other.Specificity.Classes);
+        return Specificity.PseudoClasses.CompareTo(other.Specificity.PseudoClasses);
     }
 }
