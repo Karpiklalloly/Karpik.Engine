@@ -203,53 +203,75 @@ public class Client
     {
         var root = new UIElement("root") { Classes = { "root-container" } };
 
-        // --- 1. GROW TEST CONTAINER ---
+        // --- 1. ХЕДЕР И ВЫПАДАЮЩЕЕ МЕНЮ ---
+        var header = new UIElement { Classes = { "header" } };
+
+        var homeLink = new UIElement { Classes = { "menu-item" }, Text = "Home" };
+
+        // Создаем пункт меню, который будет открывать dropdown
+        var fileMenuItem = new UIElement { Classes = { "menu-item" }, Text = "File" };
+
+        // Создаем саму панель dropdown
+        var dropdownPanel = new UIElement("file-dropdown") { Classes = { "dropdown-panel" } };
+        dropdownPanel.AddChild(new UIElement { Classes = { "dropdown-item" }, Text = "New" });
+        dropdownPanel.AddChild(new UIElement { Classes = { "dropdown-item" }, Text = "Open" });
+        dropdownPanel.AddChild(new UIElement { Classes = { "dropdown-item" }, Text = "Save" });
+
+        // Добавляем панель как дочерний элемент к пункту меню
+        fileMenuItem.AddChild(dropdownPanel);
+        // И прикрепляем манипулятор, который будет ею управлять
+        fileMenuItem.AddManipulator(new DropdownManipulator("file-dropdown"));
+
+        var aboutLink = new UIElement { Classes = { "menu-item" }, Text = "About" };
+
+        header.AddChild(homeLink);
+        header.AddChild(fileMenuItem);
+        header.AddChild(aboutLink);
+
+        // --- 2. ОСНОВНОЙ КОНТЕНТ (старые тесты) ---
+        var mainContent = new UIElement { Classes = { "main-content" } };
+
+        // --- GROW TEST ---
         var growContainer = new UIElement { Classes = { "test-container", "grow-container" } };
-        var label1 = new UIElement { Classes = { "label" }, Text = "Grow Test (flex-grow):" };
-        var growItem1 = new UIElement { Classes = { "test-item", "no-grow" }, Text = "Basis: 150px" };
-        var growItem2 = new UIElement { Classes = { "test-item", "grows-1" }, Text = "Grow: 1" };
-        var growItem3 = new UIElement { Classes = { "test-item", "grows-2" }, Text = "Grow: 2" };
+        growContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Grow Test:" });
+        growContainer.AddChild(new UIElement { Classes = { "test-item", "no-grow" }, Text = "Basis: 150px" });
+        growContainer.AddChild(new UIElement { Classes = { "test-item", "grows-1" }, Text = "Grow: 1" });
+        growContainer.AddChild(new UIElement { Classes = { "test-item", "grows-2" }, Text = "Grow: 2" });
 
-        label1.AddManipulator(new TestManipulator());
-        
-        growContainer.AddChild(label1);
-        growContainer.AddChild(growItem1);
-        growContainer.AddChild(growItem2);
-        growContainer.AddChild(growItem3);
-
-        // --- 2. SHRINK TEST CONTAINER ---
+        // --- SHRINK TEST ---
         var shrinkContainer = new UIElement { Classes = { "test-container", "shrink-container" } };
-        var label2 = new UIElement { Classes = { "label" }, Text = "Shrink Test (flex-shrink):" };
-        var shrinkItem1 = new UIElement { Classes = { "test-item", "shrinks-1" }, Text = "Basis: 400, Shrink: 1" };
-        var shrinkItem2 = new UIElement { Classes = { "test-item", "shrinks-2" }, Text = "Basis: 200, Shrink: 2" };
-        var shrinkItem3 = new UIElement { Classes = { "test-item", "no-shrink" }, Text = "NO SHRINK" };
+        shrinkContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Shrink Test:" });
+        shrinkContainer.AddChild(new UIElement
+            { Classes = { "test-item", "shrinks-1" }, Text = "Basis: 400, Shrink: 1" });
+        shrinkContainer.AddChild(new UIElement
+            { Classes = { "test-item", "shrinks-2" }, Text = "Basis: 200, Shrink: 2" });
+        shrinkContainer.AddChild(new UIElement { Classes = { "test-item", "no-shrink" }, Text = "NO SHRINK" });
 
-        label2.AddManipulator(new TestManipulator());
-        
-        shrinkContainer.AddChild(label2);
-        shrinkContainer.AddChild(shrinkItem1);
-        shrinkContainer.AddChild(shrinkItem2);
-        shrinkContainer.AddChild(shrinkItem3);
-
-        // --- 3. ALIGNMENT TEST CONTAINER ---
+        // --- ALIGNMENT TEST И ТЕСТ ABSOLUTE ---
         var alignContainer = new UIElement { Classes = { "test-container", "align-container" } };
-        var label3 = new UIElement { Classes = { "label" }, Text = "Alignment Test (align-self):" };
-        var alignItem1 = new UIElement { Classes = { "test-item", "align-center" }, Text = "Default (Center)" };
-        var alignItem2 = new UIElement { Classes = { "test-item", "align-start" }, Text = "Self: Start" };
-        var alignItem3 = new UIElement { Classes = { "test-item", "align-end" }, Text = "Self: End" };
-        var alignItem4 = new UIElement { Classes = { "test-item", "align-stretch" }, Text = "Self: Stretch" };
+        alignContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Alignment & Absolute Test:" });
+        alignContainer.AddChild(new UIElement { Classes = { "test-item", "align-center" }, Text = "Self: Center" });
+        alignContainer.AddChild(new UIElement { Classes = { "test-item", "align-start" }, Text = "Self: Start" });
 
-        label3.AddManipulator(new TestManipulator());
-        
-        alignContainer.AddChild(label3);
-        alignContainer.AddChild(alignItem1);
-        alignContainer.AddChild(alignItem2);
-        alignContainer.AddChild(alignItem3);
-        alignContainer.AddChild(alignItem4);
+        // Создаем родительский элемент для значка
+        var relativeParent = new UIElement { Classes = { "relative-parent" }, Text = "Relative Parent" };
+        var notificationBadge = new UIElement { Classes = { "notification-badge" }, Text = "3" };
+        relativeParent.AddChild(notificationBadge);
 
-        root.AddChild(growContainer);
-        root.AddChild(shrinkContainer);
-        root.AddChild(alignContainer);
+        // Добавляем этот элемент в сетку align-теста
+        var stretchItem = new UIElement { Classes = { "test-item", "align-stretch" } }; // Без текста, чтобы не мешал
+        stretchItem.AddChild(relativeParent); // Вкладываем relative-parent внутрь
+
+        alignContainer.AddChild(stretchItem);
+
+        // Добавляем все тестовые контейнеры в mainContent
+        mainContent.AddChild(growContainer);
+        mainContent.AddChild(shrinkContainer);
+        mainContent.AddChild(alignContainer);
+
+        // --- 3. СБОРКА ИЕРАРХИИ ---
+        root.AddChild(header);
+        root.AddChild(mainContent);
 
         return root;
     }

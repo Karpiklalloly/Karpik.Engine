@@ -191,7 +191,7 @@ public class StyleSheet
             Properties =
             {
                 ["flex-basis"] = "200px",
-                ["flex-shrink"] = "0", 
+                ["flex-shrink"] = "0",
                 ["background-color"] = "lightyellow"
             }
         });
@@ -219,8 +219,8 @@ public class StyleSheet
         {
             Properties =
             {
-                ["height"] = "60px", 
-                ["align-self"] = "flex-start", 
+                ["height"] = "60px",
+                ["align-self"] = "flex-start",
                 ["background-color"] = "lightgreen"
             }
         });
@@ -228,7 +228,7 @@ public class StyleSheet
         {
             Properties =
             {
-                ["height"] = "80px", 
+                ["height"] = "80px",
                 ["align-self"] = "flex-end",
                 ["background-color"] = "lightyellow"
             }
@@ -237,10 +237,116 @@ public class StyleSheet
         {
             Properties =
             {
-                ["height"] = "auto", 
-                ["align-self"] = "stretch", 
+                ["height"] = "auto",
+                ["align-self"] = "stretch",
                 ["background-color"] = "red"
             }
         }); // height: auto важно для stretch
+
+        _default.Rules.Add(new StyleRule(new Selector(".header"))
+        {
+            Properties =
+            {
+                ["position"] = "fixed",
+                ["top"] = "0",
+                ["left"] = "0",
+                ["width"] = "100%",
+                ["height"] = "40px",
+                ["background-color"] = "black",
+                ["color"] = "white",
+                ["padding"] = "10px",
+                ["display"] = "flex",
+                ["flex-direction"] = "row",
+                ["z-index"] = "100"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".main-content"))
+        {
+            Properties =
+            {
+                // Отступ, чтобы контент не уезжал под фиксированный хедер
+                ["padding-top"] = "60px"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".menu-item"))
+        {
+            Properties =
+            {
+                ["position"] = "relative", // Важно для позиционирования дочернего dropdown
+                ["padding"] = "5px 10px",
+                ["margin-right"] = "10px",
+                ["font-size"] = "18"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".menu-item:hover"))
+        {
+            Properties =
+            {
+                ["background-color"] = "darkblue"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".dropdown-panel"))
+        {
+            Properties =
+            {
+                ["display"] = "none", // Скрыто по умолчанию
+                ["position"] = "absolute",
+                ["top"] = "100%",
+                ["left"] = "0",
+                ["width"] = "150px",
+                ["background-color"] = "white",
+                ["border-width"] = "1px",
+                ["border-color"] = "lightgray",
+                ["flex-direction"] = "column",
+                ["z-index"] = "101"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".dropdown-item"))
+        {
+            Properties =
+            {
+                ["padding"] = "10px",
+                ["color"] = "black",
+                ["font-size"] = "16"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".dropdown-item:hover"))
+        {
+            Properties =
+            {
+                ["background-color"] = "lightblue"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".relative-parent"))
+        {
+            Properties =
+            {
+                ["position"] = "relative", // Важно для позиционирования дочернего значка
+                ["background-color"] = "gray",
+                ["border-width"] = "2px",
+                ["border-color"] = "white",
+                ["height"] = "100%", // Растягивается на всю высоту ячейки
+                ["padding"] = "10px"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".notification-badge"))
+        {
+            Properties =
+            {
+                ["position"] = "absolute",
+                ["top"] = "-10px",
+                ["right"] = "-10px",
+                ["width"] = "25px",
+                ["height"] = "25px",
+                ["background-color"] = "red",
+                ["color"] = "white",
+                ["font-size"] = "14",
+                // border-radius пока не реализован, поэтому будет квадрат
+                // Центрирование текста через Flexbox:
+                ["display"] = "flex",
+                ["justify-content"] = "center",
+                ["align-items"] = "center"
+            }
+        });
     }
 }

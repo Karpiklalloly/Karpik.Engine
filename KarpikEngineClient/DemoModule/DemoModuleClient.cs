@@ -133,23 +133,31 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
 
     private void PrintUI(UIElement element, int indent = 0)
     {
-        string ind = new string(' ', indent * 2);
         var box = element.LayoutBox;
+        
         // ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
         var text =
-            $"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
+            $"<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
         // Console.WriteLine(text);
         if (ImGui.CollapsingHeader(text))
         {
-            foreach (var (key, value) in element.ComputedStyle)
+            if (ImGui.CollapsingHeader("style " + text))
             {
-                ImGui.Text($"\t{ind}{key}: {value}");
+                foreach (var (key, value) in element.ComputedStyle)
+                {
+                    ImGui.Text($"{key}: {value}");
+                }
+                
             }
+            ImGui.Indent(indent * 2);
+            foreach (var child in element.Children)
+            {
+                PrintUI(child, indent + 1);
+            }
+            ImGui.Indent(indent);
         }
-        foreach (var child in element.Children)
-        {
-            PrintUI(child, indent + 1);
-        }
+        
+        
     }
 
     public void Inject(ModManager obj)

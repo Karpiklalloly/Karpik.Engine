@@ -96,18 +96,52 @@ public class UIManager
         }
     }
     
+    // --- ФИНАЛЬНАЯ ВЕРСИЯ HITTEST: Рекурсивный обход с сортировкой по Z-Index ---
     private UIElement HitTest(UIElement element, Vector2 point)
     {
-        if (element.ComputedStyle.GetValueOrDefault("display") == "none") return null;
-        
-        for (int i = element.Children.Count - 1; i >= 0; i--)
+        if (element.ComputedStyle.GetValueOrDefault("display") == "none")
         {
-            var hit = HitTest(element.Children[i], point);
-            if (hit != null) return hit;
+            return null;
         }
+
+        // 1. Создаем список дочерних элементов для проверки.
+        var childrenToCheck = element.Children.ToList();
         
-        if (Raylib.CheckCollisionPointRec(point, element.LayoutBox.BorderRect)) return element;
-        
+        // 2. Сортируем детей по z-index. Элементы с большим z-index должны проверяться первыми.
+        childrenToCheck = childrenToCheck.OrderByDescending(c => GetZIndex(c)).ToList();
+
+        // 3. Проверяем детей в отсортированном порядке.
+        // Дети всегда проверяются ПЕРЕД родителем.
+        foreach (var child in childrenToCheck)
+        {
+            var hit = HitTest(child, point);
+            if (hit != null)
+            {
+                return hit; // Нашли в дочернем элементе, он выше
+            }
+        }
+
+        // 4. Если не нашли в дочерних, проверяем сам элемент.
+        if (Raylib.CheckCollisionPointRec(point, element.LayoutBox.BorderRect))
+        {
+            return element;
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// Вспомогательный метод для получения числового z-index из стиля.
+    /// </summary>
+    private int GetZIndex(UIElement element)
+    {
+        if (element.ComputedStyle.TryGetValue("z-index", out var zIndexStr))
+        {
+            if (int.TryParse(zIndexStr, out int zIndex))
+            {
+                return zIndex;
+            }
+        }
+        return 0; // z-index по умолчанию
     }
 }
