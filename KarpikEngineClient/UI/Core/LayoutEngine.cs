@@ -615,13 +615,18 @@ public class LayoutEngine
         e.WrappedTextLines.Clear();
         if (string.IsNullOrEmpty(e.Text)) return;
         if (maxWidth <= 0) return;
+        if (!float.IsInfinity(maxWidth))
+        {
+            maxWidth = MathF.Round(maxWidth, 6);
+        }
 
         var words = e.Text.Split(' ');
         var line = new StringBuilder();
         foreach (var word in words)
         {
             var testLine = line.Length > 0 ? line + " " + word : word;
-            if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth && line.Length > 0)
+            var m = Raylib.MeasureTextEx(font, testLine, fontSize, 1);
+            if (m.X > maxWidth + 0.0001f && line.Length > 0)
             {
                 e.WrappedTextLines.Add(line.ToString());
                 line.Clear().Append(word);

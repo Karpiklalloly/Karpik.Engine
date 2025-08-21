@@ -85,8 +85,8 @@ public class Client
                     + "▼" + "▶";
         int count = 0;
         var chars = Raylib.LoadCodepoints(codes, ref count);
-        // var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
-        // Console.WriteLine((bool)Raylib.IsFontValid(font));
+        var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
+        Console.WriteLine((bool)Raylib.IsFontValid(font));
         UIManager.Font = Raylib.GetFontDefault();
         //CreateNewUI();
 

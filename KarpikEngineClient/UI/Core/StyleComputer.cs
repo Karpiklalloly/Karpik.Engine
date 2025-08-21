@@ -16,7 +16,7 @@ namespace Karpik.Engine.Client.UIToolkit
         {
             { s.margin, [s.margin_top, s.margin_right, s.margin_bottom, s.margin_left] },
             { s.padding, [s.padding_top, s.padding_right, s.padding_bottom, s.padding_left] },
-            { s.border_width, [s.border_top_width, s.border_right_width, s.border_bottom_width, s.border_left_width] },
+            // { s.border_width, [s.border_top_width, s.border_right_width, s.border_bottom_width, s.border_left_width] },
             // Добавьте сюда другие shorthands по мере необходимости (например, border-color, border-style, font, border)
         };
 

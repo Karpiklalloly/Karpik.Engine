@@ -122,7 +122,7 @@ public class StyleSheet
                 ["flex-direction"] = "row",
                 ["margin"] = "10px",
                 ["padding"] = "10px",
-                ["border-width"] = "2px",
+                [border_width] = "2px",
                 [border_color] = "red",
             }
         });
@@ -135,7 +135,9 @@ public class StyleSheet
                 ["font-size"] = "22",
                 ["margin-right"] = "15px",
                 // Этот элемент не должен участвовать в flex-расчетах
-                ["flex-shrink"] = "0"
+                ["flex-shrink"] = "0",
+                [border_width] = "2px",
+                [border_color] = "red",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".label:hover"))

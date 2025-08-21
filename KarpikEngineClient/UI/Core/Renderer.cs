@@ -80,7 +80,8 @@ public class Renderer
         if (borderColor.A > 0)
         {
             var borderWidth = ParseFloat(style.GetValueOrDefault(s.border_width, "0"));
-            if (borderWidth > 0) Raylib.DrawRectangleLinesEx(box.BorderRect, borderWidth, borderColor);
+            if (borderWidth > 0)
+                Raylib.DrawRectangleLinesEx(box.BorderRect, borderWidth, borderColor);
         }
         
         if (element.WrappedTextLines.Any())
@@ -110,6 +111,7 @@ public class Renderer
                     box.ContentRect.Y + yOffset + (i * lineHeight)
                 );
             
+                var m = Raylib.MeasureTextEx(font, line, fontSize, 1);
                 Raylib.DrawTextEx(font, line, position, fontSize, 1, textColor);
             }
         }
