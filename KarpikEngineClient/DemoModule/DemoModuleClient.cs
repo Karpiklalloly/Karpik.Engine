@@ -133,31 +133,56 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
 
     private void PrintUI(UIElement element, int indent = 0)
     {
+        bool print = ImGui.Button("Print");
+        Print(element, indent, print);
+    }
+
+    private void Print(UIElement element, int indent = 0, bool print = false)
+    {
         var box = element.LayoutBox;
-        
-        // ImGui.Text($"{ind}<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}");
         var text =
             $"<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
-        // Console.WriteLine(text);
+        var margin =
+            $"Margin: X={box.MarginRect.X:F0}, Y={box.MarginRect.Y:F0}, W={box.MarginRect.Width:F0}, H={box.MarginRect.Height:F0}";
+        var padding =
+            $"Padding: X={box.PaddingRect.X:F0}, Y={box.PaddingRect.Y:F0}, W={box.PaddingRect.Width:F0}, H={box.PaddingRect.Height:F0}";
+        var border =
+            $"Border: X={box.BorderRect.X:F0}, Y={box.BorderRect.Y:F0}, W={box.BorderRect.Width:F0}, H={box.BorderRect.Height:F0}";
+        var content =
+            $"Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
+
+        if (print)
+        {
+            Console.WriteLine(text);
+            Console.WriteLine(margin);
+            Console.WriteLine(padding);
+            Console.WriteLine(border);
+            Console.WriteLine(content);
+        }
+        
         if (ImGui.CollapsingHeader(text))
         {
             ImGui.Indent(indent * 2);
             if (ImGui.CollapsingHeader("style " + text))
             {
+                ImGui.Text(margin);
+                ImGui.Text(padding);
+                ImGui.Text(border);
+                ImGui.Text(content);
+
                 foreach (var (key, value) in element.ComputedStyle)
                 {
                     ImGui.Text($"{key}: {value}");
                 }
             }
-            
+
             foreach (var child in element.Children)
             {
-                PrintUI(child, indent + 1);
+                Print(child, indent + 1, print);
             }
+
             ImGui.Unindent(indent);
         }
-        
-        
     }
 
     public void Inject(ModManager obj)

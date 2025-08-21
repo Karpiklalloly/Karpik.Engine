@@ -44,6 +44,12 @@ public class StyleSheet
     public const string border_bottom_width = "border-bottom-width";
     public const string border_left_width = "border-left-width";
     public const string border_right_width = "border-right-width";
+    
+    public const string border_color = "border-color";
+    public const string border_top_color = "border-top-color";
+    public const string border_bottom_color = "border-bottom-color";
+    public const string border_left_color = "border-left-color";
+    public const string border_right_color = "border-right-color";
 
     public const string background_color = "background-color";
     public const string color = "color";
@@ -84,6 +90,7 @@ public class StyleSheet
     public const string justify_content_center = "center";
     public const string justify_content_space_between = "space-between";
     public const string justify_content_space_around = "space-around";
+    public const string transparent = "transparent";
 
     #endregion
     public List<StyleRule> Rules { get; } = new();
@@ -116,7 +123,7 @@ public class StyleSheet
                 ["margin"] = "10px",
                 ["padding"] = "10px",
                 ["border-width"] = "2px",
-                ["border-color"] = "red",
+                [border_color] = "red",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".label"))
@@ -147,7 +154,7 @@ public class StyleSheet
                 ["color"] = "black",
                 ["font-size"] = "18",
                 ["border-width"] = "1px",
-                ["border-color"] = "darkblue",
+                [border_color] = "darkblue",
             }
         });
 
@@ -357,6 +364,14 @@ public class StyleSheet
                 ["padding"] = "10px"
             }
         });
+        
+        _default.Rules.Add(new StyleRule(new Selector(".relative-parent:hover"))
+        {
+            Properties =
+            {
+                ["background-color"] = "blue",
+            }
+        });
         _default.Rules.Add(new StyleRule(new Selector(".notification-badge"))
         {
             Properties =
@@ -373,6 +388,7 @@ public class StyleSheet
                 // Центрирование текста через Flexbox:
                 ["display"] = "flex",
                 ["justify-content"] = "center",
+                ["text-align"] = "center",
                 ["align-items"] = "center"
             }
         });

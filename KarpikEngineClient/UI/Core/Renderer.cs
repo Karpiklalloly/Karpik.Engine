@@ -1,6 +1,7 @@
 ﻿using Raylib_cs;
 using System.Numerics;
 using Color = Raylib_cs.Color;
+using s = Karpik.Engine.Client.UIToolkit.StyleSheet;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
@@ -30,7 +31,7 @@ public class Renderer
     private StackingContext BuildStackingContextTree(UIElement element)
     {
         var zIndex = IsStackingContext(element) 
-            ? ParseInt(element.ComputedStyle.GetValueOrDefault("z-index", "0")) 
+            ? ParseInt(element.ComputedStyle.GetValueOrDefault(s.z_index, "0")) 
             : 0;
 
         var context = new StackingContext(element, zIndex);
@@ -55,7 +56,7 @@ public class Renderer
     private void RenderContext(StackingContext context, Font font)
     {
         var element = context.RootElement;
-        if (element.ComputedStyle.GetValueOrDefault("display") == "none") return;
+        if (element.ComputedStyle.GetValueOrDefault(s.display) == s.display_none) return;
 
         RenderElementVisuals(element, font);
         
@@ -72,21 +73,21 @@ public class Renderer
         bool hasOverflowHidden = style.GetValueOrDefault("overflow") == "hidden";
         if (hasOverflowHidden) Raylib.BeginScissorMode((int)box.PaddingRect.X, (int)box.PaddingRect.Y, (int)box.PaddingRect.Width, (int)box.PaddingRect.Height);
 
-        var bgColor = ParseColor(style.GetValueOrDefault("background-color", "transparent"));
+        var bgColor = ParseColor(style.GetValueOrDefault(s.background_color, s.transparent));
         if (bgColor.A > 0) Raylib.DrawRectangleRec(box.PaddingRect, bgColor);
 
-        var borderColor = ParseColor(style.GetValueOrDefault("border-color", "black"));
+        var borderColor = ParseColor(style.GetValueOrDefault(s.border_color, "black"));
         if (borderColor.A > 0)
         {
-            var borderWidth = ParseFloat(style.GetValueOrDefault("border-width", "0"));
+            var borderWidth = ParseFloat(style.GetValueOrDefault(s.border_width, "0"));
             if (borderWidth > 0) Raylib.DrawRectangleLinesEx(box.BorderRect, borderWidth, borderColor);
         }
         
         if (element.WrappedTextLines.Any())
         {
-            var textColor = ParseColor(style.GetValueOrDefault("color", "black"));
-            var fontSize = ParseFloat(style.GetValueOrDefault("font-size", "16"));
-            var lineHeight = ParseFloat(style.GetValueOrDefault("line-height", "auto"), fontSize * 1.2f);
+            var textColor = ParseColor(style.GetValueOrDefault(s.color, "black"));
+            var fontSize = ParseFloat(style.GetValueOrDefault(s.font_size, "16"));
+            var lineHeight = ParseFloat(style.GetValueOrDefault(s.line_height, "auto"), fontSize * 1.2f);
             var textAlign = style.GetValueOrDefault("text-align", "left");
 
             float totalTextHeight = element.WrappedTextLines.Count * lineHeight;
@@ -119,9 +120,9 @@ public class Renderer
     private bool IsStackingContext(UIElement element)
     {
         var style = element.ComputedStyle;
-        var position = style.GetValueOrDefault("position", "static");
-        var zIndex = style.GetValueOrDefault("z-index", "auto");
-        return (position is "absolute" or "relative" or "fixed") && zIndex != "auto";
+        var position = style.GetValueOrDefault(s.position, s.position_static);
+        var zIndex = style.GetValueOrDefault(s.z_index, s.auto);
+        return (position is s.position_absolute or s.position_relative or s.position_fixed) && zIndex != s.auto;
     }
 
     #region Вспомогательные методы
@@ -138,9 +139,18 @@ public class Renderer
     {
         return value?.ToLower().Trim() switch
         {
-            "transparent" => Color.Blank, "white" => Color.White, "black" => Color.Black, "red" => Color.Red,
-            "blue" => Color.Blue, "green" => Color.Green, "lightblue" => Color.SkyBlue, "lightgray" => Color.LightGray,
-            "lightyellow" => Color.RayWhite, "darkblue" => Color.DarkBlue, _ => Color.Blank
+            s.transparent => Color.Blank,
+            "white" => Color.White,
+            "black" => Color.Black,
+            "red" => Color.Red,
+            "blue" => Color.Blue,
+            "green" => Color.Green,
+            "lightblue" => Color.SkyBlue,
+            "gray" => Color.Gray,
+            "lightgray" => Color.LightGray,
+            "lightyellow" => Color.RayWhite,
+            "darkblue" => Color.DarkBlue,
+            _ => Color.Blank
         };
     }
     #endregion
