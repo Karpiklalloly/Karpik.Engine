@@ -141,20 +141,20 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         // Console.WriteLine(text);
         if (ImGui.CollapsingHeader(text))
         {
+            ImGui.Indent(indent * 2);
             if (ImGui.CollapsingHeader("style " + text))
             {
                 foreach (var (key, value) in element.ComputedStyle)
                 {
                     ImGui.Text($"{key}: {value}");
                 }
-                
             }
-            ImGui.Indent(indent * 2);
+            
             foreach (var child in element.Children)
             {
                 PrintUI(child, indent + 1);
             }
-            ImGui.Indent(indent);
+            ImGui.Unindent(indent);
         }
         
         

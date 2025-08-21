@@ -105,14 +105,14 @@ public class UIManager
         }
 
         // 1. Создаем список дочерних элементов для проверки.
-        var childrenToCheck = element.Children.ToList();
         
         // 2. Сортируем детей по z-index. Элементы с большим z-index должны проверяться первыми.
-        childrenToCheck = childrenToCheck.OrderByDescending(c => GetZIndex(c)).ToList();
+        var childrenToCheck = element.Children.ToList().OrderBy(static c => c.GetPosition() == "static" ? 0 : 1) // Сначала непозиционированные
+            .ThenBy(static c => GetZIndex(c));
 
         // 3. Проверяем детей в отсортированном порядке.
         // Дети всегда проверяются ПЕРЕД родителем.
-        foreach (var child in childrenToCheck)
+        foreach (var child in childrenToCheck.Reverse<UIElement>())
         {
             var hit = HitTest(child, point);
             if (hit != null)
@@ -133,7 +133,7 @@ public class UIManager
     /// <summary>
     /// Вспомогательный метод для получения числового z-index из стиля.
     /// </summary>
-    private int GetZIndex(UIElement element)
+    private static int GetZIndex(UIElement element)
     {
         if (element.ComputedStyle.TryGetValue("z-index", out var zIndexStr))
         {

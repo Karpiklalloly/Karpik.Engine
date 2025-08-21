@@ -1,7 +1,9 @@
-﻿namespace Karpik.Engine.Client.UIToolkit;
+﻿
+namespace Karpik.Engine.Client.UIToolkit;
 
 public class StyleSheet
 {
+    // ReSharper disable InconsistentNaming
     #region Constants
 
     public const string width = "width";
@@ -17,14 +19,16 @@ public class StyleSheet
     public const string left = "left";
     public const string right = "right";
 
+    public const string auto = "auto";
+
     public const string position = "position";
-    public const string relative = "relative";
+    public const string position_relative = "relative";
     public const string position_absolute = "absolute";
     public const string position_static = "static";
     public const string position_fixed = "fixed";
 
     public const string padding = "padding";
-    public const string padding_top = "padding_top";
+    public const string padding_top = "padding-top";
     public const string padding_bottom = "padding-bottom";
     public const string padding_left = "padding-left";
     public const string padding_right = "padding-right";
@@ -34,6 +38,12 @@ public class StyleSheet
     public const string margin_bottom = "margin-bottom";
     public const string margin_left = "margin-left";
     public const string margin_right = "margin-right";
+    
+    public const string border_width = "border-width";
+    public const string border_top_width = "border-top-width";
+    public const string border_bottom_width = "border-bottom-width";
+    public const string border_left_width = "border-left-width";
+    public const string border_right_width = "border-right-width";
 
     public const string background_color = "background-color";
     public const string color = "color";
@@ -47,6 +57,7 @@ public class StyleSheet
     public const string display = "display";
     public const string display_none = "none";
     public const string display_block = "block";
+    public const string display_flex = "flex";
     public const string display_inline_block = "inline-block";
 
     public const string z_index = "z-index";
@@ -54,8 +65,25 @@ public class StyleSheet
     public const string flex_grow = "flex-grow";
     public const string flex_basis = "flex-basis";
     public const string flex_shrink = "flex-shrink";
+    
     public const string align_self = "align-self";
+    public const string align_self_flex_start = "flex-start";
+    public const string align_self_flex_end = "flex-end";
+    public const string align_self_center = "center";
+    public const string align_self_stretch = "stretch";
+    
     public const string flex_direction = "flex-direction";
+    public const string flex_direction_row = "row";
+    public const string flex_direction_row_reverse = "row-reverse";
+    public const string flex_direction_column = "column";
+    public const string flex_direction_column_reverse = "column-reverse";
+    
+    public const string justify_content = "justify-content";
+    public const string justify_content_flex_start = "flex-start";
+    public const string justify_content_flex_end = "flex-end";
+    public const string justify_content_center = "center";
+    public const string justify_content_space_between = "space-between";
+    public const string justify_content_space_around = "space-around";
 
     #endregion
     public List<StyleRule> Rules { get; } = new();
@@ -88,7 +116,7 @@ public class StyleSheet
                 ["margin"] = "10px",
                 ["padding"] = "10px",
                 ["border-width"] = "2px",
-                ["border-color"] = "black",
+                ["border-color"] = "red",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".label"))
@@ -265,7 +293,7 @@ public class StyleSheet
             Properties =
             {
                 // Отступ, чтобы контент не уезжал под фиксированный хедер
-                ["padding-top"] = "60px"
+                [padding_top] = "60px"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".menu-item"))
