@@ -178,7 +178,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
 
             foreach (var child in element.Children)
             {
-                Print(child, indent + 1, print);
+                Print(child, indent + 5, print);
             }
 
             ImGui.Unindent(indent);

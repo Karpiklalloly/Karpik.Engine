@@ -91,6 +91,19 @@ public class StyleSheet
     public const string justify_content_space_between = "space-between";
     public const string justify_content_space_around = "space-around";
     public const string transparent = "transparent";
+    
+    public const string flex_wrap = "flex-wrap";
+    public const string flex_wrap_nowrap = "nowrap";
+    public const string flex_wrap_wrap = "wrap";
+    public const string flex_wrap_wrap_reverse = "wrap-reverse";
+
+    public const string align_content = "align-content";
+    public const string align_content_flex_start = "flex-start";
+    public const string align_content_flex_end = "flex-end";
+    public const string align_content_center = "center";
+    public const string align_content_space_between = "space-between";
+    public const string align_content_space_around = "space-around";
+    public const string align_content_stretch = "stretch";
 
     #endregion
     public List<StyleRule> Rules { get; } = new();
@@ -276,7 +289,7 @@ public class StyleSheet
             Properties =
             {
                 ["height"] = "auto",
-                ["align-self"] = "stretch",
+                [align_self] = "stretch",
                 ["background-color"] = "red"
             }
         }); // height: auto важно для stretch
@@ -392,6 +405,33 @@ public class StyleSheet
                 ["display"] = "flex",
                 ["justify-content"] = "center",
                 ["text-align"] = "center",
+                ["align-items"] = "center"
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".wrap-container"))
+        {
+            Properties =
+            {
+                ["background-color"] = "lightcyan",
+                ["width"] = "480px", // Фиксированная ширина, чтобы заставить элементы переноситься
+                ["flex-wrap"] = "wrap",
+                ["align-content"] = "flex-start" // Чтобы строки прижимались к верху
+            }
+        });
+        _default.Rules.Add(new StyleRule(new Selector(".wrap-item"))
+        {
+            Properties =
+            {
+                ["flex-basis"] = "150px", // Каждый элемент хочет 150px
+                ["height"] = "50px",
+                ["background-color"] = "lightcoral",
+                ["margin"] = "5px",
+                // Flex-grow и shrink в 0, чтобы они не меняли свой размер
+                ["flex-grow"] = "0",
+                ["flex-shrink"] = "0",
+                // Для центрирования текста внутри
+                ["display"] = "flex",
+                ["justify-content"] = "center",
                 ["align-items"] = "center"
             }
         });

@@ -263,11 +263,19 @@ public class Client
         stretchItem.AddChild(relativeParent); // Вкладываем relative-parent внутрь
 
         alignContainer.AddChild(stretchItem);
+        
+        var wrapContainer = new UIElement { Classes = { "test-container", "wrap-container" } };
+        wrapContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Wrap Test:" });
+        for (int i = 0; i < 10; i++)
+        {
+            wrapContainer.AddChild(new UIElement { Classes = { "test-item", "wrap-item" }, Text = $"Item {i + 1}" });
+        }
 
         // Добавляем все тестовые контейнеры в mainContent
         mainContent.AddChild(growContainer);
         mainContent.AddChild(shrinkContainer);
         mainContent.AddChild(alignContainer);
+        mainContent.AddChild(wrapContainer); // <-- Добавляем новый контейнер
 
         // --- 3. СБОРКА ИЕРАРХИИ ---
         root.AddChild(header);
