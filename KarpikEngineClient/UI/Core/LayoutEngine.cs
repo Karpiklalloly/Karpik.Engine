@@ -74,7 +74,6 @@ namespace Karpik.Engine.Client.UIToolkit
 
         private void Calculate(UIElement parent, Rectangle availableSpace, Font font)
         {
-            // ГЛАВНОЕ ИСПРАВЛЕНИЕ: всегда начинаем с чистого LayoutBox, чтобы избежать накопления ошибок
             parent.LayoutBox = new LayoutBox();
 
             if (parent.ComputedStyle.GetValueOrDefault("display") == "none")
@@ -220,7 +219,18 @@ namespace Karpik.Engine.Client.UIToolkit
             
             if (heightDependsOnContent)
             {
-                float naturalTextHeight = CalculateNaturalSize(parent, font).height;
+                // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ---
+                // Убираем лишний вызов CalculateNaturalSize и вычисляем высоту напрямую
+                // из уже готового состояния WrappedTextLines, установленного в начале метода.
+                float naturalTextHeight = 0;
+                if (parent.WrappedTextLines.Any())
+                {
+                    var currentFontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
+                    var lineHeight = ParseValue(style.GetValueOrDefault(s.line_height, "auto"))
+                        .ToPx(currentFontSize, currentFontSize * 1.2f);
+                    naturalTextHeight = parent.WrappedTextLines.Count * lineHeight;
+                }
+
                 finalContentHeight = Math.Max(naturalTextHeight, childrenConsumedHeight);
                 parent.LayoutBox.ContentRect = new Rectangle(parent.LayoutBox.ContentRect.X, parent.LayoutBox.ContentRect.Y, contentWidth, finalContentHeight);
                 RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
@@ -494,13 +504,8 @@ namespace Karpik.Engine.Client.UIToolkit
                     
                     if (isRow) item.Element.LayoutBox.SetY(contentBox.Y + crossPos);
                     else item.Element.LayoutBox.SetX(contentBox.X + crossPos);
-                    
-                    // --- ДОБАВЬТЕ ЭТУ СТРОКУ ---
-                    // ИСПРАВЛЕНИЕ: Перекомпоновка детей после финального позиционирования родителя.
-                    // Это гарантирует, что дочерние элементы (как .relative-parent) 
-                    // будут расположены относительно правильных, финальных координат родителя.
+
                     LayoutChildren(item.Element, font);
-                    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
                     mainAxisPosition += item.FinalMainSize + spacing;
                 }
@@ -627,8 +632,6 @@ namespace Karpik.Engine.Client.UIToolkit
             if (string.IsNullOrEmpty(e.Text)) return;
             if (maxWidth <= 0)
             {
-                // Если ширина 0, не пытаемся переносить, просто добавляем весь текст одной строкой
-                // Это предотвращает бесконечные циклы для очень длинных слов без пробелов
                 e.WrappedTextLines.Add(e.Text);
                 return;
             }
@@ -638,7 +641,7 @@ namespace Karpik.Engine.Client.UIToolkit
             foreach (var word in words)
             {
                 var testLine = line.Length > 0 ? line + " " + word : word;
-                if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth && line.Length > 0)
+                if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth + 0.001f && line.Length > 0)
                 {
                     e.WrappedTextLines.Add(line.ToString());
                     line.Clear().Append(word);
