@@ -93,7 +93,7 @@ public class Renderer
 
             float totalTextHeight = element.WrappedTextLines.Count * lineHeight;
             float yOffset = (box.ContentRect.Height - totalTextHeight) / 2f;
-
+            
             for (int i = 0; i < element.WrappedTextLines.Count; i++)
             {
                 var line = element.WrappedTextLines[i];
@@ -111,7 +111,6 @@ public class Renderer
                     box.ContentRect.Y + yOffset + (i * lineHeight)
                 );
             
-                var m = Raylib.MeasureTextEx(font, line, fontSize, 1);
                 Raylib.DrawTextEx(font, line, position, fontSize, 1, textColor);
             }
         }

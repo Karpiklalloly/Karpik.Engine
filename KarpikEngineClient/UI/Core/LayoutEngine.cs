@@ -86,21 +86,39 @@ public class LayoutEngine
         var widthVal = ParseValue(style.GetValueOrDefault(s.width, s.auto));
         float borderBoxWidth;
 
-        if (widthVal.Unit != Unit.Auto)
+        // --- НАЧАЛО ИЗМЕНЕНИЙ В РАСЧЕТЕ ШИРИНЫ ---
+        var leftValForWidth = ParseValue(style.GetValueOrDefault(s.left, s.auto));
+        var rightValForWidth = ParseValue(style.GetValueOrDefault(s.right, s.auto));
+
+        if (position is s.position_absolute or s.position_fixed &&
+            widthVal.Unit == Unit.Auto &&
+            leftValForWidth.Unit != Unit.Auto &&
+            rightValForWidth.Unit != Unit.Auto)
         {
-            borderBoxWidth = widthVal.ToPx(sizingBlock.Width);
+            // СЛУЧАЙ РАСТЯГИВАНИЯ: absolute/fixed, width: auto, left и right заданы
+            var leftPx = leftValForWidth.ToPx(sizingBlock.Width);
+            var rightPx = rightValForWidth.ToPx(sizingBlock.Width);
+            // Ширина BorderBox - это все пространство между left и right
+            borderBoxWidth = sizingBlock.Width - leftPx - rightPx;
         }
         else
         {
-            if (float.IsInfinity(availableSpace.Width))
+            // СТАНДАРТНАЯ ЛОГИКА ДЛЯ ВСЕХ ОСТАЛЬНЫХ СЛУЧАЕВ
+            if (widthVal.Unit != Unit.Auto)
             {
-                // Здесь CalculateNaturalSize вызывается с wrapWidth и работает корректно
-                var naturalSize = CalculateNaturalSize(parent, font, float.PositiveInfinity);
-                borderBoxWidth = naturalSize.width + paddingLeft + paddingRight + borderLeft + borderRight;
+                borderBoxWidth = widthVal.ToPx(sizingBlock.Width);
             }
             else
             {
-                borderBoxWidth = availableSpace.Width - marginLeft - marginRight;
+                if (float.IsInfinity(availableSpace.Width))
+                {
+                    var naturalSize = CalculateNaturalSize(parent, font, float.PositiveInfinity);
+                    borderBoxWidth = naturalSize.width + paddingLeft + paddingRight + borderLeft + borderRight;
+                }
+                else
+                {
+                    borderBoxWidth = availableSpace.Width - marginLeft - marginRight;
+                }
             }
         }
 
@@ -118,10 +136,54 @@ public class LayoutEngine
         var paddingBottom = ParseValue(style.GetValueOrDefault(s.padding_bottom, "0")).ToPx(0);
 
         float finalX, finalY;
-        if (position is "static" or "relative")
+        if (position is "static")
         {
             finalX = availableSpace.X + marginLeft;
             finalY = availableSpace.Y + marginTop;
+        }
+        else if (position is "relative")
+        {
+            // --- НАЧАЛО НОВОЙ ЛОГИКИ ДЛЯ RELATIVE ---
+    
+            // 1. Сначала вычисляем его позицию так, как будто он static.
+            //    Это его "исходная" точка в потоке.
+            finalX = availableSpace.X + marginLeft;
+            finalY = availableSpace.Y + marginTop;
+
+            // 2. Читаем свойства сдвига
+            var leftVal = ParseValue(style.GetValueOrDefault(s.left, s.auto));
+            var rightVal = ParseValue(style.GetValueOrDefault(s.right, s.auto));
+            var topVal = ParseValue(style.GetValueOrDefault(s.top, s.auto));
+            var bottomVal = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
+    
+            // 3. Вычисляем сдвиг. 'left' имеет приоритет над 'right', 'top' над 'bottom'.
+            float deltaX = 0;
+            if (leftVal.Unit != Unit.Auto)
+            {
+                deltaX = leftVal.ToPx(sizingBlock.Width);
+            }
+            else if (rightVal.Unit != Unit.Auto)
+            {
+                // right сдвигает элемент влево, поэтому значение отрицательное
+                deltaX = -rightVal.ToPx(sizingBlock.Width);
+            }
+
+            float deltaY = 0;
+            if (topVal.Unit != Unit.Auto)
+            {
+                deltaY = topVal.ToPx(sizingBlock.Height);
+            }
+            else if (bottomVal.Unit != Unit.Auto)
+            {
+                // bottom сдвигает элемент вверх, поэтому значение отрицательное
+                deltaY = -bottomVal.ToPx(sizingBlock.Height);
+            }
+    
+            // 4. Применяем сдвиг к финальным координатам
+            finalX += deltaX;
+            finalY += deltaY;
+    
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ДЛЯ RELATIVE ---
         }
         else
         {
@@ -165,38 +227,60 @@ public class LayoutEngine
         var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
         bool heightDependsOnContent = true;
 
-        if (heightVal.Unit == Unit.Px)
-        {
-            finalContentHeight = heightVal.ToPx(sizingBlock.Height) - paddingTop - paddingBottom - borderTop -
-                                 borderBottom;
-            heightDependsOnContent = false;
-        }
-        else if (heightVal.Unit == Unit.Percent && !float.IsInfinity(sizingBlock.Height))
-        {
-            finalContentHeight = heightVal.ToPx(sizingBlock.Height) - paddingTop - paddingBottom - borderTop -
-                                 borderBottom;
-            heightDependsOnContent = false;
-        }
-        else
-        {
-            bool isChildOfFlexRow = parent.Parent != null && parent.Parent.GetDisplay() == s.display_flex &&
-                                    parent.Parent.IsRow();
-            if (isChildOfFlexRow)
-            {
-                var alignItems = parent.Parent.ComputedStyle.GetValueOrDefault("align-items", "stretch");
-                var alignSelf = style.GetValueOrDefault(s.align_self, alignItems);
+ // --- НАЧАЛО ИЗМЕНЕНИЙ В РАСЧЕТЕ ВЫСОТЫ ---
+var topValForHeight = ParseValue(style.GetValueOrDefault(s.top, s.auto));
+var bottomValForHeight = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
 
-                if (alignSelf == s.align_self_stretch && heightVal.Unit == Unit.Auto &&
-                    !float.IsInfinity(sizingBlock.Height))
-                {
-                    finalContentHeight = sizingBlock.Height - marginTop - marginBottom - paddingTop - paddingBottom -
-                                         borderTop - borderBottom;
-                    heightDependsOnContent = false;
-                }
+if (position is s.position_absolute or s.position_fixed &&
+    heightVal.Unit == Unit.Auto &&
+    topValForHeight.Unit != Unit.Auto &&
+    bottomValForHeight.Unit != Unit.Auto)
+{
+    // СЛУЧАЙ РАСТЯГИВАНИЯ ПО ВЕРТИКАЛИ
+    var topPx = topValForHeight.ToPx(sizingBlock.Height);
+    var bottomPx = bottomValForHeight.ToPx(sizingBlock.Height);
+    
+    float borderBoxHeight = sizingBlock.Height - topPx - bottomPx;
+    finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
+    heightDependsOnContent = false;
+}
+else
+{
+    // СТАНДАРТНАЯ ЛОГИКА, КОТОРАЯ БЫЛА РАНЕЕ
+    if (heightVal.Unit == Unit.Px)
+    {
+        float borderBoxHeight = heightVal.ToPx(sizingBlock.Height);
+        finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
+        heightDependsOnContent = false;
+    }
+    else if (heightVal.Unit == Unit.Percent && !float.IsInfinity(sizingBlock.Height))
+    {
+        float borderBoxHeight = heightVal.ToPx(sizingBlock.Height);
+        finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
+        heightDependsOnContent = false;
+    }
+    else
+    {
+        bool isChildOfFlexRow = parent.Parent != null && parent.Parent.GetDisplay() == s.display_flex &&
+                                parent.Parent.IsRow();
+        if (isChildOfFlexRow)
+        {
+            var alignItems = parent.Parent.ComputedStyle.GetValueOrDefault("align-items", "stretch");
+            var alignSelf = style.GetValueOrDefault(s.align_self, alignItems);
+
+            if (alignSelf == s.align_self_stretch && heightVal.Unit == Unit.Auto &&
+                !float.IsInfinity(sizingBlock.Height))
+            {
+                float stretchedBorderBoxHeight = sizingBlock.Height - marginTop - marginBottom;
+                finalContentHeight = Math.Max(0,
+                    stretchedBorderBoxHeight - borderTop - borderBottom - paddingTop - paddingBottom);
+                heightDependsOnContent = false;
             }
         }
+    }
+}
 
-        if (heightDependsOnContent)
+if (heightDependsOnContent)
         {
             // Теперь CalculateNaturalSize вызывается БЕЗ wrapWidth. Он просто измерит
             // WrappedTextLines, которые мы заполнили выше. Поскольку WrapText был вызван,

@@ -138,6 +138,7 @@ public class StyleSheet
                 ["flex-shrink"] = "0",
                 [border_width] = "2px",
                 [border_color] = "red",
+                [padding] = "8px"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".label:hover"))
@@ -380,7 +381,7 @@ public class StyleSheet
             {
                 ["position"] = "absolute",
                 ["top"] = "-10px",
-                ["right"] = "-10px",
+                ["right"] = "-25px",
                 ["width"] = "25px",
                 ["height"] = "25px",
                 ["background-color"] = "red",
