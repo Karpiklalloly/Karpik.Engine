@@ -1,5 +1,13 @@
 ﻿namespace Karpik.Engine.Client.UIToolkit;
 
+[Flags]
+public enum DirtyFlag
+{
+    None = 0,
+    Style = 1,
+    Layout = 2,
+}
+
 public class UIElement
 {
     public string Id { get; }
@@ -17,6 +25,7 @@ public class UIElement
     
     public bool IsHovered { get; internal set; }
     public bool IsActive { get; internal set; }
+    public DirtyFlag Dirty { get; internal set; } = DirtyFlag.Style | DirtyFlag.Layout;
     
     internal IReadOnlyList<IManipulator> Manipulators => _manipulators;
     
@@ -37,5 +46,70 @@ public class UIElement
     {
         _manipulators.Add(manipulator);
         manipulator.Target = this;
+    }
+    
+    public void MarkDirty(DirtyFlag flag)
+    {
+        // Если уже есть более "сильный" флаг, ничего не делаем
+        if (((int)Dirty & (int)flag) == (int)flag) return;
+
+        Dirty |= flag;
+
+        // Изменение стиля требует пересчета и компоновки
+        if (flag.HasFlag(DirtyFlag.Style))
+        {
+            Dirty |= DirtyFlag.Layout;
+        }
+
+        // Изменение компоновки "всплывает" к родителям
+        if (flag.HasFlag(DirtyFlag.Layout))
+        {
+            Parent?.MarkDirty(DirtyFlag.Layout);
+        }
+        
+        // Изменение стиля каскадом спускается к детям (из-за наследования)
+        if (flag.HasFlag(DirtyFlag.Style))
+        {
+            foreach (var child in Children)
+            {
+                child.MarkDirty(DirtyFlag.Style);
+            }
+        }
+    }
+    
+    // --- ПУБЛИЧНЫЕ API ДЛЯ БЕЗОПАСНОГО ИЗМЕНЕНИЯ ЭЛЕМЕНТА ---
+    public void AddClass(string className)
+    {
+        if (Classes.Add(className))
+        {
+            MarkDirty(DirtyFlag.Style);
+        }
+    }
+    
+    public void RemoveClass(string className)
+    {
+        if (Classes.Remove(className))
+        {
+            MarkDirty(DirtyFlag.Style);
+        }
+    }
+
+    public void SetText(string newText)
+    {
+        if (Text == newText) return;
+        Text = newText ?? "";
+        MarkDirty(DirtyFlag.Layout); // Текст влияет только на layout, но не на стили
+    }
+
+    public void SetInlineStyle(string property, string value)
+    {
+        if (InlineStyles.TryGetValue(property, out var existingValue) && existingValue == value) return;
+        InlineStyles[property] = value;
+        MarkDirty(DirtyFlag.Style);
+    }
+    
+    internal void ClearDirtyFlag(DirtyFlag flag)
+    {
+        Dirty &= ~flag;
     }
 }

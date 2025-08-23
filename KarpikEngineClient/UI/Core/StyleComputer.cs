@@ -26,7 +26,7 @@ namespace Karpik.Engine.Client.UIToolkit
             ComputeStylesForNode(root, styleSheet, null);
         }
 
-        private void ComputeStylesForNode(UIElement element, s styleSheet, Dictionary<string, string> parentComputedStyle)
+        public void ComputeStylesForNode(UIElement element, s styleSheet, Dictionary<string, string> parentComputedStyle)
         {
             // 1. Наследование
             var computedStyle = new Dictionary<string, string>();
@@ -133,31 +133,88 @@ namespace Karpik.Engine.Client.UIToolkit
 
         private bool DoesSelectorMatch(Selector selector, UIElement element)
         {
-            var rawSelector = selector.Raw;
+            var selectorParts = selector.Raw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    
+            UIElement currentElement = element;
+    
+            // Идем по частям селектора в обратном порядке (от цели к предку)
+            for (int i = selectorParts.Length - 1; i >= 0; i--)
+            {
+                var part = selectorParts[i];
         
-            bool requiresHover = rawSelector.Contains(":hover");
-            bool requiresActive = rawSelector.Contains(":active");
+                // Для самой первой проверяемой части (самой правой в селекторе)
+                // мы просто проверяем сам `currentElement`.
+                // Для последующих частей мы должны найти предка, который соответствует.
+                if (i < selectorParts.Length - 1)
+                {
+                    // Ищем подходящего предка
+                    bool ancestorFound = false;
+                    // Поднимаемся вверх по дереву от currentElement
+                    var ancestor = currentElement.Parent; 
+                    while(ancestor != null)
+                    {
+                        if (MatchSinglePart(part, ancestor))
+                        {
+                            currentElement = ancestor; // Нашли предка, теперь он - наша точка отсчета
+                            ancestorFound = true;
+                            break;
+                        }
+                        ancestor = ancestor.Parent;
+                    }
 
-            if (requiresHover && !element.IsHovered) return false;
-            if (requiresActive && !element.IsActive) return false;
-
-            string baseSelector = rawSelector.Replace(":hover", "").Replace(":active", "");
-
+                    if (!ancestorFound)
+                    {
+                        return false; // Не нашли предка, соответствующего части селектора
+                    }
+                }
+                else // Это самая правая часть селектора, проверяем ее на целевом элементе
+                {
+                    if (!MatchSinglePart(part, currentElement))
+                    {
+                        return false; // Целевой элемент не соответствует
+                    }
+                }
+            }
+    
+            // Если мы прошли все части селектора и нашли совпадения для каждой, то селектор подходит
+            return true;
+        }
+        
+        private bool MatchSinglePart(string part, UIElement element)
+        {
+            string baseSelector = part;
+    
+            // 1. Проверка псевдоклассов
+            if (baseSelector.Contains(":hover"))
+            {
+                if (!element.IsHovered) return false;
+                baseSelector = baseSelector.Replace(":hover", "");
+            }
+            if (baseSelector.Contains(":active"))
+            {
+                if (!element.IsActive) return false;
+                baseSelector = baseSelector.Replace(":active", "");
+            }
+    
+            // 2. Проверка ID
             if (baseSelector.StartsWith('#'))
             {
+                // Для простоты считаем, что ID - это вся часть селектора
                 return element.Id == baseSelector.Substring(1);
             }
+    
+            // 3. Проверка классов (включая мультиклассы)
             if (baseSelector.StartsWith('.'))
             {
-                // Для простоты пока считаем, что селектор по классу - это один класс.
-                // В реальном движке нужно было бы парсить ".class1.class2"
-                return element.Classes.Contains(baseSelector.Substring(1));
+                var requiredClasses = baseSelector.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                // Проверяем, что у элемента есть ВСЕ требуемые классы
+                return requiredClasses.All(c => element.Classes.Contains(c));
             }
-            
-            // Можно добавить поддержку селекторов по тегу (типу элемента), если у вас есть такая концепция.
+    
+            // Можно добавить поддержку селекторов по тегу (типу элемента), если нужно
             // return element.TagName == baseSelector;
 
-            return false;
+            return false; // Селектор не по ID и не по классу
         }
     }
 }

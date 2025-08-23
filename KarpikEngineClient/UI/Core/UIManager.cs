@@ -15,6 +15,8 @@ public class UIManager
     private UIElement _hoveredElement;
     private UIElement _pressedElement;
     
+    private bool _isLayoutDirtyThisFrame;
+    
     public void SetRoot(UIElement element)
     {
         Root = element;
@@ -25,11 +27,20 @@ public class UIManager
 
     public void Update(double dt)
     {
+        _isLayoutDirtyThisFrame = false;
+        
         HandleInteractivity();
         
-        _styleComputer.ComputeStyles(Root, StyleSheet.Default);
-        Rectangle viewport = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
-        _layoutEngine.Layout(Root, viewport, Font);
+        ProcessStyles(Root, null, StyleSheet.Default);
+
+        if (_isLayoutDirtyThisFrame)
+        {
+            Rectangle viewport = new Rectangle(0, 0, Raylib.GetRenderWidth(), Raylib.GetRenderHeight());
+            _layoutEngine.Layout(Root, viewport, Font);
+            
+            // Очищаем флаги компоновки после ее завершения
+            ClearLayoutFlags(Root);
+        }
     }
 
     public void Render(double dt)
@@ -37,8 +48,43 @@ public class UIManager
         _renderer.Render(Root, Font);
     }
     
+    private void ProcessStyles(UIElement element, Dictionary<string, string> parentComputedStyle, StyleSheet styleSheet)
+    {
+        // Если флаг установлен, пересчитываем стили для этого конкретного узла
+        if (element.Dirty.HasFlag(DirtyFlag.Style))
+        {
+            // Вызываем публичный метод из StyleComputer, который делает всю работу для одного узла
+            _styleComputer.ComputeStylesForNode(element, styleSheet, parentComputedStyle);
+
+            // Очищаем флаг, так как работа выполнена
+            element.ClearDirtyFlag(DirtyFlag.Style);
+            
+            // Любой пересчет стиля - это потенциальное изменение геометрии.
+            // Взводим флаг, чтобы UIManager запустил LayoutEngine.
+            _isLayoutDirtyThisFrame = true;
+        }
+
+        // Всегда продолжаем рекурсию, так как дочерний элемент может быть "грязным",
+        // даже если родитель "чистый".
+        foreach (var child in element.Children)
+        {
+            // Передаем дочерним элементам вычисленный стиль текущего элемента для наследования
+            ProcessStyles(child, element.ComputedStyle, styleSheet);
+        }
+    }
+    
+    private void ClearLayoutFlags(UIElement element)
+    {
+        element.ClearDirtyFlag(DirtyFlag.Layout);
+        foreach (var child in element.Children)
+        {
+            ClearLayoutFlags(child);
+        }
+    }
+    
     private void HandleInteractivity()
     {
+        // Код из предыдущего ответа остается без изменений
         var mousePos = Input.MousePosition;
         var currentHover = HitTest(Root, mousePos);
         
@@ -47,50 +93,46 @@ public class UIManager
             if (_hoveredElement != null)
             {
                 _hoveredElement.IsHovered = false;
+                _hoveredElement.MarkDirty(DirtyFlag.Style); // :hover состояние изменилось
                 foreach (var m in _hoveredElement.Manipulators) m.OnMouseLeave();
             }
             if (currentHover != null)
             {
                 currentHover.IsHovered = true;
+                currentHover.MarkDirty(DirtyFlag.Style); // :hover состояние изменилось
                 foreach (var m in currentHover.Manipulators) m.OnMouseEnter();
             }
             _hoveredElement = currentHover;
         }
         
-        // --- ОБНОВЛЕННАЯ ЛОГИКА НАЖАТИЯ И КЛИКОВ ---
-
-        // Обрабатываем НАЖАТИЕ мыши
         if (Input.IsMouseLeftButtonDown)
         {
-            if (_hoveredElement != null)
+            if (_hoveredElement != null && _pressedElement == null)
             {
-                // Запоминаем элемент, на котором началось нажатие
                 _pressedElement = _hoveredElement;
                 _pressedElement.IsActive = true;
+                _pressedElement.MarkDirty(DirtyFlag.Style); // :active состояние изменилось
                 foreach (var m in _pressedElement.Manipulators) m.OnMouseDown();
             }
         }
         
-        // Обрабатываем ОТПУСКАНИЕ мыши
         if (Input.IsMouseLeftButtonUp)
         {
             if (_pressedElement != null)
             {
-                _pressedElement.IsActive = false; // Элемент больше не "активен"
+                _pressedElement.IsActive = false;
+                _pressedElement.MarkDirty(DirtyFlag.Style); // :active состояние изменилось
                 
-                // Вызываем OnMouseUp для элемента, который был под курсором в момент отпускания
                 if (_hoveredElement != null)
                 {
                     foreach (var m in _hoveredElement.Manipulators) m.OnMouseUp();
                 }
 
-                // Если мышь отпущена над ТЕМ ЖЕ элементом, над которым была нажата - это КЛИК
                 if (_pressedElement == _hoveredElement && _hoveredElement != null)
                 {
                     foreach (var m in _pressedElement.Manipulators) m.OnClick();
                 }
-
-                // Сбрасываем состояние нажатия в любом случае
+                
                 _pressedElement = null;
             }
         }

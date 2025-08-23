@@ -220,7 +220,7 @@ public class Client
         // Добавляем панель как дочерний элемент к пункту меню
         fileMenuItem.AddChild(dropdownPanel);
         // И прикрепляем манипулятор, который будет ею управлять
-        fileMenuItem.AddManipulator(new DropdownManipulator("file-dropdown"));
+        //fileMenuItem.AddManipulator(new DropdownManipulator("file-dropdown"));
 
         var aboutLink = new UIElement { Classes = { "menu-item" }, Text = "About" };
 

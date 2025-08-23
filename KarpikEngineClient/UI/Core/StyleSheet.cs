@@ -339,6 +339,14 @@ public class StyleSheet
                 ["background-color"] = "darkblue"
             }
         });
+        
+        _default.Rules.Add(new StyleRule(new Selector(".menu-item:hover .dropdown-panel"))
+        {
+            Properties =
+            {
+                ["display"] = "flex", // Показываем панель
+            }
+        });
         _default.Rules.Add(new StyleRule(new Selector(".dropdown-panel"))
         {
             Properties =
@@ -385,11 +393,11 @@ public class StyleSheet
             }
         });
         
-        _default.Rules.Add(new StyleRule(new Selector(".relative-parent:hover"))
+        _default.Rules.Add(new StyleRule(new Selector(".align-stretch:hover .relative-parent"))
         {
             Properties =
             {
-                ["background-color"] = "blue",
+                ["color"] = "lightyellow",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".notification-badge"))
