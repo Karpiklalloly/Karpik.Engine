@@ -380,7 +380,8 @@ public class StyleSheet
                 ["border-width"] = "2px",
                 ["border-color"] = "white",
                 ["height"] = "100%", // Растягивается на всю высоту ячейки
-                ["padding"] = "10px"
+                ["padding"] = "10px",
+                [box_sizing] = box_sizing_border_box,
             }
         });
         

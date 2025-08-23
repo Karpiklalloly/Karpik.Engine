@@ -73,139 +73,162 @@ namespace Karpik.Engine.Client.UIToolkit
         }
 
         private void Calculate(UIElement parent, Rectangle availableSpace, Font font)
+{
+    parent.LayoutBox = new LayoutBox();
+
+    if (parent.ComputedStyle.GetValueOrDefault("display") == "none")
+    {
+        return;
+    }
+    
+    var style = parent.ComputedStyle;
+    var position = parent.GetPosition();
+    
+    Rectangle sizingBlock;
+    if (position == s.position_fixed) sizingBlock = _viewport;
+    else if (parent.Parent != null) sizingBlock = parent.Parent.LayoutBox.ContentRect;
+    else sizingBlock = availableSpace;
+
+    var marginLeft = ParseValue(style.GetValueOrDefault(s.margin_left, "0")).ToPx(sizingBlock.Width);
+    var marginRight = ParseValue(style.GetValueOrDefault(s.margin_right, "0")).ToPx(sizingBlock.Width);
+    var borderLeft = ParseValue(style.GetValueOrDefault(s.border_left_width, "0")).ToPx(0);
+    var borderRight = ParseValue(style.GetValueOrDefault(s.border_right_width, "0")).ToPx(0);
+    var paddingLeft = ParseValue(style.GetValueOrDefault(s.padding_left, "0")).ToPx(sizingBlock.Width); // padding % зависит от ширины родителя
+    var paddingRight = ParseValue(style.GetValueOrDefault(s.padding_right, "0")).ToPx(sizingBlock.Width);
+
+    var marginTop = ParseValue(style.GetValueOrDefault(s.margin_top, "0")).ToPx(sizingBlock.Height);
+    var marginBottom = ParseValue(style.GetValueOrDefault(s.margin_bottom, "0")).ToPx(sizingBlock.Height);
+    var borderTop = ParseValue(style.GetValueOrDefault(s.border_top_width, "0")).ToPx(0);
+    var borderBottom = ParseValue(style.GetValueOrDefault(s.border_bottom_width, "0")).ToPx(0);
+    var paddingTop = ParseValue(style.GetValueOrDefault(s.padding_top, "0")).ToPx(sizingBlock.Height); // padding % зависит от высоты родителя
+    var paddingBottom = ParseValue(style.GetValueOrDefault(s.padding_bottom, "0")).ToPx(sizingBlock.Height);
+    
+    // --- НАЧАЛО ИЗМЕНЕНИЙ: box-sizing ---
+    
+    var boxSizing = style.GetValueOrDefault(s.box_sizing, "content-box");
+    var widthVal = ParseValue(style.GetValueOrDefault(s.width, s.auto));
+    float contentWidth;
+
+    if (widthVal.Unit != Unit.Auto)
+    {
+        float explicitWidth = widthVal.ToPx(sizingBlock.Width);
+        if (boxSizing == s.box_sizing_border_box)
         {
-            parent.LayoutBox = new LayoutBox();
-
-            if (parent.ComputedStyle.GetValueOrDefault("display") == "none")
-            {
-                return;
-            }
-            
-            var style = parent.ComputedStyle;
-            var position = parent.GetPosition();
-            
-            Rectangle sizingBlock;
-            if (position == s.position_fixed) sizingBlock = _viewport;
-            else if (parent.Parent != null) sizingBlock = parent.Parent.LayoutBox.ContentRect;
-            else sizingBlock = availableSpace;
-
-            var marginLeft = ParseValue(style.GetValueOrDefault(s.margin_left, "0")).ToPx(sizingBlock.Width);
-            var marginRight = ParseValue(style.GetValueOrDefault(s.margin_right, "0")).ToPx(sizingBlock.Width);
-            var borderLeft = ParseValue(style.GetValueOrDefault(s.border_left_width, "0")).ToPx(0);
-            var borderRight = ParseValue(style.GetValueOrDefault(s.border_right_width, "0")).ToPx(0);
-            var paddingLeft = ParseValue(style.GetValueOrDefault(s.padding_left, "0")).ToPx(0);
-            var paddingRight = ParseValue(style.GetValueOrDefault(s.padding_right, "0")).ToPx(0);
-            
-            var widthVal = ParseValue(style.GetValueOrDefault(s.width, s.auto));
-            float borderBoxWidth;
-
-            if (widthVal.Unit != Unit.Auto)
-            {
-                borderBoxWidth = widthVal.ToPx(sizingBlock.Width);
-            }
-            else
-            {
-                if (float.IsInfinity(availableSpace.Width))
-                {
-                    var naturalSize = CalculateNaturalSize(parent, font, float.PositiveInfinity);
-                    borderBoxWidth = naturalSize.width + paddingLeft + paddingRight + borderLeft + borderRight;
-                }
-                else
-                {
-                    borderBoxWidth = availableSpace.Width - marginLeft - marginRight;
-                }
-            }
-            
-            float contentWidth = Math.Max(0, borderBoxWidth - paddingLeft - paddingRight - borderLeft - borderRight);
-            var fontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
-            WrapText(parent, contentWidth, font, fontSize);
-
-            var marginTop = ParseValue(style.GetValueOrDefault(s.margin_top, "0")).ToPx(sizingBlock.Height);
-            var marginBottom = ParseValue(style.GetValueOrDefault(s.margin_bottom, "0")).ToPx(sizingBlock.Height);
-            var borderTop = ParseValue(style.GetValueOrDefault(s.border_top_width, "0")).ToPx(0);
-            var borderBottom = ParseValue(style.GetValueOrDefault(s.border_bottom_width, "0")).ToPx(0);
-            var paddingTop = ParseValue(style.GetValueOrDefault(s.padding_top, "0")).ToPx(0);
-            var paddingBottom = ParseValue(style.GetValueOrDefault(s.padding_bottom, "0")).ToPx(0);
-            
-            float finalX, finalY;
-            if (position == s.position_static)
-            {
-                finalX = availableSpace.X + marginLeft;
-                finalY = availableSpace.Y + marginTop;
-            }
-            else if (position == s.position_relative)
-            {
-                finalX = availableSpace.X + marginLeft;
-                finalY = availableSpace.Y + marginTop;
-
-                var leftVal = ParseValue(style.GetValueOrDefault(s.left, s.auto));
-                var rightVal = ParseValue(style.GetValueOrDefault(s.right, s.auto));
-                var topVal = ParseValue(style.GetValueOrDefault(s.top, s.auto));
-                var bottomVal = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
-                
-                if (leftVal.Unit != Unit.Auto) finalX += leftVal.ToPx(sizingBlock.Width);
-                else if (rightVal.Unit != Unit.Auto) finalX -= rightVal.ToPx(sizingBlock.Width);
-
-                if (topVal.Unit != Unit.Auto) finalY += topVal.ToPx(sizingBlock.Height);
-                else if (bottomVal.Unit != Unit.Auto) finalY -= bottomVal.ToPx(sizingBlock.Height);
-            }
-            else // absolute or fixed
-            {
-                var leftVal = ParseValue(style.GetValueOrDefault(s.left, s.auto));
-                var rightVal = ParseValue(style.GetValueOrDefault(s.right, s.auto));
-                var topVal = ParseValue(style.GetValueOrDefault(s.top, s.auto));
-                var bottomVal = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
-
-                if (leftVal.Unit != Unit.Auto) finalX = availableSpace.X + leftVal.ToPx(sizingBlock.Width);
-                else if (rightVal.Unit != Unit.Auto) finalX = availableSpace.X + sizingBlock.Width - rightVal.ToPx(sizingBlock.Width) - borderBoxWidth - marginRight;
-                else finalX = availableSpace.X + marginLeft;
-                
-                if (topVal.Unit != Unit.Auto) finalY = availableSpace.Y + topVal.ToPx(sizingBlock.Height);
-                else finalY = availableSpace.Y + marginTop;
-            }
-            
-            var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
-            float finalContentHeight;
-
-            if (heightVal.Unit != Unit.Auto)
-            {
-                finalContentHeight = ParseValue(style.GetValueOrDefault(s.height, "0")).ToPx(sizingBlock.Height);
-                finalContentHeight = Math.Max(0, finalContentHeight - paddingTop - paddingBottom - borderTop - borderBottom);
-            }
-            else
-            {
-                finalContentHeight = 0; // Будет вычислена после дочерних элементов
-            }
-
-            parent.LayoutBox.ContentRect = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop, contentWidth, finalContentHeight);
-            RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
-
-            // Теперь передаем `availableSpace` в `LayoutChildren`
-            float childrenConsumedHeight = LayoutChildren(parent, availableSpace, font);
-            
-            if (heightVal.Unit == Unit.Auto)
-            {
-                float naturalTextHeight = 0;
-                if (parent.WrappedTextLines.Any())
-                {
-                    var currentFontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
-                    var lineHeight = ParseValue(style.GetValueOrDefault(s.line_height, "auto")).ToPx(currentFontSize, currentFontSize * 1.2f);
-                    naturalTextHeight = parent.WrappedTextLines.Count * lineHeight;
-                }
-
-                finalContentHeight = Math.Max(naturalTextHeight, childrenConsumedHeight);
-                parent.LayoutBox.ContentRect = new Rectangle(parent.LayoutBox.ContentRect.X, parent.LayoutBox.ContentRect.Y, contentWidth, finalContentHeight);
-                RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
-            }
-            
-            var bottomProp = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
-            var topProp = ParseValue(style.GetValueOrDefault(s.top, s.auto));
-            if (position is s.position_absolute or s.position_fixed && topProp.Unit == Unit.Auto && bottomProp.Unit != Unit.Auto)
-            {
-                float newY = availableSpace.Y + sizingBlock.Height - bottomProp.ToPx(sizingBlock.Height) - parent.LayoutBox.MarginRect.Height;
-                parent.LayoutBox.SetY(newY);
-            }
+            contentWidth = Math.Max(0, explicitWidth - paddingLeft - paddingRight - borderLeft - borderRight);
         }
+        else // content-box
+        {
+            contentWidth = explicitWidth;
+        }
+    }
+    else // width: auto
+    {
+        if (float.IsInfinity(availableSpace.Width))
+        {
+            // Shrink-to-fit: content width is determined by the content itself.
+            var (naturalWidth, _) = CalculateNaturalSize(parent, font, float.PositiveInfinity);
+            contentWidth = naturalWidth;
+        }
+        else
+        {
+            // Fill available space. Calculate the total available width for the border-box...
+            float borderBoxWidth = availableSpace.Width - marginLeft - marginRight;
+            // ...and then determine the content width from that.
+            contentWidth = Math.Max(0, borderBoxWidth - paddingLeft - paddingRight - borderLeft - borderRight);
+        }
+    }
+    
+    var fontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
+    WrapText(parent, contentWidth, font, fontSize);
+
+    var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
+    float finalContentHeight;
+
+    if (heightVal.Unit != Unit.Auto)
+    {
+        float explicitHeight = heightVal.ToPx(sizingBlock.Height);
+        if (boxSizing == s.box_sizing_border_box)
+        {
+            finalContentHeight = Math.Max(0, explicitHeight - paddingTop - paddingBottom - borderTop - borderBottom);
+        }
+        else // content-box
+        {
+            finalContentHeight = explicitHeight;
+        }
+    }
+    else
+    {
+        finalContentHeight = 0; // Будет вычислена после дочерних элементов
+    }
+    
+    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+    
+    float finalX, finalY;
+    if (position == s.position_static)
+    {
+        finalX = availableSpace.X + marginLeft;
+        finalY = availableSpace.Y + marginTop;
+    }
+    else if (position == s.position_relative)
+    {
+        finalX = availableSpace.X + marginLeft;
+        finalY = availableSpace.Y + marginTop;
+
+        var leftVal = ParseValue(style.GetValueOrDefault(s.left, s.auto));
+        var rightVal = ParseValue(style.GetValueOrDefault(s.right, s.auto));
+        var topVal = ParseValue(style.GetValueOrDefault(s.top, s.auto));
+        var bottomVal = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
+        
+        if (leftVal.Unit != Unit.Auto) finalX += leftVal.ToPx(sizingBlock.Width);
+        else if (rightVal.Unit != Unit.Auto) finalX -= rightVal.ToPx(sizingBlock.Width);
+
+        if (topVal.Unit != Unit.Auto) finalY += topVal.ToPx(sizingBlock.Height);
+        else if (bottomVal.Unit != Unit.Auto) finalY -= bottomVal.ToPx(sizingBlock.Height);
+    }
+    else // absolute or fixed
+    {
+        var leftVal = ParseValue(style.GetValueOrDefault(s.left, s.auto));
+        var rightVal = ParseValue(style.GetValueOrDefault(s.right, s.auto));
+        var topVal = ParseValue(style.GetValueOrDefault(s.top, s.auto));
+        var bottomVal = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
+
+        float borderBoxWidth = contentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
+        if (leftVal.Unit != Unit.Auto) finalX = availableSpace.X + leftVal.ToPx(sizingBlock.Width);
+        else if (rightVal.Unit != Unit.Auto) finalX = availableSpace.X + sizingBlock.Width - rightVal.ToPx(sizingBlock.Width) - borderBoxWidth - marginRight;
+        else finalX = availableSpace.X + marginLeft;
+        
+        if (topVal.Unit != Unit.Auto) finalY = availableSpace.Y + topVal.ToPx(sizingBlock.Height);
+        else finalY = availableSpace.Y + marginTop;
+    }
+
+    parent.LayoutBox.ContentRect = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop, contentWidth, finalContentHeight);
+    RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
+    
+    float childrenConsumedHeight = LayoutChildren(parent, parent.LayoutBox.ContentRect, font);
+    
+    if (heightVal.Unit == Unit.Auto)
+    {
+        float naturalTextHeight = 0;
+        if (parent.WrappedTextLines.Any())
+        {
+            var currentFontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
+            var lineHeight = ParseValue(style.GetValueOrDefault(s.line_height, "auto")).ToPx(currentFontSize, currentFontSize * 1.2f);
+            naturalTextHeight = parent.WrappedTextLines.Count * lineHeight;
+        }
+
+        finalContentHeight = Math.Max(naturalTextHeight, childrenConsumedHeight);
+        parent.LayoutBox.ContentRect = new Rectangle(parent.LayoutBox.ContentRect.X, parent.LayoutBox.ContentRect.Y, contentWidth, finalContentHeight);
+        RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
+    }
+    
+    var bottomProp = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
+    var topProp = ParseValue(style.GetValueOrDefault(s.top, s.auto));
+    if (position is s.position_absolute or s.position_fixed && topProp.Unit == Unit.Auto && bottomProp.Unit != Unit.Auto)
+    {
+        float newY = availableSpace.Y + sizingBlock.Height - bottomProp.ToPx(sizingBlock.Height) - parent.LayoutBox.MarginRect.Height;
+        parent.LayoutBox.SetY(newY);
+    }
+}
 
         private float LayoutChildren(UIElement parent, Rectangle parentAvailableSpace, Font font)
         {

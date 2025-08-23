@@ -233,14 +233,14 @@ public class Client
 
         // --- GROW TEST ---
         var growContainer = new UIElement { Classes = { "test-container", "grow-container" } };
-        growContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Grow Test:" });
+        growContainer.AddChild(new UIElement { Classes = { "label", "test-item" }, Text = "Grow Test:" });
         growContainer.AddChild(new UIElement { Classes = { "test-item", "no-grow" }, Text = "Basis: 150px" });
         growContainer.AddChild(new UIElement { Classes = { "test-item", "grows-1" }, Text = "Grow: 1" });
         growContainer.AddChild(new UIElement { Classes = { "test-item", "grows-2" }, Text = "Grow: 2" });
 
         // --- SHRINK TEST ---
         var shrinkContainer = new UIElement { Classes = { "test-container", "shrink-container" } };
-        shrinkContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Shrink Test:" });
+        shrinkContainer.AddChild(new UIElement { Classes = { "label", "test-item" }, Text = "Shrink Test:" });
         shrinkContainer.AddChild(new UIElement
             { Classes = { "test-item", "shrinks-1" }, Text = "Basis: 400, Shrink: 1" });
         shrinkContainer.AddChild(new UIElement
@@ -249,7 +249,7 @@ public class Client
 
         // --- ALIGNMENT TEST И ТЕСТ ABSOLUTE ---
         var alignContainer = new UIElement { Classes = { "test-container", "align-container" } };
-        alignContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Alignment & Absolute Test:" });
+        alignContainer.AddChild(new UIElement { Classes = { "label", "test-item" }, Text = "Alignment & Absolute Test:" });
         alignContainer.AddChild(new UIElement { Classes = { "test-item", "align-center" }, Text = "Self: Center" });
         alignContainer.AddChild(new UIElement { Classes = { "test-item", "align-start" }, Text = "Self: Start" });
 
@@ -265,7 +265,7 @@ public class Client
         alignContainer.AddChild(stretchItem);
         
         var wrapContainer = new UIElement { Classes = { "test-container", "wrap-container" } };
-        wrapContainer.AddChild(new UIElement { Classes = { "label" }, Text = "Wrap Test:" });
+        wrapContainer.AddChild(new UIElement { Classes = { "label", "test-item" }, Text = "Wrap Test:" });
         for (int i = 0; i < 10; i++)
         {
             wrapContainer.AddChild(new UIElement { Classes = { "test-item", "wrap-item" }, Text = $"Item {i + 1}" });
