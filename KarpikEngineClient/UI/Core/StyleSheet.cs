@@ -58,7 +58,7 @@ public class StyleSheet
     public const string line_height = "line-height";
     
     public const string box_sizing = "box-sizing";
-    public const string box_sizing_border_box = "border-fox";
+    public const string box_sizing_border_box = "border-box";
 
     public const string display = "display";
     public const string display_none = "none";
@@ -73,10 +73,12 @@ public class StyleSheet
     public const string flex_shrink = "flex-shrink";
     
     public const string align_self = "align-self";
-    public const string align_self_flex_start = "flex-start";
-    public const string align_self_flex_end = "flex-end";
-    public const string align_self_center = "center";
-    public const string align_self_stretch = "stretch";
+    public const string align_start = "flex-start";
+    public const string align_flex_end = "flex-end";
+    public const string align_center = "center";
+    public const string align_stretch = "stretch";
+    
+    public const string align_items = "align-items";
     
     public const string flex_direction = "flex-direction";
     public const string flex_direction_row = "row";
@@ -151,7 +153,7 @@ public class StyleSheet
                 ["flex-shrink"] = "0",
                 [border_width] = "2px",
                 [border_color] = "red",
-                [padding] = "8px"
+                //[padding] = "8px"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".label:hover"))
@@ -171,6 +173,7 @@ public class StyleSheet
                 ["font-size"] = "18",
                 ["border-width"] = "1px",
                 [border_color] = "darkblue",
+                [box_sizing] = box_sizing_border_box,
             }
         });
 
@@ -255,7 +258,7 @@ public class StyleSheet
             {
                 ["background-color"] = "lightgray",
                 ["height"] = "150px",
-                ["align-items"] = "center"
+                [align_items] = "center"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".align-center"))

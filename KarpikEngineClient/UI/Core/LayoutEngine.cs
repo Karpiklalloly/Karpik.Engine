@@ -24,7 +24,7 @@ namespace Karpik.Engine.Client.UIToolkit
 
         private class FlexLine
         {
-            public List<FlexItemData> Items { get; } = new();
+            public List<FlexItemData> Items { get; init; } = new();
             public float TotalFlexBasis { get; set; }
             public float MainSize { get; set; }
             public float CrossSize { get; set; }
@@ -99,14 +99,7 @@ namespace Karpik.Engine.Client.UIToolkit
             var widthVal = ParseValue(style.GetValueOrDefault(s.width, s.auto));
             float borderBoxWidth;
 
-            var leftValForWidth = ParseValue(style.GetValueOrDefault(s.left, s.auto));
-            var rightValForWidth = ParseValue(style.GetValueOrDefault(s.right, s.auto));
-
-            if (position is s.position_absolute or s.position_fixed && widthVal.Unit == Unit.Auto && leftValForWidth.Unit != Unit.Auto && rightValForWidth.Unit != Unit.Auto)
-            {
-                borderBoxWidth = sizingBlock.Width - leftValForWidth.ToPx(sizingBlock.Width) - rightValForWidth.ToPx(sizingBlock.Width) - marginLeft - marginRight;
-            }
-            else if (widthVal.Unit != Unit.Auto)
+            if (widthVal.Unit != Unit.Auto)
             {
                 borderBoxWidth = widthVal.ToPx(sizingBlock.Width);
             }
@@ -171,63 +164,32 @@ namespace Karpik.Engine.Client.UIToolkit
                 else finalY = availableSpace.Y + marginTop;
             }
             
-            float finalContentHeight = 0;
             var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
-            bool heightDependsOnContent = true;
+            float finalContentHeight;
 
-            var topValForHeight = ParseValue(style.GetValueOrDefault(s.top, s.auto));
-            var bottomValForHeight = ParseValue(style.GetValueOrDefault(s.bottom, s.auto));
-
-            if (position is s.position_absolute or s.position_fixed && heightVal.Unit == Unit.Auto && topValForHeight.Unit != Unit.Auto && bottomValForHeight.Unit != Unit.Auto)
+            if (heightVal.Unit != Unit.Auto)
             {
-                float borderBoxHeight = sizingBlock.Height - topValForHeight.ToPx(sizingBlock.Height) - bottomValForHeight.ToPx(sizingBlock.Height);
-                finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
-                heightDependsOnContent = false;
-            }
-            else if (heightVal.Unit != Unit.Auto && !(heightVal.Unit == Unit.Percent && float.IsInfinity(sizingBlock.Height)))
-            {
-                float borderBoxHeight = heightVal.ToPx(sizingBlock.Height);
-                finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
-                heightDependsOnContent = false;
+                finalContentHeight = ParseValue(style.GetValueOrDefault(s.height, "0")).ToPx(sizingBlock.Height);
+                finalContentHeight = Math.Max(0, finalContentHeight - paddingTop - paddingBottom - borderTop - borderBottom);
             }
             else
             {
-                bool isChildOfFlexRow = parent.Parent != null && parent.Parent.GetDisplay() == s.display_flex && parent.Parent.IsRow();
-                if (isChildOfFlexRow && heightVal.Unit == Unit.Auto)
-                {
-                    var alignItems = parent.Parent.ComputedStyle.GetValueOrDefault("align-items", "stretch");
-                    var alignSelf = style.GetValueOrDefault(s.align_self, alignItems);
-
-                    if (alignSelf == s.align_self_stretch && sizingBlock.Height > 0 && !float.IsInfinity(sizingBlock.Height))
-                    {
-                        float borderBoxHeight = sizingBlock.Height - marginTop - marginBottom;
-                        finalContentHeight = Math.Max(0, borderBoxHeight - paddingTop - paddingBottom - borderTop - borderBottom);
-                        heightDependsOnContent = false;
-                    }
-                }
-            }
-            
-            if (heightDependsOnContent)
-            {
-                finalContentHeight = 0;
+                finalContentHeight = 0; // Будет вычислена после дочерних элементов
             }
 
             parent.LayoutBox.ContentRect = new Rectangle(finalX + borderLeft + paddingLeft, finalY + borderTop + paddingTop, contentWidth, finalContentHeight);
             RecalculateOuterRects(parent, marginLeft, marginRight, marginTop, marginBottom, paddingLeft, paddingRight, paddingTop, paddingBottom, borderLeft, borderRight, borderTop, borderBottom);
 
-            float childrenConsumedHeight = LayoutChildren(parent, font);
+            // Теперь передаем `availableSpace` в `LayoutChildren`
+            float childrenConsumedHeight = LayoutChildren(parent, availableSpace, font);
             
-            if (heightDependsOnContent)
+            if (heightVal.Unit == Unit.Auto)
             {
-                // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ---
-                // Убираем лишний вызов CalculateNaturalSize и вычисляем высоту напрямую
-                // из уже готового состояния WrappedTextLines, установленного в начале метода.
                 float naturalTextHeight = 0;
                 if (parent.WrappedTextLines.Any())
                 {
                     var currentFontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
-                    var lineHeight = ParseValue(style.GetValueOrDefault(s.line_height, "auto"))
-                        .ToPx(currentFontSize, currentFontSize * 1.2f);
+                    var lineHeight = ParseValue(style.GetValueOrDefault(s.line_height, "auto")).ToPx(currentFontSize, currentFontSize * 1.2f);
                     naturalTextHeight = parent.WrappedTextLines.Count * lineHeight;
                 }
 
@@ -245,50 +207,14 @@ namespace Karpik.Engine.Client.UIToolkit
             }
         }
 
-        private float LayoutChildren(UIElement parent, Font font)
+        private float LayoutChildren(UIElement parent, Rectangle parentAvailableSpace, Font font)
         {
             return parent.GetDisplay() switch
             {
                 s.display_block => CalculateBlock(parent, font),
-                s.display_flex => CalculateFlex(parent, font),
-                s.display_inline_block => CalculateInlineBlock(parent, font),
+                s.display_flex => CalculateFlex(parent, parentAvailableSpace, font),
                 _ => 0
             };
-        }
-
-        private float CalculateInlineBlock(UIElement parent, Font font)
-        {
-            float currentX = 0;
-            float currentY = 0;
-            float lineHeight = 0;
-
-            foreach (var child in parent.Children)
-            {
-                if (_absoluteElements.Contains(child) || _fixedElements.Contains(child)) continue;
-                
-                var preLayoutSpace = new Rectangle(0, 0, float.PositiveInfinity, float.PositiveInfinity);
-                Calculate(child, preLayoutSpace, font);
-                float childMarginWidth = child.LayoutBox.MarginRect.Width;
-                
-                if (currentX > 0 && (currentX + childMarginWidth > parent.LayoutBox.ContentRect.Width))
-                {
-                    currentY += lineHeight;
-                    currentX = 0;
-                    lineHeight = 0;
-                }
-                
-                var finalAvailableSpace = new Rectangle(
-                    parent.LayoutBox.ContentRect.X + currentX,
-                    parent.LayoutBox.ContentRect.Y + currentY,
-                    parent.LayoutBox.ContentRect.Width - currentX,
-                    float.PositiveInfinity
-                );
-                Calculate(child, finalAvailableSpace, font);
-
-                currentX += child.LayoutBox.MarginRect.Width;
-                lineHeight = Math.Max(lineHeight, child.LayoutBox.MarginRect.Height);
-            }
-            return currentY + lineHeight;
         }
 
         private float CalculateBlock(UIElement parent, Font font)
@@ -311,33 +237,55 @@ namespace Karpik.Engine.Client.UIToolkit
             return currentY;
         }
 
-        private float CalculateFlex(UIElement parent, Font font)
+        private float CalculateFlex(UIElement parent, Rectangle parentAvailableSpace, Font font)
         {
             var flexItems = parent.Children.Where(c => !_absoluteElements.Contains(c) 
                                                        && !_fixedElements.Contains(c) 
                                                        && c.GetDisplay() != s.display_none);
-            if (!flexItems.Any())
-            {
-                return 0;
-            }
+            if (!flexItems.Any()) return 0;
 
             var style = parent.ComputedStyle;
             var contentBox = parent.LayoutBox.ContentRect;
             bool isRow = parent.IsRow();
-            float mainSize = isRow ? contentBox.Width : contentBox.Height;
-            if (float.IsInfinity(mainSize)) mainSize = 0;
 
+            // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ---
+            // Вместо того, чтобы читать `mainSize` из потенциально недостроенного `contentBox`,
+            // мы используем `parentAvailableSpace`, который является надежным источником данных.
+            float mainSize;
+            if (isRow)
+            {
+                mainSize = contentBox.Width; // Ширина всегда вычисляется до дочерних элементов.
+            }
+            else
+            {
+                // Для колонок `mainSize` - это высота. Если она auto, мы должны использовать
+                // доступную высоту от родителя, а не свою текущую (которая равна 0).
+                var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
+                mainSize = heightVal.Unit == Unit.Auto ? parentAvailableSpace.Height : contentBox.Height;
+                if (float.IsInfinity(mainSize)) mainSize = 0;
+            }
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+            
             var allItemData = flexItems.Select(item =>
             {
                 var basisVal = ParseValue(item.ComputedStyle.GetValueOrDefault(s.flex_basis, s.auto));
                 float flexBasis;
                 if (basisVal.Unit == Unit.Auto)
                 {
-                    var availableForSizing = new Rectangle(0, 0,
-                        isRow ? float.PositiveInfinity : contentBox.Width,
-                        isRow ? contentBox.Height : float.PositiveInfinity);
-                    Calculate(item, availableForSizing, font);
+                    // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+                    // Раньше здесь был вызов CalculateNaturalSize, который не умел работать с контейнерами.
+                    // Теперь мы делаем полноценный, но временный, расчет компоновки,
+                    // чтобы получить реальный внутренний размер элемента с учетом его детей.
+                    var availableSpaceForMeasure = new Rectangle(
+                        0, 0,
+                        isRow ? float.PositiveInfinity : contentBox.Width, // Неограниченная ширина для строки
+                        isRow ? contentBox.Height : float.PositiveInfinity // Неограниченная высота для колонки
+                    );
+                    Calculate(item, availableSpaceForMeasure, font);
+
+                    // flex-basis - это размер margin-box элемента.
                     flexBasis = isRow ? item.LayoutBox.MarginRect.Width : item.LayoutBox.MarginRect.Height;
+                    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                 }
                 else
                 {
@@ -351,9 +299,7 @@ namespace Karpik.Engine.Client.UIToolkit
 
             if (flexWrap == s.flex_wrap_nowrap)
             {
-                var singleLine = new FlexLine();
-                singleLine.Items.AddRange(allItemData);
-                allLines.Add(singleLine);
+                allLines.Add(new FlexLine { Items = allItemData });
             }
             else
             {
@@ -376,24 +322,22 @@ namespace Karpik.Engine.Client.UIToolkit
                 line.TotalFlexBasis = line.Items.Sum(i => i.FlexBasis);
                 float freeSpace = mainSize - line.TotalFlexBasis;
 
-                if (freeSpace > 0) // GROW
+                if (freeSpace > 0)
                 {
                     float totalGrow = line.Items.Sum(d => ParseFloat(d.Element.ComputedStyle.GetValueOrDefault(s.flex_grow, "0")));
                     foreach (var item in line.Items)
                     {
                         float growFactor = ParseFloat(item.Element.ComputedStyle.GetValueOrDefault(s.flex_grow, "0"));
-                        float addedSpace = (totalGrow > 0) ? (growFactor / totalGrow) * freeSpace : 0;
-                        item.FinalMainSize = item.FlexBasis + addedSpace;
+                        item.FinalMainSize = item.FlexBasis + (totalGrow > 0 ? (growFactor / totalGrow) * freeSpace : 0);
                     }
                 }
-                else // SHRINK
+                else
                 {
                     float totalWeightedShrink = line.Items.Sum(d => ParseFloat(d.Element.ComputedStyle.GetValueOrDefault(s.flex_shrink, "1")) * d.FlexBasis);
                     foreach (var item in line.Items)
                     {
                         float shrinkFactor = ParseFloat(item.Element.ComputedStyle.GetValueOrDefault(s.flex_shrink, "1"));
-                        float removedSpace = (totalWeightedShrink > 0) ? ((shrinkFactor * item.FlexBasis) / totalWeightedShrink) * freeSpace : 0;
-                        item.FinalMainSize = item.FlexBasis + removedSpace;
+                        item.FinalMainSize = item.FlexBasis + (totalWeightedShrink > 0 ? ((shrinkFactor * item.FlexBasis) / totalWeightedShrink) * freeSpace : 0);
                     }
                 }
                 line.MainSize = line.Items.Sum(i => i.FinalMainSize);
@@ -404,10 +348,7 @@ namespace Karpik.Engine.Client.UIToolkit
                 float lineCrossSize = 0;
                 foreach (var item in line.Items)
                 {
-                    var tempAvailableSpace = new Rectangle(0, 0, 
-                        isRow ? item.FinalMainSize : contentBox.Width,
-                        isRow ? float.PositiveInfinity : item.FinalMainSize
-                    );
+                    var tempAvailableSpace = new Rectangle(0, 0, isRow ? item.FinalMainSize : contentBox.Width, isRow ? mainSize : item.FinalMainSize);
                     Calculate(item.Element, tempAvailableSpace, font);
                     float itemCrossSize = isRow ? item.Element.LayoutBox.MarginRect.Height : item.Element.LayoutBox.MarginRect.Width;
                     lineCrossSize = Math.Max(lineCrossSize, itemCrossSize);
@@ -415,50 +356,32 @@ namespace Karpik.Engine.Client.UIToolkit
                 line.CrossSize = lineCrossSize;
             }
 
+            float crossSizeForSizing = isRow ? contentBox.Height : contentBox.Width;
+            if (float.IsInfinity(crossSizeForSizing)) crossSizeForSizing = 0;
+
             var lineStartOffsets = new List<float>();
             float totalCrossSize = allLines.Sum(l => l.CrossSize);
-            float freeCrossSpace = (isRow ? contentBox.Height : contentBox.Width) - totalCrossSize;
+            float freeCrossSpace = crossSizeForSizing - totalCrossSize;
             if (freeCrossSpace > 0.01f && allLines.Any())
             {
                 float crossOffset = 0, lineSpacing = 0;
                 var alignContent = style.GetValueOrDefault(s.align_content, s.align_content_stretch);
                 switch (alignContent)
                 {
-                    case s.align_content_flex_start: break;
                     case s.align_content_flex_end: crossOffset = freeCrossSpace; break;
                     case s.align_content_center: crossOffset = freeCrossSpace / 2; break;
                     case s.align_content_space_between: if(allLines.Count > 1) lineSpacing = freeCrossSpace / (allLines.Count - 1); break;
-                    case s.align_content_space_around:
-                        if (allLines.Count > 0)
-                        {
-                            lineSpacing = freeCrossSpace / allLines.Count;
-                            crossOffset = lineSpacing / 2;
-                        }
-                        break;
-                    case s.align_content_stretch:
-                        if (allLines.Count > 0)
-                        {
-                            float stretchAmount = freeCrossSpace / allLines.Count;
-                            foreach (var line in allLines) line.CrossSize += stretchAmount;
-                        }
-                        break;
+                    case s.align_content_space_around: if (allLines.Count > 0) { lineSpacing = freeCrossSpace / allLines.Count; crossOffset = lineSpacing / 2; } break;
+                    case s.align_content_stretch: if (allLines.Count > 0) { foreach (var l in allLines) l.CrossSize += freeCrossSpace / allLines.Count; } break;
                 }
                 
                 float runningPos = crossOffset;
-                foreach (var line in allLines)
-                {
-                    lineStartOffsets.Add(runningPos);
-                    runningPos += line.CrossSize + lineSpacing;
-                }
+                foreach (var line in allLines) { lineStartOffsets.Add(runningPos); runningPos += line.CrossSize + lineSpacing; }
             }
             else
             {
                 float runningPos = 0;
-                foreach (var line in allLines)
-                {
-                    lineStartOffsets.Add(runningPos);
-                    runningPos += line.CrossSize;
-                }
+                foreach (var line in allLines) { lineStartOffsets.Add(runningPos); runningPos += line.CrossSize; }
             }
 
             for (int i = 0; i < allLines.Count; i++)
@@ -469,12 +392,11 @@ namespace Karpik.Engine.Client.UIToolkit
                 var justifyContent = parent.GetJustifyContent();
                 float mainAxisOffset = 0, spacing = 0;
                 float finalFreeSpace = mainSize - line.MainSize;
-                if (finalFreeSpace > 0)
+                if (finalFreeSpace > 0.01f)
                 {
                     var count = line.Items.Count;
                     switch (justifyContent)
                     {
-                        case s.justify_content_flex_start: break;
                         case s.justify_content_flex_end: mainAxisOffset = finalFreeSpace; break;
                         case s.justify_content_center: mainAxisOffset = finalFreeSpace / 2; break;
                         case s.justify_content_space_between: if (count > 1) spacing = finalFreeSpace / (count - 1); break;
@@ -485,45 +407,103 @@ namespace Karpik.Engine.Client.UIToolkit
                 float mainAxisPosition = mainAxisOffset;
                 foreach (var item in line.Items)
                 {
-                    if (isRow) item.Element.LayoutBox.SetX(contentBox.X + mainAxisPosition);
-                    else item.Element.LayoutBox.SetY(contentBox.Y + mainAxisPosition);
-                    
-                    var alignSelf = item.Element.ComputedStyle.GetValueOrDefault(s.align_self, style.GetValueOrDefault("align-items", "stretch"));
-                    float itemCrossSize = isRow ? item.Element.LayoutBox.MarginRect.Height : item.Element.LayoutBox.MarginRect.Width;
-                    var itemMargin = ParseAllMargins(item.Element.ComputedStyle, contentBox);
+                    var itemElement = item.Element;
+                    var itemStyle = itemElement.ComputedStyle;
+                    var alignSelf = itemStyle.GetValueOrDefault(s.align_self, style.GetValueOrDefault(s.align_items, s.align_stretch));
 
-                    float crossPos = lineStartOffset + (isRow ? itemMargin.Top : itemMargin.Left);
-                    if (alignSelf == s.align_self_flex_end)
+                    // --- НОВАЯ ЛОГИКА РАСТЯГИВАНИЯ (STRETCH) ---
+                    if (alignSelf == s.align_stretch)
                     {
-                        crossPos = lineStartOffset + line.CrossSize - itemCrossSize - (isRow ? itemMargin.Bottom : itemMargin.Right);
-                    }
-                    else if (alignSelf == s.align_self_center)
-                    {
-                        crossPos = lineStartOffset + (line.CrossSize - itemCrossSize) / 2 + (isRow ? (itemMargin.Top - itemMargin.Bottom)/2 : (itemMargin.Left - itemMargin.Right)/2);
+                        if (isRow) // Для строки растягиваем высоту
+                        {
+                            var heightVal = ParseValue(itemStyle.GetValueOrDefault(s.height, s.auto));
+                            if (heightVal.Unit == Unit.Auto)
+                            {
+                                var mTop = ParseValue(itemStyle.GetValueOrDefault(s.margin_top, "0")).ToPx(crossSizeForSizing);
+                                var mBottom = ParseValue(itemStyle.GetValueOrDefault(s.margin_bottom, "0")).ToPx(crossSizeForSizing);
+                                var bTop = ParseValue(itemStyle.GetValueOrDefault(s.border_top_width, "0")).ToPx(0);
+                                var bBottom = ParseValue(itemStyle.GetValueOrDefault(s.border_bottom_width, "0")).ToPx(0);
+                                var pTop = ParseValue(itemStyle.GetValueOrDefault(s.padding_top, "0")).ToPx(0);
+                                var pBottom = ParseValue(itemStyle.GetValueOrDefault(s.padding_bottom, "0")).ToPx(0);
+                                
+                                float newBorderBoxHeight = line.CrossSize - mTop - mBottom;
+                                float newContentHeight = Math.Max(0, newBorderBoxHeight - bTop - bBottom - pTop - pBottom);
+                                
+                                itemElement.LayoutBox.ContentRect = new Rectangle(itemElement.LayoutBox.ContentRect.X, itemElement.LayoutBox.ContentRect.Y, itemElement.LayoutBox.ContentRect.Width, newContentHeight);
+                                
+                                var mLeft = ParseValue(itemStyle.GetValueOrDefault(s.margin_left, "0")).ToPx(mainSize);
+                                var mRight = ParseValue(itemStyle.GetValueOrDefault(s.margin_right, "0")).ToPx(mainSize);
+                                var bLeft = ParseValue(itemStyle.GetValueOrDefault(s.border_left_width, "0")).ToPx(0);
+                                var bRight = ParseValue(itemStyle.GetValueOrDefault(s.border_right_width, "0")).ToPx(0);
+                                var pLeft = ParseValue(itemStyle.GetValueOrDefault(s.padding_left, "0")).ToPx(0);
+                                var pRight = ParseValue(itemStyle.GetValueOrDefault(s.padding_right, "0")).ToPx(0);
+
+                                RecalculateOuterRects(itemElement, mLeft, mRight, mTop, mBottom, pLeft, pRight, pTop, pBottom, bLeft, bRight, bTop, bBottom);
+                            }
+                        }
+                        else // Для колонки растягиваем ширину
+                        {
+                            var widthVal = ParseValue(itemStyle.GetValueOrDefault(s.width, s.auto));
+                            if (widthVal.Unit == Unit.Auto)
+                            {
+                                var mLeft = ParseValue(itemStyle.GetValueOrDefault(s.margin_left, "0")).ToPx(crossSizeForSizing);
+                                var mRight = ParseValue(itemStyle.GetValueOrDefault(s.margin_right, "0")).ToPx(crossSizeForSizing);
+                                var bLeft = ParseValue(itemStyle.GetValueOrDefault(s.border_left_width, "0")).ToPx(0);
+                                var bRight = ParseValue(itemStyle.GetValueOrDefault(s.border_right_width, "0")).ToPx(0);
+                                var pLeft = ParseValue(itemStyle.GetValueOrDefault(s.padding_left, "0")).ToPx(0);
+                                var pRight = ParseValue(itemStyle.GetValueOrDefault(s.padding_right, "0")).ToPx(0);
+
+                                float newBorderBoxWidth = line.CrossSize - mLeft - mRight;
+                                float newContentWidth = Math.Max(0, newBorderBoxWidth - bLeft - bRight - pLeft - pRight);
+                                
+                                itemElement.LayoutBox.ContentRect = new Rectangle(itemElement.LayoutBox.ContentRect.X, itemElement.LayoutBox.ContentRect.Y, newContentWidth, itemElement.LayoutBox.ContentRect.Height);
+                                
+                                var mTop = ParseValue(itemStyle.GetValueOrDefault(s.margin_top, "0")).ToPx(mainSize);
+                                var mBottom = ParseValue(itemStyle.GetValueOrDefault(s.margin_bottom, "0")).ToPx(mainSize);
+                                var bTop = ParseValue(itemStyle.GetValueOrDefault(s.border_top_width, "0")).ToPx(0);
+                                var bBottom = ParseValue(itemStyle.GetValueOrDefault(s.border_bottom_width, "0")).ToPx(0);
+                                var pTop = ParseValue(itemStyle.GetValueOrDefault(s.padding_top, "0")).ToPx(0);
+                                var pBottom = ParseValue(itemStyle.GetValueOrDefault(s.padding_bottom, "0")).ToPx(0);
+
+                                RecalculateOuterRects(itemElement, mLeft, mRight, mTop, mBottom, pLeft, pRight, pTop, pBottom, bLeft, bRight, bTop, bBottom);
+                            }
+                        }
                     }
                     
-                    if (isRow) item.Element.LayoutBox.SetY(contentBox.Y + crossPos);
-                    else item.Element.LayoutBox.SetX(contentBox.X + crossPos);
+                    // --- ЛОГИКА ПОЗИЦИОНИРОВАНИЯ ---
+                    // Главная ось
+                    if (isRow) itemElement.LayoutBox.SetX(contentBox.X + mainAxisPosition);
+                    else itemElement.LayoutBox.SetY(contentBox.Y + mainAxisPosition);
+                    
+                    // Поперечная ось
+                    float itemCrossSize = isRow ? itemElement.LayoutBox.MarginRect.Height : itemElement.LayoutBox.MarginRect.Width;
+                    float crossPos = lineStartOffset; // По умолчанию flex-start (или stretch)
+                    
+                    if (alignSelf == s.align_flex_end) crossPos = lineStartOffset + line.CrossSize - itemCrossSize;
+                    else if (alignSelf == s.align_center) crossPos = lineStartOffset + (line.CrossSize - itemCrossSize) / 2;
+                    
+                    if (isRow) itemElement.LayoutBox.SetY(contentBox.Y + crossPos);
+                    else itemElement.LayoutBox.SetX(contentBox.X + crossPos);
 
-                    LayoutChildren(item.Element, font);
+                    // --- РЕКУРСИВНАЯ КОМПОНОВКА ДОЧЕРНИХ ЭЛЕМЕНТОВ ---
+                    LayoutChildren(itemElement, itemElement.LayoutBox.ContentRect, font);
 
                     mainAxisPosition += item.FinalMainSize + spacing;
                 }
             }
 
-            float finalTotalCrossSize = allLines.Sum(l => l.CrossSize);
-            return isRow ? finalTotalCrossSize : mainSize;
+            return allLines.Sum(l => l.CrossSize);
         }
 
-        private (float width, float height) CalculateNaturalSize(UIElement element, Font defaultFont, float? wrapWidth = null)
+        private (float width, float height) CalculateNaturalSize(UIElement element, Font defaultFont,
+            float? wrapWidth = null)
         {
             var style = element.ComputedStyle;
             var fontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
 
-            if (wrapWidth.HasValue)
-            {
-                WrapText(element, wrapWidth.Value, defaultFont, fontSize);
-            }
+            // 1. Рассчитываем размер собственного текста элемента
+            // Используем предоставленную ширину для переноса, если она есть
+            WrapText(element, wrapWidth ?? float.PositiveInfinity, defaultFont, fontSize);
 
             float textWidth = 0, textHeight = 0;
             if (element.WrappedTextLines.Any())
@@ -534,28 +514,51 @@ namespace Karpik.Engine.Client.UIToolkit
                     .ToPx(fontSize, fontSize * 1.2f);
                 textHeight = element.WrappedTextLines.Count * lineHeight;
             }
-            
-            var flowChildren = element.Children
-                .Where(c => c.GetPosition() is "static" or "relative" && c.GetDisplay() != "none");
 
-            if (!element.WrappedTextLines.Any() && flowChildren.Any())
+            // 2. Рассчитываем совокупный размер дочерних элементов в потоке
+            float childrenWidth = 0, childrenHeight = 0;
+            var flowChildren = element.Children
+                .Where(c => c.GetPosition() == s.position_static || c.GetPosition() == s.position_relative).ToList();
+
+            if (flowChildren.Any())
             {
-                float childrenHeight = 0;
-                float maxChildWidth = 0;
-                
-                foreach (var child in flowChildren)
+                // Рекурсивно получаем естественные размеры всех дочерних элементов
+                var childSizes = flowChildren.Select(c =>
+                    CalculateNaturalSize(c, defaultFont,
+                        // Если родитель - flex-колонка, передаем ему нашу `wrapWidth`
+                        element.GetDisplay() == "flex" && !element.IsRow() ? wrapWidth : null)
+                );
+
+                if (element.GetDisplay() == s.display_flex)
                 {
-                    var childSize = CalculateNaturalSize(child, defaultFont, float.PositiveInfinity);
-                    if (childSize.width > maxChildWidth) maxChildWidth = childSize.width;
-                    childrenHeight += childSize.height;
+                    if (element.IsRow())
+                    {
+                        // Для flex-строки естественная ширина - это сумма ширин детей,
+                        // а естественная высота - высота самого высокого ребенка.
+                        childrenWidth = childSizes.Sum(s => s.width);
+                        childrenHeight = childSizes.Any() ? childSizes.Max(s => s.height) : 0;
+                    }
+                    else // flex-колонка
+                    {
+                        // Для flex-колонки естественная ширина - это ширина самого широкого ребенка,
+                        // а естественная высота - сумма высот детей.
+                        childrenWidth = childSizes.Any() ? childSizes.Max(s => s.width) : 0;
+                        childrenHeight = childSizes.Sum(s => s.height);
+                    }
                 }
-                textWidth = maxChildWidth;
-                textHeight = childrenHeight;
+                else // display: block (или другой, не flex)
+                {
+                    // Для block-контейнера естественная ширина - это ширина самого широкого ребенка,
+                    // а естественная высота - сумма высот детей.
+                    childrenWidth = childSizes.Any() ? childSizes.Max(s => s.width) : 0;
+                    childrenHeight = childSizes.Sum(s => s.height);
+                }
             }
 
-            return (textWidth, textHeight);
+            // 3. Финальный естественный размер - это максимум из размера текста и размера дочерних элементов
+            return (Math.Max(textWidth, childrenWidth), Math.Max(textHeight, childrenHeight));
         }
-        
+
         private void RecalculateOuterRects(UIElement element, 
             float mLeft, float mRight, float mTop, float mBottom, 
             float pLeft, float pRight, float pTop, float pBottom, 
@@ -584,35 +587,12 @@ namespace Karpik.Engine.Client.UIToolkit
             if (string.IsNullOrWhiteSpace(value)) return StyleValue.Px(0);
             value = value.Trim();
             if (value == "auto") return StyleValue.Auto;
-            if (value.EndsWith("px"))
-            {
-                if (float.TryParse(value.AsSpan(0, value.Length - 2), NumberStyles.Any, CultureInfo.InvariantCulture, out float pxVal))
-                    return StyleValue.Px(pxVal);
-            }
-            if (value.EndsWith("%"))
-            {
-                if (float.TryParse(value.AsSpan(0, value.Length - 1), NumberStyles.Any, CultureInfo.InvariantCulture, out float percentVal))
-                    return StyleValue.Percent(percentVal);
-            }
-            if (float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out float numVal))
-                return StyleValue.Px(numVal);
+            if (value.EndsWith("px")) { if (float.TryParse(value.AsSpan(0, value.Length - 2), NumberStyles.Any, CultureInfo.InvariantCulture, out float pxVal)) return StyleValue.Px(pxVal); }
+            if (value.EndsWith("%")) { if (float.TryParse(value.AsSpan(0, value.Length - 1), NumberStyles.Any, CultureInfo.InvariantCulture, out float percentVal)) return StyleValue.Percent(percentVal); }
+            if (float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out float numVal)) return StyleValue.Px(numVal);
             return StyleValue.Px(0);
         }
-
-        private Edges ParseEdges(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return new Edges();
-            var parts = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(ParseValue).ToArray();
-            return parts.Length switch
-            {
-                1 => new Edges { Top = parts[0], Right = parts[0], Bottom = parts[0], Left = parts[0] },
-                2 => new Edges { Top = parts[0], Bottom = parts[0], Right = parts[1], Left = parts[1] },
-                3 => new Edges { Top = parts[0], Right = parts[1], Left = parts[1], Bottom = parts[2] },
-                4 => new Edges { Top = parts[0], Right = parts[1], Bottom = parts[2], Left = parts[3] },
-                _ => new Edges()
-            };
-        }
-
+        
         private static float ParseFloat(string value, float defaultValue = 0f)
         {
             if (string.IsNullOrWhiteSpace(value)) return defaultValue;
@@ -620,28 +600,18 @@ namespace Karpik.Engine.Client.UIToolkit
             return float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out float result) ? result : defaultValue;
         }
 
-        private (float Left, float Right, float Top, float Bottom) ParseAllMargins(Dictionary<string, string> style, Rectangle c) => (
-            ParseEdges(style.GetValueOrDefault("margin", "0")).Left.ToPx(c.Width),
-            ParseEdges(style.GetValueOrDefault("margin", "0")).Right.ToPx(c.Width),
-            ParseEdges(style.GetValueOrDefault("margin", "0")).Top.ToPx(c.Height),
-            ParseEdges(style.GetValueOrDefault("margin", "0")).Bottom.ToPx(c.Height));
-
         private void WrapText(UIElement e, float maxWidth, Font font, float fontSize)
         {
             e.WrappedTextLines.Clear();
             if (string.IsNullOrEmpty(e.Text)) return;
-            if (maxWidth <= 0)
-            {
-                e.WrappedTextLines.Add(e.Text);
-                return;
-            }
+            if (maxWidth <= 1) { e.WrappedTextLines.Add(e.Text); return; }
             
             var words = e.Text.Split(' ');
             var line = new StringBuilder();
             foreach (var word in words)
             {
                 var testLine = line.Length > 0 ? line + " " + word : word;
-                if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth + 0.001f && line.Length > 0)
+                if (Raylib.MeasureTextEx(font, testLine, fontSize, 1).X > maxWidth && line.Length > 0)
                 {
                     e.WrappedTextLines.Add(line.ToString());
                     line.Clear().Append(word);
@@ -661,14 +631,9 @@ namespace Karpik.Engine.Client.UIToolkit
         public static float ToPx(this StyleValue val, float baseValue, float defaultValue = 0f) => val.Unit switch
         {
             Unit.Auto => defaultValue,
-            Unit.Percent when float.IsInfinity(baseValue) => defaultValue,
-            Unit.Percent => (val.Value / 100f) * baseValue, _ => val.Value
+            Unit.Percent when float.IsInfinity(baseValue) || float.IsNaN(baseValue) => defaultValue,
+            Unit.Percent => (val.Value / 100f) * baseValue,
+            _ => val.Value
         };
-    }
-
-    public static class RectangleExtensions
-    {
-        public static Rectangle Inflate(this Rectangle rect, float left, float top, float right, float bottom) =>
-            new(rect.X - left, rect.Y - top, rect.Width + left + right, rect.Height + top + bottom);
     }
 }
