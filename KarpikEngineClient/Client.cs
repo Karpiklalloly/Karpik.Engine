@@ -70,6 +70,7 @@ public class Client
         Raylib.InitWindow(1024, 768, "Console Launcher");
         Raylib.SetWindowState(ConfigFlags.ResizableWindow);
         Raylib.SetWindowMinSize(400, 300);
+        Raylib.SetTargetFPS(60);
         
         rlImGui.Setup();
         

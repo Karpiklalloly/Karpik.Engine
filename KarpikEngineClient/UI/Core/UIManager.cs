@@ -16,6 +16,8 @@ public class UIManager
     private UIElement _pressedElement;
     
     private bool _isLayoutDirtyThisFrame;
+
+    private RenderTexture2D _renderTexture = new();
     
     public void SetRoot(UIElement element)
     {
@@ -23,6 +25,7 @@ public class UIManager
         _styleComputer = new StyleComputer();
         _layoutEngine = new LayoutEngine();
         _renderer = new Renderer();
+        _renderTexture = Raylib.LoadRenderTexture(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
     }
 
     public void Update(double dt)
@@ -45,7 +48,16 @@ public class UIManager
 
     public void Render(double dt)
     {
+        if (Raylib.IsWindowResized())
+        {
+            Raylib.UnloadTexture(_renderTexture.Texture);
+            _renderTexture = Raylib.LoadRenderTexture(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+        }
+        
+        Raylib.BeginTextureMode(_renderTexture);
         _renderer.Render(Root, Font);
+        Raylib.EndTextureMode();
+        Raylib.DrawTexture(_renderTexture.Texture, 0, 0, Color.White);
     }
     
     private void ProcessStyles(UIElement element, Dictionary<string, string> parentComputedStyle, StyleSheet styleSheet)
