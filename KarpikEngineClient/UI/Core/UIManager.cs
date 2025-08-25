@@ -48,16 +48,21 @@ public class UIManager
 
     public void Render(double dt)
     {
+        // 
         if (Raylib.IsWindowResized())
         {
             Raylib.UnloadTexture(_renderTexture.Texture);
+            Raylib.UnloadRenderTexture(_renderTexture);
             _renderTexture = Raylib.LoadRenderTexture(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
         }
         
         Raylib.BeginTextureMode(_renderTexture);
+        Raylib.ClearBackground(new Color(0, 0, 0, 0));
         _renderer.Render(Root, Font);
         Raylib.EndTextureMode();
-        Raylib.DrawTexture(_renderTexture.Texture, 0, 0, Color.White);
+        Raylib.DrawTextureRec(_renderTexture.Texture, new Rectangle(0, 0, 
+            _renderTexture.Texture.Width, -_renderTexture.Texture.Height),
+            Vector2.Zero, Color.White);
     }
     
     private void ProcessStyles(UIElement element, Dictionary<string, string> parentComputedStyle, StyleSheet styleSheet)

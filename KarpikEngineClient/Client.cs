@@ -71,6 +71,7 @@ public class Client
         Raylib.SetWindowState(ConfigFlags.ResizableWindow);
         Raylib.SetWindowMinSize(400, 300);
         Raylib.SetTargetFPS(60);
+        Raylib.SetExitKey(KeyboardKey.Null);
         
         rlImGui.Setup();
         
@@ -89,7 +90,6 @@ public class Client
         var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
         Console.WriteLine((bool)Raylib.IsFontValid(font));
         UIManager.Font = Raylib.GetFontDefault();
-        //CreateNewUI();
 
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
@@ -134,16 +134,12 @@ public class Client
     {
         Input.Update();
         
-        // Обновляем новую UI систему
-        UIManager.Update(Time.DeltaTime);
-        
         Raylib.BeginDrawing();
-        Raylib.ClearBackground(Color.DarkGray);
+        Raylib.ClearBackground(Color.DarkGreen);
 
         rlImGui.Begin();
         Raylib.BeginMode3D(Camera.Main.CameraReference);
         _network.PollEvents();
-        //Raylib.PollInputEvents();
         _pipeline.Run();
         _pipeline.GetRunner<EcsPausableRunner>().PausableRun();
         _pipeline.GetRunner<PausableLateRunner>().PausableLateRun();
@@ -151,7 +147,7 @@ public class Client
 
         Raylib.EndMode3D();
         
-        // Рендерим новую UI систему
+        UIManager.Update(Time.DeltaTime);
         UIManager.Render(Time.DeltaTime);
 
         rlImGui.End();
