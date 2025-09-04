@@ -51,6 +51,7 @@ public class OnMoveSystem : IEcsRunOnEvents<MoveCommand>, IEcsRunOnRequest<MoveC
         ref var position = ref _world.GetPool<Position>().Get(entity.ID);
         position.X += evt.Direction.X;
         position.Y += evt.Direction.Y;
+        position.Z += evt.Direction.Z;
         Console.WriteLine($"Entity {entity.ID} moved to new position: {position.X}, {position.Y}");
     }
 }

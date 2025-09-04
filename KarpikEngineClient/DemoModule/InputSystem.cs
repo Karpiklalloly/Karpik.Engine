@@ -56,6 +56,21 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
             {
                 currentInput.X -= 1;
             }
+            
+            if (Input.IsDown(KeyboardKey.Q))
+            {
+                currentInput.Z += 1;
+            }
+
+            if (Input.IsDown(KeyboardKey.E))
+            {
+                currentInput.Z -= 1;
+            }
+            
+            if (Input.IsPressing(KeyboardKey.Space))
+            {
+                currentInput *= SPACE_SPEED_MULTIPLIER;
+            }
 
             var span = _world.Where(out Aspect a);
             foreach (var e in span)
@@ -63,7 +78,7 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
                 Rpc.Instance.Move(new MoveCommand()
                 {
                     Source = -1,
-                    Target = _world.GetPool<NetworkId>().Get(e).Id,
+                    Target = a.networkId.Get(e).Id,
                     Direction = currentInput,
                 });
             }
