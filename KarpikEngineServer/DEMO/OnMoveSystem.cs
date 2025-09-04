@@ -19,12 +19,12 @@ public class OnMoveSystem : IEcsRunOnEvents<MoveCommand>, IEcsRunOnRequest<MoveC
             lastPairs[pair] = i; // сохраняем индекс последнего вхождения пары
         }
 
-        var directionSums = new Dictionary<int, Vector2>();
+        var directionSums = new Dictionary<int, Vector3>();
         foreach (var kvp in lastPairs)
         {
             var cmd = commands[kvp.Value];
             if (!directionSums.ContainsKey(cmd.Target))
-                directionSums[cmd.Target] = Vector2.Zero;
+                directionSums[cmd.Target] = Vector3.Zero;
             directionSums[cmd.Target] += cmd.Direction;
         }
 

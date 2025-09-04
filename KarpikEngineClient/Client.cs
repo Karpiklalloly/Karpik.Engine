@@ -119,7 +119,6 @@ public class Client
                             ? StyleSheet.display_block
                             : StyleSheet.display_none);
                 }
-                
             }
         };
     }

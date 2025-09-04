@@ -6,7 +6,7 @@ namespace Karpik.Engine.Shared.DEMO;
 
 public struct MoveCommand : IStateCommand
 {
-    public Vector2 Direction;
+    public Vector3 Direction;
     public int Source { get; set; }
     public int Target { get; set; }
 }

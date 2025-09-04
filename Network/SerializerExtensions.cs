@@ -19,4 +19,20 @@ public static class SerializerExtensions
             reader.GetFloat()
         );
     }
+    
+    public static void Put(this NetDataWriter writer, Vector3 vector)
+    {
+        writer.Put(vector.X);
+        writer.Put(vector.Y);
+        writer.Put(vector.Z);
+    }
+    
+    public static Vector3 GetVector3(this NetDataReader reader)
+    {
+        return new Vector3(
+            reader.GetFloat(),
+            reader.GetFloat(),
+            reader.GetFloat()
+        );
+    }
 }

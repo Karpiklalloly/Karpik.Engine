@@ -126,7 +126,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
             {
                 Source = -1,
                 Target = world.GetPool<NetworkId>().Get(span[0]).Id,
-                Direction = new Vector2(1, 0) // Move right
+                Direction = new Vector3(1, 0, 0) // Move right
             });
         }
     }
