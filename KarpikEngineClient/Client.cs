@@ -107,6 +107,21 @@ public class Client
 
         Camera.Main.Position = new Vector3(10, 10, 10);
         Camera.Main.LookAt(Vector3.Zero);
+
+        Input.KeyPressed += (key) =>
+        {
+            if (key == KeyboardKey.Escape)
+            {
+                if (UIManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
+                {
+                    UIManager.Root.SetInlineStyle(StyleSheet.display,
+                        value == StyleSheet.display_none
+                            ? StyleSheet.display_block
+                            : StyleSheet.display_none);
+                }
+                
+            }
+        };
     }
 
     private void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod deliveryMethod)
