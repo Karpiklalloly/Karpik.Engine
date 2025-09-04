@@ -9,6 +9,7 @@
 
     <ItemGroup>
 		<ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
+		<ProjectReference Include="..\Karpik.Jobs\Karpik.Jobs.csproj" />
 		<ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
 				  ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
 		<ProjectReference Include="..\Network\Network.csproj" />
