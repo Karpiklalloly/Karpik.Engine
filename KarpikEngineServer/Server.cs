@@ -22,6 +22,7 @@ public class Server
     private EcsPipeline.Builder _builder;
     private NetManager _network;
     private ModManager _modManager;
+    private EcsRunParallelRunner _parallelRunner;
     
     private WorldEventListener[] _listeners;
     private List<int> _destroyedEntities = [];
@@ -96,6 +97,7 @@ public class Server
         _listeners[0].RegisterDel(e => _destroyedEntities.Add(e));
         _listeners[0].RegisterNew(e => _newEntities.Add(e));
         
+        BaseSystem.InitWorlds(Worlds.Instance.World, Worlds.Instance.EventWorld, Worlds.Instance.MetaWorld);
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
             .Inject(Worlds.Instance.EventWorld)
@@ -106,6 +108,9 @@ public class Server
         InitEcs();
         
         _pipeline = _builder.BuildAndInit();
+        
+        _parallelRunner = _pipeline.GetRunner<EcsRunParallelRunner>();
+        _parallelRunner.Init();
 
         Worlds.Instance.Init(_pipeline);
         Console.ForegroundColor = ConsoleColor.White;
@@ -128,6 +133,8 @@ public class Server
     {
         _network.PollEvents();
         _pipeline.Run();
+        _parallelRunner.RunParallel();
+        BaseSystem.RunBuffers();
         SendSnapshotToAll();
         if (_needSendLocalPlayer.Count > 0)
         {
@@ -178,6 +185,7 @@ public class Server
         _builder
             .AddRunner<EcsPausableRunner>()
             .AddRunner<PausableLateRunner>()
+            .AddRunner<EcsRunParallelRunner>()
             .AddModule(new DemoModule(_destroyedNetworkIds))
             .AddModule(new TimeModule())
             .AddModule(new ModdingModule());

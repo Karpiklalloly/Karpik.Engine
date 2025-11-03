@@ -20,6 +20,7 @@ public class Client
     private EcsPipeline.Builder _builder;
     private ModManager _modManager;
     private NetManager _network;
+    private EcsRunParallelRunner _parallelRunner;
     public static UIManager UIManager = null!;
 
     public void Run(in bool isRunning)
@@ -90,7 +91,8 @@ public class Client
         var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
         Console.WriteLine((bool)Raylib.IsFontValid(font));
         UIManager.Font = Raylib.GetFontDefault();
-
+        
+        BaseSystem.InitWorlds(Worlds.Instance.World, Worlds.Instance.EventWorld, Worlds.Instance.MetaWorld);
         _builder = EcsPipeline.New()
             .Inject(Worlds.Instance.World)
             .Inject(Worlds.Instance.EventWorld)
@@ -103,6 +105,9 @@ public class Client
 
         _pipeline = _builder.Build();
         _pipeline.Init();
+        
+        _parallelRunner = _pipeline.GetRunner<EcsRunParallelRunner>();
+        _parallelRunner.Init();
         Worlds.Instance.Init(_pipeline);
 
         Camera.Main.Position = new Vector3(10, 10, 10);
@@ -156,7 +161,9 @@ public class Client
         _network.PollEvents();
         _pipeline.Run();
         _pipeline.GetRunner<EcsPausableRunner>().PausableRun();
+        _parallelRunner.RunParallel();
         _pipeline.GetRunner<PausableLateRunner>().PausableLateRun();
+        BaseSystem.RunBuffers();
         //TODO: Добавить прием ивента от сервака на фиксед апдейт
 
         Raylib.EndMode3D();
@@ -184,7 +191,7 @@ public class Client
         _builder
             .AddRunner<EcsPausableRunner>()
             .AddRunner<PausableLateRunner>()
-
+            .AddRunner<EcsRunParallelRunner>()
             .AddModule(new VisualModule())
             .AddModule(new InputModule())
             .AddModule(new TimeModule())
