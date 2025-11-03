@@ -120,11 +120,11 @@ public class StyleSheet
         {
             Properties =
             {
-                ["display"] = "flex",
-                ["flex-direction"] = "column",
-                ["width"] = "100%",
-                ["height"] = "100%",
-                ["background-color"] = "darkgray"
+                [display] = display_flex,
+                [flex_direction] = flex_direction_column,
+                [width] = "100%",
+                [height] = "100%",
+                [background_color] = "darkgray"
             }
         });
 
@@ -133,10 +133,10 @@ public class StyleSheet
         {
             Properties =
             {
-                ["display"] = "flex",
-                ["flex-direction"] = "row",
-                ["margin"] = "10px",
-                ["padding"] = "10px",
+                [display] = display_flex,
+                [flex_direction] = flex_direction_row,
+                [margin] = "10px",
+                [padding] = "10px",
                 [border_width] = "2px",
                 [border_color] = "red",
             }
@@ -145,12 +145,12 @@ public class StyleSheet
         {
             Properties =
             {
-                ["display"] = "inline-block",
-                ["color"] = "white",
-                ["font-size"] = "22",
-                ["margin-right"] = "15px",
+                [display] = display_inline_block,
+                [color] = "white",
+                [font_size] = "22",
+                [margin_right] = "15px",
                 // Этот элемент не должен участвовать в flex-расчетах
-                ["flex-shrink"] = "0",
+                [flex_shrink] = "0",
                 [border_width] = "2px",
                 [border_color] = "red",
                 //[padding] = "8px"
@@ -160,18 +160,18 @@ public class StyleSheet
         {
             Properties =
             {
-                ["background-color"] = "darkblue",
-                ["color"] = "red",
+                [background_color] = "darkblue",
+                [color] = "red",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".test-item"))
         {
             Properties =
             {
-                ["padding"] = "10px",
-                ["color"] = "black",
-                ["font-size"] = "18",
-                ["border-width"] = "1px",
+                [padding] = "10px",
+                [color] = "black",
+                [font_size] = "18",
+                [border_width] = "1px",
                 [border_color] = "darkblue",
                 [box_sizing] = box_sizing_border_box,
             }
@@ -182,33 +182,33 @@ public class StyleSheet
         {
             Properties =
             {
-                ["background-color"] = "lightgray"
+                [background_color] = "lightgray"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".no-grow"))
         {
             Properties =
             {
-                ["flex-basis"] = "150px",
-                ["background-color"] = "lightblue"
+                [flex_basis] = "150px",
+                [background_color] = "lightblue"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".grows-1"))
         {
             Properties =
             {
-                ["flex-basis"] = "100px",
-                ["flex-grow"] = "1",
-                ["background-color"] = "lightgreen"
+                [flex_basis] = "100px",
+                [flex_grow] = "1",
+                [background_color] = "lightgreen"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".grows-2"))
         {
             Properties =
             {
-                ["flex-basis"] = "100px",
-                ["flex-grow"] = "2",
-                ["background-color"] = "lightyellow"
+                [flex_basis] = "100px",
+                [flex_grow] = "2",
+                [background_color] = "lightyellow"
             }
         });
 
@@ -218,35 +218,35 @@ public class StyleSheet
         {
             Properties =
             {
-                ["background-color"] = "lightgray",
-                ["width"] = "800px"
+                [background_color] = "lightgray",
+                [width] = "800px"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".shrinks-1"))
         {
             Properties =
             {
-                ["flex-basis"] = "400px",
-                ["flex-shrink"] = "1",
-                ["background-color"] = "lightblue"
+                [flex_basis] = "400px",
+                [flex_shrink] = "1",
+                [background_color] = "lightblue"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".shrinks-2"))
         {
             Properties =
             {
-                ["flex-basis"] = "200px",
-                ["flex-shrink"] = "2",
-                ["background-color"] = "lightgreen"
+                [flex_basis] = "200px",
+                [flex_shrink] = "2",
+                [background_color] = "lightgreen"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".no-shrink"))
         {
             Properties =
             {
-                ["flex-basis"] = "200px",
-                ["flex-shrink"] = "0",
-                ["background-color"] = "lightyellow"
+                [flex_basis] = "200px",
+                [flex_shrink] = "0",
+                [background_color] = "lightyellow"
             }
         });
 
@@ -256,44 +256,44 @@ public class StyleSheet
         {
             Properties =
             {
-                ["background-color"] = "lightgray",
-                ["height"] = "150px",
-                [align_items] = "center"
+                [background_color] = "lightgray",
+                [height] = "150px",
+                [align_items] = align_center
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".align-center"))
         {
             Properties =
             {
-                ["height"] = "50%",
-                ["background-color"] = "lightblue"
+                [height] = "50%",
+                [background_color] = "lightblue"
             }
         }); // Унаследует align-items: center
         _default.Rules.Add(new StyleRule(new Selector(".align-start"))
         {
             Properties =
             {
-                ["height"] = "60px",
-                ["align-self"] = "flex-start",
-                ["background-color"] = "lightgreen"
+                [height] = "60px",
+                [align_self] = align_content_flex_start,
+                [background_color] = "lightgreen"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".align-end"))
         {
             Properties =
             {
-                ["height"] = "80px",
-                ["align-self"] = "flex-end",
-                ["background-color"] = "lightyellow"
+                [height] = "80px",
+                [align_self] = align_flex_end,
+                [background_color] = "lightyellow"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".align-stretch"))
         {
             Properties =
             {
-                ["height"] = "auto",
-                [align_self] = "stretch",
-                ["background-color"] = "red"
+                [height] = auto,
+                [align_self] = align_stretch,
+                [background_color] = "red"
             }
         }); // height: auto важно для stretch
 
@@ -301,17 +301,17 @@ public class StyleSheet
         {
             Properties =
             {
-                ["position"] = "fixed",
-                ["top"] = "0",
-                ["left"] = "0",
-                ["width"] = "100%",
-                ["height"] = "40px",
-                ["background-color"] = "black",
-                ["color"] = "white",
-                ["padding"] = "10px",
-                ["display"] = "flex",
-                ["flex-direction"] = "row",
-                ["z-index"] = "100"
+                [position] = position_fixed,
+                [top] = "0",
+                [left] = "0",
+                [width] = "100%",
+                [height] = "40px",
+                [background_color] = "black",
+                [color] = "white",
+                [padding] = "10px",
+                [display] = display_flex,
+                [flex_direction] = flex_direction_row,
+                [z_index] = "100"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".main-content"))
@@ -326,17 +326,17 @@ public class StyleSheet
         {
             Properties =
             {
-                ["position"] = "relative", // Важно для позиционирования дочернего dropdown
-                ["padding"] = "5px 10px",
-                ["margin-right"] = "10px",
-                ["font-size"] = "18"
+                [position] = position_relative, // Важно для позиционирования дочернего dropdown
+                [padding] = "5px 10px",
+                [margin_right] = "10px",
+                [font_size] = "18"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".menu-item:hover"))
         {
             Properties =
             {
-                ["background-color"] = "darkblue"
+                [background_color] = "darkblue"
             }
         });
         
@@ -344,51 +344,51 @@ public class StyleSheet
         {
             Properties =
             {
-                ["display"] = "flex", // Показываем панель
+                [display] = "flex", // Показываем панель
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".dropdown-panel"))
         {
             Properties =
             {
-                ["display"] = "none", // Скрыто по умолчанию
-                ["position"] = "absolute",
-                ["top"] = "100%",
-                ["left"] = "0",
-                ["width"] = "150px",
-                ["background-color"] = "white",
-                ["border-width"] = "1px",
-                ["border-color"] = "lightgray",
-                ["flex-direction"] = "column",
-                ["z-index"] = "101"
+                [display] = display_none, // Скрыто по умолчанию
+                [position] = position_absolute,
+                [top] = "100%",
+                [left] = "0",
+                [width] = "150px",
+                [background_color] = "white",
+                [border_width] = "1px",
+                [border_color] = "lightgray",
+                [flex_direction] = flex_direction_column,
+                [z_index] = "101"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".dropdown-item"))
         {
             Properties =
             {
-                ["padding"] = "10px",
-                ["color"] = "black",
-                ["font-size"] = "16"
+                [padding] = "10px",
+                [color] = "black",
+                [font_size] = "16"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".dropdown-item:hover"))
         {
             Properties =
             {
-                ["background-color"] = "lightblue"
+                [background_color] = "lightblue"
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".relative-parent"))
         {
             Properties =
             {
-                ["position"] = "relative", // Важно для позиционирования дочернего значка
-                ["background-color"] = "gray",
-                ["border-width"] = "2px",
-                ["border-color"] = "white",
-                ["height"] = "100%", // Растягивается на всю высоту ячейки
-                ["padding"] = "10px",
+                [position] = position_relative, // Важно для позиционирования дочернего значка
+                [background_color] = "gray",
+                [border_width] = "2px",
+                [border_color] = "white",
+                [height] = "100%", // Растягивается на всю высоту ячейки
+                [padding] = "10px",
                 [box_sizing] = box_sizing_border_box,
             }
         });
@@ -397,54 +397,54 @@ public class StyleSheet
         {
             Properties =
             {
-                ["color"] = "lightyellow",
+                [color] = "lightyellow",
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".notification-badge"))
         {
             Properties =
             {
-                ["position"] = "absolute",
-                ["top"] = "-10px",
-                ["right"] = "-25px",
-                ["width"] = "25px",
-                ["height"] = "25px",
-                ["background-color"] = "red",
-                ["color"] = "white",
-                ["font-size"] = "14",
+                [position] = "absolute",
+                [top] = "-10px",
+                [right] = "-25px",
+                [width] = "25px",
+                [height] = "25px",
+                [background_color] = "red",
+                [color] = "white",
+                [font_size] = "14",
                 // border-radius пока не реализован, поэтому будет квадрат
                 // Центрирование текста через Flexbox:
-                ["display"] = "flex",
-                ["justify-content"] = "center",
+                [display] = display_flex,
+                [justify_content] = justify_content_center,
                 ["text-align"] = "center",
-                ["align-items"] = "center"
+                [align_items] = align_center
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".wrap-container"))
         {
             Properties =
             {
-                ["background-color"] = "lightcyan",
-                ["width"] = "480px", // Фиксированная ширина, чтобы заставить элементы переноситься
-                ["flex-wrap"] = "wrap",
-                ["align-content"] = "flex-start" // Чтобы строки прижимались к верху
+                [background_color] = "lightcyan",
+                [width] = "480px", // Фиксированная ширина, чтобы заставить элементы переноситься
+                [flex_wrap] = flex_wrap_wrap,
+                [align_content] = align_content_flex_start // Чтобы строки прижимались к верху
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".wrap-item"))
         {
             Properties =
             {
-                ["flex-basis"] = "150px", // Каждый элемент хочет 150px
-                ["height"] = "50px",
-                ["background-color"] = "lightcoral",
-                ["margin"] = "5px",
+                [flex_basis] = "150px", // Каждый элемент хочет 150px
+                [height] = "50px",
+                [background_color] = "lightcoral",
+                [margin] = "5px",
                 // Flex-grow и shrink в 0, чтобы они не меняли свой размер
-                ["flex-grow"] = "0",
-                ["flex-shrink"] = "0",
+                [flex_grow] = "0",
+                [flex_shrink] = "0",
                 // Для центрирования текста внутри
-                ["display"] = "flex",
-                ["justify-content"] = "center",
-                ["align-items"] = "center"
+                [display] = display_flex,
+                [justify_content] = justify_content_center,
+                [align_items] = align_center
             }
         });
     }
