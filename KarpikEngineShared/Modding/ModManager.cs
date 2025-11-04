@@ -4,12 +4,25 @@ namespace Karpik.Engine.Shared.Modding;
 
 public class ModManager
 {
+    public enum Type
+    {
+        Server,
+        Client,
+    } 
+        
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
     private Loader _loader;
+    private string _subFolder;
 
-    public void Init(Loader loader)
+    public void Init(Loader loader, Type caller)
     {
         _loader = loader;
+        _subFolder = caller switch
+        {
+            Type.Client => "Client",
+            Type.Server => "Server",
+            _ => throw new ArgumentOutOfRangeException(nameof(caller), caller, null)
+        };
     }
     
     public void LoadMods(string modsRootDirectory)
@@ -34,7 +47,7 @@ public class ModManager
         {
             // Загрузка метаданных
             string metadataPath = Path.Combine(modDirectory, "mod_info.json");
-            var files =Directory.GetFiles(modDirectory);
+            var files = Directory.GetFiles(modDirectory);
             if (!File.Exists(metadataPath))
             {
                 Logger.Instance.Log($"Mod missing mod.json: {modDirectory}");
@@ -49,7 +62,7 @@ public class ModManager
             }
             
             // Создаем контейнер мода
-            var container = new ModContainer(modDirectory, metadata);
+            var container = new ModContainer(Path.Combine(modDirectory, _subFolder), metadata);
             container.Initialize();
             _loadedMods[metadata.Id] = container;
             

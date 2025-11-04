@@ -94,8 +94,8 @@ public class Server
         });
         
         _modManager = new ModManager();
-        _modManager.Init(_loader);
-        _modManager.LoadMods("Mods");
+        _modManager.Init(_loader, ModManager.Type.Server);
+        _modManager.LoadMods(_loader.Manager.ModsPath);
         
         _listeners =
         [

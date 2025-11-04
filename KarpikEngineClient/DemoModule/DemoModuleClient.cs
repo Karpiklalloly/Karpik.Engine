@@ -91,7 +91,8 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.NextColumn();
         if (ImGui.Button("Reload Mods"))
         {
-            _modManager.ReloadAllMods("Mods");
+            _modManager.ReloadAllMods(_loader.Manager.ModsPath);
+            _rpc.ReloadMods(new ReloadModsCommand());
         }
 
         ImGui.NextColumn();

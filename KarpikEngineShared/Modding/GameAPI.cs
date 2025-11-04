@@ -18,7 +18,12 @@ public class GameAPI
     
     public void log(string message, LogLevel level = LogLevel.Debug)
     {
-        Logger.Instance.Log(_modId, message, level); 
+        Logger.Instance.Log(_modId, message, level);
+    }
+
+    public void print_info()
+    {
+        Logger.Instance.Log($"Mod ID: {_modId}", LogLevel.Info);
     }
     
     public void register_command(string name, Action callback)

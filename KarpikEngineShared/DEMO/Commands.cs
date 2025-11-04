@@ -33,3 +33,10 @@ public struct ShowVisualEffectEvent : IEcsComponentEvent
     public string EffectName;
     public Vector2 Position;
 }
+
+[Serializable]
+public struct ReloadModsCommand : IEventCommand
+{
+    public int Source { get; set; }
+    public int Target { get; set; }
+}

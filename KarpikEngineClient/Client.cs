@@ -77,8 +77,8 @@ public class Client
             return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
         });
         _modManager = new ModManager();
-        _modManager.Init(_loader);
-        _modManager.LoadMods("Mods");
+        _modManager.Init(_loader, ModManager.Type.Client);
+        _modManager.LoadMods(_loader.Manager.ModsPath);
 
         // Инициализируем окно сначала
         Raylib.InitWindow(1024, 768, "Console Launcher");

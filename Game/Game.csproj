@@ -12,7 +12,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Content Include="Mods\**">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
       <Folder Include="Content\" />
+      <Folder Include="Mods\" />
     </ItemGroup>
 
     <ItemGroup>

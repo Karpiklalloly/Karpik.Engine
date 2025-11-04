@@ -18,8 +18,10 @@ public class DemoModule : IEcsModule
             .Add(new DamageSystem())
             .Add(new OnMoveSystem())
             .Add(new OnJumpSystem())
+            .Add(new OnModRelaod())
             .AddCaller<MoveCommand>()
             .AddCaller<MoveCommandRequest>()
-            .AddCaller<JumpCommand>();
+            .AddCaller<JumpCommand>()
+            .AddCaller<ReloadModsCommand>();
     }
 }
