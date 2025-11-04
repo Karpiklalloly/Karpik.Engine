@@ -4,7 +4,7 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public static class Input
+public class Input
 {
     private enum State
     {
@@ -14,73 +14,73 @@ public static class Input
         UpHold
     }
 
-    public static event Action<KeyboardKey> KeyPressed;
-    public static event Action<KeyboardKey> KeyUnPressed;
-    public static event Action<KeyboardKey> KeyPressing;
+    public event Action<KeyboardKey> KeyPressed;
+    public event Action<KeyboardKey> KeyUnPressed;
+    public event Action<KeyboardKey> KeyPressing;
     
-    public static event Action<char> CharPressed;
-    public static event Action<char> CharUnPressed;
-    public static event Action<char> CharPressing;
+    public event Action<char> CharPressed;
+    public event Action<char> CharUnPressed;
+    public event Action<char> CharPressing;
     
-    private static ConcurrentDictionary<KeyboardKey, State> _keyStates = new();
-    private static ConcurrentDictionary<char, State> _charStates = new();
+    private ConcurrentDictionary<KeyboardKey, State> _keyStates = new();
+    private ConcurrentDictionary<char, State> _charStates = new();
     
-    public static Vector2 MousePosition => Raylib.GetMousePosition();
-    public static Vector2 MouseDelta => Raylib.GetMouseDelta();
+    public Vector2 MousePosition => Raylib.GetMousePosition();
+    public Vector2 MouseDelta => Raylib.GetMouseDelta();
     
-    public static IEnumerable<KeyboardKey> PressedKeys => _keyStates.Keys.Where(IsPressed);
+    public IEnumerable<KeyboardKey> PressedKeys => _keyStates.Keys.Where(IsPressed);
     
-    public static bool IsMouseLeftButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Left);
+    public bool IsMouseLeftButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Left);
     
-    public static bool IsMouseLeftButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Left);
+    public bool IsMouseLeftButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Left);
     
-    public static bool IsMouseLeftButtonHold => Raylib.IsMouseButtonDown(MouseButton.Left);
+    public bool IsMouseLeftButtonHold => Raylib.IsMouseButtonDown(MouseButton.Left);
     
-    public static bool IsMouseRightButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Right);
+    public bool IsMouseRightButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Right);
     
-    public static bool IsMouseRightButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Right);
+    public bool IsMouseRightButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Right);
     
-    public static bool IsMouseRightButtonHold => Raylib.IsMouseButtonDown(MouseButton.Right);
+    public bool IsMouseRightButtonHold => Raylib.IsMouseButtonDown(MouseButton.Right);
     
-    public static bool IsMouseMiddleButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Middle);
+    public bool IsMouseMiddleButtonDown => Raylib.IsMouseButtonPressed(MouseButton.Middle);
     
-    public static bool IsMouseMiddleButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Middle);
+    public bool IsMouseMiddleButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Middle);
     
-    public static bool IsMouseMiddleButtonHold => Raylib.IsMouseButtonDown(MouseButton.Middle);
+    public bool IsMouseMiddleButtonHold => Raylib.IsMouseButtonDown(MouseButton.Middle);
     
-    public static bool IsPressed(KeyboardKey key)
+    public bool IsPressed(KeyboardKey key)
     {
         return Raylib.IsKeyPressed(key);
     }
     
-    public static bool IsUnPressed(KeyboardKey key)
+    public bool IsUnPressed(KeyboardKey key)
     {
         return Raylib.IsKeyReleased(key);
     }
 
-    public static bool IsPressing(KeyboardKey key)
+    public bool IsPressing(KeyboardKey key)
     {
         return Raylib.IsKeyDown(key) && !Raylib.IsKeyPressed(key);
     }
     
-    public static bool IsUnPressing(KeyboardKey key)
+    public bool IsUnPressing(KeyboardKey key)
     {
         return Raylib.IsKeyUp(key) && !Raylib.IsKeyReleased(key);
     }
     
-    public static bool IsDown(KeyboardKey key)
+    public bool IsDown(KeyboardKey key)
     {
         return Raylib.IsKeyDown(key);
     }
     
-    public static bool IsUp(KeyboardKey key)
+    public bool IsUp(KeyboardKey key)
     {
         return Raylib.IsKeyUp(key);
     }
 
-    private static List<KeyboardKey> _keys = new();
-    private static List<char> _chars = new();
-    internal static void Update()
+    private List<KeyboardKey> _keys = new();
+    private List<char> _chars = new();
+    internal void Update()
     {
         _keys.Clear();
         _chars.Clear();

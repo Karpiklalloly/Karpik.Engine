@@ -28,6 +28,11 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
     private bool[] _bools = new bool[1];
     
     private ModManager _modManager;
+    [DI] private EcsDefaultWorld _world;
+    [DI] private EcsEventWorld _eventWorld;
+    [DI] private Loader _loader;
+    [DI] private Rpc _rpc;
+    [DI] private Input _input;
     
     public void Init()
     {
@@ -39,14 +44,13 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.Begin("DemoWindow");
         ShowButtons();
         ShowStats();
-        var world = Worlds.Instance.World;
-        var span = world.Where(EcsStaticMask
+        var span = _world.Where(EcsStaticMask
             .Inc<LocalPlayer>()
             .Inc<Position>()
             .Inc<NetworkId>().Build());
         if (span.Count > 0)
         {
-            ImGui.Text($"Local Player (net id): {world.GetEntityLong(span[0]).Get<NetworkId>().Id}");
+            ImGui.Text($"Local Player (net id): {_world.GetEntityLong(span[0]).Get<NetworkId>().Id}");
             ImGui.Text($"Local Player (local id): {span[0]}");
         }
         else
@@ -60,7 +64,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.End();
 
 
-        if (Input.IsPressed(KeyboardKey.Escape))
+        if (_input.IsPressed(KeyboardKey.Escape))
         {
             Time.IsPaused = !Time.IsPaused;
         }
@@ -71,19 +75,17 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.Columns(5);
         if (ImGui.Button("Spawn Player"))
         {
-            var template = Loader.Instance.Load<ComponentsTemplate>("Player");
-            var world = Worlds.Instance.World;
-            var e = world.NewEntityLong();
-            template.ApplyTo(e.ID, world);
+            var template = _loader.LoadTemplate("Player");
+            var e = _world.NewEntityLong();
+            template.ApplyTo(e.ID, _world);
         }
 
         ImGui.NextColumn();
         if (ImGui.Button("Spawn Enemy"))
         {
-            var template = Loader.Instance.Load<ComponentsTemplate>("Enemy");
-            var world = Worlds.Instance.World;
-            var e = world.NewEntityLong();
-            template.ApplyTo(e.ID, world);
+            var template = _loader.LoadTemplate("Enemy");
+            var e = _world.NewEntityLong();
+            template.ApplyTo(e.ID, _world);
         }
         
         ImGui.NextColumn();
@@ -101,31 +103,30 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.Text($"Total time: {Time.TotalTime:F2}");
         ImGui.Text($"Delta time: {Time.DeltaTime}");
         ImGui.Text($"FPS: {Raylib.GetFPS()}");
-        ImGui.Text($"Entities: {Worlds.Instance.World.Entities.Count}");
-        ImGui.Text($"Event Entities: {Worlds.Instance.EventWorld.Entities.Count}");
-        if (Worlds.Instance.World.Entities.Count > 0)
+        ImGui.Text($"Entities: {_world.Entities.Count}");
+        ImGui.Text($"Event Entities: {_eventWorld.Entities.Count}");
+        if (_world.Entities.Count > 0)
         {
-            var span = Worlds.Instance.World.Where(EcsStaticMask
+            var span = _world.Where(EcsStaticMask
                 .Inc<LocalPlayer>()
                 .Inc<Position>()
                 .Inc<NetworkId>().Build());
-            var pos = Worlds.Instance.World.GetPool<Position>().Get(span[0]);
+            var pos = _world.GetPool<Position>().Get(span[0]);
             ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
         }
 
         ImGui.Checkbox("Auto move player", ref _bools[0]);
         if (_bools[0])
         {
-            var world = Worlds.Instance.World;
-            var span = world.Where(EcsStaticMask
+            var span = _world.Where(EcsStaticMask
                 .Inc<LocalPlayer>()
                 .Inc<Position>()
                 .Inc<NetworkId>().Build());
             if (span.Count == 0) return;
-            Rpc.Instance.Move(new MoveCommand()
+            _rpc.Move(new MoveCommand()
             {
                 Source = -1,
-                Target = world.GetPool<NetworkId>().Get(span[0]).Id,
+                Target = _world.GetPool<NetworkId>().Get(span[0]).Id,
                 Direction = new Vector3(1, 0, 0) // Move right
             });
         }

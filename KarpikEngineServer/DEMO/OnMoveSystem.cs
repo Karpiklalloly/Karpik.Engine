@@ -7,7 +7,7 @@ namespace Karpik.Engine.Server.DEMO;
 
 public class OnMoveSystem : IEcsRunOnEvents<MoveCommand>, IEcsRunOnRequest<MoveCommandRequest>
 {
-    private EcsDefaultWorld _world = Worlds.Instance.World;
+    [DI] private EcsDefaultWorld _world;
 
     public void RunOnEvents(Span<MoveCommand> commands)
     {

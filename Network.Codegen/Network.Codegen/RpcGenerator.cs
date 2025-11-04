@@ -202,19 +202,20 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("using Network;");
         sb.AppendLine("using LiteNetLib;");
         sb.AppendLine("using LiteNetLib.Utils;");
+        sb.AppendLine("using DCFApixels.DragonECS;");
         sb.AppendLine();
         sb.AppendLine("namespace Game.Generated.Client");
         sb.AppendLine("{");
         sb.AppendLine("    public class Rpc");
         sb.AppendLine("    {");
-        sb.AppendLine("        private static ThreadLocal<Rpc> _instance = new ThreadLocal<Rpc>(() => new Rpc());");
-        sb.AppendLine("        public static Rpc Instance => _instance.Value;");
         sb.AppendLine("        private NetManager _netManager;");
+        sb.AppendLine("        private EcsEventWorld _eventWorld;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
         sb.AppendLine();
-        sb.AppendLine("        public void Initialize(NetManager netManager)");
+        sb.AppendLine("        public void Initialize(NetManager netManager, EcsEventWorld eventWorld)");
         sb.AppendLine("        {");
         sb.AppendLine("            _netManager = netManager;");
+        sb.AppendLine("            _eventWorld = eventWorld;");
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        private void Send(DeliveryMethod deliveryMethod)");
@@ -275,12 +276,18 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("using LiteNetLib.Utils;");
         sb.AppendLine("using Network;");
         sb.AppendLine("using Karpik.Engine.Shared.DragonECS;");
+        sb.AppendLine("using DCFApixels.DragonECS;");
         sb.AppendLine();
         sb.AppendLine("namespace Game.Generated.Server");
         sb.AppendLine("{");
 
         sb.AppendLine($"    public partial class CommandDispatcher");
         sb.AppendLine("    {");
+        sb.AppendLine("        private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        public CommandDispatcher(EcsEventWorld eventWorld)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            _eventWorld = eventWorld;");
+        sb.AppendLine("        }");
         sb.AppendLine("        public void Dispatch(int playerEntity, NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine("            var commandId = reader.GetUShort();");
@@ -317,7 +324,7 @@ public class RpcGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"                    cmd.{field.Name} = reader.Get{GetReaderMethod(field.TypeName)}();");
             }
-            sb.AppendLine($"                    Worlds.Instance.EventWorld.SendEvent(cmd);");
+            sb.AppendLine($"                    _eventWorld.SendEvent(cmd);");
             sb.AppendLine("                    break;");
             sb.AppendLine("                }");
         }

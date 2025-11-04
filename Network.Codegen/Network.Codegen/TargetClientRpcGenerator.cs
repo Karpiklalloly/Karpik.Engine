@@ -72,8 +72,6 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("{");
         sb.AppendLine("    public class TargetClientRpcSender");
         sb.AppendLine("    {");
-        sb.AppendLine("        private static ThreadLocal<TargetClientRpcSender> _instance = new ThreadLocal<TargetClientRpcSender>(() => new TargetClientRpcSender());");
-        sb.AppendLine("        public static TargetClientRpcSender Instance => _instance.Value;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
         sb.AppendLine("        private NetManager _netManager;");
         sb.AppendLine();
@@ -119,11 +117,11 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("{");
         sb.AppendLine("    public class TargetClientRpcDispatcher");
         sb.AppendLine("    {");
-        sb.AppendLine("        public static TargetClientRpcDispatcher Instance { get; } = new();");
-        sb.AppendLine();
-        
-        sb.AppendLine("        private TargetClientRpcDispatcher() { }");
-        sb.AppendLine();
+        sb.AppendLine("        private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        public void Init(EcsEventWorld eventWorld)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            _eventWorld = eventWorld;");
+        sb.AppendLine("        }");
         sb.AppendLine("        public void Dispatch(NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine("            var commandId = reader.GetUShort();");
@@ -335,14 +333,13 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("using Network;");
         sb.AppendLine("using Karpik.Engine.Shared.DragonECS;");
         sb.AppendLine("using Network;");
+        sb.AppendLine("using DCFApixels.DragonECS;");
         sb.AppendLine();
         sb.AppendLine("namespace Karpik.Engine.Client");
         sb.AppendLine("{");
         
         sb.AppendLine($"    public partial class TargetClientRpcDispatcher");
         sb.AppendLine("    {");
-        
-        sb.AppendLine("        public static TargetClientRpcDispatcher Instance { get; } = new TargetClientRpcDispatcher();");
         sb.AppendLine("        public void Dispatch(NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine("            var commandId = reader.GetUShort();");
@@ -377,7 +374,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"                    cmd.{field.Name} = reader.Get{GetReaderMethod(field.TypeName)}();");
             }
-            sb.AppendLine($"                    Worlds.Instance.EventWorld.SendEvent(cmd);");
+            sb.AppendLine($"                    _eventWorld.SendEvent(cmd);");
             sb.AppendLine("                    break;");
             sb.AppendLine("                }");
         }
@@ -398,7 +395,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"                    cmd.{field.Name} = reader.Get{GetReaderMethod(field.TypeName)}();");
             }
-            sb.AppendLine($"                    Worlds.Instance.EventWorld.SendEvent(cmd);");
+            sb.AppendLine($"                    _eventWorld.SendEvent(cmd);");
             sb.AppendLine("                    break;");
             sb.AppendLine("                }");
         }

@@ -7,7 +7,7 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
+public class InputSystem : IEcsRun
 {
     class Aspect : EcsAspect
     {
@@ -16,58 +16,60 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
         public EcsPool<NetworkId> networkId = Inc;
     }
     
-    private EcsDefaultWorld _world;
+    [DI] private EcsDefaultWorld _world;
+    [DI] private Rpc _rpc;
+    [DI] private Input _input;
     private const float SPACE_SPEED_MULTIPLIER = 5f;
     
     public void Run()
     {
-        if (Input.IsMouseRightButtonDown)
+        if (_input.IsMouseRightButtonDown)
         {
             Raylib.DisableCursor();
             return;
         }
         
-        if (Input.IsMouseRightButtonUp)
+        if (_input.IsMouseRightButtonUp)
         {
             Raylib.EnableCursor();
             return;
         }
 
-        if (Input.IsMouseLeftButtonHold)
+        if (_input.IsMouseLeftButtonHold)
         {
             Vector3 currentInput = Vector3.Zero;
 
-            if (Input.IsDown(KeyboardKey.A) || Input.IsDown(KeyboardKey.Left))
+            if (_input.IsDown(KeyboardKey.A) || _input.IsDown(KeyboardKey.Left))
             {
                 currentInput.Y -= 1;
             }
 
-            if (Input.IsDown(KeyboardKey.D) || Input.IsDown(KeyboardKey.Right))
+            if (_input.IsDown(KeyboardKey.D) || _input.IsDown(KeyboardKey.Right))
             {
                 currentInput.Y += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.W) || Input.IsDown(KeyboardKey.Up))
+            if (_input.IsDown(KeyboardKey.W) || _input.IsDown(KeyboardKey.Up))
             {
                 currentInput.X += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.S) || Input.IsDown(KeyboardKey.Down))
+            if (_input.IsDown(KeyboardKey.S) || _input.IsDown(KeyboardKey.Down))
             {
                 currentInput.X -= 1;
             }
             
-            if (Input.IsDown(KeyboardKey.Q))
+            if (_input.IsDown(KeyboardKey.Q))
             {
                 currentInput.Z += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.E))
+            if (_input.IsDown(KeyboardKey.E))
             {
                 currentInput.Z -= 1;
             }
             
-            if (Input.IsPressing(KeyboardKey.Space))
+            if (_input.IsPressing(KeyboardKey.Space))
             {
                 currentInput *= SPACE_SPEED_MULTIPLIER;
             }
@@ -75,7 +77,7 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
             var span = _world.Where(out Aspect a);
             foreach (var e in span)
             {
-                Rpc.Instance.Move(new MoveCommand()
+                _rpc.Move(new MoveCommand()
                 {
                     Source = -1,
                     Target = a.networkId.Get(e).Id,
@@ -88,49 +90,44 @@ public class InputSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
         {
             Vector3 currentInput = Vector3.Zero;
 
-            if (Input.IsDown(KeyboardKey.A) || Input.IsDown(KeyboardKey.Left))
+            if (_input.IsDown(KeyboardKey.A) || _input.IsDown(KeyboardKey.Left))
             {
                 currentInput.Y -= 1;
             }
 
-            if (Input.IsDown(KeyboardKey.D) || Input.IsDown(KeyboardKey.Right))
+            if (_input.IsDown(KeyboardKey.D) || _input.IsDown(KeyboardKey.Right))
             {
                 currentInput.Y += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.W) || Input.IsDown(KeyboardKey.Up))
+            if (_input.IsDown(KeyboardKey.W) || _input.IsDown(KeyboardKey.Up))
             {
                 currentInput.X += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.S) || Input.IsDown(KeyboardKey.Down))
+            if (_input.IsDown(KeyboardKey.S) || _input.IsDown(KeyboardKey.Down))
             {
                 currentInput.X -= 1;
             }
 
-            if (Input.IsDown(KeyboardKey.Q))
+            if (_input.IsDown(KeyboardKey.Q))
             {
                 currentInput.Z += 1;
             }
 
-            if (Input.IsDown(KeyboardKey.E))
+            if (_input.IsDown(KeyboardKey.E))
             {
                 currentInput.Z -= 1;
             }
 
-            if (Input.IsPressing(KeyboardKey.Space))
+            if (_input.IsPressing(KeyboardKey.Space))
             {
                 currentInput *= SPACE_SPEED_MULTIPLIER;
             }
 
-            Camera.Main.Rotate(Input.MouseDelta * (float)Time.DeltaTime / 2);
+            Camera.Main.Rotate(_input.MouseDelta * (float)Time.DeltaTime / 2);
             Camera.Main.Move(currentInput * (float)Time.DeltaTime * 2);
         }
         
-    }
-
-    public void Inject(EcsDefaultWorld obj)
-    {
-        _world = obj;
     }
 }

@@ -6,7 +6,7 @@ namespace Karpik.Engine.Server.DEMO;
 
 public class OnJumpSystem : IEcsRunOnEvent<JumpCommand>
 {
-    private EcsDefaultWorld _world = Worlds.Instance.World;
+    [DI] private EcsDefaultWorld _world;
     
     public void RunOnEvent(ref JumpCommand command)
     {

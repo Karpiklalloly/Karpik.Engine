@@ -6,13 +6,9 @@ namespace Karpik.Engine.Shared;
 public class BaseSystem
 {
     private static ConcurrentDictionary<EcsWorld, EcsCommandBuffer> _worldBuffers = new();
-    private static bool _inited = false;
     
     public static void InitWorlds(params Span<EcsWorld> worlds)
     {
-        if (_inited) throw new("Worlds have already been inited");
-        
-        _inited = true;
         foreach (var world in worlds)
         {
             _worldBuffers.TryAdd(world, new EcsCommandBuffer(world));

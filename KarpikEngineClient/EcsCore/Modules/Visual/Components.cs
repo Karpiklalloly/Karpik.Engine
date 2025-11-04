@@ -4,21 +4,14 @@ using Raylib_cs;
 namespace Karpik.Engine.Client;
 
 [Serializable]
-public struct SpriteRenderer : IEcsComponent
+public struct SpriteRenderer : IEcsComponent, IEcsComponentOnLoad
 {
     [JsonIgnore] public Texture2D Texture;
     public Color Color;
     public int Layer;
-    public string TexturePath
+    public string TexturePath;
+    public void OnLoad(Loader loader)
     {
-        readonly get => _path;
-        set
-        {
-            if (value == _path) return;
-            _path = value;
-            Texture = Loader.Instance.Load<Texture2D>(value);
-        }
+        Texture = loader.Load<Texture2D>(TexturePath);
     }
-
-    private string _path;
 }

@@ -9,11 +9,6 @@ public class Tween
     private static readonly GTweensContext _context = new();
     private static readonly GTweensContext _pausableContext = new();
 
-    private static ThreadLocal<Tween> _instance = new ThreadLocal<Tween>(() => new Tween());
-    public static Tween Instance => _instance.Value;
-
-    private Tween() { }
-
     public static void Add(GTween tween, bool pausable)
     {
         if (pausable)

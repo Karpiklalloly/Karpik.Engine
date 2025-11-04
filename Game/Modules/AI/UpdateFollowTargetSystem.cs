@@ -3,30 +3,31 @@ using Karpik.Engine.Shared;
 
 namespace Karpik.Game.Modules;
 
-public class UpdateFollowTargetSystem : IEcsRun
+public class UpdateFollowTargetSystem : IEcsRun, IEcsInit
 {
     private class AspectPlayer : EcsAspect
     {
         public EcsTagPool<FollowPlayer> followPlayer = Inc;
+        public EcsPool<FollowTarget> followTarget = Inc;
     }
     
-    private EcsDefaultWorld _world;
+    [DI] private EcsDefaultWorld _world;
+    [DI] private EcsMetaWorld _metaWorld;
     private EcsPool<FollowTarget> _followTargetPool;
-
-    public UpdateFollowTargetSystem()
+    
+    public void Init()
     {
-        _world = Worlds.Instance.World;
         _followTargetPool = _world.GetPool<FollowTarget>();
     }
     
     public void Run()
     {
-        foreach (var e in _world.Where(out AspectPlayer aPlayer))
+        foreach (var e in _world.Where(out AspectPlayer a))
         {
             ref var followTarget = ref _followTargetPool.TryAddOrGet(e);
             if (followTarget.Target == 0)
             {
-                followTarget.Target = Worlds.Instance.MetaWorld.GetPlayer().Player.ID;
+                followTarget.Target = _metaWorld.GetPlayer(_world).Player.ID;
             }
         }
     }

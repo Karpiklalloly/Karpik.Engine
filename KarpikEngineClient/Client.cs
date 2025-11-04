@@ -22,6 +22,17 @@ public class Client
     private NetManager _network;
     private EcsRunParallelRunner _parallelRunner;
     public static UIManager UIManager = null!;
+    private Loader _loader = new();
+    private Tween _tween = new();
+    private Input _input = new();
+
+    private NetworkManager _networkManager = new();
+    private Rpc _rpc = new();
+    private TargetClientRpcDispatcher _targetClientRpcDispatcher = new();
+
+    private EcsDefaultWorld _world = new();
+    private EcsEventWorld _eventWorld = new();
+    private EcsMetaWorld _metaWorld = new();
 
     public void Run(in bool isRunning)
     {
@@ -41,30 +52,32 @@ public class Client
 
     public void Init()
     {
-        NetworkManager.Instance.Register();
+        _networkManager.Register();
+        _targetClientRpcDispatcher.Init(_eventWorld);
 
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         var port = GetFreePort();
         _network.Start(port);
         _network.Connect("localhost", 9051, "MyGame");
-        Rpc.Instance.Initialize(_network);
+        _rpc.Initialize(_network, _eventWorld);
         listener.NetworkReceiveEvent += OnNetworkReceive;
         listener.PeerDisconnectedEvent += (peer, info) =>
         {
             Console.WriteLine("Disconnected from server. Clearing world...");
-            NetworkManager.Instance.ClearClientCache();
+            _networkManager.ClearClientCache();
         };
 
-        Loader.Instance.Manager = new AssetManager();
-        Loader.Instance.Manager.RegisterConverter<Texture2D>(fileName => Raylib.LoadTexture(fileName));
-        Loader.Instance.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
+        _loader.Manager = new AssetManager();
+        _loader.Manager.RegisterConverter<Texture2D>(fileName => Raylib.LoadTexture(fileName));
+        _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
         {
-            var json = Loader.Instance.Manager.ReadAllText(ApproveFileName(fileName, "json"));
+            var json = _loader.Manager.ReadAllText(ApproveFileName(fileName, "json"));
             var options = new JsonSerializerSettings { Converters = { new ComponentArrayConverter() } };
             return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
         });
         _modManager = new ModManager();
+        _modManager.Init(_loader);
         _modManager.LoadMods("Mods");
 
         // Инициализируем окно сначала
@@ -79,7 +92,7 @@ public class Client
         // Инициализируем новую UI систему
         UIManager = new UIManager();
         var root = CreateDemoUI();
-        UIManager.SetRoot(root);
+        UIManager.SetRoot(root, _input);
         UIManager.Font = Raylib.GetFontDefault();
         var codes = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
                     + "0123456789"
@@ -92,14 +105,19 @@ public class Client
         Console.WriteLine((bool)Raylib.IsFontValid(font));
         UIManager.Font = Raylib.GetFontDefault();
         
-        BaseSystem.InitWorlds(Worlds.Instance.World, Worlds.Instance.EventWorld, Worlds.Instance.MetaWorld);
+        BaseSystem.InitWorlds(_world, _eventWorld, _metaWorld);
         _builder = EcsPipeline.New()
-            .Inject(Worlds.Instance.World)
-            .Inject(Worlds.Instance.EventWorld)
-            .Inject(Worlds.Instance.MetaWorld)
+            .Inject(_world)
+            .Inject(_eventWorld)
+            .Inject(_metaWorld)
             .Inject(_modManager)
             .Inject(Camera.Main)
-            .Inject(_network);
+            .Inject(_network)
+            .Inject(_rpc)
+            .Inject(_loader)
+            .Inject(_tween)
+            .Inject(_input)
+            .AutoInject();
 
         InitEcs();
 
@@ -108,12 +126,11 @@ public class Client
         
         _parallelRunner = _pipeline.GetRunner<EcsRunParallelRunner>();
         _parallelRunner.Init();
-        Worlds.Instance.Init(_pipeline);
 
         Camera.Main.Position = new Vector3(10, 10, 10);
         Camera.Main.LookAt(Vector3.Zero);
 
-        Input.KeyPressed += (key) =>
+        _input.KeyPressed += (key) =>
         {
             if (key == KeyboardKey.Escape)
             {
@@ -133,11 +150,11 @@ public class Client
         var packetType = (PacketType)reader.GetByte();
         if (packetType == PacketType.Snapshot)
         {
-            NetworkManager.Instance.ApplySnapshot(Worlds.Instance.World, reader);
+            _networkManager.ApplySnapshot(_world, reader);
         }
         else if (packetType == PacketType.Command)
         {
-            TargetClientRpcDispatcher.Instance.Dispatch(reader);
+            _targetClientRpcDispatcher.Dispatch(reader);
         }
 
         reader.Recycle();
@@ -151,7 +168,7 @@ public class Client
 
     private void Update()
     {
-        Input.Update();
+        _input.Update();
         
         Raylib.BeginDrawing();
         Raylib.ClearBackground(Color.DarkGreen);

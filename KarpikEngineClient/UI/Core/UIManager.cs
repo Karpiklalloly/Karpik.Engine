@@ -18,9 +18,11 @@ public class UIManager
     private bool _isLayoutDirtyThisFrame;
 
     private RenderTexture2D _renderTexture = new();
-    
-    public void SetRoot(UIElement element)
+    private Input _input;
+
+    public void SetRoot(UIElement element, Input input)
     {
+        _input = input;
         Root = element;
         _styleComputer = new StyleComputer();
         _layoutEngine = new LayoutEngine();
@@ -102,7 +104,7 @@ public class UIManager
     private void HandleInteractivity()
     {
         // Код из предыдущего ответа остается без изменений
-        var mousePos = Input.MousePosition;
+        var mousePos = _input.MousePosition;
         var currentHover = HitTest(Root, mousePos);
         
         if (currentHover != _hoveredElement)
@@ -122,7 +124,7 @@ public class UIManager
             _hoveredElement = currentHover;
         }
         
-        if (Input.IsMouseLeftButtonDown)
+        if (_input.IsMouseLeftButtonDown)
         {
             if (_hoveredElement != null && _pressedElement == null)
             {
@@ -133,7 +135,7 @@ public class UIManager
             }
         }
         
-        if (Input.IsMouseLeftButtonUp)
+        if (_input.IsMouseLeftButtonUp)
         {
             if (_pressedElement != null)
             {

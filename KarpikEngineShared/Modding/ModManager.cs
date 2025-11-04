@@ -5,12 +5,18 @@ namespace Karpik.Engine.Shared.Modding;
 public class ModManager
 {
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
+    private Loader _loader;
+
+    public void Init(Loader loader)
+    {
+        _loader = loader;
+    }
     
     public void LoadMods(string modsRootDirectory)
     {
         if (!Directory.Exists(modsRootDirectory))
         {
-            modsRootDirectory = Path.Combine(Loader.Instance.RootPath, modsRootDirectory);
+            modsRootDirectory = Path.Combine(_loader.RootPath, modsRootDirectory);
             if (!Directory.Exists(modsRootDirectory)) return;
         }
         

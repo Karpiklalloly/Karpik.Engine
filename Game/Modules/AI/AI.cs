@@ -13,9 +13,9 @@ public static class AI
         };
     }
 
-    public static void FollowPlayer(this entlong entity)
+    public static void FollowPlayer(this entlong entity, EcsMetaWorld metaWorld, EcsDefaultWorld world)
     {
-        ref var player = ref Worlds.Instance.MetaWorld.GetPlayer();
+        ref var player = ref metaWorld.GetPlayer(world);
         
         entity.Add<FollowTarget>() = new FollowTarget() 
         {
@@ -23,12 +23,12 @@ public static class AI
         };
     }
 
-    public static ref PlayerRef GetPlayer(this MetaWorld metaWorld)
+    public static ref PlayerRef GetPlayer(this EcsMetaWorld ecsMetaWorld, EcsDefaultWorld world)
     {
-        ref var player = ref Worlds.Instance.MetaWorld.Get<PlayerRef>();
+        ref var player = ref ecsMetaWorld.Get<PlayerRef>();
         if (player.Player.IsNull)
         {
-            var players = Worlds.Instance.World.Where(EcsStaticMask.Inc<Player>().Build());
+            var players = world.Where(EcsStaticMask.Inc<Player>().Build());
             if (players.Count > 0)
             {
                 player = new PlayerRef()

@@ -116,13 +116,17 @@ public class NetworkGenerator : IIncrementalGenerator
         sb.AppendLine("            void ClearPool(EcsWorld world);");
         sb.AppendLine("        }");
         sb.AppendLine();
+        
+        sb.AppendLine("        private class Aspect : EcsAspect");
+        sb.AppendLine("        {");
+        sb.AppendLine("            public EcsPool<NetworkId> networkId = Inc;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
 
-        sb.AppendLine("        private static ThreadLocal<NetworkManager> _instance = new ThreadLocal<NetworkManager>(() => new NetworkManager());");
-        sb.AppendLine("        public static NetworkManager Instance => _instance.Value;");
         // Словарь-регистратор
         sb.AppendLine("        private readonly Dictionary<long, IComponentSerializer> _serializers = new();");
-        sb.AppendLine("        private static readonly Dictionary<int, int> _networkIdToEntityId = new();");
-        sb.AppendLine("        private static readonly Dictionary<int, int> _entityIdToNetworkId = new();");
+        sb.AppendLine("        private readonly Dictionary<int, int> _networkIdToEntityId = new();");
+        sb.AppendLine("        private readonly Dictionary<int, int> _entityIdToNetworkId = new();");
         sb.AppendLine();
 
         // Метод Register
@@ -147,12 +151,11 @@ public class NetworkGenerator : IIncrementalGenerator
         sb.AppendLine("                writer.Put(entityId);");
         sb.AppendLine("            }");
         sb.AppendLine();
-        sb.AppendLine("            var networkedEntities = world.Where(EcsStaticMask.Inc<NetworkId>().Build());");
+        sb.AppendLine("            var networkedEntities = world.Where(out Aspect a);");
         sb.AppendLine("            writer.Put(networkedEntities.Count);");
-        sb.AppendLine("            var netIdPool = world.GetPool<NetworkId>();");
         sb.AppendLine("            foreach (var entityId in networkedEntities)");
         sb.AppendLine("            {");
-        sb.AppendLine("                writer.Put(netIdPool.Get(entityId).Id);");
+        sb.AppendLine("                writer.Put(a.networkId.Get(entityId).Id);");
         id = 1;
         foreach (var s in structsToGenerate)
         {

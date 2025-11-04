@@ -5,9 +5,6 @@ namespace Karpik.Engine.Shared;
 
 public class Loader
 {
-    private static ThreadLocal<Loader> _instance = new ThreadLocal<Loader>(() => new Loader());
-    public static Loader Instance => _instance.Value;
-    
     public AssetManager Manager;
 
     public string RootPath => Manager.RootPath;
@@ -28,6 +25,20 @@ public class Loader
     }
     
     public T Load<T>(string path) => Manager.Load<T>(path);
+
+    public ComponentsTemplate LoadTemplate(string path)
+    {
+        var template = Manager.Load<ComponentsTemplate>(path);
+        var loads = template.Components
+            .Where(x => x.Type.IsAssignableTo(typeof(IEcsComponentOnLoad)))
+            .Select(x => x.GetRaw())
+            .Cast<IEcsComponentOnLoad>();
+        foreach (var load in loads)
+        {
+            load.OnLoad(this);
+        }
+        return template;
+    }
     
     public JObject Load(string path) 
     {

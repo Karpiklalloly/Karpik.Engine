@@ -20,8 +20,13 @@ public class Server
 
     private EcsPipeline _pipeline;
     private EcsPipeline.Builder _builder;
+    private EcsDefaultWorld _world = new();
+    private EcsEventWorld _eventWorld = new();
+    private EcsMetaWorld _metaWorld = new();
     private NetManager _network;
     private ModManager _modManager;
+    private Loader _loader = new();
+    private Tween _tween = new();
     private EcsRunParallelRunner _parallelRunner;
     
     private WorldEventListener[] _listeners;
@@ -33,6 +38,9 @@ public class Server
     private Queue<(NetPeer, int)> _needSendLocalPlayer = [];
     
     private CommandDispatcher _commandDispatcher;
+
+    private NetworkManager _networkManager = new();
+    private TargetClientRpcSender _rpcSender = new();
     
     public void Run(in bool isRunning)
     {
@@ -53,16 +61,16 @@ public class Server
 
     public void Init()
     {
-        NetworkManager.Instance.Register();
+        _networkManager.Register();
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         _network.Start(9051);
-        TargetClientRpcSender.Instance.Initialize(_network);
+        _rpcSender.Initialize(_network);
         listener.ConnectionRequestEvent += static req => req.AcceptIfKey("MyGame");
         listener.PeerConnectedEvent += peer =>
         {
             Console.WriteLine($"Player connected: {peer.Id}");
-            var world = Worlds.Instance.World;
+            var world = _world;
             var player = world.NewEntity();
             world.GetPool<NetworkId>().Add(player).Id = _nextNetworkId++;
             world.GetPool<Position>().Add(player) = new Position()
@@ -76,34 +84,38 @@ public class Server
             _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };
         listener.NetworkReceiveEvent += OnNetworkReceive;
-        _commandDispatcher = new CommandDispatcher();
-        Loader.Instance.Manager = new AssetManager();
-        Loader.Instance.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
+        _commandDispatcher = new CommandDispatcher(_eventWorld);
+        _loader.Manager = new AssetManager();
+        _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
         {
-            var json = Loader.Instance.Manager.ReadAllText(ApproveFileName(fileName, "json"));
+            var json = _loader.Manager.ReadAllText(ApproveFileName(fileName, "json"));
             var options = new JsonSerializerSettings { Converters = { new ComponentArrayConverter() } };
             return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
         });
         
         _modManager = new ModManager();
+        _modManager.Init(_loader);
         _modManager.LoadMods("Mods");
         
         _listeners =
         [
-            new WorldEventListener(Worlds.Instance.World),
-            new WorldEventListener(Worlds.Instance.EventWorld),
-            new WorldEventListener(Worlds.Instance.MetaWorld)
+            new WorldEventListener(_world),
+            new WorldEventListener(_eventWorld),
+            new WorldEventListener(_metaWorld)
         ];
         _listeners[0].RegisterDel(e => _destroyedEntities.Add(e));
         _listeners[0].RegisterNew(e => _newEntities.Add(e));
         
-        BaseSystem.InitWorlds(Worlds.Instance.World, Worlds.Instance.EventWorld, Worlds.Instance.MetaWorld);
+        BaseSystem.InitWorlds(_world, _eventWorld, _metaWorld);
         _builder = EcsPipeline.New()
-            .Inject(Worlds.Instance.World)
-            .Inject(Worlds.Instance.EventWorld)
-            .Inject(Worlds.Instance.MetaWorld)
+            .Inject(_world)
+            .Inject(_eventWorld)
+            .Inject(_metaWorld)
             .Inject(_modManager)
-            .Inject(_network);
+            .Inject(_network)
+            .Inject(_loader)
+            .Inject(_tween)
+            .AutoInject();
         
         InitEcs();
         
@@ -112,13 +124,12 @@ public class Server
         _parallelRunner = _pipeline.GetRunner<EcsRunParallelRunner>();
         _parallelRunner.Init();
 
-        Worlds.Instance.Init(_pipeline);
         Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine("Initializing server...");
 
         for (int i = 0; i < 100; i++)
         {
-            var entity =  Worlds.Instance.World.NewEntityLong();
+            var entity =  _world.NewEntityLong();
             entity.Add<Health>();
         }
     }
@@ -139,7 +150,7 @@ public class Server
         if (_needSendLocalPlayer.Count > 0)
         {
             var (peer, netID) = _needSendLocalPlayer.Dequeue();
-            TargetClientRpcSender.Instance.SetLocalPlayer(peer, new SetLocalPlayerTargetRpc()
+            _rpcSender.SetLocalPlayer(peer, new SetLocalPlayerTargetRpc()
             {
                 LocalPlayerNetId = netID,
             });
@@ -159,7 +170,7 @@ public class Server
         if (packetType == PacketType.Command)
         {
             int player = _peerToEntity[peer];
-            var playerEntity = Worlds.Instance.World.GetEntityLong(player);
+            var playerEntity = _world.GetEntityLong(player);
             if (playerEntity.IsAlive)
             {
                 _commandDispatcher.Dispatch(playerEntity.ID, reader);
@@ -172,7 +183,7 @@ public class Server
     {
         var writer = new NetDataWriter();
         writer.Put((byte)PacketType.Snapshot);
-        NetworkManager.Instance.WriteSnapshot(Worlds.Instance.World, writer, _destroyedNetworkIds);
+        _networkManager.WriteSnapshot(_world, writer, _destroyedNetworkIds);
         _network.SendToAll(writer, DeliveryMethod.Unreliable);
 
         _destroyedNetworkIds.Clear();
