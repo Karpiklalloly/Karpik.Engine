@@ -33,6 +33,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
     [DI] private Loader _loader;
     [DI] private Rpc _rpc;
     [DI] private Input _input;
+    [DI] private UIManager _uiManager;
     
     public void Init()
     {
@@ -60,7 +61,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.End();
 
         ImGui.Begin("UI");
-        PrintUI(Client.UIManager.Root);
+        PrintUI(_uiManager.Root);
         ImGui.End();
 
 

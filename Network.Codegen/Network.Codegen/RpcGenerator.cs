@@ -208,15 +208,9 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("{");
         sb.AppendLine("    public class Rpc");
         sb.AppendLine("    {");
-        sb.AppendLine("        private NetManager _netManager;");
-        sb.AppendLine("        private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        [Inject] private NetManager _netManager;");
+        sb.AppendLine("        [Inject] private EcsEventWorld _eventWorld;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
-        sb.AppendLine();
-        sb.AppendLine("        public void Initialize(NetManager netManager, EcsEventWorld eventWorld)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            _netManager = netManager;");
-        sb.AppendLine("            _eventWorld = eventWorld;");
-        sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        private void Send(DeliveryMethod deliveryMethod)");
         sb.AppendLine("        {");
@@ -283,11 +277,8 @@ public class RpcGenerator : IIncrementalGenerator
 
         sb.AppendLine($"    public partial class CommandDispatcher");
         sb.AppendLine("    {");
-        sb.AppendLine("        private EcsEventWorld _eventWorld;");
-        sb.AppendLine("        public CommandDispatcher(EcsEventWorld eventWorld)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            _eventWorld = eventWorld;");
-        sb.AppendLine("        }");
+        sb.AppendLine("        [Inject] private EcsEventWorld _eventWorld;");
+        sb.AppendLine();
         sb.AppendLine("        public void Dispatch(int playerEntity, NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine("            var commandId = reader.GetUShort();");

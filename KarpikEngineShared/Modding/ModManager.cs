@@ -11,12 +11,12 @@ public class ModManager
     } 
         
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
-    private Loader _loader;
+    [Inject] private Loader _loader;
+    [Inject] private EcsDefaultWorld _world;
     private string _subFolder;
 
-    public void Init(Loader loader, Type caller)
+    public void Init(Type caller)
     {
-        _loader = loader;
         _subFolder = caller switch
         {
             Type.Client => "Client",
@@ -62,7 +62,7 @@ public class ModManager
             }
             
             // Создаем контейнер мода
-            var container = new ModContainer(Path.Combine(modDirectory, _subFolder), metadata);
+            var container = new ModContainer(Path.Combine(modDirectory, _subFolder), metadata, _world);
             container.Initialize();
             _loadedMods[metadata.Id] = container;
             

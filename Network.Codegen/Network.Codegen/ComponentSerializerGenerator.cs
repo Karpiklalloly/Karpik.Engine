@@ -130,7 +130,7 @@ public class NetworkGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // Метод Register
-        sb.AppendLine("        public void Register()");
+        sb.AppendLine("        public NetworkManager()");
         sb.AppendLine("        {");
         sb.AppendLine("            if (_serializers.Count > 0) return;");
         long id = 1;

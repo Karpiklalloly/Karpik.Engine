@@ -8,6 +8,7 @@ using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
 using LiteNetLib;
+using Microsoft.Extensions.DependencyInjection;
 using Network;
 using Raylib_cs;
 using rlImGui_cs;
@@ -16,23 +17,23 @@ namespace Karpik.Engine.Client;
 
 public class Client
 {
-    private EcsPipeline _pipeline;
-    private EcsPipeline.Builder _builder;
-    private ModManager _modManager;
-    private NetManager _network;
-    private EcsRunParallelRunner _parallelRunner;
-    public static UIManager UIManager = null!;
-    private Loader _loader = new();
-    private Tween _tween = new();
-    private Input _input = new();
-
-    private NetworkManager _networkManager = new();
-    private Rpc _rpc = new();
-    private TargetClientRpcDispatcher _targetClientRpcDispatcher = new();
-
     private EcsDefaultWorld _world = new();
     private EcsEventWorld _eventWorld = new();
     private EcsMetaWorld _metaWorld = new();
+    private EcsPipeline _pipeline;
+    private EcsPipeline.Builder _builder;
+    private EcsRunParallelRunner _parallelRunner;
+    
+    private UIManager _uiManager = new();
+    private Loader _loader = new();
+    private Tween _tween = new();
+    private Input _input = new();
+    private ModManager _modManager;
+    private NetManager _network;
+
+    private NetworkManager _networkManager;
+    private Rpc _rpc;
+    private TargetClientRpcDispatcher _targetClientRpcDispatcher;
 
     public void Run(in bool isRunning)
     {
@@ -52,22 +53,18 @@ public class Client
 
     public void Init()
     {
-        _networkManager.Register();
-        _targetClientRpcDispatcher.Init(_eventWorld);
-
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         var port = GetFreePort();
         _network.Start(port);
         _network.Connect("localhost", 9051, "MyGame");
-        _rpc.Initialize(_network, _eventWorld);
         listener.NetworkReceiveEvent += OnNetworkReceive;
         listener.PeerDisconnectedEvent += (peer, info) =>
         {
             Console.WriteLine("Disconnected from server. Clearing world...");
             _networkManager.ClearClientCache();
         };
-
+        
         _loader.Manager = new AssetManager();
         _loader.Manager.RegisterConverter<Texture2D>(fileName => Raylib.LoadTexture(fileName));
         _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
@@ -76,8 +73,23 @@ public class Client
             var options = new JsonSerializerSettings { Converters = { new ComponentArrayConverter() } };
             return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
         });
-        _modManager = new ModManager();
-        _modManager.Init(_loader, ModManager.Type.Client);
+        
+        var services = new ServiceCollection();
+        services
+            .AddSingleton(_world)
+            .AddSingleton(_eventWorld)
+            .AddSingleton(_metaWorld)
+            .AddSingleton(_network)
+            .AddSingleton(_loader)
+            .AddSingleton(_uiManager);
+        var serviceProvider = services.BuildServiceProvider();
+        
+        _targetClientRpcDispatcher = serviceProvider.Create<TargetClientRpcDispatcher>();
+        _networkManager = serviceProvider.Create<NetworkManager>();
+        _rpc = serviceProvider.Create<Rpc>();
+        _modManager = serviceProvider.Create<ModManager>();
+        
+        _modManager.Init(ModManager.Type.Client);
         _modManager.LoadMods(_loader.Manager.ModsPath);
 
         // Инициализируем окно сначала
@@ -90,10 +102,9 @@ public class Client
         rlImGui.Setup();
         
         // Инициализируем новую UI систему
-        UIManager = new UIManager();
         var root = CreateDemoUI();
-        UIManager.SetRoot(root, _input);
-        UIManager.Font = Raylib.GetFontDefault();
+        _uiManager.SetRoot(root, _input);
+        _uiManager.Font = Raylib.GetFontDefault();
         var codes = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
                     + "0123456789"
                     + ".,!?-+()[]{}:;/\\\"'`~@#$%^&*=_|<> "
@@ -103,7 +114,7 @@ public class Client
         var chars = Raylib.LoadCodepoints(codes, ref count);
         var font = Raylib.LoadFontEx("Pressstart2p.ttf", 32, chars, count);
         Console.WriteLine((bool)Raylib.IsFontValid(font));
-        UIManager.Font = Raylib.GetFontDefault();
+        _uiManager.Font = Raylib.GetFontDefault();
         
         BaseSystem.InitWorlds(_world, _eventWorld, _metaWorld);
         _builder = EcsPipeline.New()
@@ -117,6 +128,7 @@ public class Client
             .Inject(_loader)
             .Inject(_tween)
             .Inject(_input)
+            .Inject(_uiManager)
             .AutoInject();
 
         InitEcs();
@@ -134,9 +146,9 @@ public class Client
         {
             if (key == KeyboardKey.Escape)
             {
-                if (UIManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
+                if (_uiManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
                 {
-                    UIManager.Root.SetInlineStyle(StyleSheet.display,
+                    _uiManager.Root.SetInlineStyle(StyleSheet.display,
                         value == StyleSheet.display_none
                             ? StyleSheet.display_block
                             : StyleSheet.display_none);
@@ -185,8 +197,8 @@ public class Client
 
         Raylib.EndMode3D();
         
-        UIManager.Update(Time.DeltaTime);
-        UIManager.Render(Time.DeltaTime);
+        _uiManager.Update(Time.DeltaTime);
+        _uiManager.Render(Time.DeltaTime);
 
         rlImGui.End();
         Raylib.EndDrawing();

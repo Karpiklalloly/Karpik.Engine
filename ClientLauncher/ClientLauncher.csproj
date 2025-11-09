@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Game\Game.csproj" />
       <ProjectReference Include="..\KarpikEngineClient\KarpikEngineClient.csproj" />
       <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
       <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />

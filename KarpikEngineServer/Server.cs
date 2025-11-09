@@ -7,6 +7,7 @@ using Karpik.Engine.Shared.Modding;
 using Karpik.Engine.Server.DEMO;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using Network;
 
 namespace Karpik.Engine.Server;
@@ -18,16 +19,17 @@ public class Server
     private readonly TimeSpan _tickInterval = TimeSpan.FromMilliseconds(SLEEP_TIME);
     private DateTime _nextTickTime;
 
-    private EcsPipeline _pipeline;
-    private EcsPipeline.Builder _builder;
     private EcsDefaultWorld _world = new();
     private EcsEventWorld _eventWorld = new();
     private EcsMetaWorld _metaWorld = new();
+    private EcsPipeline _pipeline;
+    private EcsPipeline.Builder _builder;
+    private EcsRunParallelRunner _parallelRunner;
+    
     private NetManager _network;
     private ModManager _modManager;
     private Loader _loader = new();
     private Tween _tween = new();
-    private EcsRunParallelRunner _parallelRunner;
     
     private WorldEventListener[] _listeners;
     private List<int> _destroyedEntities = [];
@@ -39,8 +41,8 @@ public class Server
     
     private CommandDispatcher _commandDispatcher;
 
-    private NetworkManager _networkManager = new();
-    private TargetClientRpcSender _rpcSender = new();
+    private NetworkManager _networkManager;
+    private TargetClientRpcSender _rpcSender;
     
     public void Run(in bool isRunning)
     {
@@ -61,12 +63,11 @@ public class Server
 
     public void Init()
     {
-        _networkManager.Register();
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         _network.Start(9051);
-        _rpcSender.Initialize(_network);
         listener.ConnectionRequestEvent += static req => req.AcceptIfKey("MyGame");
+        listener.NetworkReceiveEvent += OnNetworkReceive;
         listener.PeerConnectedEvent += peer =>
         {
             Console.WriteLine($"Player connected: {peer.Id}");
@@ -83,8 +84,7 @@ public class Server
             _peerToEntity.Add(peer, player);
             _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };
-        listener.NetworkReceiveEvent += OnNetworkReceive;
-        _commandDispatcher = new CommandDispatcher(_eventWorld);
+        
         _loader.Manager = new AssetManager();
         _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
         {
@@ -93,8 +93,21 @@ public class Server
             return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
         });
         
-        _modManager = new ModManager();
-        _modManager.Init(_loader, ModManager.Type.Server);
+        var services = new ServiceCollection();
+        services
+            .AddSingleton(_world)
+            .AddSingleton(_eventWorld)
+            .AddSingleton(_metaWorld)
+            .AddSingleton(_network)
+            .AddSingleton(_loader);
+        var serviceProvider = services.BuildServiceProvider();
+
+        _commandDispatcher = serviceProvider.Create<CommandDispatcher>();
+        _networkManager = serviceProvider.Create<NetworkManager>();
+        _rpcSender = serviceProvider.Create<TargetClientRpcSender>();
+        _modManager = serviceProvider.Create<ModManager>();
+        
+        _modManager.Init(ModManager.Type.Server);
         _modManager.LoadMods(_loader.Manager.ModsPath);
         
         _listeners =

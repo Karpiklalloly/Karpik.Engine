@@ -4,6 +4,7 @@ namespace Karpik.Engine.Shared.Modding;
 
 public class ModContainer
 {
+    private readonly EcsDefaultWorld _world;
     public string DirectoryPath { get; }
     public ModMetaData MetaData { get; }
     public Script Script { get; }
@@ -17,8 +18,9 @@ public class ModContainer
     
     private readonly Dictionary<string, DynValue> _loadedModules = new();
     
-    public ModContainer(string directoryPath, ModMetaData metaData)
+    public ModContainer(string directoryPath, ModMetaData metaData, EcsDefaultWorld world)
     {
+        _world = world;
         DirectoryPath = directoryPath;
         MetaData = metaData;
         Script = new Script();
@@ -29,7 +31,7 @@ public class ModContainer
     public void Initialize()
     {
         UserData.RegisterType<GameAPI>();
-        Script.Globals["G"] = new GameAPI(MetaData.Id, this);
+        Script.Globals["G"] = new GameAPI(MetaData.Id, this, _world);
         LoadRootScripts();
     }
 
