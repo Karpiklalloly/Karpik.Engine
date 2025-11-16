@@ -1,0 +1,51 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <Target Name="PrepareGameAssets" AfterTargets="Build">
+
+        <!-- Определяем общие переменные -->
+        <PropertyGroup>
+            <GameProjectRoot>$(MSBuildThisFileDirectory)..\</GameProjectRoot>
+        </PropertyGroup>
+
+        <!-- Проверяем наличие исходных папок -->
+        <Error Text="Source 'Mods' directory not found at '$(GameProjectRoot)Mods'" Condition="!Exists('$(GameProjectRoot)Mods')" />
+        <Error Text="Source 'Content' directory not found at '$(GameProjectRoot)Content'" Condition="!Exists('$(GameProjectRoot)Content')" />
+
+        <!-- =============================================================== -->
+        <!-- ЛОГИКА ДЛЯ DEBUG СБОРКИ: Создание символических ссылок (ярлыков) -->
+        <!-- =============================================================== -->
+        <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+            <MessageForDebug>Creating directory junctions for Debug build (Mods and Content)...</MessageForDebug>
+        </PropertyGroup>
+        <Message Text="$(MessageForDebug)" Importance="high" Condition="'$(Configuration)'=='Debug'" />
+
+        <Exec Command="if not exist &quot;$(TargetDir)Mods&quot; mklink /J &quot;$(TargetDir)Mods&quot; &quot;$(GameProjectRoot)Mods&quot;"
+              Condition="'$(Configuration)'=='Debug'" />
+        <Exec Command="if not exist &quot;$(TargetDir)Content&quot; mklink /J &quot;$(TargetDir)Content&quot; &quot;$(GameProjectRoot)Content&quot;"
+              Condition="'$(Configuration)'=='Debug'" />
+
+        <!-- =============================================================== -->
+        <!-- ЛОГИКА ДЛЯ RELEASE СБОРКИ: Полное копирование папок             -->
+        <!-- =============================================================== -->
+        <PropertyGroup Condition="'$(Configuration)'=='Release'">
+            <MessageForRelease>Copying Mods and Content directories for Release build...</MessageForRelease>
+        </PropertyGroup>
+        <Message Text="$(MessageForRelease)" Importance="high" Condition="'$(Configuration)'=='Release'" />
+
+        <!-- Собираем все файлы из папки Mods для копирования -->
+        <ItemGroup Condition="'$(Configuration)'=='Release'">
+            <ModsFiles Include="$(GameProjectRoot)Mods\**\*" />
+            <ContentFiles Include="$(GameProjectRoot)Content\**\*" />
+        </ItemGroup>
+
+        <!-- Выполняем копирование, сохраняя структуру папок -->
+        <Copy SourceFiles="@(ModsFiles)"
+              DestinationFolder="$(TargetDir)Mods\%(RecursiveDir)"
+              Condition="'$(Configuration)'=='Release'" />
+        <Copy SourceFiles="@(ContentFiles)"
+              DestinationFolder="$(TargetDir)Content\%(RecursiveDir)"
+              Condition="'$(Configuration)'=='Release'" />
+
+    </Target>
+
+</Project>

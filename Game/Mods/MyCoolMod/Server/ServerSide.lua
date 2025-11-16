@@ -1,14 +1,13 @@
-local my_test = "Hello, World From Server!"
-
-function on_start()
-    G.log(my_test)
-end
+local message = "Server hello!"
 
 function on_load()
-    G.print_info()
-    G.log("LOAD SERVER")
+    G.log(message)
 end
 
 function on_unload()
-    G.log("UNLOAD SERVER")
+    G.log("Unload Server")
+end
+
+function on_update(dt)
+    G.log("Server Tick")
 end

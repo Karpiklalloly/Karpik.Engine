@@ -35,15 +35,15 @@ public abstract class ComponentTemplateBase<T> : ComponentTemplateBase, ICloneab
             var type = typeof(T);
             if (!type.IsValueType) return _defaultValueType;
 
-            var field = type.GetField("Default", BindingFlags.Static | BindingFlags.Public);
-            if (field != null && field.FieldType == type)
+            var fieldInfo = type.GetField("Default", BindingFlags.Static | BindingFlags.Public);
+            if (fieldInfo != null && fieldInfo.FieldType == type)
             {
-                _defaultValueType = (T)field.GetValue(null);
+                _defaultValueType = (T)fieldInfo.GetValue(null);
             }
-            field = type.GetField("Empty", BindingFlags.Static | BindingFlags.Public);
-            if (field != null && field.FieldType == type)
+            fieldInfo = type.GetField("Empty", BindingFlags.Static | BindingFlags.Public);
+            if (fieldInfo != null && fieldInfo.FieldType == type)
             {
-                _defaultValueType = (T)field.GetValue(null);
+                _defaultValueType = (T)fieldInfo.GetValue(null);
             }
             return _defaultValueType;
         }

@@ -1,22 +1,13 @@
-local my_test = "Hello, World From Client!"
-
-function on_start()
-    G.log(my_test)
-    G.print_info()
-end
+local message = "Client hello!"
 
 function on_load()
-    G.print_info()
-    G.log("LOAD CLIENT")
+    G.log(message)
 end
 
 function on_unload()
-    G.log("UNLOAD CLIENT")
+    G.log("Unload Client")
 end
 
 function on_update(dt)
-    local entities = G.get_entities()
-    for _, entity in ipairs(entities) do
-        G.log(entity)
-    end
+    G.log("Client Tick")
 end
