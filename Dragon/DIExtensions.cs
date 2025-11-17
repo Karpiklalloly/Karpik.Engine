@@ -8,7 +8,7 @@ public static class DIExtensions
     {
         var properties = obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
         properties = properties
-            .Where(p => p.IsDefined(typeof(InjectAttribute), false) && p.CanWrite).ToArray();
+            .Where(p => p.IsDefined(typeof(DIAttribute), false) && p.CanWrite).ToArray();
 
         foreach (var prop in properties)
         {
@@ -20,7 +20,7 @@ public static class DIExtensions
         }
         
         var fields = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-        fields = fields.Where(p => p.IsDefined(typeof(InjectAttribute), false)).ToArray();
+        fields = fields.Where(p => p.IsDefined(typeof(DIAttribute), false)).ToArray();
 
         foreach (var fieldInfo in fields)
         {
@@ -30,6 +30,11 @@ public static class DIExtensions
                 fieldInfo.SetValue(obj, service);
             }
         }
+    }
+
+    public static void Inject(this IServiceProvider serviceProvider, object obj)
+    {
+        obj.InjectProperties(serviceProvider);
     }
     
     public static T Create<T>(this IServiceProvider serviceProvider) where T : class, new()

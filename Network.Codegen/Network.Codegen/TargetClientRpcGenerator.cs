@@ -74,7 +74,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("    public class TargetClientRpcSender");
         sb.AppendLine("    {");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
-        sb.AppendLine("        [Inject] private NetManager _netManager;");
+        sb.AppendLine("        [DI] private NetManager _netManager;");
         sb.AppendLine();
 
         // Найти все структуры, реализующие ITargetRpcCommand
@@ -113,7 +113,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         sb.AppendLine("{");
         sb.AppendLine("    public class TargetClientRpcDispatcher");
         sb.AppendLine("    {");
-        sb.AppendLine("        [Inject] private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
         sb.AppendLine();
         sb.AppendLine("        public void Dispatch(NetDataReader reader)");
         sb.AppendLine("        {");

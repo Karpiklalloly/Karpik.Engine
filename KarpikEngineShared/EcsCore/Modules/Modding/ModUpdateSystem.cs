@@ -2,7 +2,7 @@ namespace Karpik.Engine.Shared.Modding;
 
 public class ModUpdateSystem : IEcsRun, IEcsInit, IEcsInject<ModManager>
 {
-    private ModManager _modManager;
+    [DI] private ModManager _modManager;
 
     public void Run()
     {

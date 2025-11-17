@@ -1,4 +1,4 @@
 ﻿namespace Karpik.Engine.Shared;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
-public class InjectAttribute : Attribute { }
+public class DIAttribute : Attribute { }

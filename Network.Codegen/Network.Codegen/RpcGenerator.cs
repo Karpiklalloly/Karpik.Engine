@@ -208,8 +208,8 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("{");
         sb.AppendLine("    public class Rpc");
         sb.AppendLine("    {");
-        sb.AppendLine("        [Inject] private NetManager _netManager;");
-        sb.AppendLine("        [Inject] private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        [DI] private NetManager _netManager;");
+        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
         sb.AppendLine();
         sb.AppendLine("        private void Send(DeliveryMethod deliveryMethod)");
@@ -277,7 +277,7 @@ public class RpcGenerator : IIncrementalGenerator
 
         sb.AppendLine($"    public partial class CommandDispatcher");
         sb.AppendLine("    {");
-        sb.AppendLine("        [Inject] private EcsEventWorld _eventWorld;");
+        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
         sb.AppendLine();
         sb.AppendLine("        public void Dispatch(int playerEntity, NetDataReader reader)");
         sb.AppendLine("        {");

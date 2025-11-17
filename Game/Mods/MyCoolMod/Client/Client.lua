@@ -9,5 +9,5 @@ function on_unload()
 end
 
 function on_update(dt)
-    G.log("Client Tick")
+    -- G.log("Client Tick")
 end

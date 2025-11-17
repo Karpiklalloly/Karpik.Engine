@@ -11,8 +11,8 @@ public class ModManager
     } 
         
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
-    [Inject] private Loader _loader;
-    [Inject] private EcsDefaultWorld _world;
+    [DI] private Loader _loader;
+    [DI] private EcsDefaultWorld _world;
     private string _subFolder;
 
     public void Init(Type caller)

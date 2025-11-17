@@ -231,9 +231,9 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Builder
-        public static Builder New(IConfigContainerWriter config = null)
+        public static Builder New(IServiceProvider serviceProvider, IConfigContainerWriter config = null)
         {
-            return new Builder(config);
+            return new Builder(serviceProvider, config);
         }
         #endregion
     }

@@ -128,6 +128,5 @@ public class InputSystem : IEcsRun
             Camera.Main.Rotate(_input.MouseDelta * (float)Time.DeltaTime / 2);
             Camera.Main.Move(currentInput * (float)Time.DeltaTime * 2);
         }
-        
     }
 }

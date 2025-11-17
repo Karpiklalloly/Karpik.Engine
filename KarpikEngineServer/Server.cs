@@ -27,7 +27,7 @@ public class Server
     private EcsRunParallelRunner _parallelRunner;
     
     private NetManager _network;
-    private ModManager _modManager;
+    private ModManager _modManager = new();
     private Loader _loader = new();
     private Tween _tween = new();
     
@@ -39,11 +39,12 @@ public class Server
     private Dictionary<NetPeer, int> _peerToEntity = [];
     private Queue<(NetPeer, int)> _needSendLocalPlayer = [];
     
-    private CommandDispatcher _commandDispatcher;
+    private CommandDispatcher _commandDispatcher = new();
 
-    private NetworkManager _networkManager;
-    private TargetClientRpcSender _rpcSender;
-    
+    private NetworkManager _networkManager = new();
+    private TargetClientRpcSender _rpcSender = new();
+    private ServiceProvider _serviceProvider;
+
     public void Run(in bool isRunning)
     {
         Time.FixedDeltaTime = 1.0 / TICKS_PER_SECOND; 
@@ -99,13 +100,18 @@ public class Server
             .AddSingleton(_eventWorld)
             .AddSingleton(_metaWorld)
             .AddSingleton(_network)
-            .AddSingleton(_loader);
-        var serviceProvider = services.BuildServiceProvider();
-
-        _commandDispatcher = serviceProvider.Create<CommandDispatcher>();
-        _networkManager = serviceProvider.Create<NetworkManager>();
-        _rpcSender = serviceProvider.Create<TargetClientRpcSender>();
-        _modManager = serviceProvider.Create<ModManager>();
+            .AddSingleton(_loader)
+            .AddSingleton(_commandDispatcher)
+            .AddSingleton(_networkManager)
+            .AddSingleton(_rpcSender)
+            .AddSingleton(_modManager)
+            .AddSingleton(_tween);
+        _serviceProvider = services.BuildServiceProvider();
+        
+        _serviceProvider.Inject(_commandDispatcher);
+        _serviceProvider.Inject(_networkManager);
+        _serviceProvider.Inject(_rpcSender);
+        _serviceProvider.Inject(_modManager);
         
         _modManager.Init(ModManager.Type.Server);
         _modManager.LoadMods(_loader.Manager.ModsPath);
@@ -120,15 +126,14 @@ public class Server
         _listeners[0].RegisterNew(e => _newEntities.Add(e));
         
         BaseSystem.InitWorlds(_world, _eventWorld, _metaWorld);
-        _builder = EcsPipeline.New()
+        _builder = EcsPipeline.New(_serviceProvider)
             .Inject(_world)
             .Inject(_eventWorld)
             .Inject(_metaWorld)
             .Inject(_modManager)
             .Inject(_network)
             .Inject(_loader)
-            .Inject(_tween)
-            .AutoInject();
+            .Inject(_tween);
         
         InitEcs();
         
@@ -173,6 +178,7 @@ public class Server
     private void Stop()
     {
         _network.Stop();
+        _serviceProvider.Dispose();
         Console.WriteLine("Stopping server...");
     }
 

@@ -27,7 +27,7 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
 {
     private bool[] _bools = new bool[1];
     
-    private ModManager _modManager;
+    [DI] private ModManager _modManager;
     [DI] private EcsDefaultWorld _world;
     [DI] private EcsEventWorld _eventWorld;
     [DI] private Loader _loader;

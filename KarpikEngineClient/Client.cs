@@ -28,12 +28,13 @@ public class Client
     private Loader _loader = new();
     private Tween _tween = new();
     private Input _input = new();
-    private ModManager _modManager;
+    private ModManager _modManager = new();
     private NetManager _network;
 
-    private NetworkManager _networkManager;
-    private Rpc _rpc;
-    private TargetClientRpcDispatcher _targetClientRpcDispatcher;
+    private NetworkManager _networkManager = new();
+    private Rpc _rpc = new();
+    private TargetClientRpcDispatcher _targetClientRpcDispatcher = new();
+    private ServiceProvider _serviceProvider;
 
     public void Run(in bool isRunning)
     {
@@ -81,13 +82,19 @@ public class Client
             .AddSingleton(_metaWorld)
             .AddSingleton(_network)
             .AddSingleton(_loader)
-            .AddSingleton(_uiManager);
-        var serviceProvider = services.BuildServiceProvider();
+            .AddSingleton(_uiManager)
+            .AddSingleton(_targetClientRpcDispatcher)
+            .AddSingleton(_networkManager)
+            .AddSingleton(_rpc)
+            .AddSingleton(_modManager)
+            .AddSingleton(_tween)
+            .AddSingleton(_input);
+        _serviceProvider = services.BuildServiceProvider();
         
-        _targetClientRpcDispatcher = serviceProvider.Create<TargetClientRpcDispatcher>();
-        _networkManager = serviceProvider.Create<NetworkManager>();
-        _rpc = serviceProvider.Create<Rpc>();
-        _modManager = serviceProvider.Create<ModManager>();
+        _serviceProvider.Inject(_targetClientRpcDispatcher);
+        _serviceProvider.Inject(_networkManager);
+        _serviceProvider.Inject(_rpc);
+        _serviceProvider.Inject(_modManager);
         
         _modManager.Init(ModManager.Type.Client);
         _modManager.LoadMods(_loader.Manager.ModsPath);
@@ -117,7 +124,7 @@ public class Client
         _uiManager.Font = Raylib.GetFontDefault();
         
         BaseSystem.InitWorlds(_world, _eventWorld, _metaWorld);
-        _builder = EcsPipeline.New()
+        _builder = EcsPipeline.New(_serviceProvider)
             .Inject(_world)
             .Inject(_eventWorld)
             .Inject(_metaWorld)
@@ -128,8 +135,7 @@ public class Client
             .Inject(_loader)
             .Inject(_tween)
             .Inject(_input)
-            .Inject(_uiManager)
-            .AutoInject();
+            .Inject(_uiManager);
 
         InitEcs();
 
@@ -213,6 +219,7 @@ public class Client
         rlImGui.Shutdown();
         Raylib.CloseWindow();
         _network.Stop();
+        _serviceProvider.Dispose();
     }
 
     private void InitEcs()

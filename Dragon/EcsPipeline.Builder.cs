@@ -7,6 +7,7 @@ using DCFApixels.DragonECS.RunnersCore;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Karpik.Engine.Shared;
 using static DCFApixels.DragonECS.EcsConsts;
 
 namespace DCFApixels.DragonECS
@@ -37,6 +38,7 @@ namespace DCFApixels.DragonECS
             public readonly LayersMap Layers;
             public readonly Injector.Builder Injector;
             public readonly Configurator Configs;
+            public readonly IServiceProvider ServiceProvider;
 
             private AddParams _defaultAddParams = new AddParams(BASIC_LAYER, 0, false);
 
@@ -50,11 +52,11 @@ namespace DCFApixels.DragonECS
             #endregion
 
             #region Constructors
-            public Builder(IConfigContainerWriter config = null)
+            public Builder(IServiceProvider serviceProvider, IConfigContainerWriter config = null)
             {
                 if (config == null) { config = new ConfigContainer(); }
                 Configs = new Configurator(config, this);
-
+                ServiceProvider = serviceProvider;
                 Injector = new Injector.Builder(this);
                 Injector.AddNode<object>();
                 Injector.AddNode<EcsWorld>();
@@ -64,6 +66,9 @@ namespace DCFApixels.DragonECS
                 var graph = new DependencyGraph<string>(BASIC_LAYER);
                 Layers = new LayersMap(graph, this, PRE_BEGIN_LAYER, BEGIN_LAYER, BASIC_LAYER, END_LAYER, POST_END_LAYER);
             }
+
+            
+
             #endregion
 
             #region Add IEcsProcess
@@ -366,6 +371,11 @@ namespace DCFApixels.DragonECS
                     }
                 }
 
+                foreach (var system in allSystems)
+                {
+                    ServiceProvider.Inject(system);
+                }
+
                 EcsPipeline pipeline = new EcsPipeline(Configs.Instance.GetContainer(), Injector, allSystems);
                 foreach (var item in _initDeclaredRunners)
                 {
@@ -577,31 +587,6 @@ namespace DCFApixels.DragonECS
 
     public static partial class EcsPipelineBuilderExtensions
     {
-        #region Simple Builders
-        public static EcsPipeline ToPipeline(this IEcsModule module)
-        {
-            return EcsPipeline.New().Add(module).Build();
-        }
-        public static EcsPipeline ToPipelineAndInit(this IEcsModule module)
-        {
-            return EcsPipeline.New().Add(module).BuildAndInit();
-        }
-        public static EcsPipeline ToPipeline(this IEnumerable<IEcsModule> modules)
-        {
-            var result = EcsPipeline.New();
-            foreach (var module in modules)
-            {
-                result.Add(module);
-            }
-            return result.Build();
-        }
-        public static EcsPipeline ToPipelineAndInit(this IEnumerable<IEcsModule> modules)
-        {
-            var result = modules.ToPipeline();
-            result.Init();
-            return result;
-        }
-        #endregion
 
         #region Add IEcsProcess
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
