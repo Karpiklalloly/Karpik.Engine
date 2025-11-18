@@ -82,22 +82,6 @@ public class ModManager
         }
     }
     
-    public void DebugUpdateMods()
-    {
-        foreach (var container in _loadedMods.Values)
-        {
-            container.DebugUpdate();
-        }
-    }
-
-    public void FixedUpdateMods()
-    {
-        foreach (var container in _loadedMods.Values)
-        {
-            container.FixedUpdate();
-        }
-    }
-    
     public void StartMods()
     {
         foreach (var container in _loadedMods.Values)

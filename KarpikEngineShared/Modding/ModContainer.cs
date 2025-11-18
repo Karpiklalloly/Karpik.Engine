@@ -10,8 +10,6 @@ public class ModContainer
     public Script Script { get; }
     public bool IsEnabled { get; set; } = true;
     public List<DynValue> UpdateFunction { get; private set; } = new();
-    public List<DynValue> DebugFunction { get; private set; } = new();
-    public List<DynValue> FixedUpdateFunction { get; private set; } = new(); 
     public List<DynValue> StartFunction { get; private set; } = new();
     public List<DynValue> LoadFunction { get; private set; } = new();
     public List<DynValue> UnloadFunction { get; private set; } = new();
@@ -67,36 +65,6 @@ public class ModContainer
             catch (Exception e)
             {
                 Log($"Update error: {e.Message}", LogLevel.Error);
-            }
-        }
-    }
-    
-    public void DebugUpdate()
-    {
-        foreach (var func in DebugFunction)
-        {
-            try
-            {
-                Script.Call(func, Time.DeltaTime);
-            }
-            catch (Exception e)
-            {
-                Log($"Update error: {e.Message}", LogLevel.Error);
-            }
-        }
-    }
-    
-    public void FixedUpdate()
-    {
-        foreach (var func in FixedUpdateFunction)
-        {
-            try
-            {
-                Script.Call(func, Time.DeltaTime);
-            }
-            catch (Exception e)
-            {
-                Log($"Fixed update error: {e.Message}", LogLevel.Error);
             }
         }
     }
@@ -163,20 +131,6 @@ public class ModContainer
                     {
                         UpdateFunction.Add(updateFunction);
                         Log($"Registered update for {Path.GetFileName(scriptFile)}");
-                    }
-                    
-                    var debugUpdateFunction = Script.Globals.Get(EventModMethods.OnDebugUpdate);
-                    if (debugUpdateFunction.IsNotNil() && debugUpdateFunction.Type == DataType.Function)
-                    {
-                        DebugFunction.Add(debugUpdateFunction);
-                        Log($"Registered debug update for {Path.GetFileName(scriptFile)}");
-                    }
-                    
-                    var fixedUpdateFunction = Script.Globals.Get(EventModMethods.OnFixedUpdate);
-                    if (fixedUpdateFunction.IsNotNil() && fixedUpdateFunction.Type == DataType.Function)
-                    {
-                        FixedUpdateFunction.Add(fixedUpdateFunction);
-                        Log($"Registered fixed update for {Path.GetFileName(scriptFile)}");
                     }
                     
                     var startFunction = Script.Globals.Get(EventModMethods.OnStart);

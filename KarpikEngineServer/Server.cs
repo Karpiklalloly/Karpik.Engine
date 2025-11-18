@@ -54,6 +54,7 @@ public class Server
             var now = DateTime.Now;
             if (now >= _nextTickTime)
             {
+                Time.Update(Time.FixedDeltaTime);
                 Update();
                 _nextTickTime = now + _tickInterval;
             }
