@@ -158,6 +158,5 @@ public class Input
 
         _mousePosition = Raylib.GetMousePosition();
         _mouseDelta = Raylib.GetMouseDelta();
-        Console.WriteLine(_mouseDelta);
     }
 }
