@@ -332,7 +332,7 @@ namespace DCFApixels.DragonECS
     [Il2CppSetOption(Option.NullChecks, false)]
 #endif
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public readonly struct ReadonlyEcsTagPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
+    public readonly struct EcsReadonlyTagPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
     where T : struct, IEcsTagComponent
     {
         private readonly EcsTagPool<T> _pool;
@@ -370,7 +370,7 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Constructors
-        internal ReadonlyEcsTagPool(EcsTagPool<T> pool)
+        internal EcsReadonlyTagPool(EcsTagPool<T> pool)
         {
             _pool = pool;
         }
@@ -396,11 +396,11 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Convertors
-        public static implicit operator ReadonlyEcsTagPool<T>(EcsTagPool<T> a) { return new ReadonlyEcsTagPool<T>(a); }
-        public static implicit operator ReadonlyEcsTagPool<T>(IncludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator ReadonlyEcsTagPool<T>(ExcludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator ReadonlyEcsTagPool<T>(OptionalMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator ReadonlyEcsTagPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator EcsReadonlyTagPool<T>(EcsTagPool<T> a) { return new EcsReadonlyTagPool<T>(a); }
+        public static implicit operator EcsReadonlyTagPool<T>(IncludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator EcsReadonlyTagPool<T>(ExcludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator EcsReadonlyTagPool<T>(OptionalMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator EcsReadonlyTagPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         #endregion
     }
 

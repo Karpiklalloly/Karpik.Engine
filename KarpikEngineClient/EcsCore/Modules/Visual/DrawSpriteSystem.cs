@@ -2,19 +2,20 @@
 
 namespace Karpik.Engine.Client;
 
-public class DrawSpriteSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
+public class DrawSpriteSystem : IEcsRunParallel
 {
     public class Aspect : EcsAspect
     {
-        public EcsPool<SpriteRenderer> sprite = Inc;
-        public EcsPool<Position> position = Inc;
-        public EcsPool<Rotation> rotation = Inc;
-        public EcsPool<Scale> scale = Inc;
+        public EcsReadonlyPool<SpriteRenderer> sprite = Inc;
+        public EcsReadonlyPool<Position> position = Inc;
+        public EcsReadonlyPool<Rotation> rotation = Inc;
+        public EcsReadonlyPool<Scale> scale = Inc;
     }
     
-    private EcsDefaultWorld _world;
+    [DI] private EcsDefaultWorld _world;
+    [DI] private Drawer _drawer;
     
-    public void Run()
+    public void RunParallel()
     {
         var span = _world.Where(out Aspect a);
         foreach (var e in span)
@@ -23,12 +24,7 @@ public class DrawSpriteSystem : IEcsRun, IEcsInject<EcsDefaultWorld>
             var position = a.position.Get(e);
             var rotation = a.rotation.Get(e);
             var scale = a.scale.Get(e);
-            Drawer.Sprite(sprite, position, rotation, scale);
+            _drawer.Sprite(sprite, position, rotation, scale);
         }
-    }
-
-    public void Inject(EcsDefaultWorld obj)
-    {
-        _world = obj;
     }
 }

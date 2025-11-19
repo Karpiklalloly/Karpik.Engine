@@ -30,6 +30,7 @@ public class Client
     private Input _input = new();
     private ModManager _modManager = new();
     private NetManager _network;
+    private Drawer _drawer = new();
 
     private NetworkManager _networkManager = new();
     private Rpc _rpc = new();
@@ -88,7 +89,8 @@ public class Client
             .AddSingleton(_rpc)
             .AddSingleton(_modManager)
             .AddSingleton(_tween)
-            .AddSingleton(_input);
+            .AddSingleton(_input)
+            .AddSingleton(_drawer);
         _serviceProvider = services.BuildServiceProvider();
         
         _serviceProvider.Inject(_targetClientRpcDispatcher);
@@ -135,7 +137,8 @@ public class Client
             .Inject(_loader)
             .Inject(_tween)
             .Inject(_input)
-            .Inject(_uiManager);
+            .Inject(_uiManager)
+            .Inject(_drawer);
 
         InitEcs();
 
@@ -229,7 +232,6 @@ public class Client
             .AddRunner<PausableLateRunner>()
             .AddRunner<EcsRunParallelRunner>()
             .AddModule(new VisualModule())
-            .AddModule(new InputModule())
             .AddModule(new TimeModule())
             .AddModule(new ModdingModule())
             .AddModule(new DemoModuleClient());

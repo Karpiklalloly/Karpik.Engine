@@ -23,8 +23,15 @@ public class DemoModuleClient : IEcsModule
     }
 }
 
-public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
+public class MySystem : IEcsRunParallel, IEcsInit
 {
+    class Aspect : EcsAspect
+    {
+        public EcsReadonlyPool<LocalPlayer> local = Inc;
+        public EcsReadonlyPool<Position> position = Inc;
+        public EcsReadonlyPool<NetworkId> networkId = Inc;
+    }
+    
     private bool[] _bools = new bool[1];
     
     [DI] private ModManager _modManager;
@@ -40,18 +47,16 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         
     }
     
-    public void Run()
+    public void RunParallel()
     {
         ImGui.Begin("DemoWindow");
         ShowButtons();
         ShowStats();
-        var span = _world.Where(EcsStaticMask
-            .Inc<LocalPlayer>()
-            .Inc<Position>()
-            .Inc<NetworkId>().Build());
+        var span = _world.Where(out Aspect a);
         if (span.Count > 0)
         {
-            ImGui.Text($"Local Player (net id): {_world.GetEntityLong(span[0]).Get<NetworkId>().Id}");
+            
+            ImGui.Text($"Local Player (net id): {a.networkId.Get(span[0]).Id}");
             ImGui.Text($"Local Player (local id): {span[0]}");
         }
         else
@@ -109,26 +114,20 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
         ImGui.Text($"Event Entities: {_eventWorld.Entities.Count}");
         if (_world.Entities.Count > 0)
         {
-            var span = _world.Where(EcsStaticMask
-                .Inc<LocalPlayer>()
-                .Inc<Position>()
-                .Inc<NetworkId>().Build());
-            var pos = _world.GetPool<Position>().Get(span[0]);
+            var span = _world.Where(out Aspect a);
+            var pos = a.position.Get(span[0]);
             ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
         }
 
         ImGui.Checkbox("Auto move player", ref _bools[0]);
         if (_bools[0])
         {
-            var span = _world.Where(EcsStaticMask
-                .Inc<LocalPlayer>()
-                .Inc<Position>()
-                .Inc<NetworkId>().Build());
+            var span = _world.Where(out Aspect a);
             if (span.Count == 0) return;
             _rpc.Move(new MoveCommand()
             {
                 Source = -1,
-                Target = _world.GetPool<NetworkId>().Get(span[0]).Id,
+                Target = a.networkId.Get(span[0]).Id,
                 Direction = new Vector3(1, 0, 0) // Move right
             });
         }
@@ -186,10 +185,5 @@ public class MySystem : IEcsRun, IEcsInject<ModManager>, IEcsInit
 
             ImGui.Unindent(indent);
         }
-    }
-
-    public void Inject(ModManager obj)
-    {
-        _modManager = obj;
     }
 }

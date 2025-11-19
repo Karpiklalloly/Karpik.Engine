@@ -5,14 +5,14 @@ using Karpik.Engine.Shared.DragonECS;
 
 namespace Karpik.Engine.Server;
 
-public class UpdateBox2DSystem : IEcsRun, IEcsInject<B2.WorldId>, IEcsInject<EcsEventWorld>, IEcsInject<EcsDefaultWorld>
+public class UpdateBox2DSystem : IEcsRunParallel
 {
     public const int SUB_STEPS = 4;
-    private B2.WorldId _physicsWorld;
-    private EcsEventWorld _eventWorld;
-    private EcsDefaultWorld _world;
+    [DI] private B2.WorldId _physicsWorld;
+    [DI] private EcsEventWorld _eventWorld;
+    [DI] private EcsDefaultWorld _world;
     
-    public void Run()
+    public void RunParallel()
     {
         B2.WorldStep(_physicsWorld, (float)Time.FixedDeltaTime, SUB_STEPS);
         var contacts = B2.WorldGetContactEvents(_physicsWorld);
@@ -48,20 +48,5 @@ public class UpdateBox2DSystem : IEcsRun, IEcsInject<B2.WorldId>, IEcsInject<Ecs
                 }
             }
         }
-    }
-
-    public void Inject(B2.WorldId obj)
-    {
-        _physicsWorld = obj;
-    }
-
-    public void Inject(EcsEventWorld obj)
-    {
-        _eventWorld = obj;
-    }
-
-    public void Inject(EcsDefaultWorld obj)
-    {
-        _world = obj;
     }
 }

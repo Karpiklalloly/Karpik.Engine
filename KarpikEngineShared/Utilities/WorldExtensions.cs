@@ -6,7 +6,7 @@ public static class WorldExtensions
 {
     class NetworkIdAspect : EcsAspect
     {
-        public EcsPool<NetworkId> netId = Inc;
+        public EcsReadonlyPool<NetworkId> netId = Inc;
     }
     
     public static entlong FindByNetworkId(this EcsWorld world, int networkId)

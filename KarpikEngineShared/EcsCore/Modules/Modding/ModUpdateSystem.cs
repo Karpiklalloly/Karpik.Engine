@@ -1,6 +1,7 @@
 namespace Karpik.Engine.Shared.Modding;
 
-public class ModUpdateSystem : IEcsRun, IEcsInit, IEcsInject<ModManager>
+// System can't be parallel because mods can have state that is not thread-safe
+public class ModUpdateSystem : IEcsRun, IEcsInit
 {
     [DI] private ModManager _modManager;
 
@@ -12,10 +13,5 @@ public class ModUpdateSystem : IEcsRun, IEcsInit, IEcsInject<ModManager>
     public void Init()
     {
         _modManager.StartMods();
-    }
-
-    public void Inject(ModManager obj)
-    {
-        _modManager = obj;
     }
 }

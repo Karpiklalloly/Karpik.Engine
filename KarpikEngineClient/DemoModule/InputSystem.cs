@@ -7,13 +7,13 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public class InputSystem : IEcsRun
+public class InputSystem : BaseSystem, IEcsRun
 {
     class Aspect : EcsAspect
     {
-        public EcsPool<LocalPlayer> player = Inc;
-        public EcsPool<Position> position = Inc;
-        public EcsPool<NetworkId> networkId = Inc;
+        public EcsReadonlyPool<LocalPlayer> player = Inc;
+        public EcsReadonlyPool<Position> position = Inc;
+        public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
     
     [DI] private EcsDefaultWorld _world;
@@ -25,13 +25,13 @@ public class InputSystem : IEcsRun
     {
         if (_input.IsMouseRightButtonDown)
         {
-            Raylib.DisableCursor();
+            _input.LockCursor();
             return;
         }
         
         if (_input.IsMouseRightButtonUp)
         {
-            Raylib.EnableCursor();
+            _input.UnlockCursor();
             return;
         }
 
@@ -86,7 +86,7 @@ public class InputSystem : IEcsRun
             }
         }
         
-        if (Raylib.IsCursorHidden())
+        if (_input.IsMouseLocked)
         {
             Vector3 currentInput = Vector3.Zero;
 

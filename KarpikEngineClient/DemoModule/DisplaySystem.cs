@@ -4,16 +4,16 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public class DisplaySystem : IEcsRun, IEcsInject<EcsDefaultWorld>
+public class DisplaySystem : IEcsRunParallel
 {
     class Aspect : EcsAspect
     {
-        public EcsPool<Position> position = Inc;
+        public EcsReadonlyPool<Position> position = Inc;
     }
     
-    private EcsDefaultWorld _world;
+    [DI] private EcsDefaultWorld _world;
     
-    public void Run()
+    public void RunParallel()
     {
         foreach (var e in _world.Where(out Aspect a))
         {
@@ -22,10 +22,5 @@ public class DisplaySystem : IEcsRun, IEcsInject<EcsDefaultWorld>
                 1,
                 Color.Red);
         }
-    }
-
-    public void Inject(EcsDefaultWorld obj)
-    {
-        _world = obj;
     }
 }

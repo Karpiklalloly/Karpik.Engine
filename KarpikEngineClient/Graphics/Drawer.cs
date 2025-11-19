@@ -4,12 +4,12 @@ using Raylib_cs;
 
 namespace Karpik.Engine.Client;
 
-public static class Drawer
+public class Drawer
 {
-    private static DrawAction[] _actions = new DrawAction[128];
-    private static int _actionsCount = 0;
+    private DrawAction[] _actions = new DrawAction[128];
+    private int _actionsCount = 0;
     
-    public static void Sprite(SpriteRenderer spriteRenderer, Position position, Rotation rotation, Scale scale)
+    public void Sprite(SpriteRenderer spriteRenderer, Position position, Rotation rotation, Scale scale)
     {
         ResizeIfNeed();
         _actions[_actionsCount++] = new DrawAction()
@@ -23,7 +23,7 @@ public static class Drawer
         };
     }
 
-    internal static void Draw()
+    internal void Draw()
     {
         Array.Sort(_actions, (a, b) => a.Layer - b.Layer);
         while (_actionsCount > 0)
@@ -32,7 +32,7 @@ public static class Drawer
         }
     }
 
-    private static void ResizeIfNeed()
+    private void ResizeIfNeed()
     {
         if (_actionsCount >= _actions.Length)
         {

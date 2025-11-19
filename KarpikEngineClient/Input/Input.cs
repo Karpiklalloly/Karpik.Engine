@@ -24,9 +24,12 @@ public class Input
     
     private ConcurrentDictionary<KeyboardKey, State> _keyStates = new();
     private ConcurrentDictionary<char, State> _charStates = new();
+    private Vector2 _mousePosition = Vector2.Zero;
+    private Vector2 _mouseDelta = Vector2.Zero;
+    private bool _isMouseLocked = false;
     
-    public Vector2 MousePosition => Raylib.GetMousePosition();
-    public Vector2 MouseDelta => Raylib.GetMouseDelta();
+    public Vector2 MousePosition => _mousePosition;
+    public Vector2 MouseDelta => _mouseDelta;
     
     public IEnumerable<KeyboardKey> PressedKeys => _keyStates.Keys.Where(IsPressed);
     
@@ -47,7 +50,9 @@ public class Input
     public bool IsMouseMiddleButtonUp => Raylib.IsMouseButtonReleased(MouseButton.Middle);
     
     public bool IsMouseMiddleButtonHold => Raylib.IsMouseButtonDown(MouseButton.Middle);
-    
+
+    public bool IsMouseLocked => _isMouseLocked;
+
     public bool IsPressed(KeyboardKey key)
     {
         return Raylib.IsKeyPressed(key);
@@ -76,6 +81,18 @@ public class Input
     public bool IsUp(KeyboardKey key)
     {
         return Raylib.IsKeyUp(key);
+    }
+    
+    public void LockCursor()
+    {
+        _isMouseLocked = true;
+        Raylib.DisableCursor();
+    }
+    
+    public void UnlockCursor()
+    {
+        _isMouseLocked = false;
+        Raylib.EnableCursor();
     }
 
     private List<KeyboardKey> _keys = new();
@@ -138,5 +155,9 @@ public class Input
             CharPressed?.Invoke((char)key);
             _chars.Add((char)key);
         }
+
+        _mousePosition = Raylib.GetMousePosition();
+        _mouseDelta = Raylib.GetMouseDelta();
+        Console.WriteLine(_mouseDelta);
     }
 }

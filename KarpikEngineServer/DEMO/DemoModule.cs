@@ -14,7 +14,7 @@ public class DemoModule : IEcsModule
 
     public void Import(EcsPipeline.Builder b)
     {
-        b.Add(new PlayerInputSystem())
+        b
             .Add(new DamageSystem())
             .Add(new OnMoveSystem())
             .Add(new OnJumpSystem())
