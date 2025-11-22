@@ -98,7 +98,6 @@ public class Renderer
             {
                 var line = element.WrappedTextLines[i];
                 float xOffset = 0;
-                // *** УЛУЧШЕНИЕ: Добавлена поддержка text-align ***
                 if (textAlign is "center" or "right")
                 {
                     float textWidth = Raylib.MeasureTextEx(font, line, fontSize, 1).X;

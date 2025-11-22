@@ -43,7 +43,11 @@ public class UIElement
     
     private readonly List<IManipulator> _manipulators = [];
 
-    public UIElement(string id = "")
+    public UIElement() : this(string.Empty)
+    {
+    }
+    
+    public UIElement(string id)
     {
         Id = id;
     }
@@ -60,26 +64,30 @@ public class UIElement
         manipulator.Target = this;
     }
     
+    public void RemoveManipulator(IManipulator manipulator)
+    {
+        if (_manipulators.Remove(manipulator))
+        {
+            manipulator.Target = null;
+        }
+    }
+    
     public void MarkDirty(DirtyFlag flag)
     {
-        // Если уже есть более "сильный" флаг, ничего не делаем
         if (((int)Dirty & (int)flag) == (int)flag) return;
 
         Dirty |= flag;
 
-        // Изменение стиля требует пересчета и компоновки
         if (flag.HasFlag(DirtyFlag.Style))
         {
             Dirty |= DirtyFlag.Layout;
         }
 
-        // Изменение компоновки "всплывает" к родителям
         if (flag.HasFlag(DirtyFlag.Layout))
         {
             Parent?.MarkDirty(DirtyFlag.Layout);
         }
         
-        // Изменение стиля каскадом спускается к детям (из-за наследования)
         if (flag.HasFlag(DirtyFlag.Style))
         {
             foreach (var child in Children)
@@ -89,7 +97,6 @@ public class UIElement
         }
     }
     
-    // --- ПУБЛИЧНЫЕ API ДЛЯ БЕЗОПАСНОГО ИЗМЕНЕНИЯ ЭЛЕМЕНТА ---
     public void AddClass(string className)
     {
         if (Classes.Add(className))
@@ -110,7 +117,7 @@ public class UIElement
     {
         if (Text == newText) return;
         Text = newText ?? "";
-        MarkDirty(DirtyFlag.Layout); // Текст влияет только на layout, но не на стили
+        MarkDirty(DirtyFlag.Layout);
     }
 
     public void SetInlineStyle(string property, string value)

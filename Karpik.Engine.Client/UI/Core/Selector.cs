@@ -3,7 +3,7 @@
 public class Selector : IComparable<Selector>
 {
     public string Raw { get; }
-    // Специфичность теперь (IDs, Classes, PseudoClasses)
+    
     public (int Ids, int Classes, int PseudoClasses) Specificity { get; }
 
     public Selector(string raw)
@@ -22,7 +22,6 @@ public class Selector : IComparable<Selector>
         int classes = 0;
         int pseudoClasses = 0;
 
-        // Простое разделение для примера. Более сложный парсер мог бы обрабатывать комбинации.
         if (s.Contains(':')) pseudoClasses++;
         if (s.StartsWith('#')) ids++;
         else if (s.StartsWith('.')) classes++;

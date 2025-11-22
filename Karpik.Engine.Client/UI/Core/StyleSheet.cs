@@ -344,7 +344,7 @@ public class StyleSheet
         {
             Properties =
             {
-                [display] = "flex", // Показываем панель
+                [display] = display_flex, // Показываем панель
             }
         });
         _default.Rules.Add(new StyleRule(new Selector(".dropdown-panel"))
@@ -358,7 +358,7 @@ public class StyleSheet
                 [width] = "150px",
                 [background_color] = "white",
                 [border_width] = "1px",
-                [border_color] = "lightgray",
+                [border_color] = "red",
                 [flex_direction] = flex_direction_column,
                 [z_index] = "101"
             }
@@ -404,7 +404,7 @@ public class StyleSheet
         {
             Properties =
             {
-                [position] = "absolute",
+                [position] = position_absolute,
                 [top] = "-10px",
                 [right] = "-25px",
                 [width] = "25px",

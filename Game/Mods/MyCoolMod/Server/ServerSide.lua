@@ -13,5 +13,5 @@ function on_start()
 end
 
 function on_update(dt)
-    G.log("Server Tick" .. tostring(dt))
+    -- G.log("Server Tick" .. tostring(dt))
 end

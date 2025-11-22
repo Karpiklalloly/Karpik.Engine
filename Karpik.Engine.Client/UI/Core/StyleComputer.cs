@@ -4,14 +4,12 @@ namespace Karpik.Engine.Client.UIToolkit;
 
 public class StyleComputer
 {
-    // Список наследуемых свойств.
     private static readonly HashSet<string> InheritableProperties = new()
     {
         s.color, "font-family", s.font_size, "font-style", "font-weight", 
         s.line_height, "text-align", "visibility", "white-space"
     };
 
-    // Карта для разворачивания shorthands. Ключ - shorthand, значение - массив longhands.
     private static readonly Dictionary<string, string[]> ShorthandMap = new()
     {
         { s.margin, [s.margin_top, s.margin_right, s.margin_bottom, s.margin_left] },
@@ -22,7 +20,6 @@ public class StyleComputer
 
     public void ComputeStyles(UIElement root, s styleSheet)
     {
-        // Начинаем рекурсивный процесс с корневого элемента.
         ComputeStylesForNode(root, styleSheet, null);
     }
 

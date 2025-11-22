@@ -2,7 +2,7 @@
 
 public interface IManipulator
 {
-    public UIElement Target { get; set; }
+    internal UIElement Target { get; set; }
     public void OnMouseEnter();
     public void OnMouseLeave();
     public void OnMouseDown();

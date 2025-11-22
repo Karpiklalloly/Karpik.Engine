@@ -161,10 +161,12 @@ public class MySystem : IEcsRunParallel, IEcsInit
             Console.WriteLine(border);
             Console.WriteLine(content);
         }
+
         
         if (ImGui.CollapsingHeader(text))
         {
             ImGui.Indent(indent * 2);
+            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
             if (ImGui.CollapsingHeader("style " + text))
             {
                 ImGui.Text(margin);
@@ -177,6 +179,7 @@ public class MySystem : IEcsRunParallel, IEcsInit
                     ImGui.Text($"{key}: {value}");
                 }
             }
+            ImGui.PopStyleColor(1);
 
             foreach (var child in element.Children)
             {

@@ -13,6 +13,6 @@ function on_start()
 end
 
 function on_update(dt)
-    G.log(tostring(type(dt)))
+    -- G.log(tostring(type(dt)))
     -- G.log("Client Tick " .. tostring(dt))
 end

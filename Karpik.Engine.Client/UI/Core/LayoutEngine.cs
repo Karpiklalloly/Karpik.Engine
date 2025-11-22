@@ -11,7 +11,6 @@ public class LayoutEngine
     private readonly List<UIElement> _fixedElements = [];
     private Rectangle _viewport;
 
-    // Вспомогательные классы для Flexbox
     private class FlexItemData
     {
         public UIElement Element { get; init; }
@@ -101,10 +100,8 @@ public class LayoutEngine
         var borderBottom = ParseValue(style.GetValueOrDefault(s.border_bottom_width, "0")).ToPx(0);
         var paddingTop =
             ParseValue(style.GetValueOrDefault(s.padding_top, "0"))
-                .ToPx(sizingBlock.Height); // padding % зависит от высоты родителя
+                .ToPx(sizingBlock.Height);
         var paddingBottom = ParseValue(style.GetValueOrDefault(s.padding_bottom, "0")).ToPx(sizingBlock.Height);
-
-        // --- НАЧАЛО ИЗМЕНЕНИЙ: box-sizing ---
 
         var boxSizing = style.GetValueOrDefault(s.box_sizing, "content-box");
         var widthVal = ParseValue(style.GetValueOrDefault(s.width, s.auto));
@@ -132,9 +129,7 @@ public class LayoutEngine
             }
             else
             {
-                // Fill available space. Calculate the total available width for the border-box...
                 float borderBoxWidth = availableSpace.Width - marginLeft - marginRight;
-                // ...and then determine the content width from that.
                 contentWidth = Math.Max(0, borderBoxWidth - paddingLeft - paddingRight - borderLeft - borderRight);
             }
         }
@@ -153,17 +148,15 @@ public class LayoutEngine
                 finalContentHeight = Math.Max(0,
                     explicitHeight - paddingTop - paddingBottom - borderTop - borderBottom);
             }
-            else // content-box
+            else
             {
                 finalContentHeight = explicitHeight;
             }
         }
         else
         {
-            finalContentHeight = 0; // Будет вычислена после дочерних элементов
+            finalContentHeight = 0;
         }
-
-        // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         float finalX, finalY;
         if (position == s.position_static)
@@ -283,23 +276,17 @@ public class LayoutEngine
         var contentBox = parent.LayoutBox.ContentRect;
         bool isRow = parent.IsRow();
 
-        // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ---
-        // Вместо того, чтобы читать `mainSize` из потенциально недостроенного `contentBox`,
-        // мы используем `parentAvailableSpace`, который является надежным источником данных.
         float mainSize;
         if (isRow)
         {
-            mainSize = contentBox.Width; // Ширина всегда вычисляется до дочерних элементов.
+            mainSize = contentBox.Width;
         }
         else
         {
-            // Для колонок `mainSize` - это высота. Если она auto, мы должны использовать
-            // доступную высоту от родителя, а не свою текущую (которая равна 0).
             var heightVal = ParseValue(style.GetValueOrDefault(s.height, s.auto));
             mainSize = heightVal.Unit == Unit.Auto ? parentAvailableSpace.Height : contentBox.Height;
             if (float.IsInfinity(mainSize)) mainSize = 0;
         }
-        // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
         var allItemData = flexItems.Select(item =>
         {
@@ -307,20 +294,14 @@ public class LayoutEngine
             float flexBasis;
             if (basisVal.Unit == Unit.Auto)
             {
-                // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-                // Раньше здесь был вызов CalculateNaturalSize, который не умел работать с контейнерами.
-                // Теперь мы делаем полноценный, но временный, расчет компоновки,
-                // чтобы получить реальный внутренний размер элемента с учетом его детей.
                 var availableSpaceForMeasure = new Rectangle(
                     0, 0,
-                    isRow ? float.PositiveInfinity : contentBox.Width, // Неограниченная ширина для строки
-                    isRow ? contentBox.Height : float.PositiveInfinity // Неограниченная высота для колонки
+                    isRow ? float.PositiveInfinity : contentBox.Width,
+                    isRow ? contentBox.Height : float.PositiveInfinity
                 );
                 Calculate(item, availableSpaceForMeasure, font);
 
-                // flex-basis - это размер margin-box элемента.
                 flexBasis = isRow ? item.LayoutBox.MarginRect.Width : item.LayoutBox.MarginRect.Height;
-                // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
             }
             else
             {
@@ -494,10 +475,9 @@ public class LayoutEngine
                 var alignSelf = itemStyle.GetValueOrDefault(s.align_self,
                     style.GetValueOrDefault(s.align_items, s.align_stretch));
 
-                // --- НОВАЯ ЛОГИКА РАСТЯГИВАНИЯ (STRETCH) ---
                 if (alignSelf == s.align_stretch)
                 {
-                    if (isRow) // Для строки растягиваем высоту
+                    if (isRow)
                     {
                         var heightVal = ParseValue(itemStyle.GetValueOrDefault(s.height, s.auto));
                         if (heightVal.Unit == Unit.Auto)
@@ -532,7 +512,7 @@ public class LayoutEngine
                                 pBottom, bLeft, bRight, bTop, bBottom);
                         }
                     }
-                    else // Для колонки растягиваем ширину
+                    else
                     {
                         var widthVal = ParseValue(itemStyle.GetValueOrDefault(s.width, s.auto));
                         if (widthVal.Unit == Unit.Auto)
@@ -569,16 +549,13 @@ public class LayoutEngine
                     }
                 }
 
-                // --- ЛОГИКА ПОЗИЦИОНИРОВАНИЯ ---
-                // Главная ось
                 if (isRow) itemElement.LayoutBox.SetX(contentBox.X + mainAxisPosition);
                 else itemElement.LayoutBox.SetY(contentBox.Y + mainAxisPosition);
 
-                // Поперечная ось
                 float itemCrossSize = isRow
                     ? itemElement.LayoutBox.MarginRect.Height
                     : itemElement.LayoutBox.MarginRect.Width;
-                float crossPos = lineStartOffset; // По умолчанию flex-start (или stretch)
+                float crossPos = lineStartOffset;
 
                 if (alignSelf == s.align_flex_end) crossPos = lineStartOffset + line.CrossSize - itemCrossSize;
                 else if (alignSelf == s.align_center)
@@ -587,7 +564,6 @@ public class LayoutEngine
                 if (isRow) itemElement.LayoutBox.SetY(contentBox.Y + crossPos);
                 else itemElement.LayoutBox.SetX(contentBox.X + crossPos);
 
-                // --- РЕКУРСИВНАЯ КОМПОНОВКА ДОЧЕРНИХ ЭЛЕМЕНТОВ ---
                 LayoutChildren(itemElement, itemElement.LayoutBox.ContentRect, font);
 
                 mainAxisPosition += item.FinalMainSize + spacing;
@@ -603,8 +579,6 @@ public class LayoutEngine
         var style = element.ComputedStyle;
         var fontSize = ParseValue(style.GetValueOrDefault(s.font_size, "16")).ToPx(0);
 
-        // 1. Рассчитываем размер собственного текста элемента
-        // Используем предоставленную ширину для переноса, если она есть
         WrapText(element, wrapWidth ?? float.PositiveInfinity, defaultFont, fontSize);
 
         float textWidth = 0, textHeight = 0;
@@ -617,17 +591,14 @@ public class LayoutEngine
             textHeight = element.WrappedTextLines.Count * lineHeight;
         }
 
-        // 2. Рассчитываем совокупный размер дочерних элементов в потоке
         float childrenWidth = 0, childrenHeight = 0;
         var flowChildren = element.Children
             .Where(c => c.GetPosition() == s.position_static || c.GetPosition() == s.position_relative).ToList();
 
         if (flowChildren.Any())
         {
-            // Рекурсивно получаем естественные размеры всех дочерних элементов
             var childSizes = flowChildren.Select(c =>
                 CalculateNaturalSize(c, defaultFont,
-                    // Если родитель - flex-колонка, передаем ему нашу `wrapWidth`
                     element.GetDisplay() == "flex" && !element.IsRow() ? wrapWidth : null)
             );
 
@@ -635,29 +606,22 @@ public class LayoutEngine
             {
                 if (element.IsRow())
                 {
-                    // Для flex-строки естественная ширина - это сумма ширин детей,
-                    // а естественная высота - высота самого высокого ребенка.
                     childrenWidth = childSizes.Sum(s => s.width);
                     childrenHeight = childSizes.Any() ? childSizes.Max(s => s.height) : 0;
                 }
-                else // flex-колонка
+                else
                 {
-                    // Для flex-колонки естественная ширина - это ширина самого широкого ребенка,
-                    // а естественная высота - сумма высот детей.
                     childrenWidth = childSizes.Any() ? childSizes.Max(s => s.width) : 0;
                     childrenHeight = childSizes.Sum(s => s.height);
                 }
             }
-            else // display: block (или другой, не flex)
+            else
             {
-                // Для block-контейнера естественная ширина - это ширина самого широкого ребенка,
-                // а естественная высота - сумма высот детей.
                 childrenWidth = childSizes.Any() ? childSizes.Max(s => s.width) : 0;
                 childrenHeight = childSizes.Sum(s => s.height);
             }
         }
 
-        // 3. Финальный естественный размер - это максимум из размера текста и размера дочерних элементов
         return (Math.Max(textWidth, childrenWidth), Math.Max(textHeight, childrenHeight));
     }
 
