@@ -1,4 +1,6 @@
-﻿namespace Karpik.Engine.Client.UIToolkit;
+﻿using System.Collections.ObjectModel;
+
+namespace Karpik.Engine.Client.UIToolkit;
 
 [Flags]
 public enum DirtyFlag
@@ -11,10 +13,24 @@ public enum DirtyFlag
 public class UIElement
 {
     public string Id { get; }
-    public HashSet<string> Classes { get; } = new();
-    public Dictionary<string, string> InlineStyles { get; } = new();
     
-    public string Text { get; set; } = "";
+    public ReadOnlyDictionary<string, bool> ClassesReadOnly => 
+        new(new Dictionary<string, bool>(Classes.ToDictionary(c => c, c => true)));
+    public HashSet<string> Classes { get; } = new();
+    
+    public ReadOnlyDictionary<string, string> InlineStylesReadOnly => new(new Dictionary<string, string>(InlineStyles));
+    internal Dictionary<string, string> InlineStyles { get; } = new();
+
+    public string Text
+    {
+        get => field;
+        set
+        {
+            if (Text == value) return;
+            field = value ?? string.Empty;
+            MarkDirty(DirtyFlag.Layout);
+        }
+    }
     
     public IReadOnlyList<string> TextLines
     {
@@ -56,6 +72,14 @@ public class UIElement
     {
         Children.Add(child);
         child.Parent = this;
+    }
+    
+    public void RemoveChild(UIElement child)
+    {
+        if (Children.Remove(child))
+        {
+            child.Parent = null;
+        }
     }
     
     public void AddManipulator(IManipulator manipulator)
@@ -111,13 +135,6 @@ public class UIElement
         {
             MarkDirty(DirtyFlag.Style);
         }
-    }
-
-    public void SetText(string newText)
-    {
-        if (Text == newText) return;
-        Text = newText ?? "";
-        MarkDirty(DirtyFlag.Layout);
     }
 
     public void SetInlineStyle(string property, string value)
