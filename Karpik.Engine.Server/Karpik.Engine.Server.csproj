@@ -5,21 +5,23 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>default</LangVersion>
-        <RootNamespace>Karpik.Engine.Client</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <RootNamespace>Karpik.Engine.Server</RootNamespace>
+        <AssemblyName>Karpik.Engine.Server</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\KarpikEngineShared\KarpikEngineShared.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Shared\Karpik.Engine.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <Folder Include="EcsCore\Modules\" />
+      <Folder Include="EcsRunners\" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
-      <PackageReference Include="Raylib-cs" Version="7.0.1" />
-      <PackageReference Include="rlImgui-cs" Version="3.2.0" />
+        <PackageReference Include="Box2D.NET.Debug" Version="3.1.0" />
+        <PackageReference Include="Box2D.NET.Release" Version="*-*" Condition="'$(Configuration)' == 'Release'" />
     </ItemGroup>
 
     <ItemGroup>
@@ -31,12 +33,6 @@
         <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
                           ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
         <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Update="Pressstart2p.ttf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
     </ItemGroup>
 
 </Project>

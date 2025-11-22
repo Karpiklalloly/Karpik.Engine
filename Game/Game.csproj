@@ -8,8 +8,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\KarpikEngineClient\KarpikEngineClient.csproj" />
-      <ProjectReference Include="..\KarpikEngineServer\KarpikEngineServer.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Client\Karpik.Engine.Client.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Server\Karpik.Engine.Server.csproj" />
     </ItemGroup>
 
     <ItemGroup>

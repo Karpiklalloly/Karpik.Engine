@@ -4,8 +4,8 @@
 public enum DirtyFlag
 {
     None = 0,
-    Style = 1,
-    Layout = 2,
+    Style = 1 << 0,
+    Layout = 1 << 1,
 }
 
 public class UIElement
@@ -15,10 +15,22 @@ public class UIElement
     public Dictionary<string, string> InlineStyles { get; } = new();
     
     public string Text { get; set; } = "";
-    public List<string> WrappedTextLines { get; set; } = new List<string>();
+    
+    public IReadOnlyList<string> TextLines
+    {
+        get
+        {
+            if (WrappedTextLines.Count == 0)
+            {
+                return new List<string> { Text };
+            }
+            return WrappedTextLines;
+        }
+    }
+    internal List<string> WrappedTextLines { get; } = [];
 
     public UIElement Parent { get; private set; }
-    public List<UIElement> Children { get; } = new();
+    public List<UIElement> Children { get; } = [];
 
     public Dictionary<string, string> ComputedStyle { get; set; } = new();
     public LayoutBox LayoutBox { get; set; } = new();
@@ -29,7 +41,7 @@ public class UIElement
     
     internal IReadOnlyList<IManipulator> Manipulators => _manipulators;
     
-    private readonly List<IManipulator> _manipulators = new List<IManipulator>();
+    private readonly List<IManipulator> _manipulators = [];
 
     public UIElement(string id = "")
     {

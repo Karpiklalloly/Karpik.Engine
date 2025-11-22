@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <LangVersion>default</LangVersion>
         <RootNamespace>Karpik.Engine.Shared</RootNamespace>
+        <AssemblyName>Karpik.Engine.Shared</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>

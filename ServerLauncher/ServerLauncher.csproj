@@ -11,7 +11,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Game\Game.csproj" />
-      <ProjectReference Include="..\KarpikEngineServer\KarpikEngineServer.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Server\Karpik.Engine.Server.csproj" />
       <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
       <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>
