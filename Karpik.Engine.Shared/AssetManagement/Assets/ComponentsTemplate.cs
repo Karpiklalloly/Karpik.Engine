@@ -3,7 +3,7 @@
 namespace Karpik.Engine.Shared;
 
 [Serializable]
-public class ComponentsTemplate
+public class ComponentsTemplate : Asset
 {
     [JsonIgnore]
     public ComponentTemplateBase[] Components;
@@ -59,5 +59,11 @@ public class ComponentsTemplate
             IEcsTagComponent tagComponent => tagComponent.ToComponentTemplate(),
             _ => null
         };
+    }
+
+    protected override void OnUnload()
+    {
+        Components = null;
+        _components = null;
     }
 }

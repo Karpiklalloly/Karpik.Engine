@@ -6,6 +6,7 @@
 * **Karpik.Jobs:** Импортирована и интегрирована система джобов.
 * **Tween:** Добавлены твины (GTweens).
 
+
 ## Архитектура и ECS
 * Добавлены `EcsCommandBuffer`, `BaseSystem` и `IEcsRunParallel`.
 * Переименованы проекты и добавлен файл `Game.targets`.

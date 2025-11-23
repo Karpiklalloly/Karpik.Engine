@@ -9,7 +9,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
     private const string TypePropertyName = "$Type";
 
     private static MethodInfo _genericToObjectMethodInfo;
-    private static readonly object _methodInfoLock = new();
+    private static readonly Lock _methodInfoLock = new();
     private static readonly ConcurrentDictionary<Type, MethodInfo> ClosedToObjectMethodCache = new();
     
     public override void WriteJson(JsonWriter writer, IEcsComponentMember[] value, JsonSerializer serializer)
@@ -55,7 +55,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
             IEcsComponentMember deserializedComponent = null;
             try
             {
-                Type componentType = FindTypeByName(typeName); // Используем наш вспомогательный метод
+                Type componentType = FindTypeByName(typeName);
 
                 if (componentType != null && typeof(IEcsComponentMember).IsAssignableFrom(componentType))
                 {
@@ -65,18 +65,18 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
                         ClosedToObjectMethodCache.TryAdd(componentType, closedMethod);
                     }
 
-                    deserializedComponent = (IEcsComponentMember)closedMethod.Invoke(obj, [serializer]); // Приводим результат к нужному интерфейсу
+                    deserializedComponent = (IEcsComponentMember)closedMethod.Invoke(obj, [serializer]);
                 }
                 else
                 {
                      Console.WriteLine($"[ComponentArrayConverter] Error: Could not find or assignable type for name '{typeName}'.");
                 }
             }
-            catch (TargetInvocationException tie) // Исключение было брошено внутри вызываемого метода ToObject<>
+            catch (TargetInvocationException tie)
             {
                  Console.WriteLine($"[ComponentArrayConverter] Error invoking ToObject<{typeName}>: {tie.InnerException?.Message ?? tie.Message}\nJSON: {obj.ToString(Formatting.None)}");
             }
-            catch (Exception ex) // Другие ошибки (MakeGenericMethod, Invoke и т.д.)
+            catch (Exception ex)
             {
                  Console.WriteLine($"[ComponentArrayConverter] Error deserializing component type '{typeName}' using reflection: {ex.Message}\nJSON: {obj.ToString(Formatting.None)}");
             }
@@ -96,9 +96,8 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
 
         lock (_methodInfoLock)
         {
-            if (_genericToObjectMethodInfo != null) return; // Двойная проверка на случай гонки
+            if (_genericToObjectMethodInfo != null) return;
 
-            // Ищем метод ToObject<T>, который является дженериком и принимает один параметр типа JsonSerializer
             MethodInfo foundMethod = typeof(JObject).GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .FirstOrDefault(m =>
                     m.Name == "ToObject" &&
@@ -117,7 +116,6 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
     }
 
 
-    // Вспомогательный метод для поиска типа по имени (из предыдущего ответа)
     private static Type FindTypeByName(string typeName)
     {
         Type foundType = Type.GetType(typeName, throwOnError: false, ignoreCase: true);
@@ -128,14 +126,12 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
             if (foundType != null) return foundType;
             
             var types = asm.GetTypes().Where(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (types.Count == 1) return types[0]; // Нашли один - отлично
+            if (types.Count == 1) return types[0];
             if (types.Count > 1) {
-                // Нашли несколько с таким именем - неоднозначность!
                 Console.WriteLine($"[FindTypeByName] Ambiguous type name '{typeName}' found in assembly {asm.FullName}. Provide a more qualified name.");
-                return null; // Или вернуть первый, или бросить исключение
+                return null;
             }
         }
-        // Можно добавить поиск по простому имени, если нужно (см. предыдущий ответ), но будь осторожен с коллизиями
         return null;
     }
 

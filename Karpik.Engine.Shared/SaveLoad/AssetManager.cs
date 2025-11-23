@@ -10,6 +10,13 @@ public class AssetManager
     private readonly Dictionary<string, WeakReference<Stream>> _openStreams = new();
     private readonly Dictionary<Type, Func<Stream, object>> _convertersStream = new();
     private readonly Dictionary<Type, Func<string, object>> _convertersFileName = new();
+    private readonly AssetsManager _assetsManager;
+
+    public AssetManager()
+    {
+        _assetsManager = new AssetsManager();
+    }
+    
 
     public Stream GetStream(string relativePath)
     {
