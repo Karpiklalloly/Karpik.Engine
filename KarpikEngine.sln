@@ -1,10 +1,10 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarpikEngineShared", "KarpikEngineShared\KarpikEngineShared.csproj", "{121D9AE7-68BA-4406-AA45-4D0CAD30604F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karpik.Engine.Shared", "Karpik.Engine.Shared\Karpik.Engine.Shared.csproj", "{121D9AE7-68BA-4406-AA45-4D0CAD30604F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarpikEngineClient", "KarpikEngineClient\KarpikEngineClient.csproj", "{62BC9679-DDAD-4EC3-B9C8-46C317B6A7FE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karpik.Engine.Client", "Karpik.Engine.Client\Karpik.Engine.Client.csproj", "{62BC9679-DDAD-4EC3-B9C8-46C317B6A7FE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarpikEngineServer", "KarpikEngineServer\KarpikEngineServer.csproj", "{43692A0C-F9D5-47D7-83C4-C52AC8C38B4F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karpik.Engine.Server", "Karpik.Engine.Server\Karpik.Engine.Server.csproj", "{43692A0C-F9D5-47D7-83C4-C52AC8C38B4F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleLauncher", "ConsoleLauncher\ConsoleLauncher.csproj", "{9EB82882-CA5A-4B87-A2B9-BEE9E877C8FC}"
 EndProject
@@ -25,6 +25,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientLauncher", "ClientLauncher\ClientLauncher.csproj", "{C5A9BDDF-24BA-446B-B9AD-A8C813693F80}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DragonExtensions", "DragonExtensions\DragonExtensions.csproj", "{AD6A59FA-7160-470F-A42A-21859EE9A1F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Karpik.Jobs", "Karpik.Jobs\Karpik.Jobs.csproj", "{E3E98820-73C3-45D9-B076-DFE8788B230D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -84,5 +86,9 @@ Global
 		{AD6A59FA-7160-470F-A42A-21859EE9A1F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD6A59FA-7160-470F-A42A-21859EE9A1F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD6A59FA-7160-470F-A42A-21859EE9A1F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3E98820-73C3-45D9-B076-DFE8788B230D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3E98820-73C3-45D9-B076-DFE8788B230D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3E98820-73C3-45D9-B076-DFE8788B230D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3E98820-73C3-45D9-B076-DFE8788B230D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

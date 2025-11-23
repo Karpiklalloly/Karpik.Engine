@@ -410,7 +410,7 @@ namespace DCFApixels.DragonECS
     [Il2CppSetOption(Option.NullChecks, false)]
 #endif
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public readonly struct ReadonlyEcsPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
+    public readonly struct EcsReadonlyPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
         where T : struct, IEcsComponent
     {
         private readonly EcsPool<T> _pool;
@@ -448,7 +448,7 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Constructors
-        internal ReadonlyEcsPool(EcsPool<T> pool)
+        internal EcsReadonlyPool(EcsPool<T> pool)
         {
             _pool = pool;
         }
@@ -472,11 +472,11 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Convertors
-        public static implicit operator ReadonlyEcsPool<T>(EcsPool<T> a) { return new ReadonlyEcsPool<T>(a); }
-        public static implicit operator ReadonlyEcsPool<T>(IncludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
-        public static implicit operator ReadonlyEcsPool<T>(ExcludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
-        public static implicit operator ReadonlyEcsPool<T>(OptionalMarker a) { return a.GetInstance<EcsPool<T>>(); }
-        public static implicit operator ReadonlyEcsPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsReadonlyPool<T>(EcsPool<T> a) { return new EcsReadonlyPool<T>(a); }
+        public static implicit operator EcsReadonlyPool<T>(IncludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsReadonlyPool<T>(ExcludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsReadonlyPool<T>(OptionalMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsReadonlyPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsPool<T>>(); }
         #endregion
     }
 

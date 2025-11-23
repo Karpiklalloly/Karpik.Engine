@@ -1,0 +1,68 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <Target Name="PrepareGameAssets" AfterTargets="Build">
+
+        <PropertyGroup>
+            <GameProjectRoot>$(MSBuildThisFileDirectory)..\</GameProjectRoot>
+            <!-- Пути к целевым папкам -->
+            <TargetMods>$(TargetDir)Mods</TargetMods>
+            <TargetContent>$(TargetDir)Content</TargetContent>
+        </PropertyGroup>
+
+        <!-- Проверяем наличие исходников -->
+        <Error Text="Source 'Mods' directory not found at '$(GameProjectRoot)Mods'" Condition="!Exists('$(GameProjectRoot)Mods')" />
+        <Error Text="Source 'Content' directory not found at '$(GameProjectRoot)Content'" Condition="!Exists('$(GameProjectRoot)Content')" />
+
+        <!-- =============================================================== -->
+        <!-- DEBUG: Создание соединений (Junctions) - НЕ ТРЕБУЕТ АДМИНА      -->
+        <!-- =============================================================== -->
+        <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+            <MessageDebug>Linking Mods and Content (Junctions) for Debug...</MessageDebug>
+        </PropertyGroup>
+        <Message Text="$(MessageDebug)" Importance="high" Condition="'$(Configuration)'=='Debug'" />
+
+        <!-- 
+          ОЧИСТКА ПЕРЕД ЛИНКОВКОЙ:
+          Если папка уже существует (например, осталась от Release-копии), mklink выдаст ошибку.
+          Команда rmdir безопасно удаляет папку или существующий ярлык.
+          Внимание: Используем rmdir, чтобы удалить старую копию или старый ярлык перед созданием нового.
+        -->
+        <Exec Command="if exist &quot;$(TargetMods)&quot; rmdir /S /Q &quot;$(TargetMods)&quot;" Condition="'$(Configuration)'=='Debug'" />
+        <Exec Command="if exist &quot;$(TargetContent)&quot; rmdir /S /Q &quot;$(TargetContent)&quot;" Condition="'$(Configuration)'=='Debug'" />
+
+        <!-- 
+          СОЗДАНИЕ /J (JUNCTION):
+          Ключ /J создает жесткое соединение папок. Это работает без прав администратора на NTFS.
+        -->
+        <Exec Command="mklink /J &quot;$(TargetMods)&quot; &quot;$(GameProjectRoot)Mods&quot;" Condition="'$(Configuration)'=='Debug'" />
+        <Exec Command="mklink /J &quot;$(TargetContent)&quot; &quot;$(GameProjectRoot)Content&quot;" Condition="'$(Configuration)'=='Debug'" />
+
+
+        <!-- =============================================================== -->
+        <!-- RELEASE: Копирование файлов                                     -->
+        <!-- =============================================================== -->
+        <PropertyGroup Condition="'$(Configuration)'=='Release'">
+            <MessageRelease>Copying Mods and Content directories for Release...</MessageRelease>
+        </PropertyGroup>
+        <Message Text="$(MessageRelease)" Importance="high" Condition="'$(Configuration)'=='Release'" />
+
+        <!-- 
+          ОЧИСТКА ПЕРЕД КОПИРОВАНИЕМ:
+          Если там был ярлык (от Debug), копирование может пойти не туда или выдать ошибку.
+          Удаляем ярлык перед копированием.
+        -->
+        <Exec Command="if exist &quot;$(TargetMods)&quot; rmdir /S /Q &quot;$(TargetMods)&quot;" Condition="'$(Configuration)'=='Release'" />
+        <Exec Command="if exist &quot;$(TargetContent)&quot; rmdir /S /Q &quot;$(TargetContent)&quot;" Condition="'$(Configuration)'=='Release'" />
+
+        <!-- Сбор списка файлов -->
+        <ItemGroup Condition="'$(Configuration)'=='Release'">
+            <ModsFiles Include="$(GameProjectRoot)Mods\**\*" />
+            <ContentFiles Include="$(GameProjectRoot)Content\**\*" />
+        </ItemGroup>
+
+        <!-- Копирование -->
+        <Copy SourceFiles="@(ModsFiles)" DestinationFolder="$(TargetMods)\%(RecursiveDir)" Condition="'$(Configuration)'=='Release'" />
+        <Copy SourceFiles="@(ContentFiles)" DestinationFolder="$(TargetContent)\%(RecursiveDir)" Condition="'$(Configuration)'=='Release'" />
+
+    </Target>
+</Project>

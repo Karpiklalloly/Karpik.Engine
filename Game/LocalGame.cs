@@ -23,6 +23,7 @@ public class LocalGame : IDisposable
             _server.Run(in _isRunning);
             _isRunning = false;
         });
+        _serverThread.Name = "Server";
         
         _clientThread = new Thread(() =>
         {
@@ -30,6 +31,7 @@ public class LocalGame : IDisposable
             _client.Run(in _isRunning);
             _isRunning = false;
         });
+        _clientThread.Name = "Client";
         
         _serverThread.Start();
         _clientThread.Start();

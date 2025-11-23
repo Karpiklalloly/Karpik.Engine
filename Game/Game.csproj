@@ -1,31 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <LangVersion>default</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\KarpikEngineClient\KarpikEngineClient.csproj" />
-      <ProjectReference Include="..\KarpikEngineServer\KarpikEngineServer.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Client\Karpik.Engine.Client.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Server\Karpik.Engine.Server.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Content\" />
+        <Content Include="build\Game.targets" Pack="true" PackagePath="build\" />
     </ItemGroup>
 
     <ItemGroup>
-		<ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
-				  ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+		<ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
 		<ProjectReference Include="..\Network\Network.csproj" />
 
 		<ProjectReference Include="..\Dragon\Dragon.csproj" />
-        <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
-                          ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+        <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
         <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
     </ItemGroup>
-    
-    
 
+    <ItemGroup>
+      <EmbeddedResource Update="Properties\Resources.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+    </ItemGroup>
+    
 </Project>

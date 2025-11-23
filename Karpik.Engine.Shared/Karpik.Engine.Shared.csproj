@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>default</LangVersion>
+        <RootNamespace>Karpik.Engine.Shared</RootNamespace>
+        <AssemblyName>Karpik.Engine.Shared</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+		<ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
+		<ProjectReference Include="..\Karpik.Jobs\Karpik.Jobs.csproj" />
+		<ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+				  ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+		<ProjectReference Include="..\Network\Network.csproj" />
+
+		<ProjectReference Include="..\Dragon\Dragon.csproj" />
+      <ProjectReference Include="..\Network\Network.csproj" />
+      <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+                        ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+      <ProjectReference Include="..\StatAndAbilities\StatAndAbilities.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+      <PackageReference Include="MoonSharp" Version="2.0.0" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    </ItemGroup>
+
+</Project>

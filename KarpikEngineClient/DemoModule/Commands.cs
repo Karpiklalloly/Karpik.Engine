@@ -1,2 +1,0 @@
-﻿namespace Karpik.Engine.Client;
-

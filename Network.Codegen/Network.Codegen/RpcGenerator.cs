@@ -25,36 +25,52 @@ public class RpcGenerator : IIncrementalGenerator
 
     private void Execute(SourceProductionContext context, Compilation compilation)
     {
-        // Сбрасываем состояние менеджера ID в начале компиляции
-        CommandIdManager.Reset();
+        // Сбрасываем глобальный коллектор команд в начале компиляции
+        GlobalCommandCollector.Reset();
         
         var rpc = new StringBuilder();
         rpc.Append(GenerateStartRpc());
-        
+
         var dispatcher = new StringBuilder();
         dispatcher.Append(GenerateDispatcherStart());
         
+        var allCommandNames = new List<string>();
+
         // 1. Найти все структуры, реализующие IEventCommand, во всех сборках
-        var commandInfos = FindAllEventCommandInfos(compilation, context.CancellationToken);
-        if (commandInfos.Any())
+        var eventCommandInfos = FindAllEventCommandInfos(compilation, context.CancellationToken);
+        if (eventCommandInfos.Any())
         {
-            rpc.Append(GenerateClientRpc(commandInfos));
-            dispatcher.Append(GenerateServerDispatcher(commandInfos));
+            rpc.Append(GenerateClientRpc(eventCommandInfos));
+            dispatcher.Append(GenerateServerDispatcher(eventCommandInfos));
+            allCommandNames.AddRange(eventCommandInfos.Select(c => c.FullName));
         }
 
-        commandInfos = FindAllStateCommandInfos(compilation, context.CancellationToken);
-        if (commandInfos.Any())
+        var stateCommandInfos = FindAllStateCommandInfos(compilation, context.CancellationToken);
+        if (stateCommandInfos.Any())
         {
-            rpc.Append(GenerateClientRpc(commandInfos));
-            context.AddSource("CommandRequests.g.cs",SourceText.From(GenerateRequests(commandInfos), Encoding.UTF8));
-            dispatcher.Append(GenerateServerDispatcher(commandInfos)); 
+            rpc.Append(GenerateClientRpc(stateCommandInfos));
+            context.AddSource("CommandRequests.g.cs", SourceText.From(GenerateRequests(stateCommandInfos), Encoding.UTF8));
+            dispatcher.Append(GenerateServerDispatcher(stateCommandInfos));
+            allCommandNames.AddRange(stateCommandInfos.Select(c => c.FullName));
         }
-        
+
         rpc.Append(GenerateEndRpc());
         context.AddSource("Rpc.g.cs", SourceText.From(rpc.ToString(), Encoding.UTF8));
-        
+
         dispatcher.Append(GenerateDispatcherEnd());
         context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(dispatcher.ToString(), Encoding.UTF8));
+
+        // Добавляем команды в глобальный коллектор
+        GlobalCommandCollector.AddCommands(allCommandNames);
+        
+        // Генерируем отладочную информацию только если это последний генератор
+        // (определяем по наличию StateCommand - они есть только в RpcGenerator)
+        if (stateCommandInfos.Any())
+        {
+            var allCollectedCommands = GlobalCommandCollector.GetAllCommandsAndFinalize();
+            CommandIdDebugger.GenerateDebugInfo(context, allCollectedCommands);
+            CommandIdDebugger.ValidateCommandIds(context, allCollectedCommands);
+        }
     }
 
     private string GenerateRequests(List<CommandInfo> commandInfos)
@@ -116,7 +132,7 @@ public class RpcGenerator : IIncrementalGenerator
 
         return commandInfos;
     }
-    
+
     private List<CommandInfo> FindAllStateCommandInfos(Compilation compilation, CancellationToken ct)
     {
         var commandInterface = compilation.GetTypeByMetadataName(StateCommandInterfaceName);
@@ -186,20 +202,15 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("using Network;");
         sb.AppendLine("using LiteNetLib;");
         sb.AppendLine("using LiteNetLib.Utils;");
+        sb.AppendLine("using DCFApixels.DragonECS;");
         sb.AppendLine();
         sb.AppendLine("namespace Game.Generated.Client");
         sb.AppendLine("{");
         sb.AppendLine("    public class Rpc");
         sb.AppendLine("    {");
-        sb.AppendLine("        private static ThreadLocal<Rpc> _instance = new ThreadLocal<Rpc>(() => new Rpc());");
-        sb.AppendLine("        public static Rpc Instance => _instance.Value;");
-        sb.AppendLine("        private NetManager _netManager;");
+        sb.AppendLine("        [DI] private NetManager _netManager;");
+        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
         sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
-        sb.AppendLine();
-        sb.AppendLine("        public void Initialize(NetManager netManager)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            _netManager = netManager;");
-        sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        private void Send(DeliveryMethod deliveryMethod)");
         sb.AppendLine("        {");
@@ -211,7 +222,7 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine();
         return sb.ToString();
     }
-    
+
     private static string GenerateEndRpc()
     {
         var sb = new StringBuilder();
@@ -240,7 +251,7 @@ public class RpcGenerator : IIncrementalGenerator
             sb.AppendLine("        }");
             sb.AppendLine();
         }
-        
+
         return sb.ToString();
     }
 
@@ -259,12 +270,15 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("using LiteNetLib.Utils;");
         sb.AppendLine("using Network;");
         sb.AppendLine("using Karpik.Engine.Shared.DragonECS;");
+        sb.AppendLine("using DCFApixels.DragonECS;");
         sb.AppendLine();
         sb.AppendLine("namespace Game.Generated.Server");
         sb.AppendLine("{");
-        
+
         sb.AppendLine($"    public partial class CommandDispatcher");
         sb.AppendLine("    {");
+        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
+        sb.AppendLine();
         sb.AppendLine("        public void Dispatch(int playerEntity, NetDataReader reader)");
         sb.AppendLine("        {");
         sb.AppendLine("            var commandId = reader.GetUShort();");
@@ -272,7 +286,7 @@ public class RpcGenerator : IIncrementalGenerator
         sb.AppendLine("            {");
         return sb.ToString();
     }
-    
+
     private static string GenerateDispatcherEnd()
     {
         var sb = new StringBuilder();
@@ -293,7 +307,7 @@ public class RpcGenerator : IIncrementalGenerator
         foreach (var pair in commandMap)
         {
             var cmdInfo = pair.Value;
-            
+
             sb.AppendLine($"                case {cmdInfo.Id}: // {cmdInfo.Name}");
             sb.AppendLine("                {");
             sb.AppendLine($"                    var cmd = new {cmdInfo.FullName}();");
@@ -301,11 +315,11 @@ public class RpcGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"                    cmd.{field.Name} = reader.Get{GetReaderMethod(field.TypeName)}();");
             }
-            sb.AppendLine($"                    Worlds.Instance.EventWorld.SendEvent(cmd);");
+            sb.AppendLine($"                    _eventWorld.SendEvent(cmd);");
             sb.AppendLine("                    break;");
             sb.AppendLine("                }");
         }
- 
+
         return sb.ToString();
     }
 
