@@ -28,6 +28,6 @@ public struct SpriteRenderer : IEcsComponent, IEcsComponentOnLoad, IEcsComponent
 
     public void Disable(ref SpriteRenderer component)
     {
-        _handle.Dispose();
+        component._handle.Dispose();
     }
 }

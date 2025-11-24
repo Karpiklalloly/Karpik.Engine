@@ -33,7 +33,7 @@ namespace DCFApixels.DragonECS
             private int _freeNodesCount = 0;
 
             private readonly Dictionary<string, LayerSystemsList> _layerLists = new Dictionary<string, LayerSystemsList>(8);
-            private readonly StructList<InitDeclaredRunner> _initDeclaredRunners = new StructList<InitDeclaredRunner>(4);
+            private readonly List<InitDeclaredRunner> _initDeclaredRunners = new List<InitDeclaredRunner>(4);
 
             public readonly LayersMap Layers;
             public readonly InitInjectionList Injections;

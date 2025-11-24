@@ -141,7 +141,7 @@ namespace DCFApixels.DragonECS.Core.Internal
             for (int i = 0, n = _pairs.Length < _markers.Length ? _pairs.Length : _markers.Length; i < n; i++)
             {
                 var pair = _pairs[i];
-                _markers[i].Begin();
+                // _markers[i].Begin();
                 try
                 {
                     pair.run.Run();
@@ -158,7 +158,7 @@ namespace DCFApixels.DragonECS.Core.Internal
                 {
                     pair.cleanup?.RunFinally();
                 }
-                _markers[i].End();
+                // _markers[i].End();
             }
 #else
             foreach (var item in Process)
