@@ -91,6 +91,8 @@ public class Client
         
         _modManager.Init(ModManager.Type.Client);
         _modManager.LoadMods(_assetsManager.ModsPath);
+        
+        _assetsManager.FindAllLoaders();
 
         // Инициализируем окно сначала
         Raylib.InitWindow(1024, 768, "Console Launcher");

@@ -31,13 +31,18 @@ public class AssetsManager
         _savers[typeof(T)] = saver;
     }
     
-    public void RegisterLoader<T>(IAssetLoader loader, params string[] extensions) where T : Asset
+    public void RegisterLoader<T>(IAssetLoader loader) where T : Asset
+    {
+        RegisterLoaderInternal(loader, typeof(T));
+    }
+
+    private void RegisterLoaderInternal(IAssetLoader loader, Type assetType)
     {
         _serviceProvider.Inject(loader);
-        foreach (var extension in extensions)
+        foreach (var extension in loader.SupportedExtensions)
         {
             string safeExt = NormalizeExtension(extension);
-            _loaders[(safeExt, typeof(T))] = loader;
+            _loaders[(safeExt, assetType)] = loader;
         }
     }
     
@@ -138,5 +143,29 @@ public class AssetsManager
         return ext.StartsWith(".", StringComparison.InvariantCultureIgnoreCase)
             ? ext.ToLowerInvariant()
             : "." + ext.ToLowerInvariant();
+    }
+
+    public void FindAllLoaders()
+    {
+        var loaderTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => typeof(IAssetLoader).IsAssignableFrom(type)
+                           && !type.IsInterface
+                           && !type.IsAbstract
+                           && !type.IsGenericType);
+
+        foreach (var loaderType in loaderTypes)
+        {
+            try
+            {
+                var loaderInstance = (IAssetLoader)Activator.CreateInstance(loaderType)!;
+                Type assetType = loaderInstance.AssetType;
+                RegisterLoaderInternal(loaderInstance, assetType);
+            }
+            catch (Exception e)
+            {
+                Logger.Instance.Log($"[AssetManager] Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
+            }
+        }
     }
 }
