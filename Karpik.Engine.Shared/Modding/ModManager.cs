@@ -11,7 +11,7 @@ public class ModManager
     } 
         
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
-    [DI] private Loader _loader;
+    [DI] private AssetsManager _assetsManager;
     [DI] private EcsDefaultWorld _world;
     private string _subFolder;
 
@@ -29,7 +29,7 @@ public class ModManager
     {
         if (!Directory.Exists(modsRootDirectory))
         {
-            modsRootDirectory = Path.Combine(_loader.RootPath, modsRootDirectory);
+            modsRootDirectory = Path.Combine(_assetsManager.RootPath, modsRootDirectory);
             if (!Directory.Exists(modsRootDirectory)) return;
         }
         

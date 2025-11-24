@@ -2,7 +2,10 @@
 
 public class JsonLoader<T> : IAssetLoader where T : Asset, new()
 {
+    public virtual string[] SupportedExtensions { get; } = [".json"];
+    
     protected JsonSerializer Serializer { get; } = new();
+    [DI] protected AssetsManager AssetsManager { get; }
 
     public async Task<Asset> LoadAsync(Stream stream, string assetName)
     {
@@ -10,7 +13,11 @@ public class JsonLoader<T> : IAssetLoader where T : Asset, new()
         {
             using var reader = new StreamReader(stream);
             using var jsonReader = new JsonTextReader(reader);
-            return Serializer.Deserialize<T>(jsonReader);
+            var asset = Serializer.Deserialize<T>(jsonReader);
+            OnAssetLoadedAsync(asset);
+            return asset;
         });
     }
+
+    protected virtual Task OnAssetLoadedAsync(T asset) => Task.CompletedTask;
 }

@@ -1,4 +1,6 @@
-﻿namespace Karpik.Engine.Shared;
+﻿using System.Collections.Concurrent;
+
+namespace Karpik.Engine.Shared;
 
 public class AssetsManager
 {
@@ -7,15 +9,16 @@ public class AssetsManager
     public string ModsPath => Path.Combine(RootPath, "Mods");
     
     // [Hash, Asset Type] -> [Asset Instance]
-    private readonly Dictionary<(int, Type), Asset> _loadedAssets = new();
+    private readonly ConcurrentDictionary<(int, Type), Asset> _loadedAssets = new();
     
     // [Extension, Asset Type] -> [Loader]
-    private readonly Dictionary<(string, Type), IAssetLoader> _loaders = new();
+    private readonly ConcurrentDictionary<(string, Type), IAssetLoader> _loaders = new();
     
     // [Asset Type] -> [Saver]
-    private readonly Dictionary<Type, IAssetSaver> _savers = new();
+    private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
     
     private readonly IFileSystem _fileSystem;
+    private IServiceProvider _serviceProvider;
 
     public AssetsManager(IFileSystem fileSystem = null)
     {
@@ -24,15 +27,17 @@ public class AssetsManager
     
     public void RegisterSaver<T>(IAssetSaver saver) where T : Asset
     {
+        _serviceProvider.Inject(saver);
         _savers[typeof(T)] = saver;
     }
     
-    public void RegisterLoader<TAsset>(IAssetLoader loader, params string[] extensions) where TAsset : Asset
+    public void RegisterLoader<T>(IAssetLoader loader, params string[] extensions) where T : Asset
     {
+        _serviceProvider.Inject(loader);
         foreach (var extension in extensions)
         {
             string safeExt = NormalizeExtension(extension);
-            _loaders[(safeExt, typeof(TAsset))] = loader;
+            _loaders[(safeExt, typeof(T))] = loader;
         }
     }
     
@@ -61,7 +66,7 @@ public class AssetsManager
         newAsset.Path = path;
         newAsset.SourceType = typeof(T);
 
-        _loadedAssets.Add((id, typeof(T)), newAsset);
+        _loadedAssets.TryAdd((id, typeof(T)), newAsset);
         return new AssetHandle<T>((T)newAsset, this);
     }
     
@@ -100,15 +105,15 @@ public class AssetsManager
                 throw new InvalidOperationException($"Cannot rename asset to '{targetPath}' because another asset is already loaded with this path.");
             }
 
-            if (_loadedAssets.Remove(oldKey))
+            if (_loadedAssets.Remove(oldKey, out _))
             {
-                _loadedAssets.Add(newKey, asset);
+                _loadedAssets.TryAdd(newKey, asset);
             
                 Console.WriteLine($"[AssetManager] Cache updated: moved from {oldId} to {newId}");
             }
             else
             {
-                _loadedAssets.Add(newKey, asset);
+                _loadedAssets.TryAdd(newKey, asset);
                 asset.IncrementRef();
             }
 
@@ -123,7 +128,7 @@ public class AssetsManager
 
         if (asset.DecrementRef())
         {
-            _loadedAssets.Remove((asset.Id, asset.SourceType));
+            _loadedAssets.Remove((asset.Id, asset.SourceType), out _);
             asset.Unload();
         }
     }

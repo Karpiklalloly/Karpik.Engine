@@ -2,5 +2,5 @@
 
 public interface IEcsComponentOnLoad
 {
-    public void OnLoad(Loader loader);
+    public Task OnLoad(AssetsManager manager);
 }

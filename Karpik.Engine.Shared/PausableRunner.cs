@@ -1,6 +1,6 @@
 ﻿using DCFApixels.DragonECS.RunnersCore;
 
-namespace Karpik.Engine.Shared.EcsRunners;
+namespace Karpik.Engine.Shared;
 
 public interface IEcsPausableRun : IEcsProcess
 {

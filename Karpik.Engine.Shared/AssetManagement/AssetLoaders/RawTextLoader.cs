@@ -4,6 +4,8 @@ namespace Karpik.Engine.Shared;
 
 public class RawTextLoader : IAssetLoader
 {
+    public string[] SupportedExtensions { get; } = [".txt", ".cfg", ".ini", ".log", ".md"];
+
     public async Task<Asset> LoadAsync(Stream stream, string assetName)
     {
         using StreamReader reader = new StreamReader(stream);

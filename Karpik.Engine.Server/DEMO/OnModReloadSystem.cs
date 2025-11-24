@@ -5,13 +5,13 @@ using Karpik.Engine.Shared.Modding;
 
 namespace Karpik.Engine.Server.DEMO;
 
-public class OnModRelaod : IEcsRunOnEvent<ReloadModsCommand>
+public class OnModReloadSystem : IEcsRunOnEvent<ReloadModsCommand>
 {
-    [DI] private Loader _loader;
+    [DI] private AssetsManager _assetsManager;
     [DI] private ModManager _modManager;
     
     public void RunOnEvent(ref ReloadModsCommand evt)
     {
-        _modManager.ReloadAllMods(_loader.Manager.ModsPath);
+        _modManager.ReloadAllMods(_assetsManager.ModsPath);
     }
 }

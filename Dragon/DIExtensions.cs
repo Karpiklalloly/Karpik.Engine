@@ -19,6 +19,14 @@ public static class DIExtensions
             }
         }
         
+        foreach (var prop in properties)
+        {
+            if (prop.PropertyType.IsSubclassOf(typeof(IServiceProvider)))
+            {
+                prop.SetValue(obj, serviceProvider);
+            }
+        }
+        
         var fields = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
         fields = fields.Where(p => p.IsDefined(typeof(DIAttribute), false)).ToArray();
 
@@ -28,6 +36,14 @@ public static class DIExtensions
             if (service != null)
             {
                 fieldInfo.SetValue(obj, service);
+            }
+        }
+        
+        foreach (var fieldInfo in fields)
+        {
+            if (fieldInfo.FieldType.IsSubclassOf(typeof(IServiceProvider)))
+            {
+                fieldInfo.SetValue(obj, serviceProvider);
             }
         }
     }

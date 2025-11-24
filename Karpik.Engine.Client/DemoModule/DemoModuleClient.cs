@@ -37,7 +37,7 @@ public class MySystem : IEcsRunParallel, IEcsInit
     [DI] private ModManager _modManager;
     [DI] private EcsDefaultWorld _world;
     [DI] private EcsEventWorld _eventWorld;
-    [DI] private Loader _loader;
+    [DI] private AssetsManager _assetsManager;
     [DI] private Rpc _rpc;
     [DI] private Input _input;
     [DI] private UIManager _uiManager;
@@ -81,23 +81,19 @@ public class MySystem : IEcsRunParallel, IEcsInit
         ImGui.Columns(5);
         if (ImGui.Button("Spawn Player"))
         {
-            var template = _loader.LoadTemplate("Player");
-            var e = _world.NewEntityLong();
-            template.ApplyTo(e.ID, _world);
+            _ = Spawn("Player.json");
         }
 
         ImGui.NextColumn();
         if (ImGui.Button("Spawn Enemy"))
         {
-            var template = _loader.LoadTemplate("Enemy");
-            var e = _world.NewEntityLong();
-            template.ApplyTo(e.ID, _world);
+            _ = Spawn("Enemy.json");
         }
         
         ImGui.NextColumn();
         if (ImGui.Button("Reload Mods"))
         {
-            _modManager.ReloadAllMods(_loader.Manager.ModsPath);
+            _modManager.ReloadAllMods(_assetsManager.ModsPath);
             _rpc.ReloadMods(new ReloadModsCommand());
         }
 
@@ -188,5 +184,12 @@ public class MySystem : IEcsRunParallel, IEcsInit
 
             ImGui.Unindent(indent);
         }
+    }
+
+    private async Task Spawn(string path)
+    {
+        using var handle = await _assetsManager.LoadAssetAsync<ComponentsTemplate>(path);
+        var e = _world.NewEntityLong();
+        handle.Asset.ApplyTo(e.ID, _world);
     }
 }

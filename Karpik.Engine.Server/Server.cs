@@ -2,7 +2,6 @@
 using Game.Generated.Server;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.DEMO;
-using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
 using Karpik.Engine.Server.DEMO;
 using LiteNetLib;
@@ -28,7 +27,7 @@ public class Server
     
     private NetManager _network;
     private ModManager _modManager = new();
-    private Loader _loader = new();
+    private AssetsManager _assetsManager = new();
     private Tween _tween = new();
     
     private WorldEventListener[] _listeners;
@@ -87,21 +86,13 @@ public class Server
             _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };
         
-        _loader.Manager = new AssetManager();
-        _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
-        {
-            var json = _loader.Manager.ReadAllText(ApproveFileName(fileName, "json"));
-            var options = new JsonSerializerSettings { Converters = { new ComponentArrayConverter() } };
-            return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
-        });
-        
         var services = new ServiceCollection();
         services
             .AddSingleton(_world)
             .AddSingleton(_eventWorld)
             .AddSingleton(_metaWorld)
             .AddSingleton(_network)
-            .AddSingleton(_loader)
+            .AddSingleton(_assetsManager)
             .AddSingleton(_commandDispatcher)
             .AddSingleton(_networkManager)
             .AddSingleton(_rpcSender)
@@ -113,9 +104,10 @@ public class Server
         _serviceProvider.Inject(_networkManager);
         _serviceProvider.Inject(_rpcSender);
         _serviceProvider.Inject(_modManager);
+        _serviceProvider.Inject(_assetsManager);
         
         _modManager.Init(ModManager.Type.Server);
-        _modManager.LoadMods(_loader.Manager.ModsPath);
+        _modManager.LoadMods(_assetsManager.ModsPath);
         
         _listeners =
         [
@@ -133,7 +125,7 @@ public class Server
             .Inject(_metaWorld)
             .Inject(_modManager)
             .Inject(_network)
-            .Inject(_loader)
+            .Inject(_assetsManager)
             .Inject(_tween);
         
         InitEcs();

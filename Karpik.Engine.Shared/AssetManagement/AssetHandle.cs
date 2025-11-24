@@ -25,4 +25,9 @@ public struct AssetHandle<T> : IDisposable where T : Asset
             _manager = null;
         }
     }
+    
+    public static implicit operator T(AssetHandle<T> handle)
+    {
+        return handle.Asset;
+    }
 }

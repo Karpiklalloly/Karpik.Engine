@@ -5,7 +5,6 @@ using Game.Generated;
 using Game.Generated.Client;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
-using Karpik.Engine.Shared.EcsRunners;
 using Karpik.Engine.Shared.Modding;
 using LiteNetLib;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +24,7 @@ public class Client
     private EcsRunParallelRunner _parallelRunner;
     
     private UIManager _uiManager = new();
-    private Loader _loader = new();
+    private AssetsManager _assetsManager = new();
     private Tween _tween = new();
     private Input _input = new();
     private ModManager _modManager = new();
@@ -66,23 +65,14 @@ public class Client
             Console.WriteLine("Disconnected from server. Clearing world...");
             _networkManager.ClearClientCache();
         };
-        
-        _loader.Manager = new AssetManager();
-        _loader.Manager.RegisterConverter<Texture2D>(fileName => Raylib.LoadTexture(fileName));
-        _loader.Manager.RegisterConverter<ComponentsTemplate>(fileName =>
-        {
-            var json = _loader.Manager.ReadAllText(ApproveFileName(fileName, "json"));
-            var options = new JsonSerializerSettings { Converters = { new ComponentArrayConverter() } };
-            return JsonConvert.DeserializeObject<ComponentsTemplate>(json, options);
-        });
-        
+
         var services = new ServiceCollection();
         services
             .AddSingleton(_world)
             .AddSingleton(_eventWorld)
             .AddSingleton(_metaWorld)
             .AddSingleton(_network)
-            .AddSingleton(_loader)
+            .AddSingleton(_assetsManager)
             .AddSingleton(_uiManager)
             .AddSingleton(_targetClientRpcDispatcher)
             .AddSingleton(_networkManager)
@@ -97,9 +87,10 @@ public class Client
         _serviceProvider.Inject(_networkManager);
         _serviceProvider.Inject(_rpc);
         _serviceProvider.Inject(_modManager);
+        _serviceProvider.Inject(_assetsManager);
         
         _modManager.Init(ModManager.Type.Client);
-        _modManager.LoadMods(_loader.Manager.ModsPath);
+        _modManager.LoadMods(_assetsManager.ModsPath);
 
         // Инициализируем окно сначала
         Raylib.InitWindow(1024, 768, "Console Launcher");
@@ -134,7 +125,7 @@ public class Client
             .Inject(Camera.Main)
             .Inject(_network)
             .Inject(_rpc)
-            .Inject(_loader)
+            .Inject(_assetsManager)
             .Inject(_tween)
             .Inject(_input)
             .Inject(_uiManager)
