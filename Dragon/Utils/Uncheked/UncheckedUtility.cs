@@ -1,6 +1,8 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace DCFApixels.DragonECS.UncheckedCore

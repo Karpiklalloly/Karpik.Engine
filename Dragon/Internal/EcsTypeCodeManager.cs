@@ -1,7 +1,10 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 #if ENABLE_IL2CPP
 using Unity.IL2CPP.CompilerServices;
@@ -9,8 +12,6 @@ using Unity.IL2CPP.CompilerServices;
 
 namespace DCFApixels.DragonECS.Core.Internal
 {
-    //TODO разработать возможность ручного устанавливания ID типам.
-    //это может быть полезно как детерминированность для сети
 #if ENABLE_IL2CPP
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]

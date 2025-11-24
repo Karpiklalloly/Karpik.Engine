@@ -4,7 +4,9 @@
 using DCFApixels.DragonECS.Core;
 using DCFApixels.DragonECS.Core.Internal;
 using DCFApixels.DragonECS.PoolsCore;
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -92,7 +94,7 @@ namespace DCFApixels.DragonECS
         public EcsPool() { }
         public EcsPool(int capacity, int recycledCapacity = -1)
         {
-            capacity = ArrayUtility.NextPow2(capacity);
+            capacity = ArrayUtility.CeilPow2Safe(capacity);
             if (recycledCapacity < 0)
             {
                 recycledCapacity = capacity / 2;
@@ -111,7 +113,7 @@ namespace DCFApixels.DragonECS
             var worldConfig = world.Configs.GetWorldConfigOrDefault();
             if (_items == null)
             {
-                _items = new T[ArrayUtility.NextPow2(worldConfig.PoolComponentsCapacity)];
+                _items = new T[ArrayUtility.CeilPow2Safe(worldConfig.PoolComponentsCapacity)];
             }
             if (_recycledItems == null)
             {
@@ -126,8 +128,8 @@ namespace DCFApixels.DragonECS
         {
             ref int itemIndex = ref _mapping[entityID];
 #if DEBUG
-            if (entityID == EcsConsts.NULL_ENTITY_ID) { Throw.Ent_ThrowIsNotAlive(_source, entityID); }
-            if (_source.IsUsed(entityID) == false) { Throw.Ent_ThrowIsNotAlive(_source, entityID); }
+            if (entityID == EcsConsts.NULL_ENTITY_ID) { EcsPoolThrowHelper.ThrowEntityIsNotAlive(_source, entityID); }
+            if (_source.IsUsed(entityID) == false) { EcsPoolThrowHelper.ThrowEntityIsNotAlive(_source, entityID); }
             if (itemIndex > 0) { EcsPoolThrowHelper.ThrowAlreadyHasComponent<T>(entityID); }
             if (_isLocked) { EcsPoolThrowHelper.ThrowPoolLocked(); }
 #elif DRAGONECS_STABILITY_MODE
@@ -144,7 +146,7 @@ namespace DCFApixels.DragonECS
                 itemIndex = ++_itemsCount;
                 if (itemIndex >= _items.Length)
                 {
-                    Array.Resize(ref _items, _items.Length << 1);
+                    Array.Resize(ref _items, ArrayUtility.NextPow2(itemIndex));
                 }
             }
             _mediator.RegisterComponent(entityID, _componentTypeID, _maskBit);
@@ -177,7 +179,7 @@ namespace DCFApixels.DragonECS
         public ref T TryAddOrGet(int entityID)
         {
 #if DEBUG
-            if (entityID == EcsConsts.NULL_ENTITY_ID) { Throw.Ent_ThrowIsNotAlive(_source, entityID); }
+            if (entityID == EcsConsts.NULL_ENTITY_ID) { EcsPoolThrowHelper.ThrowEntityIsNotAlive(_source, entityID); }
 #endif
             ref int itemIndex = ref _mapping[entityID];
             if (itemIndex <= 0)
@@ -197,7 +199,7 @@ namespace DCFApixels.DragonECS
                     itemIndex = ++_itemsCount;
                     if (itemIndex >= _items.Length)
                     {
-                        Array.Resize(ref _items, _items.Length << 1);
+                        Array.Resize(ref _items, ArrayUtility.NextPow2(itemIndex));
                     }
                 }
                 _mediator.RegisterComponent(entityID, _componentTypeID, _maskBit);
@@ -220,7 +222,7 @@ namespace DCFApixels.DragonECS
         {
             ref int itemIndex = ref _mapping[entityID];
 #if DEBUG
-            if (entityID == EcsConsts.NULL_ENTITY_ID) { Throw.Ent_ThrowIsNotAlive(_source, entityID); }
+            if (entityID == EcsConsts.NULL_ENTITY_ID) { EcsPoolThrowHelper.ThrowEntityIsNotAlive(_source, entityID); }
             if (itemIndex <= 0) { EcsPoolThrowHelper.ThrowNotHaveComponent<T>(entityID); }
             if (_isLocked) { EcsPoolThrowHelper.ThrowPoolLocked(); }
 #elif DRAGONECS_STABILITY_MODE
@@ -230,7 +232,7 @@ namespace DCFApixels.DragonECS
             DisableComponent(ref _items[itemIndex]);
             if (_recycledItemsCount >= _recycledItems.Length)
             {
-                Array.Resize(ref _recycledItems, _recycledItems.Length << 1);
+                Array.Resize(ref _recycledItems, ArrayUtility.NextPow2Safe(_recycledItemsCount));
             }
             _recycledItems[_recycledItemsCount++] = itemIndex;
             itemIndex = 0;
@@ -390,6 +392,7 @@ namespace DCFApixels.DragonECS
         #region Convertors
         public static implicit operator EcsPool<T>(IncludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsPool<T>(ExcludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsPool<T>(AnyMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsPool<T>(OptionalMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsPool<T>>(); }
         #endregion
@@ -475,6 +478,7 @@ namespace DCFApixels.DragonECS
         public static implicit operator EcsReadonlyPool<T>(EcsPool<T> a) { return new EcsReadonlyPool<T>(a); }
         public static implicit operator EcsReadonlyPool<T>(IncludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsReadonlyPool<T>(ExcludeMarker a) { return a.GetInstance<EcsPool<T>>(); }
+        public static implicit operator EcsReadonlyPool<T>(AnyMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsReadonlyPool<T>(OptionalMarker a) { return a.GetInstance<EcsPool<T>>(); }
         public static implicit operator EcsReadonlyPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsPool<T>>(); }
         #endregion
@@ -508,6 +512,11 @@ namespace DCFApixels.DragonECS
         public static EcsPool<TComponent> Opt<TComponent>(this EcsAspect.Builder self) where TComponent : struct, IEcsComponent
         {
             return self.OptionalPool<EcsPool<TComponent>>();
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static EcsPool<TComponent> Any<TComponent>(this EcsAspect.Builder self) where TComponent : struct, IEcsComponent
+        {
+            return self.AnyPool<EcsPool<TComponent>>();
         }
 
         #region Obsolete

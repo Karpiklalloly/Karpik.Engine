@@ -4,7 +4,9 @@
 using DCFApixels.DragonECS.Core;
 using DCFApixels.DragonECS.Core.Internal;
 using DCFApixels.DragonECS.PoolsCore;
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -114,7 +116,7 @@ namespace DCFApixels.DragonECS
         public void Add(int entityID)
         {
 #if DEBUG
-            if (_source.IsUsed(entityID) == false) { Throw.Ent_ThrowIsNotAlive(_source, entityID); }
+            if (_source.IsUsed(entityID) == false) { EcsPoolThrowHelper.ThrowEntityIsNotAlive(_source, entityID); }
             if (Has(entityID)) { EcsPoolThrowHelper.ThrowAlreadyHasComponent<T>(entityID); }
             if (_isLocked) { EcsPoolThrowHelper.ThrowPoolLocked(); }
 #elif DRAGONECS_STABILITY_MODE
@@ -312,6 +314,7 @@ namespace DCFApixels.DragonECS
         #region Convertors
         public static implicit operator EcsTagPool<T>(IncludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         public static implicit operator EcsTagPool<T>(ExcludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator EcsTagPool<T>(AnyMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         public static implicit operator EcsTagPool<T>(OptionalMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         public static implicit operator EcsTagPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         #endregion
@@ -332,7 +335,7 @@ namespace DCFApixels.DragonECS
     [Il2CppSetOption(Option.NullChecks, false)]
 #endif
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public readonly struct EcsReadonlyTagPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
+    public readonly struct ReadonlyEcsTagPool<T> : IEcsReadonlyPool //IEnumerable<T> - IntelliSense hack
     where T : struct, IEcsTagComponent
     {
         private readonly EcsTagPool<T> _pool;
@@ -370,7 +373,7 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Constructors
-        internal EcsReadonlyTagPool(EcsTagPool<T> pool)
+        internal ReadonlyEcsTagPool(EcsTagPool<T> pool)
         {
             _pool = pool;
         }
@@ -396,11 +399,12 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Convertors
-        public static implicit operator EcsReadonlyTagPool<T>(EcsTagPool<T> a) { return new EcsReadonlyTagPool<T>(a); }
-        public static implicit operator EcsReadonlyTagPool<T>(IncludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator EcsReadonlyTagPool<T>(ExcludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator EcsReadonlyTagPool<T>(OptionalMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
-        public static implicit operator EcsReadonlyTagPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator ReadonlyEcsTagPool<T>(EcsTagPool<T> a) { return new ReadonlyEcsTagPool<T>(a); }
+        public static implicit operator ReadonlyEcsTagPool<T>(IncludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator ReadonlyEcsTagPool<T>(ExcludeMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator ReadonlyEcsTagPool<T>(AnyMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator ReadonlyEcsTagPool<T>(OptionalMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
+        public static implicit operator ReadonlyEcsTagPool<T>(EcsWorld.GetPoolInstanceMarker a) { return a.GetInstance<EcsTagPool<T>>(); }
         #endregion
     }
 
@@ -426,6 +430,11 @@ namespace DCFApixels.DragonECS
         public static EcsTagPool<TTagComponent> Exc<TTagComponent>(this EcsAspect.Builder self) where TTagComponent : struct, IEcsTagComponent
         {
             return self.ExcludePool<EcsTagPool<TTagComponent>>();
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static EcsTagPool<TTagComponent> Any<TTagComponent>(this EcsAspect.Builder self) where TTagComponent : struct, IEcsTagComponent
+        {
+            return self.AnyPool<EcsTagPool<TTagComponent>>();
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EcsTagPool<TTagComponent> Opt<TTagComponent>(this EcsAspect.Builder self) where TTagComponent : struct, IEcsTagComponent

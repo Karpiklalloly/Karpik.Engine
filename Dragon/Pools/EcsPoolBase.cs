@@ -3,6 +3,8 @@
 #endif
 using DCFApixels.DragonECS.Core.Internal;
 using DCFApixels.DragonECS.PoolsCore;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -43,6 +45,11 @@ namespace DCFApixels.DragonECS.PoolsCore
             throw new ArgumentException($"Entity({entityID}) has no component {EcsDebugUtility.GetGenericTypeName<T>()}.");
         }
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowEntityIsNotAlive(EcsWorld world, int entityID)
+        {
+            Throw.Ent_ThrowIsNotAlive((world, entityID));
+        }
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowAlreadyHasComponent(Type type, int entityID)
         {
             throw new ArgumentException($"Entity({entityID}) already has component {EcsDebugUtility.GetGenericTypeName(type)}.");
@@ -79,7 +86,7 @@ namespace DCFApixels.DragonECS.Core.Internal
         public static readonly EcsNullPool instance = new EcsNullPool();
 
         #region Properties
-        int IEcsReadonlyPool.ComponentTypeID { get { return 0; } }//TODO Првоерить что NullComponent всегда имеет id 0 
+        int IEcsReadonlyPool.ComponentTypeID { get { return 0; } }
         Type IEcsReadonlyPool.ComponentType { get { return typeof(NullComponent); } }
         EcsWorld IEcsReadonlyPool.World
         {
@@ -314,7 +321,7 @@ namespace DCFApixels.DragonECS
             self.InvokeOnGet(entityID, self.Count);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void InvokeOnGet(this List<IEcsPoolEventListener> self, int entityID, int cachedCount)
+        public static void InvokeOnGet(this List<IEcsPoolEventListener> self, int entityID, int cachedCount)
         {
             for (int i = 1; i < cachedCount; i++) { self[i].OnGet(entityID); }
         }

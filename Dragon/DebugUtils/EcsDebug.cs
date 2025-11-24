@@ -407,7 +407,6 @@ namespace DCFApixels.DragonECS.Core
         {
             self.Print("");
         }
-        //TODO PrintJson возможно будет добавлено когда-то
     }
     #endregion
 
@@ -523,7 +522,7 @@ namespace DCFApixels.DragonECS.Core
         {
             if (id >= _stopwatchs.Length)
             {
-                Array.Resize(ref _stopwatchs, id << 1);
+                Array.Resize(ref _stopwatchs, ArrayUtility.NextPow2(id));
             }
             _stopwatchs[id] = new MarkerData(new System.Diagnostics.Stopwatch(), name, id);
         }

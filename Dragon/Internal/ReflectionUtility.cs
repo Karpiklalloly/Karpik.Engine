@@ -1,6 +1,7 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -29,6 +30,10 @@ namespace DCFApixels.DragonECS.Core.Internal
         public static bool HasAttribute<T>(this MemberInfo self, bool inherit) where T : Attribute
         {
             return self.GetCustomAttribute<T>(inherit) != null;
+        }
+        public static bool IsCanInstantiated(this Type type)
+        {
+            return !type.IsAbstract && !type.IsInterface;
         }
     }
 }

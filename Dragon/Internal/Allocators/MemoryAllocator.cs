@@ -1,6 +1,7 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Runtime.InteropServices;
 
 namespace DCFApixels.DragonECS.Core.Internal
@@ -59,7 +60,7 @@ namespace DCFApixels.DragonECS.Core.Internal
             {
                 if (_debugInfos.Length <= _idDispenser.Count)
                 {
-                    Array.Resize(ref _debugInfos, _debugInfos.Length << 1);
+                    Array.Resize(ref _debugInfos, ArrayUtility.NextPow2(_idDispenser.Count));
                 }
                 id = _idDispenser.UseFree();
             }
@@ -142,7 +143,11 @@ namespace DCFApixels.DragonECS.Core.Internal
         #endregion
 
         #region Free
-        public static void Free(ref Handler target)
+        public static void Free(Handler target)
+        {
+            Free_Internal(target.GetHandledPtr());
+        }
+        public static void FreeAndClear(ref Handler target)
         {
             Free_Internal(target.GetHandledPtr());
             target = default;
@@ -334,7 +339,7 @@ namespace DCFApixels.DragonECS.Core.Internal
     {
         public static void Dispose(this ref MemoryAllocator.Handler self)
         {
-            MemoryAllocator.Free(ref self);
+            MemoryAllocator.FreeAndClear(ref self);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Runtime.Serialization;
 
 namespace DCFApixels.DragonECS

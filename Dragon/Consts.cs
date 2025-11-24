@@ -1,4 +1,6 @@
-﻿namespace DCFApixels.DragonECS
+﻿using System;
+
+namespace DCFApixels.DragonECS
 {
     public static class EcsConsts
     {
@@ -87,7 +89,12 @@
 #else
             false;
 #endif
-
+        public const bool ENABLE_DUMMY_SPAN =
+#if ENABLE_DUMMY_SPAN
+            true;
+#else
+            false;
+#endif
 
 
         [Obsolete("DRAGONECS_ENABLE_DEBUG_SERVICE")]
@@ -114,13 +121,6 @@
         [Obsolete("DRAGONECS_STABILITY_MODE")]
         public const bool ENABLE_DRAGONECS_ASSERT_CHEKS =
 #if ENABLE_DRAGONECS_ASSERT_CHEKS
-            true;
-#else
-            false;
-#endif
-        [Obsolete]
-        public const bool ENABLE_DUMMY_SPAN =
-#if ENABLE_DUMMY_SPAN
             true;
 #else
             false;

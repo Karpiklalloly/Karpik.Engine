@@ -227,7 +227,7 @@ namespace DCFApixels.DragonECS
                 ref var page = ref _groupSparsePagePool[i];
                 if (page.IsEmpty == false)
                 {
-                    MemoryAllocator.Free(ref page);
+                    MemoryAllocator.FreeAndClear(ref page);
                 }
             }
             _groupSparsePagePoolCount = 0;
@@ -276,7 +276,6 @@ namespace DCFApixels.DragonECS
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
 #endif
     [DebuggerTypeProxy(typeof(DebuggerProxy))]
-    //TODO переработать EcsGroup в структуру-обертку, чтобы когда вызывается Release то можно было занулить эту структуру, а может не перерабатывать, есть проблема с боксингом
     public unsafe class EcsGroup : IDisposable, IEnumerable<int>, ISet<int>, IEntityStorage
     {
         internal const int PAGE_SIZE = PageSlot.SIZE;
@@ -440,7 +439,7 @@ namespace DCFApixels.DragonECS
         {
             if (++_count >= _dense.Length)
             {
-                Array.Resize(ref _dense, ArrayUtility.NextPow2(_count << 1));
+                Array.Resize(ref _dense, ArrayUtility.NextPow2(_count));
             }
             _dense[_count] = entityID;
 
@@ -574,7 +573,7 @@ namespace DCFApixels.DragonECS
         {
             if (minSize >= _dense.Length)
             {
-                Array.Resize(ref _dense, ArrayUtility.NextPow2_ClampOverflow(minSize));
+                Array.Resize(ref _dense, ArrayUtility.CeilPow2_ClampOverflow(minSize));
             }
         }
 
@@ -661,7 +660,7 @@ namespace DCFApixels.DragonECS
         {
             if (dynamicBuffer.Length < _count)
             {
-                Array.Resize(ref dynamicBuffer, ArrayUtility.NextPow2(_count));
+                Array.Resize(ref dynamicBuffer, ArrayUtility.CeilPow2(_count));
             }
             int i = 0;
             foreach (var e in this)
