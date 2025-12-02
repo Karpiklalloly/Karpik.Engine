@@ -1,22 +1,21 @@
-﻿namespace Karpik.Engine.Shared;
+﻿using Karpik.Engine.Shared.AssetManagement;
 
-public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplate>
+namespace Karpik.Engine.Shared;
+
+public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, ComponentsTemplate>
 {
     public ComponentsTemplateLoader()
     {
         Serializer.Converters.Add(new ComponentArrayConverter());
     }
 
-    protected override async Task OnAssetLoadedAsync(ComponentsTemplate asset)
+    protected override Task OnAssetLoadedAsync(ComponentsTemplateAsset asset)
     {
-        var loads = asset.Components
-            .Where(x => x.Type.IsAssignableTo(typeof(IEcsComponentOnLoad)))
-            .Select(x => x.GetRaw())
-            .Cast<IEcsComponentOnLoad>()
-            .ToAsyncEnumerable();
-        await foreach (var load in loads)
-        {
-            await load.OnLoad(AssetsManager);
-        }
+        asset.Template.OnLoad(AssetsManager);
+        return Task.CompletedTask;
     }
+
+    protected override ComponentsTemplateAsset EmptyAsset() => new();
+
+    protected override void SetValue(ComponentsTemplateAsset asset, ComponentsTemplate value) => asset.Template = value;
 }

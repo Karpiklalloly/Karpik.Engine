@@ -4,5 +4,6 @@ public interface IFileSystem
 {
     public bool Exists(string path);
     public Stream OpenRead(string path);
-    Stream OpenWrite(string path);
+    public Stream OpenWrite(string path);
+    public string Combine(params ReadOnlySpan<string> path);
 }

@@ -126,7 +126,7 @@ public class JobSystem
         {
             var color = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"[ERROR] Job failed: {ex.Message}");
+            Console.WriteLine($"[ERROR] Job failed: {ex}");
             Console.ForegroundColor = color;
         }
         finally

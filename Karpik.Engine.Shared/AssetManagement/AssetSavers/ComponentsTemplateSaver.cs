@@ -1,6 +1,8 @@
-﻿namespace Karpik.Engine.Shared;
+﻿using Karpik.Engine.Shared.AssetManagement;
 
-public class ComponentsTemplateSaver : JsonSaver
+namespace Karpik.Engine.Shared;
+
+public class ComponentsTemplateSaver : JsonSaver<ComponentsTemplateAsset>
 {
     public ComponentsTemplateSaver()
     {

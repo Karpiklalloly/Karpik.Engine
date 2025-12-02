@@ -2,14 +2,17 @@
 
 namespace Karpik.Engine.Shared;
 
-public class RawTextLoader : BaseAssetLoader<TextAsset>
+public class RawTextLoader : BaseAssetLoader<TextAsset, string>
 {
     public override string[] SupportedExtensions { get; } = [".txt", ".cfg", ".ini", ".log", ".md"];
 
-    protected override async Task<TextAsset> OnLoadAsync(Stream stream, string assetName)
+    protected override async Task<string> OnLoadAsync(Stream stream, string assetName)
     {
-        using StreamReader reader = new StreamReader(stream);
-        string content = await reader.ReadToEndAsync();
-        return new TextAsset { Text = content };
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync();
     }
+
+    protected override TextAsset EmptyAsset() => new();
+
+    protected override void SetValue(TextAsset asset, string value) => asset.Text = value;
 }

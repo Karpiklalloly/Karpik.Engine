@@ -35,6 +35,7 @@ public class Client
     private Rpc _rpc = new();
     private TargetClientRpcDispatcher _targetClientRpcDispatcher = new();
     private ServiceProvider _serviceProvider;
+    private MainTreadScheduler _scheduler;
 
     public void Run(in bool isRunning)
     {
@@ -54,6 +55,8 @@ public class Client
 
     public void Init()
     {
+        _scheduler = new();
+        SynchronizationContext.SetSynchronizationContext(_scheduler);
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         var port = GetFreePort();
@@ -93,6 +96,7 @@ public class Client
         _modManager.LoadMods(_assetsManager.ModsPath);
         
         _assetsManager.FindAllLoaders();
+        _assetsManager.FindAllSavers();
 
         // Инициализируем окно сначала
         Raylib.InitWindow(1024, 768, "Console Launcher");
@@ -182,6 +186,7 @@ public class Client
 
     private void Update()
     {
+        _scheduler.Execute();
         _input.Update();
         
         Raylib.BeginDrawing();

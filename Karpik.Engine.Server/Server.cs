@@ -43,6 +43,7 @@ public class Server
     private NetworkManager _networkManager = new();
     private TargetClientRpcSender _rpcSender = new();
     private ServiceProvider _serviceProvider;
+    private MainTreadScheduler _scheduler;
 
     public void Run(in bool isRunning)
     {
@@ -64,6 +65,8 @@ public class Server
 
     public void Init()
     {
+        _scheduler = new();
+        SynchronizationContext.SetSynchronizationContext(_scheduler);
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         _network.Start(9051);
@@ -134,6 +137,9 @@ public class Server
         
         _parallelRunner = _pipeline.GetRunner<EcsRunParallelRunner>();
         _parallelRunner.Init();
+        
+        _assetsManager.FindAllLoaders();
+        _assetsManager.FindAllSavers();
 
         Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine("Initializing server...");
@@ -154,6 +160,7 @@ public class Server
     private void Update()
     {
         _network.PollEvents();
+        _scheduler.Execute();
         _pipeline.Run();
         _parallelRunner.RunParallel();
         BaseSystem.RunBuffers();

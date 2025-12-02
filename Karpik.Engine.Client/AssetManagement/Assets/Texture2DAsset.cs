@@ -5,11 +5,14 @@ namespace Karpik.Engine.Client.AssetManagement.Assets;
 
 public class Texture2DAsset : Asset
 {
-    public Texture2D Texture { get; }
-    
-    public Texture2DAsset(Texture2D texture)
+    public Texture2D Texture { get; set; }
+
+    public override Type ValueType => typeof(Texture2D);
+
+    public override object RawValue
     {
-        Texture = texture;
+        get => Texture;
+        set => Texture = (Texture2D)value;
     }
 
     protected override void OnUnload()

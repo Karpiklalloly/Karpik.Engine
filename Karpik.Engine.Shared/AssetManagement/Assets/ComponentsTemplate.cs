@@ -3,12 +3,14 @@
 namespace Karpik.Engine.Shared;
 
 [Serializable]
-public class ComponentsTemplate : Asset
+public class ComponentsTemplate
 {
     [JsonIgnore]
     public ComponentTemplateBase[] Components;
     [JsonProperty("Components")]
     private IEcsComponentMember[] _components;
+
+    private AssetsManager _manager;
 
     public ComponentsTemplate()
     {
@@ -25,12 +27,18 @@ public class ComponentsTemplate : Asset
         Components = Convert(components);
     }
 
-    public void ApplyTo(int entityID, EcsWorld world)
+    public async Task ApplyTo(int entityID, EcsWorld world)
     {
         foreach (var template in Components)
         {
             template.ApplyTo(entityID, world);
+            await template.OnLoad(_manager, entityID, world);
         }
+    }
+
+    public void OnLoad(AssetsManager manager)
+    {
+        _manager = manager;
     }
     
     [OnSerializing]
@@ -59,11 +67,5 @@ public class ComponentsTemplate : Asset
             IEcsTagComponent tagComponent => tagComponent.ToComponentTemplate(),
             _ => null
         };
-    }
-
-    protected override void OnUnload()
-    {
-        Components = null;
-        _components = null;
     }
 }

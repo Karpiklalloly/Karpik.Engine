@@ -3,9 +3,16 @@
 public abstract class Asset
 {
     public int Id { get; internal set; }
-    public Type SourceType { get; internal set; } 
+    public Type Type { get; internal set; }
+    public abstract Type ValueType { get; }
     public string Path { get; internal set; }
     public int RefCount { get; private set; } = 0;
+    public abstract object RawValue { get; set; }
+
+    protected internal Asset()
+    {
+        Type = GetType();
+    }
 
     internal void IncrementRef()
     {
@@ -24,5 +31,10 @@ public abstract class Asset
     {
         OnUnload();
         Logger.Instance.Log($"Unload {Path}", LogLevel.Debug);
+    }
+
+    public override string ToString()
+    {
+        return $"Asset {Id} with source type {Type}";
     }
 }

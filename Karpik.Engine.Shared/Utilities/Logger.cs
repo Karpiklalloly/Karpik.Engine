@@ -1,3 +1,5 @@
+using Karpik.Engine.Shared.LoggerUtilities;
+
 namespace Karpik.Engine.Shared;
 
 public enum LogLevel
@@ -39,7 +41,7 @@ public abstract class LoggerDecorator : ILogger
         return _logger.Log(message, level);
     }
 
-    public Task Log(string source, string message, LogLevel level = LogLevel.Debug) => Log($"{source}: {message}", level);
+    public Task Log(string source, string message, LogLevel level = LogLevel.Debug) => Log($"[{source}]: {message}", level);
 
     public virtual void SetMinLevel(LogLevel level)
     {
@@ -93,17 +95,15 @@ public sealed class ConsoleLogger : LoggerDecorator
         await _consoleLock.WaitAsync();
         try
         {
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = GetColor(level);
+            using var _ = new ForegroundConsoleColor(GetColor(level));
             Console.WriteLine(formatted);
-            Console.ForegroundColor = originalColor;
         }
         finally
         {
             _consoleLock.Release();
         }
 
-        base.Log(message, level);
+        await base.Log(message, level);
     }
 
     private ConsoleColor GetColor(LogLevel level)

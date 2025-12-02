@@ -46,7 +46,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
             JToken typeToken = obj[TypePropertyName];
             if (typeToken is not { Type: JTokenType.String })
             {
-                 Console.WriteLine($"[ComponentArrayConverter] Error: Missing or invalid '{TypePropertyName}' property. Skipping object: {obj.ToString(Formatting.None)}");
+                Logger.Instance.Log(nameof(ComponentArrayConverter), $"Error: Missing or invalid '{TypePropertyName}' property. Skipping object: {obj.ToString(Formatting.None)}", LogLevel.Error);
                  continue;
             }
             string typeName = typeToken.Value<string>();

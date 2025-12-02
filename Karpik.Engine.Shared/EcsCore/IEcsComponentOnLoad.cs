@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Shared;
 
-public interface IEcsComponentOnLoad
+public interface IEcsComponentOnLoad<T>
 {
-    public Task OnLoad(AssetsManager manager);
+    public Task<T> OnLoad(T component, AssetsManager manager);
 }

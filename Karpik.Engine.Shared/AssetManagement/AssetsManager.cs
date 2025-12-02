@@ -18,7 +18,7 @@ public class AssetsManager
     private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
     
     private readonly IFileSystem _fileSystem;
-    private IServiceProvider _serviceProvider;
+    [DI] private IServiceProvider _serviceProvider;
 
     public AssetsManager(IFileSystem fileSystem = null)
     {
@@ -27,8 +27,7 @@ public class AssetsManager
     
     public void RegisterSaver<T>(IAssetSaver saver) where T : Asset
     {
-        _serviceProvider.Inject(saver);
-        _savers[typeof(T)] = saver;
+        RegisterSaverInternal(saver, typeof(T));
     }
     
     public void RegisterLoader<T>(IAssetLoader loader) where T : Asset
@@ -46,6 +45,12 @@ public class AssetsManager
         }
     }
     
+    private void RegisterSaverInternal(IAssetSaver saver, Type assetType)
+    {
+        _serviceProvider.Inject(saver);
+        _savers[assetType] = saver;
+    }
+    
     public async Task<AssetHandle<T>> LoadAssetAsync<T>(string path) where T : Asset
     {
         int id = AssetPath.GetHash(path);
@@ -61,28 +66,46 @@ public class AssetsManager
         {
             throw new NotSupportedException($"No loader registered for extension '{extension}' and type '{typeof(T).Name}'");
         }
+        
+        string targetPath = path;
+        
+        if (!_fileSystem.Exists(targetPath))
+        {
+            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
+            targetPath = _fileSystem.Exists(modsSubPath)
+                ? modsSubPath
+                : _fileSystem.Combine(ContentPath, targetPath);
+        }
 
-        if (!_fileSystem.Exists(path)) throw new FileNotFoundException(path);
+        if (!_fileSystem.Exists(targetPath)) throw new FileNotFoundException(targetPath);
 
-        await using Stream stream = _fileSystem.OpenRead(path);
+        await using Stream stream = _fileSystem.OpenRead(targetPath);
 
-        var newAsset = await loader.LoadAsync(stream, path);
+        var newAsset = await loader.LoadAsync(stream, targetPath);
         newAsset.Id = id;
-        newAsset.Path = path;
-        newAsset.SourceType = typeof(T);
+        newAsset.Path = targetPath;
+        newAsset.Type = typeof(T);
 
         _loadedAssets.TryAdd((id, typeof(T)), newAsset);
         return new AssetHandle<T>((T)newAsset, this);
     }
     
-    public async Task SaveAssetAsync(Asset asset, string path = null)
+    public async Task<AssetHandle<T>> SaveAssetAsync<T>(T asset, string path = null)  where T : Asset
     {
-        if (asset == null) throw new ArgumentNullException(nameof(asset));
+        if (asset == null) throw new NullReferenceException();
 
         string targetPath = path ?? asset.Path;
         if (string.IsNullOrEmpty(targetPath))
         {
             throw new InvalidOperationException("Cannot save asset: Path is missing.");
+        }
+        
+        if (!_fileSystem.Exists(targetPath))
+        {
+            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
+            targetPath = _fileSystem.Exists(modsSubPath)
+                ? modsSubPath
+                : _fileSystem.Combine(ContentPath, targetPath);
         }
 
         Type type = asset.GetType();
@@ -100,14 +123,17 @@ public class AssetsManager
         {
             int oldId = asset.Id;
             int newId = AssetPath.GetHash(targetPath);
-            Type assetType = asset.SourceType;
-
+            Type assetType = asset.Type;
+            
             var oldKey = (oldId, assetType);
             var newKey = (newId, assetType);
 
-            if (_loadedAssets.ContainsKey(newKey))
+            if (oldKey != newKey)
             {
-                throw new InvalidOperationException($"Cannot rename asset to '{targetPath}' because another asset is already loaded with this path.");
+                if (_loadedAssets.ContainsKey(newKey))
+                {
+                    throw new InvalidOperationException($"Cannot rename asset to '{targetPath}' because another asset is already loaded with this path.");
+                }
             }
 
             if (_loadedAssets.Remove(oldKey, out _))
@@ -119,12 +145,15 @@ public class AssetsManager
             else
             {
                 _loadedAssets.TryAdd(newKey, asset);
-                asset.IncrementRef();
             }
 
             asset.Path = targetPath;
             asset.Id = newId;
+            asset.Type = assetType;
         }
+
+        await Logger.Instance.Log($"{asset} saved to {targetPath}");
+        return new(asset, this);
     }
     
     internal void ReleaseAsset(Asset asset)
@@ -133,7 +162,7 @@ public class AssetsManager
 
         if (asset.DecrementRef())
         {
-            _loadedAssets.Remove((asset.Id, asset.SourceType), out _);
+            _loadedAssets.Remove((asset.Id, SourceType: asset.Type), out _);
             asset.Unload();
         }
     }
@@ -161,6 +190,29 @@ public class AssetsManager
                 var loaderInstance = (IAssetLoader)Activator.CreateInstance(loaderType)!;
                 Type assetType = loaderInstance.AssetType;
                 RegisterLoaderInternal(loaderInstance, assetType);
+            }
+            catch (Exception e)
+            {
+                Logger.Instance.Log($"[AssetManager] Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
+            }
+        }
+    }
+    
+    public void FindAllSavers()
+    {
+        var loaderTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => typeof(IAssetSaver).IsAssignableFrom(type)
+                           && !type.IsInterface
+                           && !type.IsAbstract
+                           && !type.IsGenericType);
+
+        foreach (var loaderType in loaderTypes)
+        {
+            try
+            {
+                var loaderInstance = (IAssetSaver)Activator.CreateInstance(loaderType)!;
+                RegisterSaverInternal(loaderInstance, loaderInstance.AssetType);
             }
             catch (Exception e)
             {

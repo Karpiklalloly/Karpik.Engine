@@ -1,21 +1,19 @@
 ﻿namespace Karpik.Engine.Shared;
 
-public class JsonLoader<T> : BaseAssetLoader<T> where T : Asset, new()
+public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValue> where TAsset : Asset, new()
 {
     public override string[] SupportedExtensions { get; } = [".json"];
-    public Type AssetType => typeof(T);
 
     protected JsonSerializer Serializer { get; } = new();
-    [DI] protected AssetsManager AssetsManager { get; }
+    [DI] protected AssetsManager AssetsManager { get; set; }
 
-    protected override async Task<T> OnLoadAsync(Stream stream, string assetName)
+    protected override async Task<TValue> OnLoadAsync(Stream stream, string assetName)
     {
         return await Task.Run(() =>
         {
-            using var reader = new StreamReader(stream);
+            using var reader = new StreamReader(stream, leaveOpen: true);
             using var jsonReader = new JsonTextReader(reader);
-            var asset = Serializer.Deserialize<T>(jsonReader);
-            return asset;
+            return Serializer.Deserialize<TValue>(jsonReader);
         });
     }
 }

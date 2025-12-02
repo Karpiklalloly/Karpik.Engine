@@ -3,6 +3,7 @@ using Game.Generated.Client;
 using ImGuiNET;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
+using Karpik.Engine.Shared.AssetManagement;
 using Karpik.Engine.Shared.DEMO;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Modding;
@@ -23,7 +24,7 @@ public class DemoModuleClient : IEcsModule
     }
 }
 
-public class MySystem : IEcsRunParallel, IEcsInit
+public class MySystem : BaseSystem, IEcsRun, IEcsInit
 {
     class Aspect : EcsAspect
     {
@@ -47,7 +48,7 @@ public class MySystem : IEcsRunParallel, IEcsInit
         
     }
     
-    public void RunParallel()
+    public void Run()
     {
         ImGui.Begin("DemoWindow");
         ShowButtons();
@@ -81,13 +82,13 @@ public class MySystem : IEcsRunParallel, IEcsInit
         ImGui.Columns(5);
         if (ImGui.Button("Spawn Player"))
         {
-            _ = Spawn("Player.json");
+            Spawn("Player.json");
         }
 
         ImGui.NextColumn();
         if (ImGui.Button("Spawn Enemy"))
         {
-            _ = Spawn("Enemy.json");
+            Spawn("Enemy.json");
         }
         
         ImGui.NextColumn();
@@ -95,6 +96,22 @@ public class MySystem : IEcsRunParallel, IEcsInit
         {
             _modManager.ReloadAllMods(_assetsManager.ModsPath);
             _rpc.ReloadMods(new ReloadModsCommand());
+        }
+        
+        ImGui.NextColumn();
+        if (ImGui.Button("Generate Demo Entity"))
+        {
+            _ = CreateTemplate();
+        }
+        
+        ImGui.NextColumn();
+        if (ImGui.Button("Clear World"))
+        {
+            var entities = _world.Entities;
+            foreach (var entity in entities)
+            {
+                _world.DelEntity(entity);
+            }
         }
 
         ImGui.NextColumn();
@@ -111,8 +128,11 @@ public class MySystem : IEcsRunParallel, IEcsInit
         if (_world.Entities.Count > 0)
         {
             var span = _world.Where(out Aspect a);
-            var pos = a.position.Get(span[0]);
-            ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
+            if (span.Count > 0)
+            {
+                var pos = a.position.Get(span[0]);
+                ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
+            }
         }
 
         ImGui.Checkbox("Auto move player", ref _bools[0]);
@@ -139,7 +159,9 @@ public class MySystem : IEcsRunParallel, IEcsInit
     {
         var box = element.LayoutBox;
         var text =
-            $"<Element id='{element.Id}' class='{string.Join(" ", element.Classes)}'> Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
+            $"<Element id='{element.Id}' " +
+            $"class='{string.Join(" ", element.Classes)}'> " +
+            $"Content: X={box.ContentRect.X:F0}, Y={box.ContentRect.Y:F0}, W={box.ContentRect.Width:F0}, H={box.ContentRect.Height:F0}";
         var margin =
             $"Margin: X={box.MarginRect.X:F0}, Y={box.MarginRect.Y:F0}, W={box.MarginRect.Width:F0}, H={box.MarginRect.Height:F0}";
         var padding =
@@ -186,10 +208,58 @@ public class MySystem : IEcsRunParallel, IEcsInit
         }
     }
 
-    private async Task Spawn(string path)
+    private void Spawn(string path)
     {
-        using var handle = await _assetsManager.LoadAssetAsync<ComponentsTemplate>(path);
-        var e = _world.NewEntityLong();
-        handle.Asset.ApplyTo(e.ID, _world);
+        Task.Run(async () =>
+        {
+            AssetHandle<ComponentsTemplateAsset> handle = new();
+            var entity = CreateEntity(_world);
+            try
+            {
+                handle = await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path);
+                await handle.Asset.Template.ApplyTo(entity.ID, _world);
+                await Logger.Instance.Log($"Ref Count: {handle.Asset.RefCount}", LogLevel.Debug);
+            }
+            catch (Exception e)
+            {
+                await Logger.Instance.Log(e.ToString(), LogLevel.Error);
+            }
+            finally
+            {
+                handle.Dispose();
+                // _world.DelEntity(entity);
+            }
+        }).GetAwaiter().GetResult();
+    }
+    
+    private async Task CreateTemplate()
+    {
+        await Task.Run(() =>
+        {
+            var entity = CreateEntity(_world);
+            entity.Add<Health>().Value = 255;
+            entity.Add<Player>();
+            ref var pos = ref entity.Add<Position>();
+            pos.X = 10;
+            pos.Y = 20;
+            pos.Z = -15;
+            try
+            {
+                var components = _world.GetComponentsFor(entity.ID);
+                var template = new ComponentsTemplate(components.ToArray().Cast<IEcsComponentMember>().ToArray());
+                var asset = new ComponentsTemplateAsset()
+                {
+                    RawValue = template
+                };
+                var handle = _assetsManager.SaveAssetAsync(
+                    asset,
+                    "Player.json");
+                handle.GetAwaiter().GetResult().Dispose();
+            }
+            catch (Exception e)
+            {
+                Logger.Instance.Log(e.ToString(), LogLevel.Error).GetAwaiter().GetResult();
+            }
+        });
     }
 }

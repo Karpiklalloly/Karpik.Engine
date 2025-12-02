@@ -13,4 +13,9 @@ public class PhysicalFileSystem : IFileSystem
         }
         return new FileStream(path, FileMode.Create, FileAccess.Write);
     }
+
+    public string Combine(params ReadOnlySpan<string> path)
+    {
+        return Path.Combine(path);
+    }
 }
