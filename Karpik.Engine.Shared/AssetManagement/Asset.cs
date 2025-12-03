@@ -26,11 +26,18 @@ public abstract class Asset
     }
 
     protected abstract void OnUnload();
+    protected virtual void OnLoad() { }
 
     internal void Unload()
     {
         OnUnload();
         Logger.Instance.Log($"Unload {Path}", LogLevel.Debug);
+    }
+
+    internal void Load()
+    {
+        OnLoad();
+        Logger.Instance.Log($"Load {Path}", LogLevel.Debug);
     }
 
     public override string ToString()

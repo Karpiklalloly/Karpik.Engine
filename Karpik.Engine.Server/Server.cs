@@ -65,8 +65,7 @@ public class Server
 
     public void Init()
     {
-        _scheduler = new();
-        SynchronizationContext.SetSynchronizationContext(_scheduler);
+        _scheduler = new(Thread.CurrentThread.ManagedThreadId);
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         _network.Start(9051);
@@ -100,7 +99,8 @@ public class Server
             .AddSingleton(_networkManager)
             .AddSingleton(_rpcSender)
             .AddSingleton(_modManager)
-            .AddSingleton(_tween);
+            .AddSingleton(_tween)
+            .AddSingleton(_scheduler);
         _serviceProvider = services.BuildServiceProvider();
         
         _serviceProvider.Inject(_commandDispatcher);
@@ -129,7 +129,8 @@ public class Server
             .Inject(_modManager)
             .Inject(_network)
             .Inject(_assetsManager)
-            .Inject(_tween);
+            .Inject(_tween)
+            .Inject(_scheduler);
         
         InitEcs();
         

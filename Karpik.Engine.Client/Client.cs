@@ -55,8 +55,7 @@ public class Client
 
     public void Init()
     {
-        _scheduler = new();
-        SynchronizationContext.SetSynchronizationContext(_scheduler);
+        _scheduler = new(Thread.CurrentThread.ManagedThreadId);
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);
         var port = GetFreePort();
@@ -83,7 +82,8 @@ public class Client
             .AddSingleton(_modManager)
             .AddSingleton(_tween)
             .AddSingleton(_input)
-            .AddSingleton(_drawer);
+            .AddSingleton(_drawer)
+            .AddSingleton(_scheduler);
         _serviceProvider = services.BuildServiceProvider();
         
         _serviceProvider.Inject(_targetClientRpcDispatcher);
@@ -135,7 +135,8 @@ public class Client
             .Inject(_tween)
             .Inject(_input)
             .Inject(_uiManager)
-            .Inject(_drawer);
+            .Inject(_drawer)
+            .Inject(_scheduler);
 
         InitEcs();
 

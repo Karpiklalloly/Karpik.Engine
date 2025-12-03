@@ -4,6 +4,7 @@ public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsse
 {
     public abstract string[] SupportedExtensions { get; }
     public Type AssetType => typeof(TAsset);
+    [DI] protected MainTreadScheduler MainTreadScheduler { get; set; }
 
     public async Task<Asset> LoadAsync(Stream stream, string assetName)
     {

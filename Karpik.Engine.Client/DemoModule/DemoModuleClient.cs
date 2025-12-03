@@ -208,28 +208,23 @@ public class MySystem : BaseSystem, IEcsRun, IEcsInit
         }
     }
 
-    private void Spawn(string path)
+    private async Task Spawn(string path)
     {
-        Task.Run(async () =>
+        AssetHandle<ComponentsTemplateAsset> handle = new();
+        try 
         {
-            AssetHandle<ComponentsTemplateAsset> handle = new();
+            handle = await Task.Run(async () => await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path));
             var entity = CreateEntity(_world);
-            try
-            {
-                handle = await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path);
-                await handle.Asset.Template.ApplyTo(entity.ID, _world);
-                await Logger.Instance.Log($"Ref Count: {handle.Asset.RefCount}", LogLevel.Debug);
-            }
-            catch (Exception e)
-            {
-                await Logger.Instance.Log(e.ToString(), LogLevel.Error);
-            }
-            finally
-            {
-                handle.Dispose();
-                // _world.DelEntity(entity);
-            }
-        }).GetAwaiter().GetResult();
+            await handle.Asset.Template.ApplyTo(entity.ID, _world);
+        }
+        catch (Exception e)
+        {
+            await Logger.Instance.Log(e.ToString(), LogLevel.Error);
+        }
+        finally
+        {
+            handle.Dispose();
+        }
     }
     
     private async Task CreateTemplate()

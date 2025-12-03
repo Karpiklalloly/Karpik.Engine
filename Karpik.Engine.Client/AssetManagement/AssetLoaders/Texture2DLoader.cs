@@ -10,16 +10,25 @@ public class Texture2DLoader : BaseAssetLoader<Texture2DAsset, Texture2D>
 
     protected override async Task<Texture2D> OnLoadAsync(Stream stream, string assetName)
     {
-        return await Task.Run(async () =>
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var image = Raylib.LoadImageFromMemory(Path.GetExtension(assetName), ms.ToArray());
+        
+        try
         {
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            string ext = Path.GetExtension(assetName);
-            Image img = Raylib.LoadImageFromMemory(ext, ms.ToArray());
-            var texture = Raylib.LoadTextureFromImage(img);
-            Raylib.UnloadImage(img);
+            var texture = await MainTreadScheduler.InvokeAsync(() => Raylib.LoadTextureFromImage(image));
             return texture;
-        });
+        }
+        catch (Exception ex)
+        {
+            await Logger.Instance.Log(nameof(Texture2DLoader), ex.ToString());
+        }
+        finally
+        {
+            Raylib.UnloadImage(image);
+        }
+
+        return default;
     }
 
     protected override Texture2DAsset EmptyAsset() => new();

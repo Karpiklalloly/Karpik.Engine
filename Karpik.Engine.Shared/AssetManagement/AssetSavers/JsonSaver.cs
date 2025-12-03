@@ -5,8 +5,6 @@ namespace Karpik.Engine.Shared;
 public abstract class JsonSaver<TAsset> : BaseAssetSaver<TAsset> where TAsset : Asset
 {
     protected JsonSerializer Serializer { get; } = new();
-    
-    public Type AssetType => typeof(TAsset);
 
     public JsonSaver()
     {

@@ -25,30 +25,30 @@ public class AssetsManager
         _fileSystem = fileSystem ?? new PhysicalFileSystem();
     }
     
-    public void RegisterSaver<T>(IAssetSaver saver) where T : Asset
+    public void RegisterSaver(IAssetSaver saver)
     {
-        RegisterSaverInternal(saver, typeof(T));
+        RegisterSaverInternal(saver);
     }
     
-    public void RegisterLoader<T>(IAssetLoader loader) where T : Asset
+    public void RegisterLoader(IAssetLoader loader)
     {
-        RegisterLoaderInternal(loader, typeof(T));
+        RegisterLoaderInternal(loader);
     }
 
-    private void RegisterLoaderInternal(IAssetLoader loader, Type assetType)
+    private void RegisterLoaderInternal(IAssetLoader loader)
     {
         _serviceProvider.Inject(loader);
         foreach (var extension in loader.SupportedExtensions)
         {
             string safeExt = NormalizeExtension(extension);
-            _loaders[(safeExt, assetType)] = loader;
+            _loaders[(safeExt, loader.AssetType)] = loader;
         }
     }
     
-    private void RegisterSaverInternal(IAssetSaver saver, Type assetType)
+    private void RegisterSaverInternal(IAssetSaver saver)
     {
         _serviceProvider.Inject(saver);
-        _savers[assetType] = saver;
+        _savers[saver.AssetType] = saver;
     }
     
     public async Task<AssetHandle<T>> LoadAssetAsync<T>(string path) where T : Asset
@@ -87,6 +87,7 @@ public class AssetsManager
         newAsset.Type = typeof(T);
 
         _loadedAssets.TryAdd((id, typeof(T)), newAsset);
+        newAsset.Load();
         return new AssetHandle<T>((T)newAsset, this);
     }
     
@@ -139,8 +140,8 @@ public class AssetsManager
             if (_loadedAssets.Remove(oldKey, out _))
             {
                 _loadedAssets.TryAdd(newKey, asset);
-            
-                Console.WriteLine($"[AssetManager] Cache updated: moved from {oldId} to {newId}");
+
+                await Logger.Instance.Log(nameof(AssetsManager), $"Cache updated: moved from {oldId} to {newId}");
             }
             else
             {
@@ -153,7 +154,7 @@ public class AssetsManager
         }
 
         await Logger.Instance.Log($"{asset} saved to {targetPath}");
-        return new(asset, this);
+        return new AssetHandle<T>(asset, this);
     }
     
     internal void ReleaseAsset(Asset asset)
@@ -188,12 +189,11 @@ public class AssetsManager
             try
             {
                 var loaderInstance = (IAssetLoader)Activator.CreateInstance(loaderType)!;
-                Type assetType = loaderInstance.AssetType;
-                RegisterLoaderInternal(loaderInstance, assetType);
+                RegisterLoaderInternal(loaderInstance);
             }
             catch (Exception e)
             {
-                Logger.Instance.Log($"[AssetManager] Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
+                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
             }
         }
     }
@@ -212,11 +212,11 @@ public class AssetsManager
             try
             {
                 var loaderInstance = (IAssetSaver)Activator.CreateInstance(loaderType)!;
-                RegisterSaverInternal(loaderInstance, loaderInstance.AssetType);
+                RegisterSaverInternal(loaderInstance);
             }
             catch (Exception e)
             {
-                Logger.Instance.Log($"[AssetManager] Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
+                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
             }
         }
     }
