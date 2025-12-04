@@ -4,9 +4,10 @@ namespace Karpik.Engine.Shared;
 
 public static class DIExtensions
 {
-    public static void InjectProperties(this object obj, IServiceProvider serviceProvider)
+    public static void InjectProperties(this object obj, IServiceProvider serviceProvider, Type? type = null)
     {
-        var properties = obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        if (type is null) type = obj.GetType();
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
         properties = properties
             .Where(p => p.IsDefined(typeof(DIAttribute), false) && p.CanWrite).ToArray();
 
@@ -27,7 +28,7 @@ public static class DIExtensions
             }
         }
         
-        var fields = obj.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
         fields = fields.Where(p => p.IsDefined(typeof(DIAttribute), false)).ToArray();
 
         foreach (var fieldInfo in fields)
@@ -44,6 +45,15 @@ public static class DIExtensions
             if (fieldInfo.FieldType.IsSubclassOf(typeof(IServiceProvider)))
             {
                 fieldInfo.SetValue(obj, serviceProvider);
+            }
+        }
+
+        if (type.IsClass)
+        {
+            var baseType = type.BaseType;
+            if (baseType is not null)
+            {
+                obj.InjectProperties(serviceProvider, baseType);
             }
         }
     }

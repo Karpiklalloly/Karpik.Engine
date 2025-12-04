@@ -5,7 +5,7 @@ public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValu
     public override string[] SupportedExtensions { get; } = [".json"];
 
     protected JsonSerializer Serializer { get; } = new();
-    [DI] protected AssetsManager AssetsManager { get; set; }
+    [DI] protected AssetsManager AssetsManager { get; private set; }
 
     protected override async Task<TValue> OnLoadAsync(Stream stream, string assetName)
     {

@@ -1,10 +1,13 @@
-﻿namespace Karpik.Engine.Shared;
+﻿using System.Buffers;
+
+namespace Karpik.Engine.Shared;
 
 public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsset : Asset
 {
     public abstract string[] SupportedExtensions { get; }
     public Type AssetType => typeof(TAsset);
-    [DI] protected MainTreadScheduler MainTreadScheduler { get; set; }
+    [DI] protected static MainTreadScheduler MainTreadScheduler { get; private set; }
+    protected static ArrayPool<byte> Pool { get; } = ArrayPool<byte>.Shared;
 
     public async Task<Asset> LoadAsync(Stream stream, string assetName)
     {

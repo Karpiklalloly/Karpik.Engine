@@ -31,13 +31,13 @@ public abstract class Asset
     internal void Unload()
     {
         OnUnload();
-        Logger.Instance.Log($"Unload {Path}", LogLevel.Debug);
+        Logger.Instance.Log(GetType().Name, $"Unload {Path}", LogLevel.Debug);
     }
 
     internal void Load()
     {
         OnLoad();
-        Logger.Instance.Log($"Load {Path}", LogLevel.Debug);
+        Logger.Instance.Log(GetType().Name, $"Load {Path}", LogLevel.Debug);
     }
 
     public override string ToString()
