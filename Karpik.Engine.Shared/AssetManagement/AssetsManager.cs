@@ -7,6 +7,7 @@ public class AssetsManager
     public string RootPath => AppDomain.CurrentDomain.BaseDirectory;
     public string ContentPath => Path.Combine(RootPath, "Content");
     public string ModsPath => Path.Combine(RootPath, "Mods");
+    public IFileSystem FileSystem => _fileSystem;
     
     // [Hash, Asset Type] -> [Asset Instance]
     private readonly ConcurrentDictionary<(int, Type), Asset> _loadedAssets = new();
@@ -77,7 +78,12 @@ public class AssetsManager
                 : _fileSystem.Combine(ContentPath, targetPath);
         }
 
-        if (!_fileSystem.Exists(targetPath)) throw new FileNotFoundException(targetPath);
+        if (!_fileSystem.Exists(targetPath))
+        {
+            if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
+            await Logger.Instance.Log(nameof(AssetsManager), $"Not found {targetPath}, loading default asset {loader.DefaultPath}.", LogLevel.Warning);
+            targetPath = loader.DefaultPath;
+        }
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);
 

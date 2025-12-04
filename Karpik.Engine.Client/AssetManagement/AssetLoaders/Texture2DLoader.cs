@@ -6,8 +6,9 @@ namespace Karpik.Engine.Client;
 
 public class Texture2DLoader : BaseAssetLoader<Texture2DAsset, Texture2D>
 {
+    public override string DefaultPath => AssetsManager.FileSystem.Combine(AssetsManager.ContentPath, "Sprites", "default.jpg");
     public override string[] SupportedExtensions { get; } = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".pic", ".pvr", ".webp"];
-
+    
     protected override async Task<Texture2D> OnLoadAsync(Stream stream, string assetName)
     {
         using var ms = new MemoryStream();

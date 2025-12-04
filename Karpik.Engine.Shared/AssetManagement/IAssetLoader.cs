@@ -2,6 +2,7 @@
 
 public interface IAssetLoader
 {
+    public string DefaultPath { get; }
     public string[] SupportedExtensions { get; }
     
     public Type AssetType { get; }
