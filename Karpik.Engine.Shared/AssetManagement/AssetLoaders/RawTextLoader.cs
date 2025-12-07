@@ -1,6 +1,4 @@
-﻿using Karpik.Engine.Shared.Assets;
-
-namespace Karpik.Engine.Shared;
+﻿namespace Karpik.Engine.Shared;
 
 public class RawTextLoader : BaseAssetLoader<TextAsset, string>
 {

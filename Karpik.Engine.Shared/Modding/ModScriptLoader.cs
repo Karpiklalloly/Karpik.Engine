@@ -5,32 +5,36 @@ namespace Karpik.Engine.Shared.Modding;
 
 public class ModScriptLoader : ScriptLoaderBase
 {
+    public IFileSystem FileSystem => _container.FileSystem;
+    
     private readonly string _modBasePath;
+    private readonly ModContainer _container;
 
-    public ModScriptLoader(string modBasePath)
+    public ModScriptLoader(string modBasePath, ModContainer container)
     {
         _modBasePath = modBasePath;
-        ModulePaths = new[] { "?.lua", "?/init.lua" };
+        _container = container;
+        ModulePaths = ["?.lua", "?/init.lua"];
     }
 
     public override object LoadFile(string file, Table globalContext)
     {
-        string path = Path.Combine(_modBasePath, file);
-        return File.Exists(path) ? File.ReadAllText(path) : null;
+        string path = FileSystem.Combine(_modBasePath, file);
+        return FileSystem.Exists(path) ? FileSystem.OpenRead(path) : null;
     }
 
     public override string ResolveFileName(string filename, Table globalContext)
     {
-        return Path.Combine(_modBasePath, filename);
+        return FileSystem.Combine(_modBasePath, filename);
     }
 
     public override string ResolveModuleName(string modname, Table globalContext)
     {
-        return modname.Replace('.', Path.DirectorySeparatorChar) + ".lua";
+        return modname.Replace('.', FileSystem.DirectorySeparatorChar) + ".lua";
     }
 
     public override bool ScriptFileExists(string name)
     {
-        return File.Exists(Path.Combine(_modBasePath, name));
+        return FileSystem.Exists(FileSystem.Combine(_modBasePath, name));
     }
 }

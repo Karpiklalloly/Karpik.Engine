@@ -11,6 +11,11 @@ public class GameAPI
     private readonly ModContainer _container;
     private readonly EcsDefaultWorld _world;
 
+    static GameAPI()
+    {
+        UserData.RegisterType<GameAPI>();
+    }
+
     public GameAPI(string modId, ModContainer container, EcsDefaultWorld world)
     {
         _modId = modId;

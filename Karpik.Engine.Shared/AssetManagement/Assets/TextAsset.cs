@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Shared.Assets;
+﻿namespace Karpik.Engine.Shared;
 
 public class TextAsset : Asset
 {
@@ -11,6 +11,4 @@ public class TextAsset : Asset
         get => Text;
         set => Text = (string)value;
     }
-
-    protected override void OnUnload() => Text = null;
 }

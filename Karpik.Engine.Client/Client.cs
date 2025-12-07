@@ -92,11 +92,11 @@ public class Client
         _serviceProvider.Inject(_modManager);
         _serviceProvider.Inject(_assetsManager);
         
-        _modManager.Init(ModManager.Type.Client);
-        _modManager.LoadMods(_assetsManager.ModsPath);
-        
         _assetsManager.FindAllLoaders();
         _assetsManager.FindAllSavers();
+        
+        _modManager.Init(ModManager.Type.Client);
+        _modManager.LoadMods(_assetsManager.ModsPath);
 
         // Инициализируем окно сначала
         Raylib.InitWindow(1024, 768, "Console Launcher");

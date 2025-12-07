@@ -8,7 +8,7 @@ public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsse
     public abstract string[] SupportedExtensions { get; }
     public Type AssetType => typeof(TAsset);
     [DI] protected static MainTreadScheduler MainTreadScheduler { get; private set; }
-    protected static ArrayPool<byte> Pool { get; } = ArrayPool<byte>.Shared;
+    protected static ArrayPool<byte> ArrayPool { get; } = ArrayPool<byte>.Shared;
     [DI] protected static AssetsManager AssetsManager { get; private set; }
 
     public async Task<Asset> LoadAsync(Stream stream, string assetName)

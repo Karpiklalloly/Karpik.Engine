@@ -16,7 +16,7 @@
     },
     {
         "$Type": "SpriteRenderer",
-        "TexturePath": "Content/Sprites/Player2.png",
+        "TexturePath": "Content/Sprites/Player.png",
         "Layer": 1,
         "Color": {
             "R": 255,

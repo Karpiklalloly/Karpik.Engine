@@ -3,7 +3,6 @@ using Game.Generated.Client;
 using ImGuiNET;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Shared;
-using Karpik.Engine.Shared.AssetManagement;
 using Karpik.Engine.Shared.DEMO;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Modding;
@@ -24,7 +23,7 @@ public class DemoModuleClient : IEcsModule
     }
 }
 
-public class MySystem : BaseSystem, IEcsRun, IEcsInit
+public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
 {
     class Aspect : EcsAspect
     {
@@ -48,7 +47,7 @@ public class MySystem : BaseSystem, IEcsRun, IEcsInit
         
     }
     
-    public void Run()
+    public void RunParallel()
     {
         ImGui.Begin("DemoWindow");
         ShowButtons();

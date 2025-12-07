@@ -6,7 +6,7 @@ using Raylib_cs;
 namespace Karpik.Engine.Client;
 
 [Serializable]
-public struct SpriteRenderer : IEcsComponent, IEcsComponentOnLoad<SpriteRenderer>, IEcsComponentLifecycle<SpriteRenderer>
+public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnLoad<SpriteRenderer>, IEcsComponentLifecycle<SpriteRenderer>
 {
     [JsonIgnore] public Texture2D Texture => _handle.Asset.Texture;
     public Color Color;
@@ -18,7 +18,7 @@ public struct SpriteRenderer : IEcsComponent, IEcsComponentOnLoad<SpriteRenderer
     public async Task<SpriteRenderer> OnLoad(SpriteRenderer renderer, AssetsManager manager)
     {
         renderer._handle.Dispose();
-        renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(renderer.TexturePath);
+        renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(TexturePath);
         return renderer;
     }
 
@@ -30,5 +30,10 @@ public struct SpriteRenderer : IEcsComponent, IEcsComponentOnLoad<SpriteRenderer
     public void Disable(ref SpriteRenderer component)
     {
         component._handle.Dispose();
+    }
+
+    public IEnumerable<string> GetDependencyPaths()
+    {
+        yield return TexturePath;
     }
 }

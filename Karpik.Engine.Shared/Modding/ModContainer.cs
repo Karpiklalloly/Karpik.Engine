@@ -4,31 +4,37 @@ namespace Karpik.Engine.Shared.Modding;
 
 public class ModContainer
 {
-    private readonly EcsDefaultWorld _world;
+    public ModMetaData MetaData => MetaDataHandle.Asset.MetaData;
+    public IFileSystem FileSystem => _assetsManager.FileSystem;
     public string DirectoryPath { get; }
-    public ModMetaData MetaData { get; }
+    public AssetHandle<ModMetaDataAsset> MetaDataHandle { get; }
     public Script Script { get; }
     public bool IsEnabled { get; set; } = true;
-    public List<DynValue> UpdateFunction { get; private set; } = new();
-    public List<DynValue> StartFunction { get; private set; } = new();
-    public List<DynValue> LoadFunction { get; private set; } = new();
-    public List<DynValue> UnloadFunction { get; private set; } = new();
     
+    public IReadOnlyList<DynValue> UpdateFunctions => _updateFunction;
+    public IReadOnlyList<DynValue> StartFunctions => _startFunction;
+    public IReadOnlyList<DynValue> LoadFunctions => _loadFunction;
+    public IReadOnlyList<DynValue> UnloadFunctions => _unloadFunction;
+    
+    [DI] private EcsDefaultWorld _world;
+    [DI] private AssetsManager _assetsManager;
+    private readonly List<DynValue> _updateFunction = new();
+    private readonly List<DynValue> _startFunction = new();
+    private readonly List<DynValue> _loadFunction = new();
+    private readonly List<DynValue> _unloadFunction = new();
     private readonly Dictionary<string, DynValue> _loadedModules = new();
     
-    public ModContainer(string directoryPath, ModMetaData metaData, EcsDefaultWorld world)
+    internal ModContainer(string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
     {
-        _world = world;
         DirectoryPath = directoryPath;
-        MetaData = metaData;
+        MetaDataHandle = metaDataHandle;
         Script = new Script();
-        Script.Options.ScriptLoader = new ModScriptLoader(directoryPath);
+        Script.Options.ScriptLoader = new ModScriptLoader(directoryPath, this);
         Script.Options.DebugPrint = s => Log(s);
     }
 
-    public void Initialize()
+    internal void Initialize()
     {
-        UserData.RegisterType<GameAPI>();
         Script.Globals["G"] = new GameAPI(MetaData.Id, this, _world);
         LoadRootScripts();
     }
@@ -40,7 +46,7 @@ public class ModContainer
         
         try
         {
-            string path = moduleName.Replace('.', Path.DirectorySeparatorChar);
+            string path = moduleName.Replace('.', _assetsManager.FileSystem.DirectorySeparatorChar);
             if (!path.EndsWith(".lua")) path += ".lua";
             
             DynValue result = Script.DoFile(path);
@@ -49,14 +55,14 @@ public class ModContainer
         }
         catch (Exception ex)
         {
-            Log($"Error loading module {moduleName}: {ex.Message}", LogLevel.Error);
+            Log($"Error loading module {moduleName}: {ex}", LogLevel.Error).GetAwaiter().GetResult();
             return DynValue.Nil;
         }
     }
 
     public void Update()
     {
-        foreach (var func in UpdateFunction)
+        foreach (var func in _updateFunction)
         {
             try
             {
@@ -64,14 +70,14 @@ public class ModContainer
             }
             catch (Exception e)
             {
-                Log($"Update error: {e.Message}", LogLevel.Error);
+                Log($"Update error: {e}", LogLevel.Error).GetAwaiter().GetResult();
             }
         }
     }
 
     public void Start()
     {
-        foreach (var func in StartFunction)
+        foreach (var func in _startFunction)
         {
             try
             {
@@ -79,14 +85,14 @@ public class ModContainer
             }
             catch (Exception e)
             {
-                Log($"Start error: {e.Message}", LogLevel.Error);
+                Log($"Start error: {e}", LogLevel.Error).GetAwaiter().GetResult();
             }
         }
     }
     
     public void Load()
     {
-        foreach (var func in LoadFunction)
+        foreach (var func in _loadFunction)
         {
             try
             {
@@ -94,14 +100,14 @@ public class ModContainer
             }
             catch (Exception e)
             {
-                Log($"Load error: {e.Message}", LogLevel.Error);
+                Log($"Load error: {e}", LogLevel.Error).GetAwaiter().GetResult();
             }
         }
     }
     
     public void Unload()
     {
-        foreach (var func in UnloadFunction)
+        foreach (var func in _unloadFunction)
         {
             try
             {
@@ -109,66 +115,66 @@ public class ModContainer
             }
             catch (Exception e)
             {
-                Log($"Unload error: {e.Message}", LogLevel.Error);
+                Log($"Unload error: {e}", LogLevel.Error).GetAwaiter().GetResult();
             }
         }
     }
 
-    private void LoadRootScripts()
+    private async Task LoadRootScripts()
     {
         try
         {
-            var rootScripts = Directory.GetFiles(DirectoryPath, "*.lua", SearchOption.TopDirectoryOnly);
+            var rootScripts = FileSystem.GetFiles(DirectoryPath, "*.lua", SearchOption.TopDirectoryOnly);
 
-            foreach (var scriptFile in rootScripts)
+            await foreach (var scriptFile in rootScripts.ToArray().ToAsyncEnumerable())
             {
                 try
                 {
-                    Script.DoFile(scriptFile);
+                    Script.DoStream(FileSystem.OpenRead(scriptFile));
                     
                     var updateFunction = Script.Globals.Get(EventModMethods.OnUpdate);
                     if (updateFunction.IsNotNil() && updateFunction.Type == DataType.Function)
                     {
-                        UpdateFunction.Add(updateFunction);
-                        Log($"Registered update for {Path.GetFileName(scriptFile)}");
+                        _updateFunction.Add(updateFunction);
+                        await Log($"Registered update for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
                     }
                     
                     var startFunction = Script.Globals.Get(EventModMethods.OnStart);
                     if (startFunction.IsNotNil() && startFunction.Type == DataType.Function)
                     {
-                        StartFunction.Add(startFunction);
-                        Log($"Registered start for {Path.GetFileName(scriptFile)}");
+                        _startFunction.Add(startFunction);
+                        await Log($"Registered start for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
                     }
                     
                     var loadFunction = Script.Globals.Get(EventModMethods.OnLoad);
                     if (loadFunction.IsNotNil() && loadFunction.Type == DataType.Function)
                     {
-                        LoadFunction.Add(loadFunction);
-                        Log($"Registered load for {Path.GetFileName(scriptFile)}");
+                        _loadFunction.Add(loadFunction);
+                        await Log($"Registered load for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
                     }
                     
                     var unloadFunction = Script.Globals.Get(EventModMethods.OnUnload);
                     if (unloadFunction.IsNotNil() && unloadFunction.Type == DataType.Function)
                     {
-                        UnloadFunction.Add(unloadFunction);
-                        Log($"Registered unload for {Path.GetFileName(scriptFile)}");
+                        _unloadFunction.Add(unloadFunction);
+                        await Log($"Registered unload for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
                     }
                 }
                 catch (Exception e)
                 {
-                    Log($"Error loading {Path.GetFileName(scriptFile)}: {e.Message}", LogLevel.Error);
+                    await Log($"Error loading {_assetsManager.FileSystem.GetFileName(scriptFile)}: {e}", LogLevel.Error);
                 }
             }
         }
         catch (Exception e)
         {
-            Log($"Error loading root scripts: {e.Message}", LogLevel.Error);
+            await Log($"Error loading root scripts: {e}", LogLevel.Error);
         }
     }
 
-    private void Log(string message, LogLevel level = LogLevel.Debug)
+    private async Task Log(string message, LogLevel level = LogLevel.Debug)
     {
-        Logger.Instance.Log($"[Mod: {MetaData.Name}] {message}", level);
+        await Logger.Instance.Log($"[Mod: {MetaData.Name}] {message}", level);
     }
 
 

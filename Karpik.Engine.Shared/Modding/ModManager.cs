@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using MoonSharp.Interpreter;
 
 namespace Karpik.Engine.Shared.Modding;
@@ -13,7 +14,10 @@ public class ModManager
     private readonly Dictionary<string, ModContainer> _loadedMods = new();
     [DI] private AssetsManager _assetsManager;
     [DI] private EcsDefaultWorld _world;
+    [DI] private ServiceProvider _serviceProvider;
     private string _subFolder;
+    
+    private IFileSystem FileSystem => _assetsManager.FileSystem;
 
     public void Init(Type caller)
     {
@@ -25,52 +29,55 @@ public class ModManager
         };
     }
     
-    public void LoadMods(string modsRootDirectory)
+    public async Task LoadMods(string modsRootDirectory)
     {
-        if (!Directory.Exists(modsRootDirectory))
+        if (!FileSystem.ExistsDirectory(modsRootDirectory))
         {
-            modsRootDirectory = Path.Combine(_assetsManager.RootPath, modsRootDirectory);
-            if (!Directory.Exists(modsRootDirectory)) return;
+            modsRootDirectory = FileSystem.Combine(_assetsManager.ModsPath, modsRootDirectory);
+            if (!FileSystem.ExistsDirectory(modsRootDirectory))
+            {
+                await Logger.Instance.Log(nameof(ModManager), $"Mods directory not found: {modsRootDirectory}", LogLevel.Error);
+                return;
+            }
         }
         
-        foreach (var modDir in Directory.GetDirectories(modsRootDirectory))
+        await foreach (var modDir in FileSystem.GetDirectories(modsRootDirectory).ToArray().ToAsyncEnumerable())
         {
-            LoadMod(modDir);
+            await LoadMod(modDir);
         }
         
         LoadMods();
     }
     
-    private void LoadMod(string modDirectory)
+    private async Task LoadMod(string modDirectory)
     {
         try
         {
-            // Загрузка метаданных
-            string metadataPath = Path.Combine(modDirectory, "mod_info.json");
-            var files = Directory.GetFiles(modDirectory);
-            if (!File.Exists(metadataPath))
+            string metadataPath = FileSystem.Combine(modDirectory, "mod_info.json");
+            if (!FileSystem.Exists(metadataPath))
             {
-                Logger.Instance.Log($"Mod missing mod.json: {modDirectory}");
+                await Logger.Instance.Log(nameof(ModManager), $"Mod missing mod.json: {modDirectory}", LogLevel.Error);
+                return;
+            }
+
+            var handle = await _assetsManager.LoadAssetAsync<ModMetaDataAsset>(metadataPath);
+            var metaData = handle.Asset.MetaData;
+            if (string.IsNullOrEmpty(handle.Asset.MetaData.Id))
+            {
+                await Logger.Instance.Log(nameof(ModManager), $"Invalid mod metadata in {modDirectory}", LogLevel.Error);
                 return;
             }
             
-            var metadata = JsonConvert.DeserializeObject<ModMetaData>(File.ReadAllText(metadataPath));
-            if (string.IsNullOrEmpty(metadata.Id))
-            {
-                Logger.Instance.Log($"Invalid mod metadata in {modDirectory}");
-                return;
-            }
-            
-            // Создаем контейнер мода
-            var container = new ModContainer(Path.Combine(modDirectory, _subFolder), metadata, _world);
+            var container = new ModContainer(FileSystem.Combine(modDirectory, _subFolder), handle);
+            _serviceProvider.Inject(container);
             container.Initialize();
-            _loadedMods[metadata.Id] = container;
+            _loadedMods[metaData.Id] = container;
             
-            Logger.Instance.Log($"Mod loaded: {metadata.Name} v{metadata.Version} by {metadata.Author}");
+            await Logger.Instance.Log(nameof(ModManager), $"Mod loaded: {metaData.Name} v{metaData.Version} by {metaData.Author}");
         }
         catch (Exception ex)
         {
-            Logger.Instance.Log($"Error loading mod {modDirectory}: {ex.Message}");
+            await Logger.Instance.Log(nameof(ModManager), $"Error loading mod {modDirectory}: {ex}", LogLevel.Error);
         }
     }
     
@@ -106,17 +113,17 @@ public class ModManager
         }
     }
 
-    public void ReloadAllMods(string modsRootDirectory)
+    public async Task ReloadAllMods(string modsRootDirectory)
     {
         UnloadMods();
         _loadedMods.Clear();
-        LoadMods(modsRootDirectory);
+        await LoadMods(modsRootDirectory);
     }
     
     public ModMetaData GetModMetadata(string modId)
     {
         return _loadedMods.TryGetValue(modId, out var container) 
-            ? container.MetaData 
+            ? container.MetaDataHandle.Asset.MetaData 
             : default;
     }
     
@@ -130,7 +137,7 @@ public class ModManager
         }
         catch (Exception ex)
         {
-            Logger.Instance.Log($"[{container.MetaData.Id}] Execution error: {ex.Message}");
+            Logger.Instance.Log(nameof(ModManager), $"Execution error while executing {container.MetaDataHandle.Asset.MetaData.Id} mod: {ex}", LogLevel.Error);
         }
     }
     
@@ -144,7 +151,7 @@ public class ModManager
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log($"[{container.MetaData.Id}] Execution error: {ex.Message}");
+                Logger.Instance.Log(nameof(ModManager), $"Execution error while executing {container.MetaDataHandle.Asset.MetaData.Id} mod: {ex}", LogLevel.Error);
             }
         }
     }

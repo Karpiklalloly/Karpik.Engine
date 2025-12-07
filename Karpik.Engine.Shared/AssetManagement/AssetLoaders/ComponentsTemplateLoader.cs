@@ -1,6 +1,4 @@
-﻿using Karpik.Engine.Shared.AssetManagement;
-
-namespace Karpik.Engine.Shared;
+﻿namespace Karpik.Engine.Shared;
 
 public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, ComponentsTemplate>
 {
@@ -11,10 +9,29 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
         Serializer.Converters.Add(new ComponentArrayConverter());
     }
 
-    protected override Task OnAssetLoadedAsync(ComponentsTemplateAsset asset)
+    protected override async Task OnAssetLoadedAsync(ComponentsTemplateAsset asset)
     {
         asset.Template.OnLoad(AssetsManager);
-        return Task.CompletedTask;
+        
+        if (asset.Template.Components is null || asset.Template.Components.Length == 0) return;
+
+        foreach (var component in asset.Template.Components)
+        {
+            // TODO: Проверить
+            object raw = component.GetRaw();
+            if (raw is IHasDependencies hasDependencies)
+            {
+                foreach (var path in hasDependencies.GetDependencyPaths())
+                {
+                    using var handle = await AssetsManager.LoadAssetByPathAsync(path);
+
+                    if (handle.IsValid)
+                    {
+                        asset.AddDependency(handle.Asset);
+                    }
+                }
+            }
+        }
     }
     
     protected override ComponentsTemplateAsset EmptyAsset() => new();

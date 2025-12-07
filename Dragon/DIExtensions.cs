@@ -42,7 +42,7 @@ public static class DIExtensions
         
         foreach (var fieldInfo in fields)
         {
-            if (fieldInfo.FieldType.IsSubclassOf(typeof(IServiceProvider)))
+            if (fieldInfo.FieldType.IsAssignableTo(typeof(IServiceProvider)))
             {
                 fieldInfo.SetValue(obj, serviceProvider);
             }

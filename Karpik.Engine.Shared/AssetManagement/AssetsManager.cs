@@ -54,18 +54,44 @@ public class AssetsManager
     
     public async Task<AssetHandle<T>> LoadAssetAsync<T>(string path) where T : Asset
     {
-        int id = AssetPath.GetHash(path);
+        var asset = await LoadAssetInternal(path, typeof(T));
+        return new AssetHandle<T>((T)asset, this);
+    }
 
-        if (_loadedAssets.TryGetValue((id, typeof(T)), out var existingAsset))
+    public async Task<AssetHandle<Asset>> LoadAssetByPathAsync(string path)
+    {
+        var ext = NormalizeExtension(Path.GetExtension(path));
+
+        foreach (var pair in _loaders.Where(x => x.Key.Item1 == ext))
         {
-            return new AssetHandle<T>((T)existingAsset, this);
+            var loaderEntry = pair;
+
+            if (loaderEntry.Value == null) continue;
+            var concreteType = loaderEntry.Key.Item2;
+            var asset = await LoadAssetInternal(path, concreteType);
+
+            return new AssetHandle<Asset>(asset, this);
+        }
+        
+        throw new NotSupportedException($"No loader registered for extension '{ext}'");
+    }
+    
+    private async Task<Asset> LoadAssetInternal(string path, Type assetType)
+    {
+        int id = AssetPath.GetHash(path);
+        var cacheKey = (id, assetType);
+        
+        if (_loadedAssets.TryGetValue(cacheKey, out var existingAsset))
+        {
+            return existingAsset;
         }
 
         var extension = NormalizeExtension(Path.GetExtension(path));
+        var loaderKey = (extension, assetType);
 
-        if (!_loaders.TryGetValue((extension, typeof(T)), out var loader))
+        if (!_loaders.TryGetValue(loaderKey, out var loader))
         {
-            throw new NotSupportedException($"No loader registered for extension '{extension}' and type '{typeof(T).Name}'");
+            throw new NotSupportedException($"No loader registered for extension '{extension}' and type '{assetType.Name}'");
         }
         
         string targetPath = path;
@@ -90,11 +116,12 @@ public class AssetsManager
         var newAsset = await loader.LoadAsync(stream, targetPath);
         newAsset.Id = id;
         newAsset.Path = targetPath;
-        newAsset.Type = typeof(T);
+        newAsset.Type = assetType;
+        newAsset.Manager = this;
 
-        _loadedAssets.TryAdd((id, typeof(T)), newAsset);
+        _loadedAssets.TryAdd(cacheKey, newAsset);
         newAsset.Load();
-        return new AssetHandle<T>((T)newAsset, this);
+        return newAsset;
     }
     
     public async Task<AssetHandle<T>> SaveAssetAsync<T>(T asset, string path = null)  where T : Asset

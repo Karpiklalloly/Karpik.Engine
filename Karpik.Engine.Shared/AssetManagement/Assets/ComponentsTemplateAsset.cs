@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement;
+﻿namespace Karpik.Engine.Shared;
 
 public class ComponentsTemplateAsset : Asset
 {
@@ -10,10 +10,5 @@ public class ComponentsTemplateAsset : Asset
     {
         get => Template;
         set => Template = (ComponentsTemplate)value;
-    }
-
-    protected override void OnUnload()
-    {
-        
     }
 }

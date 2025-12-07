@@ -8,6 +8,9 @@ public abstract class Asset
     public string Path { get; internal set; }
     public int RefCount { get; private set; } = 0;
     public abstract object RawValue { get; set; }
+    internal AssetsManager Manager { get; set; }
+    
+    private readonly List<Asset> _dependencies = new();
 
     protected internal Asset()
     {
@@ -24,21 +27,56 @@ public abstract class Asset
         RefCount--;
         return RefCount <= 0;
     }
+    
+    internal void AddDependency(Asset child)
+    {
+        if (child is null) return;
+        if (child == this) return;
+#if DEBUG
+        bool ChildHasDependencyOnParent(Asset child)
+        {
+            if (child._dependencies.Contains(this)) return true;
+            foreach (var dep in child._dependencies)
+            {
+                if (ChildHasDependencyOnParent(dep)) return true;
+            }
+            return false;
+        }
 
-    protected abstract void OnUnload();
-    protected virtual void OnLoad() { }
+        if (ChildHasDependencyOnParent(child)) throw new Exception("Cyclic dependency detected");
+#endif
+
+        if (!_dependencies.Contains(child))
+        {
+            _dependencies.Add(child);
+            child.IncrementRef();
+            Logger.Instance.Log(Type.Name, $"Added dependency: {Path} -> {child.Path}", LogLevel.Debug);
+        }
+    }
 
     internal void Unload()
     {
         OnUnload();
-        Logger.Instance.Log(GetType().Name, $"Unload {Path}", LogLevel.Debug);
+        Logger.Instance.Log(Type.Name, $"Unload {Path}", LogLevel.Debug);
+        
+        if (_dependencies.Count > 0 && Manager != null)
+        {
+            foreach (var child in _dependencies)
+            {
+                Manager.ReleaseAsset(child);
+            }
+            _dependencies.Clear();
+        }
     }
 
     internal void Load()
     {
         OnLoad();
-        Logger.Instance.Log(GetType().Name, $"Load {Path}", LogLevel.Debug);
+        Logger.Instance.Log(Type.Name, $"Load {Path}", LogLevel.Debug);
     }
+    
+    protected virtual void OnUnload() { }
+    protected virtual void OnLoad() { }
 
     public override string ToString()
     {
