@@ -29,7 +29,7 @@ public class ModManager
         };
     }
     
-    public async Task LoadMods(string modsRootDirectory)
+    public async JobHandle LoadMods(string modsRootDirectory)
     {
         if (!FileSystem.ExistsDirectory(modsRootDirectory))
         {
@@ -49,7 +49,7 @@ public class ModManager
         LoadMods();
     }
     
-    private async Task LoadMod(string modDirectory)
+    private async JobHandle LoadMod(string modDirectory)
     {
         try
         {
@@ -113,7 +113,7 @@ public class ModManager
         }
     }
 
-    public async Task ReloadAllMods(string modsRootDirectory)
+    public async JobHandle ReloadAllMods(string modsRootDirectory)
     {
         UnloadMods();
         _loadedMods.Clear();

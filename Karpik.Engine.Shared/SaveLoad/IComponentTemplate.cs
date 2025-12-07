@@ -21,7 +21,7 @@ public abstract class ComponentTemplateBase : IComponentTemplate
     public abstract object GetRaw();
     public abstract void SetRaw(object raw);
     public abstract void ApplyTo(int entityID, EcsWorld world);
-    public abstract Task OnLoad(AssetsManager manager, int entityID, EcsWorld world);
+    public abstract JobHandle OnLoad(AssetsManager manager, int entityID, EcsWorld world);
 }
 
 [Serializable]
@@ -91,7 +91,7 @@ public class ComponentTemplate<T> : ComponentTemplateBase<T>
         EcsPool<T>.Apply(ref _component, entityID, world.ID);
     }
 
-    public override async Task OnLoad(AssetsManager manager, int entityID, EcsWorld world)
+    public override async JobHandle OnLoad(AssetsManager manager, int entityID, EcsWorld world)
     {
         var pool = world.GetPool<T>();
         ref var c = ref pool.Get(entityID);
@@ -114,8 +114,8 @@ public class TagComponentTemplate<T> : ComponentTemplateBase<T>
         EcsTagPool<T>.Apply(ref _component, entityID, world.ID);
     }
 
-    public override Task OnLoad(AssetsManager manager, int entityID, EcsWorld world)
+    public override JobHandle OnLoad(AssetsManager manager, int entityID, EcsWorld world)
     {
-        return Task.CompletedTask;
+        return JobHandle.Completed;
     }
 }

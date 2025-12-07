@@ -3,13 +3,11 @@
 public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValue> where TAsset : Asset, new()
 {
     public override string[] SupportedExtensions { get; } = [".json"];
-
     protected JsonSerializer Serializer { get; } = new();
-    [DI] protected AssetsManager AssetsManager { get; private set; }
 
-    protected override async Task<TValue> OnLoadAsync(Stream stream, string assetName)
+    protected override async JobHandle<TValue> OnLoadAsync(Stream stream, string assetName)
     {
-        return await Task.Run(() =>
+        return await Jobs.Run(() =>
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
             using var jsonReader = new JsonTextReader(reader);

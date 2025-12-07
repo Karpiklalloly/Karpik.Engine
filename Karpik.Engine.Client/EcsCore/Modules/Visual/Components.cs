@@ -15,7 +15,7 @@ public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnL
     
     private AssetHandle<Texture2DAsset> _handle;
     
-    public async Task<SpriteRenderer> OnLoad(SpriteRenderer renderer, AssetsManager manager)
+    public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, AssetsManager manager)
     {
         renderer._handle.Dispose();
         renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(TexturePath);

@@ -27,7 +27,7 @@ public class ComponentsTemplate
         Components = Convert(components);
     }
 
-    public async Task ApplyTo(int entityID, EcsWorld world)
+    public async JobHandle ApplyTo(int entityID, EcsWorld world)
     {
         foreach (var template in Components)
         {

@@ -120,7 +120,7 @@ public class ModContainer
         }
     }
 
-    private async Task LoadRootScripts()
+    private async JobHandle LoadRootScripts()
     {
         try
         {
@@ -172,7 +172,7 @@ public class ModContainer
         }
     }
 
-    private async Task Log(string message, LogLevel level = LogLevel.Debug)
+    private async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
         await Logger.Instance.Log($"[Mod: {MetaData.Name}] {message}", level);
     }

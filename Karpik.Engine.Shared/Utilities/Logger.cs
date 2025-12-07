@@ -13,8 +13,8 @@ public enum LogLevel
 
 public interface ILogger : IDisposable
 {
-    Task Log(string message, LogLevel level = LogLevel.Debug);
-    Task Log(string source, string message, LogLevel level = LogLevel.Debug);
+    JobHandle Log(string message, LogLevel level = LogLevel.Debug);
+    JobHandle Log(string source, string message, LogLevel level = LogLevel.Debug);
     void SetMinLevel(LogLevel level);
 }
 
@@ -35,13 +35,13 @@ public abstract class LoggerDecorator : ILogger
         _logger = logger;
     }
 
-    public virtual Task Log(string message, LogLevel level = LogLevel.Debug)
+    public virtual JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
-        if (_logger is null) return Task.CompletedTask;
+        if (_logger is null) return JobHandle.Completed;
         return _logger.Log(message, level);
     }
 
-    public Task Log(string source, string message, LogLevel level = LogLevel.Debug) => Log($"[{source}]: {message}", level);
+    public JobHandle Log(string source, string message, LogLevel level = LogLevel.Debug) => Log($"[{source}]: {message}", level);
 
     public virtual void SetMinLevel(LogLevel level)
     {
@@ -86,7 +86,7 @@ public sealed class ConsoleLogger : LoggerDecorator
 
     public ConsoleLogger(ILogger logger = null) : base(logger) { }
 
-    public override async Task Log(string message, LogLevel level = LogLevel.Debug)
+    public override async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
         if (level < _minLevel) return;
 
@@ -147,7 +147,7 @@ public sealed class FileLogger : LoggerDecorator
         };
     }
 
-    public override async Task Log(string message, LogLevel level = LogLevel.Debug)
+    public override async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
         if (level < _minLevel) return;
 

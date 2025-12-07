@@ -52,13 +52,13 @@ public class AssetsManager
         _savers[saver.AssetType] = saver;
     }
     
-    public async Task<AssetHandle<T>> LoadAssetAsync<T>(string path) where T : Asset
+    public async JobHandle<AssetHandle<T>> LoadAssetAsync<T>(string path) where T : Asset
     {
         var asset = await LoadAssetInternal(path, typeof(T));
         return new AssetHandle<T>((T)asset, this);
     }
 
-    public async Task<AssetHandle<Asset>> LoadAssetByPathAsync(string path)
+    public async JobHandle<AssetHandle<Asset>> LoadAssetByPathAsync(string path)
     {
         var ext = NormalizeExtension(Path.GetExtension(path));
 
@@ -76,7 +76,7 @@ public class AssetsManager
         throw new NotSupportedException($"No loader registered for extension '{ext}'");
     }
     
-    private async Task<Asset> LoadAssetInternal(string path, Type assetType)
+    private async JobHandle<Asset> LoadAssetInternal(string path, Type assetType)
     {
         int id = AssetPath.GetHash(path);
         var cacheKey = (id, assetType);
@@ -124,7 +124,7 @@ public class AssetsManager
         return newAsset;
     }
     
-    public async Task<AssetHandle<T>> SaveAssetAsync<T>(T asset, string path = null)  where T : Asset
+    public async JobHandle<AssetHandle<T>> SaveAssetAsync<T>(T asset, string path = null)  where T : Asset
     {
         if (asset == null) throw new NullReferenceException();
 

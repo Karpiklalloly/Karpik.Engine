@@ -207,12 +207,12 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         }
     }
 
-    private async Task Spawn(string path)
+    private async JobHandle Spawn(string path)
     {
         AssetHandle<ComponentsTemplateAsset> handle = new();
-        try 
+        try
         {
-            handle = await Task.Run(async () => await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path));
+            handle = await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path);
             var entity = CreateEntity(_world);
             await handle.Asset.Template.ApplyTo(entity.ID, _world);
         }
@@ -226,9 +226,9 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         }
     }
     
-    private async Task CreateTemplate()
+    private async JobHandle CreateTemplate()
     {
-        await Task.Run(() =>
+        await Shared.Jobs.Run(() =>
         {
             var entity = CreateEntity(_world);
             entity.Add<Health>().Value = 255;

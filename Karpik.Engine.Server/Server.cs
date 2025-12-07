@@ -43,7 +43,7 @@ public class Server
     private NetworkManager _networkManager = new();
     private TargetClientRpcSender _rpcSender = new();
     private ServiceProvider _serviceProvider;
-    private MainTreadScheduler _scheduler;
+    private MainThreadScheduler _scheduler;
 
     public void Run(in bool isRunning)
     {
@@ -65,6 +65,7 @@ public class Server
 
     public void Init()
     {
+        Shared.Jobs.Initialize(new JobSystem());
         _scheduler = new(Thread.CurrentThread.ManagedThreadId);
         var listener = new EventBasedNetListener();
         _network = new NetManager(listener);

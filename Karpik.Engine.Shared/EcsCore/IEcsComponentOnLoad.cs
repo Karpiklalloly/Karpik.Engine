@@ -2,5 +2,5 @@
 
 public interface IEcsComponentOnLoad<T>
 {
-    public Task<T> OnLoad(T component, AssetsManager manager);
+    public JobHandle<T> OnLoad(T component, AssetsManager manager);
 }

@@ -2,80 +2,79 @@
 
 namespace Karpik.Engine.Shared;
 
-public class MainTreadScheduler
+public class MainThreadScheduler
 {
     private readonly ConcurrentQueue<Action> _actions = new ConcurrentQueue<Action>();
     private readonly int _mainThreadId;
 
-    public MainTreadScheduler(int mainThreadId)
+    public MainThreadScheduler(int mainThreadId)
     {
         _mainThreadId = mainThreadId;
     }
     
-    public Task<T> InvokeAsync<T>(Func<T> work)
+    public JobHandle<T> InvokeAsync<T>(Func<T> work)
     {
         if (Environment.CurrentManagedThreadId == _mainThreadId)
         {
             try 
             {
-                return Task.FromResult(work());
+                return JobHandle<T>.FromResult(work());
             }
             catch (Exception ex)
             {
-                return Task.FromException<T>(ex);
+                return JobHandle<T>.FromException(ex);
             }
         }
         
-        var tcs = new TaskCompletionSource<T>();
+        var t = new JobHandleCompletionSource<T>();
 
         _actions.Enqueue(() =>
         {
             try
             {
                 var result = work();
-                tcs.SetResult(result);
+                t.SetResult(result);
             }
             catch (Exception ex)
             {
-                // Если упало - передаем ошибку вызывающему
-                tcs.SetException(ex);
+                t.SetException(ex);
             }
         });
 
-        return tcs.Task;
+        return t.JobHandle;
     }
     
-    public Task InvokeAsync(Action work)
+    public JobHandle InvokeAsync(Action work)
     {
         if (Environment.CurrentManagedThreadId == _mainThreadId)
         {
             try
             {
                 work();
-                return Task.CompletedTask;
+                return JobHandle.Completed;
             }
             catch (Exception ex)
             {
-                return Task.FromException(ex);
+                return JobHandle.FromException(ex);
             }
         }
         
-        var tcs = new TaskCompletionSource<bool>();
+        var t = new JobHandleCompletionSource<bool>();
 
         _actions.Enqueue(() =>
         {
             try
             {
                 work();
-                tcs.SetResult(true);
+                t.SetResult(true);
             }
             catch (Exception ex)
             {
-                tcs.SetException(ex);
+                t.SetException(ex);
             }
         });
 
-        return tcs.Task;
+        return (JobHandle)t.JobHandle;
     }
 
     public void Execute()

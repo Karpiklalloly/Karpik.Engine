@@ -5,7 +5,7 @@ public class RawTextLoader : BaseAssetLoader<TextAsset, string>
     public override string DefaultPath => null;
     public override string[] SupportedExtensions { get; } = [".txt", ".cfg", ".ini", ".log", ".md"];
 
-    protected override async Task<string> OnLoadAsync(Stream stream, string assetName)
+    protected override async JobHandle<string> OnLoadAsync(Stream stream, string assetName)
     {
         using var reader = new StreamReader(stream);
         return await reader.ReadToEndAsync();

@@ -11,9 +11,9 @@ public abstract class JsonSaver<TAsset> : BaseAssetSaver<TAsset> where TAsset : 
         Serializer.Formatting = Formatting.Indented; 
     }
 
-    protected override async Task OnSaveAsync(TAsset asset, Stream stream)
+    protected override async JobHandle OnSaveAsync(TAsset asset, Stream stream)
     {
-        await Task.Run(() =>
+        await Jobs.Run(() =>
         {
             using var sw = new StreamWriter(stream, Encoding.UTF8, 1024, leaveOpen: true);
             using var jsonWriter = new JsonTextWriter(sw);

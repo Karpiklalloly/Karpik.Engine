@@ -7,5 +7,5 @@ public interface IAssetLoader
     
     public Type AssetType { get; }
     
-    public Task<Asset> LoadAsync(Stream stream, string assetName);
+    public JobHandle<Asset> LoadAsync(Stream stream, string assetName);
 }

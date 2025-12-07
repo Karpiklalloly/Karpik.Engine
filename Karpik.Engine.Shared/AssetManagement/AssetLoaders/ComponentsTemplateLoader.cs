@@ -9,7 +9,7 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
         Serializer.Converters.Add(new ComponentArrayConverter());
     }
 
-    protected override async Task OnAssetLoadedAsync(ComponentsTemplateAsset asset)
+    protected override async JobHandle OnAssetLoadedAsync(ComponentsTemplateAsset asset)
     {
         asset.Template.OnLoad(AssetsManager);
         

@@ -9,7 +9,7 @@ public class Texture2DLoader : BaseAssetLoader<Texture2DAsset, Texture2D>
     public override string DefaultPath => AssetsManager.FileSystem.Combine(AssetsManager.ContentPath, "Sprites", "default.jpg");
     public override string[] SupportedExtensions { get; } = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".pic", ".pvr", ".webp"];
     
-    protected override async Task<Texture2D> OnLoadAsync(Stream stream, string assetName)
+    protected override async JobHandle<Texture2D> OnLoadAsync(Stream stream, string assetName)
     {
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
@@ -17,7 +17,7 @@ public class Texture2DLoader : BaseAssetLoader<Texture2DAsset, Texture2D>
         
         try
         {
-            var texture = await MainTreadScheduler.InvokeAsync(() => Raylib.LoadTextureFromImage(image));
+            var texture = await MainThreadScheduler.InvokeAsync(() => Raylib.LoadTextureFromImage(image));
             return texture;
         }
         catch (Exception ex)
