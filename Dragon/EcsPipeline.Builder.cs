@@ -7,7 +7,6 @@ using DCFApixels.DragonECS.RunnersCore;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
-using Karpik.Engine.Shared;
 using static DCFApixels.DragonECS.EcsConsts;
 
 namespace DCFApixels.DragonECS
@@ -38,7 +37,6 @@ namespace DCFApixels.DragonECS
             public readonly LayersMap Layers;
             public readonly InitInjectionList Injections;
             public readonly Configurator Configs;
-            public readonly IServiceProvider ServiceProvider;
 
             private AddParams _defaultAddParams = new AddParams(BASIC_LAYER, 0, false);
 
@@ -52,11 +50,10 @@ namespace DCFApixels.DragonECS
             #endregion
 
             #region Constructors
-            public Builder(IServiceProvider serviceProvider, IConfigContainerWriter config = null)
+            public Builder(IConfigContainerWriter config = null)
             {
                 if (config == null) { config = new ConfigContainer(); }
                 Configs = new Configurator(config, this);
-                ServiceProvider = serviceProvider;
                 var injectorBuilder = new Injector.InjectionList();
                 Injections = new InitInjectionList(injectorBuilder, this);
                 Injections.AddNode<object>();
@@ -305,7 +302,7 @@ namespace DCFApixels.DragonECS
 #if DEBUG
             private static EcsProfilerMarker _buildMarker = new EcsProfilerMarker("EcsPipeline.Build");
 #endif
-            public EcsPipeline Build()
+            public EcsPipeline Build(IServiceProvider serviceProvider)
             {
 #if DEBUG
                 _buildMarker.Begin();
@@ -368,11 +365,6 @@ namespace DCFApixels.DragonECS
                     }
                 }
 
-                foreach (var system in allSystems)
-                {
-                    ServiceProvider.Inject(system);
-                }
-
                 EcsPipeline pipeline = new EcsPipeline((ReadOnlySpan<IEcsProcess>)allSystems, Configs.Instance.GetContainer(), Injections.Instance);
                 foreach (var item in _initDeclaredRunners)
                 {
@@ -384,6 +376,47 @@ namespace DCFApixels.DragonECS
                 return pipeline;
             }
             #endregion
+            
+            public IEcsProcess[] GetAllSystems()
+            {
+                LayerSystemsList basicLayerList;
+                if (_layerLists.TryGetValue(BASIC_LAYER, out basicLayerList) == false)
+                {
+                    basicLayerList = new LayerSystemsList(BASIC_LAYER);
+                    _layerLists.Add(BASIC_LAYER, basicLayerList);
+                }
+                
+                int allSystemsLength = 0;
+                foreach (var item in _layerLists)
+                {
+                    if (item.Key == BASIC_LAYER) { continue; }
+                    if (Layers.Contains(item.Key))
+                    {
+                        allSystemsLength += item.Value.lasyInitSystemsCount + 1;
+                    }
+                    else
+                    {
+                        basicLayerList.lasyInitSystemsCount += item.Value.lasyInitSystemsCount;
+                    }
+                }
+                allSystemsLength += basicLayerList.lasyInitSystemsCount + 1;
+                
+                var allSystems = new IEcsProcess[allSystemsLength];
+                int i = 0;
+                foreach (var item in Layers.Build())
+                {
+                    if (_layerLists.TryGetValue(item, out var list) && list.IsInit)
+                    {
+                        list.Sort();
+                        for (int j = 0; j < list.recordsCount; j++)
+                        {
+                            allSystems[i++] = list.records[j].system;
+                        }
+                    }
+                }
+
+                return allSystems;
+            }
 
             #region InitDeclaredRunner
             private abstract class InitDeclaredRunner

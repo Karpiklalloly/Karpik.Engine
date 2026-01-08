@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Client.Network.LiteNetLib</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="LiteNetLib" Version="1.3.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\..\..\Shared\LoggerModule\LoggerModule.csproj" />
+      <ProjectReference Include="..\..\..\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <ProjectReference Include="..\Network.Client.Core\Network.Client.Core.csproj" />
+    </ItemGroup>
+
+</Project>

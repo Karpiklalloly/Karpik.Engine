@@ -12,9 +12,9 @@ namespace Karpik.StatAndAbilities
             private string _name;
             private float _duration;
             private int _order;
-            private Buff[] _buffs;
+            private Buff[]? _buffs;
         
-            public BuilderPart(string name, float duration = -1, int order = 0, Buff[] buffs = null)
+            public BuilderPart(string name, float duration = -1, int order = 0, Buff[]? buffs = null)
             {
                 _name = name;
                 _duration = duration;
@@ -63,7 +63,7 @@ namespace Karpik.StatAndAbilities
             public Effect BuildUnsafe() =>
                 new()
                 {
-                    Buffs = _buffs.ToArray(),
+                    Buffs = _buffs!.ToArray(),
                     Name = _name,
                     Order = _order,
                     Duration = _duration,

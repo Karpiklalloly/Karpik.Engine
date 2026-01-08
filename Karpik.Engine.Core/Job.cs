@@ -1,0 +1,23 @@
+﻿using Karpik.Jobs;
+
+namespace Karpik.Engine.Core;
+
+public static class Job
+{
+    private static JobSystem _jobSystem = null!;
+    
+    internal static void Initialize(JobSystem jobSystem)
+    {
+        _jobSystem = jobSystem;
+    }
+    
+    public static JobHandle<T> Run<T>(Func<T> func)
+    {
+        return _jobSystem.Enqueue(func);
+    }
+    
+    public static JobHandle Run(Action action)
+    {
+        return _jobSystem.Enqueue(action);
+    }
+}

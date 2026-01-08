@@ -16,7 +16,7 @@ namespace Karpik.StatAndAbilities
             return Equals(Buffs, other.Buffs) && Order == other.Order && Duration.Equals(other.Duration) && IsPermanent == other.IsPermanent;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Effect other && Equals(other);
         }

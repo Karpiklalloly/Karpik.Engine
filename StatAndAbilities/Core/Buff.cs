@@ -21,7 +21,7 @@ namespace Karpik.StatAndAbilities
             return Value.Equals(other.Value) && Type == other.Type && ModifyBase == other.ModifyBase;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Buff other && Equals(other);
         }

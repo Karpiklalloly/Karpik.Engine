@@ -1,0 +1,31 @@
+﻿<Project>
+    <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
+    <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))
+                            AND
+                            !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))
+                            AND
+                            !$(MSBuildProjectName.Contains('.Publish'))
+                            AND
+                            (
+                                $(MSBuildProjectName.Contains('MyGame.'))
+                                OR  $(MSBuildProjectName.Contains('Karpik.Engine'))
+                            )">
+
+        <ProjectReference Include="$(MSBuildThisFileDirectory)Network.Codegen\Network.Codegen\Network.Codegen.csproj">
+            <OutputItemType>Analyzer</OutputItemType>
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </ProjectReference>
+
+        <ProjectReference Include="$(MSBuildThisFileDirectory)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
+            <OutputItemType>Analyzer</OutputItemType>
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </ProjectReference>
+
+    </ItemGroup>
+    
+    <Import
+            Project="MyGame\MyGameResources\build\MyGameResources.targets"
+            Condition="$(MSBuildProjectName.Contains('.Publish'))"/>
+</Project>

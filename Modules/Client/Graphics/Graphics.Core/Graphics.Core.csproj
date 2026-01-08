@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Client.Graphics.Core</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <None Update="Pressstart2p.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Base\AssetManagement.Base.csproj" />
+    </ItemGroup>
+
+</Project>

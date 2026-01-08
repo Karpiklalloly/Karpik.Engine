@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Karpik.StatAndAbilities
 {
-    //DragonECS-based
+    // DragonECS-based
     public class StatPool<T>
         where T : struct, IStat
     {

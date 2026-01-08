@@ -1,4 +1,5 @@
-﻿using Karpik.Engine.Client;
+﻿using Karpik.Engine.Client.Publish;
+using Karpik.Engine.Core;
 
 namespace ClientLauncher;
 
@@ -6,9 +7,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        bool isRunning = true;
         Client client = new();
-        client.Init();
-        client.Run(in isRunning);
+        client.Start(new Ref<bool>());
     }
 }

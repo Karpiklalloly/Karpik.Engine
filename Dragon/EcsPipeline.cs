@@ -246,9 +246,9 @@ namespace DCFApixels.DragonECS
         #endregion
 
         #region Builder
-        public static Builder New(IServiceProvider serviceProvider, IConfigContainerWriter config = null)
+        public static Builder New(IConfigContainerWriter config = null)
         {
-            return new Builder(serviceProvider, config);
+            return new Builder(config);
         }
         #endregion
     }
@@ -291,9 +291,9 @@ namespace DCFApixels.DragonECS
             }
             return self;
         }
-        public static EcsPipeline BuildAndInit(this EcsPipeline.Builder self)
+        public static EcsPipeline BuildAndInit(this EcsPipeline.Builder self, IServiceProvider serviceProvider)
         {
-            EcsPipeline result = self.Build();
+            EcsPipeline result = self.Build(serviceProvider);
             result.Init();
             return result;
         }

@@ -9,12 +9,17 @@
         <LangVersion>default</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DefineConstants>TRACE;SERVER</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DefineConstants>TRACE;SERVER</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
-      <ProjectReference Include="..\Game\Game.csproj" />
-      <ProjectReference Include="..\Karpik.Engine.Server\Karpik.Engine.Server.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Server.Publish\Karpik.Engine.Server.Publish.csproj" />
       <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
       <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>
-
-    <Import Project="..\Game\build\Game.targets" />
 </Project>
