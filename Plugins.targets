@@ -1,0 +1,11 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup>
+        <!-- Превращаем PluginReference в обычную ссылку -->
+        <ProjectReference Include="@(PluginReference)">
+            <!-- Это заставляет MSBuild копировать файл, но скрывает классы -->
+            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+            <ExcludeAssets>compile</ExcludeAssets>
+            <Private>true</Private>
+        </ProjectReference>
+    </ItemGroup>
+</Project>

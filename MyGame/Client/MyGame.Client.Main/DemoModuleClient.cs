@@ -40,9 +40,9 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         public EcsReadonlyPool<Position> position = Inc;
         public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
-    
+
     private bool[] _bools = new bool[1];
-    
+
     [DI] private IModManager _modManager = null!;
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private EcsEventWorld _eventWorld = null!;
@@ -51,12 +51,11 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
     [DI] private IRpc _rpc = null!;
     [DI] private Input _input = null!;
     [DI] private UIManager _uiManager = null!;
-    
+
     public void Init()
     {
-        
     }
-    
+
     public void RunParallel()
     {
         ImGui.Begin("DemoWindow");
@@ -65,7 +64,6 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         var span = _world.Where(out Aspect a);
         if (span.Count > 0)
         {
-            
             ImGui.Text($"Local Player (net id): {a.networkId.Get(span[0]).Id}");
             ImGui.Text($"Local Player (local id): {span[0]}");
         }
@@ -73,6 +71,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         {
             ImGui.Text("No entities with Position component found.");
         }
+
         ImGui.End();
 
         ImGui.Begin("UI");
@@ -99,20 +98,20 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         {
             Spawn("Enemy.json");
         }
-        
+
         ImGui.NextColumn();
         if (ImGui.Button("Reload Mods"))
         {
             _modManager.ReloadAllMods(_assetsManager.ModsPath);
             _rpc.ReloadMods(new ReloadModsCommand());
         }
-        
+
         ImGui.NextColumn();
         if (ImGui.Button("Generate Demo Entity"))
         {
             _ = CreateTemplate();
         }
-        
+
         ImGui.NextColumn();
         if (ImGui.Button("Clear World"))
         {
@@ -189,7 +188,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
             Console.WriteLine(content);
         }
 
-        
+
         if (ImGui.CollapsingHeader(text))
         {
             ImGui.Indent(indent * 2);
@@ -206,6 +205,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
                     ImGui.Text($"{key}: {value}");
                 }
             }
+
             ImGui.PopStyleColor(1);
 
             foreach (var child in element.Children)
@@ -235,7 +235,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
             handle.Dispose();
         }
     }
-    
+
     private async JobHandle CreateTemplate()
     {
         await Job.Run(() =>
