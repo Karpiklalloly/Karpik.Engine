@@ -12,7 +12,7 @@
       <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Jobs\Karpik.Jobs.csproj" />
-      <ProjectReference Include="..\..\AssetManagement\AssetManagement.Base\AssetManagement.Base.csproj" />
+      <ProjectReference Include="..\..\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
       <ProjectReference Include="..\..\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
     </ItemGroup>
 

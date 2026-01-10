@@ -1,6 +1,6 @@
 ﻿using DCFApixels.DragonECS;
 
-namespace Karpik.StatAndAbilities
+namespace Karpik.Engine.Shared.StatAndAbilities
 {
     public interface IStat : IEcsComponent
     {

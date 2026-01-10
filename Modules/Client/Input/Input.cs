@@ -2,7 +2,7 @@
 using System.Numerics;
 using Karpik.Engine.Client.Graphics.Core;
 
-namespace Karpik.Engine.Client;
+namespace Karpik.Engine.Client.InputModule;
 
 public class Input
 {

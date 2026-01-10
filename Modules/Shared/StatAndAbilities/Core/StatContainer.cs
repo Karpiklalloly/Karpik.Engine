@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace Karpik.StatAndAbilities
+namespace Karpik.Engine.Shared.StatAndAbilities
 {
     [Serializable]
     public readonly struct StatContainer

@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Client;
+﻿namespace Karpik.Engine.Client.InputModule;
 
 public enum KeyboardKeys
 {

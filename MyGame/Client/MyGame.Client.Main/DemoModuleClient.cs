@@ -3,6 +3,7 @@ using DCFApixels.DragonECS;
 using ImGuiNET;
 using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;

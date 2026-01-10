@@ -8,23 +8,13 @@ public class Client
     {
         Bootstrap b = new();
         var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning);
-        Thread thread = new Thread(_ =>
-        {
-            DateTime lastTime = DateTime.Now;
-            while (isRunning.Value)
-            {
-                var now = DateTime.Now;
-                var deltaTime = (now - lastTime).TotalSeconds;
-                lastTime = now;
-                b.Loop(deltaTime);
-                Thread.Yield();
-            }
-            b.Shutdown();
-        });
-        
-        thread.Start();
+        DateTime lastTime = DateTime.Now;
         while (isRunning.Value)
         {
+            var now = DateTime.Now;
+            var deltaTime = (now - lastTime).TotalSeconds;
+            lastTime = now;
+            b.Loop(deltaTime);
             mainThreadScheduler.Execute();
             Thread.Yield();
         }

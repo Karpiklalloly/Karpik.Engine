@@ -29,6 +29,8 @@ public class ServiceProvider : IServiceRegister, IServiceContainer, IInjectionBl
         {
             _services[serviceType] = [];
         }
+
+        Console.WriteLine($"Register service: {serviceType.Name} -> {service.GetType().AssemblyQualifiedName}");
         
         _services[serviceType].Add(service);
         return this;
@@ -57,12 +59,12 @@ public class ServiceProvider : IServiceRegister, IServiceContainer, IInjectionBl
 
     public object? GetService(Type serviceType)
     {
-        return _services.GetValueOrDefault(serviceType);
+        return _services.GetValueOrDefault(serviceType)?.First();
     }
 
     public void InjectTo(Injector inj)
     {
-        foreach (var services in _services.Values)
+        foreach (var services in _services.Values.Where(x => x.First() != this))
         {
             inj.Inject(services.First());
         }

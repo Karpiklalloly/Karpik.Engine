@@ -2,6 +2,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.ECS;

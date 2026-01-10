@@ -9,7 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\..\Karpik.Jobs\Karpik.Jobs.csproj" />
-      <ProjectReference Include="..\..\AssetManagement\AssetManagement.Base\AssetManagement.Base.csproj" />
+      <ProjectReference Include="..\..\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
       <ProjectReference Include="..\..\ECS\ECS.Core\ECS.Core.csproj" />
     </ItemGroup>
 

@@ -1,10 +1,11 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.UIToolkit;
 
-[Module]
+[Module(1)]
 public class UIToolkitInstaller : IModule
 {
     public string Name => "UIToolkit.Core";

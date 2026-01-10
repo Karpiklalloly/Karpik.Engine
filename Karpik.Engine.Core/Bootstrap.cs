@@ -19,11 +19,34 @@ public class Bootstrap
         _isRunning = isRunning;
         Job.Initialize(new Jobs.JobSystem());
         _builder.AddModule(new JobSystemModule());
-        
-        var modules = Assembly.GetExecutingAssembly().GetTypes()
-            .Where(t => typeof(IModule).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-            .Select(t => (IModule)Activator.CreateInstance(t)!)
+
+        var directory = Directory.GetCurrentDirectory();
+        var dllPaths = Directory.EnumerateFiles(directory, "*.dll")
+            .Where(f => !string.Equals(f, Assembly.GetExecutingAssembly().Location, StringComparison.OrdinalIgnoreCase));
+
+        var dlls = dllPaths
+            .Select(path =>
+            {
+                // если сборка уже загружена — используем её
+                var already = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a =>
+                    {
+                        try { return string.Equals(a.Location, path, StringComparison.OrdinalIgnoreCase); }
+                        catch { return false; } // некоторые динамические сборки могут бросать
+                    });
+
+                return already ?? Assembly.LoadFrom(path);
+            })
             .ToArray();
+
+        List<IModule> modulesList = [];
+        foreach (var dll in dlls)
+        {
+            modulesList.AddRange(Load(dll));
+        }
+        Sort(modulesList);
+        var modules = modulesList.ToArray();
+        modulesList.Clear();
         
         _serviceProvider.Register(_mainThreadScheduler);
         _serviceProvider.Register(_application);
@@ -35,6 +58,10 @@ public class Bootstrap
         foreach (var sys in modules)
         {
             sys.OnRegisterServices(_serviceProvider);
+        }
+        
+        foreach (var sys in modules)
+        {
             sys.OnConfigure(_serviceProvider, out var module);
             if (module is not null)
             {
@@ -42,6 +69,7 @@ public class Bootstrap
             }
         }
 
+        _builder.Inject(_serviceProvider);
         _pipeline = _builder.BuildAndInit(_serviceProvider);
         _serviceProvider.Register(_pipeline);
         _serviceProvider.InjectAll();
@@ -49,6 +77,11 @@ public class Bootstrap
         foreach (var system in _pipeline.AllSystems)
         {
             _serviceProvider.Inject(system);
+        }
+        
+        foreach (var system in _pipeline.AllRunners)
+        {
+            _serviceProvider.Inject(system.Value);
         }
         
         foreach (var sys in modules)
@@ -73,5 +106,21 @@ public class Bootstrap
     public void Shutdown()
     {
         _pipeline.Destroy();
+    }
+
+    private IEnumerable<IModule> Load(Assembly assembly)
+    {
+        var types = assembly.GetTypes();
+        var where = types.Where(t => typeof(IModule).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+        var modules = where
+            .Select(t => (IModule)Activator.CreateInstance(t)!);
+        return modules;
+    }
+    
+    private void Sort(List<IModule> modules)
+    {
+        modules.Sort((a, b) =>
+            a.GetType().GetCustomAttributes(typeof(ModuleAttribute), true).OfType<ModuleAttribute>().First().Priority.CompareTo(
+            b.GetType().GetCustomAttributes(typeof(ModuleAttribute), true).OfType<ModuleAttribute>().First().Priority));
     }
 }

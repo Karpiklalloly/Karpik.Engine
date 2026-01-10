@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Karpik.StatAndAbilities
+namespace Karpik.Engine.Shared.StatAndAbilities
 {
     public static class EffectBuilder
     {

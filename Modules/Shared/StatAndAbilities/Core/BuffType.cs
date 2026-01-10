@@ -1,4 +1,4 @@
-﻿namespace Karpik.StatAndAbilities
+﻿namespace Karpik.Engine.Shared.StatAndAbilities
 {
     public enum BuffType
     {

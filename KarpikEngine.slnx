@@ -21,9 +21,10 @@
   </Folder>
   <Folder Name="/Modules/Shared/">
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
+    <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/AssetManagement/">
-    <Project Path="Modules/Shared/AssetManagement/AssetManagement.Base/AssetManagement.Base.csproj" />
+    <Project Path="Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/ECS/">
     <Project Path="Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
@@ -31,6 +32,7 @@
   <Folder Name="/Modules/Shared/Modding/">
     <Project Path="Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
     <Project Path="Modules/Shared/Modding/Modding.Lua/Modding.Lua.csproj" />
+    <Project Path="Modules/Shared/Modding/Modding.TestModule/Modding.TestModule.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Netwok.Shared/">
     <Project Path="Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
@@ -52,6 +54,7 @@
     <Project Path="MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
   </Folder>
   <Project Path="ClientLauncher/ClientLauncher.csproj" />
+  <Project Path="Configurator/Configurator.csproj" />
   <Project Path="Dragon/Dragon.csproj" />
   <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
@@ -61,5 +64,4 @@
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
   <Project Path="ServerLauncher/ServerLauncher.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
-  <Project Path="StatAndAbilities/StatAndAbilities.csproj" />
 </Solution>

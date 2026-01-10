@@ -5,7 +5,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
-public class RaylibModule : IEcsModule
+internal class RaylibModule : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {

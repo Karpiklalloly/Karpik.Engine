@@ -1,7 +1,7 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Client.Systems;
+namespace Karpik.Engine.Client.InputModule;
 
 internal class UpdateSystem : IEcsRun
 {

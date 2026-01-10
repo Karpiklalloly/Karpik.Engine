@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Karpik.StatAndAbilities.Codegen;
+namespace Karpik.Engine.Shared.StatAndAbilities.Codegen;
 
 public class StructReceiver : ISyntaxReceiver
 {

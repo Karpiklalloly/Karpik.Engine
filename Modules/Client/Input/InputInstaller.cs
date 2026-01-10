@@ -2,7 +2,7 @@
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Client;
+namespace Karpik.Engine.Client.InputModule;
 
 [Module]
 public class InputInstaller : IModule
@@ -17,7 +17,7 @@ public class InputInstaller : IModule
     public void OnConfigure(IServiceContainer services, out IEcsModule? module)
     {
         services.Get<Input>().Init(services.Get<IWindow>());
-        module = new InputModule();
+        module = new InputModuleEcs();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

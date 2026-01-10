@@ -8,7 +8,7 @@ namespace Karpik.Engine.Shared.AssetManagement.Base;
 [Module(-100)]
 internal class AssetManagementInstaller : IModule, IModuleListener
 {
-    public string Name => "AssetManagement.Base";
+    public string Name => "AssetManagement.Core";
     
     private AssetsManager _assetsManager = null!;
 

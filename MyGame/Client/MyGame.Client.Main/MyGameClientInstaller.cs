@@ -2,6 +2,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
@@ -35,7 +36,7 @@ public class MyGameClientInstaller : IModule
         var window = services.Get<IWindow>();
         var renderer = services.Get<IRenderer>();
 
-        window.Init(102, 768, "My Game");
+        window.Init(1024, 768, "My Game");
         window.SetWindowState(WindowFlags.ResizableWindow);
         window.SetWindowMinSize(400, 300);
         window.SetTargetFPS(60);
@@ -57,7 +58,7 @@ public class MyGameClientInstaller : IModule
             }
         };
 
-        module = null;
+        module = new DemoModuleClient();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

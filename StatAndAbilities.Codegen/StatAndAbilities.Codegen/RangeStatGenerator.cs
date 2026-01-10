@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Karpik.StatAndAbilities.Codegen
+namespace Karpik.Engine.Shared.StatAndAbilities.Codegen
 {
     public static class RangeStatGenerator
     {

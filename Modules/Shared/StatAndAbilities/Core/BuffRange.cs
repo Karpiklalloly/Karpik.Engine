@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Karpik.StatAndAbilities
+namespace Karpik.Engine.Shared.StatAndAbilities
 {
     [Flags]
     public enum BuffRange

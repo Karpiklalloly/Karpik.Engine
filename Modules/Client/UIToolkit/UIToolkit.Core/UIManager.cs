@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.InputModule;
 using s = Karpik.Engine.Client.UIToolkit.StyleSheet;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -32,6 +33,7 @@ public class UIManager
         Root = element;
         _styleComputer = new StyleComputer();
         _layoutEngine = new LayoutEngine();
+        _layoutEngine.Init(renderer);
         _renderer = new Renderer(renderer);
         var rectangle = _gRenderer.GetScreenRectangle();
         _renderTexture = _gRenderer.LoadRenderTexture((int)rectangle.Width, (int)rectangle.Height);

@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Base\AssetManagement.Base.csproj" />
+      <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
     </ItemGroup>
 
 </Project>

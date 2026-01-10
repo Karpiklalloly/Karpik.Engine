@@ -1,10 +1,9 @@
 ﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Systems;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Client;
+namespace Karpik.Engine.Client.InputModule;
 
-internal class InputModule : IEcsModule
+internal class InputModuleEcs : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {

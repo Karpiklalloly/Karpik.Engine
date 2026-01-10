@@ -7,6 +7,12 @@
         <RootNamespace>Karpik.Engine.Publish.Server</RootNamespace>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <IsClient>false</IsClient>
+        <DefineConstants>SERVER</DefineConstants>
+        <IsServer>true</IsServer>
+    </PropertyGroup>
+
     <ItemGroup>
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>

@@ -7,7 +7,6 @@ class Program
 {
     static void Main(string[] args)
     {
-        Server client = new();
-        client.Start(new Ref<bool>());
+        new Server().Start(new Ref<bool>(true));
     }
 }
