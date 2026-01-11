@@ -11,8 +11,8 @@ namespace Network.Codegen;
 [Generator]
 public class NetworkGenerator : IIncrementalGenerator
 {
-    private const string NetworkedComponentAttribute = "Network.NetworkedComponentAttribute";
-    private const string NetworkedFieldAttribute = "Network.NetworkedFieldAttribute";
+    private const string NetworkedComponentAttribute = "Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute";
+    private const string NetworkedFieldAttribute = "Karpik.Engine.Shared.Network.Core.NetworkedFieldAttribute";
     
     // Настройка: Где искать ваш ручной NetworkManager
     private const string NetworkManagerNamespace = "Karpik.Engine.MyGame.Shared.Main"; 

@@ -30,6 +30,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun
     
     public void Init()
     {
+        _network.Initialize();
         _networkManager.ConnectionRequestEvent += static req => req.AcceptIfKey("MyGame");
         _networkManager.NetworkReceiveEvent += OnNetworkReceive;
         _networkManager.PeerConnectedEvent += peer =>

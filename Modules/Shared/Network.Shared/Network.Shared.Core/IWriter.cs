@@ -7,6 +7,8 @@ public interface IWriter
     public void Put(bool value);
     public void Put(string value);
     public void Put(byte value);
+    public void Put(ushort value);
+    public void Put(double value);
     
     public void Reset();
 }

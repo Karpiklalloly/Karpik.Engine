@@ -56,7 +56,7 @@ internal class AssetsManager : IAssetsManager
             }
             catch (Exception e)
             {
-                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
+                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register saver {loaderType.Name}: {e.Message}", LogLevel.Error);
             }
         }
     }

@@ -16,7 +16,7 @@ public class MyGameClientInstaller : IModule
     public string Name => "MyGame.Client.Main";
     
     private INetworkManager _networkManager;
-    private NetworkManager _manager;
+    private NetworkManager _manager = new NetworkManager();
     private EcsDefaultWorld _world;
     private TargetClientRpcDispatcher _targetClientRpcDispatcher;
 
@@ -29,6 +29,7 @@ public class MyGameClientInstaller : IModule
 
     public void OnConfigure(IServiceContainer services, out IEcsModule? module)
     {
+        _manager.Initialize();
         _networkManager = services.Get<INetworkManager>();
         _world = services.Get<EcsDefaultWorld>();
         _targetClientRpcDispatcher = services.Get<TargetClientRpcDispatcher>();

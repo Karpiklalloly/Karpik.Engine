@@ -16,8 +16,6 @@ public class AssetManagementInstaller : IModule, IModuleListener
     {
         _assetsManager = new AssetsManager(new PhysicalFileSystem());
         services.Register<IAssetsManager>(_assetsManager);
-        
-        _assetsManager.RegisterLoaders(Assembly.GetExecutingAssembly());
     }
 
     public void OnConfigure(IServiceContainer services, out IEcsModule? module)
@@ -27,7 +25,7 @@ public class AssetManagementInstaller : IModule, IModuleListener
 
     public void OnConfigureComplete(IServiceContainer services)
     {
-        
+        _assetsManager.RegisterLoaders(Assembly.GetExecutingAssembly());
     }
 
     public void OnAnotherModuleLoaded(IServiceContainer services, IModule anotherModule, Assembly anotherModuleAssembly)

@@ -21,8 +21,8 @@ public class LiteNetLibWriter : IWriter
     public void Put(string value) => Writer.Put(value);
 
     public void Put(byte value) => Writer.Put(value);
-    public void Reset()
-    {
-        Writer.Reset();
-    }
+    public void Put(ushort value) => Writer.Put(value);
+    public void Put(double value) => Writer.Put(value);
+
+    public void Reset() => Writer.Reset();
 }

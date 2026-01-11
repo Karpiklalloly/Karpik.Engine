@@ -9,7 +9,7 @@ namespace Karpik.Engine.MyGame.Shared.Main;
 public struct Health : IEcsComponent
 {
     [NetworkedField]
-    public double Value;
+    public float Value;
 }
 
 public struct TookDamageEvent : IEcsComponent
