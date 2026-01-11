@@ -3,7 +3,7 @@ using DCFApixels.DragonECS;
 using DCFApixels.DragonECS.Core;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
-using Karpik.Engine.Shared.AssetManagement.Base;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Jobs;
 using Newtonsoft.Json;

@@ -1,5 +1,5 @@
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Base;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;
 using MoonSharp.Interpreter;

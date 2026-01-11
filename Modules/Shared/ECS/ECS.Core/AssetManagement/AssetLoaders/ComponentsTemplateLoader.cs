@@ -1,4 +1,4 @@
-﻿using Karpik.Engine.Shared.AssetManagement.Base;
+﻿using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Shared.ECS;

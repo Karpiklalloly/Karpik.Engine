@@ -1,6 +1,6 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Base;
+using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 

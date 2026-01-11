@@ -1,5 +1,5 @@
 ﻿using System.Runtime.Serialization;
-using Karpik.Engine.Shared.AssetManagement.Base;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using Newtonsoft.Json;
 

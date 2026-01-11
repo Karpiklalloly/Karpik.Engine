@@ -1,14 +1,13 @@
 ﻿using System.Numerics;
 using DCFApixels.DragonECS;
 using ImGuiNET;
-using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.MyGame.Shared.Main;
-using Karpik.Engine.Shared.AssetManagement.Base;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Extensions;
