@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Base.Physical;
+using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 [Module(-100)]
 public class AssetManagementInstaller : IModule, IModuleListener

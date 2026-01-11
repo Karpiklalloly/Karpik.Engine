@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 internal static class AssetPath
 {

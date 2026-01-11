@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement.Base;
+﻿namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public abstract class Asset
 {

@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement.Base.Physical;
+﻿namespace Karpik.Engine.Shared.AssetManagement.Core.Physical;
 
 internal class PhysicalFileSystem : IFileSystem
 {

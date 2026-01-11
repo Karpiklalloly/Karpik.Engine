@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public interface IAssetsManager
 {

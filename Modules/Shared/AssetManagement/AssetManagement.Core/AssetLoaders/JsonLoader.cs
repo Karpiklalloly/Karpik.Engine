@@ -1,7 +1,7 @@
 ﻿using Karpik.Engine.Core;
 using Newtonsoft.Json;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValue> where TAsset : Asset, new()
 {

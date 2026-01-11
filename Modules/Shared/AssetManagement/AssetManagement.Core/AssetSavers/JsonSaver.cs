@@ -2,7 +2,7 @@
 using Karpik.Engine.Core;
 using Newtonsoft.Json;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public abstract class JsonSaver<TAsset> : BaseAssetSaver<TAsset> where TAsset : Asset
 {

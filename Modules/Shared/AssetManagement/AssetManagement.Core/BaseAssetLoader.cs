@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsset : Asset
 {
