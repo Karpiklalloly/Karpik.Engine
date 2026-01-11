@@ -3,7 +3,7 @@ using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Log;
 
-namespace Karpik.Engine.Shared.AssetManagement.Base;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 internal class AssetsManager : IAssetsManager
 {
@@ -248,7 +248,7 @@ internal class AssetsManager : IAssetsManager
 
         if (asset.DecrementRef())
         {
-            _loadedAssets.Remove((asset.Id, SourceType: asset.Type), out _);
+            _loadedAssets.Remove((asset.Id, asset.Type), out _);
             asset.Unload();
         }
     }

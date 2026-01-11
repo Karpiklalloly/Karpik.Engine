@@ -2,7 +2,7 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
 
-namespace Karpik.Engine.Shared.Modding.Systems;
+namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
 internal class UpdateSystem : IEcsRunLate, IEcsInit
 {

@@ -10,9 +10,11 @@ public interface IEcsPausableRun : IEcsProcess
 
 public class EcsPausableRunner : EcsRunner<IEcsPausableRun>, IEcsPausableRun
 {
+    [DI] private Time _time = null!;
+    
     public void PausableRun()
     {
-        if (Time.IsPaused) return;
+        if (_time.IsPaused) return;
         foreach (var process in Process)
         {
             process.PausableRun();
@@ -27,9 +29,11 @@ public interface IEcsPausableLateRun : IEcsProcess
 
 public sealed class PausableLateRunner : EcsRunner<IEcsPausableLateRun>, IEcsPausableLateRun
 {
+    [DI] private Time _time = null!;
+    
     public void PausableLateRun()
     {
-        if (Time.IsPaused) return;
+        if (_time.IsPaused) return;
             
         foreach (var process in Process)
         {

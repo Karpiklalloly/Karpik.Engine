@@ -1,7 +1,7 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Client.Network.Core;
+namespace Karpik.Engine.Client.Network.LiteNetLib;
 
 [Module]
 public class NetworkClientInstaller : IModule

@@ -7,22 +7,24 @@ namespace Karpik.Engine.Shared;
 public class TweenUpdateSystem : IEcsRun
 {
     [DI] private Tween _tween = null!;
+    [DI] private Time _time = null!;
     
     public void Run()
     {
-        _tween.Update(Time.DeltaTime);
+        _tween.Update(_time.DeltaTime);
     }
 }
 
 public class TweenUpdatePausableSystem : IEcsRun
 {
     [DI] private Tween _tween = null!;
+    [DI] private Time _time = null!;
     
     public void Run()
     {
-        if (!Time.IsPaused)
+        if (!_time.IsPaused)
         {
-            _tween.UpdatePausable(Time.DeltaTime);
+            _tween.UpdatePausable(_time.DeltaTime);
         }
     }
 }

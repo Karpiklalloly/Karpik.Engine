@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Karpik.Engine.Shared.Log;
 using MoonSharp.Interpreter;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 [MoonSharpUserData]
 [SuppressMessage("ReSharper", "InconsistentNaming")]

@@ -2,10 +2,10 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Base;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Module]
-public class ModdingInstaller : IModule
+public class ModdingLuaInstaller : IModule
 {
     public string Name => "Modding.Lua";
  

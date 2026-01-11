@@ -19,7 +19,7 @@ public class Drawer
         _actions[_actionsCount++] = new DrawAction()
         {
             Texture = spriteRenderer.Texture,
-            Position = position.Value,
+            Position = new Vector3(position.X, position.Y, position.Z),
             Color = spriteRenderer.Color,
             Rotation = rotation.Value,
             Scale = scale.Value,
@@ -47,7 +47,7 @@ public class Drawer
     private struct DrawAction
     {
         public ITexture2D Texture;
-        public Vector<double> Position;
+        public Vector3 Position;
         public Color Color;
         public double Rotation;
         public double Scale;

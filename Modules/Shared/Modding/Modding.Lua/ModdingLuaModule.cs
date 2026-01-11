@@ -1,7 +1,7 @@
 ﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Shared.Modding.Systems;
+using Karpik.Engine.Shared.Modding.Lua.Systems;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModdingLuaModule : IEcsModule
 {

@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using System.Runtime.InteropServices;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Network.Core;
@@ -83,38 +82,35 @@ public struct SetLocalPlayerTargetRpc : ITargetRpcCommand
 
 [Serializable]
 [NetworkedComponent]
-[StructLayout(LayoutKind.Explicit, Pack = 2, Size = 24)]
 public struct Position : IEcsComponent
 {
-    [FieldOffset(0)]
-    public Vector<double> Value;
-    [NetworkedField][FieldOffset(0)]
-    public double X;
-    [NetworkedField][FieldOffset(8)]
-    public double Y;
-    [NetworkedField][FieldOffset(16)]
-    public double Z;
+    [NetworkedField]
+    public float X;
+    [NetworkedField]
+    public float Y;
+    [NetworkedField]
+    public float Z;
 }
 
 [Serializable] [NetworkedComponent]
 public struct Rotation : IEcsComponent
 {
     [NetworkedField]
-    public double Value;
+    public float Value;
 }
 
 [Serializable] [NetworkedComponent]
 public struct Scale : IEcsComponent
 {
     [NetworkedField]
-    public double Value;
+    public float Value;
 }
 
 [Serializable] [NetworkedComponent]
 public struct Speed : IEcsComponent
 {
     [NetworkedField]
-    public double Value;
+    public float Value;
 }
 
 [Serializable]

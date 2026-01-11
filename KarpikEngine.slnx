@@ -58,6 +58,7 @@
   <Project Path="Dragon/Dragon.csproj" />
   <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
+  <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
   <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
   <Project Path="Karpik.Jobs/Karpik.Jobs.csproj" />

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
 using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
@@ -17,6 +18,7 @@ public class LiteNetLibNetworkManager : INetworkManager
     public NetManager Manager { get; }
 
     private readonly EventBasedNetListener _listener;
+    private readonly ConcurrentDictionary<NetPeer, IPeer> _peers = new();
 
     public LiteNetLibNetworkManager()
     {
@@ -28,7 +30,7 @@ public class LiteNetLibNetworkManager : INetworkManager
         Manager = new NetManager(_listener);
     }
 
-    public IPeer FirstPeer => new LiteNetLibPeer(Manager.FirstPeer);
+    public IPeer FirstPeer => _peers[Manager.FirstPeer];
 
     public int GetFreePort()
     {
@@ -57,6 +59,7 @@ public class LiteNetLibNetworkManager : INetworkManager
         _listener.ClearNetworkReceiveEvent();
         _listener.ClearNetworkReceiveUnconnectedEvent();
         Manager.Stop();
+        _peers.Clear();
     }
 
     public void SendToAll(IWriter writer, DeliveryMethod deliveryMethod)
@@ -71,17 +74,27 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     private void OnNetworkReceive(NetPeer peer, NetPacketReader reader, byte channel, global::LiteNetLib.DeliveryMethod deliveryMethod)
     {
-        NetworkReceiveEvent?.Invoke(new LiteNetLibPeer(peer), new LiteNetLibReader(reader), channel, (DeliveryMethod)deliveryMethod);
+        if (!_peers.TryGetValue(peer, out var wrappedPeer))
+        {
+            wrappedPeer = new LiteNetLibPeer(peer);
+            _peers.TryAdd(peer, wrappedPeer);
+        }
+        NetworkReceiveEvent?.Invoke(wrappedPeer, new LiteNetLibReader(reader), channel, (DeliveryMethod)deliveryMethod);
     }
     
     private void OnPeerConnected(NetPeer peer)
     {
-        PeerConnectedEvent?.Invoke(new LiteNetLibPeer(peer));
+        var wrappedPeer = new LiteNetLibPeer(peer);
+        _peers.TryAdd(peer, wrappedPeer);
+        PeerConnectedEvent?.Invoke(wrappedPeer);
     }
     
     private void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
     {
-        PeerDisconnectedEvent?.Invoke(new LiteNetLibPeer(peer), new LiteNetLibDisconnectInfo(disconnectInfo));
+        if (_peers.TryRemove(peer, out var wrappedPeer))
+        {
+            PeerDisconnectedEvent?.Invoke(wrappedPeer, new LiteNetLibDisconnectInfo(disconnectInfo));
+        }
     }
     
     private void ListenerOnConnectionRequestEvent(ConnectionRequest request)

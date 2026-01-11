@@ -2,7 +2,7 @@ using Karpik.Engine.Shared.AssetManagement.Base;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Loaders;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModScriptLoader : ScriptLoaderBase
 {

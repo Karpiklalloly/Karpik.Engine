@@ -1,14 +1,15 @@
+using System.Collections.Concurrent;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Base;
 using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;
 using MoonSharp.Interpreter;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModManager : IModManager
 {
-    private readonly Dictionary<string, ModContainer> _loadedMods = new();
+    private readonly ConcurrentDictionary<string, ModContainer> _loadedMods = new();
     [DI] private IAssetsManager _assetsManager;
     [DI] private IServiceContainer _serviceProvider;
     private string _subFolder;

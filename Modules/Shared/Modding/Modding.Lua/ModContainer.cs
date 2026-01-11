@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;
 using MoonSharp.Interpreter;
 
-namespace Karpik.Engine.Shared.Modding;
+namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModContainer : IModContainer
 {
@@ -22,6 +22,7 @@ public class ModContainer : IModContainer
     
     // [DI] private EcsDefaultWorld _world;
     [DI] private IAssetsManager _assetsManager;
+    [DI] private Time _time = null!;
     private readonly List<DynValue> _updateFunction = new();
     private readonly List<DynValue> _startFunction = new();
     private readonly List<DynValue> _loadFunction = new();
@@ -71,7 +72,7 @@ public class ModContainer : IModContainer
         {
             try
             {
-                Script.Call(func, Time.DeltaTime);
+                Script.Call(func, _time.DeltaTime);
             }
             catch (Exception e)
             {

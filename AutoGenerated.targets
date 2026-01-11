@@ -6,7 +6,7 @@
     <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" Condition="'$(IsClient)' == 'true'" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.TestModule/Modding.TestModule.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Lua/Modding.Lua.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Network.Client/Network.Client.LiteNetLib/Network.Client.LiteNetLib.csproj" Condition="'$(IsClient)' == 'true'" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Server/Network.Server/Network.Server.Core/Network.Server.Core.csproj" Condition="'$(IsServer)' == 'true'" />

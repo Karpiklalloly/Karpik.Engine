@@ -1,8 +1,8 @@
 ﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Network.Core.Systems;
+using Karpik.Engine.Client.Network.LiteNetLib.Systems;
 using Karpik.Engine.Core;
 
-namespace Karpik.Engine.Client.Network.Core;
+namespace Karpik.Engine.Client.Network.LiteNetLib;
 
 internal class NetworkClientModule : IEcsModule
 {
@@ -10,7 +10,6 @@ internal class NetworkClientModule : IEcsModule
     {
         b
             .Add(new InitNetworkClientSystem())
-            .Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER)
-            .Add(new DestroyNetworkClientSystem());
+            .Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);
     }
 }

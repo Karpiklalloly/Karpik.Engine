@@ -23,7 +23,7 @@ public class DisplaySystem : IEcsRunParallel
         foreach (var e in _world.Where(out Aspect a))
         {
             ref readonly var pos = ref a.position.Get(e);
-            _renderer.DrawSphere(new Vector3((float)pos.Value[0], (float)pos.Value[1], (float)pos.Value[2]),
+            _renderer.DrawSphere(new Vector3((float)pos.X, (float)pos.Y, (float)pos.Z),
                 1,
                 Color.Red);
         }

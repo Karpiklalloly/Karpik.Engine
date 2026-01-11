@@ -6,7 +6,7 @@ using Karpik.Engine.Shared.AssetManagement.Base.Physical;
 namespace Karpik.Engine.Shared.AssetManagement.Base;
 
 [Module(-100)]
-internal class AssetManagementInstaller : IModule, IModuleListener
+public class AssetManagementInstaller : IModule, IModuleListener
 {
     public string Name => "AssetManagement.Core";
     

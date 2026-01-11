@@ -24,6 +24,7 @@ public class InputSystem : BaseSystem, IEcsRun
     [DI] private Rpc _rpc;
     [DI] private Input _input;
     [DI] private ICamera _camera;
+    [DI] private Time _time = null!;
     private const float SPACE_SPEED_MULTIPLIER = 5f;
     
     public void Run()
@@ -130,8 +131,8 @@ public class InputSystem : BaseSystem, IEcsRun
                 currentInput *= SPACE_SPEED_MULTIPLIER;
             }
 
-            _camera.Rotate(_input.MouseDelta * (float)Time.DeltaTime / 2);
-            _camera.Move(currentInput * (float)Time.DeltaTime * 2);
+            _camera.Rotate(_input.MouseDelta * (float)_time.DeltaTime / 2);
+            _camera.Move(currentInput * (float)_time.DeltaTime * 2);
         }
     }
 }

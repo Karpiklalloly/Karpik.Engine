@@ -1,19 +1,14 @@
 ﻿namespace Karpik.Engine.Core;
 
-public static class Time
+public class Time
 {
-    public static double DeltaTime { get; private set; }
-    public static double TotalTime { get; private set; }
+    public double DeltaTime { get; private set; }
+    public double FixedDeltaTime { get; internal set; }
+    public double TotalTime { get; private set; }
 
-    public static bool IsPaused
-    {
-        get => _isPaused;
-        set => _isPaused = value;
-    }
-    
-    private static bool _isPaused;
+    public bool IsPaused { get; set; }
 
-    internal static void Update(double deltaTime)
+    internal void Update(double deltaTime)
     {
         DeltaTime = deltaTime;
         if (!IsPaused) TotalTime += deltaTime;

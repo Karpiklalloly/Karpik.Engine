@@ -6,12 +6,19 @@ namespace Karpik.Engine.Core;
 public class Bootstrap
 {
     private ServiceProvider _serviceProvider = new();
+    private readonly List<IModule> _modules = new(64);
+    private Time _time = new();
     
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
     private Application _application = new();
     private EcsPipeline _pipeline = null!;
     private EcsPipeline.Builder _builder = EcsPipeline.New();
+    
+    public void RegisterModule(IModule module)
+    {
+        _modules.Add(module);
+    }
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning)
     {
@@ -19,58 +26,32 @@ public class Bootstrap
         _isRunning = isRunning;
         Job.Initialize(new Jobs.JobSystem());
         _builder.AddModule(new JobSystemModule());
-
-        var directory = Directory.GetCurrentDirectory();
-        var dllPaths = Directory.EnumerateFiles(directory, "*.dll")
-            .Where(f => !string.Equals(f, Assembly.GetExecutingAssembly().Location, StringComparison.OrdinalIgnoreCase));
-
-        var dlls = dllPaths
-            .Select(path =>
-            {
-                // если сборка уже загружена — используем её
-                var already = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a =>
-                    {
-                        try { return string.Equals(a.Location, path, StringComparison.OrdinalIgnoreCase); }
-                        catch { return false; } // некоторые динамические сборки могут бросать
-                    });
-
-                return already ?? Assembly.LoadFrom(path);
-            })
-            .ToArray();
-
-        List<IModule> modulesList = [];
-        foreach (var dll in dlls)
-        {
-            modulesList.AddRange(Load(dll));
-        }
-        Sort(modulesList);
-        var modules = modulesList.ToArray();
-        modulesList.Clear();
-        
-        _serviceProvider.Register(_mainThreadScheduler);
-        _serviceProvider.Register(_application);
-
         _builder
             .Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
             .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
-
-        foreach (var sys in modules)
+        
+        _serviceProvider.Register(_mainThreadScheduler);
+        _serviceProvider.Register(_application);
+        _serviceProvider.Register(_time);
+        
+        _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
+        
+        foreach (var module in _modules)
         {
-            sys.OnRegisterServices(_serviceProvider);
+            module.OnRegisterServices(_serviceProvider);
         }
         
-        foreach (var sys in modules)
+        foreach (var module in _modules)
         {
-            sys.OnConfigure(_serviceProvider, out var module);
-            if (module is not null)
+            module.OnConfigure(_serviceProvider, out var ecsModule);
+            if (ecsModule is not null)
             {
-                _builder.AddModule(module);
+                _builder.AddModule(ecsModule);
             }
         }
 
         _builder.Inject(_serviceProvider);
-        _pipeline = _builder.BuildAndInit(_serviceProvider);
+        _pipeline = _builder.Build(_serviceProvider);
         _serviceProvider.Register(_pipeline);
         _serviceProvider.InjectAll();
         
@@ -84,10 +65,12 @@ public class Bootstrap
             _serviceProvider.Inject(system.Value);
         }
         
-        foreach (var sys in modules)
+        _pipeline.Init();
+        
+        foreach (var sys in _modules)
         {
             sys.OnConfigureComplete(_serviceProvider);
-            foreach (var module in modules.OfType<IModuleListener>())
+            foreach (var module in _modules.OfType<IModuleListener>())
             {
                 module.OnAnotherModuleLoaded(_serviceProvider, sys, sys.GetType().Assembly);
             }
@@ -98,7 +81,7 @@ public class Bootstrap
     
     public void Loop(double dt)
     {
-        Time.Update(dt);
+        _time.Update(dt);
         _pipeline.Run();
         _isRunning.Value = _application.IsRunning;
     }
@@ -108,19 +91,9 @@ public class Bootstrap
         _pipeline.Destroy();
     }
 
-    private IEnumerable<IModule> Load(Assembly assembly)
+    private int GetPriority(IModule module)
     {
-        var types = assembly.GetTypes();
-        var where = types.Where(t => typeof(IModule).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-        var modules = where
-            .Select(t => (IModule)Activator.CreateInstance(t)!);
-        return modules;
-    }
-    
-    private void Sort(List<IModule> modules)
-    {
-        modules.Sort((a, b) =>
-            a.GetType().GetCustomAttributes(typeof(ModuleAttribute), true).OfType<ModuleAttribute>().First().Priority.CompareTo(
-            b.GetType().GetCustomAttributes(typeof(ModuleAttribute), true).OfType<ModuleAttribute>().First().Priority));
+        var attr = module.GetType().GetCustomAttribute<ModuleAttribute>();
+        return attr?.Priority ?? 0;
     }
 }

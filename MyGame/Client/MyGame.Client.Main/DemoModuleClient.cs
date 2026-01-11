@@ -51,6 +51,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
     [DI] private IRpc _rpc = null!;
     [DI] private Input _input = null!;
     [DI] private UIManager _uiManager = null!;
+    [DI] private Time _time = null!;
 
     public void Init()
     {
@@ -81,7 +82,7 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
 
         if (_input.IsPressed(KeyboardKeys.Escape))
         {
-            Time.IsPaused = !Time.IsPaused;
+            _time.IsPaused = !_time.IsPaused;
         }
     }
 
@@ -128,8 +129,8 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
 
     private void ShowStats()
     {
-        ImGui.Text($"Total time: {Time.TotalTime:F2}");
-        ImGui.Text($"Delta time: {Time.DeltaTime}");
+        ImGui.Text($"Total time: {_time.TotalTime:F2}");
+        ImGui.Text($"Delta time: {_time.DeltaTime}");
         ImGui.Text($"FPS: {_renderer.GetFPS().ToString()}");
         ImGui.Text($"Entities: {_world.Entities.Count}");
         ImGui.Text($"Event Entities: {_eventWorld.Entities.Count}");
