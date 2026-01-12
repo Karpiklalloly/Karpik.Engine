@@ -44,6 +44,11 @@ public class MainThreadScheduler
 
         return t.JobHandle;
     }
+
+    public void Schedule(Action action)
+    {
+        _actions.Enqueue(action);
+    }
     
     public JobHandle InvokeAsync(Action work)
     {

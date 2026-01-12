@@ -7,16 +7,12 @@ public class ECSInstaller : IModule
 {
     public string Name => "ECS.Core";
     
-    private EcsDefaultWorld _defaultWorld = new();
-    private EcsEventWorld _eventWorld = new();
-    private EcsMetaWorld _metaWorld = new();
-    
     public void OnRegisterServices(IServiceRegister services)
     {
         services
-            .Register(_defaultWorld)
-            .Register(_eventWorld)
-            .Register(_metaWorld);
+            .Register(new EcsDefaultWorld())
+            .Register(new EcsEventWorld())
+            .Register(new EcsMetaWorld());
     }
 
     public void OnConfigure(IServiceContainer services, out IEcsModule? module)

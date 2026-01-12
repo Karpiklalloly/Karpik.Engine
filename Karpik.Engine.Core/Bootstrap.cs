@@ -1,4 +1,7 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Core;
@@ -6,14 +9,13 @@ namespace Karpik.Engine.Core;
 public class Bootstrap
 {
     private ServiceProvider _serviceProvider = new();
-    private readonly List<IModule> _modules = new(64);
+    private readonly List<IModule> _modules = new();
     private Time _time = new();
     
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
     private Application _application = new();
     private EcsPipeline _pipeline = null!;
-    private EcsPipeline.Builder _builder = EcsPipeline.New();
     
     public void RegisterModule(IModule module)
     {
@@ -22,61 +24,101 @@ public class Bootstrap
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning)
     {
+        HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
+        
         _mainThreadScheduler = new MainThreadScheduler(mainTreadId);
         _isRunning = isRunning;
         Job.Initialize(new Jobs.JobSystem());
-        _builder.AddModule(new JobSystemModule());
-        _builder
-            .Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
-            .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
         
-        _serviceProvider.Register(_mainThreadScheduler);
-        _serviceProvider.Register(_application);
-        _serviceProvider.Register(_time);
+        // Initial build
+        RebuildAndSwapPipelineInternal();
+
+        return _mainThreadScheduler;
+    }
+
+    private void OnCodeUpdate(Type[]? obj)
+    {
+        _mainThreadScheduler.Schedule(RequestPipelineRebuild);
+    }
+
+    private void RequestPipelineRebuild()
+    {
+        RebuildAndSwapPipelineInternal();
+    }
+
+    private void RebuildAndSwapPipelineInternal()
+    {
+        Job.Wait();
+        Console.WriteLine("[Bootstrap] Rebuilding pipeline and service provider...");
+
+        // 1. Save old instances for later disposal
+        var oldPipeline = _pipeline;
+        oldPipeline?.Destroy(); // DANGER: This destroys the graphics context. Disabled for now.
         
+        // 2. Create new core components
+        var newServiceProvider = new ServiceProvider();
+        var newBuilder = EcsPipeline.New();
+        
+        // 3. Re-register all essential services
+        newServiceProvider.Register(_mainThreadScheduler);
+        newServiceProvider.Register(_application);
+        newServiceProvider.Register(_time);
+        
+        // 4. Re-process all modules
         _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
         
         foreach (var module in _modules)
         {
-            module.OnRegisterServices(_serviceProvider);
+            module.OnRegisterServices(newServiceProvider);
         }
+        
+        newBuilder.AddModule(new JobSystemModule());
+        newBuilder.Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
+                  .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
         
         foreach (var module in _modules)
         {
-            module.OnConfigure(_serviceProvider, out var ecsModule);
+            module.OnConfigure(newServiceProvider, out var ecsModule);
             if (ecsModule is not null)
             {
-                _builder.AddModule(ecsModule);
+                newBuilder.AddModule(ecsModule);
             }
         }
 
-        _builder.Inject(_serviceProvider);
-        _pipeline = _builder.Build(_serviceProvider);
-        _serviceProvider.Register(_pipeline);
-        _serviceProvider.InjectAll();
+        // 5. Build and inject the new pipeline
+        newBuilder.Inject(newServiceProvider);
+        var newPipeline = newBuilder.Build(newServiceProvider);
+        newServiceProvider.Register(newPipeline);
+        newServiceProvider.InjectAll();
         
-        foreach (var system in _pipeline.AllSystems)
+        foreach (var system in newPipeline.AllSystems)
         {
-            _serviceProvider.Inject(system);
+            newServiceProvider.Inject(system);
         }
         
-        foreach (var system in _pipeline.AllRunners)
+        foreach (var system in newPipeline.AllRunners)
         {
-            _serviceProvider.Inject(system.Value);
+            newServiceProvider.Inject(system.Value);
         }
         
+        // 6. Atomically swap to the new instances
+        _serviceProvider = newServiceProvider;
+        _pipeline = newPipeline;
+        
+        // 7. Initialize the new pipeline
         _pipeline.Init();
         
-        foreach (var sys in _modules)
+        // 8. Finalize configuration, notify listeners, and dispose of the old pipeline
+        foreach (var module in _modules)
         {
-            sys.OnConfigureComplete(_serviceProvider);
-            foreach (var module in _modules.OfType<IModuleListener>())
+            module.OnConfigureComplete(_serviceProvider);
+            foreach (var listener in _modules.OfType<IModuleListener>())
             {
-                module.OnAnotherModuleLoaded(_serviceProvider, sys, sys.GetType().Assembly);
+                listener.OnAnotherModuleLoaded(_serviceProvider, module, module.GetType().Assembly);
             }
         }
 
-        return _mainThreadScheduler;
+        Console.WriteLine("[Bootstrap] Pipeline rebuild complete.");
     }
     
     public void Loop(double dt)
@@ -88,7 +130,8 @@ public class Bootstrap
     
     public void Shutdown()
     {
-        _pipeline.Destroy();
+        HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
+        _pipeline?.Destroy();
     }
 
     private int GetPriority(IModule module)

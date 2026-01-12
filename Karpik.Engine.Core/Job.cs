@@ -20,4 +20,9 @@ public static class Job
     {
         return _jobSystem.Enqueue(action);
     }
+
+    internal static void Wait()
+    {
+        _jobSystem.WaitForCompletion();
+    }
 }
