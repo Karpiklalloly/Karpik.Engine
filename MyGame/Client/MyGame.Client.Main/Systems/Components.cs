@@ -15,7 +15,7 @@ namespace Karpik.Engine.MyGame.Client.Main.Systems;
 public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnLoad<SpriteRenderer>, IEcsComponentLifecycle<SpriteRenderer>
 {
     [JsonIgnore] public ITexture2D Texture => _handle.Asset.Texture;
-    public Color Color;
+    [JsonConverter(typeof(ColorConverter))] public Color Color;
     public int Layer;
     public string TexturePath;
     

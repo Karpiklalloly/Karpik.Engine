@@ -1,11 +1,12 @@
-﻿using Karpik.Engine.Shared.AssetManagement.Core;
+﻿using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;
 using Raylib_cs;
 
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
-public class RaylibTexture2DLoader : BaseAssetLoader<RaylibTexture2DAsset, Texture2D>
+public class RaylibTexture2DLoader : BaseAssetLoader<Texture2DAsset, Texture2D>
 {
     public override string? DefaultPath => AssetsManager.FileSystem.Combine(AssetsManager.ContentPath, "Sprites", "default.jpg");
     public override string[] SupportedExtensions { get; } = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".pic", ".pvr", ".webp"];
@@ -33,10 +34,10 @@ public class RaylibTexture2DLoader : BaseAssetLoader<RaylibTexture2DAsset, Textu
         return default;
     }
 
-    protected override RaylibTexture2DAsset EmptyAsset() => new RaylibTexture2DAsset()
+    protected override Texture2DAsset EmptyAsset() => new RaylibTexture2DAsset()
     {
         TextureRaylib = default
     };
 
-    protected override void SetValue(RaylibTexture2DAsset asset, Texture2D value) => asset.TextureRaylib = new RaylibTexture2D(value);
+    protected override void SetValue(Texture2DAsset asset, Texture2D value) => ((RaylibTexture2DAsset)asset).TextureRaylib = new RaylibTexture2D(value);
 }
