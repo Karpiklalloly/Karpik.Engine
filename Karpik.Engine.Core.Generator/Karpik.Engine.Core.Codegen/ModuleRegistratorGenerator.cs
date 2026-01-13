@@ -71,7 +71,7 @@ public class ModuleRegistratorGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Karpik.Engine.Core");
         sb.AppendLine("{");
-        sb.AppendLine("    public static class ModuleRegistry");
+        sb.AppendLine("    internal static class ModuleRegistry");
         sb.AppendLine("    {");
         sb.AppendLine("        public static void RegisterAll(Bootstrap bootstrap)");
         sb.AppendLine("        {");

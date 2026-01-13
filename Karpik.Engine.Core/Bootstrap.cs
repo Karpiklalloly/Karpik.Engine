@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
 using DCFApixels.DragonECS;
+using Karpik.Engine.Core.Hot;
+using Karpik.Engine.Core.ModuleManagement;
 
 namespace Karpik.Engine.Core;
 
@@ -11,39 +10,90 @@ public class Bootstrap
     private ServiceProvider _serviceProvider = new();
     private readonly List<IModule> _modules = new();
     private Time _time = new();
-    
+
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
     private Application _application = new();
     private EcsPipeline _pipeline = null!;
-    
+
     public void RegisterModule(IModule module)
     {
+        if (_modules.Any(m => m.GetType() == module.GetType()))
+        {
+            return;
+        }
+
         _modules.Add(module);
     }
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning)
     {
         HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
-        
+
         _mainThreadScheduler = new MainThreadScheduler(mainTreadId);
         _isRunning = isRunning;
         Job.Initialize(new Jobs.JobSystem());
-        
+
         // Initial build
         RebuildAndSwapPipelineInternal();
 
         return _mainThreadScheduler;
     }
 
-    private void OnCodeUpdate(Type[]? obj)
+    private void OnCodeUpdate()
     {
-        _mainThreadScheduler.Schedule(RequestPipelineRebuild);
+        _mainThreadScheduler.Schedule(HotReloadModulesAndRebuildPipeline);
     }
 
-    private void RequestPipelineRebuild()
+    private void HotReloadModulesAndRebuildPipeline()
     {
+        Console.WriteLine("[Bootstrap] Hot reload detected. Updating modules...");
+
+        var oldModules = new List<IModule>(_modules);
+        var newModuleInstances = new List<IModule>();
+
+        var allNewModuleTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
+                        t.GetCustomAttribute<ModuleAttribute>() != null)
+            .ToDictionary(t => t.FullName ?? t.Name);
+
+        foreach (var oldModule in oldModules)
+        {
+            var oldModuleType = oldModule.GetType();
+            if (allNewModuleTypes.TryGetValue(oldModuleType.FullName ?? oldModuleType.Name, out var newModuleType))
+            {
+                try
+                {
+                    var newModuleInstance = (IModule)Activator.CreateInstance(newModuleType)!;
+
+                    if (newModuleInstance is IModuleHotReload hotReloadableModule)
+                    {
+                        Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name}...");
+                        hotReloadableModule.OnHotReload(oldModule);
+                    }
+
+                    newModuleInstances.Add(newModuleInstance);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(
+                        $"[Bootstrap] Failed to reload module {oldModuleType.FullName}: {e.Message}. It will be skipped.");
+                }
+            }
+            else
+            {
+                Console.WriteLine(
+                    $"[Bootstrap] Could not find new version of module {oldModuleType.FullName}. It will be skipped.");
+            }
+        }
+
+        _modules.Clear();
+        _modules.AddRange(newModuleInstances);
+
         RebuildAndSwapPipelineInternal();
+
+        Console.WriteLine("[Bootstrap] Module update complete.");
     }
 
     private void RebuildAndSwapPipelineInternal()
@@ -51,31 +101,27 @@ public class Bootstrap
         Job.Wait();
         Console.WriteLine("[Bootstrap] Rebuilding pipeline and service provider...");
 
-        // 1. Save old instances for later disposal
         var oldPipeline = _pipeline;
-        oldPipeline?.Destroy(); // DANGER: This destroys the graphics context. Disabled for now.
-        
-        // 2. Create new core components
+        oldPipeline?.Destroy();
+
         var newServiceProvider = new ServiceProvider();
         var newBuilder = EcsPipeline.New();
-        
-        // 3. Re-register all essential services
+
         newServiceProvider.Register(_mainThreadScheduler);
         newServiceProvider.Register(_application);
         newServiceProvider.Register(_time);
-        
-        // 4. Re-process all modules
+
         _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
-        
+
         foreach (var module in _modules)
         {
             module.OnRegisterServices(newServiceProvider);
         }
-        
+
         newBuilder.AddModule(new JobSystemModule());
         newBuilder.Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
-                  .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
-        
+            .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
+
         foreach (var module in _modules)
         {
             module.OnConfigure(newServiceProvider, out var ecsModule);
@@ -85,30 +131,26 @@ public class Bootstrap
             }
         }
 
-        // 5. Build and inject the new pipeline
         newBuilder.Inject(newServiceProvider);
         var newPipeline = newBuilder.Build(newServiceProvider);
         newServiceProvider.Register(newPipeline);
         newServiceProvider.InjectAll();
-        
+
         foreach (var system in newPipeline.AllSystems)
         {
             newServiceProvider.Inject(system);
         }
-        
+
         foreach (var system in newPipeline.AllRunners)
         {
             newServiceProvider.Inject(system.Value);
         }
-        
-        // 6. Atomically swap to the new instances
+
         _serviceProvider = newServiceProvider;
         _pipeline = newPipeline;
-        
-        // 7. Initialize the new pipeline
+
         _pipeline.Init();
-        
-        // 8. Finalize configuration, notify listeners, and dispose of the old pipeline
+
         foreach (var module in _modules)
         {
             module.OnConfigureComplete(_serviceProvider);
@@ -120,14 +162,14 @@ public class Bootstrap
 
         Console.WriteLine("[Bootstrap] Pipeline rebuild complete.");
     }
-    
+
     public void Loop(double dt)
     {
         _time.Update(dt);
         _pipeline.Run();
         _isRunning.Value = _application.IsRunning;
     }
-    
+
     public void Shutdown()
     {
         HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;

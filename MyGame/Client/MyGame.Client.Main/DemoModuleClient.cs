@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using DCFApixels.DragonECS;
+using DebugModule;
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
@@ -121,8 +122,15 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
                 _world.DelEntity(entity);
             }
         }
+        
+#if DEBUG
+        if (ImGui.Button("Hot Reload"))
+        {
+            DebugThings.HotReload();
+        }
 
         ImGui.NextColumn();
+#endif
         ImGui.Columns(1);
     }
 

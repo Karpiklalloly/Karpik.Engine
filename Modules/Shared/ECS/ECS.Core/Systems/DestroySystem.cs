@@ -15,8 +15,8 @@ internal class DestroySystem : IEcsInit, IEcsDestroy
     
     public void Destroy()
     {
-        _defaultWorld.Destroy();
-        _eventWorld.Destroy();
-        _metaWorld.Destroy();
+        // Миры больше не уничтожаются здесь.
+        // Их жизненный цикл теперь управляется Bootstrap и ECSInstaller
+        // для поддержки горячей перезагрузки.
     }
 }

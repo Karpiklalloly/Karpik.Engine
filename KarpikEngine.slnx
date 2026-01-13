@@ -20,6 +20,7 @@
     <Project Path="Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/">
+    <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
     <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
   </Folder>
