@@ -11,7 +11,7 @@ public static class ModuleLoader
 {
 #if DEBUG
     public static readonly List<Assembly> LoadedAssemblies = new List<Assembly>();
-    private static AssemblyLoadContext? _pluginContext; // Контекст теперь один
+    private static AssemblyLoadContext? _pluginContext;
 
     public static readonly string[] SharedAssemblies = {
         "AssetManagement.Core",
@@ -48,35 +48,25 @@ public static class ModuleLoader
     private static void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var distinctNames = assemblyNames.Distinct().ToList();
-        
-        var assemblyPaths = distinctNames
+        var assemblyPaths = assemblyNames.Distinct()
             .Select(name => Path.Combine(baseDirectory, name + ".dll"))
             .Where(File.Exists)
             .ToList();
 
         if (!assemblyPaths.Any()) return;
 
-        // Создаем один контекст для ВСЕХ плагинов, передавая ему все пути
         var loadContext = new PluginLoadContext(assemblyPaths);
-        _pluginContext = loadContext; // Сохраняем ссылку на контекст
+        _pluginContext = loadContext;
 
-        Console.WriteLine("[ModuleLoader] Loading all modules into a single Plugin context...");
         foreach (var path in assemblyPaths)
         {
-            try
-            {
-                var assembly = loadContext.LoadFromAssemblyPath(path);
-                LoadedAssemblies.Add(assembly);
-                Console.WriteLine($"[ModuleLoader] Loaded: {Path.GetFileNameWithoutExtension(path)}");
-            }
-            catch (Exception e) { Console.WriteLine($"[ModuleLoader] Failed to load {Path.GetFileName(path)}: {e.Message}"); }
+            var assembly = loadContext.LoadFromAssemblyPath(path);
+            LoadedAssemblies.Add(assembly);
         }
     }
 #endif
 
 #if !DEBUG
-    // ... RELEASE-код без изменений
     public static void RegisterClientModules(Karpik.Engine.Core.Bootstrap bootstrap)
     {
         bootstrap.RegisterModule(new Karpik.Engine.Shared.AssetManagement.Core.AssetManagementInstaller());

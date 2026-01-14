@@ -32,25 +32,21 @@ public class PluginLoadContext : AssemblyLoadContext
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
-        // 1. Поиск через .deps.json (самый надежный способ)
         foreach (var resolver in _resolvers)
         {
             string? libraryPath = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
             if (libraryPath != null)
             {
-                // Используем встроенный механизм базового класса, но с полным путем.
                 return base.LoadUnmanagedDll(libraryPath);
             }
         }
         
-        // 2. Фоллбэк на поиск рядом с exe
         var exeDirLibraryPath = Path.Combine(AppContext.BaseDirectory, unmanagedDllName + ".dll");
         if (File.Exists(exeDirLibraryPath))
         {
             return base.LoadUnmanagedDll(exeDirLibraryPath);
         }
 
-        // 3. Стандартное поведение
         return base.LoadUnmanagedDll(unmanagedDllName);
     }
 }

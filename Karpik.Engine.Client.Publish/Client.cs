@@ -32,10 +32,8 @@ public class Client
     private void DiscoverAndRegisterModules(Bootstrap bootstrap)
     {
 #if DEBUG
-        Console.WriteLine("[Launcher] DEBUG mode: Loading client modules from manifest...");
         ModuleLoader.LoadClientModules();
 
-        // ИСПРАВЛЕНИЕ 2: Искать сборки в новом списке ModuleLoader.LoadedAssemblies
         var assembliesToScan = ModuleLoader.LoadedAssemblies;
         
         var moduleTypes = assembliesToScan
@@ -45,19 +43,10 @@ public class Client
 
         foreach (var type in moduleTypes)
         {
-            try
-            {
-                var moduleInstance = (IModule)Activator.CreateInstance(type)!;
-                bootstrap.RegisterModule(moduleInstance);
-                Console.WriteLine($"[Launcher] Registered module: {type.Name}");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"[Launcher] Failed to create instance of module {type.FullName}: {e.Message}");
-            }
+            var moduleInstance = (IModule)Activator.CreateInstance(type)!;
+            bootstrap.RegisterModule(moduleInstance);
         }
 #else
-        Console.WriteLine("[Launcher] RELEASE mode: Registering client modules statically...");
         ModuleLoader.RegisterClientModules(bootstrap);
 #endif
     }
