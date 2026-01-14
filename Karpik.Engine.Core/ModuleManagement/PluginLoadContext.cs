@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
-using System.IO;
 
 namespace Karpik.Engine.Core.ModuleManagement;
 
 public class PluginLoadContext : AssemblyLoadContext
 {
+    private readonly string _shadowCopyDirectory;
     private readonly List<AssemblyDependencyResolver> _resolvers;
 
-    public PluginLoadContext(IEnumerable<string> pluginPaths) : base(isCollectible: true)
+    public PluginLoadContext(IEnumerable<string> pluginPaths, string shadowCopyDirectory) : base(isCollectible: true)
     {
+        _shadowCopyDirectory = shadowCopyDirectory;
         _resolvers = pluginPaths.Select(p => new AssemblyDependencyResolver(p)).ToList();
         this.Resolving += OnResolving;
     }
@@ -21,10 +23,21 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         foreach (var resolver in _resolvers)
         {
-            string? assemblyPath = resolver.ResolveAssemblyToPath(name);
-            if (assemblyPath != null)
+            // 1. Находим путь к зависимости в ИСХОДНОЙ папке
+            string? originalPath = resolver.ResolveAssemblyToPath(name);
+            if (originalPath != null)
             {
-                return this.LoadFromAssemblyPath(assemblyPath);
+                // 2. Создаем путь для этой зависимости в НАШЕЙ теневой папке
+                var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(originalPath));
+
+                // 3. Если ее там еще нет, копируем ее
+                if (!File.Exists(shadowPath))
+                {
+                    File.Copy(originalPath, shadowPath);
+                }
+
+                // 4. Загружаем из теневой папки
+                return this.LoadFromAssemblyPath(shadowPath);
             }
         }
         return null;
@@ -34,10 +47,15 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         foreach (var resolver in _resolvers)
         {
-            string? libraryPath = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            if (libraryPath != null)
+            string? originalPath = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+            if (originalPath != null)
             {
-                return base.LoadUnmanagedDll(libraryPath);
+                var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(originalPath));
+                if (!File.Exists(shadowPath))
+                {
+                    File.Copy(originalPath, shadowPath);
+                }
+                return base.LoadUnmanagedDll(shadowPath);
             }
         }
         

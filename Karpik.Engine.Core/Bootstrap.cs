@@ -1,4 +1,7 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Core.ModuleManagement;
@@ -7,6 +10,9 @@ namespace Karpik.Engine.Core;
 
 public class Bootstrap
 {
+    public Action? ReloadModulesAction { get; set; }
+    public Func<IEnumerable<Assembly>>? GetAssembliesToScan { get; set; }
+
     private ServiceProvider _serviceProvider = new();
     private readonly List<IModule> _modules = new();
     private Time _time = new();
@@ -28,9 +34,7 @@ public class Bootstrap
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning)
     {
-#if DEBUG
         HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
-#endif
 
         _mainThreadScheduler = new MainThreadScheduler(mainTreadId);
         _isRunning = isRunning;
@@ -41,7 +45,6 @@ public class Bootstrap
         return _mainThreadScheduler;
     }
 
-#if DEBUG
     private void OnCodeUpdate()
     {
         _mainThreadScheduler.Schedule(HotReloadModulesAndRebuildPipeline);
@@ -51,10 +54,18 @@ public class Bootstrap
     {
         Console.WriteLine("[Bootstrap] Hot reload detected. Updating modules...");
 
+#if DEBUG
+        Console.WriteLine("[Bootstrap-DEBUG] Performing full assembly reload...");
+        ReloadModulesAction?.Invoke();
+#endif
+
         var oldModules = new List<IModule>(_modules);
         var newModuleInstances = new List<IModule>();
+        
+        // ИСПРАВЛЕНИЕ: Используем делегат для получения сборок, а не прямой вызов
+        var assembliesToScan = GetAssembliesToScan?.Invoke() ?? AppDomain.CurrentDomain.GetAssemblies();
 
-        var allNewModuleTypes = AppDomain.CurrentDomain.GetAssemblies()
+        var allNewModuleTypes = assembliesToScan
             .SelectMany(assembly => assembly.GetTypes())
             .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
                         t.GetCustomAttribute<ModuleAttribute>() != null)
@@ -97,7 +108,6 @@ public class Bootstrap
 
         Console.WriteLine("[Bootstrap] Module update complete.");
     }
-#endif
 
     private void RebuildAndSwapPipelineInternal()
     {
@@ -175,9 +185,7 @@ public class Bootstrap
 
     public void Shutdown()
     {
-#if DEBUG
         HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
-#endif
         _pipeline?.Destroy();
     }
 

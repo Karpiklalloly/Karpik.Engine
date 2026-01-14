@@ -1,51 +1,77 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Reflection.Metadata;
+using System.IO;
+using System.Threading;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
-[assembly: MetadataUpdateHandler(typeof(Karpik.Engine.Core.Hot.HotReloadHandler))]
+#if !DEBUG
+[assembly: System.Reflection.Metadata.MetadataUpdateHandler(typeof(Karpik.Engine.Core.Hot.HotReloadHandler))]
+#endif
+
+// РЕШЕНИЕ: Делаем внутренние классы Core видимыми для Client.Publish
+[assembly: InternalsVisibleTo("Karpik.Engine.Client.Publish")]
 [assembly: InternalsVisibleTo("DebugModule")]
+
 namespace Karpik.Engine.Core.Hot;
 
-/// <summary>
-/// Handles .NET Hot Reload updates. This class is discovered by the runtime via the assembly attribute.
-/// Its existence is ensured by a hard reference in the application's entry point (Program.Main).
-/// </summary>
 internal static class HotReloadHandler
 {
-    /// <summary>
-    /// This event is fired when the application code is updated.
-    /// The Bootstrap instance subscribes to this to trigger a pipeline rebuild.
-    /// </summary>
     public static event Action? OnUpdateApplication;
-    
-    // This method is called by the runtime when a rude edit is applied.
-    public static void UpdateApplication(Type[]? updatedTypes)
-    {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine();
-        Console.WriteLine(">>> [HOT RELOAD SUCCESS] UpdateApplication triggered in Core! <<<");
-        Console.WriteLine();
-        Console.ResetColor();
 
-        TriggerUpdate();
+#if DEBUG
+    // --- DEBUG: Система с FileSystemWatcher для полной перезагрузки ---
+    private static FileSystemWatcher? _watcher;
+    private static Timer? _debounceTimer;
+    private static readonly object _lock = new object();
+
+    public static void Initialize()
+    {
+        var path = AppContext.BaseDirectory;
+        _watcher = new FileSystemWatcher(path)
+        {
+            NotifyFilter = NotifyFilters.LastWrite,
+            Filter = "*.dll",
+            EnableRaisingEvents = true,
+            IncludeSubdirectories = false
+        };
+
+        _watcher.Changed += OnDllChanged;
+        Console.WriteLine($"[HotReloadHandler-DEBUG] Watching for DLL changes in: {path}");
     }
 
-    public static void TriggerUpdateManually()
+    private static void OnDllChanged(object sender, FileSystemEventArgs e)
     {
-        if (!IsDebuggerFromRider())
+        lock (_lock)
         {
-            TriggerUpdate();
+            _debounceTimer?.Dispose();
+            _debounceTimer = new Timer(_ =>
+            {
+                Console.WriteLine($"[HotReloadHandler-DEBUG] Detected change in {e.Name}. Triggering full reload...");
+                OnUpdateApplication?.Invoke();
+            }, null, 500, Timeout.Infinite);
         }
     }
 
-    private static void TriggerUpdate()
+    public static void Shutdown()
     {
+        _watcher?.Dispose();
+        _debounceTimer?.Dispose();
+    }
+
+    /// <summary>
+    /// Позволяет запустить перезагрузку вручную из дебаг-модуля.
+    /// </summary>
+    public static void TriggerUpdateManually()
+    {
+        Console.WriteLine("[HotReloadHandler-DEBUG] Manual update triggered.");
         OnUpdateApplication?.Invoke();
     }
-    
-    private static bool IsDebuggerFromRider()
+#else
+    // --- RELEASE: Система со встроенным .NET Hot Reload ---
+    public static void UpdateApplication(Type[]? updatedTypes)
     {
-        return false;
+        Console.WriteLine("[HotReloadHandler-RELEASE] Metadata update detected. Triggering light reload...");
+        OnUpdateApplication?.Invoke();
     }
+#endif
 }

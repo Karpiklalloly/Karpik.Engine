@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using Karpik.Engine.Core;
+using Karpik.Engine.Core.Hot;
 
 namespace Karpik.Engine.Client.Publish;
 
@@ -11,6 +13,19 @@ public class Client
     public void Start(Ref<bool> isRunning)
     {
         Bootstrap b = new();
+        
+#if DEBUG
+        HotReloadHandler.Initialize();
+        
+        b.ReloadModulesAction = () =>
+        {
+            ModuleLoader.LoadedAssemblies.Clear();
+            ModuleLoader.LoadClientModules();
+        };
+        
+        // Передаем в Bootstrap, ОТКУДА брать сборки для сканирования
+        b.GetAssembliesToScan = () => ModuleLoader.LoadedAssemblies;
+#endif
         
         DiscoverAndRegisterModules(b);
         
@@ -27,6 +42,10 @@ public class Client
             b.Loop(deltaTime);
         }
         b.Shutdown();
+        
+#if DEBUG
+        HotReloadHandler.Shutdown();
+#endif
     }
 
     private void DiscoverAndRegisterModules(Bootstrap bootstrap)
