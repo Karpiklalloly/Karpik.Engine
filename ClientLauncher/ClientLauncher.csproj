@@ -7,8 +7,9 @@
         <Nullable>enable</Nullable>
         <IsCompositionRoot>true</IsCompositionRoot>
         <IsClient>true</IsClient>
+        
     </PropertyGroup>
-    
+
     <ItemGroup>
       <ProjectReference Include="..\Karpik.Engine.Client.Publish\Karpik.Engine.Client.Publish.csproj" />
       <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />

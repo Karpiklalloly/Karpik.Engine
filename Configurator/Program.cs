@@ -1,4 +1,5 @@
-﻿using System.Xml.Linq;
+﻿using System.Text;
+using System.Xml.Linq;
 
 namespace ProjectConfigurator;
 
@@ -66,7 +67,7 @@ class Program
             }
             else if (key == ConsoleKey.S) {
                 SaveConfig(propsPath, modules);
-                GenerateTargetsFile(rootPath, modules, slnxPath); // ГЕНЕРАЦИЯ
+                GenerateFiles(rootPath, modules, slnxPath);
                 Console.WriteLine("\nSaved!");
                 Thread.Sleep(500);
             }
@@ -75,7 +76,6 @@ class Program
         // --- UI LOOP END ---
     }
 
-    // 1. SCANNER
     static List<ModuleInfo> ScanSlnx(string slnxPath)
     {
         var doc = XDocument.Load(slnxPath);
@@ -85,21 +85,34 @@ class Program
         foreach (var rawPath in projects)
         {
             string path = rawPath!.Replace('\\', '/');
-            // Сканируем только Modules для UI. MyGame добавим автоматически при генерации.
             if (!path.StartsWith("Modules/", StringComparison.OrdinalIgnoreCase)) continue;
 
             var fileName = Path.GetFileNameWithoutExtension(path);
             var parts = fileName.Split('.');
-            if (parts.Length < 2) continue;
+            
+            if (parts.Length < 2)
+            {
+                string name = fileName;
+                if (!dict.ContainsKey(name))
+                {
+                    dict[name] = new ModuleInfo { Name = name, CorePath = rawPath };
+                }
+                continue;
+            }
 
             string impl = parts.Last();
-            string name = string.Join(".", parts.Take(parts.Length - 1));
+            string moduleName = string.Join(".", parts.Take(parts.Length - 1));
 
-            if (!dict.ContainsKey(name)) dict[name] = new ModuleInfo { Name = name };
-            if (impl.Equals("Core", StringComparison.OrdinalIgnoreCase)) dict[name].CorePath = rawPath;
-            else {
-                dict[name].Implementations.Add(impl);
-                dict[name].ImplementationPaths[impl] = rawPath;
+            if (!dict.ContainsKey(moduleName)) dict[moduleName] = new ModuleInfo { Name = moduleName };
+            
+            if (impl.Equals("Core", StringComparison.OrdinalIgnoreCase))
+            {
+                dict[moduleName].CorePath = rawPath;
+            }
+            else
+            {
+                dict[moduleName].Implementations.Add(impl);
+                dict[moduleName].ImplementationPaths[impl] = rawPath;
             }
         }
         
@@ -110,43 +123,187 @@ class Program
         return dict.Values.OrderBy(m => m.Name).ToList();
     }
 
-    // 2. GENERATOR (ГЛАВНАЯ ЧАСТЬ)
+    static void GenerateFiles(string rootPath, List<ModuleInfo> modules, string slnxPath)
+    {
+        var enabledModules = modules.Where(m => m.IsEnabled).ToList();
+        
+        GenerateCodeFiles(rootPath, enabledModules, slnxPath);
+        GenerateTargetsFile(rootPath, enabledModules, slnxPath);
+    }
+
     static void GenerateTargetsFile(string rootPath, List<ModuleInfo> modules, string slnxPath)
     {
         XNamespace ns = "http://schemas.microsoft.com/developer/msbuild/2003";
         var doc = new XDocument(new XElement(ns + "Project"));
         var root = doc.Root;
-        var itemGroup = new XElement(ns + "ItemGroup");
+        
+        var projectRefGroup = new XElement(ns + "ItemGroup");
+        root!.Add(projectRefGroup);
 
-        // 1. Модули из UI
         foreach (var m in modules)
         {
-            if (!m.IsEnabled) continue;
-
-            // Core -> ProjectReference
             if (m.CorePath != null) {
-                itemGroup.Add(CreateRef(ns, "ProjectReference", m.CorePath));
+                projectRefGroup.Add(CreateRef(ns, "ProjectReference", m.CorePath));
             }
-
-            // Impl -> PluginReference (!!!)
             if (!string.IsNullOrEmpty(m.SelectedImplementation) && 
                 m.ImplementationPaths.TryGetValue(m.SelectedImplementation, out var path)) {
-                itemGroup.Add(CreateRef(ns, "PluginReference", path));
+                projectRefGroup.Add(CreateRef(ns, "PluginReference", path));
             }
         }
 
-        // 2. MyGame -> ProjectReference
         var slnxDoc = XDocument.Load(slnxPath);
         var myGameProjs = slnxDoc.Descendants("Project")
             .Select(p => p.Attribute("Path")?.Value)
             .Where(p => !string.IsNullOrEmpty(p) && p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
 
         foreach (var path in myGameProjs) {
-            itemGroup.Add(CreateRef(ns, "ProjectReference", path!));
+            projectRefGroup.Add(CreateRef(ns, "ProjectReference", path!));
+        }
+        
+        var compileGroup = new XElement(ns + "ItemGroup");
+        var compileElement = new XElement(ns + "Compile", new XAttribute("Include", "$(MSBuildThisFileDirectory)Generated/ModuleLoader.cs"));
+        compileGroup.Add(compileElement);
+        root.Add(compileGroup);
+
+        doc.Save(Path.Combine(rootPath, "AutoGenerated.targets"));
+    }
+    
+    static void GenerateCodeFiles(string rootPath, List<ModuleInfo> modules, string slnxPath)
+    {
+        var sharedModules = new List<string>();
+        var clientModules = new List<string>();
+        var serverModules = new List<string>();
+
+        // 1. Add enabled engine modules
+        foreach (var m in modules)
+        {
+            var modulePaths = new List<string>();
+            if (m.CorePath != null) modulePaths.Add(m.CorePath);
+            if (!string.IsNullOrEmpty(m.SelectedImplementation) &&
+                m.ImplementationPaths.TryGetValue(m.SelectedImplementation, out var path))
+            {
+                modulePaths.Add(path);
+            }
+
+            foreach (var projPath in modulePaths)
+            {
+                if (projPath.Contains("/Client/")) clientModules.Add(projPath);
+                else if (projPath.Contains("/Server/")) serverModules.Add(projPath);
+                else sharedModules.Add(projPath);
+            }
+        }
+        
+        // 2. Add MyGame modules
+        var slnxDoc = XDocument.Load(slnxPath);
+        var myGameProjs = slnxDoc.Descendants("Project")
+            .Select(p => p.Attribute("Path")?.Value)
+            .Where(p => !string.IsNullOrEmpty(p) && p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
+            
+        foreach (var projPath in myGameProjs)
+        {
+            if (projPath.Contains("/Client/")) clientModules.Add(projPath);
+            else if (projPath.Contains("/Server/")) serverModules.Add(projPath);
+            else sharedModules.Add(projPath);
         }
 
-        root!.Add(itemGroup);
-        doc.Save(Path.Combine(rootPath, "AutoGenerated.targets"));
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.IO;");
+        sb.AppendLine("using System.Reflection;");
+        sb.AppendLine();
+        sb.AppendLine("public static class ModuleLoader");
+        sb.AppendLine("{");
+
+        // --- DEBUG part ---
+        sb.AppendLine("#if DEBUG");
+        GenerateDebugAssemblies(sb, "Shared", sharedModules);
+        GenerateDebugAssemblies(sb, "ClientOnly", clientModules);
+        GenerateDebugAssemblies(sb, "ServerOnly", serverModules);
+        
+        sb.AppendLine("    public static void LoadClientModules() => LoadModules(SharedAssemblies, ClientOnlyAssemblies);");
+        sb.AppendLine("    public static void LoadServerModules() => LoadModules(SharedAssemblies, ServerOnlyAssemblies);");
+        sb.AppendLine();
+        sb.AppendLine("    private static void LoadModules(params string[][] assemblyCollections)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;");
+        sb.AppendLine("        foreach (var collection in assemblyCollections) {");
+        sb.AppendLine("            foreach (var name in collection) {");
+        sb.AppendLine("                try {");
+        sb.AppendLine("                    var path = Path.Combine(baseDirectory, name + \".dll\");");
+        sb.AppendLine("                    if (File.Exists(path)) Assembly.LoadFrom(path);");
+        sb.AppendLine("                } catch (Exception e) {");
+        sb.AppendLine("                    Console.WriteLine($\"[ModuleLoader] Failed to load {name}: {e.Message}\");");
+        sb.AppendLine("                }");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine("#endif");
+        
+        // --- RELEASE part ---
+        sb.AppendLine();
+        sb.AppendLine("#if !DEBUG");
+        sb.AppendLine("    public static void RegisterClientModules(Karpik.Engine.Core.Bootstrap bootstrap)");
+        sb.AppendLine("    {");
+        sharedModules.Concat(clientModules).ToList().ForEach(p => GenerateRegistration(sb, rootPath, p));
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public static void RegisterServerModules(Karpik.Engine.Core.Bootstrap bootstrap)");
+        sb.AppendLine("    {");
+        sharedModules.Concat(serverModules).ToList().ForEach(p => GenerateRegistration(sb, rootPath, p));
+        sb.AppendLine("    }");
+        sb.AppendLine("#endif");
+
+        sb.AppendLine("}");
+
+        var generatedDir = Path.Combine(rootPath, "Generated");
+        Directory.CreateDirectory(generatedDir);
+        File.WriteAllText(Path.Combine(generatedDir, "ModuleLoader.cs"), sb.ToString());
+    }
+
+    static void GenerateDebugAssemblies(StringBuilder sb, string name, List<string> modules)
+    {
+        sb.AppendLine($"    public static readonly string[] {name}Assemblies = {{");
+        foreach (var projPath in modules.Distinct())
+        {
+            sb.AppendLine($"        \"{Path.GetFileNameWithoutExtension(projPath)}\",");
+        }
+        sb.AppendLine("    };");
+    }
+
+    static void GenerateRegistration(StringBuilder sb, string rootPath, string projPath)
+    {
+        var (namespaceName, className) = GetInstallerInfo(rootPath, projPath);
+        if (namespaceName != null && className != null)
+        {
+            sb.AppendLine($"        bootstrap.RegisterModule(new {namespaceName}.{className}());");
+        }
+    }
+
+    static (string? Namespace, string? ClassName) GetInstallerInfo(string rootPath, string projPath)
+    {
+        try
+        {
+            var fullProjPath = Path.GetFullPath(Path.Combine(rootPath, projPath));
+            var projDir = Path.GetDirectoryName(fullProjPath)!;
+            var doc = XDocument.Load(fullProjPath);
+            var rootNs = doc.Descendants("RootNamespace").FirstOrDefault()?.Value ?? 
+                         Path.GetFileNameWithoutExtension(fullProjPath);
+
+            var installerFile = Directory.GetFiles(projDir, "*Installer.cs", SearchOption.AllDirectories)
+                .FirstOrDefault();
+            if (installerFile == null) return (null, null);
+
+            var content = File.ReadAllText(installerFile);
+            var classNameMatch = System.Text.RegularExpressions.Regex.Match(content, @"class\s+([^\s]+Installer)");
+            if (!classNameMatch.Success) return (null, null);
+            
+            var namespaceMatch = System.Text.RegularExpressions.Regex.Match(content, @"namespace\s+([^\s;]+)");
+            var finalNs = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : rootNs;
+
+            return (finalNs, classNameMatch.Groups[1].Value);
+        }
+        catch { return (null, null); }
     }
 
     static XElement CreateRef(XNamespace ns, string type, string path)
@@ -161,9 +318,8 @@ class Program
         return el;
     }
     
-    // --- Boilerplate (Load/Save/FindRoot) ---
-    static void LoadConfig(string path, List<ModuleInfo> modules) { /* ваш старый код */ }
-    static void SaveConfig(string path, List<ModuleInfo> modules) { /* ваш старый код */ }
+    static void LoadConfig(string path, List<ModuleInfo> modules) { /* ... */ }
+    static void SaveConfig(string path, List<ModuleInfo> modules) { /* ... */ }
     static string? FindSolutionRoot(string start) {
         var d = new DirectoryInfo(start);
         while(d!=null) { if(d.GetFiles("*.slnx").Any()) return d.FullName; d = d.Parent; }

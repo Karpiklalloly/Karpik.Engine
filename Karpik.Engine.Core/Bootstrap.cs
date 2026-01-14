@@ -28,18 +28,20 @@ public class Bootstrap
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning)
     {
+#if DEBUG
         HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
+#endif
 
         _mainThreadScheduler = new MainThreadScheduler(mainTreadId);
         _isRunning = isRunning;
         Job.Initialize(new Jobs.JobSystem());
 
-        // Initial build
         RebuildAndSwapPipelineInternal();
 
         return _mainThreadScheduler;
     }
 
+#if DEBUG
     private void OnCodeUpdate()
     {
         _mainThreadScheduler.Schedule(HotReloadModulesAndRebuildPipeline);
@@ -95,6 +97,7 @@ public class Bootstrap
 
         Console.WriteLine("[Bootstrap] Module update complete.");
     }
+#endif
 
     private void RebuildAndSwapPipelineInternal()
     {
@@ -172,7 +175,9 @@ public class Bootstrap
 
     public void Shutdown()
     {
+#if DEBUG
         HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
+#endif
         _pipeline?.Destroy();
     }
 
