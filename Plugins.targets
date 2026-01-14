@@ -1,23 +1,54 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
     <!-- 
-        ФИНАЛЬНОЕ РЕШЕНИЕ:
-        Этот файл отвечает за обработку динамически загружаемых плагинов (@(PluginReference)).
-        Мы используем стандартный механизм ProjectReference, чтобы MSBuild сам разрешил
-        и скопировал все зависимости (включая нативные DLL нужной архитектуры).
-        <ReferenceOutputAssembly>false</ReferenceOutputAssembly> предотвращает статическую линковку.
+        ФИНАЛЬНОЕ РЕШЕНИЕ: Умное управление активами.
+        Предотвращаем статическую линковку, но позволяем MSBuild
+        копировать все необходимые файлы, включая саму DLL плагина,
+        используя PublishItemsOutputGroup.
     -->
+
+    <!-- Шаг 1: Во время компиляции, этот блок предотвращает статическую линковку. -->
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">
         <ProjectReference Include="@(PluginReference)">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-            <CopyLocal>true</CopyLocal>
+            <Private>false</Private>
+            <!-- 
+                Убираем ExcludeAssets="all", так как это предотвращает копирование
+                самой DLL плагина и ее runtime-зависимостей.
+                Мы хотим, чтобы runtime-активы были скопированы, но не линковались.
+            -->
         </ProjectReference>
     </ItemGroup>
 
-    <!-- 
-        Для RELEASE-сборок мы по-прежнему хотим статическую линковку,
-        поэтому мы просто ссылаемся на проекты без каких-либо метаданных.
-    -->
+    <!-- Шаг 2: После основной сборки, запускаем этот таргет для копирования файлов. -->
+    <Target Name="CopyPluginWithDependencies" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+
+        <!-- 
+            Для каждого плагина просим MSBuild вычислить полный список файлов,
+            которые должны быть скопированы в выходную папку для публикации.
+            Это включает саму DLL плагина, его зависимости и нативные DLL.
+        -->
+        <MSBuild
+            Projects="@(PluginReference)"
+            Targets="PublishItemsOutputGroup"
+            Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)">
+            <Output TaskParameter="TargetOutputs" ItemName="_PluginPublishFiles" />
+        </MSBuild>
+
+        <!-- 
+            Копируем все полученные файлы в выходную директорию основного приложения, 
+            сохраняя их относительную структуру папок.
+        -->
+        <Copy
+            SourceFiles="@(_PluginPublishFiles)"
+            DestinationFiles="@(_PluginPublishFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
+            SkipUnchangedFiles="true"
+            OverwriteReadOnlyFiles="true"
+            UseHardlinksIfPossible="true"
+        />
+    </Target>
+
+    <!-- Для RELEASE-сборок мы по-прежнему хотим статическую линковку. -->
     <ItemGroup Condition="'$(Configuration)' != 'Debug'">
         <ProjectReference Include="@(PluginReference)" />
     </ItemGroup>
