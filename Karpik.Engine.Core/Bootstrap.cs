@@ -55,6 +55,13 @@ public class Bootstrap
         Console.WriteLine("[Bootstrap] Hot reload detected. Updating modules...");
 
 #if DEBUG
+        Job.Wait();
+        Console.WriteLine("[Bootstrap-DEBUG] All jobs are complete.");
+
+        _pipeline?.Destroy();
+        _pipeline = null!;
+        Console.WriteLine("[Bootstrap-DEBUG] Old pipeline destroyed.");
+        
         Console.WriteLine("[Bootstrap-DEBUG] Performing full assembly reload...");
         ReloadModulesAction?.Invoke();
 #endif
@@ -62,7 +69,6 @@ public class Bootstrap
         var oldModules = new List<IModule>(_modules);
         var newModuleInstances = new List<IModule>();
         
-        // ИСПРАВЛЕНИЕ: Используем делегат для получения сборок, а не прямой вызов
         var assembliesToScan = GetAssembliesToScan?.Invoke() ?? AppDomain.CurrentDomain.GetAssemblies();
 
         var allNewModuleTypes = assembliesToScan
@@ -106,16 +112,18 @@ public class Bootstrap
 
         RebuildAndSwapPipelineInternal();
 
+#if DEBUG
+        ModuleLoader.CheckForPreviousContextUnload();
+#endif
+
         Console.WriteLine("[Bootstrap] Module update complete.");
     }
 
     private void RebuildAndSwapPipelineInternal()
     {
-        Job.Wait();
         Console.WriteLine("[Bootstrap] Rebuilding pipeline and service provider...");
 
-        var oldPipeline = _pipeline;
-        oldPipeline?.Destroy();
+        _pipeline?.Destroy();
 
         var newServiceProvider = new ServiceProvider();
         var newBuilder = EcsPipeline.New();

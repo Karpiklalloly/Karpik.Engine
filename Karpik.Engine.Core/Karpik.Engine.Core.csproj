@@ -11,4 +11,8 @@
       <ProjectReference Include="..\Karpik.Jobs\Karpik.Jobs.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Include="$(MSBuildThisFileDirectory)../Generated/ModuleLoader.cs" />
+    </ItemGroup>
+    
 </Project>

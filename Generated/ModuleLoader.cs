@@ -11,7 +11,9 @@ public static class ModuleLoader
 {
 #if DEBUG
     public static readonly List<Assembly> LoadedAssemblies = new List<Assembly>();
-    private static AssemblyLoadContext? _pluginContext;
+    private static WeakReference? _previousContextRef;
+    private static AssemblyLoadContext? _currentContext;
+    private static string? _directoryToCleanup;
 
     public static readonly string[] SharedAssemblies = {
         "AssetManagement.Core",
@@ -47,27 +49,30 @@ public static class ModuleLoader
 
     private static void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
-        var baseDirectory = AppContext.BaseDirectory;
+        if (_currentContext != null)
+        {
+            _previousContextRef = new WeakReference(_currentContext, trackResurrection: true);
+            _currentContext.Unload();
+            _currentContext = null;
+            Console.WriteLine("[ModuleLoader] Unloading previous AssemblyLoadContext initiated.");
+        }
         
+        var baseDirectory = AppContext.BaseDirectory;
         var shadowCopyDirectory = Path.Combine(baseDirectory, "shadow_copies", Guid.NewGuid().ToString());
         Directory.CreateDirectory(shadowCopyDirectory);
 
         var originalAssemblyPaths = new List<string>();
         var shadowAssemblyPaths = new List<string>();
 
-        // 1. Собираем оригинальные пути и создаем теневые копии ТОЛЬКО для основных DLL
         foreach (var name in assemblyNames.Distinct())
         {
             var sourcePath = Path.Combine(baseDirectory, name + ".dll");
             if (File.Exists(sourcePath))
             {
-                originalAssemblyPaths.Add(sourcePath); // Путь к DLL в bin/Debug
-
+                originalAssemblyPaths.Add(sourcePath);
                 var destPath = Path.Combine(shadowCopyDirectory, Path.GetFileName(sourcePath));
                 File.Copy(sourcePath, destPath);
-                shadowAssemblyPaths.Add(destPath); // Путь к копии DLL в shadow_copies/
-
-                // Копируем PDB для отладки
+                shadowAssemblyPaths.Add(destPath);
                 var pdbPath = Path.ChangeExtension(sourcePath, ".pdb");
                 if (File.Exists(pdbPath))
                 {
@@ -78,17 +83,57 @@ public static class ModuleLoader
 
         if (!originalAssemblyPaths.Any()) return;
 
-        // 2. Создаем контекст, передавая ему ОРИГИНАЛЬНЫЕ пути для разрешения зависимостей
-        var loadContext = new PluginLoadContext(originalAssemblyPaths, shadowCopyDirectory);
-        _pluginContext = loadContext;
+        var newContext = new PluginLoadContext(originalAssemblyPaths, shadowCopyDirectory);
+        _currentContext = newContext;
+        _directoryToCleanup = shadowCopyDirectory;
         
         LoadedAssemblies.Clear();
-
-        // 3. Загружаем сборки из ТЕНЕВЫХ путей. Зависимости будут найдены и скопированы "на лету".
         foreach (var path in shadowAssemblyPaths)
         {
-            var assembly = loadContext.LoadFromAssemblyPath(path);
+            var assembly = newContext.LoadFromAssemblyPath(path);
             LoadedAssemblies.Add(assembly);
+        }
+        
+        Console.WriteLine($"[ModuleLoader] New assemblies loaded into context: {newContext.Name}");
+    }
+
+    public static void CheckForPreviousContextUnload()
+    {
+        if (_previousContextRef == null)
+        {
+            Console.WriteLine("[ModuleLoader] CheckForPreviousContextUnload: _previousContextRef is null. Nothing to check.");
+            return;
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        if (_previousContextRef.IsAlive)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("[ModuleLoader] FATAL: Previous AssemblyLoadContext is still alive after GC. A strong reference is likely leaking.");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.WriteLine("[ModuleLoader] Previous context successfully collected by GC.");
+            _previousContextRef = null;
+
+            if (_directoryToCleanup != null)
+            {
+                try
+                {
+                    Directory.Delete(_directoryToCleanup, true);
+                    Console.WriteLine($"[ModuleLoader] Successfully cleaned up old shadow directory.");
+                }
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[ModuleLoader] ERROR: Failed to cleanup directory: {e.Message}");
+                    Console.ResetColor();
+                }
+                _directoryToCleanup = null;
+            }
         }
     }
 #endif

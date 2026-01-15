@@ -19,7 +19,8 @@ public class Client
         
         b.ReloadModulesAction = () =>
         {
-            ModuleLoader.LoadedAssemblies.Clear();
+            // ModuleLoader должен сам управлять своим состоянием.
+            // Убираем Clear() отсюда, чтобы не нарушать его логику.
             ModuleLoader.LoadClientModules();
         };
         
