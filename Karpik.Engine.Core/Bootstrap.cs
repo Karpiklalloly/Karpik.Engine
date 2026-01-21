@@ -58,6 +58,8 @@ public class Bootstrap
         Job.Wait();
         Console.WriteLine("[Bootstrap-DEBUG] All jobs are complete.");
 
+        var oldAssemblies = _modules.Select(m => m.GetType().Assembly).Distinct().ToList();
+
         _pipeline?.Destroy();
         _pipeline = null!;
         Console.WriteLine("[Bootstrap-DEBUG] Old pipeline destroyed.");
@@ -69,13 +71,16 @@ public class Bootstrap
         var oldModules = new List<IModule>(_modules);
         var newModuleInstances = new List<IModule>();
         
-        var assembliesToScan = GetAssembliesToScan?.Invoke() ?? AppDomain.CurrentDomain.GetAssemblies();
+        var newAssemblies = GetAssembliesToScan?.Invoke() ?? AppDomain.CurrentDomain.GetAssemblies();
+        var typeMapper = new TypeMapper(oldAssemblies, newAssemblies);
 
-        var allNewModuleTypes = assembliesToScan
+        var allNewModuleTypes = newAssemblies
             .SelectMany(assembly => assembly.GetTypes())
             .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
                         t.GetCustomAttribute<ModuleAttribute>() != null)
             .ToDictionary(t => t.FullName ?? t.Name);
+
+        List<(IModuleHotReload, IModule)> needToReload = [];
 
         foreach (var oldModule in oldModules)
         {
@@ -88,8 +93,21 @@ public class Bootstrap
 
                     if (newModuleInstance is IModuleHotReload hotReloadableModule)
                     {
-                        Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name}...");
-                        hotReloadableModule.OnHotReload(oldModule);
+                        Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name} via IModuleHotReload...");
+                        if (oldModule is IModuleHotReload oldModuleHotReload)
+                        {
+                            oldModuleHotReload.OnPrepareHotReload();
+                        }
+
+                        if (!hotReloadableModule.OnHotReload(oldModule, typeMapper))
+                        {
+                            needToReload.Add((hotReloadableModule, oldModule));
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name} automatically...");
+                        StateCopier.CopyState(oldModule, newModuleInstance, typeMapper, new Dictionary<object, object>());
                     }
 
                     newModuleInstances.Add(newModuleInstance);
@@ -105,6 +123,11 @@ public class Bootstrap
                 Console.WriteLine(
                     $"[Bootstrap] Could not find new version of module {oldModuleType.FullName}. It will be skipped.");
             }
+        }
+        
+        foreach (var reload in needToReload)
+        {
+            reload.Item1.OnHotReload(reload.Item2, typeMapper);
         }
 
         _modules.Clear();

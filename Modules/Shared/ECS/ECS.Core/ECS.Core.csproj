@@ -16,4 +16,8 @@
       <ProjectReference Include="..\..\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    </ItemGroup>
+
 </Project>
