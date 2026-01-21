@@ -71,9 +71,6 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         else
         {
             ImGui.Text("No entities with Position component found.");
-            ImGui.Text("No entities with Position comp2323onent found.");
-            ImGui.Text("No entities with Position component found.444");
-            ImGui.Text("No entities with Position component fo4343434und.");
         }
 
         ImGui.End();
@@ -166,6 +163,9 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
                 Direction = new Vector3(1, 0, 0) // Move right
             });
         }
+        
+        
+        ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
     }
 
     private void PrintUI(UIElement element, int indent = 0)
