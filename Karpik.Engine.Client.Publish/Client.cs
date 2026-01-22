@@ -15,7 +15,8 @@ public class Client
         Bootstrap b = new();
         
 #if DEBUG
-        HotReloadHandler.Initialize();
+        var clientAssemblies = ModuleLoader.SharedAssemblies.Concat(ModuleLoader.ClientOnlyAssemblies);
+        HotReloadHandler.Initialize(clientAssemblies);
         
         b.ReloadModulesAction = () =>
         {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Reflection;
@@ -23,9 +24,16 @@ internal static class HotReloadHandler
     private static FileSystemWatcher? _watcher;
     private static Timer? _debounceTimer;
     private static readonly object _lock = new object();
+    private static readonly HashSet<string> _watchedAssemblies = new();
 
-    public static void Initialize()
+    public static void Initialize(IEnumerable<string> assemblyNamesToWatch)
     {
+        _watchedAssemblies.Clear();
+        foreach (var name in assemblyNamesToWatch)
+        {
+            _watchedAssemblies.Add(name);
+        }
+
         var path = AppContext.BaseDirectory;
         _watcher = new FileSystemWatcher(path)
         {
@@ -37,16 +45,23 @@ internal static class HotReloadHandler
 
         _watcher.Changed += OnDllChanged;
         Console.WriteLine($"[HotReloadHandler-DEBUG] Watching for DLL changes in: {path}");
+        Console.WriteLine($"[HotReloadHandler-DEBUG] Watching assemblies: {string.Join(", ", _watchedAssemblies)}");
     }
 
     private static void OnDllChanged(object sender, FileSystemEventArgs e)
     {
+        var changedAssemblyName = Path.GetFileNameWithoutExtension(e.Name);
+        if (e.Name == null || !_watchedAssemblies.Contains(changedAssemblyName))
+        {
+            return;
+        }
+
         lock (_lock)
         {
             _debounceTimer?.Dispose();
             _debounceTimer = new Timer(_ =>
             {
-                Console.WriteLine($"[HotReloadHandler-DEBUG] Detected change in {e.Name}. Triggering full reload...");
+                Console.WriteLine($"[HotReloadHandler-DEBUG] Detected change in watched assembly {e.Name}. Triggering full reload...");
                 OnUpdateApplication?.Invoke();
             }, null, 500, Timeout.Infinite);
         }
