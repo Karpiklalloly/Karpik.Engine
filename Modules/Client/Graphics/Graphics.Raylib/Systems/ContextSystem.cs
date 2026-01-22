@@ -17,7 +17,7 @@ internal class InitSystem : IEcsInit
 
 internal class BeginContextSystem : IEcsRun
 {
-    [DI] private ICamera _mainCamera;
+    [DI] private ICamera _mainCamera = null!;
 
     private Camera3D MainCamera => (_mainCamera as RaylibCamera)!.Camera;
 

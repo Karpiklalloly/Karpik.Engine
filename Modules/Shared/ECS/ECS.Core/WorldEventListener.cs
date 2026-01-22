@@ -1,11 +1,12 @@
 ﻿namespace Karpik.Engine.Shared.ECS;
 
-public class WorldEventListener : IEcsEntityEventListener
+public class WorldEventListener : IEcsEntityEventListener, IDisposable
 {
+    public event Action<int>? OnNewEntityCreated; 
+    public event Action<int>? OnNewEntityDeleted; 
+    
     public EcsWorld World => _world;
     
-    private List<Action<int>> _onNew = [];
-    private List<Action<int>> _onDel = [];
     private EcsWorld _world;
 
     public WorldEventListener(EcsWorld world)
@@ -13,30 +14,20 @@ public class WorldEventListener : IEcsEntityEventListener
         _world = world;
         world.AddListener(this);
     }
-    
-    public void RegisterNew(Action<int> onNewEntity)
-    {
-        _onNew.Add(onNewEntity);
-    }
-    
-    public void RegisterDel(Action<int> onDelEntity)
-    {
-        _onDel.Add(onDelEntity);
-    }
-    
     public void OnNewEntity(int entityID)
     {
-        foreach (var action in _onNew)
-        {
-            action(entityID);
-        }
+        OnNewEntityCreated?.Invoke(entityID);
     }
 
     public void OnDelEntity(int entityID)
     {
-        foreach (var action in _onDel)
-        {
-            action(entityID);
-        }
+        OnNewEntityDeleted?.Invoke(entityID);
+    }
+
+    public void Dispose()
+    {
+        OnNewEntityCreated = null;
+        OnNewEntityDeleted = null;
+        _world.RemoveListener(this);
     }
 }

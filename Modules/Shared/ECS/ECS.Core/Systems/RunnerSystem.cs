@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Shared.ECS;
 
-internal class RunnerSystem : IEcsInit, IEcsPipelineMember, IEcsRun
+internal class RunnerSystem : IEcsInit, IEcsPipelineMember, IEcsRun, IEcsDestroy
 {
     public EcsPipeline Pipeline { get; set; }
     
@@ -25,5 +25,10 @@ internal class RunnerSystem : IEcsInit, IEcsPipelineMember, IEcsRun
         _pausableLateRunner.PausableLateRun();
         _lateRunner.RunLate();
         BaseSystem.RunBuffers();
+    }
+
+    public void Destroy()
+    {
+        _parallelRunner.Destroy();
     }
 }

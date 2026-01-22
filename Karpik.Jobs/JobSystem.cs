@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+[assembly: InternalsVisibleTo("Karpik.Engine.Core")]
 namespace Karpik.Jobs;
 
 public class JobSystem
@@ -30,7 +31,7 @@ public class JobSystem
 
         _threadStates = new ThreadState[_workerCount];
         _threads = new Thread[_workerCount];
-        _jobWrapperPool = new ObjectPool<JobWrapper>(() => new JobWrapper(), 100_000);
+        _jobWrapperPool = new ObjectPool<JobWrapper>(static () => new JobWrapper(), 100_000);
 
         for (int i = 0; i < _workerCount; i++)
         {
@@ -62,6 +63,11 @@ public class JobSystem
             ThreadId = threadId;
             Queue = new ConcurrentQueue<JobWrapper>();
         }
+
+        public void Dispose()
+        {
+            Queue.Clear();
+        }
     }
 
     private void WorkerLoop(object state)
@@ -77,6 +83,7 @@ public class JobSystem
                 break;
             }
 
+            // Drain available work: process own queue and attempt to steal until no work found.
             while (true)
             {
                 if (TryPopTask(threadId, out var wrapper) || TryStealTask(threadId, out wrapper))
@@ -136,6 +143,7 @@ public class JobSystem
 
             wrapper.OnCompleted?.Invoke();
             wrapper.Completion?.Signal();
+            wrapper.Reset();
             _jobWrapperPool.Return(wrapper);
 
             Interlocked.Decrement(ref _outstandingJobs);
@@ -329,16 +337,20 @@ public class JobSystem
     public void Shutdown()
     {
         _isRunning = false;
-        _jobWrapperPool.Dispose();
-
         _workSemaphore.Release(_workerCount);
         foreach (var thread in _threads)
         {
             thread.Join();
         }
 
+        foreach (var item in _threadStates)
+        {
+            item.Dispose();
+        }
+
         Array.Clear(_threadStates, 0, _threadStates.Length);
         Array.Clear(_threads, 0, _threads.Length);
+        _jobWrapperPool.Dispose();
     }
 
     public void Dispose() => Shutdown();

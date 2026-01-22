@@ -5,7 +5,7 @@ namespace Karpik.Engine.Client.InputModule;
 
 internal class UpdateSystem : IEcsRun
 {
-    [DI] private Input _input;
+    [DI] private Input _input = null!;
     
     public void Run()
     {

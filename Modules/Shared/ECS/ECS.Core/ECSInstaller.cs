@@ -45,6 +45,13 @@ public class ECSInstaller : IModule, IModuleHotReload
         _snapshotMeta = _metaWorld.Snapshot;
 
         _reloaded = false;
+
+        _world.Destroy();
+        _world = null;
+        _eventWorld.Destroy();
+        _eventWorld = null;
+        _metaWorld.Destroy();
+        _metaWorld = null!;
     }
 
     public bool OnHotReload(IModule oldModule, TypeMapper map)

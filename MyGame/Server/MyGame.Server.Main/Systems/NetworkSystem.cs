@@ -8,7 +8,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-internal class NetworkSystem : IEcsInit, IEcsRun
+internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
 {
     [DI] private INetworkManager _networkManager = null!;
     [DI] private TargetRpcSender _rpc = null!;
@@ -27,13 +27,15 @@ internal class NetworkSystem : IEcsInit, IEcsRun
     private List<int> _destroyedNetworkIds = [];
     private Dictionary<IPeer, int> _peerToEntity = [];
     private Queue<(IPeer, int)> _needSendLocalPlayer = [];
+
+    private INetworkManager.PeerConnectionEventHandler _onPeerConnected = null!;
     
     public void Init()
     {
         _network.Initialize();
-        _networkManager.ConnectionRequestEvent += static req => req.AcceptIfKey("MyGame");
+        _networkManager.ConnectionRequestEvent += OnConnectionRequest;
         _networkManager.NetworkReceiveEvent += OnNetworkReceive;
-        _networkManager.PeerConnectedEvent += peer =>
+        _onPeerConnected = peer =>
         {
             Console.WriteLine($"Player connected: {peer.Id}");
             var world = _world;
@@ -49,6 +51,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun
             _peerToEntity.Add(peer, player);
             _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };
+        _networkManager.PeerConnectedEvent += _onPeerConnected;
         
         _listeners =
         [
@@ -56,8 +59,8 @@ internal class NetworkSystem : IEcsInit, IEcsRun
             new WorldEventListener(_eventWorld),
             new WorldEventListener(_metaWorld)
         ];
-        _listeners[0].RegisterDel(e => _destroyedEntities.Add(e));
-        _listeners[0].RegisterNew(e => _newEntities.Add(e));
+        _listeners[0].OnNewEntityDeleted += OnDelEntity;
+        _listeners[0].OnNewEntityCreated += OnNewEntity;
     }
     
     private void OnNetworkReceive(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
@@ -104,5 +107,53 @@ internal class NetworkSystem : IEcsInit, IEcsRun
         _destroyedNetworkIds.Clear();
         _newEntities.Clear();
         _destroyedEntities.Clear();
+    }
+
+    private void OnDelEntity(int e)
+    {
+        _destroyedEntities.Add(e);
+    }
+    
+    private void OnNewEntity(int e)
+    {
+        _newEntities.Add(e);
+    }
+
+    private void OnConnectionRequest(IConnectionRequest req)
+    {
+        req.AcceptIfKey("MyGame");
+    }
+
+    public void Destroy()
+    {
+        _networkManager.ConnectionRequestEvent -= OnConnectionRequest;
+        _networkManager.NetworkReceiveEvent -= OnNetworkReceive;
+        _networkManager.PeerConnectedEvent -= _onPeerConnected;
+        _onPeerConnected = null!;
+        
+        _listeners[0].OnNewEntityDeleted -= OnDelEntity;
+        _listeners[0].OnNewEntityCreated -= OnNewEntity;
+        
+        foreach (var listener in _listeners)
+        {
+            listener.Dispose();
+        }
+        
+        _destroyedEntities.Clear();
+        _destroyedEntities = null!;
+        
+        _newEntities.Clear();
+        _newEntities = null!;
+        
+        _peerToEntity.Clear();
+        _peerToEntity = null!;
+        
+        _needSendLocalPlayer.Clear();
+        _needSendLocalPlayer = null!;
+        
+        _destroyedNetworkIds.Clear();
+        _destroyedNetworkIds = null!;
+        
+        _networkManager.Stop();
     }
 }

@@ -5,7 +5,7 @@ namespace Karpik.Engine.Client.UIToolkit.Systems;
 
 public class UpdateSystem : IEcsRun
 {
-    [DI] private UIManager _manager;
+    [DI] private UIManager _manager = null!;
     
     public void Run()
     {

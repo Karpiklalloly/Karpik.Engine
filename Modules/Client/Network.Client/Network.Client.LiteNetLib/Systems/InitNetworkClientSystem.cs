@@ -7,7 +7,7 @@ namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 
 internal class InitNetworkClientSystem : IEcsInit, IEcsDestroy
 {
-    [DI] private INetworkManager _manager;
+    [DI] private INetworkManager _manager = null!;
     private readonly NetworkConfig _config = new();
     
     public void Init()

@@ -8,7 +8,7 @@ public interface IEcsRunParallel : IEcsProcess
     void RunParallel();
 }
 
-public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel
+public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel, IEcsDestroy
 {
     private SystemExecutionNode[] _executionNodes;
     private JobSystem _jobSystem;
@@ -78,5 +78,24 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel
     {
         BuildDependencyGraph(Process);
         _jobSystem = new JobSystem(Environment.ProcessorCount);
+    }
+
+    public void Destroy()
+    {
+        _jobSystem.Shutdown();
+        foreach (var item in _executionNodes)
+        {
+            item.Destroy();
+        }
+        Array.Resize(ref _executionNodes, 0);
+
+        foreach (var pair in _jobHandles)
+        {
+            var key = pair.Key;
+            var value = pair.Value;
+            value.Dispose();
+            key.Destroy();
+        }
+        _jobHandles.Clear();
     }
 }

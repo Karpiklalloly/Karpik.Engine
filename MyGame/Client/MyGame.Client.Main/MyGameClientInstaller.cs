@@ -11,14 +11,17 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Client.Main;
 
 [Module]
-public class MyGameClientInstaller : IModule
+public class MyGameClientInstaller : IModule, IModuleDestroy
 {
     public string Name => "MyGame.Client.Main";
     
-    private INetworkManager _networkManager;
-    private NetworkManager _manager = new NetworkManager();
-    private EcsDefaultWorld _world;
-    private TargetClientRpcDispatcher _targetClientRpcDispatcher;
+    private INetworkManager _networkManager = null!;
+    private NetworkManager _manager = new();
+    private EcsDefaultWorld _world = null!;
+    private TargetClientRpcDispatcher _targetClientRpcDispatcher = null!;
+
+    private Input _input = null!;
+    private Action<KeyboardKeys> _onInput = null!;
 
     public void OnRegisterServices(IServiceRegister services)
     {
@@ -44,8 +47,8 @@ public class MyGameClientInstaller : IModule
         renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
         renderer.MainCamera3D.LookAt(Vector3.Zero);
         var uiManager = services.Get<UIManager>();
-        
-        services.Get<Input>().KeyPressed += (key) =>
+
+        _onInput = key =>
         {
             if (key == KeyboardKeys.Escape)
             {
@@ -59,12 +62,14 @@ public class MyGameClientInstaller : IModule
             }
         };
 
+        _input = services.Get<Input>();
+        _input.KeyPressed += _onInput;
+
         module = new DemoModuleClient();
     }
 
     public void OnConfigureComplete(IServiceContainer services)
     {
-        
         _networkManager.NetworkReceiveEvent += NetworkManagerOnNetworkReceiveEvent;
         _networkManager.PeerConnectedEvent += NetworkManagerOnPeerConnectedEvent;
     }
@@ -88,5 +93,14 @@ public class MyGameClientInstaller : IModule
     {
         Console.WriteLine("Disconnected from server. Clearing world...");
         _manager.ClearClientCache();
+    }
+
+    public void Destroy()
+    {
+        _networkManager.NetworkReceiveEvent -= NetworkManagerOnNetworkReceiveEvent;
+        _networkManager.PeerConnectedEvent -= NetworkManagerOnPeerConnectedEvent;
+
+        _input.KeyPressed -= _onInput;
+        _onInput = null!;
     }
 }

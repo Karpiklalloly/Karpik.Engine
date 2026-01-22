@@ -48,4 +48,15 @@ internal class SystemExecutionNode
 
         return (readTypes, writeTypes);
     }
+
+    public void Destroy()
+    {
+        ReadTypes.Clear();
+        WriteTypes.Clear();
+        foreach (var item in Dependencies)
+        {
+            item.Destroy();
+        }
+        Dependencies.Clear();
+    }
 }

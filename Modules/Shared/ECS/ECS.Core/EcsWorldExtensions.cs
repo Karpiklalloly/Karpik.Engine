@@ -35,7 +35,6 @@ public static class EcsWorldExtensions
 
         public static T FromSnapshot<T>(string snapshots, TypeMapper map) where T : EcsWorld, new()
         {
-            Console.WriteLine(snapshots);
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
                 Formatting = Formatting.Indented,

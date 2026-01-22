@@ -166,6 +166,10 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
         
         
         ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
+        if (_input.IsPressing(KeyboardKeys.LeftAlt))
+        {
+            ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024}Kb");
+        }
     }
 
     private void PrintUI(UIElement element, int indent = 0)

@@ -152,4 +152,14 @@ public class ModManager : IModManager
             }
         }
     }
+
+    public void Destroy()
+    {
+        foreach (var item in _loadedMods)
+        {
+            var container = item.Value;
+            container.Destroy();
+        }
+        _loadedMods.Clear();
+    }
 }

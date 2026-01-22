@@ -10,4 +10,13 @@ internal sealed class JobWrapper
     public int EndIndex;
     public Action OnCompleted;
     public JobCompletion Completion;
+
+    internal void Reset()
+    {
+        Action = null;
+        ParallelAction = null;
+        Cts = null;
+        Completion = null;
+        OnCompleted = null;
+    }
 }

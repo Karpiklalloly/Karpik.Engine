@@ -12,4 +12,6 @@ public interface IModManager
 
     public void StartMods();
     public void UpdateMods();
+
+    public void Destroy();
 }

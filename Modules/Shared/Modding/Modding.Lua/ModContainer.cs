@@ -183,5 +183,13 @@ public class ModContainer : IModContainer
         await Logger.Instance.Log($"[Mod: {MetaData.Name}] {message}", level);
     }
 
-
+    public void Destroy()
+    {
+        Unload();
+        _loadFunction.Clear();
+        _startFunction.Clear();
+        _updateFunction.Clear();
+        _loadedModules.Clear();
+        _unloadFunction.Clear();
+    }
 }

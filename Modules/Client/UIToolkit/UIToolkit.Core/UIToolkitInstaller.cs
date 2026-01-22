@@ -32,7 +32,7 @@ public class UIToolkitInstaller : IModule
         int count = 0;
         var chars = renderer.LoadCodepoints(codes, ref count);
         var font = renderer.LoadFont("Pressstart2p.ttf", 32, chars, count);
-        Console.WriteLine(renderer.IsFontValid(font));
+        Console.WriteLine($"Font is Valid: {renderer.IsFontValid(font)}");
 
         module = new UIToolkitModule();
     }

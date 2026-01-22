@@ -6,7 +6,7 @@ namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 
 internal class UpdateNetworkClientSystem : IEcsRun
 {
-    [DI] private INetworkManager _manager;
+    [DI] private INetworkManager _manager = null!;
     
     public void Run()
     {

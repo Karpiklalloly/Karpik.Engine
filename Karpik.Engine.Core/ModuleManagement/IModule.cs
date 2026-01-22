@@ -15,3 +15,8 @@ public interface IModuleListener
 {
     public void OnAnotherModuleLoaded(IServiceContainer services, IModule anotherModule, Assembly anotherModuleAssembly);
 }
+
+public interface IModuleDestroy
+{
+    public void Destroy();
+}

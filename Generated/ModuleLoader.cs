@@ -14,6 +14,7 @@ public static class ModuleLoader
     private static WeakReference? _previousContextRef;
     private static AssemblyLoadContext? _currentContext;
     private static string? _directoryToCleanup;
+    private static string? _previousDirectoryToCleanup;
 
     public static readonly string[] SharedAssemblies = {
         "AssetManagement.Core",
@@ -54,6 +55,7 @@ public static class ModuleLoader
             _previousContextRef = new WeakReference(_currentContext, trackResurrection: true);
             _currentContext.Unload();
             _currentContext = null;
+            _previousDirectoryToCleanup = _directoryToCleanup; // СОХРАНЯЕМ СТАРУЮ
             Console.WriteLine("[ModuleLoader] Unloading previous AssemblyLoadContext initiated.");
         }
         
@@ -105,8 +107,9 @@ public static class ModuleLoader
             return;
         }
 
-        GC.Collect();
+        GC.Collect(3);
         GC.WaitForPendingFinalizers();
+        GC.WaitForFullGCComplete();
 
         if (_previousContextRef.IsAlive)
         {
@@ -119,11 +122,11 @@ public static class ModuleLoader
             Console.WriteLine("[ModuleLoader] Previous context successfully collected by GC.");
             _previousContextRef = null;
 
-            if (_directoryToCleanup != null)
+            if (_previousDirectoryToCleanup != null)
             {
                 try
                 {
-                    Directory.Delete(_directoryToCleanup, true);
+                    Directory.Delete(_previousDirectoryToCleanup, true);
                     Console.WriteLine($"[ModuleLoader] Successfully cleaned up old shadow directory.");
                 }
                 catch (Exception e)
@@ -132,7 +135,7 @@ public static class ModuleLoader
                     Console.WriteLine($"[ModuleLoader] ERROR: Failed to cleanup directory: {e.Message}");
                     Console.ResetColor();
                 }
-                _directoryToCleanup = null;
+                _previousDirectoryToCleanup = null;
             }
         }
     }

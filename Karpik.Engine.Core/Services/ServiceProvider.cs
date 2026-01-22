@@ -75,4 +75,9 @@ public class ServiceProvider : IServiceRegister, IServiceContainer, IInjectionBl
             this.Inject(value);
         }
     }
+
+    public void Destroy()
+    {
+        _services.Clear();
+    }
 }

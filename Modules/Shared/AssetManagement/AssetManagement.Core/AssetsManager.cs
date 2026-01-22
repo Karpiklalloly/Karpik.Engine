@@ -22,7 +22,7 @@ internal class AssetsManager : IAssetsManager
     private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
     
     private readonly IFileSystem _fileSystem;
-    [DI] private IServiceProvider _serviceProvider;
+    [DI] private IServiceProvider _serviceProvider = null!;
 
     public AssetsManager(IFileSystem fileSystem)
     {
@@ -43,9 +43,7 @@ internal class AssetsManager : IAssetsManager
     {
         var loaderTypes = assembly.GetTypes()
             .Where(type => typeof(IAssetSaver).IsAssignableFrom(type)
-                           && !type.IsInterface
-                           && !type.IsAbstract
-                           && !type.IsGenericType);
+                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
 
         foreach (var loaderType in loaderTypes)
         {
@@ -65,9 +63,7 @@ internal class AssetsManager : IAssetsManager
     {
         var loaderTypes = assembly.GetTypes()
             .Where(type => typeof(IAssetLoader).IsAssignableFrom(type)
-                           && !type.IsInterface
-                           && !type.IsAbstract
-                           && !type.IsGenericType);
+                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
 
         foreach (var loaderType in loaderTypes)
         {
@@ -244,8 +240,6 @@ internal class AssetsManager : IAssetsManager
 
     internal void ReleaseAsset(Asset asset)
     {
-        if (asset == null) return;
-
         if (asset.DecrementRef())
         {
             _loadedAssets.Remove((asset.Id, asset.Type), out _);
@@ -258,10 +252,5 @@ internal class AssetsManager : IAssetsManager
         return ext.StartsWith(".", StringComparison.InvariantCultureIgnoreCase)
             ? ext.ToLowerInvariant()
             : "." + ext.ToLowerInvariant();
-    }
-    
-    public void FindAllSavers()
-    {
-        
     }
 }

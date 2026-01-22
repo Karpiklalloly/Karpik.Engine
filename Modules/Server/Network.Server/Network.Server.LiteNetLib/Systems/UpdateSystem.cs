@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Network.Server.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem : IEcsInit
+internal class InitNetworkClientSystem : IEcsInit, IEcsDestroy
 {
     [DI] private INetworkManager _manager = null!;
     
@@ -15,6 +15,14 @@ internal class InitNetworkClientSystem : IEcsInit
         _manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
         _manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
         _manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
+    }
+    
+    public void Destroy()
+    {
+        _manager.NetworkReceiveEvent -= ManagerOnNetworkReceiveEvent;
+        _manager.PeerConnectedEvent -= ManagerOnPeerConnectedEvent;
+        _manager.PeerDisconnectedEvent -= ManagerOnPeerDisconnectedEvent;
+        _manager.ConnectionRequestEvent -= ManagerOnConnectionRequestEvent;
     }
 
     private void ManagerOnConnectionRequestEvent(IConnectionRequest request)

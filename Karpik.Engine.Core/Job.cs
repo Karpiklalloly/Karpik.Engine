@@ -4,6 +4,7 @@ namespace Karpik.Engine.Core;
 
 public static class Job
 {
+    internal static JobSystem JobSystem => _jobSystem;
     private static JobSystem _jobSystem = null!;
     
     internal static void Initialize(JobSystem jobSystem)

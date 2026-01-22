@@ -56,6 +56,8 @@ public class Bootstrap
 
 #if DEBUG
         Job.Wait();
+        Job.JobSystem.Shutdown();
+        Job.Initialize(new Jobs.JobSystem());
         Console.WriteLine("[Bootstrap-DEBUG] All jobs are complete.");
 
         var oldAssemblies = _modules.Select(m => m.GetType().Assembly).Distinct().ToList();
@@ -130,6 +132,11 @@ public class Bootstrap
             reload.Item1.OnHotReload(reload.Item2, typeMapper);
         }
 
+        foreach (var oldModule in oldModules.Where(x => x is IModuleDestroy).Cast<IModuleDestroy>())
+        {
+            oldModule.Destroy();
+        }
+
         _modules.Clear();
         _modules.AddRange(newModuleInstances);
 
@@ -190,6 +197,7 @@ public class Bootstrap
             newServiceProvider.Inject(system.Value);
         }
 
+        _serviceProvider.Destroy();
         _serviceProvider = newServiceProvider;
         _pipeline = newPipeline;
 
