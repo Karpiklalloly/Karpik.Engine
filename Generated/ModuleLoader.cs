@@ -107,9 +107,11 @@ public static class ModuleLoader
             return;
         }
 
-        GC.Collect(3);
-        GC.WaitForPendingFinalizers();
-        GC.WaitForFullGCComplete();
+        for (int i = 0; i < 10 && _previousContextRef.IsAlive; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
 
         if (_previousContextRef.IsAlive)
         {

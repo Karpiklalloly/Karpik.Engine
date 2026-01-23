@@ -24,7 +24,6 @@ internal class RunnerSystem : IEcsInit, IEcsPipelineMember, IEcsRun, IEcsDestroy
         _parallelRunner.RunParallel();
         _pausableLateRunner.PausableLateRun();
         _lateRunner.RunLate();
-        BaseSystem.RunBuffers();
     }
 
     public void Destroy()

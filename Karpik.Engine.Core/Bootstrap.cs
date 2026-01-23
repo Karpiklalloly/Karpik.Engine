@@ -93,23 +93,18 @@ public class Bootstrap
                 {
                     var newModuleInstance = (IModule)Activator.CreateInstance(newModuleType)!;
 
+                    if (oldModule is IModuleHotReload oldModuleHotReload)
+                    {
+                        oldModuleHotReload.OnPrepareHotReload();
+                    }
+
                     if (newModuleInstance is IModuleHotReload hotReloadableModule)
                     {
                         Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name} via IModuleHotReload...");
-                        if (oldModule is IModuleHotReload oldModuleHotReload)
-                        {
-                            oldModuleHotReload.OnPrepareHotReload();
-                        }
-
                         if (!hotReloadableModule.OnHotReload(oldModule, typeMapper))
                         {
                             needToReload.Add((hotReloadableModule, oldModule));
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[Bootstrap] Transferring state for module {newModuleType.Name} automatically...");
-                        StateCopier.CopyState(oldModule, newModuleInstance, typeMapper, new Dictionary<object, object>());
                     }
 
                     newModuleInstances.Add(newModuleInstance);
@@ -143,7 +138,9 @@ public class Bootstrap
         RebuildAndSwapPipelineInternal();
 
 #if DEBUG
-        ModuleLoader.CheckForPreviousContextUnload();
+        typeMapper.ClearCache();
+        _mainThreadScheduler.Schedule(ModuleLoader.CheckForPreviousContextUnload);
+        
 #endif
 
         Console.WriteLine("[Bootstrap] Module update complete.");

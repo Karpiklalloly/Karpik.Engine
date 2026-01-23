@@ -10,7 +10,7 @@ internal class DestroySystem : IEcsInit, IEcsDestroy
     
     public void Init()
     {
-        BaseSystem.InitWorlds(_defaultWorld, _eventWorld, _eventWorld);
+
     }
     
     public void Destroy()

@@ -22,7 +22,7 @@ namespace Karpik.Engine.Core.Hot
 
             _directTypeMap = new Dictionary<Type, Type>();
             var oldTypes = oldAssemblies.SelectMany(a => a.GetTypes());
-            
+
             // Заполняем _directTypeMap для всех не-generic типов и generic-определений
             // и для полностью сконструированных generic-типов, если их FullName совпадает
             foreach (var oldType in oldTypes)
@@ -105,6 +105,12 @@ namespace Karpik.Engine.Core.Hot
 
             // 4. Если ничего не найдено, возвращаем null
             return null;
+        }
+
+        public void ClearCache()
+        {
+            _directTypeMap.Clear();
+            _newTypesByFullName.Clear();
         }
     }
 }

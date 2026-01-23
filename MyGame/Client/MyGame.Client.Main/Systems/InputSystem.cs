@@ -11,7 +11,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class InputSystem : BaseSystem, IEcsRun
+public class InputSystem : IEcsRun
 {
     class Aspect : EcsAspect
     {

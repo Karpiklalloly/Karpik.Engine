@@ -32,7 +32,7 @@ public class DemoModuleClient : IEcsModule
     }
 }
 
-public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
+public class MySystem : IEcsRunParallel, IEcsInit
 {
     class Aspect : EcsAspect
     {
@@ -280,5 +280,13 @@ public class MySystem : BaseSystem, IEcsRunParallel, IEcsInit
                 Logger.Instance.Log(e.ToString(), LogLevel.Error).GetAwaiter().GetResult();
             }
         });
+    }
+
+    protected entlong CreateEntity(EcsWorld world)
+    {
+        lock (world)
+        {
+            return world.NewEntityLong();
+        }
     }
 }

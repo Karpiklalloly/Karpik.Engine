@@ -25,10 +25,6 @@ public class PluginLoadContext : AssemblyLoadContext
 
     private void OnUnloading(AssemblyLoadContext obj)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[PluginLoadContext] Unloading context. Freeing {_nativeHandles.Count} native libraries.");
-        Console.ResetColor();
-
         foreach (var handle in _nativeHandles)
         {
             NativeLibrary.Free(handle);
@@ -105,7 +101,6 @@ public class PluginLoadContext : AssemblyLoadContext
             // Используем NativeLibrary.Load, чтобы получить хендл и контролировать выгрузку
             if (NativeLibrary.TryLoad(path, out var handle))
             {
-                Console.WriteLine($"[PluginLoadContext] Loaded native library: {path}");
                 _nativeHandles.Add(handle);
                 return handle;
             }

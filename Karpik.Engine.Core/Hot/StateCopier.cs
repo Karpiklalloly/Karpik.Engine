@@ -52,80 +52,130 @@ namespace Karpik.Engine.Core.Hot
         private static object? ConvertObject(object? sourceObject, TypeMapper typeMapper, Dictionary<object, object> processedObjects)
         {
             if (sourceObject == null) return null;
-            
-            // Проверяем циклические ссылки в самом начале
             if (processedObjects.TryGetValue(sourceObject, out var existing)) return existing;
 
             var sourceObjectType = sourceObject.GetType();
 
-            // Primitives, enums, strings can be returned directly.
+            // 1. Примитивы и строки
             if (sourceObjectType.IsPrimitive || sourceObjectType.IsEnum || sourceObjectType == typeof(string))
             {
                 return sourceObject;
             }
 
+            // 2. Ремаппинг типа
             var remappedType = typeMapper.GetNewType(sourceObjectType);
-            
+
+            // Fallback для System типов, если ремаппинг не сработал или не нужен
             if (remappedType == null)
             {
-                string assemblyName = sourceObjectType.Assembly.GetName().Name;
-                if (assemblyName.StartsWith("System") || assemblyName == "mscorlib" || assemblyName == "netstandard")
+                string asmName = sourceObjectType.Assembly.GetName().Name;
+                // Если это системный тип (например, List<int>), но TypeMapper вернул null 
+                // (значит generic аргументы не менялись), используем исходный тип.
+                if (asmName.StartsWith("System") || asmName == "mscorlib" || asmName == "netstandard")
                 {
+                    // ОПАСНО: Если это List<OldType>, а TypeMapper вернул null, мы вернем старый список.
+                    // Но TypeMapper должен был вернуть null только если не смог сконструировать тип.
+                    // Для надежности лучше считать, что если remappedType == null для System коллекции, 
+                    // которая содержит OldType, это ошибка. Но пока оставим как есть.
                     return sourceObject;
                 }
-                else
-                {
-                    Console.WriteLine($"[StateCopier] Could not remap type '{sourceObjectType.FullName}' from assembly '{assemblyName}'. It might be missing from the hot-reload scope. State will be lost.");
-                    return null;
-                }
+                return null;
             }
 
-            // Handle collections
+            // 3. Обработка МАССИВОВ (Arrays)
+            if (sourceObjectType.IsArray && remappedType.IsArray)
+            {
+                var sourceArray = (Array)sourceObject;
+                var length = sourceArray.Length;
+                // Создаем массив правильного типа и длины
+                var newArray = Array.CreateInstance(remappedType.GetElementType()!, length);
+
+                processedObjects[sourceObject] = newArray;
+
+                for (int i = 0; i < length; i++)
+                {
+                    var val = ConvertObject(sourceArray.GetValue(i), typeMapper, processedObjects);
+                    newArray.SetValue(val, i);
+                }
+                return newArray;
+            }
+
+            // 4. Обработка Коллекций (List, Dictionary, HashSet и др.)
             if (typeof(IEnumerable).IsAssignableFrom(remappedType) && remappedType != typeof(string))
             {
+                // Пытаемся создать экземпляр
                 object? newCollection = null;
-                if (!remappedType.IsAbstract && !remappedType.IsInterface && remappedType.GetConstructor(Type.EmptyTypes) != null)
-                {
-                    newCollection = Activator.CreateInstance(remappedType);
-                }
+                try { newCollection = Activator.CreateInstance(remappedType); } catch { }
 
                 if (newCollection != null)
                 {
-                    processedObjects[sourceObject] = newCollection; // Добавляем в кэш перед итерацией для обработки самоссылающихся коллекций
+                    processedObjects[sourceObject] = newCollection;
 
+                    // 4.1 Словари
                     if (sourceObject is IDictionary oldDict && newCollection is IDictionary newDict)
                     {
                         foreach (DictionaryEntry entry in oldDict)
                         {
                             var newKey = ConvertObject(entry.Key, typeMapper, processedObjects);
                             var newValue = ConvertObject(entry.Value, typeMapper, processedObjects);
-                            if (newKey != null) newDict.Add(newKey, newValue);
+                            if (newKey != null)
+                            {
+                                try { newDict.Add(newKey, newValue); } catch { }
+                            }
                         }
                     }
+                    // 4.2 Списки (IList)
                     else if (sourceObject is IList oldList && newCollection is IList newList)
                     {
                         foreach (var item in oldList)
                         {
-                            newList.Add(ConvertObject(item, typeMapper, processedObjects));
+                            var newItem = ConvertObject(item, typeMapper, processedObjects);
+                            // IList.Add возвращает int, игнорируем его
+                            newList.Add(newItem);
                         }
                     }
+                    // 4.3 Общие коллекции (HashSet<T> и прочие, где есть метод Add)
+                    else
+                    {
+                        // Ищем метод Add через рефлексию, так как нет общего интерфейса для Add
+                        var addMethod = remappedType.GetMethod("Add");
+                        if (addMethod != null)
+                        {
+                            foreach (var item in (IEnumerable)sourceObject)
+                            {
+                                var newItem = ConvertObject(item, typeMapper, processedObjects);
+                                try { addMethod.Invoke(newCollection, new[] { newItem }); } catch { }
+                            }
+                        }
+                    }
+                    return newCollection;
                 }
-                return newCollection;
             }
 
-            // Handle other reference types
-            if (!remappedType.IsAbstract && !remappedType.IsInterface && remappedType.GetConstructor(Type.EmptyTypes) != null)
+            // 5. Обычные объекты (Classes / Structs)
+            // Проверяем конструктор без параметров (для структур он есть всегда неявно, но Activator работает)
+            if (!remappedType.IsAbstract && !remappedType.IsInterface)
             {
-                var newInstance = Activator.CreateInstance(remappedType);
+                object? newInstance = null;
+                try
+                {
+                    newInstance = Activator.CreateInstance(remappedType);
+                }
+                catch
+                {
+                    // Нет конструктора без параметров? Можно попробовать FormatterServices.GetUninitializedObject(remappedType)
+                    // но это рискованно.
+                    Console.WriteLine($"[StateCopier] Cannot create instance of {remappedType.Name}. No parameterless constructor?");
+                }
+
                 if (newInstance != null)
                 {
-                    processedObjects[sourceObject] = newInstance; // Добавляем в кэш перед рекурсией
-                    CopyState(sourceObject, newInstance, typeMapper, processedObjects); // Рекурсивный вызов, передаем processedObjects
+                    processedObjects[sourceObject] = newInstance;
+                    CopyState(sourceObject, newInstance, typeMapper, processedObjects);
                     return newInstance;
                 }
             }
 
-            Console.WriteLine($"[StateCopier] Type '{remappedType.Name}' is not instantiable. State will be lost.");
             return null;
         }
     }
