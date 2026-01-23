@@ -60,10 +60,7 @@ public static class EcsWorldExtensions
                         pool = (IEcsPool)genericMethod.Invoke(null, new []{(object)newWorld});
                         if (pool is null) throw new NullInstanceException();
                     }
-                    pool.AddEmpty(entitySnapshot.Id);
-                    var data = pool.GetRaw(entitySnapshot.Id);
-                    StateCopier.CopyState(component, data, map, new Dictionary<object, object>());
-                    pool.SetRaw(entitySnapshot.Id, data);
+                    pool.AddRaw(entitySnapshot.Id, component);
                 }
                 
             }
