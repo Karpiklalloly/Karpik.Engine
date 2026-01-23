@@ -1,4 +1,9 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace Karpik.Engine.Core.ModuleManagement;
@@ -7,6 +12,7 @@ public class PluginLoadContext : AssemblyLoadContext
 {
     private readonly string _shadowCopyDirectory;
     private readonly List<AssemblyDependencyResolver> _resolvers;
+    private readonly List<IntPtr> _nativeHandles = new();
 
     public PluginLoadContext(IEnumerable<string> pluginPaths, string shadowCopyDirectory) : base(isCollectible: true)
     {
@@ -20,7 +26,14 @@ public class PluginLoadContext : AssemblyLoadContext
     private void OnUnloading(AssemblyLoadContext obj)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"[PluginLoadContext] Unloading context. Freeing {_nativeHandles.Count} native libraries.");
         Console.ResetColor();
+
+        foreach (var handle in _nativeHandles)
+        {
+            NativeLibrary.Free(handle);
+        }
+        _nativeHandles.Clear();
         
         Resolving -= OnResolving;
         Unloading -= OnUnloading;
@@ -63,26 +76,39 @@ public class PluginLoadContext : AssemblyLoadContext
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
-        // Загружаем нативные библиотеки напрямую из основной папки, чтобы избежать проблем с их зависимостями.
+        string? path = null;
+        
+        // 1. Поиск через resolver
         foreach (var resolver in _resolvers)
         {
-            string? originalPath = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            if (originalPath != null)
+            path = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+            if (path != null) break;
+        }
+
+        // 2. Поиск в базовой директории
+        if (path == null)
+        {
+            var unmanagedFileName = unmanagedDllName;
+            if (!unmanagedFileName.EndsWith(".dll"))
             {
-                return base.LoadUnmanagedDll(originalPath);
+                unmanagedFileName += ".dll";
+            }
+            var fallbackPath = Path.Combine(AppContext.BaseDirectory, unmanagedFileName);
+            if (File.Exists(fallbackPath))
+            {
+                path = fallbackPath;
             }
         }
-        
-        var unmanagedFileName = unmanagedDllName;
-        if (!unmanagedFileName.EndsWith(".dll"))
+
+        if (path != null)
         {
-            unmanagedFileName += ".dll";
-        }
-        
-        var fallbackPath = Path.Combine(AppContext.BaseDirectory, unmanagedFileName);
-        if (File.Exists(fallbackPath))
-        {
-            return base.LoadUnmanagedDll(fallbackPath);
+            // Используем NativeLibrary.Load, чтобы получить хендл и контролировать выгрузку
+            if (NativeLibrary.TryLoad(path, out var handle))
+            {
+                Console.WriteLine($"[PluginLoadContext] Loaded native library: {path}");
+                _nativeHandles.Add(handle);
+                return handle;
+            }
         }
 
         Console.WriteLine($"[PluginLoadContext] FAILED: Could not find native library '{unmanagedDllName}'. Passing to default loader.");
