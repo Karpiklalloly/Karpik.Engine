@@ -38,7 +38,8 @@ public class LooseAssemblyNameBinder : ISerializationBinder
         // Примечание: Это предполагает, что Namespace и имя класса не менялись
         foreach (var assembly in _assemblies)
         {
-            typeToDeserialize = assembly.GetTypes().FirstOrDefault(x => x.FullName.Contains(typeName));
+            var types = assembly.GetTypes();
+            typeToDeserialize = types.FirstOrDefault(x => x.Name == typeName);
             if (typeToDeserialize != null)
             {
                 return typeToDeserialize;
