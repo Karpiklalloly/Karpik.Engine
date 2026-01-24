@@ -1,21 +1,20 @@
 ﻿{
   "Components": [
     {
-      "$Type": "Position",
-      "Value": {},
+      "$type": "Position",
       "X": 10.0,
       "Y": 20.0,
       "Z": -15.0
     },
     {
-      "$Type": "Health",
+      "$type": "Health",
       "Value": 255.0
     },
     {
-      "$Type": "Player"
+      "$type": "Player"
     },
     {
-        "$Type": "SpriteRenderer",
+        "$type": "SpriteRenderer",
         "TexturePath": "Content/Sprites/Player.png",
         "Layer": 1,
         "Color": {

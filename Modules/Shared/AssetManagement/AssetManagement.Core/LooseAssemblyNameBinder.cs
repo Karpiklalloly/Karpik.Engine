@@ -3,7 +3,7 @@ using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace Karpik.Engine.Shared.ECS;
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public class LooseAssemblyNameBinder : ISerializationBinder
 {
@@ -38,7 +38,7 @@ public class LooseAssemblyNameBinder : ISerializationBinder
         // Примечание: Это предполагает, что Namespace и имя класса не менялись
         foreach (var assembly in _assemblies)
         {
-            typeToDeserialize = assembly.GetType(typeName);
+            typeToDeserialize = assembly.GetTypes().FirstOrDefault(x => x.FullName.Contains(typeName));
             if (typeToDeserialize != null)
             {
                 return typeToDeserialize;

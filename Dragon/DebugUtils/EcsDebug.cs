@@ -30,14 +30,14 @@ namespace DCFApixels.DragonECS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Begin()
         {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
             DebugService.CurrentThreadInstance.ProfilerMarkBegin(id);
 #endif
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void End()
         {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
             DebugService.CurrentThreadInstance.ProfilerMarkEnd(id);
 #endif
         }
@@ -58,7 +58,7 @@ namespace DCFApixels.DragonECS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public AutoScope(int id)
             {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
                 _id = id;
                 DebugService.CurrentThreadInstance.ProfilerMarkBegin(id);
 #endif
@@ -66,7 +66,7 @@ namespace DCFApixels.DragonECS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Dispose()
             {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
                 DebugService.CurrentThreadInstance.ProfilerMarkEnd(_id);
 #endif
             }

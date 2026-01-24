@@ -8,7 +8,7 @@ namespace Karpik.Engine.Shared.ECS;
 
 public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
 {
-    private const string TypePropertyName = "$Type";
+    private const string TypePropertyName = "$type";
 
     private static MethodInfo _genericToObjectMethodInfo;
     private static readonly Lock _methodInfoLock = new();
@@ -20,8 +20,6 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
         foreach (var component in value)
         {
             var obj = JObject.FromObject(component, serializer);
-            var typeName = component.GetType().Name;
-            obj.AddFirst(new JProperty(TypePropertyName, typeName));
             obj.WriteTo(writer);
         }
         writer.WriteEndArray();
@@ -52,14 +50,24 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
                  continue;
             }
             string typeName = typeToken.Value<string>();
+            var type = typeName.Split(',');
             obj.Remove(TypePropertyName);
 
             IEcsComponentMember deserializedComponent = null;
             try
             {
-                Type componentType = FindTypeByName(typeName);
+                Type? componentType;
+                if (type.Length > 1)
+                {
+                    componentType = serializer.SerializationBinder.BindToType(type[1].Trim(), type[0].Trim());
+                }
+                else
+                {
+                    componentType = serializer.SerializationBinder.BindToType(null, typeName);;
+                }
+                
 
-                if (componentType != null && typeof(IEcsComponentMember).IsAssignableFrom(componentType))
+                if (componentType is not null && typeof(IEcsComponentMember).IsAssignableFrom(componentType))
                 {
                     if (!ClosedToObjectMethodCache.TryGetValue(componentType, out var closedMethod))
                     {
@@ -135,16 +143,5 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
             }
         }
         return null;
-    }
-
-    public static IEcsComponentMember[] Deserialize(string json)
-    {
-        return JsonConvert.DeserializeObject<IEcsComponentMember[]>(json, new ComponentArrayConverter());
-    }
-
-    public static IEcsComponentMember[] DeserializeFromFile(string filePath)
-    {
-        string json = System.IO.File.ReadAllText(filePath);
-        return Deserialize(json);
     }
 }

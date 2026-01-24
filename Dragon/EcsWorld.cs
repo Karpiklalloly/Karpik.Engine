@@ -234,6 +234,13 @@ namespace DCFApixels.DragonECS
                 }
                 _isDestroyed = true;
                 _listeners.InvokeOnWorldDestroy();
+                int[] ids = new int[64];
+                foreach (var e in Entities)
+                {
+                    var count = GetComponentTypeIDsFor_Internal(e, ref ids);
+                    var span = ids.AsSpan(0, count);
+                    RemoveComponents(e, span);
+                }
                 _entityDispenser = null;
                 _pools = null;
                 _nullPool = null;

@@ -53,24 +53,29 @@ public class Bootstrap
     private void HotReloadModulesAndRebuildPipeline()
     {
         Console.WriteLine("[Bootstrap] Hot reload detected. Updating modules...");
+        var oldModules = new List<IModule>(_modules);
 
 #if DEBUG
         Job.Wait();
+        
+        foreach (var oldModule in oldModules)
+        {
+            if (oldModule is IModuleHotReload oldModuleHotReload)
+            {
+                oldModuleHotReload.OnPrepareHotReload();
+            }
+        }
+        
         Job.JobSystem.Shutdown();
         Job.Initialize(new Jobs.JobSystem());
         Console.WriteLine("[Bootstrap-DEBUG] All jobs are complete.");
 
         var oldAssemblies = _modules.Select(m => m.GetType().Assembly).Distinct().ToList();
-
-        _pipeline?.Destroy();
-        _pipeline = null!;
-        Console.WriteLine("[Bootstrap-DEBUG] Old pipeline destroyed.");
         
         Console.WriteLine("[Bootstrap-DEBUG] Performing full assembly reload...");
         ReloadModulesAction?.Invoke();
 #endif
-
-        var oldModules = new List<IModule>(_modules);
+        
         var newModuleInstances = new List<IModule>();
         
         var newAssemblies = GetAssembliesToScan?.Invoke() ?? AppDomain.CurrentDomain.GetAssemblies();
@@ -92,11 +97,6 @@ public class Bootstrap
                 try
                 {
                     var newModuleInstance = (IModule)Activator.CreateInstance(newModuleType)!;
-
-                    if (oldModule is IModuleHotReload oldModuleHotReload)
-                    {
-                        oldModuleHotReload.OnPrepareHotReload();
-                    }
 
                     if (newModuleInstance is IModuleHotReload hotReloadableModule)
                     {
@@ -131,6 +131,10 @@ public class Bootstrap
         {
             oldModule.Destroy();
         }
+        
+        _pipeline?.Destroy();
+        _pipeline = null!;
+        Console.WriteLine("[Bootstrap-DEBUG] Old pipeline destroyed.");
 
         _modules.Clear();
         _modules.AddRange(newModuleInstances);

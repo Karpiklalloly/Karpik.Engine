@@ -12,6 +12,7 @@ public static class ModuleLoader
 #if DEBUG
     public static readonly List<Assembly> LoadedAssemblies = new List<Assembly>();
     private static WeakReference? _previousContextRef;
+    private static AssemblyLoadContext? _previousContext;
     private static AssemblyLoadContext? _currentContext;
     private static string? _directoryToCleanup;
     private static string? _previousDirectoryToCleanup;
@@ -53,7 +54,7 @@ public static class ModuleLoader
         if (_currentContext != null)
         {
             _previousContextRef = new WeakReference(_currentContext, trackResurrection: true);
-            _currentContext.Unload();
+            _previousContext = _currentContext;
             _currentContext = null;
             _previousDirectoryToCleanup = _directoryToCleanup; // СОХРАНЯЕМ СТАРУЮ
             Console.WriteLine("[ModuleLoader] Unloading previous AssemblyLoadContext initiated.");
@@ -101,6 +102,8 @@ public static class ModuleLoader
 
     public static void CheckForPreviousContextUnload()
     {
+        _previousContext.Unload();
+        _previousContext = null;
         if (_previousContextRef == null)
         {
             Console.WriteLine("[ModuleLoader] CheckForPreviousContextUnload: _previousContextRef is null. Nothing to check.");

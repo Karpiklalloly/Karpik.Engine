@@ -8,6 +8,11 @@ public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValu
     public override string[] SupportedExtensions { get; } = [".json"];
     protected JsonSerializer Serializer { get; } = new();
 
+    public JsonLoader()
+    {
+        Serializer.SerializationBinder = new LooseAssemblyNameBinder();
+    }
+
     protected override async JobHandle<TValue?> OnLoadAsync(Stream stream, string assetName)
     {
         return await Job.Run(() =>

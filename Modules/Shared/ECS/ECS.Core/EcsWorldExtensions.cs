@@ -1,5 +1,6 @@
 ﻿using System.CodeDom.Compiler;
 using Karpik.Engine.Core.Hot;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Newtonsoft.Json;
 
 namespace Karpik.Engine.Shared.ECS;
@@ -20,7 +21,7 @@ public static class EcsWorldExtensions
                     snapshot.Id = e;
                     List<object> objs = [];
                     world.GetComponentsFor(e, objs);
-                    snapshot.Components = objs.Cast<IEcsComponentMember>().ToList();
+                    snapshot.Components = objs.Cast<IEcsComponentMember>().ToArray();
                     entitySnapshots.Add(snapshot);
                 }
 
@@ -28,19 +29,22 @@ public static class EcsWorldExtensions
                 {
                     Formatting = Formatting.Indented,
                     TypeNameHandling = TypeNameHandling.Objects,
-                    TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple
+                    TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
+                    Converters = [new ComponentArrayConverter()]
                 });
             }
         }
 
         public static T FromSnapshot<T>(string snapshots, TypeMapper map) where T : EcsWorld, new()
         {
+            // TODO: добавить конвертер массива компонентов
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
                 Formatting = Formatting.Indented,
                 TypeNameHandling = TypeNameHandling.Objects,
                 TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-                SerializationBinder = new LooseAssemblyNameBinder()
+                SerializationBinder = new LooseAssemblyNameBinder(),
+                Converters = [new ComponentArrayConverter()]
             });
 
             T newWorld = new();
