@@ -77,7 +77,7 @@ public abstract class ComponentTemplateBase<T> : ComponentTemplateBase, ICloneab
 public class ComponentTemplate<T> : ComponentTemplateBase<T>
     where T : struct, IEcsComponent
 {
-    private static IEcsComponentOnLoad<T> _loader = null;
+    private static IEcsComponentOnLoad<T>? _loader = null;
     
     public ComponentTemplate(T component) : base(component)
     {

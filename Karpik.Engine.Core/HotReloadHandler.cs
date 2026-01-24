@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 
 // РЕШЕНИЕ: Делаем внутренние классы Core видимыми для Client.Publish
 [assembly: InternalsVisibleTo("Karpik.Engine.Client.Publish")]
+[assembly: InternalsVisibleTo("Karpik.Engine.Server.Publish")]
 [assembly: InternalsVisibleTo("DebugModule")]
 
 namespace Karpik.Engine.Core.Hot;

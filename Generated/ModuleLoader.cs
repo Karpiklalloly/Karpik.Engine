@@ -7,10 +7,10 @@ using System.Collections.Generic;
 using System.Runtime.Loader;
 using Karpik.Engine.Core.ModuleManagement;
 
-public static class ModuleLoader
+internal static class ModuleLoader
 {
 #if DEBUG
-    public static readonly List<Assembly> LoadedAssemblies = new List<Assembly>();
+    public static Assembly[] LoadedAssemblies = [];
     private static WeakReference? _previousContextRef;
     private static AssemblyLoadContext? _previousContext;
     private static AssemblyLoadContext? _currentContext;
@@ -90,14 +90,15 @@ public static class ModuleLoader
         _currentContext = newContext;
         _directoryToCleanup = shadowCopyDirectory;
         
-        LoadedAssemblies.Clear();
+        Array.Clear(LoadedAssemblies);
+        LoadedAssemblies = new Assembly[shadowAssemblyPaths.Count];
+        int i = 0;
         foreach (var path in shadowAssemblyPaths)
         {
             var assembly = newContext.LoadFromAssemblyPath(path);
-            LoadedAssemblies.Add(assembly);
+            LoadedAssemblies[i] = assembly;
+            i++;
         }
-        
-        Console.WriteLine($"[ModuleLoader] New assemblies loaded into context: {newContext.Name}");
     }
 
     public static void CheckForPreviousContextUnload()

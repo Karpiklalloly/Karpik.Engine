@@ -20,12 +20,10 @@ public class Client
         
         b.ReloadModulesAction = () =>
         {
-            // ModuleLoader должен сам управлять своим состоянием.
-            // Убираем Clear() отсюда, чтобы не нарушать его логику.
             ModuleLoader.LoadClientModules();
+            return ModuleTypes();
         };
         
-        // Передаем в Bootstrap, ОТКУДА брать сборки для сканирования
         b.GetAssembliesToScan = () => ModuleLoader.LoadedAssemblies;
 #endif
         
@@ -54,13 +52,7 @@ public class Client
     {
 #if DEBUG
         ModuleLoader.LoadClientModules();
-
-        var assembliesToScan = ModuleLoader.LoadedAssemblies;
-        
-        var moduleTypes = assembliesToScan
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
-                        t.GetCustomAttribute<ModuleAttribute>() != null);
+        var moduleTypes = ModuleTypes();
 
         foreach (var type in moduleTypes)
         {
@@ -70,5 +62,13 @@ public class Client
 #else
         ModuleLoader.RegisterClientModules(bootstrap);
 #endif
+    }
+
+    private Type[] ModuleTypes()
+    {
+        return ModuleLoader.LoadedAssemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
+                        t.GetCustomAttribute<ModuleAttribute>() != null).ToArray();
     }
 }

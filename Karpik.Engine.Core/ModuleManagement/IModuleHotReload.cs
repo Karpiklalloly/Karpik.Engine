@@ -5,5 +5,5 @@ namespace Karpik.Engine.Core.ModuleManagement;
 public interface IModuleHotReload
 {
     void OnPrepareHotReload();
-    bool OnHotReload(IModule oldModule, TypeMapper map);
+    bool OnHotReload(IModule oldModule, TypeMapper map, IServiceContainer services);
 }

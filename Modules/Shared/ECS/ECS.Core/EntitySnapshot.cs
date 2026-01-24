@@ -4,5 +4,5 @@
 public record EntitySnapshot
 {
     public int Id = -1;
-    public IEcsComponentMember[] Components = [];
+    public ComponentsTemplate Components;
 }

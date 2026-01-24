@@ -9,6 +9,8 @@ public static class Job
     
     internal static void Initialize(JobSystem jobSystem)
     {
+        _jobSystem?.WaitForCompletion();
+        _jobSystem?.Shutdown();
         _jobSystem = jobSystem;
     }
     

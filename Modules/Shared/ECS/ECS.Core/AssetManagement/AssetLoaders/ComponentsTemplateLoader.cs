@@ -16,7 +16,7 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     {
         asset.Template.OnLoad(AssetsManager);
         
-        if (asset.Template.Components is null || asset.Template.Components.Length == 0) return;
+        if (asset.Template.Components.Length == 0) return;
 
         foreach (var component in asset.Template.Components)
         {

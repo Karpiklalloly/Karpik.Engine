@@ -32,7 +32,7 @@ public class DemoModuleClient : IEcsModule
     }
 }
 
-public class MySystem : IEcsRunParallel, IEcsInit
+public class MySystem : IEcsRun, IEcsInit
 {
     class Aspect : EcsAspect
     {
@@ -41,7 +41,9 @@ public class MySystem : IEcsRunParallel, IEcsInit
         public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
 
-    private bool[] _bools = new bool[1];
+    private const int AUTO_MOVE_PLAYER_INDEX = 0;
+    private const int SHOW_WORLD_ENTITIES = 1;
+    private bool[] _bools = new bool[2];
 
     [DI] private IModManager _modManager = null!;
     [DI] private EcsDefaultWorld _world = null!;
@@ -57,7 +59,7 @@ public class MySystem : IEcsRunParallel, IEcsInit
     {
     }
 
-    public void RunParallel()
+    public void Run()
     {
         ImGui.Begin("DemoWindow");
         ShowButtons();
@@ -151,8 +153,8 @@ public class MySystem : IEcsRunParallel, IEcsInit
             }
         }
 
-        ImGui.Checkbox("Auto move player", ref _bools[0]);
-        if (_bools[0])
+        ImGui.Checkbox("Auto move player", ref _bools[AUTO_MOVE_PLAYER_INDEX]);
+        if (_bools[AUTO_MOVE_PLAYER_INDEX])
         {
             var span = _world.Where(out Aspect a);
             if (span.Count == 0) return;
@@ -163,7 +165,35 @@ public class MySystem : IEcsRunParallel, IEcsInit
                 Direction = new Vector3(1, 0, 0) // Move right
             });
         }
-        
+
+        ImGui.Checkbox("Show world entities", ref _bools[SHOW_WORLD_ENTITIES]);
+        if (_bools[SHOW_WORLD_ENTITIES])
+        {
+            ImGui.Begin("World Entities", ref _bools[SHOW_WORLD_ENTITIES]);
+            List<IEcsPool> pools = [];
+            var entities = _world.Entities;
+            foreach (var e in entities)
+            {
+                if (ImGui.CollapsingHeader($"Entity {e}"))
+                {
+                    ImGui.Indent();
+                    ImGui.PushID(e);
+                    _world.GetComponentPoolsFor(e, pools);
+                    foreach (var pool in pools)
+                    {
+                        if (ImGui.CollapsingHeader(pool.ComponentType.Name))
+                        {
+                            var component = pool.GetRaw(e);
+                            ImGui.Text(component.ToString());
+                        }
+                    }
+                    ImGui.PopID();
+                    ImGui.Unindent();
+                }
+                
+            }
+            ImGui.End();
+        }
         
         ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
         if (_input.IsPressing(KeyboardKeys.LeftAlt))

@@ -1,6 +1,7 @@
 ﻿using System.CodeDom.Compiler;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Jobs;
 using Newtonsoft.Json;
 
 namespace Karpik.Engine.Shared.ECS;
@@ -21,7 +22,7 @@ public static class EcsWorldExtensions
                     snapshot.Id = e;
                     List<object> objs = [];
                     world.GetComponentsFor(e, objs);
-                    snapshot.Components = objs.Cast<IEcsComponentMember>().ToArray();
+                    snapshot.Components = new ComponentsTemplate(objs.Cast<IEcsComponentMember>().ToArray());
                     entitySnapshots.Add(snapshot);
                 }
 
@@ -35,7 +36,7 @@ public static class EcsWorldExtensions
             }
         }
 
-        public static T FromSnapshot<T>(string snapshots, TypeMapper map) where T : EcsWorld, new()
+        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IAssetsManager manager)
         {
             // TODO: добавить конвертер массива компонентов
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
@@ -45,31 +46,20 @@ public static class EcsWorldExtensions
                 TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
                 SerializationBinder = new LooseAssemblyNameBinder(),
                 Converters = [new ComponentArrayConverter()]
-            });
+            })!;
 
-            T newWorld = new();
-
-            foreach (var entitySnapshot in list)
+            var entities = newWorld.Entities;
+            foreach (var e in entities)
+            {
+                newWorld.DelEntity(e);
+            }
+            
+            await foreach (var entitySnapshot in list.ToAsyncEnumerable())
             {
                 newWorld.NewEntity(entitySnapshot.Id);
-                foreach (var component in entitySnapshot.Components)
-                {
-                    var newType = map.GetNewType(component.GetType());
-                    if (!newWorld.TryFindPoolInstance(newType, out var pool))
-                    {
-                        var method = typeof(EcsPoolExtensions).GetMethod(nameof(EcsPoolExtensions.GetPool));
-                        if (method is null) throw new NullInstanceException();
-                        var genericMethod = method.MakeGenericMethod(newType);
-
-                        pool = (IEcsPool)genericMethod.Invoke(null, new []{(object)newWorld});
-                        if (pool is null) throw new NullInstanceException();
-                    }
-                    pool.AddRaw(entitySnapshot.Id, component);
-                }
-                
+                entitySnapshot.Components.OnLoad(manager);
+                await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld);
             }
-
-            return newWorld;
         }
     }
 }

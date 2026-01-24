@@ -2,6 +2,7 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Core.ModuleManagement;
+using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.ECS;
 
@@ -47,14 +48,14 @@ public class ECSInstaller : IModule, IModuleHotReload
         _reloaded = false;
 
         _world.Destroy();
-        _world = null;
+        _world = null!;
         _eventWorld.Destroy();
-        _eventWorld = null;
+        _eventWorld = null!;
         _metaWorld.Destroy();
         _metaWorld = null!;
     }
 
-    public bool OnHotReload(IModule oldModule, TypeMapper map)
+    public bool OnHotReload(IModule oldModule, TypeMapper map, IServiceContainer services)
     {
         if (!_reloaded)
         {
@@ -69,10 +70,14 @@ public class ECSInstaller : IModule, IModuleHotReload
         var snapshotDefault = (string)propertyDefault!.GetValue(oldModule)!;
         var snapshotEvent = (string)propertyEvent!.GetValue(oldModule)!;
         var snapshotMeta = (string)propertyMeta!.GetValue(oldModule)!;
-        
-        _world = EcsWorld.FromSnapshot<EcsDefaultWorld>(snapshotDefault, map);
-        _eventWorld = EcsWorld.FromSnapshot<EcsEventWorld>(snapshotEvent, map);
-        _metaWorld = EcsWorld.FromSnapshot<EcsMetaWorld>(snapshotMeta, map);
+
+        var assetManager = services.Get<IAssetsManager>();
+        services.Get<MainThreadScheduler>().Schedule(() =>
+        {
+            EcsWorld.FromSnapshot(_world, snapshotDefault, assetManager);
+            EcsWorld.FromSnapshot(_eventWorld, snapshotEvent, assetManager);
+            EcsWorld.FromSnapshot(_metaWorld, snapshotMeta, assetManager);
+        });
 
         return true;
     }
