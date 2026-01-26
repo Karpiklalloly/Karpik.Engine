@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Linq;
+using System.Reflection;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
@@ -77,15 +79,9 @@ public abstract class ComponentTemplateBase<T> : ComponentTemplateBase, ICloneab
 public class ComponentTemplate<T> : ComponentTemplateBase<T>
     where T : struct, IEcsComponent
 {
-    private static IEcsComponentOnLoad<T>? _loader = null;
+    private static readonly IEcsComponentOnLoad<T>? _loader = default(T) as IEcsComponentOnLoad<T>;
     
-    public ComponentTemplate(T component) : base(component)
-    {
-        if (_loader == null && component is IEcsComponentOnLoad<T> c)
-        {
-            _loader = c;
-        }
-    }
+    public ComponentTemplate(T component) : base(component) { }
 
     public override void ApplyTo(int entityID, EcsWorld world)
     {

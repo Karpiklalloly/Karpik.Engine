@@ -74,8 +74,11 @@ public class Bootstrap
         }
         
         var oldAssemblies = _modules.Select(m => m.GetType().Assembly).Distinct().ToList();
-        
-        var types = ReloadModulesAction.Invoke();
+        Type[] types = [];
+        if (hotReload)
+        {
+            types = ReloadModulesAction.Invoke();
+        }
 #endif
         Job.Initialize(new Jobs.JobSystem());
 

@@ -24,7 +24,7 @@ public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnL
     public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, IAssetsManager manager)
     {
         renderer._handle.Dispose();
-        renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(TexturePath);
+        renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(renderer.TexturePath);
         return renderer;
     }
 

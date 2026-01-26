@@ -68,7 +68,7 @@ public class ComponentsTemplate
         {
             IEcsComponent component => component.ToComponentTemplate(),
             IEcsTagComponent tagComponent => tagComponent.ToComponentTemplate(),
-            _ => null
+            _ => throw new InvalidOperationException($"Unknown component member type: {x.GetType().FullName}"),
         };
     }
 }
