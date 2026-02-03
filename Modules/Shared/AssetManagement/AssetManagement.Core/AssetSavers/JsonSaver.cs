@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Karpik.Engine.Core;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
@@ -10,7 +11,8 @@ public abstract class JsonSaver<TAsset> : BaseAssetSaver<TAsset> where TAsset : 
 
     public JsonSaver()
     {
-        Serializer.Formatting = Formatting.Indented; 
+        Serializer.Formatting = Formatting.Indented;
+        Serializer.ContractResolver = new DefaultContractResolver();
     }
 
     protected override async JobHandle OnSaveAsync(TAsset asset, Stream stream)

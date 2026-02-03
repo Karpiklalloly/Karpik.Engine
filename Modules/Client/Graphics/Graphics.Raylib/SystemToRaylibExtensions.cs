@@ -1,4 +1,7 @@
 ﻿using System.Drawing;
+using Karpik.Engine.Client.Graphics.Core;
+using Raylib_cs;
+using Color = System.Drawing.Color;
 
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
@@ -22,5 +25,10 @@ public static class SystemToRaylibExtensions
     extension(Raylib_cs.Rectangle rectangle)
     {
         public RectangleF System => new(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+    }
+
+    extension(ICamera camera)
+    {
+        public Camera3D Raylib3D => ((RaylibCamera)camera).Camera;
     }
 }

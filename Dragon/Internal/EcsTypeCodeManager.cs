@@ -1,10 +1,7 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 #if ENABLE_IL2CPP
 using Unity.IL2CPP.CompilerServices;
@@ -53,6 +50,11 @@ namespace DCFApixels.DragonECS.Core.Internal
             return null;
         }
         public static IEnumerable<TypeCodeInfo> GetDeclaredTypes() { return _codes.Select(o => new TypeCodeInfo(o.Key, o.Value)); }
+
+        internal static void Clear()
+        {
+            _codes.Clear();
+        }
     }
 #if ENABLE_IL2CPP
     [Il2CppSetOption(Option.NullChecks, false)]

@@ -103,6 +103,21 @@ public class Input
     {
         _window = window;
     }
+
+    internal void Destory()
+    {
+        KeyPressed = null!;
+        KeyUnPressed = null!;
+        KeyPressing = null!;
+        CharPressed = null!;
+        CharUnPressed = null!;
+        CharPressing = null!;
+        
+        _keys.Clear();
+        _chars.Clear();
+
+        _window = null!;
+    }
     
     internal void Update()
     {

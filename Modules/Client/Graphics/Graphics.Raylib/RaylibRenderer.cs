@@ -126,7 +126,7 @@ public class RaylibRenderer : IRenderer
 
     public void BeginMode3D(ICamera camera)
     {
-        Raylib.BeginMode3D(((RaylibCamera)camera).Camera);
+        Raylib.BeginMode3D(camera.Raylib3D);
     }
 
     public void End3DMode3D()

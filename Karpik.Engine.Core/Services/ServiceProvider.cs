@@ -1,10 +1,11 @@
 ﻿using System.Collections.Concurrent;
-using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Core;
 
-public class ServiceProvider : IServiceRegister, IServiceContainer, IInjectionBlock
+public class ServiceProvider : IServiceRegister, IServiceContainer
 {
+    public ConcurrentDictionary<Type, List<object>> Services => _services;
+
     private readonly ConcurrentDictionary<Type, List<object>> _services = new();
 
     public ServiceProvider()
@@ -58,14 +59,6 @@ public class ServiceProvider : IServiceRegister, IServiceContainer, IInjectionBl
     public object? GetService(Type serviceType)
     {
         return _services.GetValueOrDefault(serviceType)?.First();
-    }
-
-    public void InjectTo(Injector inj)
-    {
-        foreach (var services in _services.Values.Where(x => x.First() is not IInjectionBlock))
-        {
-            inj.Inject(services.First());
-        }
     }
 
     public void InjectAll()

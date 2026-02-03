@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
@@ -15,21 +12,22 @@ public class Client
         Bootstrap b = new();
         
 #if DEBUG
-        var clientAssemblies = ModuleLoader.SharedAssemblies.Concat(ModuleLoader.ClientOnlyAssemblies);
+        ModuleLoader loader = new();
+        var clientAssemblies = loader.SharedAssemblies.Concat(loader.ClientOnlyAssemblies);
         HotReloadHandler.Initialize(clientAssemblies);
         
         b.ReloadModulesAction = () =>
         {
-            ModuleLoader.LoadClientModules();
-            return ModuleTypes();
+            loader.LoadClientModules();
+            return ModuleTypes(loader);
         };
         
-        b.GetAssembliesToScan = () => ModuleLoader.LoadedAssemblies;
+        b.GetAssembliesToScan = () => loader.LoadedAssemblies;
 #endif
         
-        DiscoverAndRegisterModules(b);
+        DiscoverAndRegisterModules(b, loader);
         
-        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning);
+        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning, loader);
         var stopwatch = Stopwatch.StartNew();
         double lastTime = 0;
         while (isRunning.Value)
@@ -48,27 +46,20 @@ public class Client
 #endif
     }
 
-    private void DiscoverAndRegisterModules(Bootstrap bootstrap)
+    private void DiscoverAndRegisterModules(Bootstrap bootstrap, ModuleLoader loader)
     {
 #if DEBUG
-        ModuleLoader.LoadClientModules();
-        var moduleTypes = ModuleTypes();
-
-        foreach (var type in moduleTypes)
-        {
-            var moduleInstance = (IModule)Activator.CreateInstance(type)!;
-            bootstrap.RegisterModule(moduleInstance);
-        }
+        loader.LoadClientModules();
+        var moduleTypes = ModuleTypes(loader);
+        bootstrap.RegisterTypes(moduleTypes);
+        
 #else
         ModuleLoader.RegisterClientModules(bootstrap);
 #endif
     }
 
-    private Type[] ModuleTypes()
+    private Type[] ModuleTypes(ModuleLoader loader)
     {
-        return ModuleLoader.LoadedAssemblies
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
-                        t.GetCustomAttribute<ModuleAttribute>() != null).ToArray();
+        return loader.LoadedAssemblies.SelectMany(assembly => assembly.GetTypes()).ToArray();
     }
 }

@@ -47,6 +47,12 @@ public static class ToTemplateExtensions
             return null;
         }
     }
+
+    public static void Clear()
+    {
+        ComponentTemplateTypeCache.Clear();
+        ConstructorCache.Clear();
+    }
 }
 
 public static class ToTemplateExtensions2
@@ -92,5 +98,11 @@ public static class ToTemplateExtensions2
             }
             return null;
         }
+    }
+    
+    public static void Clear()
+    {
+        ComponentTemplateTypeCache.Clear();
+        ConstructorCache.Clear();
     }
 }

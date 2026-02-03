@@ -12,7 +12,7 @@ public class PluginLoadContext : AssemblyLoadContext
 {
     private readonly string _shadowCopyDirectory;
     private readonly List<AssemblyDependencyResolver> _resolvers;
-    private readonly List<IntPtr> _nativeHandles = new();
+    private readonly List<(IntPtr, string)> _nativeHandles = new();
 
     public PluginLoadContext(IEnumerable<string> pluginPaths, string shadowCopyDirectory) : base(isCollectible: true)
     {
@@ -27,7 +27,8 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         foreach (var handle in _nativeHandles)
         {
-            NativeLibrary.Free(handle);
+            Console.WriteLine($"Unload {handle.Item2}");
+            NativeLibrary.Free(handle.Item1);
         }
         _nativeHandles.Clear();
         
@@ -37,24 +38,51 @@ public class PluginLoadContext : AssemblyLoadContext
 
     private Assembly? OnResolving(AssemblyLoadContext context, AssemblyName name)
     {
-        // 1. Основной механизм
+        // --- ИЗМЕНЕНИЕ: Самый высокий приоритет — проверка уже скопированных файлов ---
+        // Так как ModuleLoader уже скопировал все DLL, мы сначала смотрим в shadow folder.
+        // Это позволяет загружать зависимости, даже если оригиналы были удалены.
+        
+        var expectedFileName = name.Name + ".dll";
+        var shadowPathToCheck = Path.Combine(_shadowCopyDirectory, expectedFileName);
+        Console.WriteLine($"Загружаем {name.Name}");
+        
+        if (File.Exists(shadowPathToCheck))
+        {
+            try 
+            {
+                return LoadFromAssemblyPath(shadowPathToCheck);
+            }
+            catch (Exception)
+            {
+                // Если файл поврежден или это не сборка, идем дальше к резолверам
+            }
+        }
+        // -----------------------------------------------------------------------------
+
+        // 1. Поиск через стандартные резолверы (.deps.json)
         foreach (var resolver in _resolvers)
         {
             string? originalPath = resolver.ResolveAssemblyToPath(name);
             if (originalPath != null)
             {
+                // Если резолвер нашел путь, но мы не нашли его в теневой папке выше (например, имя файла отличается),
+                // то копируем сейчас.
                 var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(originalPath));
-                if (!File.Exists(shadowPath))
+                
+                // Проверяем существование ОРИГИНАЛА перед копированием
+                if (File.Exists(originalPath)) 
                 {
-                    File.Copy(originalPath, shadowPath);
+                    if (!File.Exists(shadowPath))
+                    {
+                        File.Copy(originalPath, shadowPath);
+                    }
+                    return LoadFromAssemblyPath(shadowPath);
                 }
-                return this.LoadFromAssemblyPath(shadowPath);
             }
         }
         
-        // 2. Резервный механизм
-        var assemblyFileName = name.Name + ".dll";
-        var fallbackPath = Path.Combine(AppContext.BaseDirectory, assemblyFileName);
+        // 2. Резервный механизм (Fallback) - поиск в папке запуска
+        var fallbackPath = Path.Combine(AppContext.BaseDirectory, expectedFileName);
         if (File.Exists(fallbackPath))
         {
             var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(fallbackPath));
@@ -65,23 +93,38 @@ public class PluginLoadContext : AssemblyLoadContext
             return LoadFromAssemblyPath(shadowPath);
         }
         
-        Console.WriteLine($"[PluginLoadContext-Fallback] FAILED: File not found at fallback path.");
-        Console.WriteLine($"[PluginLoadContext] Could not resolve '{name}'. Returning null.");
+        // Если мы здесь, значит файла нет ни в теневой, ни в оригинальной папке
+        Console.WriteLine($"[PluginLoadContext] Could not resolve '{name}'.");
         return null;
     }
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
+        // Для нативных библиотек логика похожая:
+        // 1. Проверяем теневую папку (если вы копируете и .dll/.so/.dylib нативных либ)
+        var shadowNativePath = Path.Combine(_shadowCopyDirectory, unmanagedDllName);
+        if (!shadowNativePath.EndsWith(".dll") && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
+            shadowNativePath += ".dll";
+            
+        if (File.Exists(shadowNativePath))
+        {
+            if (NativeLibrary.TryLoad(shadowNativePath, out var handle))
+            {
+                _nativeHandles.Add((handle, shadowNativePath));
+                return handle;
+            }
+        }
+
         string? path = null;
         
-        // 1. Поиск через resolver
+        // 2. Поиск через resolver
         foreach (var resolver in _resolvers)
         {
             path = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
             if (path != null) break;
         }
 
-        // 2. Поиск в базовой директории
+        // 3. Поиск в базовой директории
         if (path == null)
         {
             var unmanagedFileName = unmanagedDllName;
@@ -96,17 +139,15 @@ public class PluginLoadContext : AssemblyLoadContext
             }
         }
 
-        if (path != null)
+        if (path != null && File.Exists(path))
         {
-            // Используем NativeLibrary.Load, чтобы получить хендл и контролировать выгрузку
             if (NativeLibrary.TryLoad(path, out var handle))
             {
-                _nativeHandles.Add(handle);
+                _nativeHandles.Add((handle, path));
                 return handle;
             }
         }
 
-        Console.WriteLine($"[PluginLoadContext] FAILED: Could not find native library '{unmanagedDllName}'. Passing to default loader.");
         return base.LoadUnmanagedDll(unmanagedDllName);
     }
 }

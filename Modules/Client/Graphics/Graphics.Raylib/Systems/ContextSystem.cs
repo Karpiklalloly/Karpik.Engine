@@ -1,7 +1,6 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.ECS;
 using Raylib_cs;
 using rlImGui_cs;
 
@@ -19,15 +18,13 @@ internal class BeginContextSystem : IEcsRun
 {
     [DI] private ICamera _mainCamera = null!;
 
-    private Camera3D MainCamera => (_mainCamera as RaylibCamera)!.Camera;
-
     public void Run()
     {
         Raylib.BeginDrawing();
         Raylib.ClearBackground(Color.DarkGreen);
 
         rlImGui.Begin();
-        Raylib.BeginMode3D(MainCamera);
+        Raylib.BeginMode3D(_mainCamera.Raylib3D);
     }
 }
 

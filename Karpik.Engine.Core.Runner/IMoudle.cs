@@ -16,6 +16,12 @@ public interface IModuleListener
     public void OnAnotherModuleLoaded(IServiceContainer services, IModule anotherModule, Assembly anotherModuleAssembly);
 }
 
+public interface IModuleHotReload
+{
+    void OnPrepareHotReload();
+    bool OnHotReload(IModule oldModule, IServiceContainer services);
+}
+
 public interface IModuleDestroy
 {
     public void Destroy();

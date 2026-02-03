@@ -7,17 +7,18 @@ using System.Collections.Generic;
 using System.Runtime.Loader;
 using Karpik.Engine.Core.ModuleManagement;
 
-internal static class ModuleLoader
+public class ModuleLoader
 {
 #if DEBUG
-    public static Assembly[] LoadedAssemblies = [];
-    private static WeakReference? _previousContextRef;
-    private static AssemblyLoadContext? _previousContext;
-    private static AssemblyLoadContext? _currentContext;
-    private static string? _directoryToCleanup;
-    private static string? _previousDirectoryToCleanup;
+    public Assembly[] LoadedAssemblies = [];
+    private WeakReference? _previousContextRef;
+    private AssemblyLoadContext? _previousContext;
+    private AssemblyLoadContext? _currentContext;
+    private string? _directoryToCleanup;
+    private string? _previousDirectoryToCleanup;
 
-    public static readonly string[] SharedAssemblies = {
+    public readonly string[] SharedAssemblies = {
+        "Karpik.Engine.Core.Runner",
         "AssetManagement.Core",
         "DebugModule",
         "ECS.Core",
@@ -31,7 +32,7 @@ internal static class ModuleLoader
         "MyGameResources",
         "MyGame.Shared.Main",
     };
-    public static readonly string[] ClientOnlyAssemblies = {
+    public readonly string[] ClientOnlyAssemblies = {
         "Graphics.Core",
         "Graphics.Raylib",
         "Input",
@@ -40,68 +41,128 @@ internal static class ModuleLoader
         "UIToolkit.Core",
         "MyGame.Client.Main",
     };
-    public static readonly string[] ServerOnlyAssemblies = {
+    public readonly string[] ServerOnlyAssemblies = {
         "Network.Server.Core",
         "Network.Server.LiteNetLib",
         "MyGame.Server.Main",
     };
     
-    public static void LoadClientModules() => LoadPluginCollection(SharedAssemblies.Concat(ClientOnlyAssemblies));
-    public static void LoadServerModules() => LoadPluginCollection(SharedAssemblies.Concat(ServerOnlyAssemblies));
+    public void LoadClientModules() => LoadPluginCollection(SharedAssemblies.Concat(ClientOnlyAssemblies));
+    public void LoadServerModules() => LoadPluginCollection(SharedAssemblies.Concat(ServerOnlyAssemblies));
 
-    private static void LoadPluginCollection(IEnumerable<string> assemblyNames)
+    private void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
         if (_currentContext != null)
         {
+            // ... (ваш код выгрузки старого контекста без изменений) ...
             _previousContextRef = new WeakReference(_currentContext, trackResurrection: true);
             _previousContext = _currentContext;
             _currentContext = null;
-            _previousDirectoryToCleanup = _directoryToCleanup; // СОХРАНЯЕМ СТАРУЮ
+            _previousDirectoryToCleanup = _directoryToCleanup; 
             Console.WriteLine("[ModuleLoader] Unloading previous AssemblyLoadContext initiated.");
         }
-        
-        var baseDirectory = AppContext.BaseDirectory;
+
+        string baseDirectory = null!;
+        if (_previousDirectoryToCleanup is not null)
+        {
+            baseDirectory = _previousDirectoryToCleanup;
+        }
+        else
+        {
+            baseDirectory = AppContext.BaseDirectory;
+        }
         var shadowCopyDirectory = Path.Combine(baseDirectory, "shadow_copies", Guid.NewGuid().ToString());
         Directory.CreateDirectory(shadowCopyDirectory);
 
-        var originalAssemblyPaths = new List<string>();
-        var shadowAssemblyPaths = new List<string>();
+        var originalAssemblyPaths = new List<string>(); // Пути к оригиналам (для резолверов)
+        var shadowAssemblyPaths = new List<string>();   // Пути к копиям (для загрузки)
 
+        // --- ИЗМЕНЕНИЕ НАЧАЛО: Копируем ВСЕ .dll файлы из папки билда ---
+        // Это гарантирует, что Newtonsoft.Json и другие зависимости попадут в теневую папку
+        var allDlls = Directory.GetFiles(baseDirectory, "*.dll");
+        foreach (var dllPath in allDlls)
+        {
+            var fileName = Path.GetFileName(dllPath);
+            var destPath = Path.Combine(shadowCopyDirectory, fileName);
+
+            // Копируем DLL
+            try 
+            {
+                File.Copy(dllPath, destPath);
+            }
+            catch (IOException ex)
+            {
+                // Иногда файл может быть занят другим процессом, но для HotReload обычно это не критично
+                Console.WriteLine($"[ModuleLoader] Warning: Failed to copy {fileName}: {ex.Message}");
+                continue;
+            }
+
+            // Копируем PDB, если есть
+            var pdbPath = Path.ChangeExtension(dllPath, ".pdb");
+            if (File.Exists(pdbPath))
+            {
+                File.Copy(pdbPath, Path.Combine(shadowCopyDirectory, Path.GetFileName(pdbPath)));
+            }
+        }
+        // --- ИЗМЕНЕНИЕ КОНЕЦ ---
+
+        // Теперь формируем списки только для ВХОДНЫХ ТОЧЕК (модулей), которые надо явно загрузить
+        // Мы используем Distinct(), чтобы не грузить одно и то же дважды
         foreach (var name in assemblyNames.Distinct())
         {
-            var sourcePath = Path.Combine(baseDirectory, name + ".dll");
-            if (File.Exists(sourcePath))
+            var originalPath = Path.Combine(baseDirectory, name + ".dll");
+            // Ищем уже скопированный путь в теневой папке
+            var shadowPath = Path.Combine(shadowCopyDirectory, name + ".dll");
+
+            if (File.Exists(shadowPath)) // Проверяем, что файл успешно скопировался
             {
-                originalAssemblyPaths.Add(sourcePath);
-                var destPath = Path.Combine(shadowCopyDirectory, Path.GetFileName(sourcePath));
-                File.Copy(sourcePath, destPath);
-                shadowAssemblyPaths.Add(destPath);
-                var pdbPath = Path.ChangeExtension(sourcePath, ".pdb");
-                if (File.Exists(pdbPath))
+                // Для резолверов используем оригинальный путь (там лежит .deps.json)
+                if (File.Exists(originalPath))
                 {
-                    File.Copy(pdbPath, Path.Combine(shadowCopyDirectory, Path.GetFileName(pdbPath)));
+                    originalAssemblyPaths.Add(originalPath);
                 }
+                
+                // Добавляем в список на явную загрузку
+                shadowAssemblyPaths.Add(shadowPath);
+            }
+            else
+            {
+                Console.WriteLine($"[ModuleLoader] Error: Assembly '{name}' not found in build directory.");
             }
         }
 
-        if (!originalAssemblyPaths.Any()) return;
+        if (!shadowAssemblyPaths.Any()) return; // Используем shadowAssemblyPaths, так как он надежнее
 
+        // Передаем originalAssemblyPaths для создания резолверов зависимостей
         var newContext = new PluginLoadContext(originalAssemblyPaths, shadowCopyDirectory);
         _currentContext = newContext;
         _directoryToCleanup = shadowCopyDirectory;
+
+        foreach (var dll in allDlls.Where(x => { return !x.Contains("Karpik.Jobs"); }))
+        {
+            try
+            {
+                File.Delete(dll);
+            }
+            catch (Exception e)
+            {
         
+            }
+        }
+
         Array.Clear(LoadedAssemblies);
         LoadedAssemblies = new Assembly[shadowAssemblyPaths.Count];
         int i = 0;
         foreach (var path in shadowAssemblyPaths)
         {
+            // Загружаем из ТЕНЕВОЙ папки
             var assembly = newContext.LoadFromAssemblyPath(path);
             LoadedAssemblies[i] = assembly;
             i++;
         }
     }
 
-    public static void CheckForPreviousContextUnload()
+    public void CheckForPreviousContextUnload()
     {
         _previousContext.Unload();
         _previousContext = null;
@@ -110,10 +171,18 @@ internal static class ModuleLoader
             Console.WriteLine("[ModuleLoader] CheckForPreviousContextUnload: _previousContextRef is null. Nothing to check.");
             return;
         }
+        
+        if (LoadedAssemblies != null)
+        {
+            foreach (var asm in LoadedAssemblies)
+            {
+                System.ComponentModel.TypeDescriptor.Refresh(asm); 
+            }
+        }
 
         for (int i = 0; i < 10 && _previousContextRef.IsAlive; i++)
         {
-            GC.Collect();
+            GC.Collect(GC.MaxGeneration);
             GC.WaitForPendingFinalizers();
         }
 

@@ -18,6 +18,8 @@ public class ModManager : IModManager
 
     public void Init(ExecutionSide caller)
     {
+        UserData.RegisterType<GameAPI>();
+        
         _subFolder = caller switch
         {
             ExecutionSide.Client => "Client",
@@ -161,5 +163,6 @@ public class ModManager : IModManager
             container.Destroy();
         }
         _loadedMods.Clear();
+        UserData.UnregisterType<GameAPI>();
     }
 }

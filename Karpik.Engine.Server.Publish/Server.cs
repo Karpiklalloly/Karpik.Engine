@@ -15,10 +15,12 @@ public class Server
     public void Start(Ref<bool> isRunning)
     {
         Bootstrap b = new();
+
+        ModuleLoader loader = new ModuleLoader();
         
-        DiscoverAndRegisterModules(b);
+        DiscoverAndRegisterModules(b, loader);
         
-        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning);
+        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning, loader);
         
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
@@ -56,15 +58,15 @@ public class Server
         b.Shutdown();
     }
     
-    private void DiscoverAndRegisterModules(Bootstrap bootstrap)
+    private void DiscoverAndRegisterModules(Bootstrap bootstrap, ModuleLoader loader)
     {
 #if DEBUG
         Console.WriteLine("[Launcher] DEBUG mode: Loading server modules from manifest...");
-        ModuleLoader.LoadServerModules();
+        loader.LoadServerModules();
         
         var assembliesToScan = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => ModuleLoader.SharedAssemblies.Contains(a.GetName().Name) || 
-                        ModuleLoader.ServerOnlyAssemblies.Contains(a.GetName().Name));
+            .Where(a => loader.SharedAssemblies.Contains(a.GetName().Name) || 
+                        loader.ServerOnlyAssemblies.Contains(a.GetName().Name));
 
         var moduleTypes = assembliesToScan
             .SelectMany(assembly => assembly.GetTypes())

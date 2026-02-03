@@ -87,7 +87,15 @@ public class MainThreadScheduler
     {
         while (_actions.TryDequeue(out var action))
         {
-            action();
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
         }
     }
 }

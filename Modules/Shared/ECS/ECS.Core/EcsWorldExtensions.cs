@@ -1,8 +1,11 @@
 ﻿using System.CodeDom.Compiler;
+using System.Text;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 
 namespace Karpik.Engine.Shared.ECS;
 
@@ -25,27 +28,28 @@ public static class EcsWorldExtensions
                     snapshot.Components = new ComponentsTemplate(objs.Cast<IEcsComponentMember>().ToArray());
                     entitySnapshots.Add(snapshot);
                 }
-
+                
                 return JsonConvert.SerializeObject(entitySnapshots, new JsonSerializerSettings()
                 {
                     Formatting = Formatting.Indented,
                     TypeNameHandling = TypeNameHandling.Objects,
                     TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-                    Converters = [new ComponentArrayConverter()]
+                    Converters = [new ComponentArrayConverter()],
+                    ContractResolver = new DefaultContractResolver()
                 });
             }
         }
 
         public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IAssetsManager manager)
         {
-            // TODO: добавить конвертер массива компонентов
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
                 Formatting = Formatting.Indented,
                 TypeNameHandling = TypeNameHandling.Objects,
                 TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
                 SerializationBinder = new LooseAssemblyNameBinder(),
-                Converters = [new ComponentArrayConverter()]
+                Converters = [new ComponentArrayConverter()],
+                ContractResolver = new DefaultContractResolver()
             })!;
 
             var entities = newWorld.Entities;

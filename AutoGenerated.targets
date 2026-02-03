@@ -1,17 +1,38 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/DebugModule/DebugModule.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/DebugModule/DebugModule.csproj" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" Condition="'$(IsClient)' == 'true'" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" Condition="'$(IsClient)' == 'true'">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <Private>false</Private>
     </PluginReference>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Client/Input/Input.csproj" Condition="'$(IsClient)' == 'true'" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/LoggerModule/LoggerModule.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Input/Input.csproj" Condition="'$(IsClient)' == 'true'" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/LoggerModule/LoggerModule.csproj" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" >
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Lua/Modding.Lua.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <Private>false</Private>
@@ -31,12 +52,33 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <Private>false</Private>
     </PluginReference>
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" Condition="'$(IsClient)' == 'true'" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" Condition="'$(IsClient)' == 'true'">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
+    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+    </PluginReference>
   </ItemGroup>
 </Project>

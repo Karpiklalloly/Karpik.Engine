@@ -45,9 +45,9 @@ namespace DCFApixels.DragonECS
         private int[] _recycledItems;
         private int _recycledItemsCount = 0;
 
-        private readonly IEcsComponentLifecycle<T> _componentLifecycleHandler = EcsComponentLifecycleHandler<T>.instance;
+        private IEcsComponentLifecycle<T> _componentLifecycleHandler = EcsComponentLifecycleHandler<T>.instance;
         private readonly bool _isHasComponentLifecycleHandler = EcsComponentLifecycleHandler<T>.isHasHandler;
-        private readonly IEcsComponentCopy<T> _componentCopyHandler = EcsComponentCopyHandler<T>.instance;
+        private IEcsComponentCopy<T> _componentCopyHandler = EcsComponentCopyHandler<T>.instance;
         private readonly bool _isHasComponentCopyHandler = EcsComponentCopyHandler<T>.isHasHandler;
 
 #if !DRAGONECS_DISABLE_POOLS_EVENTS
@@ -120,7 +120,17 @@ namespace DCFApixels.DragonECS
                 _recycledItems = new int[worldConfig.PoolRecycledComponentsCapacity];
             }
         }
-        void IEcsPoolImplementation.OnWorldDestroy() { }
+
+        void IEcsPoolImplementation.OnWorldDestroy()
+        {
+            _componentLifecycleHandler = null;
+            EcsComponentLifecycleHandler<T>.instance = null;
+
+            _componentCopyHandler = null;
+            EcsComponentCopyHandler<T>.instance = null;
+
+
+        }
         #endregion
 
         #region Methods

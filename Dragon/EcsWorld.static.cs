@@ -61,6 +61,12 @@ namespace DCFApixels.DragonECS
                 foreach (var controller in _worldComponentPools)
                 {
                     controller.Release(worldID);
+                    
+                }
+                foreach (var controller in _worldComponentPools)
+                {
+                    controller.Destroy(worldID);
+                    break;
                 }
                 _worldComponentPools.Clear();
             }
@@ -134,6 +140,7 @@ namespace DCFApixels.DragonECS
             public abstract void Release(short worldID);
             public abstract object GetRaw(short worldID);
             public abstract void SetRaw(short worldID, object raw);
+            public abstract void Destroy(short worldID);
         }
         private static class WorldComponentPool<T>
         {
@@ -142,7 +149,7 @@ namespace DCFApixels.DragonECS
             private static short _count;
             private static short[] _recycledItems = new short[4];
             private static short _recycledItemsCount;
-            private static readonly IEcsWorldComponent<T> _interface = EcsWorldComponentHandler<T>.instance;
+            private static IEcsWorldComponent<T> _interface = EcsWorldComponentHandler<T>.instance;
             private static readonly Abstract _controller = new Abstract();
             static WorldComponentPool()
             {
@@ -265,6 +272,13 @@ namespace DCFApixels.DragonECS
                 short itemIndex = _mapping[worldID];
                 return itemIndex > 0;
             }
+
+            private static void Destroy(short worldID)
+            {
+                Array.Clear(_items);
+                _interface = null;
+                EcsWorldComponentHandler<T>.instance = null;
+            }
             private sealed class Abstract : WorldComponentPoolAbstract
             {
                 public sealed override Type ComponentType
@@ -275,6 +289,12 @@ namespace DCFApixels.DragonECS
                 {
                     WorldComponentPool<T>.GetItem(worldID) = (T)raw;
                 }
+
+                public override void Destroy(short worldID)
+                {
+                    WorldComponentPool<T>.Destroy(worldID);
+                }
+
                 public sealed override void Has(short worldID)
                 {
                     WorldComponentPool<T>.Has(worldID);
@@ -343,5 +363,10 @@ namespace DCFApixels.DragonECS
             return FindPoolInstance(componentType);
         }
         #endregion
+
+        internal static void Clear()
+        {
+            _allWorldComponentPools.Clear();
+        }
     }
 }

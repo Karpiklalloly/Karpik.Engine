@@ -160,6 +160,7 @@ namespace DCFApixels.DragonECS.Core.Internal
             }
             ComparisonHach.Instance.comparison = comparison;
             Array.Sort(items, 0, length, ComparisonHach.Instance);
+            ComparisonHach.Instance.comparison = null;
         }
         #endregion
     }

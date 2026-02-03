@@ -10,9 +10,9 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
 {
     private const string TypePropertyName = "$type";
 
-    private static MethodInfo _genericToObjectMethodInfo;
-    private static readonly Lock _methodInfoLock = new();
-    private static readonly ConcurrentDictionary<Type, MethodInfo> ClosedToObjectMethodCache = new();
+    private MethodInfo _genericToObjectMethodInfo;
+    private readonly Lock _methodInfoLock = new();
+    private readonly ConcurrentDictionary<Type, MethodInfo> ClosedToObjectMethodCache = new();
     
     public override void WriteJson(JsonWriter writer, IEcsComponentMember[] value, JsonSerializer serializer)
     {
@@ -100,7 +100,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
         return components.ToArray();
     }
     
-    private static void InitializeGenericToObjectMethodInfo()
+    private void InitializeGenericToObjectMethodInfo()
     {
         if (_genericToObjectMethodInfo != null) return;
 
@@ -126,7 +126,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
     }
 
 
-    private static Type FindTypeByName(string typeName)
+    private Type FindTypeByName(string typeName)
     {
         Type foundType = Type.GetType(typeName, throwOnError: false, ignoreCase: true);
         if (foundType != null) return foundType;

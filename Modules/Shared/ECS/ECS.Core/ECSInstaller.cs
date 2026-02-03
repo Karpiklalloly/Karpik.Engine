@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using DCFApixels.DragonECS.Core.Internal;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Core.ModuleManagement;
@@ -20,9 +21,11 @@ public class ECSInstaller : IModule, IModuleHotReload
     private string _snapshotMeta = string.Empty;
 
     private bool _reloaded = false;
-    
+    private EcsPipeline.Builder _builder = null!;
+
     public void OnRegisterServices(IServiceRegister services)
     {
+        _builder = EcsPipeline.New();
         services
             .Register(_world)
             .Register(_eventWorld)
@@ -46,6 +49,8 @@ public class ECSInstaller : IModule, IModuleHotReload
         _snapshotMeta = _metaWorld.Snapshot;
 
         _reloaded = false;
+        ToTemplateExtensions.Clear();
+        ToTemplateExtensions2.Clear();
 
         _world.Destroy();
         _world = null!;
@@ -55,7 +60,7 @@ public class ECSInstaller : IModule, IModuleHotReload
         _metaWorld = null!;
     }
 
-    public bool OnHotReload(IModule oldModule, TypeMapper map, IServiceContainer services)
+    public bool OnHotReload(IModule oldModule, IServiceContainer services)
     {
         if (!_reloaded)
         {
