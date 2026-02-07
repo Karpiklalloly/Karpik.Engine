@@ -56,7 +56,6 @@
   </Folder>
   <Project Path="ClientLauncher/ClientLauncher.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
-  <Project Path="Dragon.Core/Dragon.Core.csproj" />
   <Project Path="Dragon/Dragon.csproj" />
   <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
