@@ -86,7 +86,7 @@ public class ModuleRegistratorGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
-        context.AddSource("ModuleRegistry.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+        // context.AddSource("ModuleRegistry.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
     // --- Helpers ---

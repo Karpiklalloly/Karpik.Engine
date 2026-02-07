@@ -138,17 +138,17 @@ public class ModuleLoader
         _currentContext = newContext;
         _directoryToCleanup = shadowCopyDirectory;
 
-        foreach (var dll in allDlls.Where(x => { return !x.Contains("Karpik.Jobs"); }))
-        {
-            try
-            {
-                File.Delete(dll);
-            }
-            catch (Exception e)
-            {
-        
-            }
-        }
+        // foreach (var dll in allDlls.Where(x => { return !x.Contains("Karpik.Jobs"); }))
+        // {
+        //     try
+        //     {
+        //         File.Delete(dll);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //
+        //     }
+        // }
 
         Array.Clear(LoadedAssemblies);
         LoadedAssemblies = new Assembly[shadowAssemblyPaths.Count];

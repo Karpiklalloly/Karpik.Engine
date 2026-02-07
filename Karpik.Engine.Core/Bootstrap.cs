@@ -58,7 +58,7 @@ public class Bootstrap
         {
             _runner.Destroy();
             newTypes = ReloadModulesAction.Invoke();
-            RegisterTypes(newTypes);
+            // RegisterTypes(newTypes);
         }
         _serviceProvider = new ServiceProvider();
         _serviceProvider.Register(_mainThreadScheduler);
