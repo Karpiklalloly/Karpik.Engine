@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
 
 [Module]
-public class LiteNetLibNetworkInstaller : IModule
+public class LiteNetLibNetworkInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Network.Shared.LiteNetLib";
  

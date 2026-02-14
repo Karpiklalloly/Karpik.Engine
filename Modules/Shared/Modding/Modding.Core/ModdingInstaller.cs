@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Modding;
 
 [Module]
-public class ModdingInstaller : IModule
+public class ModdingInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Modding.Core";
 

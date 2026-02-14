@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Log;
 
 [Module]
-public class LoggerInstaller : IModule
+public class LoggerInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Logger";
 

@@ -11,7 +11,6 @@ public class Client
     {
         Bootstrap b = new();
         
-#if DEBUG
         ModuleLoader loader = new();
         var clientAssemblies = loader.SharedAssemblies.Concat(loader.ClientOnlyAssemblies);
         HotReloadHandler.Initialize(clientAssemblies);
@@ -23,7 +22,6 @@ public class Client
         };
         
         b.GetAssembliesToScan = () => loader.LoadedAssemblies;
-#endif
         
         DiscoverAndRegisterModules(b, loader);
         
@@ -40,22 +38,15 @@ public class Client
             b.Loop(deltaTime);
         }
         b.Shutdown();
-        
-#if DEBUG
         HotReloadHandler.Shutdown();
-#endif
+
     }
 
     private void DiscoverAndRegisterModules(Bootstrap bootstrap, ModuleLoader loader)
     {
-#if DEBUG
         loader.LoadClientModules();
         var moduleTypes = ModuleTypes(loader);
         bootstrap.RegisterTypes(moduleTypes);
-        
-#else
-        ModuleLoader.RegisterClientModules(bootstrap);
-#endif
     }
 
     private Type[] ModuleTypes(ModuleLoader loader)

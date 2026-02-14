@@ -8,7 +8,7 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 namespace Karpik.Engine.Shared.ECS;
 
 [Module]
-public class ECSInstaller : IModule, IModuleHotReload
+public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
 {
     public string Name => "ECS.Core";
     

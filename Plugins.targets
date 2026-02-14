@@ -1,31 +1,27 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-        <ProjectReference Include="@(PluginReference)">
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-            <Private>false</Private>
-        </ProjectReference>
-    </ItemGroup>
-
-    <Target Name="CopyPluginWithDependencies" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Target Name="DeployAllModules" AfterTargets="Build">
+        <!-- 1. Собираем все проекты плагинов из списка -->
         <MSBuild
-            Projects="@(PluginReference)"
-            Targets="PublishItemsOutputGroup"
-            Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)">
-            <Output TaskParameter="TargetOutputs" ItemName="_PluginPublishFiles" />
+                Projects="@(PluginReference)"
+                Targets="Build"
+                Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=$(RuntimeIdentifier)">
+            <Output TaskParameter="TargetOutputs" ItemName="_ModuleOutputs" />
         </MSBuild>
 
+        <ItemGroup>
+            <!-- 2. Берем все DLL из папок сборки этих проектов -->
+            <!-- Используем RecursiveDir, чтобы подхватить нативные библиотеки (если есть) -->
+            <_FilesToCopy Include="%(PluginReference.RelativeDir)bin\$(Configuration)\net10.0\**\*.*" />
+        </ItemGroup>
+
+        <!-- 3. Копируем всё в плоскую структуру в папку modules -->
+        <!-- Мы исключаем копирование Engine.Interfaces.dll, так как она уже есть в корне у Launcher -->
         <Copy
-            SourceFiles="@(_PluginPublishFiles)"
-            DestinationFiles="@(_PluginPublishFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
-            SkipUnchangedFiles="true"
-            OverwriteReadOnlyFiles="true"
-            UseHardlinksIfPossible="true"
+                SourceFiles="@(_FilesToCopy)"
+                DestinationFolder="$(OutputPath)modules\%(RecursiveDir)"
+                SkipUnchangedFiles="true"
+                Condition="'%(Filename)' != 'Karpik.Engine.Core' AND '%(Filename)' != 'Karpik.Jobs'"
         />
     </Target>
-
-    <ItemGroup Condition="'$(Configuration)' != 'Debug'">
-        <ProjectReference Include="@(PluginReference)" />
-    </ItemGroup>
-
 </Project>

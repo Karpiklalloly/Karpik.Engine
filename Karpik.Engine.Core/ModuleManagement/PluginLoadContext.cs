@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
@@ -11,143 +7,63 @@ namespace Karpik.Engine.Core.ModuleManagement;
 public class PluginLoadContext : AssemblyLoadContext
 {
     private readonly string _shadowCopyDirectory;
-    private readonly List<AssemblyDependencyResolver> _resolvers;
-    private readonly List<(IntPtr, string)> _nativeHandles = new();
 
-    public PluginLoadContext(IEnumerable<string> pluginPaths, string shadowCopyDirectory) : base(isCollectible: true)
+    public PluginLoadContext(string shadowCopyDirectory) : base(isCollectible: true)
     {
         _shadowCopyDirectory = shadowCopyDirectory;
-        _resolvers = pluginPaths.Select(p => new AssemblyDependencyResolver(p)).ToList();
-        
-        Resolving += OnResolving;
-        Unloading += OnUnloading;
     }
 
-    private void OnUnloading(AssemblyLoadContext obj)
+    protected override Assembly? Load(AssemblyName assemblyName)
     {
-        foreach (var handle in _nativeHandles)
+        // 1. Ищем сборку в теневой папке
+        string assemblyPath = Path.Combine(_shadowCopyDirectory, assemblyName.Name + ".dll");
+        if (File.Exists(assemblyPath))
         {
-            Console.WriteLine($"Unload {handle.Item2}");
-            NativeLibrary.Free(handle.Item1);
+            return LoadFromAssemblyPath(assemblyPath);
         }
-        _nativeHandles.Clear();
-        
-        Resolving -= OnResolving;
-        Unloading -= OnUnloading;
-    }
 
-    private Assembly? OnResolving(AssemblyLoadContext context, AssemblyName name)
-    {
-        // --- ИЗМЕНЕНИЕ: Самый высокий приоритет — проверка уже скопированных файлов ---
-        // Так как ModuleLoader уже скопировал все DLL, мы сначала смотрим в shadow folder.
-        // Это позволяет загружать зависимости, даже если оригиналы были удалены.
-        
-        var expectedFileName = name.Name + ".dll";
-        var shadowPathToCheck = Path.Combine(_shadowCopyDirectory, expectedFileName);
-        Console.WriteLine($"Загружаем {name.Name}");
-        
-        if (File.Exists(shadowPathToCheck))
-        {
-            try 
-            {
-                return LoadFromAssemblyPath(shadowPathToCheck);
-            }
-            catch (Exception)
-            {
-                // Если файл поврежден или это не сборка, идем дальше к резолверам
-            }
-        }
-        // -----------------------------------------------------------------------------
-
-        // 1. Поиск через стандартные резолверы (.deps.json)
-        foreach (var resolver in _resolvers)
-        {
-            string? originalPath = resolver.ResolveAssemblyToPath(name);
-            if (originalPath != null)
-            {
-                // Если резолвер нашел путь, но мы не нашли его в теневой папке выше (например, имя файла отличается),
-                // то копируем сейчас.
-                var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(originalPath));
-                
-                // Проверяем существование ОРИГИНАЛА перед копированием
-                if (File.Exists(originalPath)) 
-                {
-                    if (!File.Exists(shadowPath))
-                    {
-                        File.Copy(originalPath, shadowPath);
-                    }
-                    return LoadFromAssemblyPath(shadowPath);
-                }
-            }
-        }
-        
-        // 2. Резервный механизм (Fallback) - поиск в папке запуска
-        var fallbackPath = Path.Combine(AppContext.BaseDirectory, expectedFileName);
-        if (File.Exists(fallbackPath))
-        {
-            var shadowPath = Path.Combine(_shadowCopyDirectory, Path.GetFileName(fallbackPath));
-            if (!File.Exists(shadowPath))
-            {
-                File.Copy(fallbackPath, shadowPath);
-            }
-            return LoadFromAssemblyPath(shadowPath);
-        }
-        
-        // Если мы здесь, значит файла нет ни в теневой, ни в оригинальной папке
-        Console.WriteLine($"[PluginLoadContext] Could not resolve '{name}'.");
-        return null;
+        // 2. Если не нашли, позволяем системе найти её в Default контексте (например, системные либы)
+        return null; 
     }
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
     {
-        // Для нативных библиотек логика похожая:
-        // 1. Проверяем теневую папку (если вы копируете и .dll/.so/.dylib нативных либ)
-        var shadowNativePath = Path.Combine(_shadowCopyDirectory, unmanagedDllName);
-        if (!shadowNativePath.EndsWith(".dll") && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
-            shadowNativePath += ".dll";
+        // 1. Пытаемся использовать стандартный резолвер (он знает про папки runtimes/win-x64/...)
+        // Если ты используешь AssemblyDependencyResolver, верни его. 
+        // Если нет - используем ручной поиск:
+    
+        string libraryName = unmanagedDllName;
+        if (!libraryName.EndsWith(".dll") && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            libraryName += ".dll";
+
+        // Список мест для поиска в порядке приоритета:
+        var searchPaths = new[]
+        {
+            // А. Папка исполнения (корневая)
+            Path.Combine(AppContext.BaseDirectory, libraryName),
             
-        if (File.Exists(shadowNativePath))
-        {
-            if (NativeLibrary.TryLoad(shadowNativePath, out var handle))
-            {
-                _nativeHandles.Add((handle, shadowNativePath));
-                return handle;
-            }
-        }
-
-        string? path = null;
+            // Б. Стандартный путь NuGet для x64 Windows у плагинов
+            Path.Combine(AppContext.BaseDirectory, "modules", "runtimes", "win-x64", "native", libraryName),
         
-        // 2. Поиск через resolver
-        foreach (var resolver in _resolvers)
-        {
-            path = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            if (path != null) break;
-        }
+            // В. Стандартный путь NuGet для x64 Windows
+            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", libraryName),
+        
+            // Г. Теневая папка (на случай, если нативка попала туда)
+            Path.Combine(_shadowCopyDirectory, libraryName)
+        };
 
-        // 3. Поиск в базовой директории
-        if (path == null)
+        foreach (var path in searchPaths)
         {
-            var unmanagedFileName = unmanagedDllName;
-            if (!unmanagedFileName.EndsWith(".dll"))
+            if (File.Exists(path))
             {
-                unmanagedFileName += ".dll";
-            }
-            var fallbackPath = Path.Combine(AppContext.BaseDirectory, unmanagedFileName);
-            if (File.Exists(fallbackPath))
-            {
-                path = fallbackPath;
+                if (NativeLibrary.TryLoad(path, out var handle))
+                {
+                    // Console.WriteLine($"[PluginLoadContext] Native library loaded: {path}");
+                    return handle;
+                }
             }
         }
 
-        if (path != null && File.Exists(path))
-        {
-            if (NativeLibrary.TryLoad(path, out var handle))
-            {
-                _nativeHandles.Add((handle, path));
-                return handle;
-            }
-        }
-
-        return base.LoadUnmanagedDll(unmanagedDllName);
+        return IntPtr.Zero;
     }
 }

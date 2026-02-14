@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class DrawSpriteSystem : IEcsRunParallel
+public class DrawSpriteSystem : IEcsRun
 {
     public class Aspect : EcsAspect
     {
@@ -18,7 +18,7 @@ public class DrawSpriteSystem : IEcsRunParallel
     [DI] private EcsDefaultWorld _world;
     [DI] private Drawer _drawer;
     
-    public void RunParallel()
+    public void Run()
     {
         var span = _world.Where(out Aspect a);
         foreach (var e in span)

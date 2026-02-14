@@ -20,7 +20,6 @@ internal static class HotReloadHandler
 {
     public static event Action? OnUpdateApplication;
 
-#if DEBUG
     // --- DEBUG: Система с FileSystemWatcher для полной перезагрузки ---
     private static FileSystemWatcher? _watcher;
     private static Timer? _debounceTimer;
@@ -82,12 +81,10 @@ internal static class HotReloadHandler
         Console.WriteLine("[HotReloadHandler-DEBUG] Manual update triggered.");
         OnUpdateApplication?.Invoke();
     }
-#else
     // --- RELEASE: Система со встроенным .NET Hot Reload ---
     public static void UpdateApplication(Type[]? updatedTypes)
     {
         Console.WriteLine("[HotReloadHandler-RELEASE] Metadata update detected. Triggering light reload...");
         OnUpdateApplication?.Invoke();
     }
-#endif
 }

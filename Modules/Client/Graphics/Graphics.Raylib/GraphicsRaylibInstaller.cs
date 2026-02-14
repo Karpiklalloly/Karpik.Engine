@@ -5,7 +5,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
 [Module]
-public class GraphicsRaylibInstaller : IModule
+public class GraphicsRaylibInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Graphics.Raylib";
 

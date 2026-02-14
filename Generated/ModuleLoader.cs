@@ -9,7 +9,6 @@ using Karpik.Engine.Core.ModuleManagement;
 
 public class ModuleLoader
 {
-#if DEBUG
     public Assembly[] LoadedAssemblies = [];
     private WeakReference? _previousContextRef;
     private AssemblyLoadContext? _previousContext;
@@ -50,117 +49,59 @@ public class ModuleLoader
     public void LoadClientModules() => LoadPluginCollection(SharedAssemblies.Concat(ClientOnlyAssemblies));
     public void LoadServerModules() => LoadPluginCollection(SharedAssemblies.Concat(ServerOnlyAssemblies));
 
-    private void LoadPluginCollection(IEnumerable<string> assemblyNames)
+    public void LoadPluginCollection(IEnumerable<string> assemblyNames)
+{
+    // 1. Инициируем выгрузку старого контекста
+    if (_currentContext != null)
     {
-        if (_currentContext != null)
+        _previousContext = _currentContext;
+        _previousContextRef = new WeakReference(_currentContext);
+        _currentContext.Unload(); 
+        _currentContext = null;
+        _previousDirectoryToCleanup = _directoryToCleanup;
+    }
+
+    // 2. Создаем новую теневую папку
+    // Теперь мы берем все DLL из папки модулей (которую подготовил Plugins.targets)
+    var sourceDirectory = Path.Combine(AppContext.BaseDirectory, "modules");
+    _directoryToCleanup = Path.Combine(AppContext.BaseDirectory, "temp_bin", Guid.NewGuid().ToString());
+    Directory.CreateDirectory(_directoryToCleanup);
+
+    // 3. Копируем ВСЕ файлы из /modules/ в теневую папку
+    // Это важно: все зависимости должны лежать в одном месте
+    var allDlls = Directory.GetFiles(sourceDirectory, "*.dll", SearchOption.AllDirectories);
+    foreach (var dllPath in allDlls)
+    {
+        var fileName = Path.GetFileName(dllPath);
+        File.Copy(dllPath, Path.Combine(_directoryToCleanup, fileName), true);
+        
+        var pdbPath = Path.ChangeExtension(dllPath, ".pdb");
+        if (File.Exists(pdbPath))
+            File.Copy(pdbPath, Path.Combine(_directoryToCleanup, Path.GetFileName(pdbPath)), true);
+    }
+
+    // 4. Создаем новый контекст
+    // Передаем в него путь к теневой папке
+    var newContext = new PluginLoadContext(_directoryToCleanup);
+    _currentContext = newContext;
+
+    var loadedList = new List<Assembly>();
+
+    // 5. Загружаем только входные точки (те, что в твоих списках Shared/Client/Server)
+    foreach (var name in assemblyNames.Distinct())
+    {
+        var shadowPath = Path.Combine(_directoryToCleanup, name + ".dll");
+        if (File.Exists(shadowPath))
         {
-            // ... (ваш код выгрузки старого контекста без изменений) ...
-            _previousContextRef = new WeakReference(_currentContext, trackResurrection: true);
-            _previousContext = _currentContext;
-            _currentContext = null;
-            _previousDirectoryToCleanup = _directoryToCleanup; 
-            Console.WriteLine("[ModuleLoader] Unloading previous AssemblyLoadContext initiated.");
-        }
-
-        string baseDirectory = null!;
-        if (_previousDirectoryToCleanup is not null)
-        {
-            baseDirectory = _previousDirectoryToCleanup;
-        }
-        else
-        {
-            baseDirectory = AppContext.BaseDirectory;
-        }
-        var shadowCopyDirectory = Path.Combine(baseDirectory, "shadow_copies", Guid.NewGuid().ToString());
-        Directory.CreateDirectory(shadowCopyDirectory);
-
-        var originalAssemblyPaths = new List<string>(); // Пути к оригиналам (для резолверов)
-        var shadowAssemblyPaths = new List<string>();   // Пути к копиям (для загрузки)
-
-        // --- ИЗМЕНЕНИЕ НАЧАЛО: Копируем ВСЕ .dll файлы из папки билда ---
-        // Это гарантирует, что Newtonsoft.Json и другие зависимости попадут в теневую папку
-        var allDlls = Directory.GetFiles(baseDirectory, "*.dll");
-        foreach (var dllPath in allDlls)
-        {
-            var fileName = Path.GetFileName(dllPath);
-            var destPath = Path.Combine(shadowCopyDirectory, fileName);
-
-            // Копируем DLL
-            try 
-            {
-                File.Copy(dllPath, destPath);
-            }
-            catch (IOException ex)
-            {
-                // Иногда файл может быть занят другим процессом, но для HotReload обычно это не критично
-                Console.WriteLine($"[ModuleLoader] Warning: Failed to copy {fileName}: {ex.Message}");
-                continue;
-            }
-
-            // Копируем PDB, если есть
-            var pdbPath = Path.ChangeExtension(dllPath, ".pdb");
-            if (File.Exists(pdbPath))
-            {
-                File.Copy(pdbPath, Path.Combine(shadowCopyDirectory, Path.GetFileName(pdbPath)));
-            }
-        }
-        // --- ИЗМЕНЕНИЕ КОНЕЦ ---
-
-        // Теперь формируем списки только для ВХОДНЫХ ТОЧЕК (модулей), которые надо явно загрузить
-        // Мы используем Distinct(), чтобы не грузить одно и то же дважды
-        foreach (var name in assemblyNames.Distinct())
-        {
-            var originalPath = Path.Combine(baseDirectory, name + ".dll");
-            // Ищем уже скопированный путь в теневой папке
-            var shadowPath = Path.Combine(shadowCopyDirectory, name + ".dll");
-
-            if (File.Exists(shadowPath)) // Проверяем, что файл успешно скопировался
-            {
-                // Для резолверов используем оригинальный путь (там лежит .deps.json)
-                if (File.Exists(originalPath))
-                {
-                    originalAssemblyPaths.Add(originalPath);
-                }
-                
-                // Добавляем в список на явную загрузку
-                shadowAssemblyPaths.Add(shadowPath);
-            }
-            else
-            {
-                Console.WriteLine($"[ModuleLoader] Error: Assembly '{name}' not found in build directory.");
-            }
-        }
-
-        if (!shadowAssemblyPaths.Any()) return; // Используем shadowAssemblyPaths, так как он надежнее
-
-        // Передаем originalAssemblyPaths для создания резолверов зависимостей
-        var newContext = new PluginLoadContext(originalAssemblyPaths, shadowCopyDirectory);
-        _currentContext = newContext;
-        _directoryToCleanup = shadowCopyDirectory;
-
-        // foreach (var dll in allDlls.Where(x => { return !x.Contains("Karpik.Jobs"); }))
-        // {
-        //     try
-        //     {
-        //         File.Delete(dll);
-        //     }
-        //     catch (Exception e)
-        //     {
-        //
-        //     }
-        // }
-
-        Array.Clear(LoadedAssemblies);
-        LoadedAssemblies = new Assembly[shadowAssemblyPaths.Count];
-        int i = 0;
-        foreach (var path in shadowAssemblyPaths)
-        {
-            // Загружаем из ТЕНЕВОЙ папки
-            var assembly = newContext.LoadFromAssemblyPath(path);
-            LoadedAssemblies[i] = assembly;
-            i++;
+            // LoadFromAssemblyPath в рамках контекста сама разрешит статические зависимости,
+            // так как все DLL лежат в одной теневой папке.
+            var asm = newContext.LoadFromAssemblyPath(shadowPath);
+            loadedList.Add(asm);
         }
     }
+
+    LoadedAssemblies = loadedList.ToArray();
+}
 
     public void CheckForPreviousContextUnload()
     {
@@ -214,9 +155,4 @@ public class ModuleLoader
             }
         }
     }
-#endif
-
-#if !DEBUG
-    // ... RELEASE-код без изменений
-#endif
 }

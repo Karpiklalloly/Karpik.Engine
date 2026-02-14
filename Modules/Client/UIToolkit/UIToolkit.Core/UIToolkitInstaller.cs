@@ -6,7 +6,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.UIToolkit;
 
 [Module(1)]
-public class UIToolkitInstaller : IModule
+public class UIToolkitInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "UIToolkit.Core";
 

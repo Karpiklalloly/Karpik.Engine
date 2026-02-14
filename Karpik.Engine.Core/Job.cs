@@ -7,7 +7,7 @@ public static class Job
     internal static JobSystem JobSystem => _jobSystem;
     private static JobSystem _jobSystem = null!;
     
-    internal static void Initialize(JobSystem jobSystem)
+    public static void Initialize(JobSystem jobSystem)
     {
         _jobSystem?.WaitForCompletion();
         _jobSystem?.Shutdown();

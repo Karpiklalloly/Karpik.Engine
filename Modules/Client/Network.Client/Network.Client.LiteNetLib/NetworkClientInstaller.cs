@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Network.LiteNetLib;
 
 [Module]
-public class NetworkClientInstaller : IModule
+public class NetworkClientInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Network.Client.Core";
     

@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Module]
-public class ModdingLuaInstaller : IModule, IModuleDestroy
+public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratable
 {
     public string Name => "Modding.Lua";
  

@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.DragonECS;
 namespace Karpik.Engine.MyGame.Shared.Main;
 
 [Module]
-public class MyGameSharedInstaller : IModule
+public class MyGameSharedInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "MyGame.Shared.Main";
     public void OnRegisterServices(IServiceRegister services)

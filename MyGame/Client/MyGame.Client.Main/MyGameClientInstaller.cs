@@ -11,7 +11,7 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Client.Main;
 
 [Module]
-public class MyGameClientInstaller : IModule, IModuleDestroy
+public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfiguratable
 {
     public string Name => "MyGame.Client.Main";
     

@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Tweening;
 
 [Module]
-public class TweenInstaller : IModule
+public class TweenInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Tween.Core";
     

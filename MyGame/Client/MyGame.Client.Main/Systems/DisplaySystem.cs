@@ -8,7 +8,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class DisplaySystem : IEcsRunParallel
+public class DisplaySystem : IEcsRun
 {
     class Aspect : EcsAspect
     {
@@ -18,7 +18,7 @@ public class DisplaySystem : IEcsRunParallel
     [DI] private EcsDefaultWorld _world;
     [DI] private IRenderer _renderer;
     
-    public void RunParallel()
+    public void Run()
     {
         foreach (var e in _world.Where(out Aspect a))
         {

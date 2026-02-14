@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Graphics.Core;
 
 [Module]
-public class GraphicsCoreInstaller : IModule
+public class GraphicsCoreInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Graphics.Core";
     

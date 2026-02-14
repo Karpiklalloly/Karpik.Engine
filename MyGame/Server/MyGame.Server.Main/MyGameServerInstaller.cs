@@ -7,7 +7,7 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Server.Main;
 
 [Module]
-public class MyGameServerInstaller : IModule
+public class MyGameServerInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "MyGame.Server.Main";
     

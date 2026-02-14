@@ -5,7 +5,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.InputModule;
 
 [Module]
-public class InputInstaller : IModule
+public class InputInstaller : IModule, IModuleConfiguratable
 {
     public string Name => "Input";
 

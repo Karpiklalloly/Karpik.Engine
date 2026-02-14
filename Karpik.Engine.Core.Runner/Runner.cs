@@ -19,8 +19,8 @@ public class Runner : IRunner
             RegisterModule(moduleInstance);
         }
     }
-    
-    public void Setup(ServiceProvider serviceProvider, bool hotReload, MainThreadScheduler scheduler, Action releaseOld, Type[]? newTypes = null)
+
+    void IRunner.Setup(ServiceProvider serviceProvider, bool hotReload, MainThreadScheduler scheduler, Action releaseOld, Type[]? newTypes = null, IRunner? oldRunner = null)
     {
         _serviceProvider = new EcsServiceProvider(serviceProvider);
         
@@ -33,15 +33,9 @@ public class Runner : IRunner
         _serviceProvider.Register(_time);
         
         newBuilder.Inject(_serviceProvider);
-        
-        List<IModule> oldModules = [];
-        if (hotReload)
-        {
-            oldModules = new List<IModule>(_modules);
-        }
-        // EcsStaticCleaner.ResetAll();
 
-#if DEBUG
+        // EcsStaticCleaner.ResetAll();
+        var oldModules = oldRunner?.GetModules() ?? [];
         if (hotReload)
         {
             Job.Wait();
@@ -53,7 +47,6 @@ public class Runner : IRunner
         {
             types = FilterTypesToModules(newTypes);
         }
-#endif
         Job.Initialize(new Jobs.JobSystem());
 
         scheduler.Schedule(() =>
@@ -68,15 +61,20 @@ public class Runner : IRunner
             _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
 
             RegisterServices(_serviceProvider);
-            ConfigureAndAddModule(_serviceProvider, newBuilder);
-            var newPipeline = BuildPipeline(newBuilder, _serviceProvider);
-            AnotherModuleLoaded();
+            // ConfigureAndAddModule(_serviceProvider, newBuilder);
+            // var newPipeline = BuildPipeline(newBuilder, _serviceProvider);
+            // AnotherModuleLoaded();
 
             if (hotReload)
             {
                 HotReload(newModules, oldModules, _serviceProvider);
                 Destroy(oldModules);
+                oldRunner!.Destroy();
             }
+            
+            ConfigureAndAddModule(_serviceProvider, newBuilder);
+            var newPipeline = BuildPipeline(newBuilder, _serviceProvider);
+            AnotherModuleLoaded();
 
             _pipeline = newPipeline;
             InjectIntoSystems(newPipeline, _serviceProvider);
@@ -84,12 +82,10 @@ public class Runner : IRunner
 
             ConfigureComplete();
 
-#if DEBUG
             if (hotReload)
             {
                 scheduler.Schedule(releaseOld);
             }
-#endif
         });
     }
 
@@ -103,7 +99,12 @@ public class Runner : IRunner
     {
         _pipeline?.Destroy();
     }
-    
+
+    public List<IModule> GetModules()
+    {
+        return _modules;
+    }
+
     public void RegisterModule(IModule module)
     {
         if (_modules.Any(m => m.GetType() == module.GetType()))
@@ -117,7 +118,7 @@ public class Runner : IRunner
     private Type[] FilterTypesToModules(Type[] types)
     {
         var filter1 = types.Where(t => t.IsClass && !t.IsAbstract);
-        var filter2 = filter1.Where(t => typeof(IModule).IsAssignableFrom(t));
+        var filter2 = filter1.Where(t => typeof(IModule).IsAssignableFrom(t) || typeof(IModule).IsAssignableTo(t));
         return filter2.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null).ToArray();
     }
     
@@ -164,7 +165,6 @@ public class Runner : IRunner
         {
             var newModule = newModules[i];
             var oldModule = oldModules[i];
-            var oldModuleType = oldModule.GetType();
             try
             {
                 if (newModule is IModuleHotReload hotReloadableModule)
@@ -177,7 +177,7 @@ public class Runner : IRunner
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[Bootstrap] Failed to reload module {oldModuleType.FullName}: {e.Message}. It will be skipped.");
+                Console.WriteLine($"[Bootstrap] Failed to reload module {oldModule.GetType().FullName}: {e.Message}. It will be skipped.");
             }
         }
         
@@ -205,7 +205,7 @@ public class Runner : IRunner
 
     private void ConfigureAndAddModule(EcsServiceProvider newServiceProvider, EcsPipeline.Builder newBuilder)
     {
-        foreach (var module in _modules)
+        foreach (var module in _modules.OfType<IModuleConfiguratable>())
         {
             module.OnConfigure(newServiceProvider, out var ecsModule);
             if (ecsModule is not null)
@@ -217,7 +217,7 @@ public class Runner : IRunner
 
     private void ConfigureComplete()
     {
-        foreach (var module in _modules)
+        foreach (var module in _modules.OfType<IModuleConfiguratable>())
         {
             module.OnConfigureComplete(_serviceProvider);
         }

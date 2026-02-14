@@ -17,6 +17,7 @@ public class Bootstrap
     private IRunner _runner = null!;
 
     private ModuleLoader _loader;
+    private IRunner? _oldRunner;
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning, ModuleLoader loader)
     {
@@ -35,7 +36,13 @@ public class Bootstrap
         if (_runner is null)
         {
             var filter1 = types.Where(t => t.IsClass && !t.IsAbstract);
-            var type = filter1.FirstOrDefault(t => typeof(IRunner).IsAssignableFrom(t));
+            var filter2 = filter1.Where(x => x.FullName.Contains("Runner"));
+            var type = filter2.FirstOrDefault(t =>
+            {
+                var a = typeof(IRunner).IsAssignableFrom(t);
+                var b = typeof(IRunner).IsAssignableTo(t);
+                return a || b;
+            });
             if (type is null)
             {
                 throw new Exception();
@@ -56,19 +63,22 @@ public class Bootstrap
         Type[]? newTypes = null;
         if (hotReload)
         {
-            _runner.Destroy();
+            _oldRunner = _runner;
+            _runner = null!;
             newTypes = ReloadModulesAction.Invoke();
-            // RegisterTypes(newTypes);
+            
+            RegisterTypes(newTypes);
         }
         _serviceProvider = new ServiceProvider();
         _serviceProvider.Register(_mainThreadScheduler);
         _serviceProvider.Register(_application);
         _runner.Setup(_serviceProvider, hotReload, _mainThreadScheduler, () =>
         {
+            _oldRunner = null;
             HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
             _loader.CheckForPreviousContextUnload();
             HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
-        }, newTypes);
+        }, newTypes, _oldRunner);
     }
 
     public void Loop(double dt)
