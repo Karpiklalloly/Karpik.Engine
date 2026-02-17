@@ -246,6 +246,18 @@ internal class AssetsManager : IAssetsManager
             asset.Unload();
         }
     }
+
+    internal void ReleaseAll()
+    {
+        var assets = _loadedAssets.Values;
+        foreach (var asset in assets)
+        {
+            if (asset.RefCount > 0)
+            {
+                ReleaseAsset(asset);
+            }
+        }
+    }
     
     private string NormalizeExtension(string ext)
     {

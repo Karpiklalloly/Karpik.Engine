@@ -15,8 +15,8 @@ public interface IModuleListener
 
 public interface IModuleHotReload
 {
-    void OnPrepareHotReload();
-    bool OnHotReload(IModule oldModule, IServiceContainer services);
+    byte[] OnPrepareHotReload();
+    bool OnHotReload(byte[] data, IServiceContainer services);
 }
 
 public interface IModuleDestroy

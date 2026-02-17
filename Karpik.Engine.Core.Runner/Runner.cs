@@ -20,7 +20,7 @@ public class Runner : IRunner
         }
     }
 
-    void IRunner.Setup(ServiceProvider serviceProvider, bool hotReload, MainThreadScheduler scheduler, Action releaseOld, Type[]? newTypes = null, IRunner? oldRunner = null)
+    void IRunner.Setup(ServiceProvider serviceProvider, bool hotReload, MainThreadScheduler scheduler, Type[]? newTypes = null, Dictionary<string, byte[]> hotReloadData = null)
     {
         _serviceProvider = new EcsServiceProvider(serviceProvider);
         
@@ -33,25 +33,16 @@ public class Runner : IRunner
         _serviceProvider.Register(_time);
         
         newBuilder.Inject(_serviceProvider);
-
-        // EcsStaticCleaner.ResetAll();
-        var oldModules = oldRunner?.GetModules() ?? [];
-        if (hotReload)
-        {
-            Job.Wait();
-            PreHotReload(oldModules);
-        }
         
         Type[] types = [];
         if (hotReload && newTypes is not null)
         {
             types = FilterTypesToModules(newTypes);
         }
-        Job.Initialize(new Jobs.JobSystem());
 
         scheduler.Schedule(() =>
         {
-            var newModules = CreateModules(oldModules, types.ToDictionary(t => t.FullName ?? t.Name));
+            var newModules = CreateModules(types);
             if (hotReload)
             {
                 _modules.Clear();
@@ -67,9 +58,7 @@ public class Runner : IRunner
 
             if (hotReload)
             {
-                HotReload(newModules, oldModules, _serviceProvider);
-                Destroy(oldModules);
-                oldRunner!.Destroy();
+                HotReload(newModules, _serviceProvider, hotReloadData);
             }
             
             ConfigureAndAddModule(_serviceProvider, newBuilder);
@@ -81,11 +70,6 @@ public class Runner : IRunner
             _pipeline.Init();
 
             ConfigureComplete();
-
-            if (hotReload)
-            {
-                scheduler.Schedule(releaseOld);
-            }
         });
     }
 
@@ -97,7 +81,15 @@ public class Runner : IRunner
 
     public void Destroy()
     {
+        Destroy(GetModules());
         _pipeline?.Destroy();
+        _pipeline = null;
+        _modules.Clear();
+    }
+
+    public Dictionary<string, byte[]> GetHotReloadData()
+    {
+        return PreHotReload(GetModules());
     }
 
     public List<IModule> GetModules()
@@ -128,56 +120,52 @@ public class Runner : IRunner
         return attr?.Priority ?? 0;
     }
 
-    private void PreHotReload(List<IModule> oldModules)
+    private Dictionary<string, byte[]> PreHotReload(List<IModule> oldModules)
     {
+        Dictionary<string, byte[]> hotReloadInfo = [];
         foreach (var oldModule in oldModules)
         {
             if (oldModule is IModuleHotReload oldModuleHotReload)
             {
-                oldModuleHotReload.OnPrepareHotReload();
+                string name = oldModule.GetType().FullName ?? oldModule.GetType().Name;
+                hotReloadInfo[name] = oldModuleHotReload.OnPrepareHotReload();
             }
         }
+
+        return hotReloadInfo;
     }
 
-    private List<IModule> CreateModules(List<IModule> oldModules, Dictionary<string, Type> allNewModuleTypes)
+    private List<IModule> CreateModules(Type[] allNewModuleTypes)
     {
         var newModuleInstances = new List<IModule>();
-        foreach (var oldModule in oldModules)
+        foreach (var type in allNewModuleTypes)
         {
-            var oldModuleType = oldModule.GetType();
-            if (allNewModuleTypes.TryGetValue(oldModuleType.FullName ?? oldModuleType.Name, out var newModuleType))
-            {
-                newModuleInstances.Add((IModule)Activator.CreateInstance(newModuleType)!);
-            }
-            else
-            {
-                Console.WriteLine($"[Bootstrap] Could not find new version of module {oldModuleType.FullName}. It will be skipped.");
-            }
+            newModuleInstances.Add((IModule)Activator.CreateInstance(type)!);
         }
 
         return newModuleInstances;
     }
 
-    private void HotReload(List<IModule> newModules, List<IModule> oldModules, EcsServiceProvider serviceProvider)
+    private void HotReload(List<IModule> newModules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> hotReloadInfo)
     {
-        List<(IModuleHotReload, IModule)> needToReload = [];
+        List<(IModuleHotReload, byte[])> needToReload = [];
         for (int i = 0; i < newModules.Count; i++)
         {
             var newModule = newModules[i];
-            var oldModule = oldModules[i];
             try
             {
                 if (newModule is IModuleHotReload hotReloadableModule)
                 {
-                    if (!hotReloadableModule.OnHotReload(oldModule, serviceProvider))
+                    string name = newModule.GetType().FullName ?? newModule.GetType().Name;
+                    if (!hotReloadableModule.OnHotReload(hotReloadInfo[name], serviceProvider))
                     {
-                        needToReload.Add((hotReloadableModule, oldModule));
+                        needToReload.Add((hotReloadableModule, hotReloadInfo[name]));
                     }
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[Bootstrap] Failed to reload module {oldModule.GetType().FullName}: {e.Message}. It will be skipped.");
+                Console.WriteLine($"[Bootstrap] Failed to reload module {newModule.GetType().FullName}: {e.Message}. It will be skipped.");
             }
         }
         

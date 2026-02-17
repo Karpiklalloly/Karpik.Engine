@@ -6,10 +6,10 @@ namespace Karpik.Engine.Shared.Tweening;
 
 public class Tween
 {
-    private static readonly GTweensContext _context = new();
-    private static readonly GTweensContext _pausableContext = new();
+    private readonly GTweensContext _context = new();
+    private readonly GTweensContext _pausableContext = new();
 
-    public static void Add(GTween tween, bool pausable)
+    public void Add(GTween tween, bool pausable)
     {
         if (pausable)
         {

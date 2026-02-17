@@ -8,9 +8,9 @@ public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsse
     public abstract string? DefaultPath { get; }
     public abstract string[] SupportedExtensions { get; }
     public Type AssetType => typeof(TAsset);
-    [DI] protected static MainThreadScheduler MainThreadScheduler { get; private set; }
-    [DI] protected static IAssetsManager AssetsManager { get; private set; }
-    protected static ArrayPool<byte> ArrayPool { get; } = ArrayPool<byte>.Shared;
+    [DI] protected MainThreadScheduler MainThreadScheduler { get; private set; }
+    [DI] protected IAssetsManager AssetsManager { get; private set; }
+    protected ArrayPool<byte> ArrayPool { get; } = ArrayPool<byte>.Shared;
 
     public async JobHandle<Asset> LoadAsync(Stream stream, string assetName)
     {

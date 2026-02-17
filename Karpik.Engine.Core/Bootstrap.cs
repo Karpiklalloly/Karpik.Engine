@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Core.ModuleManagement;
 
@@ -17,7 +18,6 @@ public class Bootstrap
     private IRunner _runner = null!;
 
     private ModuleLoader _loader;
-    private IRunner? _oldRunner;
 
     public MainThreadScheduler Initialize(int mainTreadId, Ref<bool> isRunning, ModuleLoader loader)
     {
@@ -59,26 +59,33 @@ public class Bootstrap
 
     private void Setup(bool hotReload)
     {
-        _serviceProvider?.Destroy();
         Type[]? newTypes = null;
+        Dictionary<string, byte[]> hotReloadData = [];
         if (hotReload)
         {
-            _oldRunner = _runner;
+            hotReloadData = _runner.GetHotReloadData();
+            Job.Wait();
+            _runner.Destroy();
+            _serviceProvider?.Destroy();
             _runner = null!;
+            HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
+            Job.Wait();
+            Job.Initialize(new Jobs.JobSystem());
+            _loader.Unload();
+            _loader.CheckForPreviousContextUnload();
+            HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
             newTypes = ReloadModulesAction.Invoke();
             
             RegisterTypes(newTypes);
         }
+        else
+        {
+            Job.Initialize(new Jobs.JobSystem());
+        }
         _serviceProvider = new ServiceProvider();
         _serviceProvider.Register(_mainThreadScheduler);
         _serviceProvider.Register(_application);
-        _runner.Setup(_serviceProvider, hotReload, _mainThreadScheduler, () =>
-        {
-            _oldRunner = null;
-            HotReloadHandler.OnUpdateApplication -= OnCodeUpdate;
-            _loader.CheckForPreviousContextUnload();
-            HotReloadHandler.OnUpdateApplication += OnCodeUpdate;
-        }, newTypes, _oldRunner);
+        _runner.Setup(_serviceProvider, hotReload, _mainThreadScheduler, newTypes, hotReloadData);
     }
 
     public void Loop(double dt)

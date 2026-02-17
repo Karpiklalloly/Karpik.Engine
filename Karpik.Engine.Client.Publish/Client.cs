@@ -18,12 +18,12 @@ public class Client
         b.ReloadModulesAction = () =>
         {
             loader.LoadClientModules();
-            return ModuleTypes(loader);
+            return Types(loader);
         };
         
         b.GetAssembliesToScan = () => loader.LoadedAssemblies;
         
-        DiscoverAndRegisterModules(b, loader);
+        DiscoverTypes(b, loader);
         
         var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning, loader);
         var stopwatch = Stopwatch.StartNew();
@@ -42,14 +42,14 @@ public class Client
 
     }
 
-    private void DiscoverAndRegisterModules(Bootstrap bootstrap, ModuleLoader loader)
+    private void DiscoverTypes(Bootstrap bootstrap, ModuleLoader loader)
     {
         loader.LoadClientModules();
-        var moduleTypes = ModuleTypes(loader);
-        bootstrap.RegisterTypes(moduleTypes);
+        var types = Types(loader);
+        bootstrap.RegisterTypes(types);
     }
 
-    private Type[] ModuleTypes(ModuleLoader loader)
+    private Type[] Types(ModuleLoader loader)
     {
         return loader.LoadedAssemblies.SelectMany(assembly => assembly.GetTypes()).ToArray();
     }

@@ -6,7 +6,7 @@ using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 [Module(-100)]
-public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfiguratable
+public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfiguratable, IModuleDestroy
 {
     public string Name => "AssetManagement.Core";
     
@@ -32,5 +32,10 @@ public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfigu
     {
         _assetsManager.RegisterLoaders(anotherModuleAssembly);
         _assetsManager.RegisterSavers(anotherModuleAssembly);
+    }
+
+    public void Destroy()
+    {
+        _assetsManager.ReleaseAll();
     }
 }

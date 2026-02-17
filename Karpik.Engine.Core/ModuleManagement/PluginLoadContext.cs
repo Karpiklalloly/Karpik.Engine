@@ -11,6 +11,12 @@ public class PluginLoadContext : AssemblyLoadContext
     public PluginLoadContext(string shadowCopyDirectory) : base(isCollectible: true)
     {
         _shadowCopyDirectory = shadowCopyDirectory;
+        Unloading += OnUnloading;
+    }
+
+    private void OnUnloading(AssemblyLoadContext obj)
+    {
+        Console.WriteLine($"Unloading {obj.Name}");
     }
 
     protected override Assembly? Load(AssemblyName assemblyName)

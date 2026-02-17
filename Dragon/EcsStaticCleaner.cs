@@ -8,7 +8,7 @@ namespace DCFApixels.DragonECS
         {
             TypeMeta.Clear();
             Injector.InjectionList.Clear();
-            MemoryAllocator.Clear();
+            // MemoryAllocator.Clear();
             EcsTypeCodeManager.Clear();
             ConfigContainer.Clear();
             EcsAspect.Clear();

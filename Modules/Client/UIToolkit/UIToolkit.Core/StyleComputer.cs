@@ -4,13 +4,13 @@ namespace Karpik.Engine.Client.UIToolkit;
 
 public class StyleComputer
 {
-    private static readonly HashSet<string> InheritableProperties = new()
+    private readonly HashSet<string> InheritableProperties = new()
     {
         s.color, "font-family", s.font_size, "font-style", "font-weight", 
         s.line_height, "text-align", "visibility", "white-space"
     };
 
-    private static readonly Dictionary<string, string[]> ShorthandMap = new()
+    private readonly Dictionary<string, string[]> ShorthandMap = new()
     {
         { s.margin, [s.margin_top, s.margin_right, s.margin_bottom, s.margin_left] },
         { s.padding, [s.padding_top, s.padding_right, s.padding_bottom, s.padding_left] },

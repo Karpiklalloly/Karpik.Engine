@@ -56,8 +56,13 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     public void Stop()
     {
+        _listener.NetworkReceiveEvent -= OnNetworkReceive;
+        _listener.PeerConnectedEvent -= OnPeerConnected;
+        _listener.PeerDisconnectedEvent -= OnPeerDisconnected;
+        _listener.ConnectionRequestEvent -= ListenerOnConnectionRequestEvent;
         _listener.ClearNetworkReceiveEvent();
         _listener.ClearNetworkReceiveUnconnectedEvent();
+        Manager.DisconnectAll();
         Manager.Stop();
         _peers.Clear();
     }
