@@ -2,55 +2,158 @@
 using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
+using Karpik.Engine.Core.ProcessManagement;
 
 namespace Karpik.Engine.Client.Publish;
 
+/// <summary>
+/// Watcher process entry point.
+/// Spawns and manages the worker process that runs the actual engine.
+/// </summary>
 public class Client
 {
+    private ProcessManager? _processManager;
+    private FileSystemWatcher? _fileWatcher;
+    private Timer? _debounceTimer;
+    private readonly object _lock = new();
+    
     public void Start(Ref<bool> isRunning)
     {
-        Bootstrap b = new();
+        Console.WriteLine("[Watcher] Starting...");
         
-        ModuleLoader loader = new();
-        var clientAssemblies = loader.SharedAssemblies.Concat(loader.ClientOnlyAssemblies);
-        HotReloadHandler.Initialize(clientAssemblies);
-        
-        b.ReloadModulesAction = () =>
+        // Create process manager
+        _processManager = new ProcessManager();
+        _processManager.OnWorkerExited += (exitCode) =>
         {
-            loader.LoadClientModules();
-            return Types(loader);
+            Console.WriteLine($"[Watcher] Worker exited with code: {exitCode}");
+            if (exitCode != 0 && isRunning.Value)
+            {
+                Console.WriteLine("[Watcher] Worker crashed, restarting...");
+                _ = RestartWorkerAsync();
+            }
         };
         
-        b.GetAssembliesToScan = () => loader.LoadedAssemblies;
+        _processManager.OnWorkerReady += () =>
+        {
+            Console.WriteLine("[Watcher] Worker is ready!");
+        };
         
-        DiscoverTypes(b, loader);
+        // Set up file watcher for hot reload
+        SetupFileWatcher();
         
-        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning, loader);
+        // Start the worker process
+        _processManager.StartWorkerAsync().Wait();
+        
+        // Main watcher loop
         var stopwatch = Stopwatch.StartNew();
         double lastTime = 0;
-        while (isRunning.Value)
+        
+        Console.WriteLine("[Watcher] Press 'H' to trigger hot reload manually, 'Q' to quit");
+        
+        while (isRunning.Value && _processManager.IsWorkerRunning)
         {
             double currentTime = stopwatch.Elapsed.TotalSeconds;
             double deltaTime = currentTime - lastTime;
-            if (deltaTime > 0.1) deltaTime = 0.1;
             
-            mainThreadScheduler.Execute();
-            b.Loop(deltaTime);
+            // Check for console input
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(true).Key;
+                if (key == ConsoleKey.H)
+                {
+                    Console.WriteLine("[Watcher] Manual hot reload triggered by user");
+                    _ = HotReloadAsync();
+                }
+                else if (key == ConsoleKey.Q)
+                {
+                    Console.WriteLine("[Watcher] Quit requested by user");
+                    isRunning.Value = false;
+                }
+            }
+            
+            // Just wait for worker to exit or hot reload request
+            Thread.Sleep(100);
+            
+            lastTime = currentTime;
         }
-        b.Shutdown();
-        HotReloadHandler.Shutdown();
-
+        
+        // Cleanup
+        Console.WriteLine("[Watcher] Shutting down...");
+        _fileWatcher?.Dispose();
+        _debounceTimer?.Dispose();
+        _processManager?.StopWorkerAsync().Wait();
+        _processManager?.Dispose();
+        
+        Console.WriteLine("[Watcher] Exited");
     }
-
-    private void DiscoverTypes(Bootstrap bootstrap, ModuleLoader loader)
+    
+    private void SetupFileWatcher()
     {
-        loader.LoadClientModules();
-        var types = Types(loader);
-        bootstrap.RegisterTypes(types);
+        var path = AppContext.BaseDirectory;
+        _fileWatcher = new FileSystemWatcher(path)
+        {
+            NotifyFilter = NotifyFilters.LastWrite,
+            Filter = "*.dll",
+            EnableRaisingEvents = true,
+            IncludeSubdirectories = false
+        };
+        
+        _fileWatcher.Changed += OnDllChanged;
+        Console.WriteLine($"[Watcher] Watching for DLL changes in: {path}");
     }
-
-    private Type[] Types(ModuleLoader loader)
+    
+    private void OnDllChanged(object sender, FileSystemEventArgs e)
     {
-        return loader.LoadedAssemblies.SelectMany(assembly => assembly.GetTypes()).ToArray();
+        // Debounce: wait for 500ms after last change before triggering hot reload
+        lock (_lock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = new Timer(_ =>
+            {
+                Console.WriteLine($"[Watcher] Detected change in {e.Name}, triggering hot reload...");
+                _ = HotReloadAsync();
+            }, null, 500, Timeout.Infinite);
+        }
+    }
+    
+    /// <summary>
+    /// Triggers a hot reload manually. Can be called for testing.
+    /// </summary>
+    public async Task HotReloadAsync()
+    {
+        if (_processManager == null)
+        {
+            Console.WriteLine("[Watcher] Cannot hot reload: process manager not initialized");
+            return;
+        }
+        
+        try
+        {
+            Console.WriteLine("[Watcher] Manual hot reload triggered");
+            await _processManager.HotReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Watcher] Hot reload failed: {ex.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// Gets the process manager for direct access.
+    /// </summary>
+    public ProcessManager? GetProcessManager() => _processManager;
+    
+    private async Task RestartWorkerAsync()
+    {
+        if (_processManager == null) return;
+        
+        try
+        {
+            await _processManager.StartWorkerAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Watcher] Failed to restart worker: {ex.Message}");
+        }
     }
 }

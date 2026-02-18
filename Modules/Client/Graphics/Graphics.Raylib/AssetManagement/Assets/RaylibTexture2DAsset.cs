@@ -22,6 +22,13 @@ public class RaylibTexture2DAsset : Texture2DAsset
 
     protected override void OnUnload()
     {
-        Raylib.UnloadTexture(TextureRaylib.Texture);
+        
+        // Check if Raylib context is still valid before unloading
+        // IsWindowReady returns false if the window/context was destroyed
+        Console.WriteLine(Environment.CurrentManagedThreadId);
+        if (Raylib.IsWindowReady() && TextureRaylib.Texture.Id != 0)
+        {
+            Raylib.UnloadTexture(TextureRaylib.Texture);
+        }
     }
 }

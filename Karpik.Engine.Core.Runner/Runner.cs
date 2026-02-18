@@ -4,7 +4,10 @@ using Karpik.Engine.Core.ModuleManagement;
 
 namespace Karpik.Engine.Core;
 
-public class Runner : IRunner
+/// <summary>
+/// Engine runner that manages modules and the ECS pipeline.
+/// </summary>
+public class EngineRunner : IRunner
 {
     private readonly List<IModule> _modules = new();
     private EcsPipeline _pipeline = null!;
@@ -59,6 +62,12 @@ public class Runner : IRunner
             if (hotReload)
             {
                 HotReload(newModules, _serviceProvider, hotReloadData);
+            }
+            else if (hotReloadData != null && hotReloadData.Count > 0)
+            {
+                // Process isolation: apply initial state from previous worker after fresh start
+                Console.WriteLine("[Runner] Applying initial state from previous worker process");
+                ApplyInitialState(_modules, _serviceProvider, hotReloadData);
             }
             
             ConfigureAndAddModule(_serviceProvider, newBuilder);
@@ -172,6 +181,33 @@ public class Runner : IRunner
         foreach (var reload in needToReload)
         {
             reload.Item1.OnHotReload(reload.Item2, serviceProvider);
+        }
+    }
+    
+    /// <summary>
+    /// Applies initial state from previous worker process (process isolation).
+    /// Unlike HotReload, this doesn't replace modules - it just restores state to existing ones.
+    /// </summary>
+    private void ApplyInitialState(List<IModule> modules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> stateData)
+    {
+        foreach (var module in modules)
+        {
+            try
+            {
+                if (module is IModuleHotReload hotReloadableModule)
+                {
+                    string name = module.GetType().FullName ?? module.GetType().Name;
+                    if (stateData.TryGetValue(name, out var data))
+                    {
+                        hotReloadableModule.OnHotReload(data, serviceProvider);
+                        Console.WriteLine($"[Runner] Applied initial state to module: {name}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"[Runner] Failed to apply initial state to module {module.GetType().FullName}: {e.Message}");
+            }
         }
     }
 
