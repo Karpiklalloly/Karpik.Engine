@@ -190,6 +190,8 @@ public class EngineRunner : IRunner
     /// </summary>
     private void ApplyInitialState(List<IModule> modules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> stateData)
     {
+        List<(IModuleHotReload, byte[])> needToReload = [];
+        
         foreach (var module in modules)
         {
             try
@@ -199,7 +201,12 @@ public class EngineRunner : IRunner
                     string name = module.GetType().FullName ?? module.GetType().Name;
                     if (stateData.TryGetValue(name, out var data))
                     {
-                        hotReloadableModule.OnHotReload(data, serviceProvider);
+                        // OnHotReload returns false if it needs to be called again
+                        // (ECSInstaller uses this pattern: first call sets _reloaded=true, second call restores state)
+                        if (!hotReloadableModule.OnHotReload(data, serviceProvider))
+                        {
+                            needToReload.Add((hotReloadableModule, data));
+                        }
                         Console.WriteLine($"[Runner] Applied initial state to module: {name}");
                     }
                 }
@@ -207,6 +214,19 @@ public class EngineRunner : IRunner
             catch (Exception e)
             {
                 Console.WriteLine($"[Runner] Failed to apply initial state to module {module.GetType().FullName}: {e.Message}");
+            }
+        }
+        
+        // Second pass for modules that need two calls
+        foreach (var reload in needToReload)
+        {
+            try
+            {
+                reload.Item1.OnHotReload(reload.Item2, serviceProvider);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"[Runner] Failed to apply initial state on second pass: {e.Message}");
             }
         }
     }

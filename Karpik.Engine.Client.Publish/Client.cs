@@ -16,6 +16,7 @@ public class Client
     private FileSystemWatcher? _fileWatcher;
     private Timer? _debounceTimer;
     private readonly object _lock = new();
+    private bool _hotReloadInProgress = false;
     
     public void Start(Ref<bool> isRunning)
     {
@@ -50,7 +51,7 @@ public class Client
         
         Console.WriteLine("[Watcher] Press 'H' to trigger hot reload manually, 'Q' to quit");
         
-        while (isRunning.Value && _processManager.IsWorkerRunning)
+        while (isRunning.Value && (_processManager.IsWorkerRunning || _hotReloadInProgress))
         {
             double currentTime = stopwatch.Elapsed.TotalSeconds;
             double deltaTime = currentTime - lastTime;
@@ -129,12 +130,17 @@ public class Client
         
         try
         {
+            _hotReloadInProgress = true;
             Console.WriteLine("[Watcher] Manual hot reload triggered");
             await _processManager.HotReloadAsync();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Watcher] Hot reload failed: {ex.Message}");
+        }
+        finally
+        {
+            _hotReloadInProgress = false;
         }
     }
     
