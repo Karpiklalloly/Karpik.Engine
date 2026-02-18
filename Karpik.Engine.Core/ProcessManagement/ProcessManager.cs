@@ -16,6 +16,7 @@ public class ProcessManager : IDisposable
     
     private readonly CancellationTokenSource _cts = new();
     private Task? _monitorTask;
+    private TaskCompletionSource<bool>? _readyTcs;
     
     public event Action<int>? OnWorkerExited;
     public event Action? OnWorkerReady;
@@ -40,6 +41,8 @@ public class ProcessManager : IDisposable
             }
         }
     }
+    
+    public bool IsWorkerReady { get; private set; }
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
@@ -66,6 +69,8 @@ public class ProcessManager : IDisposable
         }
         
         _pendingState = initialState;
+        IsWorkerReady = false;
+        _readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         
         // Start IPC server first
         _ipcServer = new IpcServer(_pipeName);
@@ -98,10 +103,14 @@ public class ProcessManager : IDisposable
             EnableRaisingEvents = true
         };
         
-        _workerProcess.Exited += (sender, e) =>
+        // Capture the process variable to avoid race condition during hot reload
+        var capturedProcess = _workerProcess;
+        capturedProcess.Exited += (sender, e) =>
         {
-            var exitCode = _workerProcess.ExitCode;
+            var exitCode = capturedProcess.ExitCode;
             Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
+            // Cancel the ready TCS if process exits before ready
+            _readyTcs?.TrySetCanceled();
             OnWorkerExited?.Invoke(exitCode);
         };
         
@@ -121,6 +130,8 @@ public class ProcessManager : IDisposable
             if (msg.Type == IpcMessageType.WorkerReady)
             {
                 Console.WriteLine("[ProcessManager] Worker is ready");
+                IsWorkerReady = true;
+                _readyTcs?.TrySetResult(true);
                 OnWorkerReady?.Invoke();
             }
             else if (msg.Type == IpcMessageType.HotReloadRequest)
@@ -132,6 +143,19 @@ public class ProcessManager : IDisposable
         
         // Start monitoring task
         _monitorTask = MonitorLoop(_cts.Token);
+    }
+    
+    /// <summary>
+    /// Waits for the worker to signal it's ready.
+    /// </summary>
+    public async Task<bool> WaitForWorkerReadyAsync(TimeSpan timeout)
+    {
+        if (IsWorkerReady) return true;
+        if (_readyTcs == null) return false;
+        
+        var timeoutTask = Task.Delay(timeout);
+        var completedTask = await Task.WhenAny(_readyTcs.Task, timeoutTask);
+        return completedTask == _readyTcs.Task && IsWorkerReady;
     }
     
     /// <summary>

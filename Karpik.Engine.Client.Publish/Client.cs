@@ -16,7 +16,7 @@ public class Client
     private FileSystemWatcher? _fileWatcher;
     private Timer? _debounceTimer;
     private readonly object _lock = new();
-    private bool _hotReloadInProgress = false;
+    private volatile bool _hotReloadInProgress = false;
     
     public void Start(Ref<bool> isRunning)
     {
@@ -51,7 +51,7 @@ public class Client
         
         Console.WriteLine("[Watcher] Press 'H' to trigger hot reload manually, 'Q' to quit");
         
-        while (isRunning.Value && (_processManager.IsWorkerRunning || _hotReloadInProgress))
+        while (isRunning.Value && (_processManager.IsWorkerRunning || _processManager.IsWorkerReady || _hotReloadInProgress))
         {
             double currentTime = stopwatch.Elapsed.TotalSeconds;
             double deltaTime = currentTime - lastTime;
@@ -133,6 +133,19 @@ public class Client
             _hotReloadInProgress = true;
             Console.WriteLine("[Watcher] Manual hot reload triggered");
             await _processManager.HotReloadAsync();
+            
+            // Wait for the worker to be fully ready (not just running)
+            // This prevents the main loop from exiting during the transition
+            var ready = await _processManager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10));
+            
+            if (!ready)
+            {
+                Console.WriteLine("[Watcher] Warning: Worker not ready after hot reload timeout");
+            }
+            else
+            {
+                Console.WriteLine("[Watcher] Worker is ready after hot reload");
+            }
         }
         catch (Exception ex)
         {
