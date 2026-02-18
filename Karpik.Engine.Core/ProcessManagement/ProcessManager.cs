@@ -13,6 +13,7 @@ public class ProcessManager : IDisposable
     private readonly string _workerExePath;
     private readonly string _pipeName;
     private HotReloadState? _pendingState;
+    private readonly bool _waitForDebugger;
     
     private readonly CancellationTokenSource _cts = new();
     private Task? _monitorTask;
@@ -46,10 +47,11 @@ public class ProcessManager : IDisposable
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
-    public ProcessManager(string? workerExePath = null, string? pipeName = null)
+    public ProcessManager(string? workerExePath = null, string? pipeName = null, bool waitForDebugger = true)
     {
         _workerExePath = workerExePath ?? GetDefaultWorkerPath();
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
+        _waitForDebugger = waitForDebugger;
     }
     
     /// <summary>
@@ -82,6 +84,10 @@ public class ProcessManager : IDisposable
         {
             var stateBase64 = Convert.ToBase64String(initialState.Serialize());
             args += $" --state={stateBase64}";
+        }
+        if (_waitForDebugger)
+        {
+            args += " --wait-for-debugger";
         }
         
         // Spawn worker process

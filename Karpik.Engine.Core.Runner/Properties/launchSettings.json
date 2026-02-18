@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Karpik.Engine.Core.Runner (Standalone)": {
+      "commandName": "Project",
+      "commandLineArgs": "",
+      "workingDirectory": "$(ProjectDir)..\\..\\"
+    },
+    "Karpik.Engine.Core.Runner (Debug with Watcher)": {
+      "commandName": "Project",
+      "commandLineArgs": "--wait-for-debugger",
+      "workingDirectory": "$(ProjectDir)..\\..\\"
+    }
+  }
+}

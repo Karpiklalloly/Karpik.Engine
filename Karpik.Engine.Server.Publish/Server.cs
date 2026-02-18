@@ -20,7 +20,7 @@ public class Server
         
         DiscoverAndRegisterModules(b, loader);
         
-        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning, loader);
+        var mainThreadScheduler = b.Initialize(Environment.CurrentManagedThreadId, isRunning);
         
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
@@ -64,28 +64,14 @@ public class Server
         Console.WriteLine("[Launcher] DEBUG mode: Loading server modules from manifest...");
         loader.LoadServerModules();
         
-        var assembliesToScan = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => loader.SharedAssemblies.Contains(a.GetName().Name) || 
-                        loader.ServerOnlyAssemblies.Contains(a.GetName().Name));
-
-        var moduleTypes = assembliesToScan
+        // Register all types from loaded assemblies
+        var allTypes = loader.LoadedAssemblies
             .SelectMany(assembly => assembly.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract && typeof(IModule).IsAssignableFrom(t) &&
-                        t.GetCustomAttribute<ModuleAttribute>() != null);
-
-        foreach (var type in moduleTypes)
-        {
-            try
-            {
-                var moduleInstance = (IModule)Activator.CreateInstance(type)!;
-                bootstrap.RegisterModule(moduleInstance);
-                Console.WriteLine($"[Launcher] Registered module: {type.Name}");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"[Launcher] Failed to create instance of module {type.FullName}: {e.Message}");
-            }
-        }
+            .ToArray();
+        
+        bootstrap.RegisterTypes(allTypes);
+        
+        Console.WriteLine($"[Launcher] Registered {allTypes.Length} types from {loader.LoadedAssemblies.Length} assemblies");
 #else
         Console.WriteLine("[Launcher] RELEASE mode: Registering server modules statically...");
         ModuleLoader.RegisterServerModules(bootstrap);

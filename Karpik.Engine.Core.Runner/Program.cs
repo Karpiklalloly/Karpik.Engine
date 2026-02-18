@@ -32,6 +32,18 @@ public class Program
         // Parse arguments
         var pipeName = ParseArg(args, "--pipe-name");
         var stateBase64 = ParseArg(args, "--state");
+        var waitForDebugger = HasArg(args, "--wait-for-debugger");
+        
+        // Wait for debugger if requested
+        if (waitForDebugger)
+        {
+            Console.WriteLine("[Worker] Waiting for debugger to attach...");
+            while (!Debugger.IsAttached)
+            {
+                Thread.Sleep(100);
+            }
+            Console.WriteLine("[Worker] Debugger attached!");
+        }
         
         // Deserialize initial state if provided
         if (!string.IsNullOrEmpty(stateBase64))
@@ -229,5 +241,10 @@ public class Program
             }
         }
         return null;
+    }
+    
+    private static bool HasArg(string[] args, string name)
+    {
+        return args.Any(arg => arg == name || arg.StartsWith($"{name}="));
     }
 }
