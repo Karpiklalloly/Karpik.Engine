@@ -325,9 +325,337 @@ flowchart TD
 3. Optimize state serialization performance
 4. Add debugging support
 
-## Questions for Clarification
+## Implementation Status
 
-1. **State Size**: What is the typical size of hot reload state data? (affects serialization strategy)
-2. **Window Handling**: Should the game window persist across reloads (requires window ownership tricks)?
-3. **Crash Recovery**: Should the watcher auto-restart crashed workers?
-4. **Debugging**: Do you need to support attaching debugger to worker process automatically?
+### ✅ Completed
+
+All core infrastructure has been implemented:
+
+| Component | File | Status |
+|-----------|------|--------|
+| IPC Protocol | `Karpik.Engine.Core/ProcessManagement/IpcProtocol.cs` | ✅ Done |
+| IPC Server (Watcher) | `Karpik.Engine.Core/ProcessManagement/IpcServer.cs` | ✅ Done |
+| IPC Client (Worker) | `Karpik.Engine.Core/ProcessManagement/IpcClient.cs` | ✅ Done |
+| Process Manager | `Karpik.Engine.Core/ProcessManagement/ProcessManager.cs` | ✅ Done |
+| Worker Entry Point | `Karpik.Engine.Core.Runner/Program.cs` | ✅ Done |
+| Engine Runner | `Karpik.Engine.Core.Runner/Runner.cs` | ✅ Done |
+| Bootstrap (simplified) | `Karpik.Engine.Core/Bootstrap.cs` | ✅ Done |
+| Client Integration | `Karpik.Engine.Client.Publish/Client.cs` | ✅ Done |
+| Server Integration | `Karpik.Engine.Server.Publish/Server.cs` | ✅ Done |
+| Debugging Support | Auto-attach when Watcher debugged | ✅ Done |
+
+---
+
+## Как работает Hot Reload
+
+### Общий принцип
+
+Hot Reload реализован через **перезапуск процесса** (Process Isolation). Это единственный надежный способ выгрузить native DLL (Raylib, ImGui) - операционная система автоматически освобождает все ресурсы при завершении процесса.
+
+### Последовательность Hot Reload
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. DETECT CHANGE                                                             │
+│    FileSystemWatcher обнаруживает изменение DLL                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. REQUEST STATE                                                             │
+│    Watcher → Worker: "Дай мне своё состояние для сохранения"                │
+│    Worker вызывает IModuleHotReload.OnPrepareHotReload() на всех модулях    │
+│    Worker → Watcher: StateResponse с сериализованным состоянием             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. GRACEFUL SHUTDOWN                                                         │
+│    Watcher → Worker: "Завершай работу"                                       │
+│    Worker очищает ресурсы и выходит                                          │
+│    ОС освобождает ВСЕ native DLL (Raylib, ImGui, etc.)                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. RESTART WITH STATE                                                        │
+│    Watcher запускает новый Worker процесс                                    │
+│    Передаёт сохранённое состояние через IPC                                  │
+│    Worker вызывает IModuleHotReload.OnHotReload(data) на модулях            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. CONTINUE EXECUTION                                                        │
+│    Worker продолжает работу с восстановленным состоянием                     │
+│    Загружены новые версии DLL                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Код: Сериализация состояния (Worker side)
+
+```csharp
+// Program.cs - GetHotReloadState()
+private static HotReloadState? GetHotReloadState(Bootstrap bootstrap)
+{
+    var state = new HotReloadState();
+    
+    // Собираем состояние от всех модулей, поддерживающих IModuleHotReload
+    foreach (var module in bootstrap.GetModules())
+    {
+        if (module is IModuleHotReload hotReloadable)
+        {
+            var moduleState = hotReloadable.OnPrepareHotReload();
+            if (moduleState != null)
+            {
+                state.ModuleStates[module.GetType().FullName!] = moduleState;
+            }
+        }
+    }
+    
+    return state.ModuleStates.Count > 0 ? state : null;
+}
+```
+
+### Код: Восстановление состояния (Worker side)
+
+```csharp
+// Program.cs - ApplyHotReloadState()
+private static void ApplyHotReloadState(Bootstrap bootstrap, HotReloadState state)
+{
+    foreach (var module in bootstrap.GetModules())
+    {
+        if (module is IModuleHotReload hotReloadable)
+        {
+            var moduleTypeName = module.GetType().FullName!;
+            if (state.ModuleStates.TryGetValue(moduleTypeName, out var moduleState))
+            {
+                hotReloadable.OnHotReload(moduleState, bootstrap.Services);
+            }
+        }
+    }
+}
+```
+
+---
+
+## Как работает загрузка модулей
+
+### При старте Worker процесса
+
+```
+Program.Main()
+    │
+    ├── Парсинг аргументов командной строки
+    │   ├── --pipe-name=xxx (имя named pipe для IPC)
+    │   ├── --wait-for-debugger (ждать подключения отладчика)
+    │   └── --state=base64... (сохранённое состояние при hot reload)
+    │
+    ├── Подключение к IPC (IpcClient.ConnectAsync)
+    │
+    ├── Создание Bootstrap
+    │   │
+    │   ├── Bootstrap.RegisterTypes()
+    │   │   Регистрация сервисов в IServiceContainer
+    │   │
+    │   └── Bootstrap.LoadModules()
+    │       │
+    │       ├── Загрузка сборок через ModuleLoader
+    │       │   - Чтение DLL из папки Modules/
+    │       │   - Создание PluginLoadContext для изоляции
+    │       │
+    │       ├── Поиск типов, реализующих IModule
+    │       │   - Через reflection в загруженных сборках
+    │       │
+    │       └── Создание и инициализация модулей
+    │           - Вызов IModule.Initialize(services)
+    │
+    ├── Применение Hot Reload состояния (если есть)
+    │   ApplyHotReloadState(bootstrap, state)
+    │
+    └── Запуск главного цикла
+        while (running)
+        {
+            bootstrap.Loop(deltaTime);
+            ipcClient.ProcessMessages();
+        }
+```
+
+### ModuleLoader и PluginLoadContext
+
+```csharp
+// ModuleLoader загружает сборки в изолированный контекст
+public class PluginLoadContext : AssemblyLoadContext
+{
+    private readonly AssemblyDependencyResolver _resolver;
+    
+    protected override Assembly? Load(AssemblyName assemblyName)
+    {
+        // Разрешение зависимостей из папки модуля
+        var path = _resolver.ResolveAssemblyToPath(assemblyName);
+        return path != null ? LoadFromAssemblyPath(path) : null;
+    }
+    
+    protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+    {
+        // Разрешение native DLL (Raylib, ImGui)
+        var path = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+        return path != null ? LoadUnmanagedDllFromPath(path) : IntPtr.Zero;
+    }
+}
+```
+
+---
+
+## Отладка (Debugging)
+
+### Способ 1: Standalone режим (отладка только Worker)
+
+Запустите `Karpik.Engine.Core.Runner` напрямую из IDE:
+
+1. В Rider: выберите профиль "Karpik.Engine.Core.Runner"
+2. F5 для запуска с отладкой
+3. Worker запустится без Watcher, в standalone режиме
+
+**Плюсы**: Прямая отладка, нет лишних процессов
+**Минусы**: Нет hot reload, нет IPC
+
+### Способ 2: Через Watcher (полная архитектура)
+
+1. Включите в Rider: **Settings → Build, Execution, Deployment → Debugger → Auto Attach to Child Processes**
+2. Запустите `ClientLauncher` с отладкой (F5)
+3. Rider автоматически подключится к Worker процессу
+
+**Альтернативно** (без Auto Attach):
+1. Запустите `ClientLauncher` с отладкой
+2. Worker выведет в консоль: `[Worker] Process ID: 12345`
+3. В Rider: **Run → Attach to Process** → выберите процесс Worker
+
+### Код поддержки отладки
+
+```csharp
+// ProcessManager.cs - Watcher side
+public ProcessManager(string? workerExePath = null, string? pipeName = null, 
+                      bool autoAttachDebugger = true)
+{
+    _autoAttachDebugger = autoAttachDebugger;
+    // ...
+}
+
+private ProcessStartInfo BuildStartInfo(bool waitForDebugger)
+{
+    var args = $"--pipe-name={_pipeName}";
+    if (waitForDebugger)
+    {
+        args += " --wait-for-debugger";
+    }
+    // ...
+}
+
+// При запуске Worker:
+var shouldWaitForDebugger = _autoAttachDebugger && Debugger.IsAttached;
+// Если Watcher под отладкой, Worker будет ждать подключения
+
+// Program.cs - Worker side
+if (waitForDebugger)
+{
+    Console.WriteLine("[Worker] Waiting for debugger to attach...");
+    Console.WriteLine($"[Worker] Process ID: {Environment.ProcessId}");
+    while (!Debugger.IsAttached) { Thread.Sleep(100); }
+    Console.WriteLine("[Worker] Debugger attached!");
+}
+```
+
+---
+
+## IModuleHotReload Interface
+
+Модули, которые хотят сохранять состояние при hot reload, должны реализовать этот интерфейс:
+
+```csharp
+public interface IModuleHotReload
+{
+    /// <summary>
+    /// Called before hot reload. Serialize module state to byte[].
+    /// </summary>
+    byte[] OnPrepareHotReload();
+    
+    /// <summary>
+    /// Called after hot reload with new process. Restore state from byte[].
+    /// </summary>
+    bool OnHotReload(byte[] data, IServiceContainer services);
+}
+```
+
+### Пример реализации
+
+```csharp
+public class GameLogicModule : IModule, IModuleHotReload
+{
+    private GameState _state;
+    
+    public byte[] OnPrepareHotReload()
+    {
+        // Сериализуем состояние игры
+        return JsonSerializer.SerializeToUtf8Bytes(_state);
+    }
+    
+    public bool OnHotReload(byte[] data, IServiceContainer services)
+    {
+        // Восстанавливаем состояние
+        _state = JsonSerializer.Deserialize<GameState>(data);
+        return true;
+    }
+    
+    public void Initialize(IServiceContainer services)
+    {
+        // Инициализация модуля
+    }
+}
+```
+
+---
+
+## IPC Protocol Details
+
+### Message Types
+
+| Code | Type | Direction | Description |
+|------|------|-----------|-------------|
+| 0x01 | PingRequest | Both | Keepalive ping |
+| 0x02 | PingResponse | Both | Keepalive response |
+| 0x10 | StateRequest | Watcher→Worker | Request hot reload state |
+| 0x11 | StateResponse | Worker→Watcher | Serialized state data |
+| 0x20 | ShutdownRequest | Watcher→Worker | Graceful shutdown |
+| 0x21 | ShutdownAck | Worker→Watcher | Acknowledge shutdown |
+| 0x30 | HotReloadRequest | Watcher→Worker | Prepare for hot reload |
+| 0x40 | WorkerReady | Worker→Watcher | Worker initialized and ready |
+
+### Binary Format
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [4 bytes] Message Length (little-endian, excludes header)   │
+│ [1 byte]  Message Type                                      │
+│ [N bytes] Payload (JSON or binary depending on type)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Преимущества архитектуры
+
+1. **Полная выгрузка Native DLL** - ОС освобождает все ресурсы при завершении процесса
+2. **Нет утечек памяти** - Новый процесс = чистое состояние
+3. **Изоляция крашей** - Краш движка не убивает Watcher
+4. **Настоящий Hot Reload** - Можно обновлять native DLL между перезапусками
+5. **Удобная отладка** - Можно подключить отладчик к Worker процессу
+
+---
+
+## Ответы на вопросы из планирования
+
+1. **State Size**: Типичный размер состояния ~10KB-1MB (зависит от игры)
+2. **Window Handling**: Окно мигает при перезапуске (можно улучшить в будущем)
+3. **Crash Recovery**: Watcher автоматически перезапускает упавший Worker
+4. **Debugging**: ✅ Реализовано - авто-подключение при отладке Watcher
