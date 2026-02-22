@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Karpik.Engine.Core.Hot;
-using Karpik.Engine.Core.ProcessManagement;
+using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -19,6 +19,7 @@ public class Program
         var pipeName = ParseArg(args, "--pipe-name");
         var stateBase64 = ParseArg(args, "--state");
         var waitForDebugger = HasArg(args, "--wait-for-debugger");
+        var side = ParseArg(args, "--side");
         
         if (waitForDebugger)
         {
@@ -73,7 +74,8 @@ public class Program
         
         try
         {
-            RunEngine();
+            var tryParse = Enum.TryParse(side, out Side s);
+            RunEngine(s);
         }
         catch (Exception ex)
         {
@@ -86,7 +88,7 @@ public class Program
         }
     }
     
-    private static void RunEngine()
+    private static void RunEngine(Side side)
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
         
@@ -108,8 +110,18 @@ public class Program
         _ipcClient?.SetScheduler(mainThreadScheduler);
         
         _ipcClient?.SendReadyAsync().Wait();
-        
-        ClientLoop(mainThreadScheduler);
+
+        switch (side)
+        {
+            case Side.Client:
+                ClientLoop(mainThreadScheduler);
+                break;
+            case Side.Server:
+                ServerLoop();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side), side, null);
+        }
         
         HotReloadHandler.OnUpdateApplication -= RequestHotReload;
         _bootstrap.Shutdown();

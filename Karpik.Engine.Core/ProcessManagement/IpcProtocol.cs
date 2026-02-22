@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Karpik.Engine.Core.ProcessManagement;
+namespace Karpik.Engine.Core;
 
 /// <summary>
 /// Message types for IPC communication between Watcher and Worker processes.

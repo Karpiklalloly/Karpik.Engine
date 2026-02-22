@@ -1,14 +1,15 @@
 using System.Diagnostics;
 
-namespace Karpik.Engine.Core.ProcessManagement;
+namespace Karpik.Engine.Core;
 
-public class ProcessManager : IDisposable
+internal class ProcessManager : IDisposable
 {
     private Process? _workerProcess;
     private IpcServer? _ipcServer;
     private readonly string _workerExePath;
     private readonly string _pipeName;
     private HotReloadState? _pendingState;
+    private readonly Side _side;
     private readonly bool _waitForDebugger;
     
     private readonly CancellationTokenSource _cts = new();
@@ -43,10 +44,11 @@ public class ProcessManager : IDisposable
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
-    public ProcessManager(string? workerExePath = null, string? pipeName = null, bool waitForDebugger = true)
+    public ProcessManager(Side side, string? workerExePath = null, string? pipeName = null, bool waitForDebugger = true)
     {
         _workerExePath = workerExePath ?? GetDefaultWorkerPath();
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
+        _side = side;
         _waitForDebugger = waitForDebugger;
     }
     
@@ -77,6 +79,8 @@ public class ProcessManager : IDisposable
         {
             args += " --wait-for-debugger";
         }
+
+        args += $" --side={_side}";
         
         Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
         Console.WriteLine($"[ProcessManager] Arguments: {args}");

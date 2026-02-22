@@ -1,6 +1,6 @@
 using System.IO.Pipes;
 
-namespace Karpik.Engine.Core.ProcessManagement;
+namespace Karpik.Engine.Core;
 
 internal class IpcClient : IDisposable
 {
