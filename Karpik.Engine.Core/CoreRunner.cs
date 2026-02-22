@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-internal class CoreRunner
+public class CoreRunner
 {
     private ProcessManager? _processManager;
     private volatile bool _hotReloadInProgress = false;
@@ -53,7 +53,7 @@ internal class CoreRunner
         Console.WriteLine("[Watcher] Exited");
     }
     
-    public ProcessManager? GetProcessManager() => _processManager;
+    internal ProcessManager? GetProcessManager() => _processManager;
     
     private async Task RestartWorkerAsync()
     {

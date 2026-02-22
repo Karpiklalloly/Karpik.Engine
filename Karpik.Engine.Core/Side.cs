@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-internal enum Side : byte
+public enum Side : byte
 {
     Client,
     Server

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using Karpik.Engine.Client.Publish;
 using Karpik.Engine.Core;
 
 namespace ClientLauncher;
@@ -18,6 +17,6 @@ class Program
         Console.WriteLine($"[Launcher] Working directory set to: {exePath}");
         // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-        new Client().Start(new Ref<bool>(true));
+        new CoreRunner().Start(new Ref<bool>(true), Side.Client);
     }
 }
