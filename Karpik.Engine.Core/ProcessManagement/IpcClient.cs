@@ -2,11 +2,7 @@ using System.IO.Pipes;
 
 namespace Karpik.Engine.Core.ProcessManagement;
 
-/// <summary>
-/// IPC Client for the Worker process.
-/// Connects to the Watcher process via named pipes.
-/// </summary>
-public class IpcClient : IDisposable
+internal class IpcClient : IDisposable
 {
     private NamedPipeClientStream? _pipe;
     private readonly string _pipeName;
@@ -17,7 +13,6 @@ public class IpcClient : IDisposable
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
     
-    // Callbacks for handling requests from watcher
     public Func<HotReloadState?>? OnStateRequest { get; set; }
     public Action? OnShutdownRequest { get; set; }
     
@@ -26,18 +21,11 @@ public class IpcClient : IDisposable
         _pipeName = pipeName;
     }
     
-    /// <summary>
-    /// Sets the main thread scheduler for executing GPU operations on the main thread.
-    /// Must be called before ConnectAsync if state collection involves GPU operations.
-    /// </summary>
     public void SetScheduler(MainThreadScheduler scheduler)
     {
         _scheduler = scheduler;
     }
     
-    /// <summary>
-    /// Connects to the watcher's IPC server.
-    /// </summary>
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         _pipe = new NamedPipeClientStream(
@@ -50,65 +38,40 @@ public class IpcClient : IDisposable
         await _pipe.ConnectAsync(TimeSpan.FromSeconds(30), cancellationToken);
         Console.WriteLine("[IpcClient] Connected to watcher!");
         
-        // Start listening for messages
         _listenTask = ListenLoop(_cts.Token);
     }
     
-    /// <summary>
-    /// Sends a message to the watcher process.
-    /// </summary>
     public async Task SendAsync(IpcMessage message, CancellationToken cancellationToken = default)
     {
         if (_pipe == null || !_pipe.IsConnected)
             throw new InvalidOperationException("Pipe is not connected");
         
         var bytes = message.ToBytes();
-        await _pipe.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
+        await _pipe.WriteAsync(bytes, cancellationToken);
         await _pipe.FlushAsync(cancellationToken);
     }
     
-    /// <summary>
-    /// Sends a WorkerReady signal to the watcher.
-    /// </summary>
     public async Task SendReadyAsync(CancellationToken cancellationToken = default)
     {
         await SendAsync(new IpcMessage(IpcMessageType.WorkerReady), cancellationToken);
         Console.WriteLine("[IpcClient] Sent WorkerReady signal");
     }
     
-    /// <summary>
-    /// Sends state response to the watcher.
-    /// </summary>
     public async Task SendStateResponseAsync(HotReloadState? state, CancellationToken cancellationToken = default)
     {
         var payload = state?.Serialize() ?? Array.Empty<byte>();
         await SendAsync(new IpcMessage(IpcMessageType.StateResponse, payload), cancellationToken);
     }
     
-    /// <summary>
-    /// Sends shutdown acknowledgment to the watcher.
-    /// </summary>
     public async Task SendShutdownAckAsync(CancellationToken cancellationToken = default)
     {
         await SendAsync(new IpcMessage(IpcMessageType.ShutdownAck), cancellationToken);
     }
     
-    /// <summary>
-    /// Requests hot reload from the watcher. Worker calls this when it wants to be reloaded.
-    /// </summary>
     public async Task RequestHotReloadAsync(CancellationToken cancellationToken = default)
     {
         await SendAsync(new IpcMessage(IpcMessageType.HotReloadRequest), cancellationToken);
         Console.WriteLine("[IpcClient] Sent HotReloadRequest to watcher");
-    }
-    
-    /// <summary>
-    /// Processes incoming messages. Should be called regularly in the main loop.
-    /// </summary>
-    public void ProcessMessages()
-    {
-        // Messages are processed in ListenLoop via events
-        // This method can be used for synchronous processing if needed
     }
     
     private async Task ListenLoop(CancellationToken cancellationToken)
@@ -120,7 +83,7 @@ public class IpcClient : IDisposable
             while (!cancellationToken.IsCancellationRequested && _pipe?.IsConnected == true)
             {
                 // Read header
-                var bytesRead = await _pipe.ReadAsync(headerBuffer, 0, 5, cancellationToken);
+                var bytesRead = await _pipe.ReadAsync(headerBuffer.AsMemory(0, 5), cancellationToken);
                 if (bytesRead == 0)
                 {
                     Console.WriteLine("[IpcClient] Watcher disconnected");
@@ -133,7 +96,7 @@ public class IpcClient : IDisposable
                     var remaining = 5 - bytesRead;
                     while (remaining > 0)
                     {
-                        var n = await _pipe.ReadAsync(headerBuffer, bytesRead, remaining, cancellationToken);
+                        var n = await _pipe.ReadAsync(headerBuffer.AsMemory(bytesRead, remaining), cancellationToken);
                         if (n == 0) break;
                         bytesRead += n;
                         remaining -= n;
@@ -151,7 +114,7 @@ public class IpcClient : IDisposable
                     var payloadRead = 0;
                     while (payloadRead < payloadLength)
                     {
-                        var n = await _pipe.ReadAsync(payload, payloadRead, payloadLength - payloadRead, cancellationToken);
+                        var n = await _pipe.ReadAsync(payload.AsMemory(payloadRead, payloadLength - payloadRead), cancellationToken);
                         if (n == 0) break;
                         payloadRead += n;
                     }
@@ -159,10 +122,8 @@ public class IpcClient : IDisposable
                 
                 var message = new IpcMessage(type, payload);
                 
-                // Handle special messages
                 await HandleMessageAsync(message, cancellationToken);
                 
-                // Notify external handlers
                 OnMessageReceived?.Invoke(message);
             }
         }
@@ -192,13 +153,11 @@ public class IpcClient : IDisposable
                 {
                     if (_scheduler != null)
                     {
-                        // Execute state collection on main thread (required for GPU operations)
                         var jobHandle = _scheduler.InvokeAsync(() => OnStateRequest());
                         state = jobHandle.GetAwaiter().GetResult();
                     }
                     else
                     {
-                        // No scheduler - execute directly (may crash if GPU operations involved)
                         state = OnStateRequest();
                     }
                 }

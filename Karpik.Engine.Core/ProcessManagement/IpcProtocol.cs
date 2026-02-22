@@ -43,9 +43,6 @@ public readonly struct IpcMessage
         Payload = payload ?? Array.Empty<byte>();
     }
     
-    /// <summary>
-    /// Serializes the message to a byte array.
-    /// </summary>
     public byte[] ToBytes()
     {
         var buffer = new byte[5 + Payload.Length];
@@ -56,9 +53,6 @@ public readonly struct IpcMessage
         return buffer;
     }
     
-    /// <summary>
-    /// Deserializes a message from a byte array.
-    /// </summary>
     public static IpcMessage FromBytes(byte[] buffer, int offset = 0)
     {
         var payloadLength = BitConverter.ToInt32(buffer, offset);
@@ -68,9 +62,6 @@ public readonly struct IpcMessage
         return new IpcMessage(type, payload);
     }
     
-    /// <summary>
-    /// Reads the header (length + type) from a buffer.
-    /// </summary>
     public static (int totalLength, IpcMessageType type) ReadHeader(byte[] buffer, int offset = 0)
     {
         var payloadLength = BitConverter.ToInt32(buffer, offset);
@@ -79,17 +70,11 @@ public readonly struct IpcMessage
     }
 }
 
-/// <summary>
-/// Hot reload state container for IPC transfer.
-/// </summary>
 public class HotReloadState
 {
     public Dictionary<string, byte[]> ModuleStates { get; set; } = new();
     public long Timestamp { get; set; }
     
-    /// <summary>
-    /// Serializes the state to a byte array.
-    /// </summary>
     public byte[] Serialize()
     {
         using var ms = new MemoryStream();
@@ -108,9 +93,6 @@ public class HotReloadState
         return ms.ToArray();
     }
     
-    /// <summary>
-    /// Deserializes state from a byte array.
-    /// </summary>
     public static HotReloadState Deserialize(byte[] data)
     {
         using var ms = new MemoryStream(data);

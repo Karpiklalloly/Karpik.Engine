@@ -2,10 +2,6 @@ using System.Diagnostics;
 
 namespace Karpik.Engine.Core.ProcessManagement;
 
-/// <summary>
-/// Manages the worker process lifecycle.
-/// Used by the Watcher process to spawn, monitor, and restart the Worker.
-/// </summary>
 public class ProcessManager : IDisposable
 {
     private Process? _workerProcess;
@@ -54,14 +50,8 @@ public class ProcessManager : IDisposable
         _waitForDebugger = waitForDebugger;
     }
     
-    /// <summary>
-    /// Gets the pipe name that the worker should connect to.
-    /// </summary>
     public string GetPipeName() => _pipeName;
     
-    /// <summary>
-    /// Starts the worker process.
-    /// </summary>
     public async Task StartWorkerAsync(HotReloadState? initialState = null, CancellationToken cancellationToken = default)
     {
         if (IsWorkerRunning)
@@ -74,11 +64,9 @@ public class ProcessManager : IDisposable
         IsWorkerReady = false;
         _readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         
-        // Start IPC server first
         _ipcServer = new IpcServer(_pipeName);
         var ipcTask = _ipcServer.WaitForConnectionAsync(cancellationToken);
         
-        // Build arguments
         var args = $"--pipe-name={_pipeName}";
         if (initialState != null)
         {
@@ -90,7 +78,6 @@ public class ProcessManager : IDisposable
             args += " --wait-for-debugger";
         }
         
-        // Spawn worker process
         Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
         Console.WriteLine($"[ProcessManager] Arguments: {args}");
         
@@ -109,13 +96,11 @@ public class ProcessManager : IDisposable
             EnableRaisingEvents = true
         };
         
-        // Capture the process variable to avoid race condition during hot reload
         var capturedProcess = _workerProcess;
         capturedProcess.Exited += (sender, e) =>
         {
             var exitCode = capturedProcess.ExitCode;
             Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
-            // Cancel the ready TCS if process exits before ready
             _readyTcs?.TrySetCanceled();
             OnWorkerExited?.Invoke(exitCode);
         };
@@ -127,10 +112,8 @@ public class ProcessManager : IDisposable
         
         Console.WriteLine($"[ProcessManager] Worker started with PID: {_workerProcess.Id}");
         
-        // Wait for IPC connection
         await ipcTask;
         
-        // Set up message handlers
         _ipcServer.OnMessageReceived += msg =>
         {
             if (msg.Type == IpcMessageType.WorkerReady)
@@ -143,17 +126,13 @@ public class ProcessManager : IDisposable
             else if (msg.Type == IpcMessageType.HotReloadRequest)
             {
                 Console.WriteLine("[ProcessManager] Worker requested hot reload");
-                _ = HotReloadAsync();
+                _ = HotReloadAsync(cancellationToken);
             }
         };
         
-        // Start monitoring task
         _monitorTask = MonitorLoop(_cts.Token);
     }
     
-    /// <summary>
-    /// Waits for the worker to signal it's ready.
-    /// </summary>
     public async Task<bool> WaitForWorkerReadyAsync(TimeSpan timeout)
     {
         if (IsWorkerReady) return true;
@@ -163,10 +142,7 @@ public class ProcessManager : IDisposable
         var completedTask = await Task.WhenAny(_readyTcs.Task, timeoutTask);
         return completedTask == _readyTcs.Task && IsWorkerReady;
     }
-    
-    /// <summary>
-    /// Requests hot reload: gets state from worker, shuts it down, restarts with state.
-    /// </summary>
+
     public async Task HotReloadAsync(CancellationToken cancellationToken = default)
     {
         if (_ipcServer == null || !IsWorkerRunning)
@@ -177,14 +153,11 @@ public class ProcessManager : IDisposable
         
         Console.WriteLine("[ProcessManager] Starting hot reload...");
         
-        // 1. Request state from worker
         var state = await _ipcServer.RequestStateAsync(cancellationToken);
         OnHotReloadRequested?.Invoke(state);
         
-        // 2. Request graceful shutdown
         await _ipcServer.SendShutdownRequestAsync(cancellationToken);
         
-        // 3. Wait for process to exit (with timeout)
         var timeout = TimeSpan.FromSeconds(5);
         if (!await WaitForExitAsync(timeout))
         {
@@ -192,21 +165,16 @@ public class ProcessManager : IDisposable
             _workerProcess?.Kill(entireProcessTree: true);
         }
         
-        // 4. Cleanup
         _ipcServer.Dispose();
         _ipcServer = null;
         _workerProcess?.Dispose();
         _workerProcess = null;
         
-        // 5. Restart with state
         await StartWorkerAsync(state, cancellationToken);
         
         Console.WriteLine("[ProcessManager] Hot reload complete!");
     }
-    
-    /// <summary>
-    /// Stops the worker process gracefully.
-    /// </summary>
+
     public async Task StopWorkerAsync(CancellationToken cancellationToken = default)
     {
         if (!IsWorkerRunning)
@@ -237,9 +205,6 @@ public class ProcessManager : IDisposable
         _workerProcess = null;
     }
     
-    /// <summary>
-    /// Waits for the worker process to exit.
-    /// </summary>
     public async Task<bool> WaitForExitAsync(TimeSpan timeout)
     {
         if (_workerProcess == null) return true;
@@ -290,13 +255,7 @@ public class ProcessManager : IDisposable
         // Search locations in order of priority
         var searchPaths = new[]
         {
-            // 1. Same directory as the watcher (most common for published apps)
-            AppContext.BaseDirectory,
-            // 2. Sibling directory relative to solution (for development)
-            Path.Combine(AppContext.BaseDirectory, "..", "Karpik.Engine.Core.Runner"),
-            // 3. Look in common build output directories
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Karpik.Engine.Core.Runner", "bin", "Debug", "net10.0"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Karpik.Engine.Core.Runner", "bin", "Release", "net10.0"),
+            AppContext.BaseDirectory
         };
         
         foreach (var searchPath in searchPaths)
@@ -309,7 +268,6 @@ public class ProcessManager : IDisposable
             }
         }
         
-        // Fallback: return the first search path (will fail with clear error message)
         var fallbackPath = Path.Combine(AppContext.BaseDirectory, exeName);
         Console.WriteLine($"[ProcessManager] Worker not found in any search location. Expected at: {fallbackPath}");
         Console.WriteLine("[ProcessManager] Make sure Karpik.Engine.Core.Runner is built and copied to the output directory.");

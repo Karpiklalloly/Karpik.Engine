@@ -1,13 +1,9 @@
 ﻿using System.Reflection;
 using DCFApixels.DragonECS;
-using Karpik.Engine.Core.ModuleManagement;
 
 namespace Karpik.Engine.Core;
 
-/// <summary>
-/// Engine runner that manages modules and the ECS pipeline.
-/// </summary>
-public class EngineRunner : IRunner
+public class EngineRunner
 {
     private readonly List<IModule> _modules = new();
     private EcsPipeline _pipeline = null!;
@@ -23,11 +19,10 @@ public class EngineRunner : IRunner
         }
     }
 
-    void IRunner.Setup(ServiceProvider serviceProvider, bool hotReload, MainThreadScheduler scheduler, Type[]? newTypes = null, Dictionary<string, byte[]> hotReloadData = null)
+    public void Setup(ServiceProvider serviceProvider, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
     {
         _serviceProvider = new EcsServiceProvider(serviceProvider);
         
-        _pipeline?.Destroy();
         var newBuilder = EcsPipeline.New();
         newBuilder.AddModule(new JobSystemModule());
         newBuilder
@@ -36,36 +31,15 @@ public class EngineRunner : IRunner
         _serviceProvider.Register(_time);
         
         newBuilder.Inject(_serviceProvider);
-        
-        Type[] types = [];
-        if (hotReload && newTypes is not null)
-        {
-            types = FilterTypesToModules(newTypes);
-        }
 
         scheduler.Schedule(() =>
         {
-            var newModules = CreateModules(types);
-            if (hotReload)
-            {
-                _modules.Clear();
-                newModules.ForEach(RegisterModule);
-            }
-
             _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
 
             RegisterServices(_serviceProvider);
-            // ConfigureAndAddModule(_serviceProvider, newBuilder);
-            // var newPipeline = BuildPipeline(newBuilder, _serviceProvider);
-            // AnotherModuleLoaded();
 
-            if (hotReload)
+            if (hotReloadData is { Count: > 0 })
             {
-                HotReload(newModules, _serviceProvider, hotReloadData);
-            }
-            else if (hotReloadData != null && hotReloadData.Count > 0)
-            {
-                // Process isolation: apply initial state from previous worker after fresh start
                 Console.WriteLine("[Runner] Applying initial state from previous worker process");
                 ApplyInitialState(_modules, _serviceProvider, hotReloadData);
             }
@@ -91,7 +65,7 @@ public class EngineRunner : IRunner
     public void Destroy()
     {
         Destroy(GetModules());
-        _pipeline?.Destroy();
+        _pipeline.Destroy();
         _pipeline = null;
         _modules.Clear();
     }
@@ -118,9 +92,10 @@ public class EngineRunner : IRunner
 
     private Type[] FilterTypesToModules(Type[] types)
     {
-        var filter1 = types.Where(t => t.IsClass && !t.IsAbstract);
-        var filter2 = filter1.Where(t => typeof(IModule).IsAssignableFrom(t) || typeof(IModule).IsAssignableTo(t));
-        return filter2.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null).ToArray();
+        var classTypes = types.Where(t => t.IsClass && !t.IsAbstract);
+        var moduleTypes = classTypes.Where(t => typeof(IModule).IsAssignableFrom(t));
+        var withAttr = moduleTypes.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null);
+        return withAttr.ToArray();
     }
     
     private int GetPriority(IModule module)
@@ -155,39 +130,6 @@ public class EngineRunner : IRunner
         return newModuleInstances;
     }
 
-    private void HotReload(List<IModule> newModules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> hotReloadInfo)
-    {
-        List<(IModuleHotReload, byte[])> needToReload = [];
-        for (int i = 0; i < newModules.Count; i++)
-        {
-            var newModule = newModules[i];
-            try
-            {
-                if (newModule is IModuleHotReload hotReloadableModule)
-                {
-                    string name = newModule.GetType().FullName ?? newModule.GetType().Name;
-                    if (!hotReloadableModule.OnHotReload(hotReloadInfo[name], serviceProvider))
-                    {
-                        needToReload.Add((hotReloadableModule, hotReloadInfo[name]));
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"[Bootstrap] Failed to reload module {newModule.GetType().FullName}: {e.Message}. It will be skipped.");
-            }
-        }
-        
-        foreach (var reload in needToReload)
-        {
-            reload.Item1.OnHotReload(reload.Item2, serviceProvider);
-        }
-    }
-    
-    /// <summary>
-    /// Applies initial state from previous worker process (process isolation).
-    /// Unlike HotReload, this doesn't replace modules - it just restores state to existing ones.
-    /// </summary>
     private void ApplyInitialState(List<IModule> modules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> stateData)
     {
         List<(IModuleHotReload, byte[])> needToReload = [];
@@ -201,8 +143,6 @@ public class EngineRunner : IRunner
                     string name = module.GetType().FullName ?? module.GetType().Name;
                     if (stateData.TryGetValue(name, out var data))
                     {
-                        // OnHotReload returns false if it needs to be called again
-                        // (ECSInstaller uses this pattern: first call sets _reloaded=true, second call restores state)
                         if (!hotReloadableModule.OnHotReload(data, serviceProvider))
                         {
                             needToReload.Add((hotReloadableModule, data));
@@ -217,7 +157,6 @@ public class EngineRunner : IRunner
             }
         }
         
-        // Second pass for modules that need two calls
         foreach (var reload in needToReload)
         {
             try

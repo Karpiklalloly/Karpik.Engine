@@ -18,7 +18,6 @@ public class ModuleLoader
     private string? _directoryToCleanup;
 
     public readonly string[] SharedAssemblies = {
-        "Karpik.Engine.Core.Runner",
         "AssetManagement.Core",
         "DebugModule",
         "ECS.Core",
@@ -52,16 +51,10 @@ public class ModuleLoader
 
     public void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
-        // 1. Инициируем выгрузку старого контекста
-        
-        // 2. Создаем новую теневую папку
-        // Теперь мы берем все DLL из папки модулей (которую подготовил Plugins.targets)
         var sourceDirectory = Path.Combine(AppContext.BaseDirectory, "modules");
         _directoryToCleanup = Path.Combine(AppContext.BaseDirectory, "temp_bin", Guid.NewGuid().ToString());
         Directory.CreateDirectory(_directoryToCleanup);
 
-        // 3. Копируем ВСЕ файлы из /modules/ в теневую папку
-        // Это важно: все зависимости должны лежать в одном месте
         var allDlls = Directory.GetFiles(sourceDirectory, "*.dll", SearchOption.AllDirectories);
         foreach (var dllPath in allDlls)
         {
@@ -72,24 +65,23 @@ public class ModuleLoader
             if (File.Exists(pdbPath))
                 File.Copy(pdbPath, Path.Combine(_directoryToCleanup, Path.GetFileName(pdbPath)), true);
         }
-
-        // 4. Создаем новый контекст
-        // Передаем в него путь к теневой папке
+        
         var newContext = new PluginLoadContext(_directoryToCleanup);
         _currentContext = newContext;
 
         var loadedList = new List<Assembly>();
 
-        // 5. Загружаем только входные точки (те, что в твоих списках Shared/Client/Server)
         foreach (var name in assemblyNames.Distinct())
         {
             var shadowPath = Path.Combine(_directoryToCleanup, name + ".dll");
             if (File.Exists(shadowPath))
             {
-                // LoadFromAssemblyPath в рамках контекста сама разрешит статические зависимости,
-                // так как все DLL лежат в одной теневой папке.
                 var asm = newContext.LoadFromAssemblyPath(shadowPath);
                 loadedList.Add(asm);
+            }
+            else
+            {
+                Console.WriteLine($"[ModuleLoader] Assembly not found: {shadowPath}");
             }
         }
 

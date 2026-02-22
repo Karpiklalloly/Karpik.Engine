@@ -6,23 +6,17 @@ using Karpik.Engine.Core.ProcessManagement;
 
 namespace Karpik.Engine.Client.Publish;
 
-/// <summary>
-/// Watcher process entry point.
-/// Spawns and manages the worker process that runs the actual engine.
-/// </summary>
 public class Client
 {
     private ProcessManager? _processManager;
-    private FileSystemWatcher? _fileWatcher;
     private Timer? _debounceTimer;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private volatile bool _hotReloadInProgress = false;
     
     public void Start(Ref<bool> isRunning)
     {
         Console.WriteLine("[Watcher] Starting...");
         
-        // Create process manager
         _processManager = new ProcessManager();
         _processManager.OnWorkerExited += (exitCode) =>
         {
@@ -39,33 +33,16 @@ public class Client
             Console.WriteLine("[Watcher] Worker is ready!");
         };
         
-        // Set up file watcher for hot reload
-        SetupFileWatcher();
-        
-        // Start the worker process
         _processManager.StartWorkerAsync().Wait();
         
-        // Main watcher loop
-        var stopwatch = Stopwatch.StartNew();
-        double lastTime = 0;
-        
-        Console.WriteLine("[Watcher] Press 'H' to trigger hot reload manually, 'Q' to quit");
+        Console.WriteLine("[Watcher] Press 'Q' to quit");
         
         while (isRunning.Value && (_processManager.IsWorkerRunning || _processManager.IsWorkerReady || _hotReloadInProgress))
         {
-            double currentTime = stopwatch.Elapsed.TotalSeconds;
-            double deltaTime = currentTime - lastTime;
-            
-            // Check for console input
             if (Console.KeyAvailable)
             {
                 var key = Console.ReadKey(true).Key;
-                if (key == ConsoleKey.H)
-                {
-                    Console.WriteLine("[Watcher] Manual hot reload triggered by user");
-                    _ = HotReloadAsync();
-                }
-                else if (key == ConsoleKey.Q)
+                if (key == ConsoleKey.Q)
                 {
                     Console.WriteLine("[Watcher] Quit requested by user");
                     isRunning.Value = false;
@@ -74,13 +51,10 @@ public class Client
             
             // Just wait for worker to exit or hot reload request
             Thread.Sleep(100);
-            
-            lastTime = currentTime;
         }
         
         // Cleanup
         Console.WriteLine("[Watcher] Shutting down...");
-        _fileWatcher?.Dispose();
         _debounceTimer?.Dispose();
         _processManager?.StopWorkerAsync().Wait();
         _processManager?.Dispose();
@@ -88,78 +62,6 @@ public class Client
         Console.WriteLine("[Watcher] Exited");
     }
     
-    private void SetupFileWatcher()
-    {
-        var path = AppContext.BaseDirectory;
-        _fileWatcher = new FileSystemWatcher(path)
-        {
-            NotifyFilter = NotifyFilters.LastWrite,
-            Filter = "*.dll",
-            EnableRaisingEvents = true,
-            IncludeSubdirectories = false
-        };
-        
-        _fileWatcher.Changed += OnDllChanged;
-        Console.WriteLine($"[Watcher] Watching for DLL changes in: {path}");
-    }
-    
-    private void OnDllChanged(object sender, FileSystemEventArgs e)
-    {
-        // Debounce: wait for 500ms after last change before triggering hot reload
-        lock (_lock)
-        {
-            _debounceTimer?.Dispose();
-            _debounceTimer = new Timer(_ =>
-            {
-                Console.WriteLine($"[Watcher] Detected change in {e.Name}, triggering hot reload...");
-                _ = HotReloadAsync();
-            }, null, 500, Timeout.Infinite);
-        }
-    }
-    
-    /// <summary>
-    /// Triggers a hot reload manually. Can be called for testing.
-    /// </summary>
-    public async Task HotReloadAsync()
-    {
-        if (_processManager == null)
-        {
-            Console.WriteLine("[Watcher] Cannot hot reload: process manager not initialized");
-            return;
-        }
-        
-        try
-        {
-            _hotReloadInProgress = true;
-            Console.WriteLine("[Watcher] Manual hot reload triggered");
-            await _processManager.HotReloadAsync();
-            
-            // Wait for the worker to be fully ready (not just running)
-            // This prevents the main loop from exiting during the transition
-            var ready = await _processManager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10));
-            
-            if (!ready)
-            {
-                Console.WriteLine("[Watcher] Warning: Worker not ready after hot reload timeout");
-            }
-            else
-            {
-                Console.WriteLine("[Watcher] Worker is ready after hot reload");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Watcher] Hot reload failed: {ex.Message}");
-        }
-        finally
-        {
-            _hotReloadInProgress = false;
-        }
-    }
-    
-    /// <summary>
-    /// Gets the process manager for direct access.
-    /// </summary>
     public ProcessManager? GetProcessManager() => _processManager;
     
     private async Task RestartWorkerAsync()
