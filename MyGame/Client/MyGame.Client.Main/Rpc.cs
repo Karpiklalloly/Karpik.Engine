@@ -15,9 +15,9 @@ public class Rpc : IRpc
 
     public void Send(DeliveryMethod deliveryMethod)
     {
-        if (_netManager?.FirstPeer is { ConnectionState: ConnectionState.Connected })
+        if (_netManager?.FirstPeer is { ConnectionState: ConnectionState.Connected } peer)
         {
-            _netManager.FirstPeer.Send(_writer, deliveryMethod);
+            peer.Send(_writer, deliveryMethod);
         }
     }
 }

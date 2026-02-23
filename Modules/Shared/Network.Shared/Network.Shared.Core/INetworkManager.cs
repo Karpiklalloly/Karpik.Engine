@@ -12,7 +12,7 @@ public interface INetworkManager
     public event PeerDisconnectionEventHandler PeerDisconnectedEvent;
     public event ConnectionRequestEventHandler ConnectionRequestEvent;
     
-    public IPeer FirstPeer { get; }
+    public IPeer? FirstPeer { get; }
     
     public int GetFreePort();
     public void Start(int port);

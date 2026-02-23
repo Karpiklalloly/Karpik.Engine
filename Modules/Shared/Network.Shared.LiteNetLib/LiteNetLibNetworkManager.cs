@@ -30,7 +30,16 @@ public class LiteNetLibNetworkManager : INetworkManager
         Manager = new NetManager(_listener);
     }
 
-    public IPeer FirstPeer => _peers[Manager.FirstPeer];
+    public IPeer? FirstPeer
+    {
+        get
+        {
+            if (_peers.IsEmpty) return null;
+            if (Manager.FirstPeer is null) return null;
+
+            return _peers[Manager.FirstPeer];
+        }
+    }
 
     public int GetFreePort()
     {
