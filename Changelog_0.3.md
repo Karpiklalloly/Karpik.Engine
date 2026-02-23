@@ -1,4 +1,4 @@
-﻿# v0.3
+# v0.3
 
 ## Key Changes
 * **Assets:** Added a system for loading and unloading resources.
@@ -27,27 +27,3 @@
 * For correct operation in Debug mode, enable automatic debugger attachment to child processes in your IDE settings.
 * How it works: You start the game, the game logic doesn't work correctly, you change the logic, you trigger Build project, **check if files in the modules directory were updated (usually you need to trigger Build 2 times)**, click on `Hot Reload` in the debug panel.
 * By default, all entities in each ECS world are preserved, so it's recommended to store all data in ECS worlds. Also, you can configure your own saving variation.
-
-
-
-# v0.2
-
-## Key Changes
-* **UI:** Added an HTML+CSS inspired UI system. See Wiki for details.
-* **Dependency Injection:** Most static classes were removed and replaced with Dependency Injection. Implemented `AutoInject` for systems.
-* **Karpik.Jobs:** Imported and integrated the job system.
-* **Tween:** Added tweens (GTweens).
-
-## Architecture and ECS
-* Added `EcsCommandBuffer`, `BaseSystem`, and `IEcsRunParallel`.
-* Renamed projects and added the `Game.targets` file.
-
-## Network and Modding
-* **Network:**
-    * Fixed RPC behavior.
-    * Added `LocalPlayer` component to identify the local player.
-    * Implemented automatic port selection for the client.
-* **Modding:**
-    * Added separation into client and server subfolders for mods.
-    * Added links to `Mods` and `Content` folders in the Debug build.
-    * Fixed delta time (dt) calculation on the server.
