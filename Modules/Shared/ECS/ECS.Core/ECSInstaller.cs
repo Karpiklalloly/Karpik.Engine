@@ -45,7 +45,7 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
         
     }
 
-    public byte[] OnPrepareHotReload()
+    public byte[] OnPrepareHotReload(IServiceContainer services)
     {
         _snapshotDefault = _world.Snapshot;
         _snapshotEvent = _eventWorld.Snapshot;

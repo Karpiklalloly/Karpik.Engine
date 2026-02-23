@@ -16,7 +16,7 @@ public interface IModuleListener
 
 public interface IModuleHotReload
 {
-    byte[] OnPrepareHotReload();
+    byte[] OnPrepareHotReload(IServiceContainer services);
     bool OnHotReload(byte[] data, IServiceContainer services);
 }
 

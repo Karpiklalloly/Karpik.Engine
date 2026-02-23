@@ -72,7 +72,7 @@ public class EngineRunner
 
     public Dictionary<string, byte[]> GetHotReloadData()
     {
-        return PreHotReload(GetModules());
+        return PreHotReload(GetModules(), _serviceProvider);
     }
 
     public List<IModule> GetModules()
@@ -104,7 +104,7 @@ public class EngineRunner
         return attr?.Priority ?? 0;
     }
 
-    private Dictionary<string, byte[]> PreHotReload(List<IModule> oldModules)
+    private Dictionary<string, byte[]> PreHotReload(List<IModule> oldModules, EcsServiceProvider newServiceProvider)
     {
         Dictionary<string, byte[]> hotReloadInfo = [];
         foreach (var oldModule in oldModules)
@@ -112,7 +112,7 @@ public class EngineRunner
             if (oldModule is IModuleHotReload oldModuleHotReload)
             {
                 string name = oldModule.GetType().FullName ?? oldModule.GetType().Name;
-                hotReloadInfo[name] = oldModuleHotReload.OnPrepareHotReload();
+                hotReloadInfo[name] = oldModuleHotReload.OnPrepareHotReload(newServiceProvider);
             }
         }
 
