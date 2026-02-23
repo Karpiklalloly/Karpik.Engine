@@ -13,8 +13,21 @@ public class ModContainer : IModContainer
     public string DirectoryPath { get; }
     public AssetHandle<ModMetaDataAsset> MetaDataHandle { get; }
     public Script Script { get; }
-    public bool IsEnabled { get; set; } = true;
-    
+
+    public bool IsEnabled
+    {
+        get;
+        set
+        {
+            if (!field && value && !_isStarted)
+            {
+                Start();
+            }
+
+            field = value;
+        }
+    } = true;
+
     public IReadOnlyList<DynValue> UpdateFunctions => _updateFunction;
     public IReadOnlyList<DynValue> StartFunctions => _startFunction;
     public IReadOnlyList<DynValue> LoadFunctions => _loadFunction;
@@ -28,6 +41,8 @@ public class ModContainer : IModContainer
     private readonly List<DynValue> _loadFunction = new();
     private readonly List<DynValue> _unloadFunction = new();
     private readonly Dictionary<string, DynValue> _loadedModules = new();
+
+    private bool _isStarted = false;
     
     internal ModContainer(string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
     {
@@ -87,6 +102,8 @@ public class ModContainer : IModContainer
     {
         if (!IsEnabled) return;
 
+        _isStarted = true;
+
         foreach (var func in _startFunction)
         {
             try
@@ -102,8 +119,6 @@ public class ModContainer : IModContainer
     
     public void Load()
     {
-        if (!IsEnabled) return;
-
         foreach (var func in _loadFunction)
         {
             try
@@ -119,8 +134,6 @@ public class ModContainer : IModContainer
     
     public void Unload()
     {
-        if (!IsEnabled) return;
-
         foreach (var func in _unloadFunction)
         {
             try
