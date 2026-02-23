@@ -45,7 +45,7 @@ public class ModuleLoader
         "Network.Server.LiteNetLib",
         "MyGame.Server.Main",
     };
-    
+
     public void LoadClientModules() => LoadPluginCollection(SharedAssemblies.Concat(ClientOnlyAssemblies));
     public void LoadServerModules() => LoadPluginCollection(SharedAssemblies.Concat(ServerOnlyAssemblies));
 

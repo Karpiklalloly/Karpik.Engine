@@ -24,4 +24,7 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Generated/ModuleLoader.cs" />
+  </ItemGroup>
 </Project>
