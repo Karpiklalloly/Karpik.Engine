@@ -68,6 +68,8 @@ public class ModContainer : IModContainer
 
     public void Update()
     {
+        if (!IsEnabled) return;
+        
         foreach (var func in _updateFunction)
         {
             try
@@ -83,6 +85,8 @@ public class ModContainer : IModContainer
 
     public void Start()
     {
+        if (!IsEnabled) return;
+
         foreach (var func in _startFunction)
         {
             try
@@ -98,6 +102,8 @@ public class ModContainer : IModContainer
     
     public void Load()
     {
+        if (!IsEnabled) return;
+
         foreach (var func in _loadFunction)
         {
             try
@@ -113,6 +119,8 @@ public class ModContainer : IModContainer
     
     public void Unload()
     {
+        if (!IsEnabled) return;
+
         foreach (var func in _unloadFunction)
         {
             try
