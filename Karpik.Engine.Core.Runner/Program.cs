@@ -117,7 +117,7 @@ public class Program
                 ClientLoop(mainThreadScheduler);
                 break;
             case Side.Server:
-                ServerLoop();
+                ServerLoop(mainThreadScheduler);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
@@ -198,9 +198,45 @@ public class Program
         return args.Any(arg => arg == name || arg.StartsWith($"{name}="));
     }
 
-    private static void ServerLoop()
+    private static void ServerLoop(MainThreadScheduler mainThreadScheduler)
     {
+        const int TICKS_PER_SECOND = 20;
+        const int SLEEP_TIME = 1000 / TICKS_PER_SECOND;
+        const double TICK_DT = 1.0 / TICKS_PER_SECOND;
         
+        var stopwatch = Stopwatch.StartNew();
+        double nextTickTime = stopwatch.Elapsed.TotalSeconds;
+        
+        while (_isRunning.Value)
+        {
+            double currentTime = stopwatch.Elapsed.TotalSeconds;
+            int loops = 0;
+            
+            while (currentTime >= nextTickTime && loops < 5)
+            {
+                mainThreadScheduler.Execute();
+                _bootstrap.Loop(TICK_DT);
+                nextTickTime += TICK_DT;
+                loops++;
+            }
+            
+            if (loops >= 5)
+            {
+                Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - nextTickTime:F4}s");
+                nextTickTime = currentTime + TICK_DT;
+            }
+            
+            double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;
+            if (timeToSleep > 0.001)
+            {
+                int sleepMs = (int)(timeToSleep * 1000);
+                Thread.Sleep(sleepMs);
+            }
+            else
+            {
+                Thread.Yield(); 
+            }
+        }
     }
 
     private static void ClientLoop(MainThreadScheduler mainThreadScheduler)
