@@ -15,6 +15,7 @@
     </PropertyGroup>
     
     <ItemGroup>
+        <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
         <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
         <ProjectReference Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj"
                           OutputItemType="Analyzer"
