@@ -1,4 +1,4 @@
-﻿using Karpik.Engine.Server;
+﻿using Karpik.Engine.Core;
 
 namespace ServerLauncher;
 
@@ -6,9 +6,8 @@ class Program
 {
     static void Main(string[] args)
     {
-        bool isRunning = true;
-        Server server = new();
-        server.Init();
-        server.Run(in isRunning);
+        var exePath = AppContext.BaseDirectory;
+        Directory.SetCurrentDirectory(exePath);
+        new CoreRunner().Start(new Ref<bool>(true), Side.Server);
     }
 }

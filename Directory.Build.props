@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <!-- Это поможет избежать проблем, если разные модули используют разные версии NuGet пакетов -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+    
+    <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
+    <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             (                                 $(MSBuildProjectName.Contains('MyGame.'))                                 OR  $(MSBuildProjectName.Contains('Karpik.Engine'))                             )">
+
+        <ProjectReference Include="$(MSBuildThisFileDirectory)Network.Codegen\Network.Codegen\Network.Codegen.csproj">
+            <OutputItemType>Analyzer</OutputItemType>
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </ProjectReference>
+
+        <ProjectReference Include="$(MSBuildThisFileDirectory)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
+            <OutputItemType>Analyzer</OutputItemType>
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </ProjectReference>
+
+    </ItemGroup>
+    
+    <PropertyGroup Label="ProjectConfigurator">
+    <EnableAssetManagement>true</EnableAssetManagement>
+    <EnableECS>true</EnableECS>
+    <EnableGraphics>true</EnableGraphics>
+    <ImplGraphics>Raylib</ImplGraphics>
+    <EnableModding>true</EnableModding>
+    <ImplModding>Lua</ImplModding>
+    <EnableNetworkClient>true</EnableNetworkClient>
+    <ImplNetworkClient>LiteNetLib</ImplNetworkClient>
+    <EnableNetworkServer>true</EnableNetworkServer>
+    <ImplNetworkServer>LiteNetLib</ImplNetworkServer>
+    <EnableNetworkShared>true</EnableNetworkShared>
+    <ImplNetworkShared>LiteNetLib</ImplNetworkShared>
+    <EnableTween>true</EnableTween>
+    <EnableUIToolkit>true</EnableUIToolkit>
+  </PropertyGroup>
+</Project>

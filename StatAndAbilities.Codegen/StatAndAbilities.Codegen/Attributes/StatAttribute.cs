@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Karpik.StatAndAbilities.Codegen.Attributes;
+namespace Karpik.Engine.Shared.StatAndAbilities.Codegen.Attributes;
 
 public class StatAttribute : Attribute
 {

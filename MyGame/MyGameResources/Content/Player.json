@@ -1,0 +1,28 @@
+﻿{
+  "Components": [
+    {
+      "$type": "Position",
+      "X": 10.0,
+      "Y": 20.0,
+      "Z": -15.0
+    },
+    {
+      "$type": "Health",
+      "Value": 255.0
+    },
+    {
+      "$type": "Player"
+    },
+    {
+        "$type": "SpriteRenderer",
+        "TexturePath": "Content/Sprites/Player.png",
+        "Layer": 1,
+        "Color": {
+            "R": 255,
+            "G": 255,
+            "B": 255,
+            "A": 255
+        }
+    }
+  ]
+}

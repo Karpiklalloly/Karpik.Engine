@@ -30,14 +30,14 @@ namespace DCFApixels.DragonECS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Begin()
         {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
             DebugService.CurrentThreadInstance.ProfilerMarkBegin(id);
 #endif
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void End()
         {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
             DebugService.CurrentThreadInstance.ProfilerMarkEnd(id);
 #endif
         }
@@ -58,7 +58,7 @@ namespace DCFApixels.DragonECS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public AutoScope(int id)
             {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
                 _id = id;
                 DebugService.CurrentThreadInstance.ProfilerMarkBegin(id);
 #endif
@@ -66,7 +66,7 @@ namespace DCFApixels.DragonECS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Dispose()
             {
-#if DEBUG || DRAGONECS_ENABLE_DEBUG_SERVICE
+#if DEBUG && DRAGONECS_ENABLE_DEBUG_SERVICE
                 DebugService.CurrentThreadInstance.ProfilerMarkEnd(_id);
 #endif
             }
@@ -407,7 +407,6 @@ namespace DCFApixels.DragonECS.Core
         {
             self.Print("");
         }
-        //TODO PrintJson возможно будет добавлено когда-то
     }
     #endregion
 
@@ -523,7 +522,7 @@ namespace DCFApixels.DragonECS.Core
         {
             if (id >= _stopwatchs.Length)
             {
-                Array.Resize(ref _stopwatchs, id << 1);
+                Array.Resize(ref _stopwatchs, ArrayUtility.NextPow2(id));
             }
             _stopwatchs[id] = new MarkerData(new System.Diagnostics.Stopwatch(), name, id);
         }

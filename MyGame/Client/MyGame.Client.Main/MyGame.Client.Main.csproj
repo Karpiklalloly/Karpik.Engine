@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.MyGame.Client.Core</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Client\Input\Input.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Client\UIToolkit\UIToolkit.Core\UIToolkit.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\DebugModule\DebugModule.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <ProjectReference Include="..\..\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+    </ItemGroup>
+
+</Project>

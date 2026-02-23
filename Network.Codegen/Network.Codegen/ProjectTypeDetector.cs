@@ -1,5 +1,3 @@
-using System;
-
 namespace Network.Codegen;
 
 internal static class ProjectTypeDetector
@@ -9,6 +7,7 @@ internal static class ProjectTypeDetector
         Server,
         Client,
         Shared,
+        Module,
         Unknown
     }
 
@@ -17,44 +16,20 @@ internal static class ProjectTypeDetector
         if (string.IsNullOrEmpty(assemblyName))
             return ProjectType.Unknown;
 
-        // Проверяем на серверный проект
-        if (assemblyName.Contains("Server"))
+        if (assemblyName.EndsWith("MyGame.Server.Main"))
             return ProjectType.Server;
 
-        // Проверяем на клиентский проект
-        if (assemblyName.Contains("Client"))
+        if (assemblyName.EndsWith("MyGame.Client.Main"))
             return ProjectType.Client;
-
-        // Проверяем на общий проект
-        if (assemblyName.Contains("Shared"))
+        
+        if (assemblyName.EndsWith("MyGame.Shared.Main"))
             return ProjectType.Shared;
-
-        // Если не удалось определить тип
-        return ProjectType.Unknown;
-    }
-
-    public static string GetGeneratedNamespace(ProjectType projectType)
-    {
-        return projectType switch
-        {
-            ProjectType.Server => "Karpik.Engine.Server",
-            ProjectType.Client => "Karpik.Engine.Client",
-            _ => throw new ArgumentException($"Cannot generate namespace for project type: {projectType}")
-        };
+        
+        return ProjectType.Module;
     }
     
-    public static string GetGeneratedFileName(ProjectType projectType)
+    public static string GetGeneratedNamespace(string assemblyName)
     {
-        return projectType switch
-        {
-            ProjectType.Server => "TargetClientRpcSender.g.cs",
-            ProjectType.Client => "TargetClientRpcDispatcher.g.cs",
-            _ => throw new ArgumentException($"Cannot generate file name for project type: {projectType}")
-        };
-    }
-
-    public static bool ShouldGenerateCode(ProjectType projectType)
-    {
-        return projectType == ProjectType.Server || projectType == ProjectType.Client;
+        return $"{assemblyName}.Generated";
     }
 }

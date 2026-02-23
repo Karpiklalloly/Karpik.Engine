@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+[assembly: InternalsVisibleTo("Karpik.Engine.Core")]
 namespace Karpik.Jobs;
 
 public class JobSystem
@@ -30,7 +31,7 @@ public class JobSystem
 
         _threadStates = new ThreadState[_workerCount];
         _threads = new Thread[_workerCount];
-        _jobWrapperPool = new ObjectPool<JobWrapper>(() => new JobWrapper(), 100_000);
+        _jobWrapperPool = new ObjectPool<JobWrapper>(static () => new JobWrapper(), 100_000);
 
         for (int i = 0; i < _workerCount; i++)
         {
@@ -62,6 +63,11 @@ public class JobSystem
             ThreadId = threadId;
             Queue = new ConcurrentQueue<JobWrapper>();
         }
+
+        public void Dispose()
+        {
+            Queue.Clear();
+        }
     }
 
     private void WorkerLoop(object state)
@@ -77,6 +83,7 @@ public class JobSystem
                 break;
             }
 
+            // Drain available work: process own queue and attempt to steal until no work found.
             while (true)
             {
                 if (TryPopTask(threadId, out var wrapper) || TryStealTask(threadId, out wrapper))
@@ -126,8 +133,9 @@ public class JobSystem
         {
             var color = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"[ERROR] Job failed: {ex.Message}");
+            Console.WriteLine($"[ERROR] Job failed: {ex}");
             Console.ForegroundColor = color;
+            wrapper.Completion?.SetException(ex);
         }
         finally
         {
@@ -135,13 +143,14 @@ public class JobSystem
 
             wrapper.OnCompleted?.Invoke();
             wrapper.Completion?.Signal();
+            wrapper.Reset();
             _jobWrapperPool.Return(wrapper);
 
             Interlocked.Decrement(ref _outstandingJobs);
         }
     }
 
-    private JobHandle EnqueueInternal(Action job, JobHandle[] dependencies)
+    private JobHandle EnqueueInternal(Action job, Span<JobHandle> dependencies)
     {
         if (!_isRunning) return default;
 
@@ -162,7 +171,7 @@ public class JobSystem
             _workSemaphore.Release();
         };
 
-        if (dependencies == null || dependencies.Length == 0)
+        if (dependencies.IsEmpty || dependencies.Length == 0)
         {
             enqueueAction();
         }
@@ -180,7 +189,7 @@ public class JobSystem
         return new JobHandle(completion, cts);
     }
 
-    private JobHandle EnqueueParallelInternal(Action<int> action, int size, int batchSize, JobHandle[] dependencies)
+    private JobHandle EnqueueParallelInternal(Action<int> action, int size, int batchSize, Span<JobHandle> dependencies)
     {
         if (!_isRunning || size <= 0) return default;
         if (batchSize <= 0) batchSize = Math.Max(1, Math.Min(DefaultBatchSize, size / _workerCount));
@@ -218,7 +227,7 @@ public class JobSystem
             _workSemaphore.Release(batchCount);
         };
 
-        if (dependencies == null || dependencies.Length == 0)
+        if (dependencies.IsEmpty || dependencies.Length == 0)
         {
             enqueueBatches();
         }
@@ -239,15 +248,70 @@ public class JobSystem
     public JobHandle Enqueue(Action job) =>
         EnqueueInternal(job, null);
 
-    public JobHandle Enqueue(Action job, params JobHandle[] dependencies) =>
+    public JobHandle Enqueue(Action job, params Span<JobHandle> dependencies) =>
         EnqueueInternal(job, dependencies);
 
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1) =>
         EnqueueParallelInternal(action, size, batchSize, null);
 
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1,
-        params JobHandle[] dependencies) =>
+        params Span<JobHandle> dependencies) =>
         EnqueueParallelInternal(action, size, batchSize, dependencies);
+    
+    public JobHandle<T> Enqueue<T>(Func<T> job, params Span<JobHandle> dependencies)
+    {
+        if (!_isRunning) return default;
+
+        var completion = new JobCompletion<T>(1);
+        var cts = new CancellationTokenSource();
+        
+        var wrapper = _jobWrapperPool.Rent();
+        
+        wrapper.Action = () =>
+        {
+            try 
+            {
+                T result = job();
+                completion.SetResult(result);
+            }
+            catch (Exception ex)
+            {
+                var color = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"[ERROR] Job failed: {ex}");
+                Console.ForegroundColor = color;
+                completion.SetException(ex);
+            }
+        };
+
+        wrapper.Cts = cts;
+        wrapper.IsParallel = false;
+        wrapper.Completion = completion;
+
+        Action enqueueAction = () =>
+        {
+            Interlocked.Increment(ref _outstandingJobs);
+            int targetThread = (Interlocked.Increment(ref _enqueueIndex) & int.MaxValue) % _workerCount;
+            _threadStates[targetThread].Queue.Enqueue(wrapper);
+            _workSemaphore.Release();
+        };
+
+        if (dependencies == null || dependencies.Length == 0)
+        {
+            enqueueAction();
+        }
+        else
+        {
+            var dependenciesCompletion = new JobCompletion(dependencies.Length);
+            foreach (var dependency in dependencies)
+            {
+                dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+            }
+            dependenciesCompletion.AddContinuation(enqueueAction);
+        }
+
+        return new JobHandle<T>(completion, cts);
+    }
 
     public static JobHandle Combine(params JobHandle[] handles)
     {
@@ -273,16 +337,20 @@ public class JobSystem
     public void Shutdown()
     {
         _isRunning = false;
-        _jobWrapperPool.Dispose();
-
         _workSemaphore.Release(_workerCount);
         foreach (var thread in _threads)
         {
             thread.Join();
         }
 
+        foreach (var item in _threadStates)
+        {
+            item.Dispose();
+        }
+
         Array.Clear(_threadStates, 0, _threadStates.Length);
         Array.Clear(_threads, 0, _threads.Length);
+        _jobWrapperPool.Dispose();
     }
 
     public void Dispose() => Shutdown();

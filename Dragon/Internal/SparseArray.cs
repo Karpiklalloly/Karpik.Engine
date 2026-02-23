@@ -4,6 +4,7 @@
 #if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;

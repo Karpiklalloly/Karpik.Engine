@@ -1,10 +1,11 @@
 ﻿namespace Karpik.Jobs;
 
-internal sealed class JobCompletion
+internal class JobCompletion
 {
     private volatile int _remaining;
     private readonly ManualResetEventSlim _event;
     private Action? _continuation;
+    private Exception? _exception;
     private readonly Lock _lock = new();
     public bool IsCompleted => Volatile.Read(ref _remaining) == 0;
 
@@ -42,5 +43,33 @@ internal sealed class JobCompletion
                 _continuation += continuation;
             }
         }
+    }
+    
+    internal void SetException(Exception ex)
+    {
+        lock (_lock)
+        {
+            _exception = ex;
+        }
+    }
+    
+    public void ThrowIfFailed()
+    {
+        if (_exception is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(_exception).Throw();
+        }
+    }
+}
+
+internal sealed class JobCompletion<T> : JobCompletion
+{
+    internal T Result { get; private set; }
+
+    public JobCompletion(int initialCount) : base(initialCount) { }
+
+    public void SetResult(T result)
+    {
+        Result = result;
     }
 }

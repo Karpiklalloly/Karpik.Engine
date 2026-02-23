@@ -1,7 +1,9 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace DCFApixels.DragonECS
 {
@@ -99,6 +101,11 @@ namespace DCFApixels.DragonECS
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetAllConfigs().GetEnumerator();
+        }
+
+        internal static void Clear()
+        {
+            Empty._storage.Clear();
         }
     }
     public static class ConfigContainerExtensions

@@ -9,8 +9,6 @@ using Unity.IL2CPP.CompilerServices;
 
 namespace DCFApixels.DragonECS.Core.Internal
 {
-    //TODO разработать возможность ручного устанавливания ID типам.
-    //это может быть полезно как детерминированность для сети
 #if ENABLE_IL2CPP
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
@@ -52,6 +50,11 @@ namespace DCFApixels.DragonECS.Core.Internal
             return null;
         }
         public static IEnumerable<TypeCodeInfo> GetDeclaredTypes() { return _codes.Select(o => new TypeCodeInfo(o.Key, o.Value)); }
+
+        internal static void Clear()
+        {
+            _codes.Clear();
+        }
     }
 #if ENABLE_IL2CPP
     [Il2CppSetOption(Option.NullChecks, false)]

@@ -1,0 +1,27 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <Target Name="DeployAllModules" AfterTargets="Build">
+        <!-- 1. Собираем все проекты плагинов из списка -->
+        <MSBuild
+                Projects="@(PluginReference)"
+                Targets="Build"
+                Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=$(RuntimeIdentifier)">
+            <Output TaskParameter="TargetOutputs" ItemName="_ModuleOutputs" />
+        </MSBuild>
+
+        <ItemGroup>
+            <!-- 2. Берем все DLL из папок сборки этих проектов -->
+            <!-- Используем RecursiveDir, чтобы подхватить нативные библиотеки (если есть) -->
+            <_FilesToCopy Include="%(PluginReference.RelativeDir)bin\$(Configuration)\net10.0\**\*.*" />
+        </ItemGroup>
+
+        <!-- 3. Копируем всё в плоскую структуру в папку modules -->
+        <!-- Мы исключаем копирование Engine.Interfaces.dll, так как она уже есть в корне у Launcher -->
+        <Copy
+                SourceFiles="@(_FilesToCopy)"
+                DestinationFolder="$(OutputPath)modules\%(RecursiveDir)"
+                SkipUnchangedFiles="true"
+                Condition="'%(Filename)' != 'Karpik.Engine.Core' AND '%(Filename)' != 'Karpik.Jobs'"
+        />
+    </Target>
+</Project>

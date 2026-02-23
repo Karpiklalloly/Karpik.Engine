@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace DCFApixels.DragonECS.Core
 {
@@ -17,7 +19,7 @@ namespace DCFApixels.DragonECS.Core
 
         private readonly IDependencyGraph<string> _graph;
         private readonly EcsPipeline.Builder _pipelineBuilder;
-        private readonly string _preBeginLayer;
+        //private readonly string _preBeginLayer;
 
         #region Properties
         public EcsPipeline.Builder Back
@@ -207,21 +209,21 @@ namespace DCFApixels.DragonECS.Core
         {
             var enumerator = other.GetEnumerator();
             string prev = null;
-            if (_preBeginLayer != null)
-            {
-                while (enumerator.MoveNext())
-                {
-                    var layer = enumerator.Current;
-                    if (layer == _preBeginLayer) { break; }
-
-                    Add(layer);
-                    if (prev != null)
-                    {
-                        Move(prev).Before(layer);
-                    }
-                    prev = layer;
-                }
-            }
+            //if (_preBeginLayer != null)
+            //{
+            //    while (enumerator.MoveNext())
+            //    {
+            //        var layer = enumerator.Current;
+            //        if (layer == _preBeginLayer) { break; }
+            //
+            //        Add(layer);
+            //        if (prev != null)
+            //        {
+            //            Move(prev).Before(layer);
+            //        }
+            //        prev = layer;
+            //    }
+            //}
             while (enumerator.MoveNext())
             {
                 var layer = enumerator.Current;

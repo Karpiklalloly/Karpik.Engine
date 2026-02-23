@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using System.Threading;
-using Karpik.StatAndAbilities.Codegen.Attributes; // Required for CancellationToken
+using Karpik.Engine.Shared.StatAndAbilities.Codegen.Attributes;
+// Required for CancellationToken
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Karpik.StatAndAbilities.Codegen
+namespace Karpik.Engine.Shared.StatAndAbilities.Codegen
 {
     [Generator]
     public class GenStatStructIncremental : IIncrementalGenerator

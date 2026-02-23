@@ -1,4 +1,6 @@
-﻿using Karpik.Engine.Client;
+﻿using System;
+using System.IO;
+using Karpik.Engine.Core;
 
 namespace ClientLauncher;
 
@@ -6,9 +8,8 @@ class Program
 {
     static void Main(string[] args)
     {
-        bool isRunning = true;
-        Client client = new();
-        client.Init();
-        client.Run(in isRunning);
+        var exePath = AppContext.BaseDirectory;
+        Directory.SetCurrentDirectory(exePath);
+        new CoreRunner().Start(new Ref<bool>(true), Side.Client);
     }
 }

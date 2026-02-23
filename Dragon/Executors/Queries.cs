@@ -18,7 +18,11 @@ namespace DCFApixels.DragonECS
             where TAspect : new()
             where TCollection : IEntityStorage
         {
-            return entities.ToSpan().Where(out aspect);
+            // TODO: Remove
+            lock (entities)
+            {
+                return entities.ToSpan().Where(out aspect);
+            }
         }
         public static EcsSpan Where<TAspect>(this EcsReadonlyGroup group, out TAspect aspect)
             where TAspect : new()

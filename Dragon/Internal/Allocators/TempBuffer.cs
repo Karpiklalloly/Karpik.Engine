@@ -1,6 +1,7 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 #if ENABLE_IL2CPP

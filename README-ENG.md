@@ -2,9 +2,9 @@
 
 **🌐 Language:** 🇺🇸 English | [🇷🇺 Русский](README.md)
 
-> Game engine for indie developers with ECS architecture and built-in multiplayer support
+> Game engine for indie developers with ECS architecture, hot reload, and built-in multiplayer support
 
-KarpikEngine is a modern alternative to MonoGame, created specifically for developing multiplayer games. The engine is built on Entity-Component-System architecture principles and ensures clear separation of client and server logic from day one of development.
+KarpikEngine is a modern game engine designed for developing multiplayer games. Built on Entity-Component-System architecture, it ensures clear separation of client and server logic from day one.
 
 ## ✨ Key Features
 
@@ -13,34 +13,39 @@ KarpikEngine is a modern alternative to MonoGame, created specifically for devel
 - High-performance entity and component processing
 - Intuitive system for developers
 
-### 🌐 Mandatory Client-Server Separation
+### 🔥 Hot Reload
+- Full Hot Reload support without standard .NET limitations
+- Change code and see results immediately without restarting the game
+- All ECS world entities are preserved between reloads
+
+### 🌐 Client-Server Architecture
 - Even single-player games are designed with client-server separation
-- Easy adaptation to multiplayer mode at any point in development
+- Easy adaptation to multiplayer mode at any point
 - Built-in RPC system for communication
+
+### 📦 Modular Architecture
+- Clear separation into Client, Server, and Shared parts
+- Reusable modules across projects
+- Automatic configuration generation via Configurator
+
+### ⚡ Job System
+- Multi-threaded data processing via Karpik.Jobs
+- Parallel execution of ECS systems
+- Efficient utilization of multi-core processors
+
+### 🎨 UI System
+- HTML+CSS inspired interface system
+- Flexible layout and styling
+- Integration with ECS architecture
 
 ### 🔧 Lua Modding Support
 - Integration with MoonSharp for executing Lua scripts
-- Automatic code generation planned to simplify mod creation
 - Ability to add new functionality through mods
-
-## ⚠️ Current Project Status
-
-**KarpikEngine is in early development** and suitable for:
-- 📱 **2D games** (3D support planned for the future)
-- 🧪 **Experimental projects** and ECS architecture learning
-- 👨‍💻 **Developers with basic ECS knowledge** and RPC programming experience
-
-**Not recommended for:**
-- 🚫 Gamedev beginners (few ready-made features yet)
-- 🚫 Commercial projects with tight deadlines
-- 🚫 3D games (support planned)
-
-> 💡 **Who is this engine for?** KarpikEngine has an excellent architectural foundation, but requires developers to be ready to work with an evolving tool and contribute to its development.
 
 ## 🚀 Quick Start
 
 ### Requirements
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or higher
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or higher
 
 ### Installation
 1. Clone the repository:
@@ -64,52 +69,72 @@ KarpikEngine is a modern alternative to MonoGame, created specifically for devel
    dotnet run --project ClientLauncher
    ```
 
-> ⚠️ **Note:** There are currently no ready-made demo games or tutorials. To learn the engine, it's recommended to study the source code and existing systems.
+### Hot Reload
+For Hot Reload to work in Debug mode:
+1. Enable automatic debugger attachment to child processes in your IDE settings
+2. Start the game
+3. Change code and build the project (may require 2 builds)
+4. Click `Hot Reload` in the debug panel
 
-## 🗺️ Development Plans
+> 💡 **Tip:** It's recommended to store all data in ECS worlds — they are automatically preserved during hot reload.
 
-### 🎯 Next Version
-**Main goals:**
-- ✅ **Full client-server architecture readiness** - completion of RPC system and network interaction
-- 🎨 **Rendering API** - basic capabilities for 2D rendering
-- 🔊 **Audio API** - audio playback system
-- ⌨️ **Input API** - keyboard, mouse, and gamepad handling
+## 🗺️ Current Capabilities
 
-### 🔮 Long-term Plans
-- **3D support** - after verifying 2D functionality stability
-- **Extended modding** - full Lua integration with code generation
-- **Developer tools** - editors, debuggers, profilers
-- **Documentation and examples** - tutorials and demo projects
+### ✅ Implemented
+- **ECS Core** — full Dragon ECS integration
+- **Client-Server Architecture** — RPC system and networking
+- **Hot Reload** — full hot reload support
+- **Asset Management** — resource loading and unloading
+- **Job System** — multi-threaded processing
+- **UI System** — HTML+CSS style interfaces
+- **Tween System** — animations and transitions (GTweens)
+- **Dependency Injection** — AutoInject for systems
+- **2D Rendering** — basic rendering capabilities
 
-> 📝 **Roadmap:** There's no detailed roadmap with dates yet. Development happens as features are ready and based on community feedback.
+### 🔮 In Development
+- **Audio API** — audio playback system
+- **Input API** — keyboard, mouse, and gamepad handling
+- **3D Support** — after 2D functionality stabilization
+- **Extended Modding** — full Lua integration with code generation
+- **Developer Tools** — editors, debuggers, profilers
+- **A lot of other features**
+
+## 🏗️ Project Architecture
+
+The project is divided into **Modules** and **Game Projects**. Each of them is split into Client, Server, and Shared parts.
+
+### Modules
+- Contain generalized logic independent of a specific game
+- Examples: AssetManagement, Network, UI
+- Can react to lifecycle events (see [`IModule.cs`](Karpik.Engine.Core.Runner/IModule.cs))
+
+### Game Projects
+- MyGame.**Client**.Main — client part
+- MyGame.**Server**.Main — server part
+- MyGame.**Shared**.Main — shared logic
+
+### Adding a New Module
+After creating a new project, run:
+```bash
+dotnet run --project Configurator/Configurator.csproj -- --generate
+```
 
 ## 🤝 Contributing
 
-KarpikEngine is an open-source project, and we welcome any contribution to its development!
+KarpikEngine is an open-source project, and we welcome any contribution!
 
 ### How to help the project:
-- 💡 **Suggest new features** - create Issues with ideas and suggestions
-- 🔧 **Make Pull Requests** - fix bugs, add features, improve code
-- 📝 **Improve documentation** - help other developers understand the engine
-- 🐛 **Report bugs** - test the engine and share found issues
-- 💬 **Participate in discussions** - share experience and help others
-
-### Contribution process:
-1. Fork the repository
-2. Create a branch for your changes
-3. Make changes and test them
-4. Create a Pull Request with description of changes
+- 💡 **Suggest new features** — create Issues with ideas
+- 🔧 **Make Pull Requests** — fix bugs, add features
+- 📝 **Improve documentation** — help other developers
+- 🐛 **Report bugs** — test and share issues
 
 ## 💬 Community
 
-- 💬 **Discord:** [https://discord.gg/UvdEuY2D2V](https://discord.gg/UvdEuY2D2V) - main place for developer communication
-- 🐛 **GitHub Issues** - for bugs and feature requests
-- 📖 **GitHub Discussions** - for general questions and discussions
+- 💬 **Discord:** [https://discord.gg/UvdEuY2D2V](https://discord.gg/UvdEuY2D2V)
+- 🐛 **GitHub Issues** — for bugs and suggestions
+- 📖 **GitHub Discussions** — for general questions
 
 ## 📄 License
 
 This project is distributed under the MIT license. Details in the [LICENSE](LICENSE) file.
-
----
-
-**KarpikEngine** - create multiplayer games with modern architecture! 🎮✨

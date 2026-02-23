@@ -76,8 +76,6 @@ namespace DCFApixels.DragonECS
             bool IsEmpty { get; }
         }
 
-        //TODO инъекция в раннеры
-        //TODO добавить функцию фильтрации систем по string, за счет создания отдельных ранеров для отдельных string
         [MetaColor(MetaColor.DragonRose)]
         [MetaGroup(EcsConsts.PACK_GROUP, EcsConsts.OTHER_GROUP)]
         [MetaDescription(EcsConsts.AUTHOR, "...")]
@@ -201,7 +199,7 @@ namespace DCFApixels.DragonECS
                     CheckCache(translationCallback);
                     for (int i = 0, n = _process.Length < _markers.Length ? _process.Length : _markers.Length; i < n; i++)
                     {
-                        //_markers[i].Begin();
+                        _markers[i].Begin();
                         try
                         {
                             translationCallback(_process[i]);
@@ -214,7 +212,7 @@ namespace DCFApixels.DragonECS
                             EcsDebug.PrintError(e);
 #endif
                         }
-                        //_markers[i].End();
+                        _markers[i].End();
                     }
 #else
                     foreach (var item in _process)

@@ -35,8 +35,8 @@ namespace DCFApixels.DragonECS
                 _ids[key] = result;
                 return result;
             }
-            Empty = createMask(0, new Key(new EcsTypeCode[0], new EcsTypeCode[0]));
-            Broken = createMask(_idDIspenser.UseFree(), new Key(new EcsTypeCode[1] { (EcsTypeCode)1 }, new EcsTypeCode[1] { (EcsTypeCode)1 }));
+            Empty = createMask(0, new Key(new EcsTypeCode[0], new EcsTypeCode[0], new EcsTypeCode[0]));
+            Broken = createMask(_idDIspenser.UseFree(), new Key(new EcsTypeCode[1] { (EcsTypeCode)1 }, new EcsTypeCode[1] { (EcsTypeCode)1 }, new EcsTypeCode[0]));
         }
 
         public readonly int ID;
@@ -44,6 +44,10 @@ namespace DCFApixels.DragonECS
         private readonly EcsTypeCode[] _incs;
         /// <summary> Sorted </summary>
         private readonly EcsTypeCode[] _excs;
+        /// <summary> Sorted </summary>
+        private readonly EcsTypeCode[] _anys;
+
+        private readonly EcsMaskFlags _flags;
 
         #region Properties
         /// <summary> Sorted set including constraints presented as global type codes. </summary>
@@ -58,14 +62,25 @@ namespace DCFApixels.DragonECS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _excs; }
         }
+        /// <summary> Sorted set excluding constraints presented as global type codes. </summary>
+        public ReadOnlySpan<EcsTypeCode> AnyTypeCodes
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _anys; }
+        }
+        public EcsMaskFlags Flags
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _flags; }
+        }
         public bool IsEmpty
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _incs.Length == 0 && _excs.Length == 0; }
+            get { return _flags == EcsMaskFlags.Empty; }
         }
         public bool IsBroken
         {
-            get { return (_incs.Length & _excs.Length) == 1 && _incs[0] == _excs[0]; }
+            get { return (_flags & EcsMaskFlags.Broken) != 0; }
         }
         #endregion
 
@@ -75,14 +90,25 @@ namespace DCFApixels.DragonECS
             ID = id;
             _incs = key.Incs;
             _excs = key.Excs;
+            _anys = key.Anys;
+            if (_incs.Length > 0) { _flags |= EcsMaskFlags.Inc; }
+            if (_excs.Length > 0) { _flags |= EcsMaskFlags.Exc; }
+            if (_anys.Length > 0) { _flags |= EcsMaskFlags.Any; }
+            if ((_incs.Length & _excs.Length) == 1 && _incs[0] == _excs[0])
+            {
+                _flags = EcsMaskFlags.Broken;
+            }
         }
         public static Builder New() { return Builder.New(); }
         public static Builder Inc<T>() { return Builder.New().Inc<T>(); }
         public static Builder Exc<T>() { return Builder.New().Exc<T>(); }
+        public static Builder Any<T>() { return Builder.New().Any<T>(); }
         public static Builder Inc(Type type) { return Builder.New().Inc(type); }
         public static Builder Exc(Type type) { return Builder.New().Exc(type); }
+        public static Builder Any(Type type) { return Builder.New().Any(type); }
         public static Builder Inc(EcsTypeCode typeCode) { return Builder.New().Inc(typeCode); }
         public static Builder Exc(EcsTypeCode typeCode) { return Builder.New().Exc(typeCode); }
+        public static Builder Any(EcsTypeCode typeCode) { return Builder.New().Any(typeCode); }
         private static EcsStaticMask CreateMask(Key key)
         {
             if (_ids.TryGetValue(key, out EcsStaticMask result) == false)
@@ -92,7 +118,7 @@ namespace DCFApixels.DragonECS
                     if (_ids.TryGetValue(key, out result) == false)
                     {
 #if DEBUG
-                        CheckConstraints(key.Incs, key.Excs);
+                        CheckConstraints(key.Incs, key.Excs, key.Anys);
 #endif
                         result = new EcsStaticMask(_idDIspenser.UseFree(), key);
                         _ids[key] = result;
@@ -114,11 +140,11 @@ namespace DCFApixels.DragonECS
         }
         public bool IsConflictWith(EcsStaticMask otherMask)
         {
-            return OverlapsArray(_incs, otherMask._excs) || OverlapsArray(_excs, otherMask._incs);
+            return OverlapsArray(_incs, otherMask._excs) || OverlapsArray(_excs, otherMask._incs) || OverlapsArray(_anys, otherMask._excs) || OverlapsArray(_anys, otherMask._incs);
         }
         private static bool IsSubmask(EcsStaticMask super, EcsStaticMask sub)
         {
-            return IsSubarray(sub._incs, super._incs) && IsSuperarray(sub._excs, super._excs);
+            return IsSubarray(sub._incs, super._incs) && IsSuperarray(sub._excs, super._excs) && IsSubarray(sub._anys, super._anys);
         }
 
         private static bool OverlapsArray(EcsTypeCode[] l, EcsTypeCode[] r)
@@ -197,23 +223,29 @@ namespace DCFApixels.DragonECS
         {
             public readonly EcsTypeCode[] Incs;
             public readonly EcsTypeCode[] Excs;
+            public readonly EcsTypeCode[] Anys;
             public readonly int Hash;
 
             #region Constructors
-            public Key(EcsTypeCode[] inc, EcsTypeCode[] exc)
+            public Key(EcsTypeCode[] incs, EcsTypeCode[] excs, EcsTypeCode[] anys)
             {
-                this.Incs = inc;
-                this.Excs = exc;
+                this.Incs = incs;
+                this.Excs = excs;
+                this.Anys = anys;
                 unchecked
                 {
-                    Hash = inc.Length + exc.Length;
-                    for (int i = 0, iMax = inc.Length; i < iMax; i++)
+                    Hash = incs.Length + excs.Length;
+                    for (int i = 0, iMax = incs.Length; i < iMax; i++)
                     {
-                        Hash = Hash * EcsConsts.MAGIC_PRIME + (int)inc[i];
+                        Hash = Hash * EcsConsts.MAGIC_PRIME + (int)incs[i];
                     }
-                    for (int i = 0, iMax = exc.Length; i < iMax; i++)
+                    for (int i = 0, iMax = excs.Length; i < iMax; i++)
                     {
-                        Hash = Hash * EcsConsts.MAGIC_PRIME - (int)exc[i];
+                        Hash = Hash * EcsConsts.MAGIC_PRIME - (int)excs[i];
+                    }
+                    for (int i = 0, iMax = anys.Length; i < iMax; i++)
+                    {
+                        Hash = Hash * EcsConsts.MAGIC_PRIME + (int)anys[i];
                     }
                 }
             }
@@ -225,6 +257,7 @@ namespace DCFApixels.DragonECS
             {
                 if (Incs.Length != other.Incs.Length) { return false; }
                 if (Excs.Length != other.Excs.Length) { return false; }
+                if (Anys.Length != other.Anys.Length) { return false; }
                 for (int i = 0; i < Incs.Length; i++)
                 {
                     if (Incs[i] != other.Incs[i]) { return false; }
@@ -232,6 +265,10 @@ namespace DCFApixels.DragonECS
                 for (int i = 0; i < Excs.Length; i++)
                 {
                     if (Excs[i] != other.Excs[i]) { return false; }
+                }
+                for (int i = 0; i < Anys.Length; i++)
+                {
+                    if (Anys[i] != other.Anys[i]) { return false; }
                 }
                 return true;
             }
@@ -260,22 +297,17 @@ namespace DCFApixels.DragonECS
             }
             public static Builder New()
             {
-                lock (_lock)
-                {
-                    if (_buildersPool.TryPop(out BuilderInstance builderInstance) == false)
-                    {
-                        builderInstance = new BuilderInstance();
-                    }
-                    return new Builder(builderInstance);
-                }
+                return new Builder(BuilderInstance.TakeFromPool());
             }
             #endregion
 
             #region Inc/Exc/Combine/Except
             public Builder Inc<T>() { return Inc(EcsTypeCodeManager.Get<T>()); }
             public Builder Exc<T>() { return Exc(EcsTypeCodeManager.Get<T>()); }
+            public Builder Any<T>() { return Any(EcsTypeCodeManager.Get<T>()); }
             public Builder Inc(Type type) { return Inc(EcsTypeCodeManager.Get(type)); }
             public Builder Exc(Type type) { return Exc(EcsTypeCodeManager.Get(type)); }
+            public Builder Any(Type type) { return Any(EcsTypeCodeManager.Get(type)); }
             public Builder Inc(EcsTypeCode typeCode)
             {
                 if (_version != _builder._version) { Throw.CantReuseBuilder(); }
@@ -286,6 +318,12 @@ namespace DCFApixels.DragonECS
             {
                 if (_version != _builder._version) { Throw.CantReuseBuilder(); }
                 _builder.Exc(typeCode);
+                return this;
+            }
+            public Builder Any(EcsTypeCode typeCode)
+            {
+                if (_version != _builder._version) { Throw.CantReuseBuilder(); }
+                _builder.Any(typeCode);
                 return this;
             }
             public Builder Combine(EcsStaticMask mask)
@@ -308,52 +346,85 @@ namespace DCFApixels.DragonECS
                 if (_version != _builder._version) { Throw.CantReuseBuilder(); }
                 lock (_lock)
                 {
-                    _buildersPool.Push(_builder);
-                    return _builder.Build();
+                    var result = _builder.Build();
+                    BuilderInstance.ReturnToPool(_builder);
+                    return result;
                 }
             }
             public void Cancel()
             {
                 if (_version != _builder._version) { Throw.CantReuseBuilder(); }
-                lock (_lock)
-                {
-                    _buildersPool.Push(_builder);
-                }
+                BuilderInstance.ReturnToPool(_builder);
             }
             #endregion
         }
         private class BuilderInstance
         {
-            private readonly HashSet<EcsTypeCode> _inc = new HashSet<EcsTypeCode>();
-            private readonly HashSet<EcsTypeCode> _exc = new HashSet<EcsTypeCode>();
+            private readonly HashSet<EcsTypeCode> _incsSet = new HashSet<EcsTypeCode>();
+            private readonly HashSet<EcsTypeCode> _excsSet = new HashSet<EcsTypeCode>();
+            private readonly HashSet<EcsTypeCode> _anysSet = new HashSet<EcsTypeCode>();
             private readonly List<Combined> _combineds = new List<Combined>();
             private bool _sortedCombinedChecker = true;
             private readonly List<Excepted> _excepteds = new List<Excepted>();
 
             internal int _version;
 
-            #region Constrcutors
+            #region Constrcutors/Take/Return
             internal BuilderInstance() { }
+            internal static BuilderInstance TakeFromPool()
+            {
+                lock (_lock)
+                {
+                    if (_buildersPool.TryPop(out BuilderInstance builderInstance) == false)
+                    {
+                        builderInstance = new BuilderInstance();
+                    }
+                    return builderInstance;
+                }
+            }
+            internal static void ReturnToPool(BuilderInstance instance)
+            {
+                lock (_lock)
+                {
+                    instance.Clear();
+                    _buildersPool.Push(instance);
+                }
+            }
+            private void Clear()
+            {
+                _incsSet.Clear();
+                _excsSet.Clear();
+                _anysSet.Clear();
+            }
             #endregion
 
             #region Inc/Exc/Combine/Except
             public void Inc(EcsTypeCode typeCode)
             {
 #if DEBUG
-                if (_inc.Contains(typeCode) || _exc.Contains(typeCode)) { Throw.ConstraintIsAlreadyContainedInMask(typeCode); }
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { Throw.ConstraintIsAlreadyContainedInMask(typeCode); }
 #elif DRAGONECS_STABILITY_MODE
-                if (_inc.Contains(typeCode) || _exc.Contains(typeCode)) { return; }
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { return; }
 #endif
-                _inc.Add(typeCode);
+                _incsSet.Add(typeCode);
             }
             public void Exc(EcsTypeCode typeCode)
             {
 #if DEBUG
-                if (_inc.Contains(typeCode) || _exc.Contains(typeCode)) { Throw.ConstraintIsAlreadyContainedInMask(typeCode); }
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { Throw.ConstraintIsAlreadyContainedInMask(typeCode); }
 #elif DRAGONECS_STABILITY_MODE
-                if (_inc.Contains(typeCode) || _exc.Contains(typeCode)) { return; }
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { return; }
 #endif
-                _exc.Add(typeCode);
+                _excsSet.Add(typeCode);
+            }
+            public void Any(EcsTypeCode typeCode)
+            {
+#if DEBUG
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { Throw.ConstraintIsAlreadyContainedInMask(typeCode); }
+#elif DRAGONECS_STABILITY_MODE
+                if (_incsSet.Contains(typeCode) || _excsSet.Contains(typeCode) || _anysSet.Contains(typeCode)) { return; }
+#endif
+                _anysSet.Add(typeCode);
             }
             public void Combine(EcsStaticMask mask, int order = 0)
             {
@@ -373,13 +444,20 @@ namespace DCFApixels.DragonECS
             #region Build
             public EcsStaticMask Build()
             {
-                HashSet<EcsTypeCode> combinedIncs = _inc;
-                HashSet<EcsTypeCode> combinedExcs = _exc;
+                HashSet<EcsTypeCode> combinedIncs;
+                HashSet<EcsTypeCode> combinedExcs;
+                HashSet<EcsTypeCode> combinedAnys;
 
                 if (_combineds.Count > 0)
                 {
-                    combinedIncs = new HashSet<EcsTypeCode>();
-                    combinedExcs = new HashSet<EcsTypeCode>();
+                    var combinerBuilder = TakeFromPool();
+                    combinedIncs = combinerBuilder._incsSet;
+                    combinedExcs = combinerBuilder._excsSet;
+                    combinedAnys = combinerBuilder._anysSet;
+                    combinedIncs.UnionWith(_incsSet);
+                    combinedExcs.UnionWith(_excsSet);
+                    combinedAnys.UnionWith(_anysSet);
+
                     if (_sortedCombinedChecker == false)
                     {
                         _combineds.Sort((a, b) => a.order - b.order);
@@ -387,22 +465,28 @@ namespace DCFApixels.DragonECS
                     foreach (var item in _combineds)
                     {
                         EcsStaticMask submask = item.mask;
-                        combinedIncs.ExceptWith(submask._excs);//удаляю конфликтующие ограничения
-                        combinedExcs.ExceptWith(submask._incs);//удаляю конфликтующие ограничения
-                        combinedIncs.UnionWith(submask._incs);
-                        combinedExcs.UnionWith(submask._excs);
+                        _incsSet.ExceptWith(submask._excs);//удаляю конфликтующие ограничения
+                        _excsSet.ExceptWith(submask._incs);//удаляю конфликтующие ограничения
+                        _anysSet.ExceptWith(submask._excs);//удаляю конфликтующие ограничения
+                        _anysSet.ExceptWith(submask._incs);//удаляю конфликтующие ограничения
+                        _incsSet.UnionWith(submask._incs);
+                        _excsSet.UnionWith(submask._excs);
+                        _anysSet.UnionWith(submask._anys);
                     }
-                    combinedIncs.ExceptWith(_exc);//удаляю конфликтующие ограничения
-                    combinedExcs.ExceptWith(_inc);//удаляю конфликтующие ограничения
-                    combinedIncs.UnionWith(_inc);
-                    combinedExcs.UnionWith(_exc);
+                    _incsSet.ExceptWith(combinedExcs);//удаляю конфликтующие ограничения
+                    _excsSet.ExceptWith(combinedIncs);//удаляю конфликтующие ограничения
+                    _anysSet.ExceptWith(combinedExcs);//удаляю конфликтующие ограничения
+                    _anysSet.ExceptWith(combinedIncs);//удаляю конфликтующие ограничения
+                    _incsSet.UnionWith(combinedIncs);
+                    _excsSet.UnionWith(combinedExcs);
+                    _anysSet.UnionWith(combinedAnys);
                     _combineds.Clear();
+                    ReturnToPool(combinerBuilder);
                 }
-                else
-                {
-                    combinedIncs = _inc;
-                    combinedExcs = _exc;
-                }
+
+                combinedIncs = _incsSet;
+                combinedExcs = _excsSet;
+                combinedAnys = _anysSet;
 
                 if (_excepteds.Count > 0)
                 {
@@ -414,6 +498,7 @@ namespace DCFApixels.DragonECS
                         //}
                         combinedIncs.ExceptWith(item.mask._incs);
                         combinedExcs.ExceptWith(item.mask._excs);
+                        combinedAnys.ExceptWith(item.mask._anys);
                     }
                     _excepteds.Clear();
                 }
@@ -423,12 +508,11 @@ namespace DCFApixels.DragonECS
                 Array.Sort(inc);
                 var exc = combinedExcs.ToArray();
                 Array.Sort(exc);
+                var any = combinedAnys.ToArray();
+                Array.Sort(any);
 
-                var key = new Key(inc, exc);
+                var key = new Key(inc, exc, any);
                 EcsStaticMask result = CreateMask(key);
-
-                _inc.Clear();
-                _exc.Clear();
 
                 _version++;
                 return result;
@@ -493,11 +577,14 @@ namespace DCFApixels.DragonECS
         }
 
 #if DEBUG
-        private static void CheckConstraints(EcsTypeCode[] incs, EcsTypeCode[] excs)
+        private static void CheckConstraints(EcsTypeCode[] incs, EcsTypeCode[] excs, EcsTypeCode[] anys)
         {
             if (CheckRepeats(incs)) { throw new ArgumentException("The values in the Include constraints are repeated."); }
             if (CheckRepeats(excs)) { throw new ArgumentException("The values in the Exclude constraints are repeated."); }
+            if (CheckRepeats(anys)) { throw new ArgumentException("The values in the Any constraints are repeated."); }
             if (OverlapsArray(incs, excs)) { throw new ArgumentException("Conflicting Include and Exclude constraints."); }
+            if (OverlapsArray(incs, anys)) { throw new ArgumentException("Conflicting Include and Any constraints."); }
+            if (OverlapsArray(anys, excs)) { throw new ArgumentException("Conflicting Any and Exclude constraints."); }
         }
         private static bool CheckRepeats(EcsTypeCode[] array)
         {

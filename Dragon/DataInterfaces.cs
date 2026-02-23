@@ -13,7 +13,7 @@ namespace DCFApixels.DragonECS.Core
     }
     public static class EcsWorldComponentHandler<T>
     {
-        public static readonly IEcsWorldComponent<T> instance;
+        public static IEcsWorldComponent<T> instance;
         public static readonly bool isHasHandler;
         static EcsWorldComponentHandler()
         {
@@ -46,8 +46,8 @@ namespace DCFApixels.DragonECS.Core
     }
     public static class EcsComponentLifecycleHandler<T>
     {
-        public static readonly IEcsComponentLifecycle<T> instance;
-        public static readonly bool isHasHandler;
+        internal static IEcsComponentLifecycle<T> instance;
+        internal static bool isHasHandler;
         static EcsComponentLifecycleHandler()
         {
             T def = default;
@@ -79,8 +79,8 @@ namespace DCFApixels.DragonECS.Core
     }
     public static class EcsComponentCopyHandler<T>
     {
-        public static readonly IEcsComponentCopy<T> instance;
-        public static readonly bool isHasHandler;
+        internal static IEcsComponentCopy<T> instance;
+        internal static bool isHasHandler;
         static EcsComponentCopyHandler()
         {
             T def = default;

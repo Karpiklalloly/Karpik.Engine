@@ -1,6 +1,8 @@
 ﻿#if DISABLE_DEBUG
 #undef DEBUG
 #endif
+using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 #if ENABLE_IL2CPP
 using Unity.IL2CPP.CompilerServices;
@@ -158,6 +160,7 @@ namespace DCFApixels.DragonECS.Core.Internal
             }
             ComparisonHach.Instance.comparison = comparison;
             Array.Sort(items, 0, length, ComparisonHach.Instance);
+            ComparisonHach.Instance.comparison = null;
         }
         #endregion
     }

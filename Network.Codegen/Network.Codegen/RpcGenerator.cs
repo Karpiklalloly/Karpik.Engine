@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -10,330 +11,192 @@ namespace Network.Codegen;
 [Generator]
 public class RpcGenerator : IIncrementalGenerator
 {
-    private const string EventCommandInterfaceName = "Network.IEventCommand";
-    private const string StateCommandInterfaceName = "Network.IStateCommand";
+    // Маркерные интерфейсы (должны быть у вас в коде)
+    private const string EventCommandInterface = "Karpik.Engine.Shared.Network.Core.IEventCommand";
+    private const string StateCommandInterface = "Karpik.Engine.Shared.Network.Core.IStateCommand";
+
+    // Настройка: Где искать ваш ручной Dispatcher на сервере
+    private const string ServerDispatcherNamespace = "Karpik.Engine.MyGame.Server.Main";
+    private const string ServerDispatcherClass = "CommandDispatcher";
+
+    // Настройка: Полное имя вашего ручного интерфейса IRpc
+    private const string IRpcInterfaceFullName = "Karpik.Engine.Shared.Network.Core.IRpc";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Мы больше не можем полагаться только на SyntaxProvider.
-        // Нам нужна вся компиляция целиком.
-        IncrementalValueProvider<Compilation> compilationProvider = context.CompilationProvider;
-
-        // Регистрируем один колбэк, который будет делать всю работу.
-        context.RegisterSourceOutput(compilationProvider, Execute);
+        context.RegisterSourceOutput(context.CompilationProvider, Execute);
     }
 
     private void Execute(SourceProductionContext context, Compilation compilation)
     {
-        // Сбрасываем глобальный коллектор команд в начале компиляции
-        GlobalCommandCollector.Reset();
-        
-        var rpc = new StringBuilder();
-        rpc.Append(GenerateStartRpc());
+        var assemblyName = compilation.AssemblyName ?? "Shared";
+        var safeAssemblyName = assemblyName.Replace(".", "_");
+        var projectType = ProjectTypeDetector.DetectProjectType(assemblyName);
 
-        var dispatcher = new StringBuilder();
-        dispatcher.Append(GenerateDispatcherStart());
-        
-        var allCommandNames = new List<string>();
+        // 1. Ищем локальные команды (для генерации Extensions в текущем проекте)
+        var localEvent = FindCommands(compilation, context.CancellationToken, EventCommandInterface, true);
+        var localState = FindCommands(compilation, context.CancellationToken, StateCommandInterface, true);
+        var localAll = localEvent.Concat(localState).ToList();
 
-        // 1. Найти все структуры, реализующие IEventCommand, во всех сборках
-        var eventCommandInfos = FindAllEventCommandInfos(compilation, context.CancellationToken);
-        if (eventCommandInfos.Any())
+        // 2. Ищем ВСЕ команды (для генерации Dispatcher в ServerApp)
+        var allEvent = FindCommands(compilation, context.CancellationToken, EventCommandInterface, false);
+        var allState = FindCommands(compilation, context.CancellationToken, StateCommandInterface, false);
+        var allTotal = allEvent.Concat(allState).ToList();
+
+        // --- ГЕНЕРАЦИЯ ---
+
+        // A. Requests (Структуры для State команд - всегда генерируем рядом)
+        context.AddSource("CommandRequests.g.cs", SourceText.From(GenerateRequests(localState), Encoding.UTF8));
+
+        // B. Extensions (В ЛЮБОМ проекте). Позволяет писать _rpc.Command()
+        context.AddSource($"RpcExtensions_{safeAssemblyName}.g.cs", SourceText.From(GenerateExtensions(safeAssemblyName, localAll), Encoding.UTF8));
+
+        // C. Server Dispatcher (Только в ServerApp). Наполняет partial class.
+        if (projectType == ProjectTypeDetector.ProjectType.Server)
         {
-            rpc.Append(GenerateClientRpc(eventCommandInfos));
-            dispatcher.Append(GenerateServerDispatcher(eventCommandInfos));
-            allCommandNames.AddRange(eventCommandInfos.Select(c => c.FullName));
-        }
-
-        var stateCommandInfos = FindAllStateCommandInfos(compilation, context.CancellationToken);
-        if (stateCommandInfos.Any())
-        {
-            rpc.Append(GenerateClientRpc(stateCommandInfos));
-            context.AddSource("CommandRequests.g.cs", SourceText.From(GenerateRequests(stateCommandInfos), Encoding.UTF8));
-            dispatcher.Append(GenerateServerDispatcher(stateCommandInfos));
-            allCommandNames.AddRange(stateCommandInfos.Select(c => c.FullName));
-        }
-
-        rpc.Append(GenerateEndRpc());
-        context.AddSource("Rpc.g.cs", SourceText.From(rpc.ToString(), Encoding.UTF8));
-
-        dispatcher.Append(GenerateDispatcherEnd());
-        context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(dispatcher.ToString(), Encoding.UTF8));
-
-        // Добавляем команды в глобальный коллектор
-        GlobalCommandCollector.AddCommands(allCommandNames);
-        
-        // Генерируем отладочную информацию только если это последний генератор
-        // (определяем по наличию StateCommand - они есть только в RpcGenerator)
-        if (stateCommandInfos.Any())
-        {
-            var allCollectedCommands = GlobalCommandCollector.GetAllCommandsAndFinalize();
-            CommandIdDebugger.GenerateDebugInfo(context, allCollectedCommands);
-            CommandIdDebugger.ValidateCommandIds(context, allCollectedCommands);
+            context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(GenerateServerDispatcher(allTotal), Encoding.UTF8));
         }
     }
 
-    private string GenerateRequests(List<CommandInfo> commandInfos)
-    {
-        //Debugger.Launch();
-        var sb = new StringBuilder();
-        sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("using Karpik.Engine.Shared;");
-        sb.AppendLine("using Network;");
-        sb.AppendLine("using LiteNetLib;");
-        sb.AppendLine("using LiteNetLib.Utils;");
-        sb.AppendLine("using Karpik.Engine.Shared.DragonECS;");
-        sb.AppendLine("");
-        foreach (var command in commandInfos)
-        {
-            sb.AppendLine("public struct " + command.Name + "Request : IEcsComponentRequest");
-            sb.AppendLine("{");
-            foreach (var field in command.Fields.Where(field => field.Name != "Target" && field.Name != "Source"))
-            {
-                sb.AppendLine($"    public {field.TypeName} {field.Name};");
-            }
-            sb.AppendLine($"    public int Target {{ get; set; }}");
-            sb.AppendLine($"    public IEnumerable<int> Sources {{ get; set; }}");
-            sb.AppendLine("}");
-            sb.AppendLine();
-        }
-
-        return sb.ToString();
-    }
-
-    // --- МЕТОДЫ СБОРА ИНФОРМАЦИИ ---
-
-    private List<CommandInfo> FindAllEventCommandInfos(Compilation compilation, CancellationToken ct)
-    {
-        var commandInterface = compilation.GetTypeByMetadataName(EventCommandInterfaceName);
-        if (commandInterface == null)
-        {
-            return new List<CommandInfo>();
-        }
-
-        var commandInfos = new List<CommandInfo>();
-
-        // Проходим по всем сборкам, включая текущую
-        var allAssemblies = new[] { compilation.Assembly }.Concat(compilation.SourceModule.ReferencedAssemblySymbols);
-
-        foreach (var assembly in allAssemblies)
-        {
-            // Рекурсивно обходим все пространства имен и типы
-            ProcessNamespace(assembly.GlobalNamespace, commandInterface, commandInfos, ct);
-        }
-
-        // Сортируем и присваиваем ID через CommandIdManager
-        commandInfos = commandInfos.OrderBy(c => c.FullName).ToList();
-        for (int i = 0; i < commandInfos.Count; i++)
-        {
-            var id = CommandIdManager.GetOrAssignId(commandInfos[i].FullName);
-            commandInfos[i] = commandInfos[i] with { Id = id };
-        }
-
-        return commandInfos;
-    }
-
-    private List<CommandInfo> FindAllStateCommandInfos(Compilation compilation, CancellationToken ct)
-    {
-        var commandInterface = compilation.GetTypeByMetadataName(StateCommandInterfaceName);
-        if (commandInterface == null)
-        {
-            return new List<CommandInfo>();
-        }
-
-        var commandInfos = new List<CommandInfo>();
-
-        // Проходим по всем сборкам, включая текущую
-        var allAssemblies = new[] { compilation.Assembly }.Concat(compilation.SourceModule.ReferencedAssemblySymbols);
-
-        foreach (var assembly in allAssemblies)
-        {
-            // Рекурсивно обходим все пространства имен и типы
-            ProcessNamespace(assembly.GlobalNamespace, commandInterface, commandInfos, ct);
-        }
-
-        // Сортируем и присваиваем ID через CommandIdManager
-        commandInfos = commandInfos.OrderBy(c => c.FullName).ToList();
-        for (int i = 0; i < commandInfos.Count; i++)
-        {
-            var id = CommandIdManager.GetOrAssignId(commandInfos[i].FullName);
-            commandInfos[i] = commandInfos[i] with { Id = id };
-        }
-
-        return commandInfos;
-    }
-
-    private void ProcessNamespace(INamespaceSymbol namespaceSymbol, INamedTypeSymbol commandInterface, List<CommandInfo> commandInfos, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        foreach (var typeMember in namespaceSymbol.GetTypeMembers())
-        {
-            if (typeMember.TypeKind == TypeKind.Struct && typeMember.AllInterfaces.Contains(commandInterface, SymbolEqualityComparer.Default))
-            {
-                var fields = typeMember.GetMembers()
-                    .OfType<IFieldSymbol>()
-                    .Where(f => !f.IsStatic && f.CanBeReferencedByName)// && f.AssociatedSymbol == null) // Игнорируем backing fields для свойств
-                    .Select(f => new FieldInfo(f.Name, f.Type.ToDisplayString(), false))
-                    .ToList();
-                var properties = typeMember.GetMembers()
-                    .OfType<IPropertySymbol>()
-                    .Where(f => !f.IsStatic && f.CanBeReferencedByName)
-                    .Select(f => new FieldInfo(f.Name, f.Type.ToDisplayString(), true))
-                    .ToList();
-                fields = fields.Concat(properties).ToList();
-                commandInfos.Add(new CommandInfo(0, typeMember.Name, typeMember.ToDisplayString(), fields));
-            }
-        }
-
-        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
-        {
-            ProcessNamespace(nestedNamespace, commandInterface, commandInfos, ct);
-        }
-    }
-
-    // --- Методы генерации кода ---
-
-    private static string GenerateStartRpc()
+    private string GenerateRequests(List<CommandInfo> infos)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("using Karpik.Engine.Shared;");
-        sb.AppendLine("using Network;");
-        sb.AppendLine("using LiteNetLib;");
-        sb.AppendLine("using LiteNetLib.Utils;");
-        sb.AppendLine("using DCFApixels.DragonECS;");
-        sb.AppendLine();
-        sb.AppendLine("namespace Game.Generated.Client");
-        sb.AppendLine("{");
-        sb.AppendLine("    public class Rpc");
-        sb.AppendLine("    {");
-        sb.AppendLine("        [DI] private NetManager _netManager;");
-        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
-        sb.AppendLine("        private readonly NetDataWriter _writer = new NetDataWriter();");
-        sb.AppendLine();
-        sb.AppendLine("        private void Send(DeliveryMethod deliveryMethod)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            if (_netManager?.FirstPeer != null && _netManager.FirstPeer.ConnectionState == ConnectionState.Connected)");
-        sb.AppendLine("            {");
-        sb.AppendLine("                 _netManager.FirstPeer.Send(_writer, deliveryMethod);");
-        sb.AppendLine("            }");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        return sb.ToString();
+        foreach (var cmd in infos)
+        {
+            var fields = new StringBuilder();
+            foreach (var f in cmd.Fields.Where(x => x.Name != "Target" && x.Name != "Source"))
+                fields.AppendLine($"        public {f.TypeName} {f.Name};");
+
+            sb.AppendLine($$"""
+                public struct {{cmd.Name}}Request : IEcsComponentRequest
+                {
+            {{fields}}        public int Target { get; set; }
+                    public IEnumerable<int> Sources { get; set; }
+                }
+            """);
+        }
+        return $$"""
+            // <auto-generated/>
+            using System.Collections.Generic;
+            using Karpik.Engine.Shared.DragonECS;
+            {{sb}}
+            """;
     }
 
-    private static string GenerateEndRpc()
+    private string GenerateExtensions(string safeAsmName, List<CommandInfo> infos)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    private static string GenerateClientRpc(List<CommandInfo> commands)
-    {
-        var sb = new StringBuilder();
-
-        foreach (var cmd in commands)
+        foreach (var cmd in infos)
         {
             var paramName = cmd.Name.Replace("Command", "").ToLower();
-            sb.AppendLine($"        public void {cmd.Name.Replace("Command", "")}({cmd.FullName} {paramName}, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)");
-            sb.AppendLine("        {");
-            sb.AppendLine("            _writer.Reset();");
-            sb.AppendLine("            _writer.Put((byte)PacketType.Command);");
-            sb.AppendLine($"            _writer.Put((ushort){cmd.Id});");
-            foreach (var field in cmd.Fields)
-            {
-                sb.AppendLine($"            _writer.Put({paramName}.{field.Name});");
-            }
-            sb.AppendLine("            Send(deliveryMethod);");
-            sb.AppendLine("        }");
-            sb.AppendLine();
+            var methodName = cmd.Name.Replace("Command", "");
+            
+            var w = new StringBuilder();
+            foreach (var f in cmd.Fields) w.AppendLine($"            writer.Put({paramName}.{f.Name});");
+
+            sb.AppendLine($$"""
+                    public static void {{methodName}}(this {{IRpcInterfaceFullName}} rpc, {{cmd.FullName}} {{paramName}}, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)
+                    {
+                        var writer = rpc.GetWriter();
+                        writer.Reset();
+                        writer.Put((byte)PacketType.Command);
+                        writer.Put((ushort){{cmd.Id}});
+            {{w}}            rpc.Send(deliveryMethod);
+                    }
+            """);
         }
 
-        return sb.ToString();
-    }
-
-    private static string GenerateServerDispatcher(List<CommandInfo> commands)
-    {
-        var commandMap = commands.ToDictionary(c => c.FullName);
-
-        return GenerateCommandDispatcher(commandMap);
-    }
-
-    private static string GenerateDispatcherStart()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("using Karpik.Engine.Shared;");
-        sb.AppendLine("using LiteNetLib.Utils;");
-        sb.AppendLine("using Network;");
-        sb.AppendLine("using Karpik.Engine.Shared.DragonECS;");
-        sb.AppendLine("using DCFApixels.DragonECS;");
-        sb.AppendLine();
-        sb.AppendLine("namespace Game.Generated.Server");
-        sb.AppendLine("{");
-
-        sb.AppendLine($"    public partial class CommandDispatcher");
-        sb.AppendLine("    {");
-        sb.AppendLine("        [DI] private EcsEventWorld _eventWorld;");
-        sb.AppendLine();
-        sb.AppendLine("        public void Dispatch(int playerEntity, NetDataReader reader)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            var commandId = reader.GetUShort();");
-        sb.AppendLine("            switch (commandId)");
-        sb.AppendLine("            {");
-        return sb.ToString();
-    }
-
-    private static string GenerateDispatcherEnd()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("                default:");
-        sb.AppendLine("                    // Unknown command ID");
-        sb.AppendLine("                    break;");
-        sb.AppendLine("            }");
-        sb.AppendLine("        }");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    private static string GenerateCommandDispatcher(Dictionary<string, CommandInfo> commandMap)
-    {
-        var sb = new StringBuilder();
-
-        foreach (var pair in commandMap)
-        {
-            var cmdInfo = pair.Value;
-
-            sb.AppendLine($"                case {cmdInfo.Id}: // {cmdInfo.Name}");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    var cmd = new {cmdInfo.FullName}();");
-            foreach (var field in cmdInfo.Fields)
+        return $$"""
+            // <auto-generated/>
+            // Extensions generated for module: {{safeAsmName}}
+            using Karpik.Engine.Shared.DragonECS;
+            using Karpik.Engine.Shared.Network.Core;
+            
+            namespace Karpik.Engine.Shared.Extensions
             {
-                sb.AppendLine($"                    cmd.{field.Name} = reader.Get{GetReaderMethod(field.TypeName)}();");
+                public static class {{safeAsmName}}_RpcExtensions
+                {
+            {{sb}}    }
             }
-            sb.AppendLine($"                    _eventWorld.SendEvent(cmd);");
-            sb.AppendLine("                    break;");
-            sb.AppendLine("                }");
+            """;
+    }
+
+    private string GenerateServerDispatcher(List<CommandInfo> infos)
+    {
+        var cases = new StringBuilder();
+        foreach (var cmd in infos.OrderBy(x => x.Id))
+        {
+            var r = new StringBuilder();
+            foreach (var f in cmd.Fields) r.AppendLine($"                    cmd.{f.Name} = reader.Get{GetReaderMethod(f.TypeName)}();");
+
+            cases.AppendLine($$"""
+                        case {{cmd.Id}}: // {{cmd.FullName}}
+                        {
+                            var cmd = new {{cmd.FullName}}();
+            {{r}}                    _eventWorld.SendEvent(cmd);
+                            break;
+                        }
+            """);
         }
 
-        return sb.ToString();
+        return $$"""
+            // <auto-generated/>
+            using Karpik.Engine.Shared;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.DragonECS;
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Shared.Network.Core; // IReader
+
+            namespace {{ServerDispatcherNamespace}}
+            {
+                public partial class {{ServerDispatcherClass}}
+                {
+                    [DI] private EcsEventWorld _eventWorld;
+
+                    public void Dispatch(int playerEntity, IReader reader)
+                    {
+                        var commandId = reader.GetUShort();
+                        switch (commandId)
+                        {
+            {{cases}}                default: break;
+                        }
+                    }
+                }
+            }
+            """;
     }
 
-    private static string GetReaderMethod(string typeName)
+    // --- Helpers ---
+    private List<CommandInfo> FindCommands(Compilation c, CancellationToken ct, string ifaceName, bool local)
     {
-        return typeName switch
-        {
-            "float" or "System.Single" => "Float",
-            "int" or "System.Int32" => "Int",
-            "bool" or "System.Boolean" => "Bool",
-            "uint" or "System.UInt32" => "UInt",
-            "ushort" or "System.UInt16" => "UShort",
-            "byte" or "System.Byte" => "Byte",
-            _ => typeName.Split('.').Last()
-        };
+        var iface = c.GetTypeByMetadataName(ifaceName);
+        if (iface == null) return new List<CommandInfo>();
+        var list = new List<CommandInfo>();
+        var asms = local ? new[] { c.Assembly } : new[] { c.Assembly }.Concat(c.SourceModule.ReferencedAssemblySymbols);
+        foreach(var asm in asms) ProcessNs(asm.GlobalNamespace, iface, list, ct);
+        var dist = list.GroupBy(x => x.FullName).Select(x => x.First()).OrderBy(x => x.FullName).ToList();
+        for(int i=0; i<dist.Count; i++) dist[i] = dist[i] with { Id = CommandIdManager.GetOrAssignId(dist[i].FullName) };
+        return dist;
+    }
+    private void ProcessNs(INamespaceSymbol ns, INamedTypeSymbol iface, List<CommandInfo> list, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        foreach(var t in ns.GetTypeMembers()) {
+            if(t.TypeKind == TypeKind.Struct && t.AllInterfaces.Contains(iface, SymbolEqualityComparer.Default)) {
+                var f = t.GetMembers().OfType<IFieldSymbol>().Where(x=>!x.IsStatic && x.CanBeReferencedByName).Select(x=>new FieldInfo(x.Name, x.Type.ToDisplayString()));
+                var p = t.GetMembers().OfType<IPropertySymbol>().Where(x=>!x.IsStatic && x.CanBeReferencedByName).Select(x=>new FieldInfo(x.Name, x.Type.ToDisplayString()));
+                list.Add(new CommandInfo(0, t.Name, t.ToDisplayString(), f.Concat(p).ToList()));
+            }
+        }
+        foreach(var n in ns.GetNamespaceMembers()) ProcessNs(n, iface, list, ct);
+    }
+
+    private static string GetReaderMethod(string t)
+    {
+        var last = t.Split('.').Last();
+        return string.Concat(last[0].ToString().ToUpper(), last.Substring(1));
     }
 }
+internal record FieldInfo(string Name, string TypeName);
+
+internal record CommandInfo(uint Id, string Name, string FullName, List<FieldInfo> Fields);

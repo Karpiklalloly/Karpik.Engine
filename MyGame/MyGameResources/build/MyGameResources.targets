@@ -1,0 +1,42 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+    <Target Name="PrepareGameAssets" AfterTargets="Build">
+
+        <PropertyGroup>
+            <GameProjectRoot>$(MSBuildThisFileDirectory)..\</GameProjectRoot>
+            <TargetMods>$(TargetDir)Mods</TargetMods>
+            <TargetContent>$(TargetDir)Content</TargetContent>
+        </PropertyGroup>
+
+        <Error Text="Source 'Mods' directory not found at '$(GameProjectRoot)Mods'" Condition="!Exists('$(GameProjectRoot)Mods')" />
+        <Error Text="Source 'Content' directory not found at '$(GameProjectRoot)Content'" Condition="!Exists('$(GameProjectRoot)Content')" />
+
+        <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+            <MessageDebug>Linking Mods and Content (Junctions) for Debug...</MessageDebug>
+        </PropertyGroup>
+        <Message Text="$(MessageDebug)" Importance="high" Condition="'$(Configuration)'=='Debug'" />
+
+        <Exec Command="if exist &quot;$(TargetMods)&quot; rmdir /S /Q &quot;$(TargetMods)&quot;" Condition="'$(Configuration)'=='Debug'" />
+        <Exec Command="if exist &quot;$(TargetContent)&quot; rmdir /S /Q &quot;$(TargetContent)&quot;" Condition="'$(Configuration)'=='Debug'" />
+
+        <Exec Command="mklink /J &quot;$(TargetMods)&quot; &quot;$(GameProjectRoot)Mods&quot;" Condition="'$(Configuration)'=='Debug'" />
+        <Exec Command="mklink /J &quot;$(TargetContent)&quot; &quot;$(GameProjectRoot)Content&quot;" Condition="'$(Configuration)'=='Debug'" />
+        
+        <PropertyGroup Condition="'$(Configuration)'=='Release'">
+            <MessageRelease>Copying Mods and Content directories for Release...</MessageRelease>
+        </PropertyGroup>
+        <Message Text="$(MessageRelease)" Importance="high" Condition="'$(Configuration)'=='Release'" />
+
+        <Exec Command="if exist &quot;$(TargetMods)&quot; rmdir /S /Q &quot;$(TargetMods)&quot;" Condition="'$(Configuration)'=='Release'" />
+        <Exec Command="if exist &quot;$(TargetContent)&quot; rmdir /S /Q &quot;$(TargetContent)&quot;" Condition="'$(Configuration)'=='Release'" />
+
+        <ItemGroup Condition="'$(Configuration)'=='Release'">
+            <ModsFiles Include="$(GameProjectRoot)Mods\**\*" />
+            <ContentFiles Include="$(GameProjectRoot)Content\**\*" />
+        </ItemGroup>
+
+        <Copy SourceFiles="@(ModsFiles)" DestinationFolder="$(TargetMods)\%(RecursiveDir)" Condition="'$(Configuration)'=='Release'" />
+        <Copy SourceFiles="@(ContentFiles)" DestinationFolder="$(TargetContent)\%(RecursiveDir)" Condition="'$(Configuration)'=='Release'" />
+
+    </Target>
+</Project>
