@@ -1,9 +1,5 @@
-﻿using System.Reflection;
-using System.Text;
-using DCFApixels.DragonECS.Core.Internal;
+﻿using System.Text;
 using Karpik.Engine.Core;
-using Karpik.Engine.Core.Hot;
-using Karpik.Engine.Core.ModuleManagement;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -24,11 +20,9 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
     private string _snapshotMeta = string.Empty;
 
     private bool _reloaded = false;
-    private EcsPipeline.Builder _builder = null!;
 
     public void OnRegisterServices(IServiceRegister services)
     {
-        _builder = EcsPipeline.New();
         services
             .Register(_world)
             .Register(new DefaultWorld(_world))

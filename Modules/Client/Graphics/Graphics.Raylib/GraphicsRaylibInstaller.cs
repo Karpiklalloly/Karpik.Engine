@@ -1,10 +1,6 @@
-﻿using System.Reflection;
-using DCFApixels.DragonECS;
-using ImGuiNET;
+﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
-using Raylib_cs;
-using rlImGui_cs;
 
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
@@ -37,17 +33,8 @@ public class GraphicsRaylibInstaller : IModule, IModuleConfiguratable, IModuleHo
     {
     }
 
-    public byte[] OnPrepareHotReload()
+    public byte[] OnPrepareHotReload(IServiceContainer services)
     {
-        // var platformIo = ImGui.GetPlatformIO();
-        //
-        // // Зануляем нативные указатели
-        // platformIo.Platform_GetClipboardTextFn = IntPtr.Zero;
-        // platformIo.Platform_SetClipboardTextFn = IntPtr.Zero;
-        //
-        // var type = typeof(rlImGui);
-        // type.GetField("GetClipCallback", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
-        // type.GetField("SetClipCallback", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
         return [];
     }
 
