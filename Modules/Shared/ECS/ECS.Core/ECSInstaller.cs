@@ -31,8 +31,11 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
         _builder = EcsPipeline.New();
         services
             .Register(_world)
+            .Register(new DefaultWorld(_world))
             .Register(_eventWorld)
-            .Register(_metaWorld);
+            .Register(new EventWorld(_eventWorld))
+            .Register(_metaWorld)
+            .Register(new MetaWorld(_metaWorld));
     }
 
     public void OnConfigure(IServiceContainer services, out IEcsModule? module)
