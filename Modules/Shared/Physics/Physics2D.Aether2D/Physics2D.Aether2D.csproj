@@ -5,10 +5,11 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>Karpik.Engine.Shared.Physics.Aether2D</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Physics.Core\Physics.Core.csproj" />
+      <ProjectReference Include="..\Physics2D.Core\Physics2D.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>

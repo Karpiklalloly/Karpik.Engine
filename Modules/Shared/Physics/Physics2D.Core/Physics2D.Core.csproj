@@ -12,8 +12,4 @@
       <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
     </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="Aether.Physics2D" Version="2.2.0" />
-    </ItemGroup>
 </Project>
