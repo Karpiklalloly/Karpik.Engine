@@ -39,6 +39,10 @@
     <Project Path="Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
     <Project Path="Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj" />
   </Folder>
+  <Folder Name="/Modules/Shared/Physics/">
+    <Project Path="Modules/Shared/Physics/Physics.Aether2D/Physics.Aether2D.csproj" />
+    <Project Path="Modules/Shared/Physics/Physics.Core/Physics.Core.csproj" />
+  </Folder>
   <Folder Name="/Modules/Shared/Tween/">
     <Project Path="Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
   </Folder>
