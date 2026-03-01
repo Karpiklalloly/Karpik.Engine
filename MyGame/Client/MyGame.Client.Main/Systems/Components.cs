@@ -3,6 +3,7 @@ using DCFApixels.DragonECS;
 using DCFApixels.DragonECS.Core;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Jobs;
@@ -21,8 +22,9 @@ public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnL
     
     private AssetHandle<Texture2DAsset> _handle;
     
-    public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, IAssetsManager manager)
+    public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, IServiceContainer provider)
     {
+        var manager = provider.Get<IAssetsManager>();
         renderer._handle.Dispose();
         renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(renderer.TexturePath);
         return renderer;

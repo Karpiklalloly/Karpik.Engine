@@ -14,7 +14,7 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
 
     protected override async JobHandle OnAssetLoadedAsync(ComponentsTemplateAsset asset)
     {
-        asset.Template.OnLoad(AssetsManager);
+        asset.Template.OnLoad(ServiceContainer);
         
         if (asset.Template.Components.Length == 0) return;
 

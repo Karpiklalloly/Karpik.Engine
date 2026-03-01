@@ -4,6 +4,7 @@ using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.MyGame.Shared.Main;
+using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
@@ -13,13 +14,13 @@ public class Drawer
     private int _actionsCount = 0;
     [DI] private IRenderer _renderer = null!;
     
-    public void Sprite(SpriteRenderer spriteRenderer, Position position, Rotation rotation, Scale scale)
+    public void Sprite(SpriteRenderer spriteRenderer, Transform2D position, Rotation rotation, Scale scale)
     {
         ResizeIfNeed();
         _actions[_actionsCount++] = new DrawAction()
         {
             Texture = spriteRenderer.Texture,
-            Position = new Vector3(position.X, position.Y, position.Z),
+            Position = position.Position,
             Color = spriteRenderer.Color,
             Rotation = rotation.Value,
             Scale = scale.Value,
@@ -47,12 +48,12 @@ public class Drawer
     private struct DrawAction
     {
         public ITexture2D Texture;
-        public Vector3 Position;
+        public Vector2 Position;
         public Color Color;
         public double Rotation;
         public double Scale;
         public int Layer;
         
-        public void Draw(IRenderer renderer) => renderer.DrawTexture(Texture, new Vector2((float)Position[0], (float)Position[1]), (float)Rotation, (float)Scale, Color);
+        public void Draw(IRenderer renderer) => renderer.DrawTexture(Texture, Position, (float)Rotation, (float)Scale, Color);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.CodeDom.Compiler;
 using System.Text;
+using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
@@ -40,7 +41,7 @@ public static class EcsWorldExtensions
             }
         }
 
-        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IAssetsManager manager)
+        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IServiceContainer container)
         {
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
@@ -61,7 +62,7 @@ public static class EcsWorldExtensions
             await foreach (var entitySnapshot in list.ToAsyncEnumerable())
             {
                 newWorld.NewEntity(entitySnapshot.Id);
-                entitySnapshot.Components.OnLoad(manager);
+                entitySnapshot.Components.OnLoad(container);
                 await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld);
             }
         }

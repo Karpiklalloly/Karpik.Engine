@@ -17,6 +17,7 @@
       <ProjectReference Include="..\..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
       <ProjectReference Include="..\..\..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />
       <ProjectReference Include="..\..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj" />
       <ProjectReference Include="..\..\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj" />
     </ItemGroup>
 

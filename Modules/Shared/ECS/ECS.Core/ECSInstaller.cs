@@ -86,12 +86,11 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
         }
 
         var hotReloadData = JsonConvert.DeserializeObject<HotReloadInfo>(Encoding.UTF8.GetString(data));
-        var assetManager = services.Get<IAssetsManager>();
         services.Get<MainThreadScheduler>().Schedule(() =>
         {
-            EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, assetManager);
-            EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, assetManager);
-            EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, assetManager);
+            EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, services);
+            EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, services);
+            EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, services);
         });
 
         return true;
