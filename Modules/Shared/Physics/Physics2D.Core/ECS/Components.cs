@@ -1,16 +1,27 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
 public readonly struct PhysicsBodyHandle : IEquatable<PhysicsBodyHandle>
 {
     public readonly int Value;
-    public static readonly PhysicsBodyHandle Invalid = new PhysicsBodyHandle(-1);
+    public static readonly PhysicsBodyHandle Invalid = new(-1);
         
     public PhysicsBodyHandle(int value) => Value = value;
     public bool IsValid => Value != -1;
     public bool Equals(PhysicsBodyHandle other) => Value == other.Value;
+
+    public override bool Equals(object? obj)
+    {
+        return obj is PhysicsBodyHandle handle && Equals(handle);
+    }
+
+    public override int GetHashCode()
+    {
+        return Value;
+    }
 }
 
 
@@ -90,4 +101,43 @@ public readonly struct PhysicsLayerMask : IEquatable<PhysicsLayerMask>
     public static implicit operator PhysicsLayerMask(uint value) => new PhysicsLayerMask(value);
 
     public bool Equals(PhysicsLayerMask other) => Value == other.Value;
+}
+
+public struct Transform2D : IEcsComponent 
+{
+    public Vector2 Position;
+    public float Rotation;
+        
+    public Vector2 Forward => new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
+}
+
+public struct Velocity2D : IEcsComponent 
+{
+    public Vector2 Linear;
+    public float Angular;
+}
+
+public struct PhysicsBodyRef : IEcsComponent 
+{
+    public PhysicsBodyHandle Handle;
+}
+
+public struct CreateBodyRequest : IEcsComponent 
+{
+    public BodyConfig BodyCfg;
+    public ShapeConfig ShapeCfg;
+}
+
+public struct DestroyBodyRequest : IEcsComponent;
+
+public struct TeleportRequest : IEcsComponent 
+{
+    public Vector2 Position;
+    public float Rotation;
+}
+
+public struct SetVelocityRequest : IEcsComponent 
+{
+    public Vector2 Linear;
+    public float Angular;
 }

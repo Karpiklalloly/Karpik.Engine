@@ -16,6 +16,8 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" Condition="'$(IsServer)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Core/Physics2D.Core.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />

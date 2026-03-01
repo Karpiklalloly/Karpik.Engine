@@ -26,6 +26,8 @@ public class ModuleLoader
         "Modding.Lua",
         "Network.Shared.Core",
         "Network.Shared.LiteNetLib",
+        "Physics2D.Core",
+        "Physics2D.Aether2D",
         "StatAndAbilities",
         "Tween.Core",
         "MyGameResources",

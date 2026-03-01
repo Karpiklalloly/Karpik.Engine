@@ -29,7 +29,7 @@ public class Drawer
 
     internal void Draw()
     {
-        Array.Sort(_actions, (a, b) => a.Layer - b.Layer);
+        Array.Sort(_actions, static (a, b) => a.Layer - b.Layer);
         while (_actionsCount > 0)
         {
             _actions[--_actionsCount].Draw(_renderer);

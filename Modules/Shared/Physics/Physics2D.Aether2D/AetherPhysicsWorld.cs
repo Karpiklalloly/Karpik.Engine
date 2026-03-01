@@ -153,6 +153,17 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
             body.SetTransform(new Vector2(positions[i].X, positions[i].Y).Aether, rotations[i]);
         }
     }
+    
+    public void SetVelocities(ReadOnlySpan<PhysicsBodyHandle> handles, ReadOnlySpan<Vector2> linear, ReadOnlySpan<float> angular)
+    {
+        // Максимально плотный C-style цикл
+        for (int i = 0; i < handles.Length; i++)
+        {
+            var body = _bodies[handles[i].Value];
+            body.LinearVelocity = new Vector2(linear[i].X, linear[i].Y).Aether;
+            body.AngularVelocity = angular[i];
+        }
+    }
 
     public unsafe int Raycast(Vector2 start, Vector2 end, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
     {

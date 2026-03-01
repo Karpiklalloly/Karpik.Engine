@@ -5,9 +5,14 @@ internal class Bootstrap
     private ServiceProvider _serviceProvider = null!;
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
-    private Application _application = new();
+    private Application _application;
     private EngineRunner _runner = new();
-    
+
+    public Bootstrap(Side side)
+    {
+        _application = new Application(side);
+    }
+        
     public MainThreadScheduler Initialize(int mainThreadId, Ref<bool> isRunning, Dictionary<string, byte[]>? initialHotReloadState = null)
     {
         _mainThreadScheduler = new MainThreadScheduler(mainThreadId);

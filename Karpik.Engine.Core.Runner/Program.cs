@@ -1,13 +1,12 @@
 using System.Diagnostics;
 using Karpik.Engine.Core.Hot;
-using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Core.Runner;
 
 public class Program
 {
     private static IpcClient? _ipcClient;
-    private static Bootstrap _bootstrap = new();
+    private static Bootstrap _bootstrap;
     private static Ref<bool> _isRunning = new(true);
     private static HotReloadState? _initialState;
     private static volatile bool _stateCollected = false;
@@ -20,6 +19,9 @@ public class Program
         var stateBase64 = ParseArg(args, "--state");
         var waitForDebugger = HasArg(args, "--wait-for-debugger");
         var side = ParseArg(args, "--side");
+        
+        Enum.TryParse(side, out Side s);
+        _bootstrap = new Bootstrap(s);
         
         if (waitForDebugger)
         {
@@ -74,7 +76,6 @@ public class Program
         
         try
         {
-            var tryParse = Enum.TryParse(side, out Side s);
             RunEngine(s);
         }
         catch (Exception ex)
@@ -200,10 +201,6 @@ public class Program
 
     private static void ServerLoop(MainThreadScheduler mainThreadScheduler)
     {
-        const int TICKS_PER_SECOND = 20;
-        const int SLEEP_TIME = 1000 / TICKS_PER_SECOND;
-        const double TICK_DT = 1.0 / TICKS_PER_SECOND;
-        
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
         
@@ -215,15 +212,15 @@ public class Program
             while (currentTime >= nextTickTime && loops < 5)
             {
                 mainThreadScheduler.Execute();
-                _bootstrap.Loop(TICK_DT);
-                nextTickTime += TICK_DT;
+                _bootstrap.Loop(Application.TICK_DT);
+                nextTickTime += Application.TICK_DT;
                 loops++;
             }
             
             if (loops >= 5)
             {
                 Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - nextTickTime:F4}s");
-                nextTickTime = currentTime + TICK_DT;
+                nextTickTime = currentTime + Application.TICK_DT;
             }
             
             double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;
@@ -252,7 +249,6 @@ public class Program
             
             mainThreadScheduler.Execute();
             
-            // Check if state was collected during Execute() - if so, skip Loop() and exit
             if (_stateCollected)
             {
                 break;
