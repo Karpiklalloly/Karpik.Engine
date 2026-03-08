@@ -31,4 +31,14 @@ public static class SystemToRaylibExtensions
     {
         public Camera3D Raylib3D => ((RaylibCamera)camera).Camera;
     }
+    
+    extension(ICamera2D camera)
+    {
+        public Camera2D Raylib2D => ((RaylibCamera2D)camera).Raylib2D;
+    }
+
+    extension(ITexture2D texture2D)
+    {
+        public Texture2D Raylib => ((RaylibTexture2D)texture2D).Texture;
+    }
 }

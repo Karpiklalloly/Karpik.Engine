@@ -20,6 +20,10 @@ public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnL
     public int Layer;
     public string TexturePath;
     
+    // Size in world units (meters). If 0, uses texture size scaled by default factor
+    public float Width;
+    public float Height;
+    
     private AssetHandle<Texture2DAsset> _handle;
     
     public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, IServiceContainer provider)

@@ -1,7 +1,9 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
+#if DEBUG
 using DebugModule;
+#endif
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
@@ -21,7 +23,7 @@ using Karpik.Jobs;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
-public class DemoModuleClient : IEcsModule
+internal class DemoModuleClient : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {
@@ -29,6 +31,7 @@ public class DemoModuleClient : IEcsModule
             .Add(new SetLocalPlayerSystem())
             .Add(new DisplaySystem())
             .Add(new DrawSpriteSystem())
+            .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50) // After EndMode3D, before UI
             .Add(new InputSystem())
             .Add(new AnotherInputSystem())
             .AddCaller<SetLocalPlayerTargetRpc>();
@@ -58,6 +61,12 @@ public class MySystem : IEcsRun, IEcsInit
     [DI] private UIManager _uiManager = null!;
     [DI] private Time _time = null!;
     [DI] private IPhysicsWorld2D _physicsWorld2D;
+    [DI] private IServiceContainer _serviceContainer;
+
+    private void OnInjected()
+    {
+        
+    }
 
     public void Init()
     {
@@ -132,70 +141,7 @@ public class MySystem : IEcsRun, IEcsInit
         ImGui.NextColumn();
         if (ImGui.Button("Spawn Scene"))
         {
-            int entity1 = _world.NewEntity();
-
-            // 1. Обязательный компонент: Трансформ
-            ref var transform1 = ref _world.GetPool<Transform2D>().Add(entity1);
-            transform1.Position = new Vector2(0, -5f); // Пол внизу экрана
-            transform1.Rotation = 0f;
-
-            // 2. Запрос на создание физики (Статика)
-            ref var request1 = ref _world.GetPool<CreateBodyRequest>().Add(entity1);
-        
-            request1.BodyCfg = new BodyConfig 
-            {
-                Type = BodyType.Static, // Не двигается
-                Friction = 0.5f,
-                Restitution = 0.0f,     // Не пружинит
-                CategoryBits = 0x0001,  // Слой по умолчанию
-                MaskBits = 0xFFFF       // Сталкивается со всем
-            };
-
-            request1.ShapeCfg = ShapeConfig.Box(new Vector2(20f, 1f)); // Широкий прямоугольник
-
-            _world.GetPool<SpriteRenderer>().TryAddOrGet(entity1) = new SpriteRenderer
-            {
-                Color = Color.White,
-                Layer = 0,
-                TexturePath = "default.jpg"
-            };
-            
-            
-            int entity2 = _world.NewEntity();
-
-            // 1. Трансформ (Позиция спавна)
-            ref var transform2 = ref _world.GetPool<Transform2D>().Add(entity2);
-            transform2.Position = new Vector2(0, 5f); // Ящик высоко в воздухе
-            transform2.Rotation = 0.5f; // Слегка повернут для красивого падения
-
-            // 2. Добавляем Velocity, так как мы хотим читать его скорость в будущем
-            ref var velocity2 = ref _world.GetPool<Velocity2D>().Add(entity2);
-            velocity2.Linear = Vector2.Zero;
-            velocity2.Angular = 0f;
-
-            // 3. Запрос на создание физики (Динамика)
-            ref var request2 = ref _world.GetPool<CreateBodyRequest>().Add(entity2);
-        
-            request2.BodyCfg = new BodyConfig 
-            {
-                Type = BodyType.Dynamic, // Подвержен гравитации
-                Mass = 10f,              // Весит 10 кг
-                Friction = 0.3f,
-                Restitution = 0.4f,      // Слегка отскакивает (bounciness)
-                CategoryBits = 0x0001,
-                MaskBits = 0xFFFF
-            };
-
-            request2.ShapeCfg = ShapeConfig.Box(new Vector2(1f, 1f)); // Квадрат 1x1 метр
-            
-            _world.GetPool<SpriteRenderer>().TryAddOrGet(entity2) = new SpriteRenderer
-            {
-                Color = Color.White,
-                Layer = 0,
-                TexturePath = "Player.png"
-            };
-
-            _world.GetPool<Player>().Add(entity2);
+            SpawnPhysicsScene();
         }
         
 #if DEBUG
@@ -208,6 +154,84 @@ public class MySystem : IEcsRun, IEcsInit
         ImGui.NextColumn();
 #endif
         ImGui.Columns(1);
+    }
+
+    private async JobHandle SpawnPhysicsScene()
+    {
+        int entity1 = _world.NewEntity();
+
+        // 1. Обязательный компонент: Трансформ
+        ref var transform1 = ref _world.GetPool<Transform2D>().Add(entity1);
+        transform1.Position = new Vector2(0, -5f); // Пол внизу экрана
+        transform1.Rotation = 0f;
+
+        // 2. Запрос на создание физики (Статика)
+        ref var request1 = ref _world.GetPool<CreateBodyRequest>().Add(entity1);
+    
+        request1.BodyCfg = new BodyConfig 
+        {
+            Type = BodyType.Static, // Не двигается
+            Friction = 0.5f,
+            Restitution = 0.0f,     // Не пружинит
+            CategoryBits = 0x0001,  // Слой по умолчанию
+            MaskBits = 0xFFFF       // Сталкивается со всем
+        };
+
+        request1.ShapeCfg = ShapeConfig.Box(new Vector2(10f, 1f)); // Широкий прямоугольник
+        
+        var renderer1 = new SpriteRenderer
+        {
+            Color = Color.White,
+            Layer = 0,
+            TexturePath = "Sprites/default.png",
+            Width = 10f,  // Match physics shape width
+            Height = 1f   // Match physics shape height
+        };
+        var r1 = await renderer1.OnLoad(renderer1, _serviceContainer);
+        
+        var renderer2 = new SpriteRenderer
+        {
+            Color = Color.White,
+            Layer = 0,
+            TexturePath = "Sprites/Player.png",
+            Width = 1f,   // Match physics shape width
+            Height = 1f   // Match physics shape height
+        };
+        var r2 = await renderer2.OnLoad(renderer2, _serviceContainer);
+        
+        _world.GetPool<SpriteRenderer>().TryAddOrGet(entity1) = r1;
+        
+        
+        int entity2 = _world.NewEntity();
+
+        // 1. Трансформ (Позиция спавна)
+        ref var transform2 = ref _world.GetPool<Transform2D>().Add(entity2);
+        transform2.Position = new Vector2(0, 5f); // Ящик высоко в воздухе
+        transform2.Rotation = 0.5f; // Слегка повернут для красивого падения
+
+        // 2. Добавляем Velocity, так как мы хотим читать его скорость в будущем
+        ref var velocity2 = ref _world.GetPool<Velocity2D>().Add(entity2);
+        velocity2.Linear = Vector2.Zero;
+        velocity2.Angular = 0f;
+
+        // 3. Запрос на создание физики (Динамика)
+        ref var request2 = ref _world.GetPool<CreateBodyRequest>().Add(entity2);
+    
+        request2.BodyCfg = new BodyConfig 
+        {
+            Type = BodyType.Dynamic, // Подвержен гравитации
+            Mass = 10f,              // Весит 10 кг
+            Friction = 0.3f,
+            Restitution = 0.4f,      // Слегка отскакивает (bounciness)
+            CategoryBits = 0x0001,
+            MaskBits = 0xFFFF
+        };
+
+        request2.ShapeCfg = ShapeConfig.Box(new Vector2(1f, 1f)); // Квадрат 1x1 метр
+        
+        _world.GetPool<SpriteRenderer>().TryAddOrGet(entity2) = r2;
+
+        _world.GetPool<Player>().Add(entity2);
     }
 
     private void ShowStats()
@@ -269,9 +293,9 @@ public class MySystem : IEcsRun, IEcsInit
             ImGui.End();
         }
 
-        if (_world.GetPool<PhysicsBodyRef>().Count > 0)
+        if (_world.GetPool<PhysicsBodyRef>().Count > 1)
         {
-            ImGui.Text($"Position: {_world.GetPool<Transform2D>().Get(1).Position}");
+            ImGui.Text($"Position: {_world.GetPool<Transform2D>().Get(2).Position}");
         }
         
         ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
@@ -279,6 +303,12 @@ public class MySystem : IEcsRun, IEcsInit
         {
             ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024}Kb");
         }
+        
+        ImGui.Text($"Camera pos: {_renderer.MainCamera2D.Position}");
+        ImGui.Text($"Camera zoom: {_renderer.MainCamera2D.Zoom}");
+        var zoom = _renderer.MainCamera2D.Zoom;
+        ImGui.SliderFloat($"Camera Zoom", ref zoom, 1, 100);
+        _renderer.MainCamera2D.Zoom = zoom;
     }
 
     private void PrintUI(UIElement element, int indent = 0)

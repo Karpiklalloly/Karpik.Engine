@@ -17,7 +17,7 @@ public class UIToolkitInstaller : IModule, IModuleConfiguratable
         services.Register(_manager);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
         var renderer = services.Get<IRenderer>();
         _manager.SetRoot(CreateDemoUI(), services.Get<Input>(), renderer, services.Get<IWindow>());
@@ -34,7 +34,7 @@ public class UIToolkitInstaller : IModule, IModuleConfiguratable
         // var font = renderer.LoadFont("Pressstart2p.ttf", 32, chars, count);
         // Console.WriteLine($"Font is Valid: {renderer.IsFontValid(font)}");
 
-        module = new UIToolkitModule();
+        container.Register<IEcsModule>(new UIToolkitModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

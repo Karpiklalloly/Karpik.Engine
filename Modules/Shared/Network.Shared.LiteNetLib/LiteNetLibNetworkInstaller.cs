@@ -14,9 +14,8 @@ public class LiteNetLibNetworkInstaller : IModule, IModuleConfiguratable
         services.Register<INetworkManager>(new LiteNetLibNetworkManager());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

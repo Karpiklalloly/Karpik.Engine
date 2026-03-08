@@ -12,6 +12,6 @@ public class RaylibTexture2D : ITexture2D
         Texture = texture;
     }
 
-    public float Width => Texture.Width;
-    public float Height => Texture.Height;
+    public int Width => Texture.Width;
+    public int Height => Texture.Height;
 }

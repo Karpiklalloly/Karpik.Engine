@@ -2,6 +2,6 @@
 
 public interface ITexture2D
 {
-    public float Width { get; }
-    public float Height { get; }
+    public int Width { get; }
+    public int Height { get; }
 }

@@ -2,7 +2,7 @@ using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Shared.Tweening;
 
-public class TweenModule : IEcsModule
+internal class TweenModule : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {

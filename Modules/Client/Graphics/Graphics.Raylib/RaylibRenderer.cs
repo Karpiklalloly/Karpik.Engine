@@ -9,15 +9,22 @@ namespace Karpik.Engine.Client.Graphics.GRaylib;
 public class RaylibRenderer : IRenderer
 {
     public ICamera MainCamera3D { get; }
+    public ICamera2D MainCamera2D { get; }
 
     public RaylibRenderer()
     {
         MainCamera3D = CreateCamera3D();
+        MainCamera2D = CreateCamera2D();
     }
 
     public ICamera CreateCamera3D()
     {
         return new RaylibCamera();
+    }
+
+    public ICamera2D CreateCamera2D()
+    {
+        return new RaylibCamera2D();
     }
 
     public void BeginScissorMode(RectangleF scissor)
@@ -100,7 +107,7 @@ public class RaylibRenderer : IRenderer
         Color color)
     {
         Raylib.DrawTexturePro(
-            ((RaylibTexture2D)texture).Texture,
+            texture.Raylib,
             source.Raylib,
             destination.Raylib,
             origin,
@@ -108,7 +115,7 @@ public class RaylibRenderer : IRenderer
             color.Raylib
         );
     }
-    
+
     public void DrawTexture(ITexture2D texture, RectangleF source, Vector2 position, Color color)
     {
         Raylib.DrawTextureRec(((RaylibTexture2D)texture).Texture, source.Raylib, position, color.Raylib);
@@ -132,6 +139,16 @@ public class RaylibRenderer : IRenderer
     public void End3DMode3D()
     {
         Raylib.EndMode3D();
+    }
+
+    public void BeginMode2D(ICamera2D camera)
+    {
+        Raylib.BeginMode2D(camera.Raylib2D);
+    }
+
+    public void End2DMode()
+    {
+        Raylib.EndMode2D();
     }
 
     public void BeginDrawing()
@@ -201,5 +218,10 @@ public class RaylibRenderer : IRenderer
     public int GetFPS()
     {
         return Raylib.GetFPS();
+    }
+
+    public bool WindowShouldClose()
+    {
+        return Raylib.WindowShouldClose();
     }
 }

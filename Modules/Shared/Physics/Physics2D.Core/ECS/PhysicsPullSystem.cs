@@ -61,6 +61,7 @@ public class PhysicsPullSystem : IEcsRun
             ref var transform = ref aspect.Transforms.Get(query[i]);
             transform.Position = _vecBuf[i];
             transform.Rotation = _floatBuf[i];
+            Console.WriteLine(transform.Position);
         }
     }
 

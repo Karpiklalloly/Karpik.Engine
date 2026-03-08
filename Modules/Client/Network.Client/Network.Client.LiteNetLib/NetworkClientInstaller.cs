@@ -13,9 +13,9 @@ public class NetworkClientInstaller : IModule, IModuleConfiguratable
         
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new NetworkClientModule();
+        container.Register<IEcsModule>(new NetworkClientModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

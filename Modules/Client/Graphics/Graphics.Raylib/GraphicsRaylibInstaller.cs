@@ -22,11 +22,14 @@ public class GraphicsRaylibInstaller : IModule, IModuleConfiguratable, IModuleHo
         var camera = new RaylibCamera();
         services.Register<ICamera>(camera);
         services.Register(camera);
+        
+        // Use the same 2D camera that renderer creates internally
+        services.Register<ICamera2D>(renderer.MainCamera2D);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new RaylibModule();
+        container.Register<IEcsModule>(new RaylibModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

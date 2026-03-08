@@ -3,12 +3,13 @@ using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Core;
 
-public class EngineRunner
+public class EngineRunner : IEngineRunner
 {
     private readonly List<IModule> _modules = new();
     private EcsPipeline _pipeline = null!;
     private Time _time = new();
     private EcsServiceProvider _serviceProvider = null!;
+    private Application _application;
 
     public void RegisterTypes(Type[] types)
     {
@@ -19,9 +20,12 @@ public class EngineRunner
         }
     }
 
-    public void Setup(ServiceProvider serviceProvider, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
+    public void Setup(Application application, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
     {
-        _serviceProvider = new EcsServiceProvider(serviceProvider);
+        _application = application;
+        _serviceProvider = new EcsServiceProvider(new ServiceProvider());
+        _serviceProvider.Register(scheduler);
+        _serviceProvider.Register(_application);
         
         var newBuilder = EcsPipeline.New();
         newBuilder.AddModule(new JobSystemModule());
@@ -87,13 +91,14 @@ public class EngineRunner
             return;
         }
 
+        Console.WriteLine($"Register module {module.Name}");
         _modules.Add(module);
     }
 
     private Type[] FilterTypesToModules(Type[] types)
     {
         var classTypes = types.Where(t => t.IsClass && !t.IsAbstract);
-        var moduleTypes = classTypes.Where(t => typeof(IModule).IsAssignableFrom(t));
+        var moduleTypes = classTypes.Where(t => typeof(IModule).IsAssignableFrom(t) || typeof(IModule).IsAssignableTo(t));
         var withAttr = moduleTypes.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null);
         return withAttr.ToArray();
     }
@@ -143,6 +148,7 @@ public class EngineRunner
                     string name = module.GetType().FullName ?? module.GetType().Name;
                     if (stateData.TryGetValue(name, out var data))
                     {
+                        Console.WriteLine($"On Hot Reload module {hotReloadableModule.Name}");
                         if (!hotReloadableModule.OnHotReload(data, serviceProvider))
                         {
                             needToReload.Add((hotReloadableModule, data));
@@ -161,6 +167,7 @@ public class EngineRunner
         {
             try
             {
+                Console.WriteLine($"On Hot Reload module {reload.Item1.Name}");
                 reload.Item1.OnHotReload(reload.Item2, serviceProvider);
             }
             catch (Exception e)
@@ -182,6 +189,7 @@ public class EngineRunner
     {
         foreach (var module in _modules)
         {
+            Console.WriteLine($"On Register Services for module {module.Name}");
             module.OnRegisterServices(newServiceProvider);
         }
     }
@@ -190,11 +198,15 @@ public class EngineRunner
     {
         foreach (var module in _modules.OfType<IModuleConfiguratable>())
         {
-            module.OnConfigure(newServiceProvider, out var ecsModule);
+            Console.WriteLine($"On Configure module {module.Name}");
+            module.OnConfigure(newServiceProvider, newServiceProvider);
+            var ecsModule = newServiceProvider.Get<IEcsModule>();
             if (ecsModule is not null)
             {
+                Console.WriteLine($"Got module {ecsModule.GetType().Name}");
                 newBuilder.AddModule(ecsModule);
             }
+            newServiceProvider.Forget<IEcsModule>();
         }
     }
 
@@ -202,6 +214,7 @@ public class EngineRunner
     {
         foreach (var module in _modules.OfType<IModuleConfiguratable>())
         {
+            Console.WriteLine($"On Configure Complete {module.Name}");
             module.OnConfigureComplete(_serviceProvider);
         }
     }
@@ -213,6 +226,7 @@ public class EngineRunner
         {
             foreach (var listener in listeners)
             {
+                Console.WriteLine($"On Another Module Loaded module {module.Name}. Listener {listener.Name}");
                 listener.OnAnotherModuleLoaded(_serviceProvider, module, module.GetType().Assembly);
             }
         }

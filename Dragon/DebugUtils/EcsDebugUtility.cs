@@ -85,11 +85,11 @@ namespace DCFApixels.DragonECS
             }
             if (isWriteName)
             {
-                return $"{type.Name}({string.Join(", ", values)})";
+                return $"{type.Name}({string.Join("\n", values)})";
             }
             else
             {
-                return $"({string.Join(", ", values)})";
+                return $"({string.Join("\n", values)})";
             }
 #else
             EcsDebug.PrintWarning($"Reflection is not available, the {nameof(AutoToString)} method does not work.");

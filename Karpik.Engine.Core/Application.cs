@@ -8,7 +8,7 @@ namespace Karpik.Engine.Core;
 
 public class Application
 {
-    public const int TICKS_PER_SECOND = 20;
+    public const int TICKS_PER_SECOND = 50;
     public const int SLEEP_TIME = 1000 / TICKS_PER_SECOND;
     public const double TICK_DT = 1.0 / TICKS_PER_SECOND;
     

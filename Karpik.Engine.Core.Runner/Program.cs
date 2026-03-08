@@ -21,7 +21,6 @@ public class Program
         var side = ParseArg(args, "--side");
         
         Enum.TryParse(side, out Side s);
-        _bootstrap = new Bootstrap(s);
         
         if (waitForDebugger)
         {
@@ -93,6 +92,7 @@ public class Program
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
         
+        _bootstrap = new Bootstrap(side);
         var loader = new ModuleLoader();
         loader.LoadClientModules();
         var types = GetTypes(loader);

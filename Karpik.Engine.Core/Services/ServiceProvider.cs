@@ -35,12 +35,13 @@ public class ServiceProvider : IServiceRegister, IServiceContainer
         return this;
     }
 
-    public T Get<T>() where T : class
+    public T? Get<T>() where T : class
     {
         if (_services.TryGetValue(typeof(T), out var service))
-            return (T)service.First();
-        
-        throw new Exception($"Service {typeof(T).Name} not found!");
+            return (T)service.FirstOrDefault();
+
+        Console.WriteLine($"Not found service {typeof(T)}");
+        return null;
     }
 
     public void Forget<T>() where T : class

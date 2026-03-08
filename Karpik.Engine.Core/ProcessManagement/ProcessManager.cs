@@ -75,10 +75,12 @@ internal class ProcessManager : IDisposable
             var stateBase64 = Convert.ToBase64String(initialState.Serialize());
             args += $" --state={stateBase64}";
         }
+#if DEBUG
         if (_waitForDebugger)
         {
             args += " --wait-for-debugger";
         }
+#endif
 
         args += $" --side={_side}";
         

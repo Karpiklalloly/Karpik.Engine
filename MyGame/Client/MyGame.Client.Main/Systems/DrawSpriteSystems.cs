@@ -1,4 +1,6 @@
-﻿using DCFApixels.DragonECS;
+﻿using System.Numerics;
+using DCFApixels.DragonECS;
+using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.ECS;
@@ -24,12 +26,10 @@ public class DrawSpriteSystem : IEcsRun
         {
             var sprite = a.sprite.Get(e);
             var position = a.position.Get(e);
+            
             _drawer.Sprite(sprite, position, new Rotation()
             {
                 Value = position.Rotation
-            }, new Scale()
-            {
-                Value = 1
             });
         }
     }

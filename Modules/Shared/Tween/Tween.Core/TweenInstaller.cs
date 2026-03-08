@@ -13,9 +13,9 @@ public class TweenInstaller : IModule, IModuleConfiguratable
         services.Register(new Tween());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new TweenModule();
+        container.Register<IEcsModule>(new TweenModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

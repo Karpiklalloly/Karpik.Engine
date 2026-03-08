@@ -32,9 +32,9 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
             .Register(new MetaWorld(_metaWorld));
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new ECSModule();
+        container.Register<IEcsModule>(new ECSModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

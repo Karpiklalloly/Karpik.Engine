@@ -18,9 +18,8 @@ public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfigu
         services.Register<IAssetsManager>(_assetsManager);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

@@ -6,7 +6,9 @@ namespace Karpik.Engine.Client.Graphics.Core;
 public interface IRenderer
 {
     public ICamera MainCamera3D { get; }
+    public ICamera2D MainCamera2D { get; }
     public ICamera CreateCamera3D();
+    public ICamera2D CreateCamera2D();
     
     public void BeginScissorMode(RectangleF scissor);
     public void EndScissorMode();
@@ -40,6 +42,9 @@ public interface IRenderer
     public void BeginMode3D(ICamera camera);
     public void End3DMode3D();
     
+    public void BeginMode2D(ICamera2D camera);
+    public void End2DMode();
+    
     public void BeginDrawing();
     public void ClearBackground(Color color);
     public void EndDrawing();
@@ -55,4 +60,5 @@ public interface IRenderer
     public IFont LoadFont(string fileName, int fontSize, int[] codepoints, int codepointCount);
     public bool IsFontValid(IFont font);
     public int GetFPS();
+    public bool WindowShouldClose();
 }

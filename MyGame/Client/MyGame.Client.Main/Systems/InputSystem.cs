@@ -24,11 +24,20 @@ public class InputSystem : IEcsRun
     [DI] private Rpc _rpc;
     [DI] private Input _input;
     [DI] private ICamera _camera;
+    [DI] private ICamera2D _camera2D;
     [DI] private Time _time = null!;
+    [DI] private IRenderer _renderer;
+    [DI] private Application _application;
     private const float SPACE_SPEED_MULTIPLIER = 5f;
     
     public void Run()
     {
+        _camera2D.Position = _camera2D.Position;
+        if (_renderer.WindowShouldClose())
+        {
+            _application.Stop();
+        }
+        
         if (_input.IsMouseRightButtonDown)
         {
             _input.LockCursor();

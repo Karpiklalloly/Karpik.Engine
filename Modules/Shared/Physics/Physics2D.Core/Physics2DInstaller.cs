@@ -12,9 +12,9 @@ public class Physics2DInstaller : IModule, IModuleConfiguratable
         
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new Physics2DModule();
+        container.Register<IEcsModule>(new Physics2DModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

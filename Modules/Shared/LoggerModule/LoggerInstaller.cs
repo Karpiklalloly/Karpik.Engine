@@ -13,9 +13,8 @@ public class LoggerInstaller : IModule, IModuleConfiguratable
         services.Register<ILogger>(Logger.Instance);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

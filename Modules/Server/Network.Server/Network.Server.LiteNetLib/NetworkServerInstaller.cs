@@ -12,9 +12,9 @@ public class NetworkServerInstaller : IModule, IModuleConfiguratable
         
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new NetworkServerModule();
+        container.Register<IEcsModule>(new NetworkServerModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

@@ -17,9 +17,9 @@ public class MyGameServerInstaller : IModule, IModuleConfiguratable
         services.Register(new CommandDispatcher());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new MyGameServerModule();
+        container.Register<IEcsModule>(new MyGameServerModule());
     }
     
     public void OnConfigureComplete(IServiceContainer services)

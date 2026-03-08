@@ -23,9 +23,9 @@ public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratabl
         services.Register<IModManager>(_modManager);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = new ModdingLuaModule();
+        container.Register<IEcsModule>(new ModdingLuaModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

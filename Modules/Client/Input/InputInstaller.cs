@@ -14,10 +14,10 @@ public class InputInstaller : IModule, IModuleConfiguratable
         services.Register(new Input());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
         services.Get<Input>().Init(services.Get<IWindow>());
-        module = new InputModuleEcs();
+        container.Register<IEcsModule>(new InputModuleEcs());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

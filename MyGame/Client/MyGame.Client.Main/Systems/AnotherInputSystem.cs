@@ -24,7 +24,7 @@ public class AnotherInputSystem : IEcsRun
         Vector2 pulse = Vector2.Zero;
         if (_input.IsDown(KeyboardKeys.Space))
         {
-            pulse = new Vector2(1, 0.5f);
+            pulse = new Vector2(0, 2f);
         }
 
         if (pulse != Vector2.Zero)

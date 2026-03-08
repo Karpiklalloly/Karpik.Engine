@@ -4,10 +4,15 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+<!--        <DefineConstants>SUPER_HOT_RELOAD</DefineConstants>-->
     </PropertyGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Karpik.Jobs\Karpik.Jobs.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="$(MSBuildThisFileDirectory)../Generated/ModuleLoader.cs" />
     </ItemGroup>
     
 </Project>

@@ -20,7 +20,7 @@
         <Copy
                 SourceFiles="@(_FilesToCopy)"
                 DestinationFolder="$(OutputPath)modules\%(RecursiveDir)"
-                SkipUnchangedFiles="true"
+                SkipUnchangedFiles="false"
                 Condition="'%(Filename)' != 'Karpik.Engine.Core' AND '%(Filename)' != 'Karpik.Jobs'"
         />
     </Target>

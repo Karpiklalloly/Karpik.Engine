@@ -13,9 +13,8 @@ public class MyGameSharedInstaller : IModule, IModuleConfiguratable
         services.Register(new NetworkManager());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

@@ -30,7 +30,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         services.Register(new Drawer());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
         _manager.Initialize();
         _networkManager = services.Get<INetworkManager>();
@@ -46,6 +46,12 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         window.SetTargetFPS(60);
         renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
         renderer.MainCamera3D.LookAt(Vector3.Zero);
+        
+        // Setup 2D camera - center at world origin, 50 pixels per meter
+        renderer.MainCamera2D.Position = new Vector2(0, 0);
+        renderer.MainCamera2D.Zoom = 10f;
+        renderer.MainCamera2D.ViewportSize = new Vector2(1024, 768);
+        
         var uiManager = services.Get<UIManager>();
 
         _onInput = key =>
@@ -65,7 +71,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         _input = services.Get<Input>();
         _input.KeyPressed += _onInput;
 
-        module = new DemoModuleClient();
+        container.Register<IEcsModule>(new DemoModuleClient());
     }
 
     public void OnConfigureComplete(IServiceContainer services)
