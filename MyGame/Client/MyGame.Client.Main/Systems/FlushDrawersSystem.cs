@@ -13,7 +13,6 @@ public class FlushDrawersSystem : IEcsRun
     
     public void Run()
     {
-        Console.WriteLine("draw");
         _drawer.Draw();
     }
 }

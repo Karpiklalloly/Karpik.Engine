@@ -183,7 +183,7 @@ public class MySystem : IEcsRun, IEcsInit
         {
             Color = Color.White,
             Layer = 0,
-            TexturePath = "Sprites/default.png",
+            TexturePath = "Sprites/default.jpg",
             Width = 10f,  // Match physics shape width
             Height = 1f   // Match physics shape height
         };

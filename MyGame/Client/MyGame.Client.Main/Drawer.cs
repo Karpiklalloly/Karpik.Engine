@@ -19,8 +19,6 @@ public class Drawer
     public void Sprite(SpriteRenderer spriteRenderer, Transform2D position, Rotation rotation)
     {
         ResizeIfNeed();
-        
-        // Store WORLD coordinates - camera will handle conversion
         _actions[_actionsCount++] = new DrawAction()
         {
             Texture = spriteRenderer.Texture,
@@ -34,16 +32,15 @@ public class Drawer
 
     internal void Draw()
     {
-        // Begin 2D mode - Raylib will transform coordinates
         _renderer.BeginMode2D(_camera2D);
-        
-        Array.Sort(_actions, static (a, b) => a.Layer - b.Layer);
+
+        var span = _actions.AsSpan(0, _actionsCount);
+        span.Sort(static (a, b) => a.Layer.CompareTo(b.Layer));
         while (_actionsCount > 0)
         {
-            _actions[--_actionsCount].Draw(_renderer);
+            span[--_actionsCount].Draw(_renderer);
         }
         
-        // End 2D mode
         _renderer.End2DMode();
     }
 
@@ -57,7 +54,7 @@ public class Drawer
 
     private struct DrawAction
     {
-        public ITexture2D Texture;
+        public ITexture2D? Texture;
         public Vector2 Position;  // World coordinates now!
         public Vector2 Size;
         public Color Color;
@@ -66,7 +63,7 @@ public class Drawer
         
         public void Draw(IRenderer renderer)
         {
-            if (Texture != null)
+            if (Texture is not null)
             {
                 RectangleF sourceRec = new RectangleF(0, 0, Texture.Width, Texture.Height);
                 RectangleF destRec = new RectangleF(
@@ -78,13 +75,15 @@ public class Drawer
                 Vector2 origin = new Vector2(Size.X / 2f, Size.Y / 2f);
                 
                 renderer.DrawTexture(Texture, sourceRec, destRec, origin, (float)Rotation, Color);
-            }
-            else
-            {
-                // Fallback: draw a colored rectangle when texture is missing
-                // Note: Position is center, so we offset by half size
-                var rect = new RectangleF(Position.X - 32, Position.Y - 32, 64, 64);
-                renderer.DrawRectangle(rect, Color);
+                renderer.DrawText(
+                    renderer.GetFontDefault(),
+                    $"{Position}",
+                    Position with{Y = -Position.Y - 1},
+                    origin,
+                    (float)Rotation,
+                    1,
+                    0.5f,
+                    Color.Red);
             }
         }
     }
