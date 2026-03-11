@@ -23,6 +23,7 @@
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
     <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
+    <Project Path="Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/AssetManagement/">
     <Project Path="Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />

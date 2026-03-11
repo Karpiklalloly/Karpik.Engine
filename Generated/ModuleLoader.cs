@@ -30,6 +30,7 @@ public class ModuleLoader
         "Physics2D.Aether2D",
         "StatAndAbilities",
         "Tween.Core",
+        "UnsafeUtilities",
         "MyGameResources",
         "MyGame.Shared.Main",
     };

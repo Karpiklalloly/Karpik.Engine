@@ -21,6 +21,7 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'" />
