@@ -61,7 +61,7 @@ public static class DIExtensions
     public static void Inject(this IServiceProvider serviceProvider, object obj)
     {
         obj.InjectProperties(serviceProvider);
-        obj.GetType().GetMethod("OnInjected", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?
+        obj.GetType().GetMethod(nameof(IOnInjectedDI.OnInjected), BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?
             .Invoke(obj, null);
     }
     

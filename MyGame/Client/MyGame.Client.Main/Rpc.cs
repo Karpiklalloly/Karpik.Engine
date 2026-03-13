@@ -4,12 +4,12 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Client.Main;
 
 // Реализация интерфейса в конечном приложении
-public class Rpc : IRpc
+public class Rpc : IRpc, IOnInjectedDI
 {
     [DI] private INetworkManager _netManager;
     private IWriter _writer;
                     
-    private void OnInjected() => _writer = _netManager.CreateWriter();
+    public void OnInjected() => _writer = _netManager.CreateWriter();
 
     public IWriter GetWriter() => _writer;
 

@@ -63,11 +63,6 @@ public class MySystem : IEcsRun, IEcsInit
     [DI] private IPhysicsWorld2D _physicsWorld2D;
     [DI] private IServiceContainer _serviceContainer;
 
-    private void OnInjected()
-    {
-        
-    }
-
     public void Init()
     {
     }
