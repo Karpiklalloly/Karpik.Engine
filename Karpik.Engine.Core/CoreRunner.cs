@@ -87,7 +87,17 @@ public class CoreRunner
     {
         _bootstrap = new Bootstrap(side);
         var loader = new ModuleLoader();
-        loader.LoadClientModules();
+        switch (side)
+        {
+            case Side.Client:
+                loader.LoadClientModules();
+                break;
+            case Side.Server:
+                loader.LoadServerModules();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side), side, null);
+        }
         var types = GetTypes(loader);
         _bootstrap.RegisterTypes(types);
         
