@@ -27,10 +27,7 @@ public class DrawSpriteSystem : IEcsRun
             var sprite = a.sprite.Get(e);
             var position = a.position.Get(e);
             
-            _drawer.Sprite(sprite, position, new Rotation()
-            {
-                Value = position.Rotation
-            });
+            _drawer.Sprite(sprite, position);
         }
     }
 }

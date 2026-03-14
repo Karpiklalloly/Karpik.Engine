@@ -31,9 +31,8 @@ internal class DemoModuleClient : IEcsModule
             .Add(new SetLocalPlayerSystem())
             .Add(new DisplaySystem())
             .Add(new DrawSpriteSystem())
-            .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50) // After EndMode3D, before UI
+            .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50)
             .Add(new InputSystem())
-            .Add(new AnotherInputSystem())
             .AddCaller<SetLocalPlayerTargetRpc>();
     }
 }
@@ -139,6 +138,9 @@ public class MySystem : IEcsRun, IEcsInit
             SpawnPhysicsScene();
         }
         
+        // Note: Platformer level should be created on server, not client
+        // Client only displays what server sends
+        
 #if DEBUG
         ImGui.NextColumn();
         if (ImGui.Button("Hot Reload"))
@@ -163,7 +165,7 @@ public class MySystem : IEcsRun, IEcsInit
         // 2. Запрос на создание физики (Статика)
         ref var request1 = ref _world.GetPool<CreateBodyRequest>().Add(entity1);
     
-        request1.BodyCfg = new BodyConfig 
+        request1.BodyConfig = new BodyConfig 
         {
             Type = BodyType.Static, // Не двигается
             Friction = 0.5f,
@@ -172,7 +174,7 @@ public class MySystem : IEcsRun, IEcsInit
             MaskBits = 0xFFFF       // Сталкивается со всем
         };
 
-        request1.ShapeCfg = ShapeConfig.Box(new Vector2(10f, 1f)); // Широкий прямоугольник
+        request1.ShapeConfig = ShapeConfig.Box(new Vector2(10f, 1f)); // Широкий прямоугольник
         
         var renderer1 = new SpriteRenderer
         {
@@ -212,7 +214,7 @@ public class MySystem : IEcsRun, IEcsInit
         // 3. Запрос на создание физики (Динамика)
         ref var request2 = ref _world.GetPool<CreateBodyRequest>().Add(entity2);
     
-        request2.BodyCfg = new BodyConfig 
+        request2.BodyConfig = new BodyConfig 
         {
             Type = BodyType.Dynamic, // Подвержен гравитации
             Mass = 10f,              // Весит 10 кг
@@ -222,7 +224,7 @@ public class MySystem : IEcsRun, IEcsInit
             MaskBits = 0xFFFF
         };
 
-        request2.ShapeCfg = ShapeConfig.Box(new Vector2(1f, 1f)); // Квадрат 1x1 метр
+        request2.ShapeConfig = ShapeConfig.Box(new Vector2(1f, 1f)); // Квадрат 1x1 метр
         
         _world.GetPool<SpriteRenderer>().TryAddOrGet(entity2) = r2;
 

@@ -28,7 +28,6 @@ public class InputSystem : IEcsRun
     [DI] private Time _time = null!;
     [DI] private IRenderer _renderer;
     [DI] private Application _application;
-    private const float SPACE_SPEED_MULTIPLIER = 5f;
     
     public void Run()
     {
@@ -50,55 +49,35 @@ public class InputSystem : IEcsRun
             return;
         }
 
-        if (_input.IsMouseLeftButtonHold)
+        // Platformer input - send to server
+        float moveX = 0;
+        bool jump = false;
+        
+        if (_input.IsDown(KeyboardKeys.A) || _input.IsDown(KeyboardKeys.Left))
         {
-            Vector3 currentInput = Vector3.Zero;
+            moveX -= 1;
+        }
 
-            if (_input.IsDown(KeyboardKeys.A) || _input.IsDown(KeyboardKeys.Left))
-            {
-                currentInput.Y -= 1;
-            }
+        if (_input.IsDown(KeyboardKeys.D) || _input.IsDown(KeyboardKeys.Right))
+        {
+            moveX += 1;
+        }
 
-            if (_input.IsDown(KeyboardKeys.D) || _input.IsDown(KeyboardKeys.Right))
-            {
-                currentInput.Y += 1;
-            }
+        if (_input.IsPressing(KeyboardKeys.Space) || _input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
+        {
+            jump = true;
+        }
 
-            if (_input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
+        // Send platformer input command to server
+        var span = _world.Where(out Aspect a);
+        foreach (var e in span)
+        {
+            _rpc.Move(new MoveCommand()
             {
-                currentInput.X += 1;
-            }
-
-            if (_input.IsDown(KeyboardKeys.S) || _input.IsDown(KeyboardKeys.Down))
-            {
-                currentInput.X -= 1;
-            }
-            
-            if (_input.IsDown(KeyboardKeys.Q))
-            {
-                currentInput.Z += 1;
-            }
-
-            if (_input.IsDown(KeyboardKeys.E))
-            {
-                currentInput.Z -= 1;
-            }
-            
-            if (_input.IsPressing(KeyboardKeys.Space))
-            {
-                currentInput *= SPACE_SPEED_MULTIPLIER;
-            }
-
-            var span = _world.Where(out Aspect a);
-            foreach (var e in span)
-            {
-                _rpc.Move(new MoveCommand()
-                {
-                    Source = -1,
-                    Target = a.networkId.Get(e).Id,
-                    Direction = currentInput,
-                });
-            }
+                Source = -1,
+                Target = a.networkId.Get(e).Id,
+                Direction = new Vector3(moveX, jump ? 1 : 0, 0),
+            });
         }
         
         if (_input.IsMouseLocked)
@@ -137,7 +116,7 @@ public class InputSystem : IEcsRun
 
             if (_input.IsPressing(KeyboardKeys.Space))
             {
-                currentInput *= SPACE_SPEED_MULTIPLIER;
+                currentInput *= 5f;
             }
 
             _camera.Rotate(_input.MouseDelta * (float)_time.DeltaTime / 2);

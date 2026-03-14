@@ -1,6 +1,4 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
-using Karpik.Engine.Shared.ECS;
+﻿using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Log;
 using Karpik.Engine.Shared.Network.Core;
 

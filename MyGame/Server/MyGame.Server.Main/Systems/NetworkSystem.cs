@@ -1,6 +1,4 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
-using Karpik.Engine.MyGame.Shared.Main;
+﻿using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Server.Extensions;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Log;
@@ -48,6 +46,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
             };
             world.GetPool<Health>().Add(player).Value = 1;
             world.GetPool<Player>().Add(player);
+            world.GetPool<PlayerInputState>().Add(player);
             _peerToEntity.Add(peer, player);
             _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
         };

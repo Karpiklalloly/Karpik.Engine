@@ -18,8 +18,8 @@ public class PhysicsPushSystem : IEcsRun
         public EcsPool<SetVelocityRequest> VelocityRequests = Inc;
     }
 
-    [DI] private IPhysicsWorld2D _physics;
-    [DI] private EcsDefaultWorld _world;
+    [DI] private IPhysicsWorld2D _physics = null!;
+    [DI] private EcsDefaultWorld _world = null!;
     
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[1024];
     private Vector2[] _vecBuf = new Vector2[1024];
@@ -33,26 +33,24 @@ public class PhysicsPushSystem : IEcsRun
     
     private void ProcessTeleports()
     {
-        var query = _world.Where(out TeleportAspect aspect);
-        int count = query.Count;
+        var span = _world.Where(out TeleportAspect aspect);
+        int count = span.Count;
         if (count == 0) return;
 
         EnsureCapacity(count);
 
         for (int i = 0; i < count; i++) 
         {
-            int entity = query[i];
+            int entity = span[i];
             _handlesBuf[i] = aspect.Bodies.Get(entity).Handle;
             
             ref var req = ref aspect.Teleports.Get(entity);
             _vecBuf[i] = req.Position;
             _floatBuf[i] = req.Rotation;
 
-            // Удаляем запрос, чтобы не телепортировать в следующем кадре
             aspect.Teleports.Del(entity);
         }
 
-        // Передаем пачку данных в C++ / Aether2D
         _physics.SetTransforms(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
@@ -77,11 +75,9 @@ public class PhysicsPushSystem : IEcsRun
             _vecBuf[i] = req.Linear;
             _floatBuf[i] = req.Angular;
 
-            // Удаляем запрос
             aspect.VelocityRequests.Del(entity);
         }
 
-        // Передаем пачку скоростей в физику
         _physics.SetVelocities(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 

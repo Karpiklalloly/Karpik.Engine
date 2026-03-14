@@ -124,8 +124,8 @@ public struct PhysicsBodyRef : IEcsComponent
 
 public struct CreateBodyRequest : IEcsComponent 
 {
-    public BodyConfig BodyCfg;
-    public ShapeConfig ShapeCfg;
+    public BodyConfig BodyConfig;
+    public ShapeConfig ShapeConfig;
 }
 
 public struct DestroyBodyRequest : IEcsComponent;

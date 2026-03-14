@@ -3,7 +3,6 @@ using System.Numerics;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;
-using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main;
@@ -16,15 +15,15 @@ public class Drawer
     [DI] private ICamera2D _camera2D = null!;
     [DI] private Application _application = null!;
 
-    public void Sprite(SpriteRenderer spriteRenderer, Transform2D position, Rotation rotation)
+    public void Sprite(SpriteRenderer spriteRenderer, Transform2D transform)
     {
         ResizeIfNeed();
         _actions[_actionsCount++] = new SpriteAction()
         {
             Texture = spriteRenderer.Texture,
-            Position = position.Position,
+            Position = transform.Position,
             Color = spriteRenderer.Color,
-            Rotation = rotation.Value,
+            Rotation = transform.Rotation,
             Layer = spriteRenderer.Layer,
             Size = new Vector2(spriteRenderer.Width, spriteRenderer.Height)
         };

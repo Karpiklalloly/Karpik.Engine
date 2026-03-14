@@ -1,5 +1,4 @@
-﻿using Karpik.Engine.Core;
-using Karpik.Engine.Shared.Network.Core;
+﻿using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main;
 

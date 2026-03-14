@@ -11,6 +11,7 @@
       <ProjectReference Include="..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <ProjectReference Include="..\..\..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj" />
     </ItemGroup>
 
 </Project>

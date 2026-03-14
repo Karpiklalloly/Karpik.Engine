@@ -5,7 +5,7 @@ namespace Karpik.Engine.Shared.Physics.Core;
 
 public class Physics2DBodyDestroyer : IEcsRun
 {
-    class DestroyAspect : EcsAspect 
+    class Aspect : EcsAspect 
     {
         public EcsPool<PhysicsBodyRef> BodyRefs = Inc;
         public EcsPool<DestroyBodyRequest> Requests = Inc;
@@ -16,7 +16,7 @@ public class Physics2DBodyDestroyer : IEcsRun
     
     public void Run()
     {
-        foreach (var e in _world.Where(out DestroyAspect destroy))
+        foreach (var e in _world.Where(out Aspect destroy))
         {
             var handle = destroy.BodyRefs.Get(e).Handle;
             _physics.DestroyBody(handle);

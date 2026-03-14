@@ -22,6 +22,14 @@ public struct Player : IEcsComponent;
 
 public struct LocalPlayer : IEcsComponent;
 
+public struct JumpState : IEcsComponent
+{
+    public bool CanJump;
+    public bool IsGrounded;
+    public float LastJumpTime;
+    public float JumpCooldown;
+}
+
 public struct MoveCommand : IStateCommand
 {
     public Vector3 Direction;
@@ -80,8 +88,7 @@ public struct SetLocalPlayerTargetRpc : ITargetRpcCommand
     public int LocalPlayerNetId;
 }
 
-[Serializable]
-[NetworkedComponent]
+[Serializable] [NetworkedComponent]
 public struct Position : IEcsComponent
 {
     [NetworkedField]
@@ -90,20 +97,6 @@ public struct Position : IEcsComponent
     public float Y;
     [NetworkedField]
     public float Z;
-}
-
-[Serializable] [NetworkedComponent]
-public struct Rotation : IEcsComponent
-{
-    [NetworkedField]
-    public float Value;
-}
-
-[Serializable] [NetworkedComponent]
-public struct Scale : IEcsComponent
-{
-    [NetworkedField]
-    public float Value;
 }
 
 [Serializable] [NetworkedComponent]
