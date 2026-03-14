@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Client.Network.LiteNetLib.Configs;
+﻿namespace Karpik.Engine.Shared.Network.LiteNetLib.Configs;
 
 public class NetworkConfig
 {

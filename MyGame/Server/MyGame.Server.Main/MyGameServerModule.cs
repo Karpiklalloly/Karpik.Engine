@@ -10,6 +10,9 @@ internal class MyGameServerModule : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {
+        // Level initialization - create platforms and spawn points
+        b.Add(new LevelInitSystem());
+        
         // Network system - handles client connections and snapshots
         b.Add(new NetworkSystem());
         

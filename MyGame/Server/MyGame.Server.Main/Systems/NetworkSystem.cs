@@ -3,6 +3,7 @@ using Karpik.Engine.Server.Extensions;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Log;
 using Karpik.Engine.Shared.Network.Core;
+using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
@@ -11,6 +12,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
     [DI] private INetworkManager _networkManager = null!;
     [DI] private TargetRpcSender _rpc = null!;
     [DI] private ILogger _logger = null!;
+    [DI] private NetworkConfig _config = null!;
     
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private EcsEventWorld _eventWorld = null!;
@@ -120,7 +122,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
 
     private void OnConnectionRequest(IConnectionRequest req)
     {
-        req.AcceptIfKey("MyGame");
+        req.AcceptIfKey(_config.Key);
     }
 
     public void Destroy()

@@ -1,14 +1,14 @@
 ﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Network.LiteNetLib.Configs;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Network.Core;
+using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 
 internal class InitNetworkClientSystem : IEcsInit, IEcsDestroy
 {
     [DI] private INetworkManager _manager = null!;
-    private readonly NetworkConfig _config = new();
+    [DI] private NetworkConfig _config = null!;
     
     public void Init()
     {
@@ -29,16 +29,16 @@ internal class InitNetworkClientSystem : IEcsInit, IEcsDestroy
     
     private void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
     {
-        
+        Console.WriteLine("OnNetworkReceive");
     }
     
     private void ManagerOnPeerConnectedEvent(IPeer peer)
     {
-        
+        Console.WriteLine("OnPeerConnected");
     }
     
     private void ManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
     {
-        
+        Console.WriteLine("OnPeerDisconnected");
     }
 }
