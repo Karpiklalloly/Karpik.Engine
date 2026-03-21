@@ -8,6 +8,7 @@ using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Extensions;
 using Karpik.Engine.Shared.Network.Core;
+using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -16,7 +17,7 @@ public class InputSystem : IEcsRun
     class Aspect : EcsAspect
     {
         public EcsReadonlyPool<LocalPlayer> player = Inc;
-        public EcsReadonlyPool<Position> position = Inc;
+        public EcsReadonlyPool<Transform2D> position = Inc;
         public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
     
@@ -65,19 +66,25 @@ public class InputSystem : IEcsRun
 
         if (_input.IsPressing(KeyboardKeys.Space) || _input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
         {
+            Console.WriteLine("Jump");
             jump = true;
         }
 
-        // Send platformer input command to server
-        var span = _world.Where(out Aspect a);
-        foreach (var e in span)
+        if (jump || moveX != 0)
         {
-            _rpc.Move(new MoveCommand()
+            // Send platformer input command to server
+            var span = _world.Where(out Aspect a);
+            foreach (var e in span)
             {
-                Source = -1,
-                Target = a.networkId.Get(e).Id,
-                Direction = new Vector3(moveX, jump ? 1 : 0, 0),
-            });
+                Console.WriteLine($"Send {e}");
+                _rpc.PlatformerInput(new PlatformerInputCommand()
+                {
+                    MoveX = moveX,
+                    Jump = jump,
+                    Target = a.networkId.Get(e).Id
+                });
+                Console.WriteLine($"Send {moveX}");
+            }
         }
         
         if (_input.IsMouseLocked)

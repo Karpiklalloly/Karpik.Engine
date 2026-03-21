@@ -29,6 +29,7 @@ internal class DemoModuleClient : IEcsModule
     {
         b.Add(new MySystem())
             .Add(new SetLocalPlayerSystem())
+            .Add(new ApplySpriteSystem())
             .Add(new DisplaySystem())
             .Add(new DrawSpriteSystem())
             .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50)
@@ -246,19 +247,6 @@ public class MySystem : IEcsRun, IEcsInit
                 var pos = a.position.Get(span[0]);
                 ImGui.Text($"Player Position: {pos.X:F2}, {pos.Y:F2}");
             }
-        }
-
-        ImGui.Checkbox("Auto move player", ref _bools[AUTO_MOVE_PLAYER_INDEX]);
-        if (_bools[AUTO_MOVE_PLAYER_INDEX])
-        {
-            var span = _world.Where(out Aspect a);
-            if (span.Count == 0) return;
-            _rpc.Move(new MoveCommand()
-            {
-                Source = -1,
-                Target = a.networkId.Get(span[0]).Id,
-                Direction = new Vector3(1, 0, 0) // Move right
-            });
         }
 
         ImGui.Checkbox("Show world entities", ref _bools[SHOW_WORLD_ENTITIES]);

@@ -1,10 +1,12 @@
-﻿using System.Numerics;
+﻿using System.Drawing;
+using System.Numerics;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Core;
+using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Network.Core;
 
@@ -22,6 +24,8 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
 
     private Input _input = null!;
     private Action<KeyboardKeys> _onInput = null!;
+
+    private IServiceContainer _container = null!;
 
     public void OnRegisterServices(IServiceRegister services)
     {
@@ -76,6 +80,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
 
     public void OnConfigureComplete(IServiceContainer services)
     {
+        _container = services;
         _networkManager.NetworkReceiveEvent += NetworkManagerOnNetworkReceiveEvent;
         _networkManager.PeerConnectedEvent += NetworkManagerOnPeerConnectedEvent;
     }

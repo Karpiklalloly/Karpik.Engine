@@ -1,4 +1,5 @@
-﻿using Karpik.Engine.Shared.Network.Core;
+﻿using System.Drawing;
+using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
@@ -57,5 +58,10 @@ public class LiteNetLibReader : IReader
     public string GetString()
     {
         return Reader.GetString();
+    }
+
+    public Color GetColor()
+    {
+        return Color.FromArgb(Reader.GetInt());
     }
 }

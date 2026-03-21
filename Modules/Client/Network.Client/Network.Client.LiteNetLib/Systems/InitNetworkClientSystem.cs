@@ -29,7 +29,7 @@ internal class InitNetworkClientSystem : IEcsInit, IEcsDestroy
     
     private void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
     {
-        Console.WriteLine("OnNetworkReceive");
+        
     }
     
     private void ManagerOnPeerConnectedEvent(IPeer peer)

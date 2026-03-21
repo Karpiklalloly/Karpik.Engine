@@ -1,4 +1,6 @@
 ﻿using Karpik.Engine.MyGame.Server.Main.Systems;
+using Karpik.Engine.MyGame.Shared.Main;
+using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main;
@@ -17,7 +19,7 @@ internal class MyGameServerModule : IEcsModule
         b.Add(new NetworkSystem());
         
         // Player input - applies forces based on PlayerInputState
-        b.Add(new ServerPlayerInputSystem());
+        b.Add(new InputSystem());
         
         // Ground check - updates JumpState based on velocity/collisions
         b.Add(new ServerGroundCheckSystem());
@@ -26,6 +28,7 @@ internal class MyGameServerModule : IEcsModule
         b.Add(new ServerCollisionEventSystem());
         
         // Respawn - handle player death and respawn
-        b.Add(new ServerRespawnSystem());
+        b.Add(new ServerRespawnSystem())
+            .AddCaller<PlatformerInputCommand>();
     }
 }

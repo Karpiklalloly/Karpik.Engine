@@ -13,6 +13,7 @@ public class MyGameServerInstaller : IModule, IModuleConfiguratable
     {
         services.Register<ITargetRpcSender>(new TargetRpcSender());
         services.Register(new CommandDispatcher());
+        services.Register(new NetworkIdGenerator());
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)

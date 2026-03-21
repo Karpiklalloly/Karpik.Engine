@@ -49,6 +49,7 @@ public class ServerCollisionEventSystem : IEcsRun
     
     private void ProcessCollision(int entityA, int entityB, Vector2 normal, List<int> entitiesToDestroy)
     {
+        
         // Check if either entity is a player
         bool aIsPlayer = _world.GetPool<Player>().Has(entityA);
         bool bIsPlayer = _world.GetPool<Player>().Has(entityB);

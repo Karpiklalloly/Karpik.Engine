@@ -66,9 +66,10 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
     {
         // Создаем тело в Aether2D
         var aetherBodyType = bodyCfg.Type.Aether;
-
-        Body body = _world.CreateBody(position.Aether, rotation, aetherBodyType);
         
+        Body body = _world.CreateBody(position.Aether, rotation, aetherBodyType);
+
+        body.FixedRotation = true;
         // Настраиваем форму
         Fixture fixture = shapeCfg.Type switch
         {

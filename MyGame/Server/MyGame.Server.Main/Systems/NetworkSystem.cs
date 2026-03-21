@@ -1,14 +1,21 @@
-﻿using Karpik.Engine.MyGame.Shared.Main;
+﻿using System.Drawing;
+using System.Numerics;
+using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Server.Extensions;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Log;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
+using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
 internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
 {
+    // Physics layers
+    private const uint PLATFORM_LAYER = 0x0001;
+    private const uint PLAYER_LAYER = 0x0002;
+    
     [DI] private INetworkManager _networkManager = null!;
     [DI] private TargetRpcSender _rpc = null!;
     [DI] private ILogger _logger = null!;
@@ -19,11 +26,11 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
     [DI] private EcsMetaWorld _metaWorld = null!;
     [DI] private NetworkManager _network = null!;
     [DI] private CommandDispatcher _commandDispatcher = null!;
+    [DI] private NetworkIdGenerator _networkIdGenerator = null!;
     
     private WorldEventListener[] _listeners = null!;
     private List<int> _destroyedEntities = [];
     private List<int> _newEntities = [];
-    private int _nextNetworkId = 1;
     private List<int> _destroyedNetworkIds = [];
     private Dictionary<IPeer, int> _peerToEntity = [];
     private Queue<(IPeer, int)> _needSendLocalPlayer = [];
@@ -40,17 +47,53 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
             Console.WriteLine($"Player connected: {peer.Id}");
             var world = _world;
             var player = world.NewEntity();
-            world.GetPool<NetworkId>().Add(player).Id = _nextNetworkId++;
-            world.GetPool<Position>().Add(player) = new Position()
-            {
-                X = 0,
-                Y = 0
-            };
+            
+            // Add network ID
+            world.GetPool<NetworkId>().Add(player).Id = _networkIdGenerator.Next();
+            
+            // Add basic components
             world.GetPool<Health>().Add(player).Value = 1;
             world.GetPool<Player>().Add(player);
-            world.GetPool<PlayerInputState>().Add(player);
+            world.GetPool<SpriteData>().Add(player) = new SpriteData()
+            {
+                Color = Color.White,
+                TexturePath = "Sprites/Player.png",
+                Size = new Vector2(1, 2)
+            };
+            
+            // Get spawn position from first spawn point
+            Vector2 spawnPosition = GetSpawnPosition();
+            
+            // Add physics - Transform2D
+            ref var transform = ref world.GetPool<Transform2D>().Add(player);
+            transform.Position = spawnPosition;
+            transform.Rotation = 0;
+            
+            // Add physics - Velocity2D
+            ref var velocity = ref world.GetPool<Velocity2D>().Add(player);
+            velocity.Linear = Vector2.Zero;
+            velocity.Angular = 0;
+            
+            // Add physics - CreateBodyRequest (dynamic player body)
+            ref var bodyRequest = ref world.GetPool<CreateBodyRequest>().Add(player);
+            bodyRequest.BodyConfig = new BodyConfig
+            {
+                Type = BodyType.Dynamic,
+                Mass = 1.0f,
+                Friction = 0.5f,
+                Restitution = 0.0f,
+                IsSensor = false,
+                CategoryBits = PLAYER_LAYER,
+                MaskBits = PLATFORM_LAYER | PLAYER_LAYER // Collides with platforms and other players
+            };
+            bodyRequest.ShapeConfig = ShapeConfig.Box(new Vector2(1, 2)); // Player size
+            
+            // Add JumpState for jump mechanics
+            world.GetPool<JumpState>().Add(player);
+            
             _peerToEntity.Add(peer, player);
-            _needSendLocalPlayer.Enqueue((peer, _nextNetworkId - 1));
+            Console.WriteLine(world.GetPool<NetworkId>().Get(player).Id);
+            _needSendLocalPlayer.Enqueue((peer, world.GetPool<NetworkId>().Get(player).Id));
         };
         _networkManager.PeerConnectedEvent += _onPeerConnected;
         
@@ -62,6 +105,17 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
         ];
         _listeners[0].OnNewEntityDeleted += OnDelEntity;
         _listeners[0].OnNewEntityCreated += OnNewEntity;
+    }
+    
+    private Vector2 GetSpawnPosition()
+    {
+        var mask = EcsStaticMask.Inc<RespawnPoint>().Inc<Transform2D>().Build();
+        var span = _world.Where(mask);
+        
+        // Default spawn position - LevelInitSystem will create platforms but we'll use a safe default
+        // If LevelInitSystem creates RespawnPoint entities, we could query them here
+        // For now, spawn at a position above the ground platform (y=-5 is ground level)
+        return _world.GetPool<Transform2D>().Get(span[0]).Position;
     }
     
     private void OnNetworkReceive(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)

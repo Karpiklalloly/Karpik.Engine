@@ -24,18 +24,7 @@ public struct PlatformerInputCommand : IStateCommand
     public int Target { get; set; }
 }
 
-/// <summary>
-/// Player input state - stored on server to buffer input between snapshots
-/// </summary>
-[NetworkedComponent]
 public struct PlayerInputState : IEcsComponent
 {
-    [NetworkedField]
-    public float MoveX;
-    
-    [NetworkedField]
-    public bool Jump;
-    
-    [NetworkedField]
     public float LastJumpTime;
 }

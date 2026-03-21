@@ -31,17 +31,17 @@ public class ServerRespawnSystem : IEcsRun
         {
             ref var transform = ref a.transform.Get(playerEntity);
             
-            // Check if player fell too far
-            if (transform.Position.Y < DEATH_Y)
-            {
-                RespawnPlayer(playerEntity, ref transform);
-            }
-            
-            // Check if player is out of horizontal bounds
-            if (transform.Position.X < -15 || transform.Position.X > 20)
-            {
-                RespawnPlayer(playerEntity, ref transform);
-            }
+            // // Check if player fell too far
+            // if (transform.Position.Y < DEATH_Y)
+            // {
+            //     RespawnPlayer(playerEntity, ref transform);
+            // }
+            //
+            // // Check if player is out of horizontal bounds
+            // if (transform.Position.X < -15 || transform.Position.X > 20)
+            // {
+            //     RespawnPlayer(playerEntity, ref transform);
+            // }
         }
     }
     
@@ -85,8 +85,8 @@ public class ServerRespawnSystem : IEcsRun
         if (_world.GetPool<PlayerInputState>().Has(entity))
         {
             ref var inputState = ref _world.GetPool<PlayerInputState>().Get(entity);
-            inputState.MoveX = 0;
-            inputState.Jump = false;
+            // inputState.MoveX = 0;
+            // inputState.Jump = false;
         }
     }
 }

@@ -1,6 +1,8 @@
+using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
 using Karpik.Engine.MyGame.Shared.Main;
+using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
@@ -15,6 +17,7 @@ public class LevelInitSystem : IEcsInit
     private const uint PLAYER_LAYER = 0x0002;
     
     [DI] private EcsDefaultWorld _world = null!;
+    [DI] private NetworkIdGenerator _networkIdGenerator = null!;
 
     public void Init()
     {
@@ -82,6 +85,13 @@ public class LevelInitSystem : IEcsInit
         
         // Add platform tag
         _world.GetPool<Platform>().Add(entity);
+        _world.GetPool<NetworkId>().Add(entity).Id = _networkIdGenerator.Next();
+        _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
+        {
+            Color = Color.White,
+            TexturePath = "1.png",
+            Size = size
+        };
     }
 
     private void CreateSpawnPoints()
@@ -145,6 +155,13 @@ public class LevelInitSystem : IEcsInit
         
         // Add box tag for identification
         _world.GetPool<PhysicsBox>().Add(entity);
+        _world.GetPool<NetworkId>().Add(entity).Id = _networkIdGenerator.Next();
+        _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
+        {
+            Color = Color.White,
+            TexturePath = "2.png",
+            Size = size
+        };
     }
 }
 

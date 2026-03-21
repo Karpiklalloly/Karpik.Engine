@@ -17,6 +17,7 @@ public class DisplaySystem : IEcsRun
     
     [DI] private EcsDefaultWorld _world;
     [DI] private IRenderer _renderer;
+    [DI] private Drawer _drawer;
     
     public void Run()
     {

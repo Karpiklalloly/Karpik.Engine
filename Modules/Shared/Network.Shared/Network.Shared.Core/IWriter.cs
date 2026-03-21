@@ -1,4 +1,6 @@
-﻿namespace Karpik.Engine.Shared.Network.Core;
+﻿using System.Drawing;
+
+namespace Karpik.Engine.Shared.Network.Core;
 
 public interface IWriter
 {
@@ -9,6 +11,7 @@ public interface IWriter
     public void Put(byte value);
     public void Put(ushort value);
     public void Put(double value);
+    public void Put(Color color);
     
     public void Reset();
 }

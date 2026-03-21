@@ -1,5 +1,7 @@
+using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
+using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.MyGame.Shared.Main;
 
@@ -26,3 +28,17 @@ public struct DeathZone : IEcsComponent;
 /// Respawn point where player spawns
 /// </summary>
 public struct RespawnPoint : IEcsComponent;
+
+[Serializable]
+[NetworkedComponent]
+public struct SpriteData : IEcsComponent
+{
+    [NetworkedField]
+    public Color Color;
+    [NetworkedField]
+    public string TexturePath;
+    [NetworkedField]
+    public Vector2 Size;
+}
+
+public struct IgnoreSpriteData : IEcsComponent;

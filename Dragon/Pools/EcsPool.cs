@@ -226,6 +226,7 @@ namespace DCFApixels.DragonECS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Has(int entityID)
         {
+            if (entityID < 0) return false;
             return _mapping[entityID] != 0;
         }
         public void Del(int entityID)

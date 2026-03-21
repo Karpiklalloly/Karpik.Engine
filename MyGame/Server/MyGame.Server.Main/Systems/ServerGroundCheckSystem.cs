@@ -64,6 +64,11 @@ public class ServerGroundCheckSystem : IEcsRun
     
     private void ProcessGroundedCheck(int entityA, int entityB, Vector2 normal)
     {
+        if (entityA == -1 || entityB == -1)
+        {
+            return;
+        }
+        
         // Check if either entity is a player
         bool aIsPlayer = _world.GetPool<Player>().Has(entityA);
         bool bIsPlayer = _world.GetPool<Player>().Has(entityB);
