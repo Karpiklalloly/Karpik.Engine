@@ -79,7 +79,7 @@ public class LevelInitSystem : IEcsInit
             Restitution = 0.0f,
             IsSensor = false,
             CategoryBits = PLATFORM_LAYER,
-            MaskBits = PLAYER_LAYER // Collides with player
+            MaskBits = PLAYER_LAYER | PLATFORM_LAYER // Collides with player
         };
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);
         
