@@ -12,6 +12,7 @@ internal class RaylibModule : IEcsModule
         b
             .Add(new InitSystem())
             .Add(new BeginContextSystem(), CustomLayers.BEGIN_PROGRAM_LAYER)
+            .Add(new Camera2DSystem(), EcsConsts.PRE_BEGIN_LAYER)
             .Add(new PreEndContextSystem(), EcsConsts.POST_END_LAYER, -100)
             .Add(new EndContextSystem(), CustomLayers.END_PROGRAM_LAYER)
             .Add(new DestroySystem());

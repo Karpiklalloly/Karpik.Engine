@@ -21,7 +21,8 @@ public class Input
     public event Action<char> CharPressed;
     public event Action<char> CharUnPressed;
     public event Action<char> CharPressing;
-    
+
+    private Queue<KeyboardKeys> _keysQueue = new();
     private ConcurrentDictionary<KeyboardKeys, State> _keyStates = new();
     private ConcurrentDictionary<char, State> _charStates = new();
     private Vector2 _mousePosition = Vector2.Zero;
@@ -30,8 +31,11 @@ public class Input
     
     public Vector2 MousePosition => _mousePosition;
     public Vector2 MouseDelta => _mouseDelta;
+
+    public Queue<KeyboardKeys> Keys => new(_keysQueue);
     
     public IEnumerable<KeyboardKeys> PressedKeys => _keyStates.Keys.Where(IsPressed);
+    public IEnumerable<char> Chars => new List<char>(_chars);
     
     public bool IsMouseLeftButtonDown => _window.IsMouseButtonPressed((int)MouseButtons.Left);
     
@@ -121,12 +125,14 @@ public class Input
     
     internal void Update()
     {
+        _keysQueue.Clear();
         _keys.Clear();
         _chars.Clear();
         
         while (true)
         {
             var key = (KeyboardKeys)_window.GetKeyPressed();
+            _keysQueue.Enqueue(key);
             if (key == KeyboardKeys.Null) break;
             _keys.Add(key);
         }
@@ -174,7 +180,7 @@ public class Input
         {
             var key = _window.GetCharPressed();
             if (key == 0) break;
-            // CharPressed?.Invoke(key);
+            CharPressed?.Invoke(key);
             _chars.Add(key);
         }
 

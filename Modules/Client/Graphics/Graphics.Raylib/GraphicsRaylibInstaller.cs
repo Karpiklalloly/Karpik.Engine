@@ -1,6 +1,7 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
+using rlImGui_cs;
 
 namespace Karpik.Engine.Client.Graphics.GRaylib;
 
@@ -22,7 +23,7 @@ public class GraphicsRaylibInstaller : IModule, IModuleConfiguratable, IModuleHo
         var camera = new RaylibCamera();
         services.Register<ICamera>(camera);
         services.Register(camera);
-        
+
         // Use the same 2D camera that renderer creates internally
         services.Register<ICamera2D>(renderer.MainCamera2D);
     }

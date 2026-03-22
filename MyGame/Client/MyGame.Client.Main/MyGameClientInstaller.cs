@@ -51,10 +51,16 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
         renderer.MainCamera3D.LookAt(Vector3.Zero);
         
-        // Setup 2D camera - center at world origin, 50 pixels per meter
-        renderer.MainCamera2D.Position = new Vector2(0, 0);
-        renderer.MainCamera2D.Zoom = 10f;
-        renderer.MainCamera2D.ViewportSize = new Vector2(1024, 768);
+        // Create 2D camera entity with ECS
+        var cameraEntity = _world.NewEntity();
+        ref var cam2D = ref _world.GetPool<Camera2DComponent>().Add(cameraEntity);
+        cam2D.Position = new Vector2(0, 0);
+        cam2D.TargetPosition = new Vector2(0, 0);
+        cam2D.Zoom = 10f;
+        cam2D.Rotation = 0f;
+        cam2D.ViewportSize = new Vector2(1024, 768);
+        cam2D.SmoothingFactor = 0.1f;
+        _world.GetPool<ActiveCamera2DTag>().Add(cameraEntity);
         
         var uiManager = services.Get<UIManager>();
 

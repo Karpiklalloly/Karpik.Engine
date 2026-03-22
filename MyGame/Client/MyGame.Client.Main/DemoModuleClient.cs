@@ -1,5 +1,7 @@
 ﻿using System.Drawing;
 using System.Numerics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using DCFApixels.DragonECS;
 #if DEBUG
 using DebugModule;
@@ -267,7 +269,72 @@ public class MySystem : IEcsRun, IEcsInit
                         if (ImGui.CollapsingHeader(pool.ComponentType.Name))
                         {
                             var component = pool.GetRaw(e);
-                            ImGui.Text(component.AutoToString());
+                            ImGui.PushID(component.GetType().Name);
+
+                            foreach (var field in component.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
+                            {
+                                ImGui.PushID(field.Name);
+                                if (field.IsInitOnly)
+                                {
+                                    ImGui.Text($"{field.Name} (ReadOnly): {field.GetValue(component)}");
+                                }
+                                else if (field.FieldType == typeof(int))
+                                {
+                                    var value = (int)field.GetValue(component)!;
+                                    if (ImGui.InputInt(field.Name, ref value))
+                                    {
+                                        field.SetValue(component, value);
+                                    }
+                                }
+                                else if (field.FieldType == typeof(double))
+                                {
+                                    var value = (double)field.GetValue(component)!;
+                                    if (ImGui.InputDouble(field.Name, ref value))
+                                    {
+                                        field.SetValue(component, value);
+                                    }
+                                }
+                                else if (field.FieldType == typeof(float))
+                                {
+                                    var value = (float)field.GetValue(component)!;
+                                    if (ImGui.InputFloat(field.Name, ref value))
+                                    {
+                                        field.SetValue(component, value);
+                                    }
+                                }
+                                else if (field.FieldType == typeof(Vector2))
+                                {
+                                    var value = (Vector2)field.GetValue(component)!;
+                                    if (ImGui.InputFloat2(field.Name, ref value))
+                                    {
+                                        Console.WriteLine("Changed!");
+                                        field.SetValue(component, value);
+                                    }
+                                }
+                                else if (field.FieldType == typeof(Color))
+                                {
+                                    var value = (Color)field.GetValue(component)!;
+                                    int[] colors = [value.R, value.G, value.B, value.A];
+                                    if (ImGui.InputInt4(field.Name, ref colors[0]))
+                                    {
+                                        var nextColor = Color.FromArgb(
+                                            Math.Clamp(colors[3], 0, 255), // A
+                                            Math.Clamp(colors[0], 0, 255), // R
+                                            Math.Clamp(colors[1], 0, 255), // G
+                                            Math.Clamp(colors[2], 0, 255)  // B
+                                        );
+                                        field.SetValue(component, nextColor);
+                                    }
+                                }
+                                else
+                                {
+                                    ImGui.Text($"{field.Name}: {field.GetValue(component)}");
+                                }
+                                ImGui.PopID();
+                            }
+                            
+                            ImGui.PopID();
+                            pool.SetRaw(e, component);
                         }
                     }
                     ImGui.PopID();

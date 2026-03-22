@@ -15,6 +15,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\ECS\ECS.Core\ECS.Core.csproj" />
+      <ProjectReference Include="..\..\Input\Input.csproj" />
       <ProjectReference Include="..\Graphics.Core\Graphics.Core.csproj" />
     </ItemGroup>
 
