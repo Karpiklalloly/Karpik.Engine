@@ -20,6 +20,8 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/Core/UI.Core.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/Immediate/UI.Immediate.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />

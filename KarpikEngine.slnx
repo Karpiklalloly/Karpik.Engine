@@ -19,6 +19,10 @@
     <Project Path="Modules/Server/Network.Server/Network.Server.Core/Network.Server.Core.csproj" />
     <Project Path="Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" />
   </Folder>
+    <Folder Name="/Modules/Client/UI/">
+      <Project Path="Modules/Client/UI/Core/UI.Core.csproj" />
+      <Project Path="Modules/Client/UI/Immediate/UI.Immediate.csproj" />
+    </Folder>
   <Folder Name="/Modules/Shared/">
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />

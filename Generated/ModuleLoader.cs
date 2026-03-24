@@ -40,6 +40,8 @@ public class ModuleLoader
         "Input",
         "Network.Client.Core",
         "Network.Client.LiteNetLib",
+        "UI.Core",
+        "UI.Immediate",
         "UIToolkit.Core",
         "MyGame.Client.Main",
     };

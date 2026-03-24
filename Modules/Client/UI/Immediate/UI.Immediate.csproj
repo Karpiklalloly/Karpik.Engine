@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Karpik.Engine.Client.UI</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\UI.Core.csproj" />
+    <ProjectReference Include="..\..\Graphics\Graphics.Core\Graphics.Core.csproj" />
+    <ProjectReference Include="..\..\Input\Input.csproj" />
+  </ItemGroup>
+
+</Project>
