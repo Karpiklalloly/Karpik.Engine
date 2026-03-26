@@ -1,4 +1,5 @@
 namespace Karpik.Engine.Client.UI.Core;
+using Vector2 = System.Numerics.Vector2;
 
 public class WidgetTree
 {

@@ -58,6 +58,13 @@ public class LayoutEngine
         _layoutData = new Dictionary<int, WidgetLayoutData>();
     }
 
+    public WidgetLayoutData GetLayoutData(int widgetIndex)
+    {
+        if (_layoutData.TryGetValue(widgetIndex, out var data))
+            return data;
+        return WidgetLayoutData.Default;
+    }
+
     public void Invalidate(int widgetIndex)
     {
         if (!_storage.Has(widgetIndex))

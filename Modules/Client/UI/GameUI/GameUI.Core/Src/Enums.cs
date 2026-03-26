@@ -18,6 +18,7 @@ public enum UiTypeId
     Toggle = 13,
     ScrollView = 14,
     Viewport = 15,
+    Panel = 16,
 }
 
 public enum FlexDirection

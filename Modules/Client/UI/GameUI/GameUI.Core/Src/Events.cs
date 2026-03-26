@@ -225,10 +225,18 @@ public class EventDispatcher
     {
         var widget = _storage.GetWidget(startIndex);
 
+        if (!widget.BubbleEvents)
+            return;
+
         while (widget.HasParent)
         {
             int parentIndex = widget.ParentIndex;
             if (!_storage.Has(parentIndex))
+                break;
+
+            widget = _storage.GetWidget(parentIndex);
+            
+            if (!widget.BubbleEvents)
                 break;
 
             if (_events.HasHandlers(parentIndex))
@@ -253,8 +261,6 @@ public class EventDispatcher
                         break;
                 }
             }
-
-            widget = _storage.GetWidget(parentIndex);
         }
     }
 }

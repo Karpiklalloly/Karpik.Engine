@@ -37,6 +37,10 @@ internal class DemoModuleClient : IEcsModule
             .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50)
             .Add(new InputSystem())
             .AddCaller<SetLocalPlayerTargetRpc>();
+        
+#if DEBUG
+        b.Add(new GameUISystem(), EcsConsts.POST_END_LAYER, 60);
+#endif
     }
 }
 

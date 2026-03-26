@@ -1,5 +1,6 @@
 using Xunit;
 using Karpik.Engine.Client.UI.Core;
+using Vector2 = System.Numerics.Vector2;
 
 namespace GameUI.Core.Tests;
 

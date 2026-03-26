@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\..\Modules\Client\Input\Input.csproj" />
     <ProjectReference Include="..\..\..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj" />
     <ProjectReference Include="..\..\..\Modules\Client\UIToolkit\UIToolkit.Core\UIToolkit.Core.csproj" />
+    <ProjectReference Include="..\..\..\Modules\Client\UI\GameUI\GameUI.Core\GameUI.Core.csproj" />
     <ProjectReference Include="..\..\..\Modules\Shared\DebugModule\DebugModule.csproj" />
     <ProjectReference Include="..\..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
     <ProjectReference Include="..\..\..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />

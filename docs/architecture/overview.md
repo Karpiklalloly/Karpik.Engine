@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> 📅 Обновлено: 2026-02-19
+> 📅 Обновлено: 2026-03-26
 
 ## 🏗️ Структура проекта
 
@@ -16,13 +16,39 @@ KarpikEngine/
 │   ├── Client/               # Клиентские модули
 │   │   ├── Graphics/         # Raylib
 │   │   ├── Network.Client/   # LiteNetLib
-│   │   └── UIToolkit/
+│   │   ├── UIToolkit/
+│   │   └── UI/GameUI/
+│   ├── Server/               # Серверные модули
+│   │   └── Network.Server/
 │   └── Shared/               # Общие модули
 │       ├── ECS/              # ECS интеграция
 │       ├── AssetManagement/
-│       └── Network.Shared/
-└── Generated/                # Codegen
+│       ├── Network.Shared/
+│       └── Physics/
+├── MyGame/                   # Пример игры
+│   ├── Client/
+│   ├── Server/
+│   └── Shared/
+└── docs/                     # Документация
 ```
+
+---
+
+## 📐 Принципы разработки
+
+### TDD (Test-Driven Development)
+
+- **Сначала тесты** — пишем тест до реализации
+- **Богатые тесты** — полное покрытие сценариев
+- **Red-Green-Refactor** — красный → зеленый → рефакторинг
+
+Подробнее: [Development Conventions](development-conventions.md)
+
+### Файловая организация
+
+- **One Type Per File** — каждый класс/структура в отдельном файле
+- **Исключение** — ECS компоненты в модулях (если < 5)
+- **Тесты рядом** — либо в той же директории, либо в `{Module}.Tests` проекте
 
 ---
 

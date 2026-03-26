@@ -1,8 +1,6 @@
 namespace Karpik.Engine.Client.UI.Core;
+using Vector2 = System.Numerics.Vector2;
 
-/// <summary>
-/// 2D Rectangle for positioning and sizing UI elements.
-/// </summary>
 public struct Rectangle
 {
     public float X;
@@ -76,45 +74,6 @@ public struct Rectangle
     public static Rectangle Empty => Zero;
 }
 
-/// <summary>
-/// 2D Vector for positioning and sizing.
-/// </summary>
-public struct Vector2
-{
-    public float X;
-    public float Y;
-
-    public Vector2(float x, float y)
-    {
-        X = x;
-        Y = y;
-    }
-
-    public static Vector2 Zero => new(0, 0);
-    public static Vector2 One => new(1, 1);
-
-    public float Length => MathF.Sqrt(X * X + Y * Y);
-    public float LengthSquared => X * X + Y * Y;
-
-    public Vector2 Normalized => Length > 0 ? this / Length : Zero;
-
-    public static Vector2 operator +(Vector2 a, Vector2 b) => new(a.X + b.X, a.Y + b.Y);
-    public static Vector2 operator -(Vector2 a, Vector2 b) => new(a.X - b.X, a.Y - b.Y);
-    public static Vector2 operator *(Vector2 a, float s) => new(a.X * s, a.Y * s);
-    public static Vector2 operator *(float s, Vector2 a) => a * s;
-    public static Vector2 operator /(Vector2 a, float s) => new(a.X / s, a.Y / s);
-    public static bool operator ==(Vector2 a, Vector2 b) => a.X == b.X && a.Y == b.Y;
-    public static bool operator !=(Vector2 a, Vector2 b) => !(a == b);
-
-    public override bool Equals(object? obj) => obj is Vector2 v && this == v;
-    public override int GetHashCode() => HashCode.Combine(X, Y);
-
-    public override string ToString() => $"Vector2({X}, {Y})";
-}
-
-/// <summary>
-/// Color in ARGB format.
-/// </summary>
 public struct Color
 {
     public byte A;
@@ -186,9 +145,6 @@ public struct Color
     public override int GetHashCode() => HashCode.Combine(A, R, G, B);
 }
 
-/// <summary>
-/// Size structure for width and height.
-/// </summary>
 public struct Size
 {
     public float Width;
@@ -210,9 +166,6 @@ public struct Size
     public override string ToString() => $"Size({Width}x{Height})";
 }
 
-/// <summary>
-/// Padding for UI elements.
-/// </summary>
 public struct Padding
 {
     public float Left;
@@ -251,9 +204,6 @@ public struct Padding
     public override int GetHashCode() => HashCode.Combine(Left, Top, Right, Bottom);
 }
 
-/// <summary>
-/// Margin for UI elements.
-/// </summary>
 public struct Margin
 {
     public float Left;

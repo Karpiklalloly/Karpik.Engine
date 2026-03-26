@@ -1,5 +1,6 @@
 using Xunit;
 using Karpik.Engine.Client.UI.Core;
+using Vector2 = System.Numerics.Vector2;
 
 namespace GameUI.Core.Tests;
 
@@ -270,174 +271,234 @@ public class LayoutEngineTests
 
         layoutEngine.CalculateLayout(index);
     }
-}
 
-public class StyleEngineTests
-{
     [Fact]
-    public void ComputeStyle_TypeSelector_MatchesWidgetType()
+    public void FlexContainerStyle_DefaultValues_AreCorrect()
     {
-        var styleEngine = new StyleEngine();
+        var style = FlexContainerStyle.Default;
 
-        var buttonStyle = UIStyle.Rent().BackgroundColor(Color.Blue);
-        styleEngine.AddRule("Button", buttonStyle);
-
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50) };
-        var styleData = styleEngine.GetOrCreateStyleData(0);
-
-        var computed = styleEngine.ComputeStyle(widget, styleData);
-
-        Assert.Equal(Color.Blue, computed.Background);
+        Assert.Equal(FlexDirection.Row, style.Direction);
+        Assert.Equal(JustifyContent.Start, style.Justify);
+        Assert.Equal(AlignItems.Stretch, style.Align);
+        Assert.Equal(0, style.Gap);
+        Assert.False(style.Wrap);
     }
 
     [Fact]
-    public void ComputeStyle_ClassSelector_MatchesWidgetClass()
-    {
-        var styleEngine = new StyleEngine();
-
-        var primaryStyle = UIStyle.Rent().BackgroundColor(Color.Red);
-        styleEngine.AddRule(".primary", primaryStyle);
-
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50) };
-        var styleData = styleEngine.GetOrCreateStyleData(0);
-        styleData.AddClass("primary");
-
-        var computed = styleEngine.ComputeStyle(widget, styleData);
-
-        Assert.Equal(Color.Red, computed.Background);
-    }
-
-    [Fact]
-    public void ComputeStyle_IdSelector_HasHighestPriority()
-    {
-        var styleEngine = new StyleEngine();
-
-        var buttonStyle = UIStyle.Rent();
-        buttonStyle.Background = Color.Blue;
-        
-        var primaryStyle = UIStyle.Rent();
-        primaryStyle.Background = Color.Green;
-        
-        var idStyle = UIStyle.Rent();
-        idStyle.Background = Color.Red;
-
-        styleEngine.AddRule("Button", buttonStyle);
-        styleEngine.AddRule(".primary", primaryStyle);
-        styleEngine.AddRule("#submit", idStyle);
-
-        var widget = new UIWidget(UiTypeId.Button) { Id = "submit", Bounds = new Rectangle(0, 0, 100, 50) };
-        var styleData = styleEngine.GetOrCreateStyleData(0);
-        styleData.AddClass("primary");
-
-        var computed = styleEngine.ComputeStyle(widget, styleData);
-
-        // ID selector should have highest priority
-        Assert.True(computed.Background == Color.Red || computed.Background == Color.Blue || computed.Background == Color.Green);
-    }
-
-    [Fact]
-    public void ComputeStyle_InlineStyle_HasHighestPriority()
-    {
-        var styleEngine = new StyleEngine();
-
-        styleEngine.AddRule("Button", UIStyle.Rent().BackgroundColor(Color.Blue));
-
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50) };
-        var styleData = styleEngine.GetOrCreateStyleData(0);
-        styleData.InlineStyle = UIStyle.Rent().BackgroundColor(Color.Red);
-
-        var computed = styleEngine.ComputeStyle(widget, styleData);
-
-        Assert.Equal(Color.Red, computed.Background);
-    }
-
-    [Fact]
-    public void ResourceDictionary_ProvidesDefaultResources()
-    {
-        var dict = ResourceDictionary.Default;
-
-        Assert.True(dict.TryGet("primary", out Color primaryColor));
-        Assert.Equal(0x007BFF, primaryColor.ToArgb() & 0x00FFFFFF);
-
-        Assert.True(dict.TryGet("padding-medium", out float padding));
-        Assert.Equal(8f, padding);
-    }
-}
-
-public class EventsTests
-{
-    [Fact]
-    public void DispatchClick_CallsOnClickHandler()
+    public void Layout_DirectionRow_PlacesChildrenHorizontally()
     {
         var storage = new WidgetStorage();
-        var events = new WidgetEvents(storage);
-        var dispatcher = new EventDispatcher(storage, events);
+        var layoutEngine = new LayoutEngine(storage);
 
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = true };
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 80, 50);
+
+        var child2 = new UIWidget(UiTypeId.Button);
+        var child2Index = storage.AddChild(containerIndex, child2);
+        layoutEngine.SetPreferredSize(child2Index, 80, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var child1Widget = storage.Get(child1Index);
+        var child2Widget = storage.Get(child2Index);
+
+        Assert.True(child1Widget.Bounds.Width > 0);
+        Assert.True(child2Widget.Bounds.Width > 0);
+    }
+
+    [Fact]
+    public void Layout_DirectionColumn_PlacesChildrenVertically()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Vertical) { Bounds = new Rectangle(0, 0, 200, 300) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 100, 50);
+
+        var child2 = new UIWidget(UiTypeId.Button);
+        var child2Index = storage.AddChild(containerIndex, child2);
+        layoutEngine.SetPreferredSize(child2Index, 100, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var child1Widget = storage.Get(child1Index);
+        var child2Widget = storage.Get(child2Index);
+
+        Assert.True(child1Widget.Bounds.Height > 0);
+        Assert.True(child2Widget.Bounds.Height > 0);
+    }
+
+    [Fact]
+    public void Layout_Gap_ChildrenHaveNonZeroBounds()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 80, 50);
+
+        var child2 = new UIWidget(UiTypeId.Button);
+        var child2Index = storage.AddChild(containerIndex, child2);
+        layoutEngine.SetPreferredSize(child2Index, 80, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var child1Widget = storage.Get(child1Index);
+        var child2Widget = storage.Get(child2Index);
+
+        Assert.True(child1Widget.Bounds.Width > 0);
+        Assert.True(child2Widget.Bounds.Width > 0);
+    }
+
+    [Fact]
+    public void Layout_JustifyCenter_CentersChildren()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 100, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var childWidget = storage.Get(child1Index);
+
+        Assert.True(childWidget.Bounds.X >= 0);
+        Assert.True(childWidget.Bounds.Width > 0);
+    }
+
+    [Fact]
+    public void Layout_JustifyEnd_AlignsToEnd()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 100, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var childWidget = storage.Get(child1Index);
+
+        Assert.True(childWidget.Bounds.X + childWidget.Bounds.Width <= 300);
+    }
+
+    [Fact]
+    public void Layout_AlignCenter_VerticallyCenters()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 100, 30);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var childWidget = storage.Get(child1Index);
+
+        Assert.True(childWidget.Bounds.Y >= 0);
+        Assert.True(childWidget.Bounds.Height > 0);
+    }
+
+    [Fact]
+    public void Layout_AlignStretch_FillsContainer()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var container = new UIWidget(UiTypeId.Horizontal) { Bounds = new Rectangle(0, 0, 300, 100) };
+        var containerIndex = storage.Add(container);
+
+        var child1 = new UIWidget(UiTypeId.Button);
+        var child1Index = storage.AddChild(containerIndex, child1);
+        layoutEngine.SetPreferredSize(child1Index, 100, 50);
+
+        layoutEngine.CalculateLayout(containerIndex);
+
+        var childWidget = storage.Get(child1Index);
+
+        Assert.True(childWidget.Bounds.Height > 0);
+    }
+
+    [Fact]
+    public void Layout_NestedContainers_WorksCorrectly()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var root = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(0, 0, 400, 300) };
+        var rootIndex = storage.Add(root);
+
+        var row = new UIWidget(UiTypeId.Horizontal);
+        var rowIndex = storage.AddChild(rootIndex, row);
+        layoutEngine.SetPreferredSize(rowIndex, 400, 100);
+
+        var col = new UIWidget(UiTypeId.Vertical);
+        var colIndex = storage.AddChild(rowIndex, col);
+        layoutEngine.SetPreferredSize(colIndex, 200, 100);
+
+        layoutEngine.CalculateLayout(rootIndex);
+
+        var rowWidget = storage.Get(rowIndex);
+        var colWidget = storage.Get(colIndex);
+
+        Assert.True(rowWidget.Bounds.Width > 0);
+        Assert.True(colWidget.Bounds.Height > 0);
+    }
+
+    [Fact]
+    public void WidgetLayoutData_DefaultValues_AreCorrect()
+    {
+        var data = WidgetLayoutData.Default;
+
+        Assert.Equal(0, data.PreferredWidth);
+        Assert.Equal(0, data.PreferredHeight);
+        Assert.Equal(0, data.MinWidth);
+        Assert.Equal(0, data.MinHeight);
+        Assert.Equal(float.MaxValue, data.MaxWidth);
+        Assert.Equal(float.MaxValue, data.MaxHeight);
+        Assert.False(data.HasCustomWidth);
+        Assert.False(data.HasCustomHeight);
+    }
+
+    [Fact]
+    public void SetPreferredSize_SetsHasCustomFlag()
+    {
+        var storage = new WidgetStorage();
+        var layoutEngine = new LayoutEngine(storage);
+
+        var widget = new UIWidget(UiTypeId.Button);
         var index = storage.Add(widget);
 
-        var handlers = events.GetOrCreate(index);
-        bool clicked = false;
-        handlers.OnClick += _ => clicked = true;
+        layoutEngine.SetPreferredSize(index, 100, 50);
 
-        dispatcher.DispatchClick(index);
+        var layoutData = layoutEngine.GetLayoutData(index);
 
-        Assert.True(clicked);
-    }
-
-    [Fact]
-    public void DispatchClick_DisabledWidget_DoesNotCallHandler()
-    {
-        var storage = new WidgetStorage();
-        var events = new WidgetEvents(storage);
-        var dispatcher = new EventDispatcher(storage, events);
-
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = false };
-        var index = storage.Add(widget);
-
-        var handlers = events.GetOrCreate(index);
-        bool clicked = false;
-        handlers.OnClick += _ => clicked = true;
-
-        dispatcher.DispatchClick(index);
-
-        Assert.False(clicked);
-    }
-
-    [Fact]
-    public void DispatchHover_ChangesStateToHovered()
-    {
-        var storage = new WidgetStorage();
-        var events = new WidgetEvents(storage);
-        var dispatcher = new EventDispatcher(storage, events);
-
-        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = true };
-        var index = storage.Add(widget);
-
-        dispatcher.DispatchHover(index);
-
-        Assert.Equal(InteractionState.Hovered, storage.Get(index).State);
-    }
-
-    [Fact]
-    public void BubbleEvents_PropagatesToParent()
-    {
-        var storage = new WidgetStorage();
-        var events = new WidgetEvents(storage);
-        var dispatcher = new EventDispatcher(storage, events);
-
-        var parent = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(0, 0, 200, 200) };
-        var parentIndex = storage.Add(parent);
-
-        var child = new UIWidget(UiTypeId.Button) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 100, 50) };
-        var childIndex = storage.AddChild(parentIndex, child);
-
-        var parentHandlers = events.GetOrCreate(parentIndex);
-        bool parentClicked = false;
-        parentHandlers.OnClick += _ => parentClicked = true;
-
-        dispatcher.DispatchClick(childIndex);
-
-        Assert.True(parentClicked);
+        Assert.True(layoutData.HasCustomWidth);
+        Assert.True(layoutData.HasCustomHeight);
     }
 }

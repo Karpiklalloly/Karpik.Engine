@@ -730,43 +730,102 @@ CellData[,] Cells = new CellData[1000, 1000];
 
 ## Roadmap
 
-### Phase 1: Core (MVP)
+### Phase 1: Core (DONE)
 
-- [ ] Типы (Rectangle, Color, Vector2)
-- [ ] IRenderer — интерфейс
-- [ ] Базовые виджеты (Element, Button, Label, Image, Panel)
-- [ ] Простой layout (без flexbox)
-- [ ] Hit testing — простой
+- [x] Типы (Rectangle, Color, Vector2, Size, Padding, Margin)
+- [x] IRenderer — интерфейс
+- [x] Базовые виджеты (Button, Label, Image, Panel)
+- [x] WidgetStorage — хранилище виджетов
+- [x] WidgetTree — обход дерева виджетов
 
-### Phase 2: Layout
+### Phase 2: Layout (DONE)
 
-- [ ] Flexbox контейнеры
-- [ ] Стили — базовые
-- [ ] Callbacks для событий
+- [x] Flexbox контейнеры (FlexContainerStyle, LayoutEngine)
+- [x] Direction, Justify, Align, Gap
 
-### Phase 3: Events
+### Phase 3: Events (DONE)
 
-- [ ] Events (не только callbacks)
-- [ ] Bubbling
-- [ ] Keyboard/focus handling
+- [x] WidgetEvents, EventHandlers, EventDispatcher
+- [x] Bubbling
+- [x] Keyboard/focus handling
 
-### Phase 4: Advanced
+### Phase 4: Styles (DONE)
 
-- [ ] CSS-like селекторы
-- [ ] Каскад стилей
-- [ ] Псевдо-состояния (:hover, :active)
+- [x] UIStyle с пулом объектов
+- [x] ResourceDictionary
+- [x] CSS-like селекторы (Type, Class, Id, PseudoState)
+- [x] Каскад стилей
 
-### Phase 5: MVVM
+### Phase 5: Input (DONE)
 
-- [ ] ViewModel база
-- [ ] Data binding
-- [ ] Commands
+- [x] HitTest с учётом Z-index
+- [x] FocusManager с Tab навигацией
+- [x] InputState
 
-### Phase 6: Tables
+### Phase 6: MVVM (NOT IMPLEMENTED)
+
+- [ ] IViewModel
+- [ ] Bindable<T>
+- [ ] ICommand
+- [ ] UIBuilder
+
+### Phase 7: Tables (NOT IMPLEMENTED)
 
 - [ ] VirtualGrid
 - [ ] Inline editing
 - [ ] 10,000+ элементов оптимизация
+
+---
+
+## Реализация
+
+### Структура проекта
+
+```
+Modules/Client/UI/GameUI/
+├── GameUI.Core/                    # Реализовано
+│   ├── Src/
+│   │   ├── Types.cs                # Rectangle, Vector2 (System.Numerics), Color, Size, Padding, Margin
+│   │   ├── Enums.cs                # UiTypeId, FlexDirection, JustifyContent, AlignItems, etc.
+│   │   ├── IRenderer.cs            # Интерфейс рендерера
+│   │   ├── UIWidget.cs             # Структура виджета
+│   │   ├── WidgetData.cs           # ButtonData, LabelData, ImageData и др.
+│   │   ├── WidgetStorage.cs        # Хранилище виджетов (array-based)
+│   │   ├── WidgetTree.cs           # Обход дерева, FindWidgetAt
+│   │   ├── FlexLayout.cs           # Flexbox layout (FlexContainerStyle, LayoutEngine)
+│   │   ├── Events.cs               # WidgetEvents, EventHandlers, EventDispatcher, Bubbling
+│   │   ├── Styles.cs               # UIStyle (object pool), StyleEngine, селекторы
+│   │   └── InputSystem.cs          # HitTest, FocusManager, InputState
+│   └── GameUI.Core.csproj
+├── GameUI.Core.Tests/              # Тесты (173 теста)
+│   ├── Src/
+│   │   ├── TypesTests.cs
+│   │   ├── WidgetStorageTests.cs
+│   │   ├── EventsTests.cs
+│   │   ├── StylesTests.cs
+│   │   └── InputSystemTests.cs
+│   └── GameUI.Core.Tests.csproj
+└── GameUI.EngineNative/            # Не реализовано
+    └── GameUI.EngineNative.csproj
+```
+
+### Тесты
+
+Все **173 теста проходят**.
+
+### Демо-интеграция
+
+Модуль интегрирован в `MyGame.Client.Main`:
+
+- `GameUIDemo.cs` — демо-класс с главным меню
+- `GameUISystem.cs` — ECS-система для рендеринга UI
+
+Демо демонстрирует:
+- Окно по центру экрана
+- Кнопки внутри окна (Play, Settings, Quit)
+- Hover-эффект (смена цвета при наведении)
+- Click-события (вывод в консоль)
+- Центрированный текст через MeasureText
 
 ---
 

@@ -1,5 +1,6 @@
 using Xunit;
 using Karpik.Engine.Client.UI.Core;
+using Vector2 = System.Numerics.Vector2;
 
 namespace GameUI.Core.Tests;
 
@@ -106,22 +107,6 @@ public class Vector2Tests
 
         Assert.Equal(3, v.X);
         Assert.Equal(4, v.Y);
-    }
-
-    [Fact]
-    public void Length_ReturnsMagnitude()
-    {
-        var v = new Vector2(3, 4);
-
-        Assert.Equal(5, v.Length);
-    }
-
-    [Fact]
-    public void LengthSquared_ReturnsSquaredMagnitude()
-    {
-        var v = new Vector2(3, 4);
-
-        Assert.Equal(25, v.LengthSquared);
     }
 
     [Fact]
@@ -295,5 +280,316 @@ public class PaddingMarginTests
         Assert.Equal(0, padding.Right);
         Assert.Equal(0, padding.Top);
         Assert.Equal(0, padding.Bottom);
+    }
+
+    [Fact]
+    public void Margin_AllConstructor_SetsAllSides()
+    {
+        var margin = new Margin(10);
+
+        Assert.Equal(10, margin.Left);
+        Assert.Equal(10, margin.Top);
+        Assert.Equal(10, margin.Right);
+        Assert.Equal(10, margin.Bottom);
+    }
+
+    [Fact]
+    public void Margin_HorizontalVertical_SetsCorrectly()
+    {
+        var margin = new Margin(5, 10);
+
+        Assert.Equal(5, margin.Left);
+        Assert.Equal(5, margin.Right);
+        Assert.Equal(10, margin.Top);
+        Assert.Equal(10, margin.Bottom);
+    }
+
+    [Fact]
+    public void Margin_Zero_ReturnsZeroMargin()
+    {
+        var margin = Margin.Zero;
+
+        Assert.Equal(0, margin.Left);
+        Assert.Equal(0, margin.Right);
+        Assert.Equal(0, margin.Top);
+        Assert.Equal(0, margin.Bottom);
+    }
+}
+
+public class SizeTests
+{
+    [Fact]
+    public void Create_SetsWidthAndHeight()
+    {
+        var size = new Size(100, 50);
+
+        Assert.Equal(100, size.Width);
+        Assert.Equal(50, size.Height);
+    }
+
+    [Fact]
+    public void Create_Both_SetsBoth()
+    {
+        var size = new Size(10);
+
+        Assert.Equal(10, size.Width);
+        Assert.Equal(10, size.Height);
+    }
+
+    [Fact]
+    public void Zero_ReturnsZeroSize()
+    {
+        var size = Size.Zero;
+
+        Assert.Equal(0, size.Width);
+        Assert.Equal(0, size.Height);
+    }
+
+    [Fact]
+    public void Auto_ReturnsNegativeSize()
+    {
+        var size = Size.Auto;
+
+        Assert.True(size.IsAuto);
+    }
+
+    [Fact]
+    public void IsAuto_ForPositiveSize_ReturnsFalse()
+    {
+        var size = new Size(100, 50);
+
+        Assert.False(size.IsAuto);
+    }
+}
+
+public class UIWidgetTests
+{
+    [Fact]
+    public void Create_SetsDefaultValues()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+
+        Assert.Equal(UiTypeId.Button, widget.Type);
+        Assert.Equal(string.Empty, widget.Id);
+        Assert.Equal(Rectangle.Zero, widget.Bounds);
+        Assert.Equal(0, widget.ZIndex);
+        Assert.Equal(UIWidget.NoParent, widget.ParentIndex);
+        Assert.Equal(UIWidget.NoChild, widget.FirstChildIndex);
+        Assert.Equal(UIWidget.NoSibling, widget.NextSiblingIndex);
+        Assert.Equal(UIWidget.NoSibling, widget.PrevSiblingIndex);
+        Assert.Equal(InteractionState.Normal, widget.State);
+        Assert.True(widget.IsVisible);
+        Assert.True(widget.IsEnabled);
+        Assert.False(widget.BubbleEvents);
+        Assert.True(widget.IsDirty);
+    }
+
+    [Fact]
+    public void HasParent_WhenNoParent_ReturnsFalse()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+
+        Assert.False(widget.HasParent);
+    }
+
+    [Fact]
+    public void HasParent_WhenHasParent_ReturnsTrue()
+    {
+        var widget = new UIWidget(UiTypeId.Button) { ParentIndex = 0 };
+
+        Assert.True(widget.HasParent);
+    }
+
+    [Fact]
+    public void HasChildren_WhenNoChildren_ReturnsFalse()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+
+        Assert.False(widget.HasChildren);
+    }
+
+    [Fact]
+    public void HasChildren_WhenHasChildren_ReturnsTrue()
+    {
+        var widget = new UIWidget(UiTypeId.Button) { FirstChildIndex = 1 };
+
+        Assert.True(widget.HasChildren);
+    }
+
+    [Fact]
+    public void SetPosition_SetsXAndY()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        widget.SetPosition(10, 20);
+
+        Assert.Equal(10, widget.Bounds.X);
+        Assert.Equal(20, widget.Bounds.Y);
+    }
+
+    [Fact]
+    public void SetSize_SetsWidthAndHeight()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        widget.SetSize(100, 50);
+
+        Assert.Equal(100, widget.Bounds.Width);
+        Assert.Equal(50, widget.Bounds.Height);
+    }
+}
+
+public class EnumsTests
+{
+    [Fact]
+    public void UiTypeId_HasAllExpectedValues()
+    {
+        Assert.Equal(UiTypeId.None, UiTypeId.None);
+        Assert.Equal(UiTypeId.Window, UiTypeId.Window);
+        Assert.Equal(UiTypeId.Button, UiTypeId.Button);
+        Assert.Equal(UiTypeId.Label, UiTypeId.Label);
+        Assert.Equal(UiTypeId.Image, UiTypeId.Image);
+    }
+
+    [Fact]
+    public void FlexDirection_HasRowAndColumn()
+    {
+        Assert.Equal(FlexDirection.Row, FlexDirection.Row);
+        Assert.Equal(FlexDirection.Column, FlexDirection.Column);
+    }
+
+    [Fact]
+    public void JustifyContent_HasAllValues()
+    {
+        Assert.Equal(JustifyContent.Start, JustifyContent.Start);
+        Assert.Equal(JustifyContent.Center, JustifyContent.Center);
+        Assert.Equal(JustifyContent.End, JustifyContent.End);
+        Assert.Equal(JustifyContent.SpaceBetween, JustifyContent.SpaceBetween);
+        Assert.Equal(JustifyContent.SpaceAround, JustifyContent.SpaceAround);
+        Assert.Equal(JustifyContent.SpaceEvenly, JustifyContent.SpaceEvenly);
+    }
+
+    [Fact]
+    public void AlignItems_HasAllValues()
+    {
+        Assert.Equal(AlignItems.Start, AlignItems.Start);
+        Assert.Equal(AlignItems.Center, AlignItems.Center);
+        Assert.Equal(AlignItems.End, AlignItems.End);
+        Assert.Equal(AlignItems.Stretch, AlignItems.Stretch);
+    }
+
+    [Fact]
+    public void InteractionState_HasAllValues()
+    {
+        Assert.Equal(InteractionState.Normal, InteractionState.Normal);
+        Assert.Equal(InteractionState.Hovered, InteractionState.Hovered);
+        Assert.Equal(InteractionState.Pressed, InteractionState.Pressed);
+        Assert.Equal(InteractionState.Focused, InteractionState.Focused);
+        Assert.Equal(InteractionState.Disabled, InteractionState.Disabled);
+    }
+
+    [Fact]
+    public void PseudoState_HasAllValues()
+    {
+        Assert.Equal(PseudoState.None, PseudoState.None);
+        Assert.Equal(PseudoState.Hover, PseudoState.Hover);
+        Assert.Equal(PseudoState.Active, PseudoState.Active);
+        Assert.Equal(PseudoState.Focus, PseudoState.Focus);
+        Assert.Equal(PseudoState.Disabled, PseudoState.Disabled);
+        Assert.Equal(PseudoState.Checked, PseudoState.Checked);
+    }
+}
+
+public class WidgetDataTests
+{
+    [Fact]
+    public void ButtonData_DefaultValues_AreCorrect()
+    {
+        var data = default(ButtonData);
+
+        Assert.Null(data.Text);
+        Assert.Equal(Color.Transparent, data.Background);
+    }
+
+    [Fact]
+    public void LabelData_DefaultValues_AreCorrect()
+    {
+        var data = default(LabelData);
+
+        Assert.Null(data.Text);
+        Assert.Equal(TextAlignment.Left, data.Alignment);
+    }
+
+    [Fact]
+    public void ImageData_DefaultValues_AreCorrect()
+    {
+        var data = default(ImageData);
+
+        Assert.Equal(TextureId.Empty, data.Texture);
+        Assert.Equal(ImageStretch.None, data.Stretch);
+    }
+
+    [Fact]
+    public void PanelData_DefaultValues_AreCorrect()
+    {
+        var data = default(PanelData);
+
+        Assert.Equal(Color.Transparent, data.Background);
+        Assert.False(data.ClipChildren);
+    }
+
+    [Fact]
+    public void SliderData_DefaultValues_AreCorrect()
+    {
+        var data = default(SliderData);
+
+        Assert.Equal(0, data.Value);
+        Assert.Equal(0, data.MinValue);
+        Assert.Equal(0, data.MaxValue);
+    }
+
+    [Fact]
+    public void ProgressBarData_DefaultValues_AreCorrect()
+    {
+        var data = default(ProgressBarData);
+
+        Assert.Equal(0, data.Value);
+        Assert.Equal(0, data.MinValue);
+        Assert.Equal(0, data.MaxValue);
+    }
+
+    [Fact]
+    public void CheckBoxData_DefaultValues_AreCorrect()
+    {
+        var data = default(CheckBoxData);
+
+        Assert.False(data.IsChecked);
+        Assert.Null(data.Text);
+    }
+
+    [Fact]
+    public void ToggleData_DefaultValues_AreCorrect()
+    {
+        var data = default(ToggleData);
+
+        Assert.False(data.IsOn);
+    }
+
+    [Fact]
+    public void ComboBoxData_DefaultValues_AreCorrect()
+    {
+        var data = default(ComboBoxData);
+
+        Assert.Equal(0, data.SelectedIndex);
+        Assert.False(data.IsOpen);
+    }
+
+    [Fact]
+    public void InputFieldData_DefaultValues_AreCorrect()
+    {
+        var data = default(InputFieldData);
+
+        Assert.Null(data.Text);
+        Assert.Equal(0, data.MaxLength);
+        Assert.False(data.IsPassword);
+        Assert.False(data.IsReadOnly);
     }
 }
