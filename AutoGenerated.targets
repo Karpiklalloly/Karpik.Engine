@@ -4,6 +4,9 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/DebugModule/DebugModule.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/GameUI/GameUI.Core/GameUI.Core.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/GameUI/GameUI.EngineNative/GameUI.EngineNative.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/GameUI/GameUI.Core.Tests/GameUI.Core.Tests.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Input/Input.csproj" Condition="'$(IsClient)' == 'true'" />
@@ -20,8 +23,6 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/Core/UI.Core.csproj" Condition="'$(IsClient)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UI/Immediate/UI.Immediate.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />

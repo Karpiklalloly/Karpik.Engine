@@ -35,13 +35,14 @@ public class ModuleLoader
         "MyGame.Shared.Main",
     };
     public readonly string[] ClientOnlyAssemblies = {
+        "GameUI.Core",
+        "GameUI.EngineNative",
+        "GameUI.Core.Tests",
         "Graphics.Core",
         "Graphics.Raylib",
         "Input",
         "Network.Client.Core",
         "Network.Client.LiteNetLib",
-        "UI.Core",
-        "UI.Immediate",
         "UIToolkit.Core",
         "MyGame.Client.Main",
     };

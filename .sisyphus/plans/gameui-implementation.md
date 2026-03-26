@@ -7,6 +7,11 @@
 
 Реализация модуля GameUI для KarpikEngine согласно архитектуре из `docs/modules/client/ui.md`.
 
+## Pre-requisites
+
+- [ ] **P0** Удалить старый UI модуль (`Modules/Client/UI/`)
+- [ ] **P0** Удалить ссылки на старый UI из других проектов
+
 ## TODOs
 
 - [ ] Phase 1: Core — базовые типы, IRenderer, Widgets структуры

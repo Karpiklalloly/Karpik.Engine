@@ -20,8 +20,9 @@
     <Project Path="Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" />
   </Folder>
     <Folder Name="/Modules/Client/UI/">
-      <Project Path="Modules/Client/UI/Core/UI.Core.csproj" />
-      <Project Path="Modules/Client/UI/Immediate/UI.Immediate.csproj" />
+      <Project Path="Modules/Client/UI/GameUI/GameUI.Core.Tests/GameUI.Core.Tests.csproj" />
+      <Project Path="Modules/Client/UI/GameUI/GameUI.Core/GameUI.Core.csproj" />
+      <Project Path="Modules/Client/UI/GameUI/GameUI.EngineNative/GameUI.EngineNative.csproj" />
     </Folder>
   <Folder Name="/Modules/Shared/">
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
