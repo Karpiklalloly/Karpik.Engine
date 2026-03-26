@@ -203,6 +203,24 @@ public class EventDispatcher
         }
     }
 
+    public void DispatchBlur(int widgetIndex)
+    {
+        if (!_storage.Has(widgetIndex))
+            return;
+
+        ref var widget = ref _storage.Get(widgetIndex);
+        if (widget.State == InteractionState.Focused)
+        {
+            widget.State = InteractionState.Normal;
+        }
+
+        if (_events.HasHandlers(widgetIndex))
+        {
+            var handlers = _events.GetOrCreate(widgetIndex);
+            handlers.OnBlur?.Invoke(widgetIndex);
+        }
+    }
+
     private void BubbleEvent(int startIndex, string eventType)
     {
         var widget = _storage.GetWidget(startIndex);
