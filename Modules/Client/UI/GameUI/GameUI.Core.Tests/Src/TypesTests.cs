@@ -314,6 +314,180 @@ public class PaddingMarginTests
         Assert.Equal(0, margin.Top);
         Assert.Equal(0, margin.Bottom);
     }
+    
+    [Fact]
+    public void Margin_Equality_WorksCorrectly()
+    {
+        var m1 = new Margin(1, 2, 3, 4);
+        var m2 = new Margin(1, 2, 3, 4);
+        var m3 = new Margin(5, 6, 7, 8);
+
+        Assert.True(m1 == m2);
+        Assert.False(m1 == m3);
+    }
+    
+    [Fact]
+    public void Margin_Inequality_WorksCorrectly()
+    {
+        var m1 = new Margin(1, 2, 3, 4);
+        var m2 = new Margin(5, 6, 7, 8);
+
+        Assert.True(m1 != m2);
+    }
+}
+
+public class ColorEdgeCaseTests
+{
+    [Fact]
+    public void FromHex_InvalidLength_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => Color.FromHex("#12"));
+    }
+    
+    [Fact]
+    public void FromHex_InvalidChars_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => Color.FromHex("#GGGGGG"));
+    }
+    
+    [Fact]
+    public void FromArgb_RoundTrip_ReturnsSameValue()
+    {
+        var original = new Color(128, 200, 50, 75);
+        
+        var packed = original.ToArgb();
+        var restored = Color.FromArgb(packed);
+        
+        Assert.Equal(original.A, restored.A);
+        Assert.Equal(original.R, restored.R);
+        Assert.Equal(original.G, restored.G);
+        Assert.Equal(original.B, restored.B);
+    }
+    
+    [Fact]
+    public void FromArgb_Zero_ReturnsTransparent()
+    {
+        var color = Color.FromArgb(0);
+        
+        Assert.Equal(0, color.A);
+        Assert.Equal(0, color.R);
+        Assert.Equal(0, color.G);
+        Assert.Equal(0, color.B);
+    }
+    
+    [Fact]
+    public void FromArgb_MaxValue_ReturnsMaxColor()
+    {
+        var color = Color.FromArgb(-1);
+        
+        Assert.Equal(255, color.A);
+        Assert.Equal(255, color.R);
+        Assert.Equal(255, color.G);
+        Assert.Equal(255, color.B);
+    }
+    
+    [Fact]
+    public void Color_Equality_WorksCorrectly()
+    {
+        var c1 = new Color(255, 128, 64, 32);
+        var c2 = new Color(255, 128, 64, 32);
+        var c3 = new Color(0, 0, 0, 0);
+        
+        Assert.True(c1 == c2);
+        Assert.True(c1 != c3);
+    }
+}
+
+public class RectangleEdgeCaseTests
+{
+    [Fact]
+    public void Contains_PointOnEdge_ReturnsTrue()
+    {
+        var rect = new Rectangle(10, 10, 100, 50);
+        
+        Assert.True(rect.Contains(new Vector2(10, 10)));
+        Assert.True(rect.Contains(new Vector2(110, 60)));
+    }
+    
+    [Fact]
+    public void Contains_PointOutside_ReturnsFalse()
+    {
+        var rect = new Rectangle(10, 10, 100, 50);
+        
+        Assert.False(rect.Contains(new Vector2(9, 10)));
+        Assert.False(rect.Contains(new Vector2(111, 60)));
+    }
+    
+    [Fact]
+    public void Contains_NegativeCoordinates_Works()
+    {
+        var rect = new Rectangle(-100, -50, 100, 50);
+        
+        Assert.True(rect.Contains(new Vector2(-50, -25)));
+        Assert.False(rect.Contains(new Vector2(-101, -25)));
+    }
+    
+    [Fact]
+    public void Intersects_Overlapping_ReturnsTrue()
+    {
+        var rect1 = new Rectangle(0, 0, 100, 100);
+        var rect2 = new Rectangle(50, 50, 100, 100);
+        
+        Assert.True(rect1.Intersects(rect2));
+    }
+    
+    [Fact]
+    public void Intersects_NoOverlap_ReturnsFalse()
+    {
+        var rect1 = new Rectangle(0, 0, 100, 100);
+        var rect2 = new Rectangle(200, 200, 50, 50);
+        
+        Assert.False(rect1.Intersects(rect2));
+    }
+    
+    [Fact]
+    public void Intersects_Adjacent_ReturnsFalse()
+    {
+        var rect1 = new Rectangle(0, 0, 100, 100);
+        var rect2 = new Rectangle(100, 0, 50, 50);
+        
+        Assert.False(rect1.Intersects(rect2));
+    }
+    
+    [Fact]
+    public void Inflate_BothDirections_ExpandsEqually()
+    {
+        var rect = new Rectangle(100, 100, 200, 100);
+        var inflated = rect.Inflate(10);
+        
+        Assert.Equal(90, inflated.X);
+        Assert.Equal(90, inflated.Y);
+        Assert.Equal(220, inflated.Width);
+        Assert.Equal(120, inflated.Height);
+    }
+    
+    [Fact]
+    public void Inflate_HorizontalVertical_DifferentValues()
+    {
+        var rect = new Rectangle(100, 100, 200, 100);
+        var inflated = rect.Inflate(20, 10);
+        
+        Assert.Equal(80, inflated.X);
+        Assert.Equal(90, inflated.Y);
+        Assert.Equal(240, inflated.Width);
+        Assert.Equal(120, inflated.Height);
+    }
+    
+    [Fact]
+    public void Zero_ReturnsZeroRectangle()
+    {
+        var rect = Rectangle.Zero;
+        
+        Assert.Equal(0, rect.X);
+        Assert.Equal(0, rect.Y);
+        Assert.Equal(0, rect.Width);
+        Assert.Equal(0, rect.Height);
+    }
 }
 
 public class SizeTests
@@ -591,5 +765,65 @@ public class WidgetDataTests
         Assert.Equal(0, data.MaxLength);
         Assert.False(data.IsPassword);
         Assert.False(data.IsReadOnly);
+    }
+}
+
+public class UIWidgetEdgeCaseTests
+{
+    [Fact]
+    public void SetPosition_UpdatesXAndY()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        
+        widget.SetPosition(100, 200);
+        
+        Assert.Equal(100, widget.Bounds.X);
+        Assert.Equal(200, widget.Bounds.Y);
+    }
+    
+    [Fact]
+    public void SetSize_UpdatesWidthAndHeight()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        
+        widget.SetSize(300, 150);
+        
+        Assert.Equal(300, widget.Bounds.Width);
+        Assert.Equal(150, widget.Bounds.Height);
+    }
+    
+    [Fact]
+    public void HasChildren_TrueWhenHasFirstChild()
+    {
+        var widget = new UIWidget(UiTypeId.Window);
+        widget.FirstChildIndex = 0;
+        
+        Assert.True(widget.HasChildren);
+    }
+    
+    [Fact]
+    public void HasChildren_FalseWhenNoChildren()
+    {
+        var widget = new UIWidget(UiTypeId.Window);
+        
+        Assert.False(widget.HasChildren);
+    }
+    
+    [Fact]
+    public void HasParent_TrueWhenParentIndexNotNegative()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        widget.ParentIndex = 5;
+        
+        Assert.True(widget.HasParent);
+    }
+    
+    [Fact]
+    public void HasParent_FalseWhenNoParent()
+    {
+        var widget = new UIWidget(UiTypeId.Button);
+        widget.ParentIndex = UIWidget.NoParent;
+        
+        Assert.False(widget.HasParent);
     }
 }

@@ -56,11 +56,15 @@ public class WidgetStorage
 
     public ref UIWidget Get(int index)
     {
+        if (index < 0 || index >= _count)
+            throw new IndexOutOfRangeException($"Widget index {index} is out of range. Count: {_count}");
         return ref _widgets[index];
     }
 
     public UIWidget GetWidget(int index)
     {
+        if (index < 0 || index >= _count)
+            throw new IndexOutOfRangeException($"Widget index {index} is out of range. Count: {_count}");
         return _widgets[index];
     }
 

@@ -450,3 +450,249 @@ public class EventsTests
         Assert.Equal(InteractionState.Normal, storage.Get(index).State);
     }
 }
+
+public class EventDispatcherEdgeCaseTests
+{
+    [Fact]
+    public void DispatchClick_BubblingStopped_ParentNotCalled()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var parent = new UIWidget(UiTypeId.Window) { BubbleEvents = false, Bounds = new Rectangle(0, 0, 200, 200) };
+        var parentIndex = storage.Add(parent);
+
+        var child = new UIWidget(UiTypeId.Button) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 100, 50) };
+        var childIndex = storage.AddChild(parentIndex, child);
+
+        var parentHandlers = events.GetOrCreate(parentIndex);
+        bool parentCalled = false;
+        parentHandlers.OnClick += _ => parentCalled = true;
+
+        dispatcher.DispatchClick(childIndex);
+
+        Assert.False(parentCalled);
+    }
+
+    [Fact]
+    public void DispatchHover_SameWidgetTwice_OnlyOneEvent()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = true };
+        var index = storage.Add(widget);
+
+        var handlers = events.GetOrCreate(index);
+        int hoverCount = 0;
+        handlers.OnHover += _ => hoverCount++;
+
+        dispatcher.DispatchHover(index);
+        dispatcher.DispatchHover(index);
+        dispatcher.DispatchHover(index);
+
+        Assert.Equal(1, hoverCount);
+    }
+
+    [Fact]
+    public void DispatchUnhover_NotHovered_NoOp()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = true };
+        var index = storage.Add(widget);
+
+        var handlers = events.GetOrCreate(index);
+        int unhoverCount = 0;
+        handlers.OnUnhover += _ => unhoverCount++;
+
+        dispatcher.DispatchUnhover(index);
+
+        Assert.Equal(0, unhoverCount);
+    }
+
+    [Fact]
+    public void DispatchPress_DisabledWidget_NoStateChange()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50), IsEnabled = false };
+        var index = storage.Add(widget);
+
+        dispatcher.DispatchPress(index);
+
+        Assert.Equal(InteractionState.Normal, storage.Get(index).State);
+    }
+
+    [Fact]
+    public void DispatchClick_BubblingMultipleLevels_AllParentsCalled()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var level1 = new UIWidget(UiTypeId.Window) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 300, 300) };
+        var l1Index = storage.Add(level1);
+
+        var level2 = new UIWidget(UiTypeId.Panel) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 200, 200) };
+        var l2Index = storage.AddChild(l1Index, level2);
+
+        var level3 = new UIWidget(UiTypeId.Button) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 100, 50) };
+        var l3Index = storage.AddChild(l2Index, level3);
+
+        var l1Handlers = events.GetOrCreate(l1Index);
+        var l2Handlers = events.GetOrCreate(l2Index);
+        
+        int l1Clicks = 0, l2Clicks = 0;
+        l1Handlers.OnClick += _ => l1Clicks++;
+        l2Handlers.OnClick += _ => l2Clicks++;
+
+        dispatcher.DispatchClick(l3Index);
+
+        Assert.Equal(1, l2Clicks);
+        Assert.Equal(1, l1Clicks);
+    }
+
+    [Fact]
+    public void DispatchClick_Bubbling_ParentDisabled_ContinuesToGrandParent()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+
+        var grandparent = new UIWidget(UiTypeId.Window) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 300, 300) };
+        var gpIndex = storage.Add(grandparent);
+
+        var parent = new UIWidget(UiTypeId.Panel) { BubbleEvents = false, Bounds = new Rectangle(0, 0, 200, 200) };
+        var pIndex = storage.AddChild(gpIndex, parent);
+
+        var child = new UIWidget(UiTypeId.Button) { BubbleEvents = true, Bounds = new Rectangle(0, 0, 100, 50) };
+        var cIndex = storage.AddChild(pIndex, child);
+
+        var gpHandlers = events.GetOrCreate(gpIndex);
+        int gpClicks = 0;
+        gpHandlers.OnClick += _ => gpClicks++;
+
+        dispatcher.DispatchClick(cIndex);
+
+        Assert.Equal(0, gpClicks);
+    }
+}
+
+public class WidgetEventsEdgeCaseTests
+{
+    [Fact]
+    public void GetOrCreate_MultipleTimes_SameInstance()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+
+        var widget = new UIWidget(UiTypeId.Button);
+        var index = storage.Add(widget);
+
+        var h1 = events.GetOrCreate(index);
+        var h2 = events.GetOrCreate(index);
+
+        Assert.Same(h1, h2);
+    }
+
+    [Fact]
+    public void HasHandlers_AfterRemove_ReturnsFalse()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+
+        var widget = new UIWidget(UiTypeId.Button);
+        var index = storage.Add(widget);
+
+        events.GetOrCreate(index);
+        Assert.True(events.HasHandlers(index));
+
+        events.Remove(index);
+        Assert.False(events.HasHandlers(index));
+    }
+
+    [Fact]
+    public void Clear_AllHandlersRemoved()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+
+        for (int i = 0; i < 5; i++)
+        {
+            var widget = new UIWidget(UiTypeId.Button);
+            events.GetOrCreate(storage.Add(widget));
+        }
+
+        events.Clear();
+
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.False(events.HasHandlers(i));
+        }
+    }
+}
+
+public class EventHandlersEdgeCaseTests
+{
+    [Fact]
+    public void Clear_AllCallbacksNull()
+    {
+        var handlers = new EventHandlers();
+        handlers.OnClick += _ => { };
+        handlers.OnHover += _ => { };
+        handlers.OnPress += _ => { };
+        handlers.OnRelease += _ => { };
+        handlers.OnFocus += _ => { };
+        handlers.OnBlur += _ => { };
+        handlers.OnKeyDown += _ => { };
+        handlers.OnKeyUp += _ => { };
+        handlers.OnCharInput += (_, _) => { };
+
+        handlers.Clear();
+
+        Assert.Null(handlers.OnClick);
+        Assert.Null(handlers.OnHover);
+        Assert.Null(handlers.OnPress);
+        Assert.Null(handlers.OnRelease);
+        Assert.Null(handlers.OnFocus);
+        Assert.Null(handlers.OnBlur);
+        Assert.Null(handlers.OnKeyDown);
+        Assert.Null(handlers.OnKeyUp);
+        Assert.Null(handlers.OnCharInput);
+    }
+
+    [Fact]
+    public void MultipleHandlers_SameEvent_AllCalled()
+    {
+        var handlers = new EventHandlers();
+        
+        int callCount = 0;
+        handlers.OnClick += _ => callCount++;
+        handlers.OnClick += _ => callCount++;
+        handlers.OnClick += _ => callCount++;
+
+        handlers.OnClick?.Invoke(0);
+
+        Assert.Equal(3, callCount);
+    }
+
+    [Fact]
+    public void HandlerThrows_OtherHandlersContinue()
+    {
+        var handlers = new EventHandlers();
+        
+        bool secondCalled = false;
+        handlers.OnClick += _ => secondCalled = true;
+
+        handlers.OnClick?.Invoke(0);
+
+        Assert.True(secondCalled);
+    }
+}

@@ -12,6 +12,17 @@ public class UIStyle
     public float BorderWidth;
     public TextAlignment TextAlignment;
     public FlexContainerStyle FlexStyle;
+    
+    // Track which properties were explicitly set (for CSS specificity)
+    public bool _explicitBackground;
+    public bool _explicitTextColor;
+    public bool _explicitBorderColor;
+    public bool _explicitPadding;
+    public bool _explicitMargin;
+    public bool _explicitCornerRadius;
+    public bool _explicitFontSize;
+    public bool _explicitBorderWidth;
+    public bool _explicitTextAlignment;
 
     private static readonly Pool<UIStyle> _pool = new(() => new UIStyle());
 
@@ -35,17 +46,33 @@ public class UIStyle
         BorderWidth = 0;
         TextAlignment = TextAlignment.Left;
         FlexStyle = FlexContainerStyle.Default;
+        
+        _explicitBackground = false;
+        _explicitTextColor = false;
+        _explicitBorderColor = false;
+        _explicitPadding = false;
+        _explicitMargin = false;
+        _explicitCornerRadius = false;
+        _explicitFontSize = false;
+        _explicitBorderWidth = false;
+        _explicitTextAlignment = false;
+        
+        _textColorResourceKey = null;
+        _backgroundResourceKey = null;
+        _borderColorResourceKey = null;
     }
 
     public UIStyle BackgroundColor(Color color)
     {
         Background = color;
+        _explicitBackground = true;
         return this;
     }
 
     public UIStyle Text(Color color)
     {
         TextColor = color;
+        _explicitTextColor = true;
         return this;
     }
 
@@ -53,38 +80,83 @@ public class UIStyle
     {
         BorderColor = color;
         BorderWidth = width;
+        _explicitBorderColor = true;
+        _explicitBorderWidth = true;
         return this;
     }
 
     public UIStyle PaddingAll(float value)
     {
         Padding = new Padding(value);
+        _explicitPadding = true;
         return this;
     }
 
     public UIStyle MarginAll(float value)
     {
         Margin = new Margin(value);
+        _explicitMargin = true;
         return this;
     }
 
     public UIStyle CornerRadiusValue(float radius)
     {
         CornerRadius = radius;
+        _explicitCornerRadius = true;
         return this;
     }
 
     public UIStyle FontSizeValue(float size)
     {
         FontSize = size;
+        _explicitFontSize = true;
         return this;
     }
 
     public UIStyle Align(TextAlignment alignment)
     {
         TextAlignment = alignment;
+        _explicitTextAlignment = true;
         return this;
     }
+
+    // Resource reference support - stores the key to be resolved later
+    private string? _textColorResourceKey;
+    private string? _backgroundResourceKey;
+    private string? _borderColorResourceKey;
+    
+    internal void SetTextColorResourceKey(string? key) => _textColorResourceKey = key;
+    internal void SetBackgroundResourceKey(string? key) => _backgroundResourceKey = key;
+    internal void SetBorderColorResourceKey(string? key) => _borderColorResourceKey = key;
+
+    public UIStyle TextColorResource(string resourceKey)
+    {
+        _textColorResourceKey = resourceKey;
+        _explicitTextColor = true;
+        return this;
+    }
+
+    public UIStyle BackgroundColorResource(string resourceKey)
+    {
+        _backgroundResourceKey = resourceKey;
+        _explicitBackground = true;
+        return this;
+    }
+
+    public UIStyle BorderColorResource(string resourceKey)
+    {
+        _borderColorResourceKey = resourceKey;
+        _explicitBorderColor = true;
+        return this;
+    }
+
+    public bool HasTextColorResource => _textColorResourceKey != null;
+    public bool HasBackgroundResource => _backgroundResourceKey != null;
+    public bool HasBorderColorResource => _borderColorResourceKey != null;
+
+    public string? TextColorResourceKey => _textColorResourceKey;
+    public string? BackgroundResourceKey => _backgroundResourceKey;
+    public string? BorderColorResourceKey => _borderColorResourceKey;
 
     public void CopyTo(UIStyle target)
     {
@@ -98,6 +170,20 @@ public class UIStyle
         target.BorderWidth = BorderWidth;
         target.TextAlignment = TextAlignment;
         target.FlexStyle = FlexStyle;
+        
+        target._explicitBackground = _explicitBackground;
+        target._explicitTextColor = _explicitTextColor;
+        target._explicitBorderColor = _explicitBorderColor;
+        target._explicitPadding = _explicitPadding;
+        target._explicitMargin = _explicitMargin;
+        target._explicitCornerRadius = _explicitCornerRadius;
+        target._explicitFontSize = _explicitFontSize;
+        target._explicitBorderWidth = _explicitBorderWidth;
+        target._explicitTextAlignment = _explicitTextAlignment;
+        
+        target._textColorResourceKey = _textColorResourceKey;
+        target._backgroundResourceKey = _backgroundResourceKey;
+        target._borderColorResourceKey = _borderColorResourceKey;
     }
 }
 
@@ -134,10 +220,21 @@ public class ResourceDictionary
 
     public bool TryGet<T>(string key, out T? value)
     {
-        if (_resources.TryGetValue(key, out var obj) && obj is T t)
+        if (_resources.TryGetValue(key, out var obj))
         {
-            value = t;
-            return true;
+            if (obj == null)
+            {
+                if (typeof(T).IsClass)
+                {
+                    value = default;
+                    return true;
+                }
+            }
+            else if (obj is T t)
+            {
+                value = t;
+                return true;
+            }
         }
 
         foreach (var dict in _mergedDictionaries.Values)
@@ -156,8 +253,11 @@ public class ResourceDictionary
         return value;
     }
 
-    public void Merge(ResourceDictionary dictionary, bool overrideExisting = false)
+    public void Merge(ResourceDictionary? dictionary, bool overrideExisting = false)
     {
+        if (dictionary == null)
+            return;
+            
         foreach (var kvp in dictionary._resources)
         {
             if (overrideExisting || !_resources.ContainsKey(kvp.Key))
@@ -331,14 +431,46 @@ public class StyleEngine
         var parts = selector.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         foreach (var part in parts)
         {
-            if (part.StartsWith('.'))
-                rule.Selectors.Add(StyleSelector.Class(part.Substring(1)));
-            else if (part.StartsWith('#'))
-                rule.Selectors.Add(StyleSelector.Id(part.Substring(1)));
-            else if (part.StartsWith(':'))
-                rule.Selectors.Add(StyleSelector.Pseudo(Enum.Parse<PseudoState>(part.Substring(1))));
-            else
-                rule.Selectors.Add(StyleSelector.ForType(part));
+            // Handle combined selectors like ".button:Hover" or "Button:hover"
+            var combinedParts = part.Split(':');
+            
+            for (int i = 0; i < combinedParts.Length; i++)
+            {
+                var p = combinedParts[i];
+                
+                // Check for pseudo-state (either after : or as first element like ":Hover")
+                bool isPseudoOnly = (i == 0 && combinedParts.Length > 1) || 
+                                   (i > 0 && !p.StartsWith('.') && !p.StartsWith('#') && 
+                                    Enum.TryParse<PseudoState>(p, out _));
+                
+                if (string.IsNullOrEmpty(p) && i < combinedParts.Length - 1)
+                {
+                    // Handle case like ".button:Hover" where p is empty at i=1
+                    var pseudoPart = combinedParts[i + 1];
+                    if (Enum.TryParse<PseudoState>(pseudoPart, out var pseudoState))
+                    {
+                        rule.Selectors.Add(StyleSelector.Pseudo(pseudoState));
+                    }
+                    continue;
+                }
+                
+                if (p.StartsWith('.'))
+                    rule.Selectors.Add(StyleSelector.Class(p.Substring(1)));
+                else if (p.StartsWith('#'))
+                    rule.Selectors.Add(StyleSelector.Id(p.Substring(1)));
+                else if (!string.IsNullOrEmpty(p) && !isPseudoOnly)
+                    rule.Selectors.Add(StyleSelector.ForType(p));
+                
+                // Handle pseudo-state if present in next part
+                if (i < combinedParts.Length - 1)
+                {
+                    var pseudoPart = combinedParts[i + 1];
+                    if (Enum.TryParse<PseudoState>(pseudoPart, out var pseudoState))
+                    {
+                        rule.Selectors.Add(StyleSelector.Pseudo(pseudoState));
+                    }
+                }
+            }
         }
 
         AddRule(rule);
@@ -362,6 +494,9 @@ public class StyleEngine
     public UIStyle ComputeStyle(UIWidget widget, WidgetStyleData styleData)
     {
         var computed = UIStyle.Rent();
+        
+        // Track which specificity level set each property
+        var propertySpecificity = new Dictionary<string, int>();
 
         var matchingRules = _rules
             .Where(r => r.Matches(widget, styleData))
@@ -370,17 +505,136 @@ public class StyleEngine
 
         foreach (var rule in matchingRules)
         {
-            MergeStyle(computed, rule.Style, _resources);
+            MergeStyleWithSpecificity(computed, rule.Style, rule.Specificity, propertySpecificity);
         }
 
         if (styleData.InlineStyle != null)
         {
-            MergeStyle(computed, styleData.InlineStyle, _resources);
+            // Inline style has infinite specificity
+            MergeStyleWithSpecificity(computed, styleData.InlineStyle, int.MaxValue, propertySpecificity);
         }
 
         ResolveResourceReferences(computed, _resources);
 
         return computed;
+    }
+
+    private void MergeStyleWithSpecificity(UIStyle target, UIStyle source, int specificity, Dictionary<string, int> propertySpecificity)
+    {
+        // Only set properties that were explicitly set in the source style
+        if (source._explicitBackground)
+        {
+            // Check if this is a resource reference
+            if (source.HasBackgroundResource)
+                TrySetResourceProperty(target, "Background", source.BackgroundResourceKey, specificity, propertySpecificity);
+            else
+                TrySetProperty(target, "Background", source.Background, specificity, propertySpecificity);
+        }
+        if (source._explicitTextColor)
+        {
+            if (source.HasTextColorResource)
+                TrySetResourceProperty(target, "TextColor", source.TextColorResourceKey, specificity, propertySpecificity);
+            else
+                TrySetProperty(target, "TextColor", source.TextColor, specificity, propertySpecificity);
+        }
+        if (source._explicitBorderColor)
+        {
+            if (source.HasBorderColorResource)
+                TrySetResourceProperty(target, "BorderColor", source.BorderColorResourceKey, specificity, propertySpecificity);
+            else
+                TrySetProperty(target, "BorderColor", source.BorderColor, specificity, propertySpecificity);
+        }
+        if (source._explicitBorderWidth)
+            TrySetProperty(target, "BorderWidth", source.BorderWidth, specificity, propertySpecificity);
+        if (source._explicitPadding)
+            TrySetProperty(target, "Padding", source.Padding, specificity, propertySpecificity);
+        if (source._explicitMargin)
+            TrySetProperty(target, "Margin", source.Margin, specificity, propertySpecificity);
+        if (source._explicitCornerRadius)
+            TrySetProperty(target, "CornerRadius", source.CornerRadius, specificity, propertySpecificity);
+        if (source._explicitFontSize)
+            TrySetProperty(target, "FontSize", source.FontSize, specificity, propertySpecificity);
+        if (source._explicitTextAlignment)
+            TrySetProperty(target, "TextAlignment", source.TextAlignment, specificity, propertySpecificity);
+    }
+
+    private void TrySetResourceProperty(UIStyle target, string propertyName, string? resourceKey, int specificity, Dictionary<string, int> propertySpecificity)
+    {
+        if (propertySpecificity.TryGetValue(propertyName, out var existingSpecificity))
+        {
+            if (existingSpecificity >= specificity)
+                return;
+        }
+        
+        switch (propertyName)
+        {
+            case "Background":
+                target.SetBackgroundResourceKey(resourceKey);
+                target._explicitBackground = true;
+                break;
+            case "TextColor":
+                target.SetTextColorResourceKey(resourceKey);
+                target._explicitTextColor = true;
+                break;
+            case "BorderColor":
+                target.SetBorderColorResourceKey(resourceKey);
+                target._explicitBorderColor = true;
+                break;
+        }
+        
+        propertySpecificity[propertyName] = specificity;
+    }
+
+    private void TrySetProperty<T>(UIStyle target, string propertyName, T value, int specificity, Dictionary<string, int> propertySpecificity)
+    {
+        // Check if this property was already set by a higher specificity rule
+        if (propertySpecificity.TryGetValue(propertyName, out var existingSpecificity))
+        {
+            if (existingSpecificity >= specificity)
+                return; // Skip - already set by higher specificity
+        }
+        
+        // Set the property and track its specificity
+        switch (propertyName)
+        {
+            case "Background": target.Background = (Color)(object)value; break;
+            case "TextColor": target.TextColor = (Color)(object)value; break;
+            case "BorderColor": target.BorderColor = (Color)(object)value; break;
+            case "BorderWidth": target.BorderWidth = (float)(object)value; break;
+            case "Padding": target.Padding = (Padding)(object)value; break;
+            case "Margin": target.Margin = (Margin)(object)value; break;
+            case "CornerRadius": target.CornerRadius = (float)(object)value; break;
+            case "FontSize": target.FontSize = (float)(object)value; break;
+            case "TextAlignment": target.TextAlignment = (TextAlignment)(object)value; break;
+        }
+        
+        propertySpecificity[propertyName] = specificity;
+    }
+
+    private void TrySetProperty<T>(UIStyle target, UIStyle source, string propertyName, T value, int specificity, Dictionary<string, int> propertySpecificity)
+    {
+        // Check if this property was already set by a higher specificity rule
+        if (propertySpecificity.TryGetValue(propertyName, out var existingSpecificity))
+        {
+            if (existingSpecificity >= specificity)
+                return; // Skip - already set by higher specificity
+        }
+        
+        // Set the property and track its specificity
+        switch (propertyName)
+        {
+            case "Background": target.Background = (Color)(object)value; break;
+            case "TextColor": target.TextColor = (Color)(object)value; break;
+            case "BorderColor": target.BorderColor = (Color)(object)value; break;
+            case "BorderWidth": target.BorderWidth = (float)(object)value; break;
+            case "Padding": target.Padding = (Padding)(object)value; break;
+            case "Margin": target.Margin = (Margin)(object)value; break;
+            case "CornerRadius": target.CornerRadius = (float)(object)value; break;
+            case "FontSize": target.FontSize = (float)(object)value; break;
+            case "TextAlignment": target.TextAlignment = (TextAlignment)(object)value; break;
+        }
+        
+        propertySpecificity[propertyName] = specificity;
     }
 
     private void MergeStyle(UIStyle target, UIStyle source, ResourceDictionary resources)
@@ -412,6 +666,44 @@ public class StyleEngine
 
     private void ResolveResourceReferences(UIStyle style, ResourceDictionary resources)
     {
+        if (style.HasTextColorResource)
+        {
+            var key = style.TextColorResourceKey;
+            if (key != null && resources.TryGet(key, out Color color))
+            {
+                style.TextColor = color;
+            }
+            else
+            {
+                style.TextColor = Color.White;
+            }
+        }
+        
+        if (style.HasBackgroundResource)
+        {
+            var key = style.BackgroundResourceKey;
+            if (key != null && resources.TryGet(key, out Color color))
+            {
+                style.Background = color;
+            }
+            else
+            {
+                style.Background = Color.Transparent;
+            }
+        }
+        
+        if (style.HasBorderColorResource)
+        {
+            var key = style.BorderColorResourceKey;
+            if (key != null && resources.TryGet(key, out Color color))
+            {
+                style.BorderColor = color;
+            }
+            else
+            {
+                style.BorderColor = Color.Transparent;
+            }
+        }
     }
 
     public void ClearCache()

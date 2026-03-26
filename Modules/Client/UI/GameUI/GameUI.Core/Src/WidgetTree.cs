@@ -123,6 +123,9 @@ public class WidgetTree
             if (!widget.IsVisible)
                 continue;
 
+            if (widget.Bounds.Width <= 0 || widget.Bounds.Height <= 0)
+                continue;
+
             if (widget.Bounds.Contains(position))
                 return index;
         }
@@ -151,12 +154,17 @@ public class WidgetTree
 
     public int GetDepth(int index)
     {
+        if (!_storage.Has(index))
+            return 0;
+            
         int depth = 0;
         var widget = _storage.GetWidget(index);
 
         while (widget.HasParent)
         {
             depth++;
+            if (!_storage.Has(widget.ParentIndex))
+                break;
             widget = _storage.GetWidget(widget.ParentIndex);
         }
 

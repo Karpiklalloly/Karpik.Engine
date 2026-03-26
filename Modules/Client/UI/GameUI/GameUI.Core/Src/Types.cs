@@ -51,10 +51,10 @@ public struct Rectangle
 
     public bool Intersects(Rectangle other)
     {
-        return !(other.Left > Right ||
-                 other.Right < Left ||
-                 other.Top > Bottom ||
-                 other.Bottom < Top);
+        return other.Left < Right &&
+               other.Right > Left &&
+               other.Top < Bottom &&
+               other.Bottom > Top;
     }
 
     public Rectangle Inflate(float horizontal, float vertical)
@@ -103,25 +103,36 @@ public struct Color
 
     public static Color FromHex(string hex)
     {
+        if (string.IsNullOrEmpty(hex))
+            throw new ArgumentException("Hex string cannot be empty", nameof(hex));
+            
         hex = hex.TrimStart('#');
-        if (hex.Length == 6)
+        
+        try
         {
-            return new Color(
-                Convert.ToByte(hex.Substring(0, 2), 16),
-                Convert.ToByte(hex.Substring(2, 2), 16),
-                Convert.ToByte(hex.Substring(4, 2), 16)
-            );
+            if (hex.Length == 6)
+            {
+                return new Color(
+                    Convert.ToByte(hex.Substring(0, 2), 16),
+                    Convert.ToByte(hex.Substring(2, 2), 16),
+                    Convert.ToByte(hex.Substring(4, 2), 16)
+                );
+            }
+            if (hex.Length == 8)
+            {
+                return new Color(
+                    Convert.ToByte(hex.Substring(0, 2), 16),
+                    Convert.ToByte(hex.Substring(2, 2), 16),
+                    Convert.ToByte(hex.Substring(4, 2), 16),
+                    Convert.ToByte(hex.Substring(6, 2), 16)
+                );
+            }
+            throw new ArgumentException("Invalid hex color format", nameof(hex));
         }
-        if (hex.Length == 8)
+        catch (FormatException)
         {
-            return new Color(
-                Convert.ToByte(hex.Substring(0, 2), 16),
-                Convert.ToByte(hex.Substring(2, 2), 16),
-                Convert.ToByte(hex.Substring(4, 2), 16),
-                Convert.ToByte(hex.Substring(6, 2), 16)
-            );
+            throw new ArgumentException("Invalid hex color format", nameof(hex));
         }
-        throw new ArgumentException("Invalid hex color format");
     }
 
     public int ToArgb() => (A << 24) | (R << 16) | (G << 8) | B;
