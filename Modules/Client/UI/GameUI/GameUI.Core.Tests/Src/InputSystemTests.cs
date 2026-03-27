@@ -297,6 +297,66 @@ public class HitTestTests
 
         Assert.Equal(childIndex, result);
     }
+    
+    [Fact]
+    public void FindWidgetAt_ChildWithOffsetParent_UsesAbsoluteCoordinates()
+    {
+        var storage = new WidgetStorage();
+
+        var parent = new UIWidget(UiTypeId.Window)
+        {
+            Bounds = new Rectangle(100, 100, 200, 200),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var parentIndex = storage.Add(parent);
+
+        var child = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(50, 50, 100, 50),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var childIndex = storage.AddChild(parentIndex, child);
+
+        var result = HitTest.FindWidgetAt(storage, parentIndex, new Vector2(175, 175));
+
+        Assert.Equal(childIndex, result);
+    }
+    
+    [Fact]
+    public void FindWidgetAt_GrandChildWithOffsetParents_UsesAbsoluteCoordinates()
+    {
+        var storage = new WidgetStorage();
+
+        var window = new UIWidget(UiTypeId.Window)
+        {
+            Bounds = new Rectangle(100, 100, 400, 300),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var windowIndex = storage.Add(window);
+
+        var panel = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(10, 20, 200, 150),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var panelIndex = storage.AddChild(windowIndex, panel);
+
+        var button = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(5, 5, 80, 30),
+            ZIndex = 2,
+            IsVisible = true
+        };
+        var buttonIndex = storage.AddChild(panelIndex, button);
+
+        var result = HitTest.FindWidgetAt(storage, windowIndex, new Vector2(140, 155));
+
+        Assert.Equal(buttonIndex, result);
+    }
 }
 
 public class FocusManagerTests
@@ -829,7 +889,7 @@ public class HitTestEdgeCaseTests
         };
         var cIndex = storage.AddChild(pIndex, child);
 
-        var result = HitTest.FindWidgetAt(storage, gpIndex, new Vector2(125, 125));
+        var result = HitTest.FindWidgetAt(storage, gpIndex, new Vector2(175, 175));
         
         Assert.Equal(cIndex, result);
     }

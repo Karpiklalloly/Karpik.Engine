@@ -119,18 +119,51 @@ public class WidgetTree
 
         foreach (var (index, _) in widgetsByZ)
         {
+            var absoluteBounds = GetAbsoluteBoundsRecursive(rootIndex, index);
+            
             var widget = _storage.GetWidget(index);
             if (!widget.IsVisible)
                 continue;
 
-            if (widget.Bounds.Width <= 0 || widget.Bounds.Height <= 0)
+            if (absoluteBounds.Width <= 0 || absoluteBounds.Height <= 0)
                 continue;
 
-            if (widget.Bounds.Contains(position))
+            if (absoluteBounds.Contains(position))
                 return index;
         }
 
         return -1;
+    }
+
+    private Rectangle GetAbsoluteBoundsRecursive(int rootIndex, int targetIndex)
+    {
+        var path = new List<int>();
+        
+        int current = targetIndex;
+        while (current != rootIndex && current >= 0)
+        {
+            path.Add(current);
+            var widget = _storage.GetWidget(current);
+            if (!widget.HasParent)
+                break;
+            current = widget.ParentIndex;
+        }
+        path.Reverse();
+        
+        var bounds = _storage.GetWidget(rootIndex).Bounds;
+        
+        foreach (var idx in path)
+        {
+            var widget = _storage.GetWidget(idx);
+            bounds = new Rectangle(
+                bounds.X + widget.Bounds.X,
+                bounds.Y + widget.Bounds.Y,
+                widget.Bounds.Width,
+                widget.Bounds.Height
+            );
+        }
+        
+        return bounds;
     }
 
     private void CollectWidgetsByZ(int index, List<(int, int)> result)

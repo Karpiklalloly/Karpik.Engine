@@ -1045,8 +1045,87 @@ public class WidgetLayoutDataEdgeCaseTests
         
         Assert.Equal(2, children.Count);
     }
-}
 
-public static class WidgetTreeExtensions
-{
+    [Fact]
+    public void GetAbsoluteBounds_RootWidget_ReturnsOwnBounds()
+    {
+        var storage = new WidgetStorage();
+        
+        var window = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(100, 100, 400, 300) };
+        var windowIndex = storage.Add(window);
+        
+        var tree = new WidgetTree(storage);
+        
+        var absoluteBounds = GetAbsoluteBounds(tree, storage, windowIndex);
+        
+        Assert.Equal(100, absoluteBounds.X);
+        Assert.Equal(100, absoluteBounds.Y);
+        Assert.Equal(400, absoluteBounds.Width);
+        Assert.Equal(300, absoluteBounds.Height);
+    }
+    
+    [Fact]
+    public void GetAbsoluteBounds_ChildWidget_ReturnsParentPlusLocal()
+    {
+        var storage = new WidgetStorage();
+        
+        var window = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(100, 100, 400, 300) };
+        var windowIndex = storage.Add(window);
+        
+        var button = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(10, 20, 100, 40) };
+        var buttonIndex = storage.AddChild(windowIndex, button);
+        
+        var tree = new WidgetTree(storage);
+        
+        var absoluteBounds = GetAbsoluteBounds(tree, storage, buttonIndex);
+        
+        Assert.Equal(110, absoluteBounds.X);
+        Assert.Equal(120, absoluteBounds.Y);
+        Assert.Equal(100, absoluteBounds.Width);
+        Assert.Equal(40, absoluteBounds.Height);
+    }
+    
+    [Fact]
+    public void GetAbsoluteBounds_GrandChildWidget_ReturnsCombinedOffsets()
+    {
+        var storage = new WidgetStorage();
+        
+        var window = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(100, 100, 400, 300) };
+        var windowIndex = storage.Add(window);
+        
+        var panel = new UIWidget(UiTypeId.Panel) { Bounds = new Rectangle(10, 20, 200, 150) };
+        var panelIndex = storage.AddChild(windowIndex, panel);
+        
+        var button = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(5, 5, 80, 30) };
+        var buttonIndex = storage.AddChild(panelIndex, button);
+        
+        var tree = new WidgetTree(storage);
+        
+        var absoluteBounds = GetAbsoluteBounds(tree, storage, buttonIndex);
+        
+        Assert.Equal(115, absoluteBounds.X);
+        Assert.Equal(125, absoluteBounds.Y);
+        Assert.Equal(80, absoluteBounds.Width);
+        Assert.Equal(30, absoluteBounds.Height);
+    }
+
+    private Rectangle GetAbsoluteBounds(WidgetTree tree, WidgetStorage storage, int index)
+    {
+        var widget = storage.Get(index);
+        var localBounds = widget.Bounds;
+        
+        if (!widget.HasParent)
+        {
+            return localBounds;
+        }
+        
+        var parentBounds = GetAbsoluteBounds(tree, storage, widget.ParentIndex);
+        
+        return new Rectangle(
+            parentBounds.X + localBounds.X,
+            parentBounds.Y + localBounds.Y,
+            localBounds.Width,
+            localBounds.Height
+        );
+    }
 }
