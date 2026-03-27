@@ -989,4 +989,64 @@ public class WidgetLayoutDataEdgeCaseTests
         Assert.Equal(0, data.MinWidth);
         Assert.Equal(0, data.MinHeight);
     }
+    
+    [Fact]
+    public void AddChild_ChildHasCorrectParentIndex()
+    {
+        var storage = new WidgetStorage();
+        
+        var parent = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(100, 100, 400, 300) };
+        var parentIndex = storage.Add(parent);
+        
+        var child = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(10, 20, 100, 40) };
+        var childIndex = storage.AddChild(parentIndex, child);
+        
+        var retrievedChild = storage.Get(childIndex);
+        
+        Assert.Equal(parentIndex, retrievedChild.ParentIndex);
+    }
+    
+    [Fact]
+    public void AddChild_GrandChildHasCorrectParentChain()
+    {
+        var storage = new WidgetStorage();
+        
+        var parent = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(100, 100, 400, 300) };
+        var parentIndex = storage.Add(parent);
+        
+        var child = new UIWidget(UiTypeId.Panel) { Bounds = new Rectangle(10, 20, 200, 150) };
+        var childIndex = storage.AddChild(parentIndex, child);
+        
+        var grandChild = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(5, 5, 80, 30) };
+        var grandChildIndex = storage.AddChild(childIndex, grandChild);
+        
+        var retrievedGrandChild = storage.Get(grandChildIndex);
+        
+        Assert.Equal(childIndex, retrievedGrandChild.ParentIndex);
+        Assert.Equal(parentIndex, storage.Get(childIndex).ParentIndex);
+    }
+    
+    [Fact]
+    public void GetChildren_ReturnsAllDirectChildren()
+    {
+        var storage = new WidgetStorage();
+        
+        var parent = new UIWidget(UiTypeId.Panel);
+        var parentIndex = storage.Add(parent);
+        
+        var child1 = new UIWidget(UiTypeId.Button);
+        storage.AddChild(parentIndex, child1);
+        
+        var child2 = new UIWidget(UiTypeId.Label);
+        storage.AddChild(parentIndex, child2);
+        
+        var tree = new WidgetTree(storage);
+        var children = tree.GetChildren(parentIndex);
+        
+        Assert.Equal(2, children.Count);
+    }
+}
+
+public static class WidgetTreeExtensions
+{
 }
