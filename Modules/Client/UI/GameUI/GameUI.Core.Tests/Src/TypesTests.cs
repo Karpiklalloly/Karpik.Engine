@@ -827,3 +827,159 @@ public class UIWidgetEdgeCaseTests
         Assert.False(widget.HasParent);
     }
 }
+
+public class RectanglePropertyBasedTests
+{
+    private readonly Random _random = new(12345);
+
+    [Fact]
+    public void Contains_RandomPoints_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            float x = _random.Next(-1000, 1000);
+            float y = _random.Next(-1000, 1000);
+            float w = _random.Next(1, 1000);
+            float h = _random.Next(1, 1000);
+            
+            var rect = new Rectangle(x, y, w, h);
+            
+            float px = x + _random.Next(0, (int)w);
+            float py = y + _random.Next(0, (int)h);
+            var point = new Vector2(px, py);
+            
+            var result = rect.Contains(point);
+            Assert.True(result, $"Point ({px},{py}) should be inside rect ({x},{y},{w},{h})");
+        }
+    }
+
+    [Fact]
+    public void Contains_RandomPointsOutside_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            float x = _random.Next(-1000, 1000);
+            float y = _random.Next(-1000, 1000);
+            float w = _random.Next(1, 1000);
+            float h = _random.Next(1, 1000);
+            
+            var rect = new Rectangle(x, y, w, h);
+            
+            float px = x + w + 1 + Math.Abs(_random.Next(1, 100));
+            float py = y + h + 1 + Math.Abs(_random.Next(1, 100));
+            var point = new Vector2(px, py);
+            
+            var result = rect.Contains(point);
+            Assert.False(result, $"Point ({px},{py}) should be outside rect ({x},{y},{w},{h})");
+        }
+    }
+
+    [Fact]
+    public void Intersects_RandomRectangles_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            float x1 = _random.Next(-1000, 1000);
+            float y1 = _random.Next(-1000, 1000);
+            float w1 = _random.Next(1, 500);
+            float h1 = _random.Next(1, 500);
+            
+            float x2 = x1 + _random.Next(-200, 200);
+            float y2 = y1 + _random.Next(-200, 200);
+            float w2 = _random.Next(1, 500);
+            float h2 = _random.Next(1, 500);
+            
+            var rect1 = new Rectangle(x1, y1, w1, h1);
+            var rect2 = new Rectangle(x2, y2, w2, h2);
+            
+            bool intersects = rect1.Intersects(rect2);
+            
+            bool overlap = !(x1 + w1 <= x2 || x2 + w2 <= x1 || y1 + h1 <= y2 || y2 + h2 <= y1);
+            Assert.Equal(overlap, intersects);
+        }
+    }
+
+    [Fact]
+    public void Inflate_RandomValues_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            float x = _random.Next(-500, 500);
+            float y = _random.Next(-500, 500);
+            float w = _random.Next(1, 500);
+            float h = _random.Next(1, 500);
+            float dx = _random.Next(-200, 200);
+            float dy = _random.Next(-200, 200);
+            
+            var rect = new Rectangle(x, y, w, h);
+            var inflated = rect.Inflate(dx, dy);
+            
+            Assert.Equal(x - dx, inflated.X);
+            Assert.Equal(y - dy, inflated.Y);
+            Assert.Equal(w + 2 * dx, inflated.Width);
+            Assert.Equal(h + 2 * dy, inflated.Height);
+        }
+    }
+}
+
+public class ColorPropertyBasedTests
+{
+    private readonly Random _random = new(54321);
+
+    [Fact]
+    public void FromHex_RandomColors_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            byte r = (byte)_random.Next(0, 256);
+            byte g = (byte)_random.Next(0, 256);
+            byte b = (byte)_random.Next(0, 256);
+            byte a = (byte)_random.Next(0, 256);
+            
+            string hex = $"#{r:X2}{g:X2}{b:X2}";
+            var color = Color.FromHex(hex);
+            
+            Assert.Equal(r, color.R);
+            Assert.Equal(g, color.G);
+            Assert.Equal(b, color.B);
+            Assert.Equal(255, color.A);
+        }
+    }
+
+    [Fact]
+    public void FromHex_RandomColorsWithAlpha_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            byte r = (byte)_random.Next(0, 256);
+            byte g = (byte)_random.Next(0, 256);
+            byte b = (byte)_random.Next(0, 256);
+            byte a = (byte)_random.Next(0, 256);
+            
+            string hex = $"#{a:X2}{r:X2}{g:X2}{b:X2}";
+            var color = Color.FromHex(hex);
+            
+            Assert.Equal(r, color.R);
+            Assert.Equal(g, color.G);
+            Assert.Equal(b, color.B);
+            Assert.Equal(a, color.A);
+        }
+    }
+
+    [Fact]
+    public void ToArgb_RandomColors_1000Cases()
+    {
+        for (int i = 0; i < 1000; i++)
+        {
+            byte a = (byte)_random.Next(0, 256);
+            byte r = (byte)_random.Next(0, 256);
+            byte g = (byte)_random.Next(0, 256);
+            byte b = (byte)_random.Next(0, 256);
+            
+            var color = new Color(a, r, g, b);
+            int expected = (a << 24) | (r << 16) | (g << 8) | b;
+            
+            Assert.Equal(expected, color.ToArgb());
+        }
+    }
+}

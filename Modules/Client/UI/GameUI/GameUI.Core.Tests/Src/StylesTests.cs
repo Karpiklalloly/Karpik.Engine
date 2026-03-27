@@ -3,6 +3,20 @@ using Karpik.Engine.Client.UI.Core;
 
 namespace GameUI.Core.Tests;
 
+[CollectionDefinition("StyleTests")]
+public class StyleTestsCollection : ICollectionFixture<StyleTestsFixture>
+{
+}
+
+public class StyleTestsFixture
+{
+    public StyleTestsFixture()
+    {
+        UIStyle.ClearPool();
+    }
+}
+
+[Collection("StyleTests")]
 public class UIStyleTests
 {
     [Fact]
@@ -1196,5 +1210,141 @@ public class StyleEngineEdgeCaseTests
         
         UIStyle.Return(classStyle);
         UIStyle.Return(computed);
+    }
+}
+
+[Collection("StyleTests")]
+public class ThemeTests
+{
+    [Fact]
+    public void DarkTheme_AppliedToUI()
+    {
+        var darkTheme = new DarkTheme().Build();
+        var engine = new StyleEngine(darkTheme);
+
+        engine.AddRule("Window", UIStyle.Rent()
+            .BackgroundColorResource("Background")
+            .TextColorResource("TextColor")
+            .BorderColorResource("BorderColor"));
+
+        engine.AddRule("Button", UIStyle.Rent()
+            .BackgroundColorResource("Surface")
+            .TextColorResource("TextColor")
+            .PaddingAll(8));
+
+        engine.AddRule("Button:Hover", UIStyle.Rent()
+            .BackgroundColorResource("SurfaceHover"));
+
+        engine.AddRule("Button:active", UIStyle.Rent()
+            .BackgroundColorResource("SurfaceActive"));
+
+        engine.AddRule(".primary", UIStyle.Rent()
+            .BackgroundColorResource("Primary"));
+
+        var window = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(0, 0, 800, 600) };
+        var windowStyle = engine.ComputeStyle(window, engine.GetOrCreateStyleData(0));
+
+        Assert.Equal(new Color(255, 30, 30, 30), windowStyle.Background);
+        Assert.Equal(new Color(255, 233, 236, 239), windowStyle.TextColor);
+
+        var button = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(10, 10, 100, 40) };
+        var styleData = engine.GetOrCreateStyleData(1);
+        var buttonStyle = engine.ComputeStyle(button, styleData);
+
+        Assert.Equal(new Color(255, 45, 45, 45), buttonStyle.Background);
+
+        styleData.SetPseudoState(PseudoState.Hover);
+        var hoverStyle = engine.ComputeStyle(button, styleData);
+        Assert.Equal(new Color(255, 60, 60, 60), hoverStyle.Background);
+
+        UIStyle.Return(windowStyle);
+        UIStyle.Return(buttonStyle);
+        UIStyle.Return(hoverStyle);
+    }
+
+    [Fact]
+    public void LightTheme_AppliedToUI()
+    {
+        var lightTheme = new LightTheme().Build();
+        var engine = new StyleEngine(lightTheme);
+
+        engine.AddRule("Window", UIStyle.Rent()
+            .BackgroundColorResource("Background")
+            .TextColorResource("TextColor"));
+
+        engine.AddRule("Button", UIStyle.Rent()
+            .BackgroundColorResource("Surface")
+            .TextColorResource("TextColor")
+            .PaddingAll(8));
+
+        var window = new UIWidget(UiTypeId.Window) { Bounds = new Rectangle(0, 0, 800, 600) };
+        var windowStyle = engine.ComputeStyle(window, engine.GetOrCreateStyleData(0));
+
+        Assert.Equal(Color.White, windowStyle.Background);
+        Assert.Equal(Color.Black, windowStyle.TextColor);
+
+        var button = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(10, 10, 100, 40) };
+        var buttonStyle = engine.ComputeStyle(button, engine.GetOrCreateStyleData(1));
+
+        Assert.Equal(new Color(255, 248, 249, 250), buttonStyle.Background);
+
+        UIStyle.Return(windowStyle);
+        UIStyle.Return(buttonStyle);
+    }
+
+    [Fact]
+    public void ThemeSwitch_DynamicChange()
+    {
+        var engine = new StyleEngine();
+
+        engine.AddRule("Window", UIStyle.Rent()
+            .BackgroundColorResource("Background")
+            .TextColorResource("TextColor"));
+
+        var window = new UIWidget(UiTypeId.Window) { Bounds = Rectangle.Zero };
+        var styleData = engine.GetOrCreateStyleData(0);
+
+        engine.SetResources(new LightTheme().Build());
+        var lightStyle = engine.ComputeStyle(window, styleData);
+        Assert.Equal(Color.White, lightStyle.Background);
+        Assert.Equal(Color.Black, lightStyle.TextColor);
+        UIStyle.Return(lightStyle);
+
+        engine.SetResources(new DarkTheme().Build());
+        var darkStyle = engine.ComputeStyle(window, styleData);
+        Assert.Equal(new Color(255, 30, 30, 30), darkStyle.Background);
+        Assert.Equal(new Color(255, 233, 236, 239), darkStyle.TextColor);
+        UIStyle.Return(darkStyle);
+    }
+
+    [Fact]
+    public void CustomTheme_OverrideDefaults()
+    {
+        var customTheme = new DarkTheme()
+            .Primary(new Color(255, 128, 0, 128))
+            .Danger(new Color(255, 255, 165, 0))
+            .Build();
+
+        var engine = new StyleEngine(customTheme);
+
+        engine.AddRule(".btn-primary", UIStyle.Rent()
+            .BackgroundColorResource("Primary"));
+
+        engine.AddRule(".btn-danger", UIStyle.Rent()
+            .BackgroundColorResource("Danger"));
+
+        var primaryBtn = new UIWidget(UiTypeId.Button) { Bounds = Rectangle.Zero };
+        var styleData1 = engine.GetOrCreateStyleData(1);
+        styleData1.AddClass("btn-primary");
+        var primaryStyle = engine.ComputeStyle(primaryBtn, styleData1);
+        Assert.Equal(new Color(255, 128, 0, 128), primaryStyle.Background);
+
+        var styleData2 = engine.GetOrCreateStyleData(2);
+        styleData2.AddClass("btn-danger");
+        var dangerStyle = engine.ComputeStyle(primaryBtn, styleData2);
+        Assert.Equal(new Color(255, 255, 165, 0), dangerStyle.Background);
+
+        UIStyle.Return(primaryStyle);
+        UIStyle.Return(dangerStyle);
     }
 }

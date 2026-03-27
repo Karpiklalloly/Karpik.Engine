@@ -48,18 +48,22 @@ public class GameUIDemo
 
     private ResourceDictionary CreateCustomResources()
     {
-        var resources = new ResourceDictionary();
+        var darkTheme = new DarkTheme()
+            .Primary(new Color(255, 0, 153, 255))
+            .Success(new Color(255, 72, 199, 103))
+            .Danger(new Color(255, 255, 92, 107))
+            .Warning(new Color(255, 255, 193, 7));
         
-        resources.Add("primary", Color.FromHex("#3498db"));
-        resources.Add("primary-dark", Color.FromHex("#2980b9"));
-        resources.Add("success", Color.FromHex("#27ae60"));
-        resources.Add("danger", Color.FromHex("#e74c3c"));
-        resources.Add("warning", Color.FromHex("#f39c12"));
-        resources.Add("dark", Color.FromHex("#2c3e50"));
-        resources.Add("light", Color.FromHex("#ecf0f1"));
-        resources.Add("text-dark", Color.FromHex("#2c3e50"));
-        resources.Add("text-light", Color.FromHex("#ffffff"));
-        resources.Add("border-color", Color.FromHex("#bdc3c7"));
+        var resources = darkTheme.Build();
+        
+        resources.Add("dark", new Color(255, 30, 30, 30));
+        resources.Add("light", new Color(255, 233, 236, 239));
+        resources.Add("text-dark", new Color(255, 30, 30, 30));
+        resources.Add("text-light", new Color(255, 233, 236, 239));
+        resources.Add("border-color", new Color(255, 90, 90, 90));
+        
+        resources.Add("panel-bg", new Color(255, 45, 45, 45));
+        resources.Add("panel-bg-alt", new Color(255, 61, 86, 110));
         
         resources.Add("padding-small", 8f);
         resources.Add("padding-medium", 16f);
@@ -68,7 +72,7 @@ public class GameUIDemo
         resources.Add("font-small", 12f);
         resources.Add("font-normal", 14f);
         resources.Add("font-large", 18f);
-        resources.Add("font-title", 24f);
+        resources.Add("font-title", 28f);
         
         resources.Add("border-radius", 4f);
         resources.Add("border-radius-large", 8f);
@@ -79,81 +83,82 @@ public class GameUIDemo
     private void SetupStyles()
     {
         var windowStyle = UIStyle.Rent()
-            .BackgroundColorResource("dark")
+            .BackgroundColorResource("Background")
+            .BorderColorResource("BorderColor")
             .PaddingAll(20);
         _styleEngine.AddRule("Window", windowStyle);
         
         var panelStyle = UIStyle.Rent()
-            .BackgroundColor(Color.FromHex("#34495e"))
+            .BackgroundColorResource("panel-bg")
             .PaddingAll(16)
             .CornerRadiusValue(8);
         _styleEngine.AddRule("Panel", panelStyle);
         
         var titleStyle = UIStyle.Rent()
-            .TextColorResource("text-light")
+            .TextColorResource("TextColor")
             .FontSizeValue(28)
             .Align(TextAlignment.Center);
         _styleEngine.AddRule("Label.title", titleStyle);
         
         var headingStyle = UIStyle.Rent()
-            .TextColorResource("text-light")
+            .TextColorResource("TextColor")
             .FontSizeValue(18);
         _styleEngine.AddRule("Label.heading", headingStyle);
         
         var bodyStyle = UIStyle.Rent()
-            .TextColorResource("text-light")
+            .TextColorResource("TextColor")
             .FontSizeValue(14);
         _styleEngine.AddRule("Label.body", bodyStyle);
         
         var buttonBase = UIStyle.Rent()
-            .TextColorResource("text-light")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button", buttonBase);
         
         var primaryBtn = UIStyle.Rent()
-            .BackgroundColorResource("primary")
-            .TextColorResource("text-light")
+            .BackgroundColorResource("Primary")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.primary", primaryBtn);
         
         var primaryHover = UIStyle.Rent()
-            .BackgroundColorResource("primary-dark")
-            .TextColorResource("text-light")
+            .BackgroundColorResource("SurfaceHover")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.primary:hover", primaryHover);
         
         var successBtn = UIStyle.Rent()
-            .BackgroundColorResource("success")
-            .TextColorResource("text-light")
+            .BackgroundColorResource("Success")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.success", successBtn);
         
         var dangerBtn = UIStyle.Rent()
-            .BackgroundColorResource("danger")
-            .TextColorResource("text-light")
+            .BackgroundColorResource("Danger")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.danger", dangerBtn);
         
         var outlineBtn = UIStyle.Rent()
             .BackgroundColor(Color.Transparent)
-            .Border(Color.FromHex("#bdc3c7"), 1)
-            .TextColorResource("text-dark")
+            .BorderColorResource("BorderColor")
+            .TextColorResource("TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.outline", outlineBtn);
         
         var horizontalContainer = UIStyle.Rent()
-            .BackgroundColor(Color.FromHex("#2c3e50"))
+            .BackgroundColorResource("panel-bg")
             .PaddingAll(16);
         _styleEngine.AddRule("Horizontal", horizontalContainer);
         
         var verticalContainer = UIStyle.Rent()
-            .BackgroundColor(Color.FromHex("#3d566e"))
+            .BackgroundColorResource("panel-bg-alt")
             .PaddingAll(16);
         _styleEngine.AddRule("Vertical", verticalContainer);
     }
@@ -175,7 +180,7 @@ public class GameUIDemo
             IsEnabled = true
         };
         _windowIndex = _storage.Add(window);
-        _panelData[_windowIndex] = new PanelData { Background = new Color(44, 62, 80), ClipChildren = false };
+        _panelData[_windowIndex] = new PanelData { Background = new Color(255, 30, 30, 30), ClipChildren = false };
         
         AddLabel(_windowIndex, "settings-title", 20, 20, WindowWidth - 40, 40, "Settings", 28, "title");
         
@@ -217,7 +222,7 @@ public class GameUIDemo
             IsEnabled = true
         };
         int panelIndex = _storage.AddChild(parentIndex, panel);
-        _panelData[panelIndex] = new PanelData { Background = new Color(52, 73, 94), ClipChildren = false };
+        _panelData[panelIndex] = new PanelData { Background = new Color(255, 45, 45, 45), ClipChildren = false };
         
         AddLabel(panelIndex, id + "-title", 10, 10, width - 40, 25, title, 16, "heading");
         

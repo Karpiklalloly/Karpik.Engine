@@ -357,6 +357,274 @@ public class HitTestTests
 
         Assert.Equal(buttonIndex, result);
     }
+    
+    [Fact]
+    public void FindWidgetAt_ChildOutsideClippingPanel_NotFound()
+    {
+        var storage = new WidgetStorage();
+
+        var panel = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(0, 0, 100, 100),
+            ZIndex = 0,
+            IsVisible = true,
+            ClipChildren = true
+        };
+        var panelIndex = storage.Add(panel);
+
+        var button = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(50, 50, 100, 50),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var buttonIndex = storage.AddChild(panelIndex, button);
+
+        var result = HitTest.FindWidgetAt(storage, panelIndex, new Vector2(120, 75));
+
+        Assert.Equal(-1, result);
+    }
+    
+    [Fact]
+    public void FindWidgetAt_ChildOutsideNonClippingPanel_Found()
+    {
+        var storage = new WidgetStorage();
+
+        var panel = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(0, 0, 100, 100),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var panelIndex = storage.Add(panel);
+
+        var button = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(150, 50, 100, 50),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var buttonIndex = storage.AddChild(panelIndex, button);
+
+        var result = HitTest.FindWidgetAt(storage, panelIndex, new Vector2(200, 75));
+
+        Assert.Equal(buttonIndex, result);
+    }
+    
+    [Fact]
+    public void FindWidgetAt_DeepChildOutsideClippingPanel_NotFound()
+    {
+        var storage = new WidgetStorage();
+
+        var panel = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(0, 0, 100, 100),
+            ZIndex = 0,
+            IsVisible = true,
+            ClipChildren = true
+        };
+        var panelIndex = storage.Add(panel);
+
+        var container = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(10, 10, 50, 50),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var containerIndex = storage.AddChild(panelIndex, container);
+
+        var button = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(60, 20, 80, 30),
+            ZIndex = 2,
+            IsVisible = true
+        };
+        var buttonIndex = storage.AddChild(containerIndex, button);
+
+        var result = HitTest.FindWidgetAt(storage, panelIndex, new Vector2(120, 50));
+
+        Assert.Equal(-1, result);
+    }
+    
+    [Fact]
+    public void FindWidgetAt_SameZIndexInDifferentParents_EachIndependent()
+    {
+        var storage = new WidgetStorage();
+
+        var panel1 = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(0, 0, 100, 100),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var panel1Index = storage.Add(panel1);
+
+        var panel2 = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(100, 0, 100, 100),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var panel2Index = storage.Add(panel2);
+
+        var button1 = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(10, 10, 50, 50),
+            ZIndex = 10,
+            IsVisible = true
+        };
+        var button1Index = storage.AddChild(panel1Index, button1);
+
+        var button2 = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(10, 10, 50, 50),
+            ZIndex = 5,
+            IsVisible = true
+        };
+        var button2Index = storage.AddChild(panel2Index, button2);
+
+        var result1 = HitTest.FindWidgetAt(storage, panel1Index, new Vector2(30, 30));
+        var result2 = HitTest.FindWidgetAt(storage, panel2Index, new Vector2(130, 30));
+
+        Assert.Equal(button1Index, result1);
+        Assert.Equal(button2Index, result2);
+    }
+    
+    [Fact]
+    public void FindWidgetAt_HigherZIndexWins_AmongSiblings()
+    {
+        var storage = new WidgetStorage();
+
+        var panel = new UIWidget(UiTypeId.Panel)
+        {
+            Bounds = new Rectangle(0, 0, 200, 200),
+            ZIndex = 0,
+            IsVisible = true
+        };
+        var panelIndex = storage.Add(panel);
+
+        var button1 = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(10, 10, 80, 80),
+            ZIndex = 1,
+            IsVisible = true
+        };
+        var button1Index = storage.AddChild(panelIndex, button1);
+
+        var button2 = new UIWidget(UiTypeId.Button)
+        {
+            Bounds = new Rectangle(10, 10, 80, 80),
+            ZIndex = 2,
+            IsVisible = true
+        };
+        var button2Index = storage.AddChild(panelIndex, button2);
+
+        var result = HitTest.FindWidgetAt(storage, panelIndex, new Vector2(50, 50));
+
+        Assert.Equal(button2Index, result);
+    }
+}
+
+public class HitTestPropertyBasedTests
+{
+    private readonly Random _random = new(99999);
+
+    [Fact]
+    public void FindWidgetAt_RandomPositions_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var storage = new WidgetStorage();
+            
+            float x = _random.Next(-500, 500);
+            float y = _random.Next(-500, 500);
+            float w = _random.Next(50, 300);
+            float h = _random.Next(50, 300);
+            
+            var widget = new UIWidget(UiTypeId.Button)
+            {
+                Bounds = new Rectangle(x, y, w, h),
+                ZIndex = 0,
+                IsVisible = true
+            };
+            var index = storage.Add(widget);
+            
+            float px = x + _random.Next(0, (int)w);
+            float py = y + _random.Next(0, (int)h);
+            
+            var result = HitTest.FindWidgetAt(storage, 0, new Vector2(px, py));
+            
+            Assert.Equal(index, result);
+        }
+    }
+
+    [Fact]
+    public void FindWidgetAt_RandomPositionsOutside_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var storage = new WidgetStorage();
+            
+            float x = _random.Next(-500, 500);
+            float y = _random.Next(-500, 500);
+            float w = _random.Next(50, 300);
+            float h = _random.Next(50, 300);
+            
+            var widget = new UIWidget(UiTypeId.Button)
+            {
+                Bounds = new Rectangle(x, y, w, h),
+                ZIndex = 0,
+                IsVisible = true
+            };
+            storage.Add(widget);
+            
+            float px = x + w + 1 + Math.Abs(_random.Next(1, 100));
+            float py = y + h + 1 + Math.Abs(_random.Next(1, 100));
+            
+            var result = HitTest.FindWidgetAt(storage, 0, new Vector2(px, py));
+            
+            Assert.Equal(-1, result);
+        }
+    }
+
+    [Fact]
+    public void FindWidgetAt_MultipleWidgets_RandomLayout_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var storage = new WidgetStorage();
+            
+            int count = _random.Next(3, 10);
+            var indices = new List<int>();
+            
+            for (int j = 0; j < count; j++)
+            {
+                float x = _random.Next(0, 500);
+                float y = _random.Next(0, 500);
+                float w = _random.Next(20, 100);
+                float h = _random.Next(20, 100);
+                
+                var widget = new UIWidget(UiTypeId.Button)
+                {
+                    Bounds = new Rectangle(x, y, w, h),
+                    ZIndex = j,
+                    IsVisible = true
+                };
+                indices.Add(storage.Add(widget));
+            }
+            
+            float px = _random.Next(0, 600);
+            float py = _random.Next(0, 600);
+            
+            var result = HitTest.FindWidgetAt(storage, 0, new Vector2(px, py));
+            
+            if (result >= 0)
+            {
+                var hitWidget = storage.Get(result);
+                Assert.True(hitWidget.Bounds.Contains(new Vector2(px, py)));
+            }
+        }
+    }
 }
 
 public class FocusManagerTests
@@ -448,6 +716,33 @@ public class FocusManagerTests
         focusManager.NavigateNext();
 
         Assert.False(inputSystem.IsFocused(index));
+    }
+    
+    [Fact]
+    public void NavigateNext_AtLastWidget_WrapsToFirst()
+    {
+        var storage = new WidgetStorage();
+        var events = new WidgetEvents(storage);
+        var dispatcher = new EventDispatcher(storage, events);
+        var tree = new WidgetTree(storage);
+        var inputSystem = new InputSystem(storage, tree, dispatcher);
+        var focusManager = new FocusManager(storage, inputSystem);
+
+        var widget1 = new UIWidget(UiTypeId.Button);
+        var widget2 = new UIWidget(UiTypeId.Label);
+        var widget3 = new UIWidget(UiTypeId.Button);
+        var index1 = storage.Add(widget1);
+        var index2 = storage.Add(widget2);
+        var index3 = storage.Add(widget3);
+
+        focusManager.RegisterFocusable(index1);
+        focusManager.RegisterFocusable(index2);
+        focusManager.RegisterFocusable(index3);
+
+        inputSystem.SetFocus(index3);
+        focusManager.NavigateNext();
+
+        Assert.True(inputSystem.IsFocused(index1));
     }
 }
 

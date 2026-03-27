@@ -34,6 +34,11 @@ public class UIStyle
         _pool.Return(style);
     }
 
+    public static void ClearPool()
+    {
+        _pool.Clear();
+    }
+
     private void Reset()
     {
         Background = Color.Transparent;
@@ -205,6 +210,11 @@ internal class Pool<T> where T : class, new()
     public void Return(T item)
     {
         _stack.Push(item);
+    }
+
+    public void Clear()
+    {
+        _stack.Clear();
     }
 }
 
@@ -410,13 +420,20 @@ public class WidgetStyleData
 public class StyleEngine
 {
     private readonly List<StyleRule> _rules = new();
-    private readonly ResourceDictionary _resources;
+    private ResourceDictionary _resources;
     private readonly Dictionary<int, WidgetStyleData> _styleData = new();
 
     public StyleEngine(ResourceDictionary? resources = null)
     {
         _resources = resources ?? ResourceDictionary.Default;
     }
+
+    public void SetResources(ResourceDictionary resources)
+    {
+        _resources = resources ?? ResourceDictionary.Default;
+    }
+
+    public ResourceDictionary GetResources() => _resources;
 
     public void AddRule(StyleRule rule)
     {
@@ -710,4 +727,76 @@ public class StyleEngine
     {
         _styleData.Clear();
     }
+}
+
+public class LightTheme
+{
+    private readonly ResourceDictionary _resources = new();
+
+    public LightTheme()
+    {
+        Background(Color.White);
+        TextColor(Color.Black);
+        BorderColor(new Color(255, 200, 200, 200));
+        Primary(new Color(255, 0, 122, 204));
+        Secondary(new Color(255, 108, 117, 125));
+        Success(new Color(255, 40, 167, 69));
+        Danger(new Color(255, 220, 53, 69));
+        Warning(new Color(255, 255, 193, 7));
+        Info(new Color(255, 23, 162, 184));
+        Surface(new Color(255, 248, 249, 250));
+        SurfaceHover(new Color(255, 233, 236, 239));
+        SurfaceActive(new Color(255, 222, 226, 230));
+    }
+
+    public LightTheme Background(Color color) { _resources.Add("Background", color); return this; }
+    public LightTheme TextColor(Color color) { _resources.Add("TextColor", color); return this; }
+    public LightTheme BorderColor(Color color) { _resources.Add("BorderColor", color); return this; }
+    public LightTheme Primary(Color color) { _resources.Add("Primary", color); return this; }
+    public LightTheme Secondary(Color color) { _resources.Add("Secondary", color); return this; }
+    public LightTheme Success(Color color) { _resources.Add("Success", color); return this; }
+    public LightTheme Danger(Color color) { _resources.Add("Danger", color); return this; }
+    public LightTheme Warning(Color color) { _resources.Add("Warning", color); return this; }
+    public LightTheme Info(Color color) { _resources.Add("Info", color); return this; }
+    public LightTheme Surface(Color color) { _resources.Add("Surface", color); return this; }
+    public LightTheme SurfaceHover(Color color) { _resources.Add("SurfaceHover", color); return this; }
+    public LightTheme SurfaceActive(Color color) { _resources.Add("SurfaceActive", color); return this; }
+
+    public ResourceDictionary Build() => _resources;
+}
+
+public class DarkTheme
+{
+    private readonly ResourceDictionary _resources = new();
+
+    public DarkTheme()
+    {
+        Background(new Color(255, 30, 30, 30));
+        TextColor(new Color(255, 233, 236, 239));
+        BorderColor(new Color(255, 90, 90, 90));
+        Primary(new Color(255, 0, 153, 255));
+        Secondary(new Color(255, 173, 181, 189));
+        Success(new Color(255, 72, 199, 103));
+        Danger(new Color(255, 255, 92, 107));
+        Warning(new Color(255, 255, 193, 7));
+        Info(new Color(255, 57, 211, 238));
+        Surface(new Color(255, 45, 45, 45));
+        SurfaceHover(new Color(255, 60, 60, 60));
+        SurfaceActive(new Color(255, 75, 75, 75));
+    }
+
+    public DarkTheme Background(Color color) { _resources.Add("Background", color); return this; }
+    public DarkTheme TextColor(Color color) { _resources.Add("TextColor", color); return this; }
+    public DarkTheme BorderColor(Color color) { _resources.Add("BorderColor", color); return this; }
+    public DarkTheme Primary(Color color) { _resources.Add("Primary", color); return this; }
+    public DarkTheme Secondary(Color color) { _resources.Add("Secondary", color); return this; }
+    public DarkTheme Success(Color color) { _resources.Add("Success", color); return this; }
+    public DarkTheme Danger(Color color) { _resources.Add("Danger", color); return this; }
+    public DarkTheme Warning(Color color) { _resources.Add("Warning", color); return this; }
+    public DarkTheme Info(Color color) { _resources.Add("Info", color); return this; }
+    public DarkTheme Surface(Color color) { _resources.Add("Surface", color); return this; }
+    public DarkTheme SurfaceHover(Color color) { _resources.Add("SurfaceHover", color); return this; }
+    public DarkTheme SurfaceActive(Color color) { _resources.Add("SurfaceActive", color); return this; }
+
+    public ResourceDictionary Build() => _resources;
 }

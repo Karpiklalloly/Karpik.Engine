@@ -317,6 +317,81 @@ public class MyService : IOnInjectedDI
 
 ---
 
+## Тестирование
+
+### Типы тестов
+
+Для каждого модуля пиши тесты следующих типов:
+
+| Тип | Описание | Пример |
+|-----|----------|--------|
+| **Unit** | Тест одной функции/класса | `Rectangle.Contains()`, `UIStyle.Merge()` |
+| **Integration** | Взаимодействие нескольких компонентов | `InputSystem + WidgetEvents + HitTest` |
+| **Edge Cases** | Граничные условия | null, -1, 0, max values, пустые коллекции |
+
+### Обязательные требования
+
+1. **Максимум Edge Cases**: Для каждой функции тестируй:
+   - Normal values (happy path)
+   - Zero, One
+   - Negative values
+   - Max values (int.MaxValue, float.MaxValue)
+   - Null / empty
+   - Boundaries (точно на границе)
+
+2. **Property-Based Testing (PBT)**: Используй случайные данные для генерации тестов:
+   - Генерируй 100-1000 случайных входных значений
+   - Проверяй свойства, а не конкретные значения
+   - Инструменты: FsCheck, PropertyTesting, BenchmarkDotNet для перф
+
+**Пример Edge Case теста:**
+```csharp
+[Theory]
+[InlineData(0)]
+[InlineData(1)]
+[InlineData(-1)]
+[InlineData(int.MaxValue)]
+[InlineData(int.MinValue)]
+public void Rectangle_Contains_EdgeCases(int value)
+{
+    var rect = new Rectangle(0, 0, 100, 100);
+    var point = new Vector2(value, 50);
+    
+    var result = rect.Contains(point);
+    Assert.Equal(value >= 0 && value <= 100, result);
+}
+```
+
+**Пример Integration теста:**
+```csharp
+[Fact]
+public void Click_Widget_DispatchesHoverAndClick()
+{
+    var storage = new WidgetStorage();
+    var events = new WidgetEvents(storage);
+    var dispatcher = new EventDispatcher(storage, events);
+    var tree = new WidgetTree(storage);
+    var inputSystem = new InputSystem(storage, tree, dispatcher);
+    
+    var widget = new UIWidget(UiTypeId.Button) { Bounds = new Rectangle(0, 0, 100, 50) };
+    var index = storage.Add(widget);
+    
+    bool hovered = false;
+    bool clicked = false;
+    events.GetOrCreate(index).OnHover += _ => hovered = true;
+    events.GetOrCreate(index).OnClick += _ => clicked = true;
+    
+    inputSystem.Update(new Vector2(50, 25), false, index);
+    Assert.True(hovered);
+    
+    inputSystem.Update(new Vector2(50, 25), true, index);
+    inputSystem.Update(new Vector2(50, 25), false, index);
+    Assert.True(clicked);
+}
+```
+
+---
+
 ## Специальные знания
 
 - Глубокое понимание жизненного цикла кадра (Update/Render/Physics).

@@ -893,6 +893,88 @@ public class LayoutEngineEdgeCaseTests
     }
 }
 
+public class LayoutPropertyBasedTests
+{
+    private readonly Random _random = new(11111);
+
+    [Fact]
+    public void CalculateLayout_RandomChildren_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var storage = new WidgetStorage();
+            var layoutEngine = new LayoutEngine(storage);
+            
+            float parentW = _random.Next(100, 500);
+            float parentH = _random.Next(100, 500);
+            
+            var parent = new UIWidget(UiTypeId.Window) 
+            { 
+                Bounds = new Rectangle(0, 0, parentW, parentH), 
+                IsDirty = true 
+            };
+            var parentIndex = storage.Add(parent);
+            
+            int childCount = _random.Next(2, 10);
+            for (int j = 0; j < childCount; j++)
+            {
+                var child = new UIWidget(UiTypeId.Button);
+                var childIndex = storage.AddChild(parentIndex, child);
+                layoutEngine.SetPreferredSize(childIndex, _random.Next(20, 100), _random.Next(20, 50));
+            }
+            
+            layoutEngine.CalculateLayout(parentIndex);
+            
+            var updatedParent = storage.Get(parentIndex);
+            Assert.False(updatedParent.IsDirty);
+        }
+    }
+
+    [Fact]
+    public void SetPreferredSize_RandomValues_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var storage = new WidgetStorage();
+            var layoutEngine = new LayoutEngine(storage);
+            
+            var widget = new UIWidget(UiTypeId.Button);
+            var index = storage.Add(widget);
+            
+            float w = _random.Next(0, 1000);
+            float h = _random.Next(0, 1000);
+            
+            layoutEngine.SetPreferredSize(index, w, h);
+            
+            var data = layoutEngine.GetLayoutData(index);
+            Assert.Equal(w, data.PreferredWidth);
+            Assert.Equal(h, data.PreferredHeight);
+        }
+    }
+
+    [Fact]
+    public void FlexContainerStyle_RandomConfigs_500Cases()
+    {
+        for (int i = 0; i < 500; i++)
+        {
+            var style = new FlexContainerStyle
+            {
+                Direction = (FlexDirection)_random.Next(0, 2),
+                Justify = (JustifyContent)_random.Next(0, 5),
+                Align = (AlignItems)_random.Next(0, 4),
+                Wrap = _random.Next(0, 2) == 1,
+                Gap = _random.Next(0, 50),
+                Padding = new Padding(_random.Next(0, 20)),
+                Margin = new Margin(_random.Next(0, 20))
+            };
+            
+            Assert.True(style.Gap >= 0);
+            Assert.True(style.Padding.Left >= 0);
+            Assert.True(style.Margin.Left >= 0);
+        }
+    }
+}
+
 public class FlexContainerStyleEdgeCaseTests
 {
     [Fact]

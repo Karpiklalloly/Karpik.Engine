@@ -17,6 +17,7 @@ public struct UIWidget
     public bool IsEnabled;
     public bool BubbleEvents;
     public bool IsDirty;
+    public bool ClipChildren;
 
     public const int NoParent = -1;
     public const int NoChild = -1;
@@ -37,6 +38,7 @@ public struct UIWidget
         IsEnabled = true;
         BubbleEvents = false;
         IsDirty = true;
+        ClipChildren = false;
     }
 
     public bool HasParent => ParentIndex != NoParent;

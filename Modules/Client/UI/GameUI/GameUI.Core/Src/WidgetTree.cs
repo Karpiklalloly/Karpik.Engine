@@ -128,11 +128,55 @@ public class WidgetTree
             if (absoluteBounds.Width <= 0 || absoluteBounds.Height <= 0)
                 continue;
 
+            if (!IsWithinClippingBounds(rootIndex, index, absoluteBounds))
+                continue;
+
             if (absoluteBounds.Contains(position))
                 return index;
         }
 
         return -1;
+    }
+
+    private bool IsWithinClippingBounds(int rootIndex, int targetIndex, Rectangle targetAbsoluteBounds)
+    {
+        int current = targetIndex;
+        
+        while (current != rootIndex && current >= 0)
+        {
+            var widget = _storage.GetWidget(current);
+            
+            if (!widget.HasParent)
+                break;
+            
+            var parent = _storage.GetWidget(widget.ParentIndex);
+            
+            if (parent.ClipChildren)
+            {
+                var parentAbsoluteBounds = GetAbsoluteBoundsRecursive(rootIndex, widget.ParentIndex);
+                var childTopLeft = new Vector2(targetAbsoluteBounds.X, targetAbsoluteBounds.Y);
+                var childBottomRight = new Vector2(
+                    targetAbsoluteBounds.X + targetAbsoluteBounds.Width,
+                    targetAbsoluteBounds.Y + targetAbsoluteBounds.Height
+                );
+                var parentTopLeft = new Vector2(parentAbsoluteBounds.X, parentAbsoluteBounds.Y);
+                var parentBottomRight = new Vector2(
+                    parentAbsoluteBounds.X + parentAbsoluteBounds.Width,
+                    parentAbsoluteBounds.Y + parentAbsoluteBounds.Height
+                );
+                
+                if (!parentAbsoluteBounds.Contains(childTopLeft) ||
+                    childBottomRight.X > parentBottomRight.X ||
+                    childBottomRight.Y > parentBottomRight.Y)
+                {
+                    return false;
+                }
+            }
+            
+            current = widget.ParentIndex;
+        }
+        
+        return true;
     }
 
     private Rectangle GetAbsoluteBoundsRecursive(int rootIndex, int targetIndex)
