@@ -755,6 +755,10 @@ CellData[,] Cells = new CellData[1000, 1000];
 - [x] ResourceDictionary
 - [x] CSS-like селекторы (Type, Class, Id, PseudoState)
 - [x] Каскад стилей
+- [x] Fluent темы (DarkTheme, LightTheme)
+- [x] Алиасы ресурсов с $префиксом
+- [x] Рантайм резолвинг алиасов
+- [x] ImGui Debug (Widget Tree, Styles)
 
 ### Phase 5: Input (DONE)
 
