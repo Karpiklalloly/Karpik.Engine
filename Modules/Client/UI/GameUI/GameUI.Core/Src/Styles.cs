@@ -74,6 +74,20 @@ public class UIStyle
         return this;
     }
 
+    public UIStyle BackgroundColor(string resourceKey)
+    {
+        if (resourceKey.StartsWith("$"))
+        {
+            _backgroundResourceKey = resourceKey.Substring(1);
+        }
+        else
+        {
+            _backgroundResourceKey = resourceKey;
+        }
+        _explicitBackground = true;
+        return this;
+    }
+
     public UIStyle Text(Color color)
     {
         TextColor = color;
@@ -81,9 +95,39 @@ public class UIStyle
         return this;
     }
 
+    public UIStyle Text(string resourceKey)
+    {
+        if (resourceKey.StartsWith("$"))
+        {
+            _textColorResourceKey = resourceKey.Substring(1);
+        }
+        else
+        {
+            _textColorResourceKey = resourceKey;
+        }
+        _explicitTextColor = true;
+        return this;
+    }
+
     public UIStyle Border(Color color, float width = 1)
     {
         BorderColor = color;
+        BorderWidth = width;
+        _explicitBorderColor = true;
+        _explicitBorderWidth = true;
+        return this;
+    }
+
+    public UIStyle Border(string resourceKey, float width = 1)
+    {
+        if (resourceKey.StartsWith("$"))
+        {
+            _borderColorResourceKey = resourceKey.Substring(1);
+        }
+        else
+        {
+            _borderColorResourceKey = resourceKey;
+        }
         BorderWidth = width;
         _explicitBorderColor = true;
         _explicitBorderWidth = true;
@@ -222,6 +266,8 @@ public class ResourceDictionary
 {
     private readonly Dictionary<string, object> _resources = new();
     private readonly Dictionary<string, ResourceDictionary> _mergedDictionaries = new();
+
+    internal Dictionary<string, object> Resources => _resources;
 
     public void Add(string key, object value)
     {
@@ -686,41 +732,41 @@ public class StyleEngine
         if (style.HasTextColorResource)
         {
             var key = style.TextColorResourceKey;
-            if (key != null && resources.TryGet(key, out Color color))
-            {
-                style.TextColor = color;
-            }
-            else
-            {
-                style.TextColor = Color.White;
-            }
+            style.TextColor = ResolveColor(key, resources, Color.White);
         }
         
         if (style.HasBackgroundResource)
         {
             var key = style.BackgroundResourceKey;
-            if (key != null && resources.TryGet(key, out Color color))
-            {
-                style.Background = color;
-            }
-            else
-            {
-                style.Background = Color.Transparent;
-            }
+            style.Background = ResolveColor(key, resources, Color.Transparent);
         }
         
         if (style.HasBorderColorResource)
         {
             var key = style.BorderColorResourceKey;
-            if (key != null && resources.TryGet(key, out Color color))
+            style.BorderColor = ResolveColor(key, resources, Color.Transparent);
+        }
+    }
+
+    private Color ResolveColor(string? key, ResourceDictionary resources, Color fallback)
+    {
+        if (key == null) return fallback;
+        
+        if (resources.TryGet(key, out Color color))
+        {
+            return color;
+        }
+        
+        if (resources.TryGet<string>(key, out var aliasKey) && aliasKey != null && aliasKey.StartsWith("$"))
+        {
+            var resolvedKey = aliasKey.Substring(1);
+            if (resources.TryGet(resolvedKey, out Color resolved))
             {
-                style.BorderColor = color;
-            }
-            else
-            {
-                style.BorderColor = Color.Transparent;
+                return resolved;
             }
         }
+        
+        return fallback;
     }
 
     public void ClearCache()
@@ -762,7 +808,17 @@ public class LightTheme
     public LightTheme SurfaceHover(Color color) { _resources.Add("SurfaceHover", color); return this; }
     public LightTheme SurfaceActive(Color color) { _resources.Add("SurfaceActive", color); return this; }
 
-    public ResourceDictionary Build() => _resources;
+    public LightTheme Add(string key, string value) { _resources.Add(key, value); return this; }
+
+    public ResourceDictionary Build()
+    {
+        var result = new ResourceDictionary();
+        foreach (var kvp in _resources.Resources)
+        {
+            result.Add(kvp.Key, kvp.Value);
+        }
+        return result;
+    }
 }
 
 public class DarkTheme
@@ -798,5 +854,15 @@ public class DarkTheme
     public DarkTheme SurfaceHover(Color color) { _resources.Add("SurfaceHover", color); return this; }
     public DarkTheme SurfaceActive(Color color) { _resources.Add("SurfaceActive", color); return this; }
 
-    public ResourceDictionary Build() => _resources;
+    public DarkTheme Add(string key, string value) { _resources.Add(key, value); return this; }
+
+    public ResourceDictionary Build()
+    {
+        var result = new ResourceDictionary();
+        foreach (var kvp in _resources.Resources)
+        {
+            result.Add(kvp.Key, kvp.Value);
+        }
+        return result;
+    }
 }

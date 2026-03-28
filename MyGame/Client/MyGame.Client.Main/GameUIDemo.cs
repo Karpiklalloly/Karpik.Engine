@@ -3,6 +3,7 @@ using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.UI.Core;
 using GraphicsRenderer = Karpik.Engine.Client.Graphics.Core.IRenderer;
 using GameUIInputSystem = Karpik.Engine.Client.UI.Core.InputSystem;
+using ImGuiNET;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
@@ -83,71 +84,71 @@ public class GameUIDemo
     private void SetupStyles()
     {
         var windowStyle = UIStyle.Rent()
-            .BackgroundColorResource("Background")
-            .BorderColorResource("BorderColor")
+            .BackgroundColor("$Background")
+            .Border("$BorderColor")
             .PaddingAll(20);
         _styleEngine.AddRule("Window", windowStyle);
         
         var panelStyle = UIStyle.Rent()
-            .BackgroundColorResource("panel-bg")
+            .BackgroundColor("panel-bg")
             .PaddingAll(16)
             .CornerRadiusValue(8);
         _styleEngine.AddRule("Panel", panelStyle);
         
         var titleStyle = UIStyle.Rent()
-            .TextColorResource("TextColor")
+            .Text("$TextColor")
             .FontSizeValue(28)
             .Align(TextAlignment.Center);
         _styleEngine.AddRule("Label.title", titleStyle);
         
         var headingStyle = UIStyle.Rent()
-            .TextColorResource("TextColor")
+            .Text("$TextColor")
             .FontSizeValue(18);
         _styleEngine.AddRule("Label.heading", headingStyle);
         
         var bodyStyle = UIStyle.Rent()
-            .TextColorResource("TextColor")
+            .Text("$TextColor")
             .FontSizeValue(14);
         _styleEngine.AddRule("Label.body", bodyStyle);
         
         var buttonBase = UIStyle.Rent()
-            .TextColorResource("TextColor")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button", buttonBase);
         
         var primaryBtn = UIStyle.Rent()
-            .BackgroundColorResource("Primary")
-            .TextColorResource("TextColor")
+            .BackgroundColor("$Primary")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.primary", primaryBtn);
         
         var primaryHover = UIStyle.Rent()
-            .BackgroundColorResource("SurfaceHover")
-            .TextColorResource("TextColor")
+            .BackgroundColor("$SurfaceHover")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.primary:hover", primaryHover);
         
         var successBtn = UIStyle.Rent()
-            .BackgroundColorResource("Success")
-            .TextColorResource("TextColor")
+            .BackgroundColor("$Success")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.success", successBtn);
         
         var dangerBtn = UIStyle.Rent()
-            .BackgroundColorResource("Danger")
-            .TextColorResource("TextColor")
+            .BackgroundColor("$Danger")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.danger", dangerBtn);
         
         var outlineBtn = UIStyle.Rent()
             .BackgroundColor(Color.Transparent)
-            .BorderColorResource("BorderColor")
-            .TextColorResource("TextColor")
+            .Border("$BorderColor")
+            .Text("$TextColor")
             .PaddingAll(12)
             .CornerRadiusValue(4);
         _styleEngine.AddRule("Button.outline", outlineBtn);
@@ -275,14 +276,12 @@ public class GameUIDemo
         if (styleClass != null)
             styleData.AddClass(styleClass);
         
-        styleData.SetPseudoState(PseudoState.Hover);
-        
         var style = _styleEngine.ComputeStyle(button, styleData);
         
         _buttonData[index] = new ButtonData
         {
             Text = text,
-            Background = style.Background.A > 0 ? style.Background : new Color(52, 152, 219),
+            Background = style.Background,
             TextColor = style.TextColor,
             FontSize = style.FontSize > 0 ? style.FontSize : 14
         };
@@ -479,6 +478,172 @@ public class GameUIDemo
                 RenderWidget(childIndex, child, childAbsoluteBounds);
                 childIndex = child.NextSiblingIndex;
             }
+        }
+    }
+
+    public void RenderImGuiDebug()
+    {
+        if (!ImGui.Begin("UI Widget Tree"))
+        {
+            ImGui.End();
+            return;
+        }
+
+        if (_windowIndex < 0)
+        {
+            ImGui.Text("No UI loaded");
+            ImGui.End();
+            return;
+        }
+
+        if (ImGui.BeginTabBar("DebugTabs"))
+        {
+            if (ImGui.BeginTabItem("Widget Tree"))
+            {
+                RenderWidgetTreeNode(_windowIndex, 0);
+                ImGui.EndTabItem();
+            }
+            
+            if (ImGui.BeginTabItem("Styles"))
+            {
+                RenderStylesDebug();
+                ImGui.EndTabItem();
+            }
+            
+            ImGui.EndTabBar();
+        }
+        
+        ImGui.Separator();
+        
+        if (ImGui.Button("Clear Hover State"))
+        {
+            _hoveredButtons.Clear();
+            _lastHoveredIndex = -1;
+        }
+        
+        ImGui.Text($"Hovered buttons: {_hoveredButtons.Count}");
+        
+        ImGui.End();
+    }
+
+    private void RenderStylesDebug()
+    {
+        if (ImGui.Button("Refresh Styles"))
+        {
+        }
+        
+        ImGui.Separator();
+        
+        RenderStyleForWidget(_windowIndex, 0);
+    }
+
+    private void RenderStyleForWidget(int index, int depth)
+    {
+        var widget = _storage.Get(index);
+        
+        var headerLabel = $"{widget.Type}";
+        if (!string.IsNullOrEmpty(widget.Id))
+        {
+            headerLabel += $"##{index}";
+        }
+        
+        if (ImGui.CollapsingHeader(headerLabel))
+        {
+            ImGui.Indent();
+            
+            var styleData = _styleEngine.GetOrCreateStyleData(index);
+            var computedStyle = _styleEngine.ComputeStyle(widget, styleData);
+            
+            ImGui.Text($"Index: {index}");
+            ImGui.Text($"Type: {widget.Type}");
+            ImGui.Text($"Id: {widget.Id ?? "(none)"}");
+            ImGui.Text($"State: {widget.State}");
+            ImGui.Text($"Bounds: ({widget.Bounds.X:F0}, {widget.Bounds.Y:F0}, {widget.Bounds.Width:F0}x{widget.Bounds.Height:F0})");
+            
+            ImGui.Separator();
+            ImGui.Text("Computed Style:");
+            
+            ImGui.TextColored(new Vector4(0, 1, 0, 1), $"Background: ({computedStyle.Background.R}, {computedStyle.Background.G}, {computedStyle.Background.B}, {computedStyle.Background.A})");
+            ImGui.TextColored(new Vector4(0, 1, 1, 1), $"TextColor: ({computedStyle.TextColor.R}, {computedStyle.TextColor.G}, {computedStyle.TextColor.B}, {computedStyle.TextColor.A})");
+            ImGui.TextColored(new Vector4(1, 1, 0, 1), $"BorderColor: ({computedStyle.BorderColor.R}, {computedStyle.BorderColor.G}, {computedStyle.BorderColor.B}, {computedStyle.BorderColor.A})");
+            ImGui.Text($"BorderWidth: {computedStyle.BorderWidth}");
+            ImGui.Text($"CornerRadius: {computedStyle.CornerRadius}");
+            ImGui.Text($"FontSize: {computedStyle.FontSize}");
+            ImGui.Text($"Padding: {computedStyle.Padding}");
+            ImGui.Text($"Margin: {computedStyle.Margin}");
+            ImGui.Text($"TextAlignment: {computedStyle.TextAlignment}");
+            
+            ImGui.Separator();
+            ImGui.Text("Style Data:");
+            ImGui.Text($"Classes: {string.Join(", ", styleData.Classes)}");
+            ImGui.Text($"PseudoStates: {string.Join(", ", styleData.PseudoStates)}");
+            ImGui.Text($"InlineStyle: {(styleData.InlineStyle != null ? "yes" : "no")}");
+            
+            UIStyle.Return(computedStyle);
+            
+            if (widget.HasChildren)
+            {
+                ImGui.Separator();
+                var childIndex = widget.FirstChildIndex;
+                while (childIndex != UIWidget.NoChild)
+                {
+                    RenderStyleForWidget(childIndex, depth + 1);
+                    var child = _storage.Get(childIndex);
+                    childIndex = child.NextSiblingIndex;
+                }
+            }
+            
+            ImGui.Unindent();
+        }
+    }
+
+    private void RenderWidgetTreeNode(int index, int depth)
+    {
+        var widget = _storage.Get(index);
+        
+        var label = $"{widget.Type}";
+        if (!string.IsNullOrEmpty(widget.Id))
+        {
+            label += $"##{widget.Id}";
+        }
+        
+        var isExpanded = ImGui.TreeNode(label);
+        
+        ImGui.SameLine();
+        ImGui.Text($"[{index}]");
+        
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), 
+            $"({widget.Bounds.X:F0}, {widget.Bounds.Y:F0}, {widget.Bounds.Width:F0}x {widget.Bounds.Height:F0})");
+        
+        if (widget.State != InteractionState.Normal)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(1, 1, 0, 1), $"[{widget.State}]");
+        }
+        
+        if (_buttonData.TryGetValue(index, out var btnData))
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0, 1, 0, 1), "Btn");
+        }
+        
+        if (_labelData.TryGetValue(index, out var lblData))
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0, 1, 1, 1), $"\"{lblData.Text}\"");
+        }
+        
+        if (isExpanded)
+        {
+            var childIndex = widget.FirstChildIndex;
+            while (childIndex != UIWidget.NoChild)
+            {
+                RenderWidgetTreeNode(childIndex, depth + 1);
+                var child = _storage.Get(childIndex);
+                childIndex = child.NextSiblingIndex;
+            }
+            ImGui.TreePop();
         }
     }
 }

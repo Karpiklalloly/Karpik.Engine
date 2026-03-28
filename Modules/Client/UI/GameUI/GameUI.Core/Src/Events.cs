@@ -174,7 +174,7 @@ public class EventDispatcher
             return;
 
         ref var widget = ref _storage.Get(widgetIndex);
-        widget.State = InteractionState.Hovered;
+        widget.State = InteractionState.Normal;
 
         if (_events.HasHandlers(widgetIndex))
         {

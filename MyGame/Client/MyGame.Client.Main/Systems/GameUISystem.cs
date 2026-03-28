@@ -3,6 +3,7 @@ using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
+using ImGuiNET;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -26,5 +27,7 @@ public class GameUISystem : IEcsRun, IEcsInit
         
         _demo.Update(new Vector2(mousePos.X, mousePos.Y), mouseDown);
         _demo.Render();
+        
+        _demo.RenderImGuiDebug();
     }
 }

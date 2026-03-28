@@ -916,6 +916,144 @@ public class SettingsMenu : IView<SettingsViewModel>
 
 ---
 
+## Темы (Themes)
+
+### Fluent API
+
+Темы создаются через fluent builder:
+
+```csharp
+var darkTheme = new DarkTheme()
+    .Background(new Color(255, 30, 30, 30))
+    .TextColor(new Color(255, 233, 236, 239))
+    .Primary(new Color(255, 0, 153, 255))
+    .Secondary(new Color(255, 173, 181, 189))
+    .Success(new Color(255, 72, 199, 103))
+    .Danger(new Color(255, 255, 92, 107))
+    .Surface(new Color(255, 45, 45, 45))
+    .SurfaceHover(new Color(255, 60, 60, 60))
+    .SurfaceActive(new Color(255, 75, 75, 75))
+    .Build();
+
+var lightTheme = new LightTheme()
+    .Background(Color.White)
+    .TextColor(Color.Black)
+    .Primary(new Color(255, 0, 122, 204))
+    .Build();
+```
+
+### Переключение тем
+
+```csharp
+var engine = new StyleEngine(darkTheme);
+
+// В рантайме — переключить тему
+engine.SetResources(lightTheme);
+```
+
+### Алиасы ресурсов
+
+Алиасы позволяют ссылаться на существующие ресурсы:
+
+```csharp
+var theme = new DarkTheme()
+    .Primary(Color.Blue)
+    .Surface(Color.Gray)
+    .Add("BtnBg", "$Primary")      // алиас на Primary
+    .Add("PanelBg", "$Surface")   // алиас на Surface
+    .Build();
+```
+
+### Использование в стилях
+
+Один метод для цвета и ресурса:
+
+```csharp
+// Прямое значение
+UIStyle.Rent()
+    .BackgroundColor(Color.Red);
+
+// Ссылка на ресурс (с $)
+UIStyle.Rent()
+    .BackgroundColor("$Primary");
+
+// Border с ресурсом
+UIStyle.Rent()
+    .Border("$BorderColor", 2);
+
+// Text color
+UIStyle.Rent()
+    .Text("$TextColor");
+```
+
+### Как работает $
+
+При вызове `ComputeStyle()`:
+
+1. Если ключ начинается с `$` — вырезаем префикс
+2. Ищем значение по ключу в ResourceDictionary
+3. Если не найден как Color, но есть в Dictionary как string — рекурсивно резолвим
+
+```csharp
+// Пример резолвинга
+// Style: .BackgroundColor("$PrimaryBtn")
+// Theme: PrimaryBtn -> "$Primary" -> Primary -> Color(0, 153, 255)
+```
+
+### Переключение темы с алиасами
+
+Главное преимущество — алиасы работают при смене темы:
+
+```csharp
+// Один раз задаем стиль с алиасами
+engine.AddRule("Button.primary", UIStyle.Rent()
+    .BackgroundColor("$Primary")
+    .Text("$TextColor"));
+
+// Сначала DarkTheme
+engine.SetResources(new DarkTheme()
+    .Primary(Color.Blue)
+    .Build());
+// $Primary -> Blue
+
+// Потом LightTheme — алиас автоматически резолвится в Red
+engine.SetResources(new LightTheme()
+    .Primary(Color.Red)
+    .Build());
+// $Primary -> Red
+```
+
+---
+
+## ImGui Debug
+
+Для отладки UI доступно ImGui окно:
+
+```csharp
+public void RenderImGuiDebug()
+{
+    // Вызывается каждый кадр в GameUISystem
+    _demo.RenderImGuiDebug();
+}
+```
+
+### Widget Tree
+
+Показывает иерархию виджетов:
+- Тип виджета (Window, Button, Panel, Label)
+- ID виджета
+- Индекс в storage
+- Bounds (x, y, width, height)
+- State (Normal, Hovered, Pressed)
+
+### Styles
+
+Показывает вычисленные стили для каждого виджета:
+- Computed Style: Background, TextColor, BorderColor, BorderWidth, CornerRadius, FontSize, Padding, Margin, TextAlignment
+- Style Data: Classes, PseudoStates, InlineStyle
+
+---
+
 ## Ссылки
 
 - [Dragon ECS](../shared/ecs.md) — ECS движок
