@@ -51,3 +51,4 @@
 - [Architecture Overview](architecture/overview.md)
 - [Performance Overview](performance/overview.md)
 - [Process Isolation](../plans/process-isolation-architecture.md)
+- [Улучшение сети](network-improvement.md)
