@@ -66,7 +66,6 @@ public class InputSystem : IEcsRun
 
         if (_input.IsPressing(KeyboardKeys.Space) || _input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
         {
-            Console.WriteLine("Jump");
             jump = true;
         }
 
@@ -76,14 +75,12 @@ public class InputSystem : IEcsRun
             var span = _world.Where(out Aspect a);
             foreach (var e in span)
             {
-                Console.WriteLine($"Send {e}");
                 _rpc.PlatformerInput(new PlatformerInputCommand()
                 {
                     MoveX = moveX,
                     Jump = jump,
                     Target = a.networkId.Get(e).Id
                 });
-                Console.WriteLine($"Send {moveX}");
             }
         }
         

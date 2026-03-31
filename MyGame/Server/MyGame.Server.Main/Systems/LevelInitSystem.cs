@@ -12,10 +12,6 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 /// </summary>
 public class LevelInitSystem : IEcsInit
 {
-    // Platform layer mask for collisions
-    private const uint PLATFORM_LAYER = 0x0001;
-    private const uint PLAYER_LAYER = 0x0002;
-    
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private NetworkIdGenerator _networkIdGenerator = null!;
 
@@ -78,8 +74,8 @@ public class LevelInitSystem : IEcsInit
             Friction = 0.8f,
             Restitution = 0.0f,
             IsSensor = false,
-            CategoryBits = PLATFORM_LAYER,
-            MaskBits = PLAYER_LAYER | PLATFORM_LAYER // Collides with player
+            CategoryBits = Physics2DLayers.Player,
+            MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
         };
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);
         
@@ -89,7 +85,7 @@ public class LevelInitSystem : IEcsInit
         _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
         {
             Color = Color.White,
-            TexturePath = "1.png",
+            TexturePath = "Platform.png",
             Size = size
         };
     }
@@ -148,8 +144,8 @@ public class LevelInitSystem : IEcsInit
             Friction = 0.5f,
             Restitution = 0.2f,
             IsSensor = false,
-            CategoryBits = PLATFORM_LAYER,
-            MaskBits = PLAYER_LAYER | PLATFORM_LAYER
+            CategoryBits = Physics2DLayers.Platform,
+            MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
         };
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);
         
@@ -159,7 +155,7 @@ public class LevelInitSystem : IEcsInit
         _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
         {
             Color = Color.White,
-            TexturePath = "2.png",
+            TexturePath = "Box.png",
             Size = size
         };
     }

@@ -12,10 +12,6 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
 internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
 {
-    // Physics layers
-    private const uint PLATFORM_LAYER = 0x0001;
-    private const uint PLAYER_LAYER = 0x0002;
-    
     [DI] private INetworkManager _networkManager = null!;
     [DI] private TargetRpcSender _rpc = null!;
     [DI] private ILogger _logger = null!;
@@ -74,22 +70,31 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
             velocity.Linear = Vector2.Zero;
             velocity.Angular = 0;
             
-            // Add physics - CreateBodyRequest (dynamic player body)
+            // Add physics - CreateBodyRequest (kinematic player body for platformer controller)
             ref var bodyRequest = ref world.GetPool<CreateBodyRequest>().Add(player);
             bodyRequest.BodyConfig = new BodyConfig
             {
-                Type = BodyType.Dynamic,
+                Type = BodyType.Kinematic,
                 Mass = 1.0f,
-                Friction = 0.5f,
+                Friction = 0.0f,
                 Restitution = 0.0f,
                 IsSensor = false,
-                CategoryBits = PLAYER_LAYER,
-                MaskBits = PLATFORM_LAYER | PLAYER_LAYER // Collides with platforms and other players
+                IgnoreGravity = true,
+                CategoryBits = Physics2DLayers.Player,
+                MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
             };
-            bodyRequest.ShapeConfig = ShapeConfig.Box(new Vector2(1, 2)); // Player size
+            bodyRequest.ShapeConfig = ShapeConfig.Box(new Vector2(1, 2));
             
-            // Add JumpState for jump mechanics
-            world.GetPool<JumpState>().Add(player);
+            world.GetPool<KinematicCharacterController>().Add(player) = new KinematicCharacterController
+            {
+                MoveSpeed = 8.0f,
+                JumpForce = 18.0f,
+                Gravity = 30.0f,
+                MaxFallSpeed = 25.0f,
+                IsGrounded = false,
+                LastJumpTime = 0,
+                JumpCooldown = 0.2f
+            };
             
             _peerToEntity.Add(peer, player);
             Console.WriteLine(world.GetPool<NetworkId>().Get(player).Id);

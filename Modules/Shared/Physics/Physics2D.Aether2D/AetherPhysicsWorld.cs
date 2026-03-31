@@ -1,4 +1,5 @@
-﻿using Karpik.Engine.Shared.Physics.Core;
+﻿using Karpik.Engine.Core;
+using Karpik.Engine.Shared.Physics.Core;
 using nkast.Aether.Physics2D.Collision;
 using nkast.Aether.Physics2D.Collision.Shapes;
 using nkast.Aether.Physics2D.Common;
@@ -16,8 +17,9 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         public int EntityId;
         public PhysicsBodyHandle Handle;
     }
-    
-    private readonly World _world;
+
+    [DI] private DragonExtensions.World _ecsWorld = null!;
+    [DI] private World _world = null!;
     private readonly RayCastReportFixtureDelegate _cachedRaycastDelegate;
     private readonly QueryReportFixtureDelegate _cachedOverlapDelegate;
 
@@ -50,7 +52,6 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
 
     public AetherPhysicsWorld()
     {
-        _world = new World(new Vector2(0, -9.8f).Aether);
         _cachedCollisionHandler = OnBodyCollision;
         _cachedRaycastDelegate = AetherRaycastCallback;
         _cachedOverlapDelegate = AetherOverlapCallback;
@@ -203,8 +204,8 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         {
             Entity = link?.EntityId ?? -1,
             Body = link?.Handle ?? PhysicsBodyHandle.Invalid,
-            Point = new Vector2(point.X, point.Y),
-            Normal = new Vector2(normal.X, normal.Y),
+            Point = point.Numeric,
+            Normal = normal.Numeric,
             Fraction = fraction
         };
 
@@ -237,6 +238,18 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
     public float GetMass(PhysicsBodyHandle handle)
     {
         return _bodies[handle.Value].Mass;
+    }
+    
+    public Vector2 GetVelocity(PhysicsBodyHandle handle)
+    {
+        var body = _bodies[handle.Value];
+        return new Vector2(body.LinearVelocity.X, body.LinearVelocity.Y);
+    }
+    
+    public void SetVelocity(PhysicsBodyHandle handle, Vector2 linear)
+    {
+        var body = _bodies[handle.Value];
+        body.LinearVelocity = new Vector2(linear.X, linear.Y).Aether;
     }
     
     public unsafe int OverlapCircle(Vector2 center, float radius, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
@@ -306,20 +319,30 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         if (_collisionCount >= _collisionBuffer.Length)
             return true; // Игнорируем запись, если буфер переполнен, но физике разрешаем коллизию
 
-        int entityA = sender.Body.Tag is int idA ? idA : -1;
-        int entityB = other.Body.Tag is int idB ? idB : -1;
+        BodyLink entityA = sender.Body.Tag is BodyLink idA ? idA : GetLink(-1, new PhysicsBodyHandle());
+        BodyLink entityB = other.Body.Tag is BodyLink idB ? idB : GetLink(-1, new PhysicsBodyHandle());
 
         // Aether2D Contact имеет сложную структуру, достаем нормаль
         contact.GetWorldManifold(out var manifoldNormal, out _);
 
         _collisionBuffer[_collisionCount++] = new CollisionEvent
         {
-            EntityA = entityA,
-            EntityB = entityB,
+            EntityA = entityA.EntityId,
+            EntityB = entityB.EntityId,
             Normal = new Vector2(manifoldNormal.X, manifoldNormal.Y),
             // В Aether импульс рассчитывается в PostSolve, но мы можем сохранить базовые данные
             Impulse = 0 
         };
+
+        if (entityA.EntityId == -1)
+        {
+            ReturnLink(entityA);
+        }
+        
+        if (entityB.EntityId == -1)
+        {
+            ReturnLink(entityB);
+        }
 
         return true; // true означает, что тела отскочат друг от друга
     }

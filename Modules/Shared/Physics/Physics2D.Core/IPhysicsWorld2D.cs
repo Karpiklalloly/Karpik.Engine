@@ -24,4 +24,7 @@ public interface IPhysicsWorld2D
     public void ApplyForce(PhysicsBodyHandle handle, Vector2 force, Vector2 point);
     public void ApplyLinearImpulse(PhysicsBodyHandle handle, Vector2 impulse);
     public float GetMass(PhysicsBodyHandle handle);
+    
+    public Vector2 GetVelocity(PhysicsBodyHandle handle);
+    public void SetVelocity(PhysicsBodyHandle handle, Vector2 linear);
 }

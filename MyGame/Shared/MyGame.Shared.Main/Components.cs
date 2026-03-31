@@ -22,14 +22,6 @@ public struct Player : IEcsComponent;
 
 public struct LocalPlayer : IEcsComponent;
 
-public struct JumpState : IEcsComponent
-{
-    public bool CanJump;
-    public bool IsGrounded;
-    public float LastJumpTime;
-    public float JumpCooldown;
-}
-
 public struct MoveCommand : IStateCommand
 {
     public Vector3 Direction;

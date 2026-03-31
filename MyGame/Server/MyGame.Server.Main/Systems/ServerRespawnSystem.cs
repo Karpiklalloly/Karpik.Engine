@@ -73,14 +73,6 @@ public class ServerRespawnSystem : IEcsRun
             velRequest.Linear = Vector2.Zero;
         }
         
-        // Reset jump state
-        if (_world.GetPool<JumpState>().Has(entity))
-        {
-            ref var jumpState = ref _world.GetPool<JumpState>().Get(entity);
-            jumpState.CanJump = true;
-            jumpState.IsGrounded = false;
-        }
-        
         // Reset input state
         if (_world.GetPool<PlayerInputState>().Has(entity))
         {

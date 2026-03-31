@@ -36,7 +36,7 @@ public struct BodyConfig
     public float Friction;
     public float Restitution;
     public bool IsSensor;
-    // Маски коллизий (битовые флаги)
+    public bool IgnoreGravity;
     public uint CategoryBits;
     public uint MaskBits;
 }
@@ -93,9 +93,6 @@ public readonly struct PhysicsLayerMask : IEquatable<PhysicsLayerMask>
     public static PhysicsLayerMask operator |(PhysicsLayerMask a, PhysicsLayerMask b) => new PhysicsLayerMask(a.Value | b.Value);
     public static PhysicsLayerMask operator &(PhysicsLayerMask a, PhysicsLayerMask b) => new PhysicsLayerMask(a.Value & b.Value);
     public static PhysicsLayerMask operator ~(PhysicsLayerMask a) => new PhysicsLayerMask(~a.Value);
-
-    public static readonly PhysicsLayerMask All = new PhysicsLayerMask(uint.MaxValue);
-    public static readonly PhysicsLayerMask None = new PhysicsLayerMask(0);
         
     // Неявное преобразование из/в uint для удобства
     public static implicit operator uint(PhysicsLayerMask mask) => mask.Value;

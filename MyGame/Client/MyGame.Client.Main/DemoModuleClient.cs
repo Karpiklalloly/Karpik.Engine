@@ -39,7 +39,7 @@ internal class DemoModuleClient : IEcsModule
             .AddCaller<SetLocalPlayerTargetRpc>();
         
 #if DEBUG
-        b.Add(new GameUISystem(), EcsConsts.POST_END_LAYER, 60);
+        // b.Add(new GameUISystem(), EcsConsts.POST_END_LAYER, 60);
 #endif
     }
 }
@@ -139,15 +139,6 @@ public class MySystem : IEcsRun, IEcsInit
             }
         }
         
-        ImGui.NextColumn();
-        if (ImGui.Button("Spawn Scene"))
-        {
-            SpawnPhysicsScene();
-        }
-        
-        // Note: Platformer level should be created on server, not client
-        // Client only displays what server sends
-        
 #if DEBUG
         ImGui.NextColumn();
         if (ImGui.Button("Hot Reload"))
@@ -158,84 +149,6 @@ public class MySystem : IEcsRun, IEcsInit
         ImGui.NextColumn();
 #endif
         ImGui.Columns(1);
-    }
-
-    private async JobHandle SpawnPhysicsScene()
-    {
-        int entity1 = _world.NewEntity();
-
-        // 1. Обязательный компонент: Трансформ
-        ref var transform1 = ref _world.GetPool<Transform2D>().Add(entity1);
-        transform1.Position = new Vector2(0, -5f); // Пол внизу экрана
-        transform1.Rotation = 0f;
-
-        // 2. Запрос на создание физики (Статика)
-        ref var request1 = ref _world.GetPool<CreateBodyRequest>().Add(entity1);
-    
-        request1.BodyConfig = new BodyConfig 
-        {
-            Type = BodyType.Static, // Не двигается
-            Friction = 0.5f,
-            Restitution = 0.0f,     // Не пружинит
-            CategoryBits = 0x0001,  // Слой по умолчанию
-            MaskBits = 0xFFFF       // Сталкивается со всем
-        };
-
-        request1.ShapeConfig = ShapeConfig.Box(new Vector2(10f, 1f)); // Широкий прямоугольник
-        
-        var renderer1 = new SpriteRenderer
-        {
-            Color = Color.White,
-            Layer = 0,
-            TexturePath = "Sprites/default.jpg",
-            Width = 10f,  // Match physics shape width
-            Height = 1f   // Match physics shape height
-        };
-        var r1 = await renderer1.OnLoad(renderer1, _serviceContainer);
-        
-        var renderer2 = new SpriteRenderer
-        {
-            Color = Color.White,
-            Layer = 0,
-            TexturePath = "Sprites/Player.png",
-            Width = 1f,   // Match physics shape width
-            Height = 1f   // Match physics shape height
-        };
-        var r2 = await renderer2.OnLoad(renderer2, _serviceContainer);
-        
-        _world.GetPool<SpriteRenderer>().TryAddOrGet(entity1) = r1;
-        
-        
-        int entity2 = _world.NewEntity();
-
-        // 1. Трансформ (Позиция спавна)
-        ref var transform2 = ref _world.GetPool<Transform2D>().Add(entity2);
-        transform2.Position = new Vector2(0, 5f); // Ящик высоко в воздухе
-        transform2.Rotation = 0.5f; // Слегка повернут для красивого падения
-
-        // 2. Добавляем Velocity, так как мы хотим читать его скорость в будущем
-        ref var velocity2 = ref _world.GetPool<Velocity2D>().Add(entity2);
-        velocity2.Linear = Vector2.Zero;
-        velocity2.Angular = 0f;
-
-        // 3. Запрос на создание физики (Динамика)
-        ref var request2 = ref _world.GetPool<CreateBodyRequest>().Add(entity2);
-    
-        request2.BodyConfig = new BodyConfig 
-        {
-            Type = BodyType.Dynamic, // Подвержен гравитации
-            Mass = 10f,              // Весит 10 кг
-            Friction = 0.3f,
-            Restitution = 0.4f,      // Слегка отскакивает (bounciness)
-            CategoryBits = 0x0001,
-            MaskBits = 0xFFFF
-        };
-
-        request2.ShapeConfig = ShapeConfig.Box(new Vector2(1f, 1f)); // Квадрат 1x1 метр
-        
-        _world.GetPool<SpriteRenderer>().TryAddOrGet(entity2) = r2;
-
-        _world.GetPool<Player>().Add(entity2);
     }
 
     private void ShowStats()

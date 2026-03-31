@@ -20,6 +20,7 @@ internal class MyGameServerModule : IEcsModule
         
         // Player input - applies forces based on PlayerInputState
         b.Add(new InputSystem());
+        b.Add(new KinematicControllerSystem());
         
         // Ground check - updates JumpState based on velocity/collisions
         b.Add(new ServerGroundCheckSystem());
