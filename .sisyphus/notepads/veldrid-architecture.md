@@ -6,7 +6,7 @@
 
 ```
 Recording (Запись):     Параллельно в Worker-потоках → пишут в локальный CommandList
-Submission (Отправка):   Главный поток → собирает CommandList → отправляет на GPU разом
+Submission (Отправка): Главный поток → собирает CommandList → отправляет на GPU разом
 ```
 
 ---
@@ -14,25 +14,72 @@ Submission (Отправка):   Главный поток → собирает 
 ## Main Entities
 
 ### GraphicsDevice
-- Управляет GPU
-- Создаёт ресурсы
-- Выполняет Submit()
-- Живёт в главном потоке
+- **Назначение**: Управление GPU, создание ресурсов, выполнение Submit()
+- **Поток**: Главный поток
+- **Методы**:
+  - `CreateCommandList()` — фабрика буферов команд
+  - `CreateBuffer()` / `CreateTexture()` / `CreateGraphicsPipeline()` — создание ресурсов
+  - `Submit()` — отправка команд на GPU
+  - `SwapBuffers()` — смена кадра
+  - `WaitForIdle()` — синхронизация CPU-GPU
 
 ### CommandList
-- Буфер команд
-- Не потокобезопасен сам по себе
-- Создаётся по 1 экземпляру на каждый рабочий поток
+- **Назначение**: Буфер команд рендеринга
+- **Поток**: Один экземпляр на рабочий поток
+- **Жизненный цикл**:
+  1. `Begin()` — начало записи
+  2. Запись команд (draw, set pipeline, bind resources...)
+  3. `End()` — завершение записи
+  4. `Submit()` → GPU
+- **Важно**: Не потокобезопасен — один CommandList на поток
+
+### CommandListPool
+- **Назначение**: Пул для многопоточного использования CommandList
+- **Реализация**: Lock-free через `ConcurrentBag`
+- **Методы**:
+  - `Rent()` — получить список из пула (автоматически вызывает Begin)
+  - `Return()` — вернуть список в пул
+
+### GraphicsContext
+- **Назначение**: Центральный сервис управления отрисовкой
+- **Поток**: Один экземпляр, внедряется через DI
+- **Методы**:
+  - `BeginCommandList()` — получить CommandList для текущего потока
+  - `SubmitCommandList()` — поставить в очередь на отправку
+  - `ExecuteFrame()` — выполнить ВСЕ команды на GPU (вызывается в конце кадра)
+- **Zero-Allocation**: Использует `ArrayPool` для batch submit
 
 ### Pipeline
-- Инкапсулирует шейдеры и стейты (Blend, Depth)
-- Строго иммутабелен для потокобезопасного биндинга
+- **Назначение**: Инкапсуляция шейдеров и состояний рендеринга
+- **Свойство**: Строго иммутабелен — безопасен для многопоточного биндинга
+- **Содержит**:
+  - Vertex/Fragment шейдеры
+  - Vertex layout (формат вершин)
+  - Resource layouts (какие uniform-буферы и текстуры ожидает шейдер)
+  - RasterizerState (cull mode, fill mode)
+  - DepthStencilState (тест глубины, stencil)
+  - BlendState (альфа-блендинг)
+  - Output formats (формат color/depth буферов)
 
-### DeviceBuffer / Texture
-- Ресурсы в памяти GPU
+### DeviceBuffer
+- **Назначение**: GPU-память для вершин/индексов/uniforms
+- **Свойства**: SizeInBytes, BufferUsage (Static/Dynamic/Vertex/Index)
+
+### Texture
+- **Назначение**: GPU-память для текстур
+- **Свойства**: Width, Height, PixelFormat
+
+### Framebuffer
+- **Назначение**: Render target — куда рендерим
+- **Содержит**: ColorTargets[] + DepthTarget
+
+### ResourceLayout
+- **Назначение**: Описание слотов для биндинга (какие слоты буферов/текстур использует шейдер)
+- **Примечание**: Opaque handle — пользователь не создаёт напрямую
 
 ### ResourceSet
-- Группировка биндингов (Uniforms, Textures) для пайплайна
+- **Назначение**: Набор связанных ресурсов для пайплайна
+- **Содержит**: Layout + BoundResources[] (конкретные буферы и текстуры)
 
 ---
 
@@ -41,10 +88,11 @@ Submission (Отправка):   Главный поток → собирает 
 ### Modern API (Vulkan, DX12, Metal)
 - CommandList напрямую маппится на нативные многопоточные команд-буферы
 
-### Legacy API (OpenGL, DX11)
+### Legacy API (OpenGL, DX11, Raylib)
 - Требуют "Deferred Execution"
 - CommandList пишет команды в программный массив (List) на CPU
 - Во время Submit() главный поток проходится по массиву и делает реальные вызовы
+- **Текущая реализация**: Raylib backend использует Deferred Execution
 
 ---
 
@@ -65,20 +113,20 @@ Submission (Отправка):   Главный поток → собирает 
 
 ## Implementation Plan
 
-### Phase 1: Low-level (A)
+### Phase 1: Low-level ✅ Реализовано
 ```
-1. CommandList + CommandListPool
+1. CommandList + CommandListPool ✅
    - Интерфейс ICommandList
    - Реализация для Raylib (Deferred Execution - массив команд)
-   - Пул с предсозданными экземплярами (N штук, расширяется)
+   - Пул с предсозданными экземплярами (ConcurrentBag, lock-free)
 
-2. Pipeline (иммутабельный)
+2. Pipeline (иммутабельный) ✅
    - Интерфейс IPipeline
-   - Конфиг (вершинный формат, шейдеры, blend state, depth state)
+   - Конфиг (вершинный формат, шейдеры, blend state, depth state, rasterizer state)
 
-3. CommandListQueue / GraphicsContext
+3. GraphicsContext ✅
    - Сервис для получения/возврата CommandList
-   - SubmitAll() → GraphicsDevice
+   - ExecuteFrame() → GraphicsDevice.Submit()
 ```
 
 ### Phase 2: High-level (B)
@@ -95,36 +143,25 @@ High-level extension methods для ICommandList:
 ## Integration with ECS
 
 ```csharp
-public interface IGraphicsContext
-{
-    ICommandList GetCommandList();  // получить из пула
-    void Submit(ICommandList cmd);   // в очередь
-}
-
-// RunnerSystem.Run():
-_fixedRun.Invoke();
-_parallelRunner.RunParallel();
-_graphicsContext.SubmitAll();  // отправить ВСЕ на GPU после Parallel
-```
-
-```csharp
-// Система:
 public class SpriteRenderSystem : IEcsRunParallel
 {
-    [DI] private IGraphicsContext _ctx;
+    [DI] private GraphicsContext _ctx;
     
     public void RunParallel()
     {
-        var cmd = _ctx.GetCommandList();
+        var cmd = _ctx.BeginCommandList();
         
         foreach (var (sprite, transform) in Query...)
         {
             cmd.DrawSprite(sprite, transform);
         }
         
-        _ctx.Submit(cmd);  // в очередь, НЕ сразу на GPU
+        _ctx.SubmitCommandList(cmd);  // в очередь, НЕ сразу на GPU
     }
 }
+
+// Где-то в главном потоке, в конце кадра:
+_graphicsContext.ExecuteFrame();  // отправить ВСЕ на GPU
 ```
 
 ---
@@ -137,16 +174,20 @@ public class SpriteRenderSystem : IEcsRunParallel
 
 ---
 
-## Open Questions
+## Zero-Allocation Patterns
 
-1. CommandListPool — фиксированный размер или динамическое расширение?
-2. SubmitAll() вызывается синхронно после RunParallel
-3. GraphicsContext — отдельный сервис
+| Компонент | Паттерн |
+|-----------|---------|
+| CommandListPool | `ConcurrentBag<ICommandList>` — lock-free |
+| GraphicsContext.ExecuteFrame | `ArrayPool<ICommandList>.Shared.Rent(count)` |
+| FramebufferDescription.ColorTargets | `ReadOnlyMemory<ITexture>` |
+| IGraphicsResource.SetDebugName | `void SetDebugName(ReadOnlySpan<char>)` — без string аллокаций |
+| ICommandList.UpdateBuffer | `ReadOnlySpan<T>` + `where T : unmanaged` |
 
 ---
 
 ## Status
 
-- [ ] Phase 1: CommandList + Pool + GraphicsContext
+- [x] Phase 1: CommandList + Pool + GraphicsContext
 - [ ] Phase 2: High-level extensions
-- [ ] Интеграция с существующим RaylibRenderer
+- [ ] Raylib backend реализация
