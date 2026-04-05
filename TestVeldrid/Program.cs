@@ -65,8 +65,9 @@ class Program
         while (window.Exists)
         {
             window.PumpEvents();
+            Draw();
         }
-
+        DisposeResources();
     }
 
     private static void CreateResources()
@@ -130,5 +131,37 @@ class Program
         _pipeline = factory.CreateGraphicsPipeline(pipelineDescription);
 
         _commandList = factory.CreateCommandList();
+    }
+
+    private static void Draw()
+    {
+        _commandList.Begin();
+        _commandList.SetFramebuffer(_graphicsDevice.SwapchainFramebuffer);
+        _commandList.ClearColorTarget(0, RgbaFloat.Black);
+        _commandList.SetVertexBuffer(0, _vertexBuffer);
+        _commandList.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+        _commandList.SetPipeline(_pipeline);
+        _commandList.DrawIndexed(
+            indexCount: 4,
+            instanceCount: 1,
+            indexStart: 0,
+            vertexOffset: 0,
+            instanceStart: 0);
+        _commandList.End();
+        _graphicsDevice.SubmitCommands(_commandList);
+        _graphicsDevice.SwapBuffers();
+    }
+    
+    private static void DisposeResources()
+    {
+        _pipeline.Dispose();
+        foreach (var shader in _shaders)
+        {
+            shader.Dispose();
+        }
+        _commandList.Dispose();
+        _vertexBuffer.Dispose();
+        _indexBuffer.Dispose();
+        _graphicsDevice.Dispose();
     }
 }

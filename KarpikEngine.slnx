@@ -3,9 +3,12 @@
   <Folder Name="/first-parties/Kveldrid/" />
   <Folder Name="/first-parties/Kveldrid/src/">
     <Project Path="first-parties/Kveldrid-spirv/src/Veldrid.SPIRV/Veldrid.SPIRV.csproj" />
+    <Project Path="first-parties/Kveldrid/src/NeoDemo/NeoDemo.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.ImageSharp/Veldrid.ImageSharp.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.ImGui/Veldrid.ImGui.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.MetalBindings/Veldrid.MetalBindings.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.OpenGLBindings/Veldrid.OpenGLBindings.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.RenderDoc/Veldrid.RenderDoc.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.SDL2/Veldrid.SDL2.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.StartupUtilities/Veldrid.StartupUtilities.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.Utilities/Veldrid.Utilities.csproj" />
