@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <NoWarn>CS1704</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid.OpenGLBindings\Veldrid.OpenGLBindings.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
+      <ProjectReference Include="..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
+    </ItemGroup>
+
+</Project>

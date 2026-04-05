@@ -1,4 +1,16 @@
 <Solution>
+  <Folder Name="/first-parties/" />
+  <Folder Name="/first-parties/Kveldrid/" />
+  <Folder Name="/first-parties/Kveldrid/src/">
+    <Project Path="first-parties/Kveldrid-spirv/src/Veldrid.SPIRV/Veldrid.SPIRV.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.ImGui/Veldrid.ImGui.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.MetalBindings/Veldrid.MetalBindings.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.OpenGLBindings/Veldrid.OpenGLBindings.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.SDL2/Veldrid.SDL2.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.StartupUtilities/Veldrid.StartupUtilities.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.Utilities/Veldrid.Utilities.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid/Veldrid.csproj" />
+  </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/Client/">
     <Project Path="Modules/Client/Input/Input.csproj" />
@@ -77,5 +89,6 @@
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
   <Project Path="ServerLauncher/ServerLauncher.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
+  <Project Path="TestVeldrid/TestVeldrid.csproj" />
   <Project Path="Tools/StaticAnalyzer/StaticAnalyzer.csproj" />
 </Solution>
