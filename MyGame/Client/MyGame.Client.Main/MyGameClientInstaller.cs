@@ -1,7 +1,6 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
-using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Client.UIToolkit;
@@ -9,6 +8,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Network.Core;
+using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
@@ -23,7 +23,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
     private TargetClientRpcDispatcher _targetClientRpcDispatcher = null!;
 
     private Input _input = null!;
-    private Action<KeyboardKeys> _onInput = null!;
+    private Action<Key> _onInput = null!;
 
     private IServiceContainer _container = null!;
 
@@ -41,13 +41,8 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         _world = services.Get<EcsDefaultWorld>();
         _targetClientRpcDispatcher = services.Get<TargetClientRpcDispatcher>();
 
-        var window = services.Get<IWindow>();
         var renderer = services.Get<IRenderer>();
 
-        window.Init(1024, 768, "My Game");
-        window.SetWindowState(WindowFlags.ResizableWindow);
-        window.SetWindowMinSize(400, 300);
-        window.SetTargetFPS(60);
         renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
         renderer.MainCamera3D.LookAt(Vector3.Zero);
         
@@ -66,7 +61,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
 
         _onInput = key =>
         {
-            if (key == KeyboardKeys.Escape)
+            if (key == Key.Escape)
             {
                 if (uiManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
                 {

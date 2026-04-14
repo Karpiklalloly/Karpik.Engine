@@ -2,6 +2,7 @@
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
+using Karpik.Engine.Modules.Window.Core;
 
 namespace Karpik.Engine.Client.UIToolkit;
 

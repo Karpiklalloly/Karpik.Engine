@@ -10,6 +10,7 @@
     <ItemGroup>
       <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\Graphics\Graphics.Core\Graphics.Core.csproj" />
+      <ProjectReference Include="..\Window\Window.Core\Window.Core.csproj" />
     </ItemGroup>
 
 </Project>

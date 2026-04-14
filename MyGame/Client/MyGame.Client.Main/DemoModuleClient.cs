@@ -22,6 +22,7 @@ using Karpik.Engine.Shared.Modding;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
 using Karpik.Jobs;
+using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
@@ -61,7 +62,7 @@ public class MySystem : IEcsRun, IEcsInit
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private EcsEventWorld _eventWorld = null!;
     [DI] private IAssetsManager _assetsManager = null!;
-    [DI] private IRenderer _renderer = null!;
+    [DI] private IRenderer2D _renderer = null!;
     [DI] private IRpc _rpc = null!;
     [DI] private Input _input = null!;
     [DI] private UIManager _uiManager = null!;
@@ -96,7 +97,7 @@ public class MySystem : IEcsRun, IEcsInit
         ImGui.End();
 
 
-        if (_input.IsPressed(KeyboardKeys.Escape))
+        if (_input.IsPressed(Key.Escape))
         {
             _time.IsPaused = !_time.IsPaused;
         }
@@ -155,7 +156,7 @@ public class MySystem : IEcsRun, IEcsInit
     {
         ImGui.Text($"Total time: {_time.TotalTime:F2}");
         ImGui.Text($"Delta time: {_time.DeltaTime}");
-        ImGui.Text($"FPS: {_renderer.GetFPS().ToString()}");
+        ImGui.Text($"FPS: {1 / _time.DeltaTime}");
         ImGui.Text($"Entities: {_world.Entities.Count}");
         ImGui.Text($"Event Entities: {_eventWorld.Entities.Count}");
         if (_world.Entities.Count > 0)
@@ -268,7 +269,7 @@ public class MySystem : IEcsRun, IEcsInit
         }
         
         ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
-        if (_input.IsPressing(KeyboardKeys.LeftAlt))
+        if (_input.IsPressing(Key.AltLeft))
         {
             ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024}Kb");
         }

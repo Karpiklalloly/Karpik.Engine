@@ -2,6 +2,7 @@
 using System.Numerics;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
+using Karpik.Engine.Modules.Window.Core;
 using s = Karpik.Engine.Client.UIToolkit.StyleSheet;
 
 namespace Karpik.Engine.Client.UIToolkit;
@@ -22,10 +23,10 @@ public class UIManager
 
     private IRenderTexture2D _renderTexture = null!;
     private Input _input = null!;
-    private IRenderer _gRenderer = null!;
+    private IRenderer2D _gRenderer = null!;
     private IWindow _window = null!;
 
-    public void SetRoot(UIElement element, Input input, IRenderer renderer, IWindow window)
+    public void SetRoot(UIElement element, Input input, IRenderer2D renderer, IWindow window)
     {
         _gRenderer = renderer;
         _window = window;
@@ -45,7 +46,7 @@ public class UIManager
         
         HandleInteractivity();
         
-        ProcessStyles(Root, null, StyleSheet.Default);
+        ProcessStyles(Root, null, s.Default);
 
         if (_isLayoutDirtyThisFrame)
         {
@@ -58,11 +59,11 @@ public class UIManager
 
     public void Render()
     {
-        if (_window.IsResized())
+        if (_window.IsResized)
         {
             _gRenderer.UnloadTexture(_renderTexture.Texture);
             _gRenderer.UnloadRenderTexture(_renderTexture);
-            _renderTexture = _gRenderer.LoadRenderTexture(_window.GetScreenWidth(), _window.GetScreenHeight());
+            _renderTexture = _gRenderer.LoadRenderTexture(_window.Width, _window.Height);
         }
         
         _gRenderer.BeginTextureMode(_renderTexture);
@@ -74,7 +75,7 @@ public class UIManager
             Vector2.Zero, Color.White);
     }
     
-    private void ProcessStyles(UIElement element, Dictionary<string, string> parentComputedStyle, StyleSheet styleSheet)
+    private void ProcessStyles(UIElement element, Dictionary<string, string>? parentComputedStyle, StyleSheet styleSheet)
     {
         if (element.Dirty.HasFlag(DirtyFlag.Style))
         {

@@ -23,11 +23,11 @@ public class StyleComputer
         ComputeStylesForNode(root, styleSheet, null);
     }
 
-    public void ComputeStylesForNode(UIElement element, s styleSheet, Dictionary<string, string> parentComputedStyle)
+    public void ComputeStylesForNode(UIElement element, s styleSheet, Dictionary<string, string>? parentComputedStyle)
     {
         // 1. Наследование
         var computedStyle = new Dictionary<string, string>();
-        if (parentComputedStyle != null)
+        if (parentComputedStyle is not null)
         {
             foreach (var prop in InheritableProperties)
             {

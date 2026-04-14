@@ -14,6 +14,6 @@ internal class UpdateSystem : IEcsRun, IEcsDestroy
 
     public void Destroy()
     {
-        _input.Destory();
+        _input.Destroy();
     }
 }

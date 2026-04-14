@@ -1,6 +1,6 @@
 ﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
+using Karpik.Engine.Modules.Window.Core;
 
 namespace Karpik.Engine.Client.InputModule;
 
@@ -16,7 +16,7 @@ public class InputInstaller : IModule, IModuleConfiguratable
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        services.Get<Input>().Init(services.Get<IWindow>());
+        services.Get<Input>()!.Init(services.Get<IInputSource>()!);
         container.Register<IEcsModule>(new InputModuleEcs());
     }
 

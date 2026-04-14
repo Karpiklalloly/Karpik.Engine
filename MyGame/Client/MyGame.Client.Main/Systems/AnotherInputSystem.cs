@@ -4,6 +4,7 @@ using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Physics.Core;
+using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -22,7 +23,7 @@ public class AnotherInputSystem : IEcsRun
     public void Run()
     {
         Vector2 pulse = Vector2.Zero;
-        if (_input.IsDown(KeyboardKeys.Space))
+        if (_input.IsDown(Key.Space))
         {
             pulse = new Vector2(0, 2f);
         }

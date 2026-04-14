@@ -11,7 +11,7 @@ public class LayoutEngine
     private readonly List<UIElement> _absoluteElements = [];
     private readonly List<UIElement> _fixedElements = [];
     private RectangleF _viewport;
-    private IRenderer _renderer;
+    private IRenderer2D _renderer;
 
     private class FlexItemData
     {
@@ -28,7 +28,7 @@ public class LayoutEngine
         public float CrossSize { get; set; }
     }
 
-    public void Init(IRenderer renderer)
+    public void Init(IRenderer2D renderer)
     {
         _renderer = renderer;
     }

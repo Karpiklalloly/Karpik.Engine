@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using DCFApixels.DragonECS;
-using Karpik.Engine.Client;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
@@ -9,6 +8,7 @@ using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Extensions;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
+using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -33,10 +33,6 @@ public class InputSystem : IEcsRun
     public void Run()
     {
         _camera2D.Position = _camera2D.Position;
-        if (_renderer.WindowShouldClose())
-        {
-            _application.Stop();
-        }
         
         if (_input.IsMouseRightButtonDown)
         {
@@ -54,17 +50,17 @@ public class InputSystem : IEcsRun
         float moveX = 0;
         bool jump = false;
         
-        if (_input.IsDown(KeyboardKeys.A) || _input.IsDown(KeyboardKeys.Left))
+        if (_input.IsDown(Key.A) || _input.IsDown(Key.Left))
         {
             moveX -= 1;
         }
 
-        if (_input.IsDown(KeyboardKeys.D) || _input.IsDown(KeyboardKeys.Right))
+        if (_input.IsDown(Key.D) || _input.IsDown(Key.Right))
         {
             moveX += 1;
         }
 
-        if (_input.IsPressing(KeyboardKeys.Space) || _input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
+        if (_input.IsPressing(Key.Space) || _input.IsDown(Key.W) || _input.IsDown(Key.Up))
         {
             jump = true;
         }
@@ -88,37 +84,37 @@ public class InputSystem : IEcsRun
         {
             Vector3 currentInput = Vector3.Zero;
 
-            if (_input.IsDown(KeyboardKeys.A) || _input.IsDown(KeyboardKeys.Left))
+            if (_input.IsDown(Key.A) || _input.IsDown(Key.Left))
             {
                 currentInput.Y -= 1;
             }
 
-            if (_input.IsDown(KeyboardKeys.D) || _input.IsDown(KeyboardKeys.Right))
+            if (_input.IsDown(Key.D) || _input.IsDown(Key.Right))
             {
                 currentInput.Y += 1;
             }
 
-            if (_input.IsDown(KeyboardKeys.W) || _input.IsDown(KeyboardKeys.Up))
+            if (_input.IsDown(Key.W) || _input.IsDown(Key.Up))
             {
                 currentInput.X += 1;
             }
 
-            if (_input.IsDown(KeyboardKeys.S) || _input.IsDown(KeyboardKeys.Down))
+            if (_input.IsDown(Key.S) || _input.IsDown(Key.Down))
             {
                 currentInput.X -= 1;
             }
 
-            if (_input.IsDown(KeyboardKeys.Q))
+            if (_input.IsDown(Key.Q))
             {
                 currentInput.Z += 1;
             }
 
-            if (_input.IsDown(KeyboardKeys.E))
+            if (_input.IsDown(Key.E))
             {
                 currentInput.Z -= 1;
             }
 
-            if (_input.IsPressing(KeyboardKeys.Space))
+            if (_input.IsPressing(Key.Space))
             {
                 currentInput *= 5f;
             }

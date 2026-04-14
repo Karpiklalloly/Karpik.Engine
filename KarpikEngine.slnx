@@ -20,7 +20,7 @@
   </Folder>
   <Folder Name="/Modules/Client/Graphics/">
     <Project Path="Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" />
-    <Project Path="Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" />
+    <Project Path="Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" />
   </Folder>
   <Folder Name="/Modules/Client/Network.Client/">
     <Project Path="Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj" />
@@ -29,16 +29,15 @@
   <Folder Name="/Modules/Client/UIToolkit/">
     <Project Path="Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" />
   </Folder>
+  <Folder Name="/Modules/Client/Window/">
+    <Project Path="Modules/Client/Window/Window.Core/Window.Core.csproj" />
+    <Project Path="Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" />
+  </Folder>
   <Folder Name="/Modules/Server/" />
   <Folder Name="/Modules/Server/Network.Server/">
     <Project Path="Modules/Server/Network.Server/Network.Server.Core/Network.Server.Core.csproj" />
     <Project Path="Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" />
   </Folder>
-    <Folder Name="/Modules/Client/UI/">
-      <Project Path="Modules/Client/UI/GameUI/GameUI.Core.Tests/GameUI.Core.Tests.csproj" />
-      <Project Path="Modules/Client/UI/GameUI/GameUI.Core/GameUI.Core.csproj" />
-      <Project Path="Modules/Client/UI/GameUI/GameUI.EngineNative/GameUI.EngineNative.csproj" />
-    </Folder>
   <Folder Name="/Modules/Shared/">
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />

@@ -11,7 +11,7 @@ public class Drawer
 {
     private SpriteAction[] _actions = new SpriteAction[128];
     private int _actionsCount = 0;
-    [DI] private IRenderer _renderer = null!;
+    [DI] private IRenderer2D _renderer = null!;
     [DI] private ICamera2D _camera2D = null!;
     [DI] private Application _application = null!;
 
@@ -60,7 +60,7 @@ public class Drawer
         public double Rotation;
         public int Layer;
         
-        public void Draw(IRenderer renderer)
+        public void Draw(IRenderer2D renderer)
         {
             if (Texture is not null)
             {

@@ -22,9 +22,9 @@ public class StackingContext
 
 public class Renderer
 {
-    private readonly IRenderer _renderer;
+    private readonly IRenderer2D _renderer;
 
-    public Renderer(IRenderer renderer)
+    public Renderer(IRenderer2D renderer)
     {
         _renderer = renderer;
     }
