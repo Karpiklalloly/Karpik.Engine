@@ -38,7 +38,7 @@ public class ServiceProvider : IServiceRegister, IServiceContainer
     public T? Get<T>() where T : class
     {
         if (_services.TryGetValue(typeof(T), out var service))
-            return (T)service.FirstOrDefault();
+            return (T?)service.FirstOrDefault();
 
         Console.WriteLine($"Not found service {typeof(T)}");
         return null;
