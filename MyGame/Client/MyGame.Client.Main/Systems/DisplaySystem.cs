@@ -16,7 +16,7 @@ public class DisplaySystem : IEcsRun
     }
     
     [DI] private EcsDefaultWorld _world;
-    [DI] private IRenderer _renderer;
+    // [DI] private IRenderer _renderer;
     [DI] private Drawer _drawer;
     
     public void Run()
@@ -24,9 +24,9 @@ public class DisplaySystem : IEcsRun
         foreach (var e in _world.Where(out Aspect a))
         {
             ref readonly var pos = ref a.position.Get(e);
-            _renderer.DrawSphere(new Vector3((float)pos.X, (float)pos.Y, (float)pos.Z),
-                1,
-                Color.Red);
+            // _renderer.DrawSphere(new Vector3((float)pos.X, (float)pos.Y, (float)pos.Z),
+            //     1,
+            //     Color.Red);
         }
     }
 }

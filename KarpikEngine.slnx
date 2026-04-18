@@ -26,9 +26,6 @@
     <Project Path="Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj" />
     <Project Path="Modules/Client/Network.Client/Network.Client.LiteNetLib/Network.Client.LiteNetLib.csproj" />
   </Folder>
-  <Folder Name="/Modules/Client/UIToolkit/">
-    <Project Path="Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" />
-  </Folder>
   <Folder Name="/Modules/Client/Window/">
     <Project Path="Modules/Client/Window/Window.Core/Window.Core.csproj" />
     <Project Path="Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" />

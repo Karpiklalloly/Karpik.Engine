@@ -77,7 +77,7 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
     public void Init()
     {
         BuildDependencyGraph(Process);
-        _jobSystem = new JobSystem(Environment.ProcessorCount);
+        _jobSystem = new JobSystem(Environment.ProcessorCount, "ParallelRunner");
     }
 
     public void Destroy()

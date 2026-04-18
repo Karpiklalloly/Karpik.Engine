@@ -24,16 +24,14 @@ public class InputSystem : IEcsRun
     [DI] private EcsDefaultWorld _world;
     [DI] private Rpc _rpc;
     [DI] private Input _input;
-    [DI] private ICamera _camera;
-    [DI] private ICamera2D _camera2D;
+    // [DI] private ICamera _camera;
+    // [DI] private ICamera2D _camera2D;
     [DI] private Time _time = null!;
-    [DI] private IRenderer _renderer;
+    // [DI] private IRenderer _renderer;
     [DI] private Application _application;
     
     public void Run()
     {
-        _camera2D.Position = _camera2D.Position;
-        
         if (_input.IsMouseRightButtonDown)
         {
             _input.LockCursor();
@@ -119,8 +117,8 @@ public class InputSystem : IEcsRun
                 currentInput *= 5f;
             }
 
-            _camera.Rotate(_input.MouseDelta * (float)_time.DeltaTime / 2);
-            _camera.Move(currentInput * (float)_time.DeltaTime * 2);
+            // _camera.Rotate(_input.MouseDelta * (float)_time.DeltaTime / 2);
+            // _camera.Move(currentInput * (float)_time.DeltaTime * 2);
         }
     }
 }

@@ -1,11 +1,6 @@
-﻿using System.Drawing;
-using System.Numerics;
-using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Graphics.Core;
+﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.InputModule;
-using Karpik.Engine.Client.UIToolkit;
 using Karpik.Engine.Core;
-using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Network.Core;
 using Veldrid;
@@ -41,37 +36,37 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         _world = services.Get<EcsDefaultWorld>();
         _targetClientRpcDispatcher = services.Get<TargetClientRpcDispatcher>();
 
-        var renderer = services.Get<IRenderer>();
-
-        renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
-        renderer.MainCamera3D.LookAt(Vector3.Zero);
-        
-        // Create 2D camera entity with ECS
-        var cameraEntity = _world.NewEntity();
-        ref var cam2D = ref _world.GetPool<Camera2DComponent>().Add(cameraEntity);
-        cam2D.Position = new Vector2(0, 0);
-        cam2D.TargetPosition = new Vector2(0, 0);
-        cam2D.Zoom = 10f;
-        cam2D.Rotation = 0f;
-        cam2D.ViewportSize = new Vector2(1024, 768);
-        cam2D.SmoothingFactor = 0.1f;
-        _world.GetPool<ActiveCamera2DTag>().Add(cameraEntity);
-        
-        var uiManager = services.Get<UIManager>();
-
-        _onInput = key =>
-        {
-            if (key == Key.Escape)
-            {
-                if (uiManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
-                {
-                    uiManager.Root.SetInlineStyle(StyleSheet.display,
-                        value == StyleSheet.display_none
-                            ? StyleSheet.display_block
-                            : StyleSheet.display_none);
-                }
-            }
-        };
+        // var renderer = services.Get<IRenderer>();
+        //
+        // renderer.MainCamera3D.Position = new Vector3(10, 10, 10);
+        // renderer.MainCamera3D.LookAt(Vector3.Zero);
+        //
+        // // Create 2D camera entity with ECS
+        // var cameraEntity = _world.NewEntity();
+        // ref var cam2D = ref _world.GetPool<Camera2DComponent>().Add(cameraEntity);
+        // cam2D.Position = new Vector2(0, 0);
+        // cam2D.TargetPosition = new Vector2(0, 0);
+        // cam2D.Zoom = 10f;
+        // cam2D.Rotation = 0f;
+        // cam2D.ViewportSize = new Vector2(1024, 768);
+        // cam2D.SmoothingFactor = 0.1f;
+        // _world.GetPool<ActiveCamera2DTag>().Add(cameraEntity);
+        //
+        // var uiManager = services.Get<UIManager>();
+        //
+        // _onInput = key =>
+        // {
+        //     if (key == Key.Escape)
+        //     {
+        //         if (uiManager.Root.ComputedStyle.TryGetValue(StyleSheet.display, out var value))
+        //         {
+        //             uiManager.Root.SetInlineStyle(StyleSheet.display,
+        //                 value == StyleSheet.display_none
+        //                     ? StyleSheet.display_block
+        //                     : StyleSheet.display_none);
+        //         }
+        //     }
+        // };
 
         _input = services.Get<Input>();
         _input.KeyPressed += _onInput;

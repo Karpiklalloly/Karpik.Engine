@@ -18,6 +18,16 @@ public static class Job
     {
         return _jobSystem.Enqueue(func);
     }
+
+    public static JobHandle<JobHandle> Run<T>(Func<JobHandle> func)
+    {
+        return _jobSystem.Enqueue(func);
+    }
+    
+    public static JobHandle<JobHandle<T>> Run<T>(Func<JobHandle<T>> func)
+    {
+        return _jobSystem.Enqueue(func);
+    }
     
     public static JobHandle Run(Action action)
     {

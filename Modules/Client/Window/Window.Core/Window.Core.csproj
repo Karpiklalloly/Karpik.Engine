@@ -8,7 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 

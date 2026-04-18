@@ -11,10 +11,15 @@
       <None Update="Pressstart2p.ttf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="libveldrid-spirv.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
+      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
       <ProjectReference Include="..\..\..\Shared\ECS\ECS.Core\ECS.Core.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />

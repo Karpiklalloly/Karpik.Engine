@@ -20,7 +20,6 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Core/Window.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" Condition="'$(IsClient)' == 'true'" />

@@ -1,9 +1,10 @@
-﻿using Karpik.Jobs;
+﻿using Karpik.Engine.Core;
+using Karpik.Jobs;
 using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public class MergeThread(GraphicsDevice device, JobSystem jobSystem) : IMergeThread
+public class MergeThread(GraphicsDevice device) : IMergeThread
 {
     public bool IsRunning => !_handle.IsCompleted;
 
@@ -15,7 +16,7 @@ public class MergeThread(GraphicsDevice device, JobSystem jobSystem) : IMergeThr
     {
         var buffers = GraphicsContext.CollectBuffers();
 
-        _handle = jobSystem.Enqueue(() =>
+        _handle = Job.Run(() =>
         {
             var cmdList = device.ResourceFactory.CreateCommandList();
             cmdList.Begin();
@@ -30,7 +31,7 @@ public class MergeThread(GraphicsDevice device, JobSystem jobSystem) : IMergeThr
             
             cmdList.End();
             _commandList = cmdList;
-        }, Span<JobHandle>.Empty);
+        });
     }
 
     public void WaitForCompletion()

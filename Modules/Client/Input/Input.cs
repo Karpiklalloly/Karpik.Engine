@@ -102,6 +102,10 @@ public class Input
     internal void Init(IInputSource source)
     {
         _source = source;
+        foreach (Key key in Enum.GetValues<Key>())
+        {
+            _keyStates[key] = State.DownHold;
+        }
     }
 
     internal void Destroy()
