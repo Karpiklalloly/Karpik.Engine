@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Karpik.Engine.Client.Graphics.Core;
-using Karpik.Engine.Client.Graphics.OpenGL.AssetManagement;
+using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
@@ -18,6 +19,8 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
     
     private GraphicsDevice _graphicsDevice = null!;
     private bool _colorSrgb = true;
+    
+    private List<AssetHandle<ShaderAsset>> _shaderAssets = [];
     
     public void OnRegisterServices(IServiceRegister services)
     {
@@ -42,7 +45,8 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         container.Register<IShaderFactory>(new VeldridShaderFactory(_graphicsDevice));
         container.Register<IPipelineFactory>(new VeldridPipelineFactory(_graphicsDevice));
         container.Register<IGraphicsContext>(new VeldridGraphicsContext(_graphicsDevice));
-        container.Register<IMergeThread>(new MergeThread(_graphicsDevice));
+        container.Register<IMergeThread>(new MergeThread());
+        container.Register(new Preset2DPipeline());
     }
 
     public void OnConfigureComplete(IServiceContainer services)
@@ -68,14 +72,8 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
             {
                 var fragData = await frag;
                 var vertData = await vert;
-                var factory = device.ResourceFactory;
-                string vertexShader = Encoding.UTF8.GetString(vertData.Asset.ShaderBytes);
-                string fragShader = Encoding.UTF8.GetString(fragData.Asset.ShaderBytes);
-                Shader[]? shaders = factory.CreateFromSpirv(
-                    new ShaderDescription(ShaderStages.Vertex, vertData.Asset.ShaderBytes, "main"),
-                    new ShaderDescription(ShaderStages.Fragment, fragData.Asset.ShaderBytes, "main")
-                );
-                int a = 0;
+                _shaderAssets.Add(fragData);
+                _shaderAssets.Add(vertData);
             }
             catch (Exception e)
             {
@@ -88,5 +86,13 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
     public void Destroy()
     {
         _graphicsDevice.Dispose();
+        foreach (var handle in _shaderAssets)
+        {
+            if (handle.IsValid)
+            {
+                handle.Dispose();
+            }
+        }
+        _shaderAssets.Clear();
     }
 }

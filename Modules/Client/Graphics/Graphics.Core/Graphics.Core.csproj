@@ -28,8 +28,4 @@
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="AssetManagement\" />
-    </ItemGroup>
-
 </Project>

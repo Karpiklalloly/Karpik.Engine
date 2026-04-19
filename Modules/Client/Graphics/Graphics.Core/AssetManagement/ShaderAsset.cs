@@ -1,6 +1,6 @@
 ﻿using Karpik.Engine.Shared.AssetManagement.Core;
 
-namespace Karpik.Engine.Client.Graphics.OpenGL.AssetManagement;
+namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 public class ShaderAsset : Asset
 {

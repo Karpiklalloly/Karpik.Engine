@@ -16,4 +16,8 @@
         <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="AssetManagement\" />
+    </ItemGroup>
+
 </Project>

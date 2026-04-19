@@ -3,7 +3,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
-namespace Karpik.Engine.Client.Graphics.OpenGL.AssetManagement;
+namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 public class ShaderLoader : BaseAssetLoader<ShaderAsset, byte[]>
 {
