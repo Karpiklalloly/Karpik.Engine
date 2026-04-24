@@ -44,7 +44,6 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         container.Register<ITextureFactory>(new VeldridTextureFactory(_graphicsDevice));
         container.Register<IShaderFactory>(new VeldridShaderFactory(_graphicsDevice));
         container.Register<IPipelineFactory>(new VeldridPipelineFactory(_graphicsDevice));
-        container.Register<IGraphicsContext>(new VeldridGraphicsContext(_graphicsDevice));
         container.Register<IMergeThread>(new MergeThread());
         container.Register(new Preset2DPipeline());
     }

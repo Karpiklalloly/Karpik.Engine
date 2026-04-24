@@ -3,8 +3,11 @@
 public interface ICommandBuffer
 {
     public int FrameId { get; }
-    public int Count { get; }
-    public void Add(in DrawCommand cmd);
+    public void Add(in DrawRectCmd cmd);
+    public void Add(in DrawTextureCmd cmd);
+    public void Add(in DrawTextCmd cmd);
+    public ReadOnlySpan<DrawRectCmd> GetRectCommands();
+    public ReadOnlySpan<DrawTextureCmd> GetTextureCommands();
+    public ReadOnlySpan<DrawTextCmd> GetTextCommands();
     internal void Clear();
-    public ReadOnlySpan<DrawCommand> GetCommands();
 }

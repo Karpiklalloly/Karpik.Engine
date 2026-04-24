@@ -14,7 +14,8 @@
         "--from", 
         "git+https://github.com/ast-grep/ast-grep-mcp", 
         "ast-grep-server"
-      ]
+      ],
+      "trust": true
     },
     "roslyn": {
       "command": "roslyn-mcp",

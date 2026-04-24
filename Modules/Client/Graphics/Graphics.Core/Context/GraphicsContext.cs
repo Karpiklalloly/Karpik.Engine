@@ -4,53 +4,41 @@ public class GraphicsContext
 {
     private static int _currentFrameId;
     private static readonly Lock Lock = new();
-    private static readonly Lock FrameLock = new();
-    
-    private static readonly Dictionary<int, ICommandBuffer> _buffersByThread = new();
-    [ThreadStatic] private static ICommandBuffer? _buffer;
+
+    private static readonly List<ICommandBuffer> _allBuffers = new();
+    [ThreadStatic] private static ICommandBuffer? _cachedBuffer;
 
     
     public static ICommandBuffer Buffer
     {
         get
         {
-            int threadId = Environment.CurrentManagedThreadId;
-            
-            if (_buffer == null || _buffer.FrameId != _currentFrameId)
+            if (_cachedBuffer != null && _cachedBuffer.FrameId == _currentFrameId)
             {
-                _buffer = new ThreadBuffer(_currentFrameId);
-
-                lock (Lock)
-                {
-                    _buffersByThread[threadId] = _buffer;
-                }
+                return _cachedBuffer;
             }
-            return _buffer;
+
+            _cachedBuffer = new ThreadBuffer(_currentFrameId);
+            lock (Lock)
+            {
+                _allBuffers.Add(_cachedBuffer);
+            }
+            return _cachedBuffer;
         }
     }
 
     internal static void BeginFrame()
     {
-        lock (FrameLock)
+        lock (Lock)
         {
             _currentFrameId++;
-            
-            lock (Lock)
-            {
-                foreach (var buffer in _buffersByThread)
-                {
-                    buffer.Value.Clear();
-                }
-                _buffersByThread.Clear();
-            }
+            foreach (var buffer in _allBuffers) buffer.Clear();
+            _allBuffers.Clear();
         }
     }
 
-    internal static ICommandBuffer[] CollectBuffers()
+    internal static List<ICommandBuffer> CollectBuffers()
     {
-        lock (Lock)
-        {
-            return _buffersByThread.Values.ToArray();
-        }
+        lock (Lock) return _allBuffers;
     }
 }

@@ -22,12 +22,11 @@ public class DisplaySystem : IEcsRun
     
     public void Run()
     {
-        DrawCommand command = DrawCommand.FromRect(new DrawRectCmd()
+        GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
             Color = Color.Blue,
             Rectangle = new RectangleF(-1, -1, 100, 100)
         });
-        GraphicsContext.Buffer.Add(command);
         foreach (var e in _world.Where(out Aspect a))
         {
             ref readonly var pos = ref a.position.Get(e);
