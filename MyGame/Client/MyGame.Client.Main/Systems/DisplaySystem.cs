@@ -18,9 +18,16 @@ public class DisplaySystem : IEcsRun
     [DI] private EcsDefaultWorld _world;
     // [DI] private IRenderer _renderer;
     [DI] private Drawer _drawer;
+    [DI] private GraphicsContext _context = null!;
     
     public void Run()
     {
+        DrawCommand command = DrawCommand.FromRect(new DrawRectCmd()
+        {
+            Color = Color.Blue,
+            Rectangle = new RectangleF(-1, -1, 100, 100)
+        });
+        GraphicsContext.Buffer.Add(command);
         foreach (var e in _world.Where(out Aspect a))
         {
             ref readonly var pos = ref a.position.Get(e);

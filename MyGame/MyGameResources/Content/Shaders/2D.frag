@@ -12,5 +12,4 @@ void main()
 {
     vec4 texColor = texture(sampler2D(Tex, Samp), vTexCoord);
     fragColor = texColor * vColor;
-    fragColor = vColor;
 }

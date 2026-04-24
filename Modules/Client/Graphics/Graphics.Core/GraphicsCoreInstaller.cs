@@ -1,3 +1,4 @@
+using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.Core;
@@ -14,7 +15,7 @@ public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDest
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        
+        container.Register<IEcsModule>(new GraphicsCoreModule());
     }
 
     public void OnConfigureComplete(IServiceContainer services)

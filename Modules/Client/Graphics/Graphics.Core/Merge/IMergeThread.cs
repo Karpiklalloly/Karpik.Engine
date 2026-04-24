@@ -10,5 +10,5 @@ public interface IMergeThread
     
     public void WaitForCompletion();
     
-    public CommandList? GetCommandList();
+    public CommandList GetCommandList();
 }
