@@ -50,7 +50,7 @@ public class Preset2DPipeline
             BlendState = BlendStateDescription.SingleAlphaBlend,
             DepthStencilState = DepthStencilStateDescription.Disabled,
             RasterizerState = RasterizerStateDescription.CullNone,
-            PrimitiveTopology = PrimitiveTopology.TriangleStrip,
+            PrimitiveTopology = PrimitiveTopology.TriangleList,
             ShaderSet = new ShaderSetDescription(
                 vertexLayouts: [Vertex2D.Layout],
                 shaders: shaders),

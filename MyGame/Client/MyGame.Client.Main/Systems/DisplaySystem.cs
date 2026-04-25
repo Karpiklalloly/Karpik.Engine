@@ -19,13 +19,26 @@ public class DisplaySystem : IEcsRun
     // [DI] private IRenderer _renderer;
     [DI] private Drawer _drawer;
     [DI] private GraphicsContext _context = null!;
+    [DI] private Time _time = null!;
     
     public void Run()
     {
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
+            Color = Color.White,
+            Rectangle = new RectangleF(0, 0, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
+        });
+        
+        GraphicsContext.Buffer.Add(new DrawRectCmd()
+        {
             Color = Color.Blue,
-            Rectangle = new RectangleF(-1, -1, 100, 100)
+            Rectangle = new RectangleF(0, 100, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
+        });
+        
+        GraphicsContext.Buffer.Add(new DrawRectCmd()
+        {
+            Color = Color.Red,
+            Rectangle = new RectangleF(0, 200, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
         });
         foreach (var e in _world.Where(out Aspect a))
         {
