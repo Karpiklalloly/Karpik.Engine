@@ -23,17 +23,28 @@ public class GraphicsCoreBeginSystem : IEcsRun
     }
 }
 
-public class GraphicsCoreEndSystem : IEcsRun
+public class GraphicsCoreMergeSystem : IEcsRun
 {
     [DI] private IMergeThread _mergeThread = null!;
-    [DI] private GraphicsDevice _device = null!;
-    
+
     public void Run()
     {
         _mergeThread.BeginMerge();
+    }
+}
+
+public class GraphicsCoreSubmitSystem : IEcsRun
+{
+    [DI] private IMergeThread _mergeThread = null!;
+    [DI] private GraphicsDevice _device = null!;
+
+    public void Run()
+    {
+        // Ждем, если мердж еще не успел закончиться (обычно он уже готов)
         _mergeThread.WaitForCompletion();
-        CommandList commandList = _mergeThread.GetCommandList();
-        _device.SubmitCommands(commandList);
+
+        // Отправляем готовые команды в GPU
+        _device.SubmitCommands(_mergeThread.GetCommandList());
         _device.SwapBuffers();
     }
 }
