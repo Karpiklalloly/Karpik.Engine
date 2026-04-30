@@ -13,7 +13,7 @@ public class VeldridTextureFactory(GraphicsDevice device) : ITextureFactory
         {
             throw new NullReferenceException($"Texture is null!");
         }
-        return new VeldridTexture2D(texture);
+        return new VeldridTexture2D(texture, null);
     }
 
     public void Destroy(ITexture2D texture)

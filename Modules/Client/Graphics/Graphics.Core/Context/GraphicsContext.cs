@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Client.Graphics.Core;
 
-public class GraphicsContext
+public static class GraphicsContext
 {
     private static int _currentFrameId;
     private static readonly Lock Lock = new();

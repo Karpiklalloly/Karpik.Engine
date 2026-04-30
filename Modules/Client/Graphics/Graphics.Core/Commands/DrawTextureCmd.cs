@@ -8,4 +8,5 @@ public struct DrawTextureCmd
     public ITexture2D Texture;
     public Vector2 Position;
     public Color Color;
+    public Vector2 Size;
 }
