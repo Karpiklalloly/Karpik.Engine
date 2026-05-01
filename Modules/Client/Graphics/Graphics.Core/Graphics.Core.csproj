@@ -26,6 +26,7 @@
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
+      <ProjectReference Include="..\..\Window\Window.Core\Window.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>

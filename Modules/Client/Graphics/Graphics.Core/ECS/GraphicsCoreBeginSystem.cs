@@ -1,6 +1,7 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
+using Karpik.Engine.Modules.Window.Core;
 using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
@@ -17,8 +18,16 @@ public class GraphicsCoreInitSystem : IEcsInit
 
 public class GraphicsCoreBeginSystem : IEcsRun
 {
+    [DI] private GraphicsDevice _device = null!;
+    [DI] private IWindow _window = null!; // Инъекция окна для отслеживания размера
+    
     public void Run()
     {
+        if (_device.MainSwapchain.Framebuffer.Width != (uint)_window.Width ||
+            _device.MainSwapchain.Framebuffer.Height != (uint)_window.Height)
+        {
+            _device.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
+        }
         GraphicsContext.BeginFrame();
     }
 }
