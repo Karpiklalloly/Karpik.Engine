@@ -89,14 +89,4 @@ public class Preset2DPipeline
     
         return factory.CreateGraphicsPipeline(ref pipelineDesc);
     }
-    
-    public ResourceSet CreateTextureResourceSet(Texture texture)
-    {
-        ResourceFactory factory = _device.ResourceFactory;
-        return factory.CreateResourceSet(new ResourceSetDescription(
-            _textureLayout,
-            texture,
-            _device.LinearSampler // Или PointSampler, если хочешь пиксель-арт
-        ));
-    }
 }
