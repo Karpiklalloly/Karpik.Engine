@@ -41,9 +41,6 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         _graphicsDevice = VeldridStartup.CreateDefaultOpenGLGraphicsDevice(gdOptions, services.Get<Sdl2Window>()!,
             GraphicsBackend.OpenGL);
         container.Register(_graphicsDevice);
-        container.Register<ITextureFactory>(new VeldridTextureFactory(_graphicsDevice));
-        container.Register<IShaderFactory>(new VeldridShaderFactory(_graphicsDevice));
-        container.Register<IPipelineFactory>(new VeldridPipelineFactory(_graphicsDevice));
         container.Register<IMergeThread>(new MergeThread());
         container.Register(new Preset2DPipeline());
     }

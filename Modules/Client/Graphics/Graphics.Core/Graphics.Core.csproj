@@ -28,4 +28,8 @@
       <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    </ItemGroup>
+
 </Project>
