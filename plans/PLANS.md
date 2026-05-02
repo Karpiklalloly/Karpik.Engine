@@ -37,6 +37,7 @@ Every ExecPlan must:
 - include validation commands and expected observations;
 - include recovery or rollback notes for risky steps;
 - maintain `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective`;
+- require validation after every implementation milestone;
 - respect KarpikEngine real-time constraints: no frame allocations, no avoidable pointer chasing, no cross-side project leaks, and no unvalidated hot-path changes.
 
 ## KarpikEngine-Specific Checks
@@ -125,6 +126,10 @@ Describe the sequence of edits and additions in prose. For each edit, name the f
 
 Describe each milestone as a verifiable step with the behavior or evidence expected at the end.
 
+Every implementation milestone must end with validation. Prefer the smallest relevant test command for that milestone: targeted unit tests, integration tests, property tests, benchmarks, allocation checks, or a documented manual scenario. Record the command and result in `Progress` before starting the next milestone.
+
+If validation cannot run, record why, what risk remains, and what command should be run later.
+
 ## Concrete Steps
 
 List exact commands with working directory. Include short expected outputs when useful.
@@ -161,4 +166,4 @@ Do not create an ADR for routine implementation details. In the ExecPlan `Outcom
 
 Proceed milestone by milestone. At every stopping point, update `Progress` with what is done and what remains. If new evidence changes the design, add it to `Surprises & Discoveries` and record the decision in `Decision Log`.
 
-Validation is mandatory. A completed ExecPlan without executed tests, benchmarks, or a documented reason why they could not run is incomplete.
+Validation is mandatory after each implementation milestone, not only at the end. A completed ExecPlan without executed tests, benchmarks, or a documented reason why they could not run is incomplete.
