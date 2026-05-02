@@ -35,7 +35,6 @@ Large domain-specific rules live in repo-local skills:
 - `.codex/skills/karpik-networking` - RPC, serialization, peer/connection management.
 - `.codex/skills/karpik-hot-reload` - Hot Reload, IPC, PluginLoadContext, ECS state preservation.
 - `.codex/skills/karpik-testing` - unit/integration/edge/PBT/performance testing.
-- `.codex/skills/karpik-code-review` - review policy for real-time, ECS, networking, side-boundary, and validation risks.
 
 Before working on a specific subsystem, load the matching skill and follow it. This root file contains only project-wide invariants.
 
