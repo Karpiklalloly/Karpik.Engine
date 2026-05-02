@@ -36,6 +36,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 19:18 +04:00) Wired `DrawCommandType.Text` into merge using preallocated text glyph buffers and the existing texture pipeline/atlas resource path.
 - [x] (2026-05-02 19:31 +04:00) Added no-copy `AddText` command-buffer helpers for stable string/read-only-memory text and measured-size centered text, with source-linked tests.
 - [x] (2026-05-02 19:45 +04:00) Added `.font.json` atlas metadata parser and `FontLoader` that creates `AtlasFont` from a preloaded texture asset dependency, with tests for UV normalization and texture ownership.
+- [x] (2026-05-03 13:05 +04:00) Extended font metadata parsing to accept native `msdf-atlas-gen` JSON, including em-space metrics, plane bounds, atlas bounds, and same-name PNG fallback from `FontLoader`.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

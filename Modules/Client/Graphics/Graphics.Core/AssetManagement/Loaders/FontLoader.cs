@@ -39,6 +39,11 @@ public class FontLoader : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>
 
     private static string ResolveAtlasPath(string assetName, string atlasPath)
     {
+        if (string.IsNullOrEmpty(atlasPath))
+        {
+            return Path.ChangeExtension(assetName, ".png");
+        }
+
         if (Path.IsPathRooted(atlasPath))
         {
             return atlasPath;

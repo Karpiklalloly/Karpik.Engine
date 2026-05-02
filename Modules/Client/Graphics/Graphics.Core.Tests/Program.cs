@@ -23,6 +23,7 @@ var tests = new (string Name, Action Run)[]
     ("CommandBuffer_AddText_DefaultsToTopLeftScreenSpace", CommandBuffer_AddText_DefaultsToTopLeftScreenSpace),
     ("CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin", CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin),
     ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
+    ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
     ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
     ("TextLayout_Build_EmitsGlyphQuadsAndSize", TextLayout_Build_EmitsGlyphQuadsAndSize),
@@ -364,6 +365,75 @@ static void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
     AssertNear(new Vector2(1f, 12f), glyph.Bearing);
     AssertEqual(10f, glyph.Advance);
     AssertNear4(new Vector4(0.125f, 0.125f, 0.375f, 0.375f), glyph.SourceUv);
+}
+
+static void FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds()
+{
+    const string json = """
+                        {
+                          "atlas": {
+                            "type": "msdf",
+                            "distanceRange": 4,
+                            "size": 32,
+                            "width": 128,
+                            "height": 64,
+                            "yOrigin": "bottom"
+                          },
+                          "metrics": {
+                            "emSize": 1,
+                            "lineHeight": 1.25,
+                            "ascender": 0.9,
+                            "descender": -0.25
+                          },
+                          "glyphs": [
+                            {
+                              "unicode": 65,
+                              "advance": 0.75,
+                              "planeBounds": {
+                                "left": 0.1,
+                                "bottom": -0.2,
+                                "right": 0.6,
+                                "top": 0.7
+                              },
+                              "atlasBounds": {
+                                "left": 16,
+                                "bottom": 8,
+                                "right": 48,
+                                "top": 24
+                              }
+                            },
+                            {
+                              "unicode": 32,
+                              "advance": 0.5
+                            }
+                          ]
+                        }
+                        """;
+
+    byte[] data = Encoding.UTF8.GetBytes(json);
+    FontAtlasData fontData = FontAtlasParser.Parse(data);
+
+    AssertEqual(string.Empty, fontData.AtlasPath);
+    AssertEqual(32f, fontData.Metrics.Size);
+    AssertEqual(40f, fontData.Metrics.LineHeight);
+    AssertEqual(28.8f, fontData.Metrics.Ascender);
+    AssertEqual(-8f, fontData.Metrics.Descender);
+    AssertEqual(4f, fontData.Metrics.DistanceRange);
+    AssertEqual(2, fontData.Glyphs.Length);
+
+    FontGlyph glyphA = fontData.Glyphs[0];
+    AssertEqual((uint)'A', glyphA.Codepoint);
+    AssertNear(new Vector2(16f, 28.8f), glyphA.Size);
+    AssertNear(new Vector2(3.2f, 22.4f), glyphA.Bearing);
+    AssertEqual(24f, glyphA.Advance);
+    AssertNear4(new Vector4(0.125f, 0.625f, 0.375f, 0.875f), glyphA.SourceUv);
+
+    FontGlyph space = fontData.Glyphs[1];
+    AssertEqual((uint)' ', space.Codepoint);
+    AssertNear(Vector2.Zero, space.Size);
+    AssertNear(Vector2.Zero, space.Bearing);
+    AssertEqual(16f, space.Advance);
+    AssertNear4(Vector4.Zero, space.SourceUv);
 }
 
 static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
