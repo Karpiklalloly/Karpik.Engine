@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyName>Graphics.Core.Tests</AssemblyName>
+        <RootNamespace>Karpik.Engine.Client.Graphics.Core.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="..\Graphics.Core\Camera\Camera2D.cs" Link="Graphics.Core\Camera\Camera2D.cs" />
+        <Compile Include="..\Graphics.Core\DrawSpace.cs" Link="Graphics.Core\DrawSpace.cs" />
+        <Compile Include="..\Graphics.Core\DrawTransform2D.cs" Link="Graphics.Core\DrawTransform2D.cs" />
+        <Compile Include="..\Graphics.Core\Merge\QuadTransform2D.cs" Link="Graphics.Core\Merge\QuadTransform2D.cs" />
+    </ItemGroup>
+
+</Project>

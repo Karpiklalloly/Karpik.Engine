@@ -26,6 +26,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 17:14 +04:00) Added `Camera2D.WorldToScreen` and `ScreenToWorld` helpers and reused `WorldToScreen` from quad projection.
 - [x] (2026-05-02 17:24 +04:00) Fixed `SDL2Window.Exists` and one-shot `IsResized` state instead of exposing never-updated auto-properties.
 - [x] (2026-05-02 17:35 +04:00) Added optional normalized source UV rectangle for texture commands and helpers; default still renders the full texture.
+- [x] (2026-05-02 17:48 +04:00) Added a dependency-light source-linked console test runner for camera and quad transform math.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
