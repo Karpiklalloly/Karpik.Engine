@@ -43,13 +43,17 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Color = Color.Red,
             Rectangle = new RectangleF(0, 200, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
         });
-        
+
+        var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
         GraphicsContext.Buffer.Add(new DrawTextureCmd()
         {
             Color = Color.White,
             Position = new Vector2(0, 300),
-            Size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100),
-            Texture = _asset.Asset!.Texture
+            Size = size,
+            Texture = _asset.Asset!.Texture,
+            RotationRadians = (float)_time.TotalTime,
+            Space = DrawSpace.Screen,
+            Origin = size / 2
         });
         foreach (var e in _world.Where(out Aspect a))
         {

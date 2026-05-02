@@ -16,6 +16,7 @@ The observable outcome is a client sample or test scene where:
 ## Progress
 
 - [x] (2026-05-02 14:56 +04:00) Initial plan created after inspecting the current `Window` and `Graphics` modules.
+- [x] (2026-05-02 16:03 +04:00) Drafted first Milestone 1 slice: added draw-space/transform value types, rotation/origin fields on rect/texture commands, and screen-space rotated quad emission in `MergeThread`.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
@@ -35,6 +36,9 @@ The observable outcome is a client sample or test scene where:
 
 - Observation: `IWindow.IsResized` and `IWindow.Exists` are exposed but the SDL2 implementation returns default values because they are read-only auto-properties never updated.
   Evidence: `Modules/Client/Window/Window.Sdl2/SDL2Window.cs`.
+
+- Observation: baseline `dotnet build Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj` currently exits with code 1 while reporting zero warnings and zero errors, both before and after the first Milestone 1 slice.
+  Evidence: MSBuild output only prints project restore/build start followed by `Ошибка сборки. Предупреждений: 0 Ошибок: 0`.
 
 ## Decision Log
 

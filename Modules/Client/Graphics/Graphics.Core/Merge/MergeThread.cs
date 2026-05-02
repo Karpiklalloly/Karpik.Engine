@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.ExceptionServices;
 using Karpik.Engine.Client.Graphics.Core.Presets;
@@ -12,7 +12,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private const int MaxQuads = 16000;
     private const int MaxVertices = MaxQuads * 4;
     private const int MaxIndices = MaxQuads * 6;
-    
+
     public bool IsRunning => !_completed.IsSet;
 
     private readonly AutoResetEvent _workAvailable = new(false);
@@ -20,10 +20,10 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private readonly Thread _workerThread;
     private volatile bool _shutdown;
     private Exception? _workerException;
-    
+
     [DI] private GraphicsDevice _device = null!;
     [DI] private Preset2DPipeline _2dPipeline = null!;
-    
+
     // TODO: Сделать возможность переключиться на ushort
     private DeviceBuffer _indexBuffer = null!;
 
@@ -34,7 +34,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private Framebuffer _buildFramebuffer = null!;
     private float _buildFramebufferWidth;
     private float _buildFramebufferHeight;
-    
+
     private bool _isUsingA = true;
     private MergeContext _currentContext => _isUsingA ? _mergeContextA : _mergeContextB;
 
@@ -48,7 +48,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         };
         _workerThread.Start();
     }
-    
+
     public void OnInjected()
     {
         var factory = _device.ResourceFactory;
@@ -64,7 +64,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             indices[id + 4] = (uint)(v + 1);
             indices[id + 5] = (uint)(v + 3);
         }
-        
+
         _indexBuffer = factory.CreateBuffer(new BufferDescription(
             MaxIndices * sizeof(uint), BufferUsage.IndexBuffer));
         _device.UpdateBuffer(_indexBuffer, 0, indices);
@@ -76,7 +76,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             Vertices = new Vertex2D[MaxVertices],
             CommandList = factory.CreateCommandList()
         };
-        
+
         _mergeContextB = new MergeContext()
         {
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
@@ -153,7 +153,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private void BuildCommandList()
     {
         var context = _buildContext;
-        
+
         float sw = _buildFramebufferWidth;
         float sh = _buildFramebufferHeight;
 
@@ -164,11 +164,11 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
         cl.SetVertexBuffer(0, context.VertexBuffer);
         cl.SetIndexBuffer(_indexBuffer, IndexFormat.UInt32);
-            
+
         int quadCount = 0;
         ResourceSet? currentRS = null;
         Pipeline? currentPipeline = null;
-            
+
         foreach (var buffer in _buildBuffers)
         {
             var rects = buffer.GetRectCommands();
@@ -209,10 +209,10 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         {
             Flush(context, currentRS, ref quadCount);
         }
-            
+
         context.CommandList.End();
     }
-    
+
     private void AddRectToBatch(in DrawRectCmd cmd, in MergeContext context, float sw, float sh, ref int quadCount)
     {
         Vector4 color = new Vector4(
@@ -222,30 +222,33 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             cmd.Color.A / 255f
         );
 
-        float l = (cmd.Rectangle.Left / sw) * 2f - 1f;
-        float r = (cmd.Rectangle.Right / sw) * 2f - 1f;
-        float t = 1f - (cmd.Rectangle.Top / sh) * 2f;
-        float b = 1f - (cmd.Rectangle.Bottom / sh) * 2f;
+        DrawTransform2D transform = new DrawTransform2D(
+            new Vector2(cmd.Rectangle.X, cmd.Rectangle.Y),
+            new Vector2(cmd.Rectangle.Width, cmd.Rectangle.Height),
+            cmd.Origin,
+            cmd.RotationRadians,
+            cmd.Space);
+        BuildScreenQuad(in transform, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
 
         int offset = quadCount * 4;
         context.Vertices[offset + 0] = new Vertex2D
-        { 
-            Position = new Vector2(l, t),
+        {
+            Position = p0,
             TexCoord = new Vector2(0, 0), Color = color
         };
         context.Vertices[offset + 1] = new Vertex2D
         {
-            Position = new Vector2(r, t),
+            Position = p1,
             TexCoord = new Vector2(1, 0), Color = color
         };
         context.Vertices[offset + 2] = new Vertex2D
         {
-            Position = new Vector2(l, b),
+            Position = p2,
             TexCoord = new Vector2(0, 1), Color = color
         };
         context.Vertices[offset + 3] = new Vertex2D
         {
-            Position = new Vector2(r, b),
+            Position = p3,
             TexCoord = new Vector2(1, 1), Color = color
         };
 
@@ -261,34 +264,85 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             cmd.Color.A / 255f
         );
 
-        float l = (cmd.Position.X / sw) * 2f - 1f;
-        float r = ((cmd.Position.X + cmd.Size.X) / sw) * 2f - 1f;
-        float t = 1f - (cmd.Position.Y / sh) * 2f;
-        float b = 1f - ((cmd.Position.Y + cmd.Size.Y) / sh) * 2f;
+        DrawTransform2D transform = new DrawTransform2D(
+            cmd.Position,
+            cmd.Size,
+            cmd.Origin,
+            cmd.RotationRadians,
+            cmd.Space);
+        BuildScreenQuad(in transform, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
 
         int offset = quadCount * 4;
         context.Vertices[offset + 0] = new Vertex2D
-        { 
-            Position = new Vector2(l, t),
+        {
+            Position = p0,
             TexCoord = new Vector2(0, 0), Color = color
         };
         context.Vertices[offset + 1] = new Vertex2D
         {
-            Position = new Vector2(r, t),
+            Position = p1,
             TexCoord = new Vector2(1, 0), Color = color
         };
         context.Vertices[offset + 2] = new Vertex2D
         {
-            Position = new Vector2(l, b),
+            Position = p2,
             TexCoord = new Vector2(0, 1), Color = color
         };
         context.Vertices[offset + 3] = new Vertex2D
         {
-            Position = new Vector2(r, b),
+            Position = p3,
             TexCoord = new Vector2(1, 1), Color = color
         };
 
         quadCount++;
+    }
+
+    private static void BuildScreenQuad(
+        in DrawTransform2D transform,
+        float framebufferWidth,
+        float framebufferHeight,
+        out Vector2 p0,
+        out Vector2 p1,
+        out Vector2 p2,
+        out Vector2 p3)
+    {
+        if (transform.RotationRadians == 0f)
+        {
+            float l = (transform.Position.X / framebufferWidth) * 2f - 1f;
+            float r = ((transform.Position.X + transform.Size.X) / framebufferWidth) * 2f - 1f;
+            float t = 1f - (transform.Position.Y / framebufferHeight) * 2f;
+            float b = 1f - ((transform.Position.Y + transform.Size.Y) / framebufferHeight) * 2f;
+
+            p0 = new Vector2(l, t);
+            p1 = new Vector2(r, t);
+            p2 = new Vector2(l, b);
+            p3 = new Vector2(r, b);
+            return;
+        }
+
+        float sin = MathF.Sin(transform.RotationRadians);
+        float cos = MathF.Cos(transform.RotationRadians);
+        Vector2 pivot = transform.Position + transform.Origin;
+
+        p0 = ToClip(RotatePoint(transform.Position, pivot, sin, cos), framebufferWidth, framebufferHeight);
+        p1 = ToClip(RotatePoint(transform.Position + new Vector2(transform.Size.X, 0f), pivot, sin, cos), framebufferWidth, framebufferHeight);
+        p2 = ToClip(RotatePoint(transform.Position + new Vector2(0f, transform.Size.Y), pivot, sin, cos), framebufferWidth, framebufferHeight);
+        p3 = ToClip(RotatePoint(transform.Position + transform.Size, pivot, sin, cos), framebufferWidth, framebufferHeight);
+    }
+
+    private static Vector2 RotatePoint(Vector2 point, Vector2 pivot, float sin, float cos)
+    {
+        Vector2 local = point - pivot;
+        return new Vector2(
+            pivot.X + local.X * cos - local.Y * sin,
+            pivot.Y + local.X * sin + local.Y * cos);
+    }
+
+    private static Vector2 ToClip(Vector2 point, float framebufferWidth, float framebufferHeight)
+    {
+        return new Vector2(
+            (point.X / framebufferWidth) * 2f - 1f,
+            1f - (point.Y / framebufferHeight) * 2f);
     }
 
     private void SetPipeline(ref Pipeline? current, Pipeline next, MergeContext ctx, ResourceSet? currentRS, ref int quadCount)
@@ -299,7 +353,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         current = next;
         ctx.CommandList.SetPipeline(next);
     }
-    
+
     private void SetTexture(ref ResourceSet? current, ResourceSet next, MergeContext ctx, ref int quadCount)
     {
         if (current != next)
@@ -309,7 +363,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             ctx.CommandList.SetGraphicsResourceSet(0, next);
         }
     }
-    
+
     private void Flush(MergeContext context, ResourceSet? rs, ref int quadCount)
     {
         if (quadCount == 0 || rs == null) return;
