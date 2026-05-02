@@ -45,16 +45,14 @@ public class DisplaySystem : IEcsRun, IEcsInit
         });
 
         var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
-        GraphicsContext.Buffer.Add(new DrawTextureCmd()
-        {
-            Color = Color.White,
-            Position = new Vector2(0, 300),
-            Size = size,
-            Texture = _asset.Asset!.Texture,
-            RotationRadians = (float)_time.TotalTime,
-            Space = DrawSpace.Screen,
-            Origin = size / 2
-        });
+        GraphicsContext.Buffer.AddTextureCentered(
+            _asset.Asset!.Texture,
+            new Vector2(120, 300),
+            size,
+            Color.White,
+            (float)_time.TotalTime,
+            DrawSpace.Screen);
+        
         foreach (var e in _world.Where(out Aspect a))
         {
             ref readonly var pos = ref a.position.Get(e);
