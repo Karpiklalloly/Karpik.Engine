@@ -11,10 +11,20 @@
 
     <ItemGroup>
         <Compile Include="..\Graphics.Core\Camera\Camera2D.cs" Link="Graphics.Core\Camera\Camera2D.cs" />
+        <Compile Include="..\Graphics.Core\CommandBufferDrawExtensions.cs" Link="Graphics.Core\CommandBufferDrawExtensions.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawRectCmd.cs" Link="Graphics.Core\Commands\DrawRectCmd.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawTextCmd.cs" Link="Graphics.Core\Commands\DrawTextCmd.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawTextureCmd.cs" Link="Graphics.Core\Commands\DrawTextureCmd.cs" />
         <Compile Include="..\Graphics.Core\DrawSpace.cs" Link="Graphics.Core\DrawSpace.cs" />
         <Compile Include="..\Graphics.Core\DrawTransform2D.cs" Link="Graphics.Core\DrawTransform2D.cs" />
+        <Compile Include="..\Graphics.Core\ICommandBuffer.cs" Link="Graphics.Core\ICommandBuffer.cs" />
         <Compile Include="..\Graphics.Core\Merge\QuadTransform2D.cs" Link="Graphics.Core\Merge\QuadTransform2D.cs" />
         <Compile Include="..\Graphics.Core\Merge\TextureUvTransform.cs" Link="Graphics.Core\Merge\TextureUvTransform.cs" />
+        <Compile Include="..\Graphics.Core\Resources\IFont.cs" Link="Graphics.Core\Resources\IFont.cs" />
+        <Compile Include="..\Graphics.Core\Resources\ITexture2D.cs" Link="Graphics.Core\Resources\ITexture2D.cs" />
+        <Compile Include="..\Graphics.Core\Resources\AtlasFont.cs" Link="Graphics.Core\Resources\AtlasFont.cs" />
+        <Compile Include="..\Graphics.Core\Resources\FontAtlasMetrics.cs" Link="Graphics.Core\Resources\FontAtlasMetrics.cs" />
+        <Compile Include="..\Graphics.Core\Resources\FontGlyph.cs" Link="Graphics.Core\Resources\FontGlyph.cs" />
     </ItemGroup>
 
 </Project>
