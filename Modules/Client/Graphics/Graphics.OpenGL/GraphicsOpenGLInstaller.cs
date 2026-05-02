@@ -62,6 +62,7 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         }
         
         var frag = assetsManager.LoadAssetAsync<ShaderAsset>("Shaders/2D.frag");
+        var textFrag = assetsManager.LoadAssetAsync<ShaderAsset>("Shaders/TextSdf.frag");
         var vert = assetsManager.LoadAssetAsync<ShaderAsset>("Shaders/2D.vert");
         
         JobHandle<JobHandle> handle = Job.Run<JobHandle>(async () =>
@@ -69,8 +70,10 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
             try
             {
                 var fragData = await frag;
+                var textFragData = await textFrag;
                 var vertData = await vert;
                 _shaderAssets.Add(fragData);
+                _shaderAssets.Add(textFragData);
                 _shaderAssets.Add(vertData);
             }
             catch (Exception e)

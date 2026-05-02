@@ -70,6 +70,14 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Color = Color.Red,
             Rectangle = new RectangleF(0, 200, size.X, size.Y)
         });
+        
+        GraphicsContext.Buffer.AddTextCentered(
+            _fontAsset.Asset!.Font,
+            "Hello, World!",
+            new Vector2(120, 200),
+            new Vector2(),
+            64f + 6 * MathF.Sin((float)_time.TotalTime * 2),
+            Color.White);
 
         
         GraphicsContext.Buffer.AddTextureCentered(
