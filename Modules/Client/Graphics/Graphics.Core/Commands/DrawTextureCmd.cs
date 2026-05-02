@@ -10,6 +10,7 @@ public struct DrawTextureCmd
     public Color Color;
     public Vector2 Size;
     public Vector2 Origin;
+    public Vector4 SourceUv;
     public float RotationRadians;
     public DrawSpace Space;
 }

@@ -276,30 +276,48 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             cmd.RotationRadians,
             cmd.Space);
         QuadTransform2D.BuildQuad(in transform, in camera, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
+        GetTextureCoords(cmd.SourceUv, out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
 
         int offset = quadCount * 4;
         context.Vertices[offset + 0] = new Vertex2D
         {
             Position = p0,
-            TexCoord = new Vector2(0, 0), Color = color
+            TexCoord = uv0, Color = color
         };
         context.Vertices[offset + 1] = new Vertex2D
         {
             Position = p1,
-            TexCoord = new Vector2(1, 0), Color = color
+            TexCoord = uv1, Color = color
         };
         context.Vertices[offset + 2] = new Vertex2D
         {
             Position = p2,
-            TexCoord = new Vector2(0, 1), Color = color
+            TexCoord = uv2, Color = color
         };
         context.Vertices[offset + 3] = new Vertex2D
         {
             Position = p3,
-            TexCoord = new Vector2(1, 1), Color = color
+            TexCoord = uv3, Color = color
         };
 
         quadCount++;
+    }
+
+    private static void GetTextureCoords(Vector4 sourceUv, out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3)
+    {
+        if (sourceUv.Z == 0f && sourceUv.W == 0f)
+        {
+            uv0 = new Vector2(0f, 0f);
+            uv1 = new Vector2(1f, 0f);
+            uv2 = new Vector2(0f, 1f);
+            uv3 = new Vector2(1f, 1f);
+            return;
+        }
+
+        uv0 = new Vector2(sourceUv.X, sourceUv.Y);
+        uv1 = new Vector2(sourceUv.Z, sourceUv.Y);
+        uv2 = new Vector2(sourceUv.X, sourceUv.W);
+        uv3 = new Vector2(sourceUv.Z, sourceUv.W);
     }
 
     private void SetPipeline(ref Pipeline? current, Pipeline next, MergeContext ctx, ResourceSet? currentRS, ref int quadCount)

@@ -54,7 +54,8 @@ public static class CommandBufferDrawExtensions
         Color color,
         Vector2 origin = default,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        Vector4 sourceUv = default)
     {
         DrawTextureCmd cmd = new DrawTextureCmd
         {
@@ -63,6 +64,7 @@ public static class CommandBufferDrawExtensions
             Size = size,
             Color = color,
             Origin = origin,
+            SourceUv = sourceUv,
             RotationRadians = rotationRadians,
             Space = space
         };
@@ -77,7 +79,8 @@ public static class CommandBufferDrawExtensions
         Vector2 size,
         Color color,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        Vector4 sourceUv = default)
     {
         Vector2 position = center - size * 0.5f;
         DrawTextureCmd cmd = new DrawTextureCmd
@@ -87,6 +90,7 @@ public static class CommandBufferDrawExtensions
             Size = size,
             Color = color,
             Origin = size * 0.5f,
+            SourceUv = sourceUv,
             RotationRadians = rotationRadians,
             Space = space
         };
