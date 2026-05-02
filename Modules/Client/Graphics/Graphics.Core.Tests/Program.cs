@@ -5,9 +5,11 @@ var tests = new (string Name, Action Run)[]
 {
     ("Camera_WorldToScreen_MapsCameraPositionToViewportCenter", Camera_WorldToScreen_MapsCameraPositionToViewportCenter),
     ("Camera_ScreenToWorld_RoundTripsWorldPoint", Camera_ScreenToWorld_RoundTripsWorldPoint),
+    ("Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed", Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed),
     ("Quad_ScreenZeroRotation_MapsPixelsToClipSpace", Quad_ScreenZeroRotation_MapsPixelsToClipSpace),
     ("Quad_ScreenCenterRotation_RotatesAroundOrigin", Quad_ScreenCenterRotation_RotatesAroundOrigin),
     ("Quad_WorldSpace_UsesCameraPositionAndScale", Quad_WorldSpace_UsesCameraPositionAndScale),
+    ("Quad_ScreenSpace_IgnoresCamera", Quad_ScreenSpace_IgnoresCamera),
     ("TextureUv_Default_UsesFullTexture", TextureUv_Default_UsesFullTexture),
     ("TextureUv_SourceRect_MapsCorners", TextureUv_SourceRect_MapsCorners)
 };
@@ -43,6 +45,20 @@ static void Camera_ScreenToWorld_RoundTripsWorldPoint()
     Vector2 roundTrip = camera.ScreenToWorld(screen);
 
     AssertNear(world, roundTrip);
+}
+
+static void Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed()
+{
+    Camera2D camera = Camera2D.CreateDefault();
+    camera.Position = new Vector2(42f, -17f);
+    camera.Zoom = 0f;
+    camera.PixelsPerUnit = 0f;
+
+    Camera2D normalized = camera.Normalized(800f, 600f);
+
+    AssertNear(new Vector2(42f, -17f), normalized.Position);
+    AssertNear(new Vector2(800f, 600f), normalized.ViewportSize);
+    AssertNear(new Vector2(400f, 300f), normalized.WorldToScreen(normalized.Position));
 }
 
 static void Quad_ScreenZeroRotation_MapsPixelsToClipSpace()
@@ -93,6 +109,28 @@ static void Quad_WorldSpace_UsesCameraPositionAndScale()
     AssertNear(ToClip(new Vector2(420f, 300f), 800f, 600f), p1);
     AssertNear(ToClip(new Vector2(400f, 320f), 800f, 600f), p2);
     AssertNear(ToClip(new Vector2(420f, 320f), 800f, 600f), p3);
+}
+
+static void Quad_ScreenSpace_IgnoresCamera()
+{
+    Camera2D camera = Camera2D.CreateDefault(800f, 600f);
+    camera.Position = new Vector2(1000f, 1000f);
+    camera.PixelsPerUnit = 32f;
+    camera.Zoom = 3f;
+
+    DrawTransform2D transform = new DrawTransform2D(
+        new Vector2(100f, 50f),
+        new Vector2(200f, 100f),
+        default,
+        0f,
+        DrawSpace.Screen);
+
+    QuadTransform2D.BuildQuad(in transform, in camera, 800f, 600f, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
+
+    AssertNear(new Vector2(-0.75f, 0.8333333f), p0);
+    AssertNear(new Vector2(-0.25f, 0.8333333f), p1);
+    AssertNear(new Vector2(-0.75f, 0.5f), p2);
+    AssertNear(new Vector2(-0.25f, 0.5f), p3);
 }
 
 static void TextureUv_Default_UsesFullTexture()

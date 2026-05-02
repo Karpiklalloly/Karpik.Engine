@@ -28,6 +28,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 17:35 +04:00) Added optional normalized source UV rectangle for texture commands and helpers; default still renders the full texture.
 - [x] (2026-05-02 17:48 +04:00) Added a dependency-light source-linked console test runner for camera and quad transform math.
 - [x] (2026-05-02 18:02 +04:00) Extracted texture UV corner generation into a pure helper and covered full-texture/default plus atlas sub-rect cases.
+- [x] (2026-05-02 18:12 +04:00) Added regression tests for camera viewport fallback preserving position and screen-space rendering bypassing camera state.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
