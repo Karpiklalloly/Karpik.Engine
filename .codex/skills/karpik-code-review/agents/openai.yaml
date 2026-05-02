@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Code Review"
+  short_description: "Review rules for KarpikEngine changes."
+  default_prompt: "Use Karpik Code Review when reviewing KarpikEngine code changes for real-time risks, GC allocations, ECS anti-patterns, networking issues, side-boundary leaks, and missing validation."
