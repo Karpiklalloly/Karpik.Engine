@@ -129,7 +129,7 @@ internal class AssetsManager : IAssetsManager
             return existingAsset;
         }
 
-        var extension = NormalizeExtension(Path.GetExtension(path));
+        var extension = NormalizeExtension(_fileSystem.GetExtension(path));
         var loaderKey = (extension, assetType);
 
         if (!_loaders.TryGetValue(loaderKey, out var loader))

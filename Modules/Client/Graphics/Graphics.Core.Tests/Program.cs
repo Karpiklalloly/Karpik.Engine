@@ -1,6 +1,8 @@
 using System.Drawing;
 using System.Numerics;
+using System.Text;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -18,7 +20,13 @@ var tests = new (string Name, Action Run)[]
     ("CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin", CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin),
     ("CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv", CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv),
     ("CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace", CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace),
-    ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing)
+    ("CommandBuffer_AddText_DefaultsToTopLeftScreenSpace", CommandBuffer_AddText_DefaultsToTopLeftScreenSpace),
+    ("CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin", CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin),
+    ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
+    ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
+    ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
+    ("TextLayout_Build_EmitsGlyphQuadsAndSize", TextLayout_Build_EmitsGlyphQuadsAndSize),
+    ("TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation", TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation)
 };
 
 foreach (var test in tests)
@@ -260,6 +268,104 @@ static void CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace()
     AssertEqual(DrawSpace.Screen, cmd.Space);
 }
 
+static void CommandBuffer_AddText_DefaultsToTopLeftScreenSpace()
+{
+    FakeCommandBuffer buffer = new FakeCommandBuffer();
+    AtlasFont font = CreateTestFont(new FakeTexture());
+
+    buffer.AddText(
+        font,
+        "Text",
+        new Vector2(12f, 24f),
+        18f,
+        Color.Yellow);
+
+    if (buffer.TextCount != 1)
+    {
+        throw new InvalidOperationException($"Expected 1 text command, actual {buffer.TextCount}.");
+    }
+
+    DrawTextCmd cmd = buffer.Text;
+    AssertReferenceSame(font, cmd.Font);
+    AssertText("Text", cmd.Text);
+    AssertNear(new Vector2(12f, 24f), cmd.Position);
+    AssertNear(Vector2.Zero, cmd.Origin);
+    AssertEqual(18f, cmd.Size);
+    AssertEqual(0f, cmd.RotationRadians);
+    AssertEqual(DrawSpace.Screen, cmd.Space);
+}
+
+static void CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin()
+{
+    FakeCommandBuffer buffer = new FakeCommandBuffer();
+    AtlasFont font = CreateTestFont(new FakeTexture());
+
+    buffer.AddTextCentered(
+        font,
+        "AB",
+        new Vector2(100f, 80f),
+        new Vector2(34f, 36f),
+        32f,
+        Color.White,
+        rotationRadians: 0.5f,
+        space: DrawSpace.World);
+
+    DrawTextCmd cmd = buffer.Text;
+    AssertReferenceSame(font, cmd.Font);
+    AssertText("AB", cmd.Text);
+    AssertNear(new Vector2(83f, 62f), cmd.Position);
+    AssertNear(new Vector2(17f, 18f), cmd.Origin);
+    AssertEqual(32f, cmd.Size);
+    AssertEqual(0.5f, cmd.RotationRadians);
+    AssertEqual(DrawSpace.World, cmd.Space);
+}
+
+static void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
+{
+    const string json = """
+                        {
+                          "atlas": "Fonts/test.png",
+                          "size": 16,
+                          "lineHeight": 18,
+                          "ascender": 14,
+                          "descender": -4,
+                          "distanceRange": 4,
+                          "atlasWidth": 128,
+                          "atlasHeight": 64,
+                          "glyphs": [
+                            {
+                              "codepoint": 65,
+                              "x": 16,
+                              "y": 8,
+                              "width": 32,
+                              "height": 16,
+                              "bearingX": 1,
+                              "bearingY": 12,
+                              "advance": 10
+                            }
+                          ]
+                        }
+                        """;
+
+    byte[] data = Encoding.UTF8.GetBytes(json);
+    FontAtlasData fontData = FontAtlasParser.Parse(data);
+
+    AssertEqual("Fonts/test.png", fontData.AtlasPath);
+    AssertEqual(16f, fontData.Metrics.Size);
+    AssertEqual(18f, fontData.Metrics.LineHeight);
+    AssertEqual(14f, fontData.Metrics.Ascender);
+    AssertEqual(-4f, fontData.Metrics.Descender);
+    AssertEqual(4f, fontData.Metrics.DistanceRange);
+    AssertEqual(1, fontData.Glyphs.Length);
+
+    FontGlyph glyph = fontData.Glyphs[0];
+    AssertEqual((uint)'A', glyph.Codepoint);
+    AssertNear(new Vector2(32f, 16f), glyph.Size);
+    AssertNear(new Vector2(1f, 12f), glyph.Bearing);
+    AssertEqual(10f, glyph.Advance);
+    AssertNear4(new Vector4(0.125f, 0.125f, 0.375f, 0.375f), glyph.SourceUv);
+}
+
 static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
 {
     FakeTexture texture = new FakeTexture();
@@ -296,6 +402,76 @@ static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
     {
         throw new InvalidOperationException("Expected font dispose to dispose atlas texture.");
     }
+}
+
+static void AtlasFont_Dispose_RespectsAtlasTextureOwnership()
+{
+    FakeTexture ownedTexture = new FakeTexture();
+    FontAtlasMetrics metrics = new FontAtlasMetrics(16f, 18f, 14f, -4f, 4f);
+    AtlasFont ownedFont = new AtlasFont(ownedTexture, in metrics, []);
+
+    ownedFont.Dispose();
+    if (!ownedTexture.IsDisposed)
+    {
+        throw new InvalidOperationException("Expected owned atlas texture to be disposed with the font.");
+    }
+
+    FakeTexture externalTexture = new FakeTexture();
+    AtlasFont externalFont = new AtlasFont(externalTexture, in metrics, [], ownsAtlasTexture: false);
+
+    externalFont.Dispose();
+    if (externalTexture.IsDisposed)
+    {
+        throw new InvalidOperationException("Expected external atlas texture to stay alive after font dispose.");
+    }
+}
+
+static void TextLayout_Build_EmitsGlyphQuadsAndSize()
+{
+    AtlasFont font = CreateTestFont(new FakeTexture());
+    Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[2];
+
+    TextLayoutResult result = TextLayout.Build(font, "AB", 32f, quads);
+
+    AssertEqual(2, result.GlyphCount);
+    AssertEqual(false, result.IsTruncated);
+    AssertNear(new Vector2(0f, 10f), quads[0].Position);
+    AssertNear(new Vector2(16f, 20f), quads[0].Size);
+    AssertNear4(new Vector4(0f, 0f, 0.25f, 0.5f), quads[0].SourceUv);
+    AssertNear(new Vector2(18f, 12f), quads[1].Position);
+    AssertNear(new Vector2(12f, 18f), quads[1].Size);
+    AssertNear(new Vector2(34f, 36f), result.Size);
+}
+
+static void TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation()
+{
+    AtlasFont font = CreateTestFont(new FakeTexture());
+    Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[1];
+
+    TextLayoutResult result = TextLayout.Build(font, "A?\nB", 16f, quads);
+
+    AssertEqual(1, result.GlyphCount);
+    AssertEqual(true, result.IsTruncated);
+    AssertNear(new Vector2(0f, 5f), quads[0].Position);
+    AssertNear(new Vector2(9f, 36f), result.Size);
+}
+
+static AtlasFont CreateTestFont(ITexture2D texture)
+{
+    FontAtlasMetrics metrics = new FontAtlasMetrics(16f, 18f, 14f, -4f, 4f);
+    FontGlyph glyphA = new FontGlyph(
+        (uint)'A',
+        new Vector2(8f, 10f),
+        new Vector2(0f, 9f),
+        9f,
+        new Vector4(0f, 0f, 0.25f, 0.5f));
+    FontGlyph glyphB = new FontGlyph(
+        (uint)'B',
+        new Vector2(6f, 9f),
+        new Vector2(0f, 8f),
+        8f,
+        new Vector4(0.25f, 0f, 0.5f, 0.5f));
+    return new AtlasFont(texture, in metrics, [glyphA, glyphB]);
 }
 
 static Vector2 ToClip(Vector2 point, float width, float height)
@@ -340,13 +516,23 @@ static void AssertReferenceSame(object expected, object actual)
     }
 }
 
+static void AssertText(ReadOnlySpan<char> expected, ReadOnlyMemory<char> actual)
+{
+    if (!expected.SequenceEqual(actual.Span))
+    {
+        throw new InvalidOperationException($"Expected text '{expected.ToString()}', actual '{actual.ToString()}'.");
+    }
+}
+
 internal sealed class FakeCommandBuffer : ICommandBuffer
 {
     public int FrameId => 0;
     public DrawRectCmd Rect;
     public DrawTextureCmd Texture;
+    public DrawTextCmd Text;
     public int RectCount;
     public int TextureCount;
+    public int TextCount;
 
     public void Add(in DrawRectCmd cmd)
     {
@@ -362,6 +548,8 @@ internal sealed class FakeCommandBuffer : ICommandBuffer
 
     public void Add(in DrawTextCmd cmd)
     {
+        Text = cmd;
+        TextCount++;
     }
 
     public ReadOnlySpan<DrawRectCmd> GetRectCommands()

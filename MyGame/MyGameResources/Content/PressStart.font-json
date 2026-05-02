@@ -1,0 +1,22 @@
+{
+  "atlas": "PressStart.png",
+  "size": 16,
+  "lineHeight": 18,
+  "ascender": 14,
+  "descender": -4,
+  "distanceRange": 4,
+  "atlasWidth": 128,
+  "atlasHeight": 128,
+  "glyphs": [
+    {
+      "codepoint": 65,
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 16,
+      "bearingX": 0,
+      "bearingY": 14,
+      "advance": 16
+    }
+  ]
+}

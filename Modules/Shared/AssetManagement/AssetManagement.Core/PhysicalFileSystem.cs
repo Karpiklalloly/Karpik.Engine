@@ -4,6 +4,8 @@ internal class PhysicalFileSystem : IFileSystem
 {
     public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
     public bool Exists(string path) => File.Exists(path);
+    public string GetExtension(string path) => Path.GetExtension(path);
+
     public bool ExistsDirectory(string path) => Directory.Exists(path);
     public Stream OpenRead(string path) => File.OpenRead(path);
     public Stream OpenWrite(string path)

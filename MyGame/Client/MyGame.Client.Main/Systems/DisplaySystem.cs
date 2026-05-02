@@ -28,6 +28,7 @@ public class DisplaySystem : IEcsRun, IEcsInit
     [DI] private Input _input = null!;
     private AssetHandle<TextureAsset> _asset;
     private Camera2D _camera;
+    private AssetHandle<FontAsset> _fontAsset;
 
     public void Run()
     {
@@ -112,5 +113,15 @@ public class DisplaySystem : IEcsRun, IEcsInit
         _camera.Zoom = 1f;
         _camera.PixelsPerUnit = 64;
         _camera.RotationRadians = 0;
+
+        _fontAsset = _assetsManager.LoadAssetAsync<FontAsset>("PressStart.font-json").GetAwaiter().GetResult();
+
+        IFont font = _fontAsset.Asset!.Font;
+
+        Console.WriteLine(font.Size);
+        Console.WriteLine(font.LineHeight);
+        Console.WriteLine(font.DistanceRange);
+        Console.WriteLine(font.TryGetGlyph((uint)'A', out var glyph));
+        Console.WriteLine(glyph.SourceUv);
     }
 }

@@ -13,4 +13,9 @@ public class TextureAsset : Asset
         get => Texture;
         set => Texture = (ITexture2D)value;
     }
+
+    protected override void OnUnload()
+    {
+        Texture.Dispose();
+    }
 }

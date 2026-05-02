@@ -76,6 +76,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
+            TextGlyphs = new TextGlyphQuad[MaxQuads],
             CommandList = factory.CreateCommandList()
         };
 
@@ -84,6 +85,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
+            TextGlyphs = new TextGlyphQuad[MaxQuads],
             CommandList = factory.CreateCommandList()
         };
     }
@@ -178,6 +180,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         {
             var rects = buffer.GetRectCommands();
             var textures = buffer.GetTextureCommands();
+            var texts = buffer.GetTextCommands();
             var commands = ((IOrderedCommandBuffer)buffer).GetCommands();
 
             foreach (ref readonly var command in commands)
@@ -203,6 +206,19 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                         SetTexture(ref currentRS, vTex.ResourceSet, context, ref quadCount);
 
                         AddTextureToBatch(in cmd, context, in camera, sw, sh, ref quadCount);
+                        if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
+                        break;
+                    }
+                    case DrawCommandType.Text:
+                    {
+                        Flush(context, currentRS, ref quadCount);
+                        SetPipeline(ref currentPipeline, _2dPipeline.TextPipeline, context, currentRS, ref quadCount);
+
+                        ref readonly var cmd = ref texts[command.Index];
+                        var atlas = (VeldridTexture2D)cmd.Font.AtlasTexture;
+                        SetTexture(ref currentRS, atlas.ResourceSet, context, ref quadCount);
+
+                        AddTextToBatch(in cmd, context, in camera, sw, sh, ref quadCount);
                         if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
                         break;
                     }
@@ -301,6 +317,61 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         };
 
         quadCount++;
+    }
+
+    private void AddTextToBatch(in DrawTextCmd cmd, in MergeContext context, in Camera2D camera, float sw, float sh, ref int quadCount)
+    {
+        Vector4 color = new Vector4(
+            cmd.Color.R / 255f,
+            cmd.Color.G / 255f,
+            cmd.Color.B / 255f,
+            cmd.Color.A / 255f
+        );
+
+        TextLayoutResult layout = TextLayout.Build(cmd.Font, cmd.Text.Span, cmd.Size, context.TextGlyphs);
+        for (int i = 0; i < layout.GlyphCount; i++)
+        {
+            TextGlyphQuad glyph = context.TextGlyphs[i];
+            Vector2 glyphPosition = cmd.Position + glyph.Position;
+            Vector2 glyphOrigin = cmd.Origin - glyph.Position;
+            DrawTransform2D transform = new DrawTransform2D(
+                glyphPosition,
+                glyph.Size,
+                glyphOrigin,
+                cmd.RotationRadians,
+                cmd.Space);
+
+            QuadTransform2D.BuildQuad(in transform, in camera, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
+            TextureUvTransform.GetTextureCoords(glyph.SourceUv, out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
+
+            int offset = quadCount * 4;
+            context.Vertices[offset + 0] = new Vertex2D
+            {
+                Position = p0,
+                TexCoord = uv0, Color = color
+            };
+            context.Vertices[offset + 1] = new Vertex2D
+            {
+                Position = p1,
+                TexCoord = uv1, Color = color
+            };
+            context.Vertices[offset + 2] = new Vertex2D
+            {
+                Position = p2,
+                TexCoord = uv2, Color = color
+            };
+            context.Vertices[offset + 3] = new Vertex2D
+            {
+                Position = p3,
+                TexCoord = uv3, Color = color
+            };
+
+            quadCount++;
+            if (quadCount >= MaxQuads)
+            {
+                break;
+            }
+        }
     }
 
     private void SetPipeline(ref Pipeline? current, Pipeline next, MergeContext ctx, ResourceSet? currentRS, ref int quadCount)

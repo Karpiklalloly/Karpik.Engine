@@ -30,6 +30,12 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 18:02 +04:00) Extracted texture UV corner generation into a pure helper and covered full-texture/default plus atlas sub-rect cases.
 - [x] (2026-05-02 18:12 +04:00) Added regression tests for camera viewport fallback preserving position and screen-space rendering bypassing camera state.
 - [x] (2026-05-02 18:20 +04:00) Added explicit camera projection tests for zoom/pixels-per-unit and camera rotation.
+- [x] (2026-05-02 18:34 +04:00) Added command-buffer helper tests for centered rect/texture conversion, default texture command values, world/screen space, rotation, and source UV preservation.
+- [x] (2026-05-02 18:52 +04:00) Added initial atlas-backed font contracts (`IFont`, `FontGlyph`, `FontAtlasMetrics`, `AtlasFont`, `FontAsset`) and aligned `DrawTextCmd` with transform/space fields.
+- [x] (2026-05-02 19:07 +04:00) Added allocation-free text layout helper that writes glyph quads into caller-provided spans, with tests for glyph positioning, newlines, missing glyphs, and truncation.
+- [x] (2026-05-02 19:18 +04:00) Wired `DrawCommandType.Text` into merge using preallocated text glyph buffers and the existing texture pipeline/atlas resource path.
+- [x] (2026-05-02 19:31 +04:00) Added no-copy `AddText` command-buffer helpers for stable string/read-only-memory text and measured-size centered text, with source-linked tests.
+- [x] (2026-05-02 19:45 +04:00) Added `.font.json` atlas metadata parser and `FontLoader` that creates `AtlasFont` from a preloaded texture asset dependency, with tests for UV normalization and texture ownership.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

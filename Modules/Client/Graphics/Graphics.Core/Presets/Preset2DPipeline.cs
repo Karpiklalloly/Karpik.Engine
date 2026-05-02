@@ -25,7 +25,7 @@ public class Preset2DPipeline
     {
         RectPipeline = CreateRectPipeline();
         TexturePipeline = CreateTexturePipeline();
-        TextPipeline = RectPipeline;
+        TextPipeline = TexturePipeline;
     }
     
     private Pipeline CreateRectPipeline()
