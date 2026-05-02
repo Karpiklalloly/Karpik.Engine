@@ -14,6 +14,7 @@
         <Compile Include="..\Graphics.Core\DrawSpace.cs" Link="Graphics.Core\DrawSpace.cs" />
         <Compile Include="..\Graphics.Core\DrawTransform2D.cs" Link="Graphics.Core\DrawTransform2D.cs" />
         <Compile Include="..\Graphics.Core\Merge\QuadTransform2D.cs" Link="Graphics.Core\Merge\QuadTransform2D.cs" />
+        <Compile Include="..\Graphics.Core\Merge\TextureUvTransform.cs" Link="Graphics.Core\Merge\TextureUvTransform.cs" />
     </ItemGroup>
 
 </Project>

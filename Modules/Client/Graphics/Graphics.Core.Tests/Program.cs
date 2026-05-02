@@ -7,7 +7,9 @@ var tests = new (string Name, Action Run)[]
     ("Camera_ScreenToWorld_RoundTripsWorldPoint", Camera_ScreenToWorld_RoundTripsWorldPoint),
     ("Quad_ScreenZeroRotation_MapsPixelsToClipSpace", Quad_ScreenZeroRotation_MapsPixelsToClipSpace),
     ("Quad_ScreenCenterRotation_RotatesAroundOrigin", Quad_ScreenCenterRotation_RotatesAroundOrigin),
-    ("Quad_WorldSpace_UsesCameraPositionAndScale", Quad_WorldSpace_UsesCameraPositionAndScale)
+    ("Quad_WorldSpace_UsesCameraPositionAndScale", Quad_WorldSpace_UsesCameraPositionAndScale),
+    ("TextureUv_Default_UsesFullTexture", TextureUv_Default_UsesFullTexture),
+    ("TextureUv_SourceRect_MapsCorners", TextureUv_SourceRect_MapsCorners)
 };
 
 foreach (var test in tests)
@@ -91,6 +93,26 @@ static void Quad_WorldSpace_UsesCameraPositionAndScale()
     AssertNear(ToClip(new Vector2(420f, 300f), 800f, 600f), p1);
     AssertNear(ToClip(new Vector2(400f, 320f), 800f, 600f), p2);
     AssertNear(ToClip(new Vector2(420f, 320f), 800f, 600f), p3);
+}
+
+static void TextureUv_Default_UsesFullTexture()
+{
+    TextureUvTransform.GetTextureCoords(default, out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
+
+    AssertNear(new Vector2(0f, 0f), uv0);
+    AssertNear(new Vector2(1f, 0f), uv1);
+    AssertNear(new Vector2(0f, 1f), uv2);
+    AssertNear(new Vector2(1f, 1f), uv3);
+}
+
+static void TextureUv_SourceRect_MapsCorners()
+{
+    TextureUvTransform.GetTextureCoords(new Vector4(0.25f, 0.125f, 0.5f, 0.375f), out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
+
+    AssertNear(new Vector2(0.25f, 0.125f), uv0);
+    AssertNear(new Vector2(0.5f, 0.125f), uv1);
+    AssertNear(new Vector2(0.25f, 0.375f), uv2);
+    AssertNear(new Vector2(0.5f, 0.375f), uv3);
 }
 
 static Vector2 ToClip(Vector2 point, float width, float height)
