@@ -26,25 +26,26 @@ public class DisplaySystem : IEcsRun, IEcsInit
 
     public void Run()
     {
+        var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
             Color = Color.White,
-            Rectangle = new RectangleF(0, 0, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
+            Rectangle = new RectangleF(0, 0, size.X, size.Y)
         });
         
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
             Color = Color.Blue,
-            Rectangle = new RectangleF(0, 100, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
+            Rectangle = new RectangleF(0, 100, size.X, size.Y)
         });
         
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
             Color = Color.Red,
-            Rectangle = new RectangleF(0, 200, 100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100)
+            Rectangle = new RectangleF(0, 200, size.X, size.Y)
         });
 
-        var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
+        
         GraphicsContext.Buffer.AddTextureCentered(
             _asset.Asset!.Texture,
             new Vector2(120, 300),
@@ -52,6 +53,14 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Color.White,
             (float)_time.TotalTime,
             DrawSpace.Screen);
+        
+        GraphicsContext.Buffer.AddTextureCentered(
+            _asset.Asset!.Texture,
+            new Vector2(0, 0),
+            size,
+            Color.White,
+            (float)_time.TotalTime,
+            DrawSpace.World);
         
         foreach (var e in _world.Where(out Aspect a))
         {
