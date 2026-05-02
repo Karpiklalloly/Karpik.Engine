@@ -7,8 +7,10 @@ namespace Karpik.Engine.Modules.Window.Sdl2;
 
 public class SDL2Window : IWindow
 {
-    [DI] private Application _application;
+    [DI] private Application _application = null!;
     private readonly Sdl2Window _window;
+    private bool _isResized;
+
     public event Action? Resized;
 
     public int Width => _window.Width;
@@ -27,8 +29,17 @@ public class SDL2Window : IWindow
         set => _window.WindowState = value;
     }
 
-    public bool Exists { get; }
-    public bool IsResized { get; }
+    public bool Exists => _window.Exists;
+
+    public bool IsResized
+    {
+        get
+        {
+            bool isResized = _isResized;
+            _isResized = false;
+            return isResized;
+        }
+    }
 
     public SDL2Window(Sdl2Window window)
     {
@@ -45,10 +56,12 @@ public class SDL2Window : IWindow
     public void Dispose()
     {
         _window.Resized -= WindowOnResized;
+        _window.Closed -= WindowOnClosed;
     }
     
     private void WindowOnResized()
     {
+        _isResized = true;
         Resized?.Invoke();
     }
 }

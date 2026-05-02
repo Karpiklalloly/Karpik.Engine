@@ -24,6 +24,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 17:02 +04:00) Moved camera snapshot capture to `MergeThread.BeginMerge()` and fixed normalization so missing viewport defaults do not reset camera position.
 - [x] (2026-05-02 17:10 +04:00) Added viewport-less `Camera2D.CreateDefault()` and updated the sample camera initialization to use it.
 - [x] (2026-05-02 17:14 +04:00) Added `Camera2D.WorldToScreen` and `ScreenToWorld` helpers and reused `WorldToScreen` from quad projection.
+- [x] (2026-05-02 17:24 +04:00) Fixed `SDL2Window.Exists` and one-shot `IsResized` state instead of exposing never-updated auto-properties.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
