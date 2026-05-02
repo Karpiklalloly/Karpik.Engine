@@ -22,6 +22,8 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 16:31 +04:00) Added initial `Camera2D` value type and `GraphicsCameraState` service with per-frame snapshot capture, without yet applying the camera in merge.
 - [x] (2026-05-02 16:43 +04:00) Applied captured `Camera2D` to `DrawSpace.World` rect/texture commands in merge while leaving `DrawSpace.Screen` on the existing pixel-to-clip path.
 - [x] (2026-05-02 17:02 +04:00) Moved camera snapshot capture to `MergeThread.BeginMerge()` and fixed normalization so missing viewport defaults do not reset camera position.
+- [x] (2026-05-02 17:10 +04:00) Added viewport-less `Camera2D.CreateDefault()` and updated the sample camera initialization to use it.
+- [x] (2026-05-02 17:14 +04:00) Added `Camera2D.WorldToScreen` and `ScreenToWorld` helpers and reused `WorldToScreen` from quad projection.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

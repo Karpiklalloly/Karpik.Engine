@@ -31,7 +31,7 @@ public class DisplaySystem : IEcsRun, IEcsInit
 
     public void Run()
     {
-        float speed = 10;
+        float speed = 1;
         if (_input.IsDown(Key.W))
         {
             _camera.Position += new Vector2(0, -100) * (float)_time.DeltaTime * speed;
@@ -81,10 +81,18 @@ public class DisplaySystem : IEcsRun, IEcsInit
         
         GraphicsContext.Buffer.AddTextureCentered(
             _asset.Asset!.Texture,
-            new Vector2(0, 0),
-            size,
+            new Vector2(0, 2),
+            new Vector2(1, 1),
             Color.White,
-            (float)_time.TotalTime,
+            0,
+            DrawSpace.World);
+        
+        GraphicsContext.Buffer.AddTextureCentered(
+            _asset.Asset!.Texture,
+            new Vector2(0, 0),
+            new Vector2(1, 1),
+            Color.White,
+            0,
             DrawSpace.World);
         
         foreach (var e in _world.Where(out Aspect a))
@@ -99,9 +107,10 @@ public class DisplaySystem : IEcsRun, IEcsInit
     public void Init()
     {
         _asset = _assetsManager.LoadAssetAsync<TextureAsset>("Sprites/Player.png").GetAwaiter().GetResult();
-        _camera = Camera2D.CreateDefault(0, 0);
+        _camera = Camera2D.CreateDefault();
         _camera.Position = new Vector2(0, 0);
         _camera.Zoom = 1f;
-        _camera.PixelsPerUnit = 5;
+        _camera.PixelsPerUnit = 64;
+        _camera.RotationRadians = 0;
     }
 }

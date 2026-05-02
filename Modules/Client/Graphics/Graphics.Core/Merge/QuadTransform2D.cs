@@ -93,19 +93,6 @@ internal static class QuadTransform2D
 
     private static Vector2 WorldToClip(Vector2 point, in Camera2D camera, float framebufferWidth, float framebufferHeight)
     {
-        Vector2 local = point - camera.Position;
-        if (camera.RotationRadians != 0f)
-        {
-            float sin = MathF.Sin(-camera.RotationRadians);
-            float cos = MathF.Cos(-camera.RotationRadians);
-            local = new Vector2(
-                local.X * cos - local.Y * sin,
-                local.X * sin + local.Y * cos);
-        }
-
-        float scale = camera.PixelsPerUnit * camera.Zoom;
-        Vector2 viewportCenter = camera.ViewportPosition + camera.ViewportSize * 0.5f;
-        Vector2 screen = viewportCenter + local * scale;
-        return ToClip(screen, framebufferWidth, framebufferHeight);
+        return ToClip(camera.WorldToScreen(point), framebufferWidth, framebufferHeight);
     }
 }

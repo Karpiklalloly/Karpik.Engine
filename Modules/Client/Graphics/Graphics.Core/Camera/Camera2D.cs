@@ -11,6 +11,11 @@ public struct Camera2D
     public Vector2 ViewportSize;
     public float PixelsPerUnit;
 
+    public static Camera2D CreateDefault()
+    {
+        return CreateDefault(0f, 0f);
+    }
+
     public static Camera2D CreateDefault(float viewportWidth, float viewportHeight)
     {
         return new Camera2D
@@ -52,5 +57,47 @@ public struct Camera2D
         }
 
         return camera;
+    }
+
+    public readonly Vector2 WorldToScreen(Vector2 worldPosition)
+    {
+        Vector2 local = worldPosition - Position;
+        if (RotationRadians != 0f)
+        {
+            float sin = MathF.Sin(-RotationRadians);
+            float cos = MathF.Cos(-RotationRadians);
+            local = new Vector2(
+                local.X * cos - local.Y * sin,
+                local.X * sin + local.Y * cos);
+        }
+
+        float scale = EffectiveScale();
+        Vector2 viewportCenter = ViewportPosition + ViewportSize * 0.5f;
+        return viewportCenter + local * scale;
+    }
+
+    public readonly Vector2 ScreenToWorld(Vector2 screenPosition)
+    {
+        float scale = EffectiveScale();
+        Vector2 viewportCenter = ViewportPosition + ViewportSize * 0.5f;
+        Vector2 local = (screenPosition - viewportCenter) / scale;
+
+        if (RotationRadians != 0f)
+        {
+            float sin = MathF.Sin(RotationRadians);
+            float cos = MathF.Cos(RotationRadians);
+            local = new Vector2(
+                local.X * cos - local.Y * sin,
+                local.X * sin + local.Y * cos);
+        }
+
+        return Position + local;
+    }
+
+    private readonly float EffectiveScale()
+    {
+        float zoom = Zoom > 0f ? Zoom : 1f;
+        float pixelsPerUnit = PixelsPerUnit > 0f ? PixelsPerUnit : 1f;
+        return pixelsPerUnit * zoom;
     }
 }
