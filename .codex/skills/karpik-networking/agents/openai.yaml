@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Networking"
+  short_description: "RPC and serialization rules."
+  default_prompt: "Use Karpik Networking when working with RPC, serialization, Network.Codegen, peers, delivery methods, or client-server validation."

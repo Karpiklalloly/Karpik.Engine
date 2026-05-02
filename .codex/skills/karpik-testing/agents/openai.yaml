@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Testing"
+  short_description: "Testing standards for KarpikEngine modules."
+  default_prompt: "Use Karpik Testing when adding or reviewing unit, integration, edge-case, property-based, or performance tests in KarpikEngine."

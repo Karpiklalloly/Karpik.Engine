@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Engine Architecture"
+  short_description: "Core KarpikEngine architecture, modules, sides, DI, ticks."
+  default_prompt: "Use Karpik Engine Architecture when changing or reviewing project structure, modules, side boundaries, DI, or the game loop."
