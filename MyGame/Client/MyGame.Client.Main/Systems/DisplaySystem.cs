@@ -3,10 +3,12 @@ using System.Numerics;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.ECS;
+using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -19,13 +21,36 @@ public class DisplaySystem : IEcsRun, IEcsInit
     
     [DI] private EcsDefaultWorld _world;
     // [DI] private IRenderer _renderer;
-    [DI] private Drawer _drawer;
+    [DI] private Drawer _drawer = null!;
     [DI] private Time _time = null!;
     [DI] private IAssetsManager _assetsManager = null!;
+    [DI] private GraphicsCameraState _cameraState = null!;
+    [DI] private Input _input = null!;
     private AssetHandle<TextureAsset> _asset;
+    private Camera2D _camera;
 
     public void Run()
     {
+        float speed = 10;
+        if (_input.IsDown(Key.W))
+        {
+            _camera.Position += new Vector2(0, -100) * (float)_time.DeltaTime * speed;
+        }
+        if (_input.IsDown(Key.S))
+        {
+            _camera.Position += new Vector2(0, 100) * (float)_time.DeltaTime * speed;
+        }
+        if (_input.IsDown(Key.A))
+        {
+            _camera.Position += new Vector2(-100, 0) * (float)_time.DeltaTime * speed;
+        }
+        if (_input.IsDown(Key.D))
+        {
+            _camera.Position += new Vector2(100, 0) * (float)_time.DeltaTime * speed;
+        }
+
+        _cameraState.SetActive(in _camera);
+        
         var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
@@ -74,5 +99,9 @@ public class DisplaySystem : IEcsRun, IEcsInit
     public void Init()
     {
         _asset = _assetsManager.LoadAssetAsync<TextureAsset>("Sprites/Player.png").GetAwaiter().GetResult();
+        _camera = Camera2D.CreateDefault(0, 0);
+        _camera.Position = new Vector2(0, 0);
+        _camera.Zoom = 1f;
+        _camera.PixelsPerUnit = 5;
     }
 }

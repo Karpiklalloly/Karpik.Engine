@@ -28,6 +28,7 @@ public class GraphicsCoreBeginSystem : IEcsRun
         {
             _device.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
         }
+
         GraphicsContext.BeginFrame();
     }
 }

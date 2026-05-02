@@ -37,6 +37,45 @@ internal static class QuadTransform2D
         p3 = ToClip(RotatePoint(transform.Position + transform.Size, pivot, sin, cos), framebufferWidth, framebufferHeight);
     }
 
+    public static void BuildQuad(
+        in DrawTransform2D transform,
+        in Camera2D camera,
+        float framebufferWidth,
+        float framebufferHeight,
+        out Vector2 p0,
+        out Vector2 p1,
+        out Vector2 p2,
+        out Vector2 p3)
+    {
+        if (transform.Space == DrawSpace.World)
+        {
+            BuildWorldQuad(in transform, in camera, framebufferWidth, framebufferHeight, out p0, out p1, out p2, out p3);
+            return;
+        }
+
+        BuildScreenQuad(in transform, framebufferWidth, framebufferHeight, out p0, out p1, out p2, out p3);
+    }
+
+    private static void BuildWorldQuad(
+        in DrawTransform2D transform,
+        in Camera2D camera,
+        float framebufferWidth,
+        float framebufferHeight,
+        out Vector2 p0,
+        out Vector2 p1,
+        out Vector2 p2,
+        out Vector2 p3)
+    {
+        float sin = MathF.Sin(transform.RotationRadians);
+        float cos = MathF.Cos(transform.RotationRadians);
+        Vector2 pivot = transform.Position + transform.Origin;
+
+        p0 = WorldToClip(RotatePoint(transform.Position, pivot, sin, cos), in camera, framebufferWidth, framebufferHeight);
+        p1 = WorldToClip(RotatePoint(transform.Position + new Vector2(transform.Size.X, 0f), pivot, sin, cos), in camera, framebufferWidth, framebufferHeight);
+        p2 = WorldToClip(RotatePoint(transform.Position + new Vector2(0f, transform.Size.Y), pivot, sin, cos), in camera, framebufferWidth, framebufferHeight);
+        p3 = WorldToClip(RotatePoint(transform.Position + transform.Size, pivot, sin, cos), in camera, framebufferWidth, framebufferHeight);
+    }
+
     private static Vector2 RotatePoint(Vector2 point, Vector2 pivot, float sin, float cos)
     {
         Vector2 local = point - pivot;
@@ -50,5 +89,23 @@ internal static class QuadTransform2D
         return new Vector2(
             (point.X / framebufferWidth) * 2f - 1f,
             1f - (point.Y / framebufferHeight) * 2f);
+    }
+
+    private static Vector2 WorldToClip(Vector2 point, in Camera2D camera, float framebufferWidth, float framebufferHeight)
+    {
+        Vector2 local = point - camera.Position;
+        if (camera.RotationRadians != 0f)
+        {
+            float sin = MathF.Sin(-camera.RotationRadians);
+            float cos = MathF.Cos(-camera.RotationRadians);
+            local = new Vector2(
+                local.X * cos - local.Y * sin,
+                local.X * sin + local.Y * cos);
+        }
+
+        float scale = camera.PixelsPerUnit * camera.Zoom;
+        Vector2 viewportCenter = camera.ViewportPosition + camera.ViewportSize * 0.5f;
+        Vector2 screen = viewportCenter + local * scale;
+        return ToClip(screen, framebufferWidth, framebufferHeight);
     }
 }

@@ -19,6 +19,9 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-02 16:03 +04:00) Drafted first Milestone 1 slice: added draw-space/transform value types, rotation/origin fields on rect/texture commands, and screen-space rotated quad emission in `MergeThread`.
 - [x] (2026-05-02 16:13 +04:00) Added no-GC convenience command-buffer helpers for top-left and centered rect/texture drawing while keeping low-level command position semantics unchanged.
 - [x] (2026-05-02 16:20 +04:00) Moved screen-space quad transform math into an internal helper so merge stays focused on batching and the math can be unit-tested separately.
+- [x] (2026-05-02 16:31 +04:00) Added initial `Camera2D` value type and `GraphicsCameraState` service with per-frame snapshot capture, without yet applying the camera in merge.
+- [x] (2026-05-02 16:43 +04:00) Applied captured `Camera2D` to `DrawSpace.World` rect/texture commands in merge while leaving `DrawSpace.Screen` on the existing pixel-to-clip path.
+- [x] (2026-05-02 17:02 +04:00) Moved camera snapshot capture to `MergeThread.BeginMerge()` and fixed normalization so missing viewport defaults do not reset camera position.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
@@ -41,6 +44,9 @@ The observable outcome is a client sample or test scene where:
 
 - Observation: baseline `dotnet build Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj` currently exits with code 1 while reporting zero warnings and zero errors, both before and after the first Milestone 1 slice.
   Evidence: MSBuild output only prints project restore/build start followed by `Ошибка сборки. Предупреждений: 0 Ошибок: 0`.
+
+- Observation: camera normalization originally replaced `ActiveCamera` with a default camera when viewport size was zero, discarding caller-updated `Position`.
+  Evidence: `DisplaySystem` creates `Camera2D.CreateDefault(0, 0)` and then moves `_camera.Position`; the old `GraphicsCameraState.CaptureForFrame` reset that active camera before merge.
 
 ## Decision Log
 

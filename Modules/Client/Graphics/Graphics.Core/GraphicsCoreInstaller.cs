@@ -10,7 +10,7 @@ public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDest
     
     public void OnRegisterServices(IServiceRegister services)
     {
-        
+        services.Register(new GraphicsCameraState());
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)

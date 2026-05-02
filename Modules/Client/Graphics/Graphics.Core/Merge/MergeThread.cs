@@ -23,6 +23,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     [DI] private GraphicsDevice _device = null!;
     [DI] private Preset2DPipeline _2dPipeline = null!;
+    [DI] private GraphicsCameraState _cameraState = null!;
 
     // TODO: Сделать возможность переключиться на ushort
     private DeviceBuffer _indexBuffer = null!;
@@ -32,6 +33,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private MergeContext _buildContext;
     private List<ICommandBuffer> _buildBuffers = null!;
     private Framebuffer _buildFramebuffer = null!;
+    private Camera2D _buildCamera;
     private float _buildFramebufferWidth;
     private float _buildFramebufferHeight;
 
@@ -100,6 +102,8 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         _buildFramebuffer = _device.MainSwapchain.Framebuffer;
         _buildFramebufferWidth = _buildFramebuffer.Width;
         _buildFramebufferHeight = _buildFramebuffer.Height;
+        _cameraState.CaptureForFrame(_buildFramebufferWidth, _buildFramebufferHeight);
+        _buildCamera = _cameraState.FrameCamera;
         _workerException = null;
         _completed.Reset();
         _workAvailable.Set();
@@ -156,6 +160,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
         float sw = _buildFramebufferWidth;
         float sh = _buildFramebufferHeight;
+        Camera2D camera = _buildCamera;
 
         var cl = context.CommandList;
         cl.Begin();
@@ -185,7 +190,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                         SetTexture(ref currentRS, _2dPipeline.WhiteRectResourceSet, context, ref quadCount);
 
                         ref readonly var cmd = ref rects[command.Index];
-                        AddRectToBatch(in cmd, context, sw, sh, ref quadCount);
+                        AddRectToBatch(in cmd, context, in camera, sw, sh, ref quadCount);
                         if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
                         break;
                     }
@@ -197,7 +202,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                         var vTex = (VeldridTexture2D)cmd.Texture;
                         SetTexture(ref currentRS, vTex.ResourceSet, context, ref quadCount);
 
-                        AddTextureToBatch(in cmd, context, sw, sh, ref quadCount);
+                        AddTextureToBatch(in cmd, context, in camera, sw, sh, ref quadCount);
                         if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
                         break;
                     }
@@ -213,7 +218,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         context.CommandList.End();
     }
 
-    private void AddRectToBatch(in DrawRectCmd cmd, in MergeContext context, float sw, float sh, ref int quadCount)
+    private void AddRectToBatch(in DrawRectCmd cmd, in MergeContext context, in Camera2D camera, float sw, float sh, ref int quadCount)
     {
         Vector4 color = new Vector4(
             cmd.Color.R / 255f,
@@ -228,7 +233,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             cmd.Origin,
             cmd.RotationRadians,
             cmd.Space);
-        QuadTransform2D.BuildScreenQuad(in transform, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
+        QuadTransform2D.BuildQuad(in transform, in camera, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
 
         int offset = quadCount * 4;
         context.Vertices[offset + 0] = new Vertex2D
@@ -255,7 +260,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         quadCount++;
     }
 
-    private void AddTextureToBatch(in DrawTextureCmd cmd, in MergeContext context, float sw, float sh, ref int quadCount)
+    private void AddTextureToBatch(in DrawTextureCmd cmd, in MergeContext context, in Camera2D camera, float sw, float sh, ref int quadCount)
     {
         Vector4 color = new Vector4(
             cmd.Color.R / 255f,
@@ -270,7 +275,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             cmd.Origin,
             cmd.RotationRadians,
             cmd.Space);
-        QuadTransform2D.BuildScreenQuad(in transform, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
+        QuadTransform2D.BuildQuad(in transform, in camera, sw, sh, out Vector2 p0, out Vector2 p1, out Vector2 p2, out Vector2 p3);
 
         int offset = quadCount * 4;
         context.Vertices[offset + 0] = new Vertex2D
