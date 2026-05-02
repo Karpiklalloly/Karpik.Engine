@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public interface IMergeThread
+public interface IMergeThread : IDisposable
 {
     public bool IsRunning { get; }
     

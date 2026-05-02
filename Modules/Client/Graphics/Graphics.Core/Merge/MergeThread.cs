@@ -1,8 +1,8 @@
 ﻿using System.Drawing;
 using System.Numerics;
+using System.Runtime.ExceptionServices;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
-using Karpik.Jobs;
 using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
@@ -13,9 +13,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private const int MaxVertices = MaxQuads * 4;
     private const int MaxIndices = MaxQuads * 6;
     
-    public bool IsRunning => !_handle.IsCompleted;
+    public bool IsRunning => !_completed.IsSet;
 
-    private JobHandle _handle;
+    private readonly AutoResetEvent _workAvailable = new(false);
+    private readonly ManualResetEventSlim _completed = new(true);
+    private readonly Thread _workerThread;
+    private volatile bool _shutdown;
+    private Exception? _workerException;
     
     [DI] private GraphicsDevice _device = null!;
     [DI] private Preset2DPipeline _2dPipeline = null!;
@@ -25,10 +29,25 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     private MergeContext _mergeContextA;
     private MergeContext _mergeContextB;
+    private MergeContext _buildContext;
+    private List<ICommandBuffer> _buildBuffers = null!;
+    private Framebuffer _buildFramebuffer = null!;
+    private float _buildFramebufferWidth;
+    private float _buildFramebufferHeight;
     
     private bool _isUsingA = true;
     private MergeContext _currentContext => _isUsingA ? _mergeContextA : _mergeContextB;
-    private MergeContext _submittedContext => _isUsingA ? _mergeContextB : _mergeContextA; // Тот, что был заполнен в прошлый раз
+
+    public MergeThread()
+    {
+        _workerThread = new Thread(WorkerLoop)
+        {
+            IsBackground = true,
+            Priority = ThreadPriority.AboveNormal,
+            Name = "GraphicsMerge"
+        };
+        _workerThread.Start();
+    }
     
     public void OnInjected()
     {
@@ -69,54 +88,119 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     public void BeginMerge()
     {
+        if (!_completed.IsSet)
+        {
+            WaitForCompletion();
+        }
+
         var buffers = GraphicsContext.CollectBuffers();
         _isUsingA = !_isUsingA; // Переключаем буферы
-        var context = _currentContext;
+        _buildContext = _currentContext;
+        _buildBuffers = buffers;
+        _buildFramebuffer = _device.MainSwapchain.Framebuffer;
+        _buildFramebufferWidth = _buildFramebuffer.Width;
+        _buildFramebufferHeight = _buildFramebuffer.Height;
+        _workerException = null;
+        _completed.Reset();
+        _workAvailable.Set();
+    }
+
+    public void WaitForCompletion()
+    {
+        _completed.Wait();
+        if (_workerException != null)
+        {
+            ExceptionDispatchInfo.Capture(_workerException).Throw();
+        }
+    }
+
+    public CommandList GetCommandList() => _currentContext.CommandList;
+
+    public void Dispose()
+    {
+        _shutdown = true;
+        _workAvailable.Set();
+        _workerThread.Join();
+        _workAvailable.Dispose();
+        _completed.Dispose();
+    }
+
+    private void WorkerLoop()
+    {
+        while (true)
+        {
+            _workAvailable.WaitOne();
+            if (_shutdown)
+            {
+                return;
+            }
+
+            try
+            {
+                BuildCommandList();
+            }
+            catch (Exception ex)
+            {
+                _workerException = ex;
+            }
+            finally
+            {
+                _completed.Set();
+            }
+        }
+    }
+
+    private void BuildCommandList()
+    {
+        var context = _buildContext;
         
-        float sw = _device.MainSwapchain.Framebuffer.Width;
-        float sh = _device.MainSwapchain.Framebuffer.Height;
+        float sw = _buildFramebufferWidth;
+        float sh = _buildFramebufferHeight;
 
         var cl = context.CommandList;
         cl.Begin();
-        cl.SetFramebuffer(_device.MainSwapchain.Framebuffer);
+        cl.SetFramebuffer(_buildFramebuffer);
         cl.ClearColorTarget(0, Color.Green.VeldridFloat);
 
-        cl.SetPipeline(_2dPipeline.RectPipeline);
         cl.SetVertexBuffer(0, context.VertexBuffer);
         cl.SetIndexBuffer(_indexBuffer, IndexFormat.UInt32);
             
         int quadCount = 0;
         ResourceSet? currentRS = null;
-        Pipeline? currentPipeline = _2dPipeline.RectPipeline;
+        Pipeline? currentPipeline = null;
             
-        foreach (var buffer in buffers)
+        foreach (var buffer in _buildBuffers)
         {
-            // 1. Сначала рисуем все прямоугольники (они всегда батчатся вместе)
             var rects = buffer.GetRectCommands();
-            if (rects.Length > 0)
-            {
-                SetPipeline(ref currentPipeline, _2dPipeline.RectPipeline, context, currentRS, ref quadCount);
-                SetTexture(ref currentRS, _2dPipeline.WhiteRectResourceSet, context, ref quadCount);
-                foreach (ref readonly var cmd in rects)
-                {
-                    AddRectToBatch(in cmd, context, sw, sh, ref quadCount);
-                    if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
-                }
-            }
-                
-            // 2. Затем рисуем текстуры
             var textures = buffer.GetTextureCommands();
-            if (textures.Length > 0)
-            {
-                SetPipeline(ref currentPipeline, _2dPipeline.TexturePipeline, context, currentRS, ref quadCount);
-                foreach (ref readonly var cmd in textures)
-                {
-                    var vTex = (VeldridTexture2D)cmd.Texture;
-                    // Если текстура сменилась — рисуем то, что накопили
-                    SetTexture(ref currentRS, vTex.ResourceSet, context, ref quadCount);
+            var commands = ((IOrderedCommandBuffer)buffer).GetCommands();
 
-                    AddTextureToBatch(in cmd, context, sw, sh, ref quadCount);
-                    if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
+            foreach (ref readonly var command in commands)
+            {
+                switch (command.Type)
+                {
+                    case DrawCommandType.Rect:
+                    {
+                        SetPipeline(ref currentPipeline, _2dPipeline.RectPipeline, context, currentRS, ref quadCount);
+                        SetTexture(ref currentRS, _2dPipeline.WhiteRectResourceSet, context, ref quadCount);
+
+                        ref readonly var cmd = ref rects[command.Index];
+                        AddRectToBatch(in cmd, context, sw, sh, ref quadCount);
+                        if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
+                        break;
+                    }
+                    case DrawCommandType.Texture:
+                    {
+                        SetPipeline(ref currentPipeline, _2dPipeline.TexturePipeline, context, currentRS, ref quadCount);
+
+                        ref readonly var cmd = ref textures[command.Index];
+                        var vTex = (VeldridTexture2D)cmd.Texture;
+                        SetTexture(ref currentRS, vTex.ResourceSet, context, ref quadCount);
+
+                        AddTextureToBatch(in cmd, context, sw, sh, ref quadCount);
+                        if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
+                        break;
+                    }
                 }
             }
         }
@@ -127,12 +211,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         }
             
         context.CommandList.End();
-        _handle = JobHandle.Completed;
     }
-
-    public void WaitForCompletion() => _handle.Wait();
-
-    public CommandList GetCommandList() => _submittedContext.CommandList;
     
     private void AddRectToBatch(in DrawRectCmd cmd, in MergeContext context, float sw, float sh, ref int quadCount)
     {

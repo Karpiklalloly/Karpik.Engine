@@ -9,7 +9,7 @@ public class GraphicsCoreModule : IEcsModule
     {
         b.Add(new GraphicsCoreInitSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -1800);
         b.Add(new GraphicsCoreBeginSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -1800);
-        b.Add(new GraphicsCoreMergeSystem(), CustomLayers.END_PROGRAM_LAYER, 1700);
+        b.Add(new GraphicsCoreMergeSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -1700);
         b.Add(new GraphicsCoreSubmitSystem(), CustomLayers.END_PROGRAM_LAYER, 1800);
     }
 }

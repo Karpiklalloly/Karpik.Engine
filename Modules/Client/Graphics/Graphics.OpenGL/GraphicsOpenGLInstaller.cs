@@ -18,6 +18,7 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
     public string Name => "Graphics.OpenGL";
     
     private GraphicsDevice _graphicsDevice = null!;
+    private IMergeThread _mergeThread = null!;
     private bool _colorSrgb = true;
     
     private List<AssetHandle<ShaderAsset>> _shaderAssets = [];
@@ -40,8 +41,9 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         );
         _graphicsDevice = VeldridStartup.CreateDefaultOpenGLGraphicsDevice(gdOptions, services.Get<Sdl2Window>()!,
             GraphicsBackend.OpenGL);
+        _mergeThread = new MergeThread();
         container.Register(_graphicsDevice);
-        container.Register<IMergeThread>(new MergeThread());
+        container.Register(_mergeThread);
         container.Register(new Preset2DPipeline());
     }
 
@@ -81,6 +83,7 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
     
     public void Destroy()
     {
+        _mergeThread.Dispose();
         _graphicsDevice.Dispose();
         foreach (var handle in _shaderAssets)
         {

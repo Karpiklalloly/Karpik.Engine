@@ -2,13 +2,14 @@
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public sealed class ThreadBuffer(int frameId) : ICommandBuffer
+public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
 {
-    public int FrameId { get; } = frameId;
+    public int FrameId { get; private set; } = -1;
     
     public ReadOnlySpan<DrawRectCmd> GetRectCommands() => _rects.AsSpan(0, _rectCount);
     public ReadOnlySpan<DrawTextureCmd> GetTextureCommands() => _textures.AsSpan(0, _textureCount);
     public ReadOnlySpan<DrawTextCmd> GetTextCommands() => _texts.AsSpan(0, _textCount);
+    ReadOnlySpan<DrawCommand> IOrderedCommandBuffer.GetCommands() => _commands.AsSpan(0, _commandCount);
 
     private DrawRectCmd[] _rects = new DrawRectCmd[256];
     private int _rectCount;
@@ -18,11 +19,16 @@ public sealed class ThreadBuffer(int frameId) : ICommandBuffer
 
     private DrawTextCmd[] _texts = new DrawTextCmd[64];
     private int _textCount;
+
+    private DrawCommand[] _commands = new DrawCommand[512];
+    private int _commandCount;
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in DrawRectCmd cmd)
     {
         if (_rectCount >= _rects.Length) Resize(ref _rects);
+        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Rect, _rectCount);
         _rects[_rectCount++] = cmd;
     }
 
@@ -30,6 +36,8 @@ public sealed class ThreadBuffer(int frameId) : ICommandBuffer
     public void Add(in DrawTextureCmd cmd)
     {
         if (_textureCount >= _textures.Length) Resize(ref _textures);
+        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Texture, _textureCount);
         _textures[_textureCount++] = cmd;
     }
 
@@ -37,7 +45,15 @@ public sealed class ThreadBuffer(int frameId) : ICommandBuffer
     public void Add(in DrawTextCmd cmd)
     {
         if (_textCount >= _texts.Length) Resize(ref _texts);
+        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Text, _textCount);
         _texts[_textCount++] = cmd;
+    }
+
+    internal void BeginFrame(int frameId)
+    {
+        FrameId = frameId;
+        Clear();
     }
 
     public void Clear()
@@ -45,6 +61,7 @@ public sealed class ThreadBuffer(int frameId) : ICommandBuffer
         _rectCount = 0;
         _textureCount = 0;
         _textCount = 0;
+        _commandCount = 0;
     }
     
     [MethodImpl(MethodImplOptions.NoInlining)]
