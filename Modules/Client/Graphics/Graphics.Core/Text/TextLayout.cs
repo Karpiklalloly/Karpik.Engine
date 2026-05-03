@@ -6,56 +6,7 @@ public static class TextLayout
 {
     public static Vector2 Measure(IFont font, ReadOnlySpan<char> text, float size)
     {
-        if (size <= 0f || font.Size <= 0f)
-        {
-            return default;
-        }
-
-        float scale = size / font.Size;
-        float penX = 0f;
-        float penY = 0f;
-        float maxX = 0f;
-
-        for (int i = 0; i < text.Length; i++)
-        {
-            char c = text[i];
-            if (c == '\r')
-            {
-                continue;
-            }
-
-            if (c == '\n')
-            {
-                if (penX > maxX)
-                {
-                    maxX = penX;
-                }
-
-                penX = 0f;
-                penY += font.LineHeight * scale;
-                continue;
-            }
-
-            if (!font.TryGetGlyph(c, out FontGlyph glyph))
-            {
-                continue;
-            }
-
-            Vector2 position = new Vector2(
-                penX + glyph.Bearing.X * scale,
-                penY + (font.Ascender - glyph.Bearing.Y) * scale);
-            Vector2 glyphSize = glyph.Size * scale;
-
-            penX += glyph.Advance * scale;
-
-            float glyphRight = position.X + glyphSize.X;
-            if (glyphRight > maxX)
-            {
-                maxX = glyphRight;
-            }
-        }
-
-        return new Vector2(MathF.Max(maxX, penX), penY + font.LineHeight * scale);
+        return Layout(font, text, size, Span<TextGlyphQuad>.Empty, emitGlyphs: false).Size;
     }
 
     public static TextLayoutResult Build(
@@ -64,9 +15,19 @@ public static class TextLayout
         float size,
         Span<TextGlyphQuad> output)
     {
+        return Layout(font, text, size, output, emitGlyphs: true);
+    }
+
+    private static TextLayoutResult Layout(
+        IFont font,
+        ReadOnlySpan<char> text,
+        float size,
+        Span<TextGlyphQuad> output,
+        bool emitGlyphs)
+    {
         if (size <= 0f || font.Size <= 0f)
         {
-            return new TextLayoutResult(0, default, text.Length > 0 && output.Length == 0);
+            return new TextLayoutResult(0, default, emitGlyphs && text.Length > 0 && output.Length == 0);
         }
 
         float scale = size / font.Size;
@@ -100,7 +61,7 @@ public static class TextLayout
                 continue;
             }
 
-            if (glyphCount >= output.Length)
+            if (emitGlyphs && glyphCount >= output.Length)
             {
                 return new TextLayoutResult(glyphCount, new Vector2(MathF.Max(maxX, penX), penY + font.LineHeight * scale), true);
             }
@@ -110,7 +71,12 @@ public static class TextLayout
                 penY + (font.Ascender - glyph.Bearing.Y) * scale);
             Vector2 glyphSize = glyph.Size * scale;
 
-            output[glyphCount++] = new TextGlyphQuad(position, glyphSize, glyph.SourceUv);
+            if (emitGlyphs)
+            {
+                output[glyphCount] = new TextGlyphQuad(position, glyphSize, glyph.SourceUv);
+            }
+
+            glyphCount++;
             penX += glyph.Advance * scale;
 
             float glyphRight = position.X + glyphSize.X;

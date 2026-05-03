@@ -356,15 +356,16 @@ static void CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer()
 static void CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded()
 {
     ThreadBuffer buffer = new ThreadBuffer();
-    buffer.EnsureCapacity(rects: 0, textures: 0, texts: 1, commands: 1, textChars: 2);
+    buffer.EnsureCapacity(rects: 0, textures: 0, texts: 1, commands: 1, textChars: 4096);
     buffer.AllowResize = false;
     AtlasFont font = CreateTestFont(new FakeTexture());
+    string text = new string('A', 4097);
 
     AssertThrows<InvalidOperationException>(() =>
     {
         buffer.AddTextCopy(
             font,
-            "ABC",
+            text,
             Vector2.Zero,
             16f,
             Color.White);
@@ -679,6 +680,10 @@ static void AssertThrows<TException>(Action action)
     catch (TException)
     {
         return;
+    }
+    catch (Exception exception)
+    {
+        throw new InvalidOperationException($"Expected exception {typeof(TException).Name}, actual {exception.GetType().Name}.", exception);
     }
 
     throw new InvalidOperationException($"Expected exception {typeof(TException).Name}.");
