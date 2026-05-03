@@ -22,6 +22,8 @@ var tests = new (string Name, Action Run)[]
     ("CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace", CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace),
     ("CommandBuffer_AddText_DefaultsToTopLeftScreenSpace", CommandBuffer_AddText_DefaultsToTopLeftScreenSpace),
     ("CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring", CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring),
+    ("CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer", CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer),
+    ("CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded", CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded),
     ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
     ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
@@ -323,6 +325,50 @@ static void CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring()
     AssertEqual(DrawSpace.World, cmd.Space);
 }
 
+static void CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer()
+{
+    ThreadBuffer buffer = new ThreadBuffer();
+    AtlasFont font = CreateTestFont(new FakeTexture());
+    Span<char> text = stackalloc char[3];
+    text[0] = 'A';
+    text[1] = 'B';
+    text[2] = 'C';
+
+    buffer.AddTextCopy(
+        font,
+        text,
+        new Vector2(12f, 24f),
+        18f,
+        Color.White,
+        anchor: TextAnchor.BottomRight);
+
+    text[0] = 'Z';
+
+    DrawTextCmd cmd = buffer.GetTextCommands()[0];
+    AssertReferenceSame(font, cmd.Font);
+    AssertText("ABC", cmd.Text);
+    AssertNear(new Vector2(12f, 24f), cmd.Position);
+    AssertEqual(TextAnchor.BottomRight, cmd.Anchor);
+}
+
+static void CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded()
+{
+    ThreadBuffer buffer = new ThreadBuffer();
+    buffer.EnsureCapacity(rects: 0, textures: 0, texts: 1, commands: 1, textChars: 2);
+    buffer.AllowResize = false;
+    AtlasFont font = CreateTestFont(new FakeTexture());
+
+    AssertThrows<InvalidOperationException>(() =>
+    {
+        buffer.AddTextCopy(
+            font,
+            "ABC",
+            Vector2.Zero,
+            16f,
+            Color.White);
+    });
+}
+
 static void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
 {
     const string json = """
@@ -601,6 +647,21 @@ static void AssertReferenceSame(object expected, object actual)
     {
         throw new InvalidOperationException("Expected references to be the same instance.");
     }
+}
+
+static void AssertThrows<TException>(Action action)
+    where TException : Exception
+{
+    try
+    {
+        action();
+    }
+    catch (TException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException($"Expected exception {typeof(TException).Name}.");
 }
 
 static void AssertText(ReadOnlySpan<char> expected, ReadOnlyMemory<char> actual)

@@ -140,6 +140,35 @@ public static class CommandBufferDrawExtensions
 
         buffer.Add(in cmd);
     }
+
+    public static void AddTextCopy(
+        this ICommandBuffer buffer,
+        IFont font,
+        ReadOnlySpan<char> text,
+        Vector2 position,
+        float size,
+        Color color,
+        Vector2 origin = default,
+        TextAnchor anchor = TextAnchor.TopLeft,
+        float rotationRadians = 0f,
+        DrawSpace space = DrawSpace.Screen)
+    {
+        if (buffer is not ThreadBuffer threadBuffer)
+        {
+            throw new InvalidOperationException("AddTextCopy requires GraphicsContext.Buffer so text can be copied into the thread-local command buffer.");
+        }
+
+        buffer.AddText(
+            font,
+            threadBuffer.CopyText(text),
+            position,
+            size,
+            color,
+            origin,
+            anchor,
+            rotationRadians,
+            space);
+    }
     
     public static void AddTextCentered(
         this ICommandBuffer buffer,
@@ -154,6 +183,28 @@ public static class CommandBufferDrawExtensions
         buffer.AddText(
             font,
             text.AsMemory(),
+            center,
+            size,
+            color,
+            origin: default,
+            anchor: TextAnchor.Center,
+            rotationRadians: rotationRadians,
+            space: space);
+    }
+
+    public static void AddTextCenteredCopy(
+        this ICommandBuffer buffer,
+        IFont font,
+        ReadOnlySpan<char> text,
+        Vector2 center,
+        float size,
+        Color color,
+        float rotationRadians = 0f,
+        DrawSpace space = DrawSpace.Screen)
+    {
+        buffer.AddTextCopy(
+            font,
+            text,
             center,
             size,
             color,

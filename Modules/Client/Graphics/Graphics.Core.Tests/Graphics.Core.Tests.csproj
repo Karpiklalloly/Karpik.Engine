@@ -14,6 +14,8 @@
         <Compile Include="..\Graphics.Core\CommandBufferDrawExtensions.cs" Link="Graphics.Core\CommandBufferDrawExtensions.cs" />
         <Compile Include="..\Graphics.Core\AssetManagement\FontAtlasData.cs" Link="Graphics.Core\AssetManagement\FontAtlasData.cs" />
         <Compile Include="..\Graphics.Core\AssetManagement\FontAtlasParser.cs" Link="Graphics.Core\AssetManagement\FontAtlasParser.cs" />
+        <Compile Include="..\Graphics.Core\Buffers\ThreadBuffer.cs" Link="Graphics.Core\Buffers\ThreadBuffer.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawCommand.cs" Link="Graphics.Core\Commands\DrawCommand.cs" />
         <Compile Include="..\Graphics.Core\Commands\DrawRectCmd.cs" Link="Graphics.Core\Commands\DrawRectCmd.cs" />
         <Compile Include="..\Graphics.Core\Commands\DrawTextCmd.cs" Link="Graphics.Core\Commands\DrawTextCmd.cs" />
         <Compile Include="..\Graphics.Core\Commands\DrawTextureCmd.cs" Link="Graphics.Core\Commands\DrawTextureCmd.cs" />

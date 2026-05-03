@@ -48,7 +48,17 @@ public static class GraphicsContext
 
     public static void EnsureThreadBufferCapacity(int rects, int textures, int texts)
     {
-        int commands = rects + textures + texts;
+        EnsureThreadBufferCapacity(rects, textures, texts, textChars: 0);
+    }
+
+    public static void EnsureThreadBufferCapacity(int rects, int textures, int texts, int textChars)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(rects);
+        ArgumentOutOfRangeException.ThrowIfNegative(textures);
+        ArgumentOutOfRangeException.ThrowIfNegative(texts);
+        ArgumentOutOfRangeException.ThrowIfNegative(textChars);
+
+        int commands = checked(rects + textures + texts);
         var cachedBuffers = _cachedBuffers;
         if (cachedBuffers == null)
         {
@@ -66,7 +76,7 @@ public static class GraphicsContext
                 cachedBuffers[i] = buffer;
             }
 
-            buffer.EnsureCapacity(rects, textures, texts, commands);
+            buffer.EnsureCapacity(rects, textures, texts, commands, textChars);
         }
     }
 

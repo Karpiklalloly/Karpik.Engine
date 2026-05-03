@@ -42,6 +42,8 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 13:48 +04:00) Expanded text anchoring to the full 3x3 anchor set and moved anchor offset math into a pure helper covered by tests.
 - [x] (2026-05-03 17:03 +04:00) Added explicit thread-local command buffer prewarming through `GraphicsContext.EnsureThreadBufferCapacity` to avoid hidden `Array.Resize` during gameplay frames.
 - [x] (2026-05-03 17:12 +04:00) Added a thread-local `SetThreadBufferAutoResize` switch so gameplay can fail fast on command buffer overflow instead of silently allocating after prewarm.
+- [x] (2026-05-03 17:19 +04:00) Hardened command-buffer prewarm with negative-capacity validation and explicit overflow handling for oversized capacity requests.
+- [x] (2026-05-03 17:31 +04:00) Added `AddTextCopy`/`AddTextCenteredCopy` for dynamic span text by copying into the prewarmed thread-local command buffer char storage.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
