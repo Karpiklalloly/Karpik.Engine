@@ -137,6 +137,25 @@ public static class CommandBufferDrawExtensions
 
         buffer.Add(in cmd);
     }
+    
+    public static void AddTextCentered(
+        this ICommandBuffer buffer,
+        IFont font,
+        string text,
+        Vector2 center,
+        float size,
+        Color color,
+        float rotationRadians = 0f,
+        DrawSpace space = DrawSpace.Screen)
+    {
+        Span<TextGlyphQuad> temp = stackalloc TextGlyphQuad[64];
+        TextLayoutResult layout = TextLayout.Build(
+            font,
+            text,
+            size,
+            temp);
+        buffer.AddTextCentered(font, text.AsMemory(), center, layout.Size, size, color, rotationRadians, space);
+    }
 
     public static void AddTextCentered(
         this ICommandBuffer buffer,

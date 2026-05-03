@@ -53,11 +53,6 @@ public class DisplaySystem : IEcsRun, IEcsInit
         _cameraState.SetActive(in _camera);
         
         var size = new Vector2(100 * (MathF.Sin((float)_time.TotalTime) + 1) + 20f, 100);
-        GraphicsContext.Buffer.Add(new DrawRectCmd()
-        {
-            Color = Color.White,
-            Rectangle = new RectangleF(0, 0, size.X, size.Y)
-        });
         
         GraphicsContext.Buffer.Add(new DrawRectCmd()
         {
@@ -65,19 +60,15 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Rectangle = new RectangleF(0, 100, size.X, size.Y)
         });
         
-        GraphicsContext.Buffer.Add(new DrawRectCmd()
-        {
-            Color = Color.Red,
-            Rectangle = new RectangleF(0, 200, size.X, size.Y)
-        });
-        
+        // Не в центре оригин
         GraphicsContext.Buffer.AddTextCentered(
             _fontAsset.Asset!.Font,
             "Hello, World!",
-            new Vector2(120, 200),
-            new Vector2(),
-            64f + 6 * MathF.Sin((float)_time.TotalTime * 2),
-            Color.White);
+            new Vector2(0, 0),
+            1f + 1 * MathF.Sin((float)_time.TotalTime * 2),
+            Color.White,
+            rotationRadians: (float)_time.TotalTime,
+            space: DrawSpace.World);
 
         
         GraphicsContext.Buffer.AddTextureCentered(
