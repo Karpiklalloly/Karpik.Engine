@@ -211,14 +211,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                     }
                     case DrawCommandType.Text:
                     {
-                        Flush(context, currentRS, ref quadCount);
                         SetPipeline(ref currentPipeline, _2dPipeline.TextPipeline, context, currentRS, ref quadCount);
 
                         ref readonly var cmd = ref texts[command.Index];
                         var atlas = (VeldridTexture2D)cmd.Font.AtlasTexture;
                         SetTexture(ref currentRS, atlas.ResourceSet, context, ref quadCount);
 
-                        AddTextToBatch(in cmd, context, in camera, sw, sh, ref quadCount);
+                        AddTextToBatch(in cmd, context, currentRS, in camera, sw, sh, ref quadCount);
                         if (quadCount >= MaxQuads) Flush(context, currentRS, ref quadCount);
                         break;
                     }
@@ -319,7 +318,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         quadCount++;
     }
 
-    private void AddTextToBatch(in DrawTextCmd cmd, in MergeContext context, in Camera2D camera, float sw, float sh, ref int quadCount)
+    private void AddTextToBatch(in DrawTextCmd cmd, in MergeContext context, ResourceSet? currentRS, in Camera2D camera, float sw, float sh, ref int quadCount)
     {
         Vector4 color = new Vector4(
             cmd.Color.R / 255f,
@@ -372,7 +371,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             quadCount++;
             if (quadCount >= MaxQuads)
             {
-                break;
+                Flush(context, currentRS, ref quadCount);
             }
         }
     }

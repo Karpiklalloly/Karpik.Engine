@@ -27,6 +27,7 @@ var tests = new (string Name, Action Run)[]
     ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
     ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
+    ("AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput", AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput),
     ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
     ("TextAnchorTransform_GetOffset_MapsAllAnchors", TextAnchorTransform_GetOffset_MapsAllAnchors),
     ("TextLayout_Measure_MatchesBuildSize", TextLayout_Measure_MatchesBuildSize),
@@ -523,6 +524,28 @@ static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
     {
         throw new InvalidOperationException("Expected font dispose to dispose atlas texture.");
     }
+}
+
+static void AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput()
+{
+    FakeTexture texture = new FakeTexture();
+    FontAtlasMetrics metrics = new FontAtlasMetrics(16f, 18f, 14f, -4f, 4f);
+    FontGlyph glyphB = new FontGlyph((uint)'B', new Vector2(6f, 9f), default, 8f, default);
+    FontGlyph glyphA = new FontGlyph((uint)'A', new Vector2(8f, 10f), default, 9f, default);
+    AtlasFont font = new AtlasFont(texture, in metrics, [glyphB, glyphA]);
+
+    if (!font.TryGetGlyph((uint)'A', out FontGlyph foundA))
+    {
+        throw new InvalidOperationException("Expected glyph 'A' to be found.");
+    }
+
+    if (!font.TryGetGlyph((uint)'B', out FontGlyph foundB))
+    {
+        throw new InvalidOperationException("Expected glyph 'B' to be found.");
+    }
+
+    AssertEqual((uint)'A', foundA.Codepoint);
+    AssertEqual((uint)'B', foundB.Codepoint);
 }
 
 static void AtlasFont_Dispose_RespectsAtlasTextureOwnership()

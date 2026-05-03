@@ -48,11 +48,15 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 17:49 +04:00) Removed the obsolete measured-size `AddTextCentered` overloads after confirming centered text renders correctly through `TextAnchor.Center`.
 - [x] (2026-05-03 17:56 +04:00) Added allocation-free `TextLayout.Measure` so callers can inspect text size without emitting glyph quads or allocating temporary layout buffers.
 - [x] (2026-05-03 18:04 +04:00) Refactored `TextLayout.Measure` and `Build` onto one shared layout pass so size calculations cannot drift from emitted glyph layout.
-- [ ] Add transform and coordinate-space API to draw commands.
-- [ ] Add camera data model and camera state service.
-- [ ] Add SDF/MSDF font asset loading and text command batching.
-- [ ] Update merge/render path and shaders.
-- [ ] Add validation tests, sample scene, and allocation checks.
+- [x] (2026-05-03 18:11 +04:00) Improved command-buffer overflow diagnostics to report current and required capacities when auto-resize is disabled.
+- [x] (2026-05-03 18:23 +04:00) Optimized `AtlasFont.TryGetGlyph` by sorting glyphs at asset creation and using binary search during text layout instead of a per-character linear scan.
+- [x] (2026-05-03 18:31 +04:00) Removed the unconditional flush before text commands so consecutive text with the same font atlas can batch together.
+- [x] (2026-05-03 18:38 +04:00) Changed long text emission to flush and continue when the quad batch fills instead of silently dropping remaining glyphs.
+- [x] Add transform and coordinate-space API to draw commands.
+- [x] Add camera data model and camera state service.
+- [x] Add SDF/MSDF font asset loading and text command batching.
+- [x] Update merge/render path and shaders.
+- [x] Add validation tests, sample scene, and allocation checks.
 
 ## Surprises & Discoveries
 
@@ -94,7 +98,25 @@ The observable outcome is a client sample or test scene where:
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update this after each major milestone and at completion.
+Completed on 2026-05-03.
+
+Implemented outcomes:
+
+- Rect and texture commands support explicit origin, rotation, and screen/world draw spaces.
+- Texture commands support normalized source UV rectangles for sprite atlas rendering.
+- `Camera2D` and `GraphicsCameraState` provide a captured per-frame camera; world-space rendering follows camera position/zoom/rotation, while screen-space rendering bypasses the camera.
+- `SDL2Window.Exists` and one-shot resize state now reflect the underlying window state instead of default auto-property values.
+- Text is backed by prebuilt atlas fonts: `IFont`, `AtlasFont`, `FontGlyph`, `FontAsset`, `.font-json` loading, and native `msdf-atlas-gen` metadata parsing.
+- `DrawCommandType.Text` is handled in merge, uses a dedicated `TextSdf.frag` pipeline, supports 3x3 `TextAnchor`, and batches consecutive text commands that share pipeline and atlas.
+- Dynamic text can be submitted through `AddTextCopy`/`AddTextCenteredCopy` by copying spans into prewarmed thread-local command buffer storage.
+- Command buffers can be explicitly prewarmed and switched to fail-fast mode to avoid hidden `Array.Resize` allocations during gameplay frames.
+- Text layout now has shared `Build`/`Measure` logic and font glyph lookup uses sorted dense arrays with binary search.
+
+Validation notes:
+
+- Source-linked graphics tests cover transform math, camera projection, texture UVs, command-buffer helpers, font metadata parsing, font lookup, text anchors, and text layout behavior.
+- The user confirmed the SDF/MSDF text path renders correctly in their local client scene.
+- Local `dotnet` validation from Codex was intentionally stopped after process-host issues; the user's environment reports normal build/run behavior.
 
 ## Context and Orientation
 

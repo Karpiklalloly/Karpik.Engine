@@ -115,7 +115,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
         if (!AllowResize)
         {
             throw new InvalidOperationException(
-                $"Graphics command buffer capacity exceeded for {typeof(T).Name}. Call GraphicsContext.EnsureThreadBufferCapacity during warm-up.");
+                $"Graphics command buffer capacity exceeded for {typeof(T).Name}. Current capacity: {array.Length}. Call GraphicsContext.EnsureThreadBufferCapacity during warm-up.");
         }
 
         Resize(ref array);
@@ -127,7 +127,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
         if (!AllowResize)
         {
             throw new InvalidOperationException(
-                $"Graphics command buffer capacity exceeded for {typeof(T).Name}. Call GraphicsContext.EnsureThreadBufferCapacity during warm-up.");
+                $"Graphics command buffer capacity exceeded for {typeof(T).Name}. Current capacity: {array.Length}, required: {capacity}. Call GraphicsContext.EnsureThreadBufferCapacity during warm-up.");
         }
 
         EnsureCapacity(ref array, capacity);

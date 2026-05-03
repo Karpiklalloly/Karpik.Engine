@@ -21,18 +21,32 @@ public sealed class AtlasFont : IFont
         Descender = metrics.Descender;
         DistanceRange = metrics.DistanceRange;
         _glyphs = glyphs;
+        Array.Sort(_glyphs, static (left, right) => left.Codepoint.CompareTo(right.Codepoint));
         _ownsAtlasTexture = ownsAtlasTexture;
     }
 
     public bool TryGetGlyph(uint codepoint, out FontGlyph glyph)
     {
-        for (int i = 0; i < _glyphs.Length; i++)
+        int left = 0;
+        int right = _glyphs.Length - 1;
+
+        while (left <= right)
         {
-            if (_glyphs[i].Codepoint == codepoint)
+            int middle = left + ((right - left) >> 1);
+            uint middleCodepoint = _glyphs[middle].Codepoint;
+            if (middleCodepoint == codepoint)
             {
-                glyph = _glyphs[i];
+                glyph = _glyphs[middle];
                 return true;
             }
+
+            if (middleCodepoint < codepoint)
+            {
+                left = middle + 1;
+                continue;
+            }
+
+            right = middle - 1;
         }
 
         glyph = default;
