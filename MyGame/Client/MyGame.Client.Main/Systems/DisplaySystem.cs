@@ -62,17 +62,6 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Rectangle = new RectangleF(0, 100, size.X, size.Y)
         });
         
-        // Не в центре оригин
-        GraphicsContext.Buffer.AddTextCentered(
-            _fontAsset.Asset!.Font,
-            "Hello, World!",
-            new Vector2(0, 0),
-            1f + 1 * MathF.Sin((float)_time.TotalTime * 2),
-            Color.White,
-            rotationRadians: (float)_time.TotalTime,
-            space: DrawSpace.World);
-
-        
         GraphicsContext.Buffer.AddTextureCentered(
             _asset.Asset!.Texture,
             new Vector2(120, 300),
@@ -96,6 +85,15 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Color.White,
             0,
             DrawSpace.World);
+        
+        GraphicsContext.Buffer.AddTextCentered(
+            _fontAsset.Asset!.Font,
+            "Hello, World!",
+            new Vector2(0, 0),
+            1f + 1 * MathF.Sin((float)_time.TotalTime * 2),
+            Color.White,
+            rotationRadians: (float)_time.TotalTime,
+            space: DrawSpace.World);
 
         if (_overlay.Enabled)
         {

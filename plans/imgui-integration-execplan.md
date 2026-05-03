@@ -15,6 +15,8 @@ The initial integration is not a production gameplay UI system. It is a client-o
 - [x] (2026-05-03 22:14 +04:00) Milestone 2 completed: `Graphics.Core` registers `ImGuiOverlayState` and `ImGuiRenderContext`, initializes `ImGuiRenderer` from the main swapchain output, owns a dedicated ImGui command list, forwards resize to ImGui, and clears capture flags while the overlay is disabled.
 - [x] (2026-05-03 22:34 +04:00) Milestone 3 completed: final graphics submission is split into scene submit, optional ImGui render submit, and one final swap-buffers system.
 - [x] (2026-05-03 22:38 +04:00) Initial usable overlay path added: `F1` toggles the overlay, ImGui receives the raw input snapshot each frame while enabled, capture flags are copied into `InputCaptureState`, and a minimal `Karpik Debug` ImGui window renders frame time, mouse position, and a text input field.
+- [x] (2026-05-03 22:53 +04:00) `MyGame.Client.Main` ImGui.NET package version aligned with vendored `Veldrid.ImGui` and the game client project builds with the overlay-access pattern used by `DisplaySystem`.
+- [x] (2026-05-03 23:40 +04:00) Final runtime validation completed through `ClientLauncher`: the scene renders, ImGui windows render above it, and an ImGui `InputText` receives typed text when the overlay is enabled.
 
 ## Surprises & Discoveries
 
@@ -32,6 +34,9 @@ The initial integration is not a production gameplay UI system. It is a client-o
 
 - Observation: On this machine, affected project builds can fail with an empty error summary during parallel MSBuild project-reference evaluation.
   Evidence: `dotnet build Modules/Client/Window/Window.Core/Window.Core.csproj` exited with "Ошибок: 0"; the same build succeeded with `--no-restore -p:NoWarn=NU1903 -m:1`.
+
+- Observation: `MyGame.Client.Main` had a direct `ImGui.NET` package reference at `1.91.6.1`, while vendored `Veldrid.ImGui` references `1.90.1.1`.
+  Evidence: `rg "ImGui.NET" -n .` showed only those two package references.
 
 ## Decision Log
 
@@ -63,7 +68,11 @@ Milestone 2 outcome: ImGui renderer/device resources now have a lifecycle in `Gr
 
 Milestone 3 outcome: scene command list submission now happens before ImGui command list submission, and `SwapBuffers()` is isolated in the last graphics system. This creates the render-order slot needed for user ImGui ECS systems without changing merge-thread behavior.
 
-Initial usable overlay outcome: an ECS system can now call `ImGuiNET.ImGui` after `ImGuiBeginSystem` and before `ImGuiRenderSystem`. The built-in debug panel proves the path, but manual runtime validation is still needed for visibility, text entry, and gameplay input blocking.
+Initial usable overlay outcome: an ECS system can now call `ImGuiNET.ImGui` after `ImGuiBeginSystem` and before `ImGuiRenderSystem`. The built-in debug panel proves the path, and final runtime validation confirmed visibility and text entry.
+
+Game project cleanup outcome: `DisplaySystem` uses the overlay-enabled guard before calling ImGui, and `MyGame.Client.Main` now references the same `ImGui.NET` version as the renderer package. This avoids loading a newer ImGui.NET API against a renderer compiled with the older binding.
+
+Final validation outcome: `ClientLauncher` is the correct executable for the composed client module set. Running it with `KARPIK_IMGUI_ENABLED=1` produced a visible `Karpik Debug` ImGui window and the `DisplaySystem` sample `My Window` above the existing scene. Automated input clicked the debug panel `InputText` and typed text into it. Automated `F1` synthesis from the Codex tool environment did not reach SDL reliably, but the runtime toggle path is implemented over raw `IInputSource.KeyEvents` and remains the default user-facing way to enable the overlay.
 
 ## Context and Orientation
 

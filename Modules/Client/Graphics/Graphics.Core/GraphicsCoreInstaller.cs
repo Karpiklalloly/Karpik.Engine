@@ -1,4 +1,5 @@
 using DCFApixels.DragonECS;
+using System;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.Core;
@@ -11,8 +12,14 @@ public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDest
     
     public void OnRegisterServices(IServiceRegister services)
     {
+        var overlayState = new ImGuiOverlayState();
+        if (Environment.GetEnvironmentVariable("KARPIK_IMGUI_ENABLED") == "1")
+        {
+            overlayState.SetEnabled(true);
+        }
+
         services.Register(new GraphicsCameraState());
-        services.Register(new ImGuiOverlayState());
+        services.Register(overlayState);
         services.Register(_imguiRenderContext);
     }
 
