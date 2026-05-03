@@ -44,6 +44,8 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 17:12 +04:00) Added a thread-local `SetThreadBufferAutoResize` switch so gameplay can fail fast on command buffer overflow instead of silently allocating after prewarm.
 - [x] (2026-05-03 17:19 +04:00) Hardened command-buffer prewarm with negative-capacity validation and explicit overflow handling for oversized capacity requests.
 - [x] (2026-05-03 17:31 +04:00) Added `AddTextCopy`/`AddTextCenteredCopy` for dynamic span text by copying into the prewarmed thread-local command buffer char storage.
+- [x] (2026-05-03 17:38 +04:00) Marked measured-size `AddTextCentered` overloads obsolete now that text anchoring handles centering without caller-side layout.
+- [x] (2026-05-03 17:49 +04:00) Removed the obsolete measured-size `AddTextCentered` overloads after confirming centered text renders correctly through `TextAnchor.Center`.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

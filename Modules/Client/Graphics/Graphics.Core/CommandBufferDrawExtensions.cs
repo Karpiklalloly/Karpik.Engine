@@ -214,45 +214,4 @@ public static class CommandBufferDrawExtensions
             space: space);
     }
 
-    public static void AddTextCentered(
-        this ICommandBuffer buffer,
-        IFont font,
-        string text,
-        Vector2 center,
-        Vector2 measuredSize,
-        float size,
-        Color color,
-        float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
-    {
-        buffer.AddTextCentered(font, text.AsMemory(), center, measuredSize, size, color, rotationRadians, space);
-    }
-
-    public static void AddTextCentered(
-        this ICommandBuffer buffer,
-        IFont font,
-        ReadOnlyMemory<char> text,
-        Vector2 center,
-        Vector2 measuredSize,
-        float size,
-        Color color,
-        float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
-    {
-        Vector2 origin = measuredSize * 0.5f;
-        DrawTextCmd cmd = new DrawTextCmd
-        {
-            Font = font,
-            Text = text,
-            Position = center - origin,
-            Origin = origin,
-            Anchor = TextAnchor.TopLeft,
-            Size = size,
-            RotationRadians = rotationRadians,
-            Color = color,
-            Space = space
-        };
-
-        buffer.Add(in cmd);
-    }
 }
