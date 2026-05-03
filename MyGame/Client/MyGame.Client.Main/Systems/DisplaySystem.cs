@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
+using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Client.InputModule;
@@ -26,6 +27,7 @@ public class DisplaySystem : IEcsRun, IEcsInit
     [DI] private IAssetsManager _assetsManager = null!;
     [DI] private GraphicsCameraState _cameraState = null!;
     [DI] private Input _input = null!;
+    [DI] private ImGuiOverlayState _overlay = null!;
     private AssetHandle<TextureAsset> _asset;
     private Camera2D _camera;
     private AssetHandle<FontAsset> _fontAsset;
@@ -94,6 +96,16 @@ public class DisplaySystem : IEcsRun, IEcsInit
             Color.White,
             0,
             DrawSpace.World);
+
+        if (_overlay.Enabled)
+        {
+            ImGui.Begin("My Window");
+            if (ImGui.Button("Click me"))
+            {
+                Console.WriteLine("Button clicked!");
+            }
+            ImGui.End();
+        }
         
         foreach (var e in _world.Where(out Aspect a))
         {

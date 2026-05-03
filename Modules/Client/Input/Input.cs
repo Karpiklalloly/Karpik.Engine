@@ -30,6 +30,7 @@ public class Input
     private bool _isMouseLocked = false;
     
     private IInputSource _source;
+    private InputCaptureState _captureState;
     
     public Vector2 MousePosition => _mousePosition;
     public Vector2 MouseDelta => _mouseDelta;
@@ -37,23 +38,23 @@ public class Input
     public IEnumerable<Key> PressedKeys => _keyStates.Keys.Where(IsPressed);
     public IEnumerable<char> Chars => new List<char>(_chars);
     
-    public bool IsMouseLeftButtonDown => _source.IsMouseButtonPressed(MouseButton.Left);
+    public bool IsMouseLeftButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Left);
     
-    public bool IsMouseLeftButtonUp => _source.IsMouseButtonReleased(MouseButton.Left);
+    public bool IsMouseLeftButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Left);
     
-    public bool IsMouseLeftButtonHold => _source.IsMouseButtonDown(MouseButton.Left);
+    public bool IsMouseLeftButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Left);
     
-    public bool IsMouseRightButtonDown => _source.IsMouseButtonPressed(MouseButton.Right);
+    public bool IsMouseRightButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Right);
     
-    public bool IsMouseRightButtonUp => _source.IsMouseButtonReleased(MouseButton.Right);
+    public bool IsMouseRightButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Right);
     
-    public bool IsMouseRightButtonHold => _source.IsMouseButtonDown(MouseButton.Right);
+    public bool IsMouseRightButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Right);
     
-    public bool IsMouseMiddleButtonDown => _source.IsMouseButtonPressed(MouseButton.Middle);
+    public bool IsMouseMiddleButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Middle);
     
-    public bool IsMouseMiddleButtonUp => _source.IsMouseButtonReleased(MouseButton.Middle);
+    public bool IsMouseMiddleButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Middle);
     
-    public bool IsMouseMiddleButtonHold => _source.IsMouseButtonDown(MouseButton.Middle);
+    public bool IsMouseMiddleButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Middle);
 
     public bool IsMouseLocked => _isMouseLocked;
 
@@ -99,9 +100,10 @@ public class Input
         _source.EnableCursor();
     }
     
-    internal void Init(IInputSource source)
+    internal void Init(IInputSource source, InputCaptureState captureState)
     {
         _source = source;
+        _captureState = captureState;
         foreach (Key key in Enum.GetValues<Key>())
         {
             _keyStates[key] = State.DownHold;
@@ -121,6 +123,7 @@ public class Input
         _chars.Clear();
 
         _source = null!;
+        _captureState = null!;
     }
     
     private List<Key> _keys = new();
@@ -131,7 +134,10 @@ public class Input
         _keys.Clear();
         _chars.Clear();
         
-        _keys.AddRange(_source.PressedKeys);
+        if (!_captureState.Keyboard)
+        {
+            _keys.AddRange(_source.PressedKeys);
+        }
         
         foreach (var key in _keys)
         {
@@ -172,13 +178,24 @@ public class Input
             }
         }
         
-        _chars.AddRange(_source.PressedKeyChars);
+        if (!_captureState.Text)
+        {
+            _chars.AddRange(_source.PressedKeyChars);
+        }
+
         for (int i = 0; i < _chars.Count; i++)
         {
             CharPressed?.Invoke(_chars[i]);
         }
 
-        _mouseDelta = _source.MouseDelta;
-        _mousePosition = _source.MousePosition;
+        if (_captureState.Mouse)
+        {
+            _mouseDelta = Vector2.Zero;
+        }
+        else
+        {
+            _mouseDelta = _source.MouseDelta;
+            _mousePosition = _source.MousePosition;
+        }
     }
 }

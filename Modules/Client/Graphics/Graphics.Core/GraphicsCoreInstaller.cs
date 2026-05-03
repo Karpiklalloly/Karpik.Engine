@@ -7,10 +7,13 @@ namespace Karpik.Engine.Client.Graphics.Core;
 public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDestroy
 {
     public string Name => "Graphics.Core";
+    private readonly ImGuiRenderContext _imguiRenderContext = new();
     
     public void OnRegisterServices(IServiceRegister services)
     {
         services.Register(new GraphicsCameraState());
+        services.Register(new ImGuiOverlayState());
+        services.Register(_imguiRenderContext);
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)
@@ -25,5 +28,6 @@ public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDest
     
     public void Destroy()
     {
+        _imguiRenderContext.Dispose();
     }
 }

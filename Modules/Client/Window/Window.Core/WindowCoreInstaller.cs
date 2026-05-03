@@ -9,7 +9,7 @@ public class WindowCoreInstaller : IModule, IModuleConfiguratable
     public string Name => "Window.Core";
     public void OnRegisterServices(IServiceRegister services)
     {
-        
+        services.Register(new InputCaptureState());
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)

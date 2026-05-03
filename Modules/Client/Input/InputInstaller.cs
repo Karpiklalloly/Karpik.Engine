@@ -16,7 +16,7 @@ public class InputInstaller : IModule, IModuleConfiguratable
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container)
     {
-        services.Get<Input>()!.Init(services.Get<IInputSource>()!);
+        services.Get<Input>()!.Init(services.Get<IInputSource>()!, services.Get<InputCaptureState>()!);
         container.Register<IEcsModule>(new InputModuleEcs());
     }
 

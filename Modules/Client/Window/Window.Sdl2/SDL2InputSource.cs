@@ -11,6 +11,7 @@ public class SDL2InputSource : IInputSource
     private readonly Sdl2Window _window;
     private InputSnapshot _snapshot;
 
+    public InputSnapshot Snapshot => _snapshot;
     public IReadOnlyList<char> PressedKeyChars => _snapshot.KeyCharPresses;
     public IReadOnlyList<KeyEvent> KeyEvents => _snapshot.KeyEvents;
     public IReadOnlyList<Key> PressedKeys { get; private set; }

@@ -6,6 +6,7 @@ namespace Karpik.Engine.Modules.Window.Core;
 
 public interface IInputSource
 {
+    public InputSnapshot Snapshot { get; }
     public IReadOnlyList<char> PressedKeyChars { get; }
     public IReadOnlyList<KeyEvent> KeyEvents { get; }
     public IReadOnlyList<Key> PressedKeys { get; }

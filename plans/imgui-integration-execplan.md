@@ -11,6 +11,10 @@ The initial integration is not a production gameplay UI system. It is a client-o
 ## Progress
 
 - [x] (2026-05-03 00:00 +04:00) Initial plan created after inspecting `Graphics.Core`, `Graphics.OpenGL`, `Window.Core`, `Window.Sdl2`, `Input`, and vendored `Veldrid.ImGui`.
+- [x] (2026-05-03 21:50 +04:00) Milestone 1 completed: `IInputSource` exposes the raw `InputSnapshot`, `SDL2InputSource` returns the latest snapshot, `Window.Core` registers `InputCaptureState`, and gameplay `Input` suppresses keyboard/text/mouse state when capture flags are active.
+- [x] (2026-05-03 22:14 +04:00) Milestone 2 completed: `Graphics.Core` registers `ImGuiOverlayState` and `ImGuiRenderContext`, initializes `ImGuiRenderer` from the main swapchain output, owns a dedicated ImGui command list, forwards resize to ImGui, and clears capture flags while the overlay is disabled.
+- [x] (2026-05-03 22:34 +04:00) Milestone 3 completed: final graphics submission is split into scene submit, optional ImGui render submit, and one final swap-buffers system.
+- [x] (2026-05-03 22:38 +04:00) Initial usable overlay path added: `F1` toggles the overlay, ImGui receives the raw input snapshot each frame while enabled, capture flags are copied into `InputCaptureState`, and a minimal `Karpik Debug` ImGui window renders frame time, mouse position, and a text input field.
 
 ## Surprises & Discoveries
 
@@ -25,6 +29,9 @@ The initial integration is not a production gameplay UI system. It is a client-o
 
 - Observation: current input processing allocates per frame and should not be treated as a no-GC gameplay hot path until separately fixed.
   Evidence: `SDL2InputSource.Update()` uses LINQ, `ToList()`, and `ToImmutableHashSet()` and contains a TODO about per-frame allocations.
+
+- Observation: On this machine, affected project builds can fail with an empty error summary during parallel MSBuild project-reference evaluation.
+  Evidence: `dotnet build Modules/Client/Window/Window.Core/Window.Core.csproj` exited with "Ошибок: 0"; the same build succeeded with `--no-restore -p:NoWarn=NU1903 -m:1`.
 
 ## Decision Log
 
@@ -50,7 +57,13 @@ The initial integration is not a production gameplay UI system. It is a client-o
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update this after each major milestone and at completion.
+Milestone 1 outcome: raw input remains available for ImGui while gameplay-facing `Input` now has a shared capture gate independent of ImGui. The capture state lives in `Window.Core` so both `Graphics.Core` and `Input` can use it without creating a project reference cycle.
+
+Milestone 2 outcome: ImGui renderer/device resources now have a lifecycle in `Graphics.Core` without changing scene submit order yet. Disabled overlay still produces no visible output and capture flags are cleared every graphics begin frame.
+
+Milestone 3 outcome: scene command list submission now happens before ImGui command list submission, and `SwapBuffers()` is isolated in the last graphics system. This creates the render-order slot needed for user ImGui ECS systems without changing merge-thread behavior.
+
+Initial usable overlay outcome: an ECS system can now call `ImGuiNET.ImGui` after `ImGuiBeginSystem` and before `ImGuiRenderSystem`. The built-in debug panel proves the path, but manual runtime validation is still needed for visibility, text entry, and gameplay input blocking.
 
 ## Context and Orientation
 
