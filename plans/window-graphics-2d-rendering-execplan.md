@@ -40,6 +40,8 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 13:22 +04:00) Added a dedicated `TextSdf.frag` shader asset and wired `Preset2DPipeline.TextPipeline` to a separate text pipeline instead of aliasing the texture pipeline.
 - [x] (2026-05-03 13:36 +04:00) Replaced eager `AddTextCentered` measuring with a stored `TextAnchor.Center`; merge now applies anchor offsets after allocation-free text layout.
 - [x] (2026-05-03 13:48 +04:00) Expanded text anchoring to the full 3x3 anchor set and moved anchor offset math into a pure helper covered by tests.
+- [x] (2026-05-03 17:03 +04:00) Added explicit thread-local command buffer prewarming through `GraphicsContext.EnsureThreadBufferCapacity` to avoid hidden `Array.Resize` during gameplay frames.
+- [x] (2026-05-03 17:12 +04:00) Added a thread-local `SetThreadBufferAutoResize` switch so gameplay can fail fast on command buffer overflow instead of silently allocating after prewarm.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

@@ -8,6 +8,7 @@ public static class GraphicsContext
     private static List<ICommandBuffer> _writeBuffers = new();
     private static List<ICommandBuffer> _pendingBuffers = new();
     [ThreadStatic] private static ThreadBuffer[]? _cachedBuffers;
+    [ThreadStatic] private static bool _threadBufferResizeDisabled;
 
     
     public static ICommandBuffer Buffer
@@ -32,6 +33,7 @@ public static class GraphicsContext
             if (buffer == null)
             {
                 buffer = new ThreadBuffer();
+                buffer.AllowResize = !_threadBufferResizeDisabled;
                 cachedBuffers[bufferIndex] = buffer;
             }
 
@@ -41,6 +43,49 @@ public static class GraphicsContext
                 _writeBuffers.Add(buffer);
             }
             return buffer;
+        }
+    }
+
+    public static void EnsureThreadBufferCapacity(int rects, int textures, int texts)
+    {
+        int commands = rects + textures + texts;
+        var cachedBuffers = _cachedBuffers;
+        if (cachedBuffers == null)
+        {
+            cachedBuffers = new ThreadBuffer[2];
+            _cachedBuffers = cachedBuffers;
+        }
+
+        for (int i = 0; i < cachedBuffers.Length; i++)
+        {
+            ThreadBuffer? buffer = cachedBuffers[i];
+            if (buffer == null)
+            {
+                buffer = new ThreadBuffer();
+                buffer.AllowResize = !_threadBufferResizeDisabled;
+                cachedBuffers[i] = buffer;
+            }
+
+            buffer.EnsureCapacity(rects, textures, texts, commands);
+        }
+    }
+
+    public static void SetThreadBufferAutoResize(bool allowResize)
+    {
+        _threadBufferResizeDisabled = !allowResize;
+        var cachedBuffers = _cachedBuffers;
+        if (cachedBuffers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < cachedBuffers.Length; i++)
+        {
+            ThreadBuffer? buffer = cachedBuffers[i];
+            if (buffer != null)
+            {
+                buffer.AllowResize = allowResize;
+            }
         }
     }
 

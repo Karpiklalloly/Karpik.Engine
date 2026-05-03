@@ -5,6 +5,7 @@ namespace Karpik.Engine.Client.Graphics.Core;
 public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
 {
     public int FrameId { get; private set; } = -1;
+    internal bool AllowResize { get; set; } = true;
     
     public ReadOnlySpan<DrawRectCmd> GetRectCommands() => _rects.AsSpan(0, _rectCount);
     public ReadOnlySpan<DrawTextureCmd> GetTextureCommands() => _textures.AsSpan(0, _textureCount);
@@ -22,12 +23,20 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
 
     private DrawCommand[] _commands = new DrawCommand[512];
     private int _commandCount;
+
+    internal void EnsureCapacity(int rects, int textures, int texts, int commands)
+    {
+        EnsureCapacity(ref _rects, rects);
+        EnsureCapacity(ref _textures, textures);
+        EnsureCapacity(ref _texts, texts);
+        EnsureCapacity(ref _commands, commands);
+    }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in DrawRectCmd cmd)
     {
-        if (_rectCount >= _rects.Length) Resize(ref _rects);
-        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        if (_rectCount >= _rects.Length) ResizeOrThrow(ref _rects);
+        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
         _commands[_commandCount++] = new DrawCommand(DrawCommandType.Rect, _rectCount);
         _rects[_rectCount++] = cmd;
     }
@@ -35,8 +44,8 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in DrawTextureCmd cmd)
     {
-        if (_textureCount >= _textures.Length) Resize(ref _textures);
-        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        if (_textureCount >= _textures.Length) ResizeOrThrow(ref _textures);
+        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
         _commands[_commandCount++] = new DrawCommand(DrawCommandType.Texture, _textureCount);
         _textures[_textureCount++] = cmd;
     }
@@ -44,8 +53,8 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in DrawTextCmd cmd)
     {
-        if (_textCount >= _texts.Length) Resize(ref _texts);
-        if (_commandCount >= _commands.Length) Resize(ref _commands);
+        if (_textCount >= _texts.Length) ResizeOrThrow(ref _texts);
+        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
         _commands[_commandCount++] = new DrawCommand(DrawCommandType.Text, _textCount);
         _texts[_textCount++] = cmd;
     }
@@ -68,5 +77,34 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     private static void Resize<T>(ref T[] array)
     {
         Array.Resize(ref array, array.Length * 2);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void ResizeOrThrow<T>(ref T[] array)
+    {
+        if (!AllowResize)
+        {
+            throw new InvalidOperationException(
+                $"Graphics command buffer capacity exceeded for {typeof(T).Name}. Call GraphicsContext.EnsureThreadBufferCapacity during warm-up.");
+        }
+
+        Resize(ref array);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void EnsureCapacity<T>(ref T[] array, int capacity)
+    {
+        if (capacity <= array.Length)
+        {
+            return;
+        }
+
+        int newLength = array.Length;
+        while (newLength < capacity)
+        {
+            newLength *= 2;
+        }
+
+        Array.Resize(ref array, newLength);
     }
 }
