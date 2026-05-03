@@ -4,6 +4,60 @@ namespace Karpik.Engine.Client.Graphics.Core;
 
 public static class TextLayout
 {
+    public static Vector2 Measure(IFont font, ReadOnlySpan<char> text, float size)
+    {
+        if (size <= 0f || font.Size <= 0f)
+        {
+            return default;
+        }
+
+        float scale = size / font.Size;
+        float penX = 0f;
+        float penY = 0f;
+        float maxX = 0f;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '\r')
+            {
+                continue;
+            }
+
+            if (c == '\n')
+            {
+                if (penX > maxX)
+                {
+                    maxX = penX;
+                }
+
+                penX = 0f;
+                penY += font.LineHeight * scale;
+                continue;
+            }
+
+            if (!font.TryGetGlyph(c, out FontGlyph glyph))
+            {
+                continue;
+            }
+
+            Vector2 position = new Vector2(
+                penX + glyph.Bearing.X * scale,
+                penY + (font.Ascender - glyph.Bearing.Y) * scale);
+            Vector2 glyphSize = glyph.Size * scale;
+
+            penX += glyph.Advance * scale;
+
+            float glyphRight = position.X + glyphSize.X;
+            if (glyphRight > maxX)
+            {
+                maxX = glyphRight;
+            }
+        }
+
+        return new Vector2(MathF.Max(maxX, penX), penY + font.LineHeight * scale);
+    }
+
     public static TextLayoutResult Build(
         IFont font,
         ReadOnlySpan<char> text,

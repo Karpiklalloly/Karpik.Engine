@@ -29,6 +29,8 @@ var tests = new (string Name, Action Run)[]
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
     ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
     ("TextAnchorTransform_GetOffset_MapsAllAnchors", TextAnchorTransform_GetOffset_MapsAllAnchors),
+    ("TextLayout_Measure_MatchesBuildSize", TextLayout_Measure_MatchesBuildSize),
+    ("TextLayout_Measure_ReturnsZeroForInvalidSize", TextLayout_Measure_ReturnsZeroForInvalidSize),
     ("TextLayout_Build_EmitsGlyphQuadsAndSize", TextLayout_Build_EmitsGlyphQuadsAndSize),
     ("TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation", TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation)
 };
@@ -557,6 +559,24 @@ static void TextAnchorTransform_GetOffset_MapsAllAnchors()
     AssertNear(new Vector2(0f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomLeft, size));
     AssertNear(new Vector2(50f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomCenter, size));
     AssertNear(new Vector2(100f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomRight, size));
+}
+
+static void TextLayout_Measure_MatchesBuildSize()
+{
+    AtlasFont font = CreateTestFont(new FakeTexture());
+    Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[4];
+
+    TextLayoutResult result = TextLayout.Build(font, "AB\nBA", 32f, quads);
+    Vector2 measured = TextLayout.Measure(font, "AB\nBA", 32f);
+
+    AssertNear(result.Size, measured);
+}
+
+static void TextLayout_Measure_ReturnsZeroForInvalidSize()
+{
+    AtlasFont font = CreateTestFont(new FakeTexture());
+
+    AssertNear(Vector2.Zero, TextLayout.Measure(font, "AB", 0f));
 }
 
 static void TextLayout_Build_EmitsGlyphQuadsAndSize()

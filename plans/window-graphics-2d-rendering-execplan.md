@@ -46,6 +46,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 17:31 +04:00) Added `AddTextCopy`/`AddTextCenteredCopy` for dynamic span text by copying into the prewarmed thread-local command buffer char storage.
 - [x] (2026-05-03 17:38 +04:00) Marked measured-size `AddTextCentered` overloads obsolete now that text anchoring handles centering without caller-side layout.
 - [x] (2026-05-03 17:49 +04:00) Removed the obsolete measured-size `AddTextCentered` overloads after confirming centered text renders correctly through `TextAnchor.Center`.
+- [x] (2026-05-03 17:56 +04:00) Added allocation-free `TextLayout.Measure` so callers can inspect text size without emitting glyph quads or allocating temporary layout buffers.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.
