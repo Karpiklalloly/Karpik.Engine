@@ -329,11 +329,14 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         );
 
         TextLayoutResult layout = TextLayout.Build(cmd.Font, cmd.Text.Span, cmd.Size, context.TextGlyphs);
+        Vector2 anchorOffset = GetTextAnchorOffset(cmd.Anchor, layout.Size);
+        Vector2 textPosition = cmd.Position - anchorOffset;
+        Vector2 textOrigin = anchorOffset + cmd.Origin;
         for (int i = 0; i < layout.GlyphCount; i++)
         {
             TextGlyphQuad glyph = context.TextGlyphs[i];
-            Vector2 glyphPosition = cmd.Position + glyph.Position;
-            Vector2 glyphOrigin = cmd.Origin - glyph.Position;
+            Vector2 glyphPosition = textPosition + glyph.Position;
+            Vector2 glyphOrigin = textOrigin - glyph.Position;
             DrawTransform2D transform = new DrawTransform2D(
                 glyphPosition,
                 glyph.Size,
@@ -372,6 +375,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                 break;
             }
         }
+    }
+
+    private static Vector2 GetTextAnchorOffset(TextAnchor anchor, Vector2 layoutSize)
+    {
+        return anchor == TextAnchor.Center
+            ? layoutSize * 0.5f
+            : default;
     }
 
     private void SetPipeline(ref Pipeline? current, Pipeline next, MergeContext ctx, ResourceSet? currentRS, ref int quadCount)

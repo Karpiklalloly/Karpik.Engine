@@ -9,6 +9,7 @@ public struct DrawTextCmd
     public ReadOnlyMemory<char> Text;
     public Vector2 Position;
     public Vector2 Origin;
+    public TextAnchor Anchor;
     public float Size;
     public float RotationRadians;
     public Color Color;

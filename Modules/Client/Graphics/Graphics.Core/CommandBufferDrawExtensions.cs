@@ -106,10 +106,11 @@ public static class CommandBufferDrawExtensions
         float size,
         Color color,
         Vector2 origin = default,
+        TextAnchor anchor = TextAnchor.TopLeft,
         float rotationRadians = 0f,
         DrawSpace space = DrawSpace.Screen)
     {
-        buffer.AddText(font, text.AsMemory(), position, size, color, origin, rotationRadians, space);
+        buffer.AddText(font, text.AsMemory(), position, size, color, origin, anchor, rotationRadians, space);
     }
 
     public static void AddText(
@@ -120,6 +121,7 @@ public static class CommandBufferDrawExtensions
         float size,
         Color color,
         Vector2 origin = default,
+        TextAnchor anchor = TextAnchor.TopLeft,
         float rotationRadians = 0f,
         DrawSpace space = DrawSpace.Screen)
     {
@@ -129,6 +131,7 @@ public static class CommandBufferDrawExtensions
             Text = text,
             Position = position,
             Origin = origin,
+            Anchor = anchor,
             Size = size,
             RotationRadians = rotationRadians,
             Color = color,
@@ -148,13 +151,16 @@ public static class CommandBufferDrawExtensions
         float rotationRadians = 0f,
         DrawSpace space = DrawSpace.Screen)
     {
-        Span<TextGlyphQuad> temp = stackalloc TextGlyphQuad[64];
-        TextLayoutResult layout = TextLayout.Build(
+        buffer.AddText(
             font,
-            text,
+            text.AsMemory(),
+            center,
             size,
-            temp);
-        buffer.AddTextCentered(font, text.AsMemory(), center, layout.Size, size, color, rotationRadians, space);
+            color,
+            origin: default,
+            anchor: TextAnchor.Center,
+            rotationRadians: rotationRadians,
+            space: space);
     }
 
     public static void AddTextCentered(
@@ -189,6 +195,7 @@ public static class CommandBufferDrawExtensions
             Text = text,
             Position = center - origin,
             Origin = origin,
+            Anchor = TextAnchor.TopLeft,
             Size = size,
             RotationRadians = rotationRadians,
             Color = color,

@@ -21,7 +21,7 @@ var tests = new (string Name, Action Run)[]
     ("CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv", CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv),
     ("CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace", CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace),
     ("CommandBuffer_AddText_DefaultsToTopLeftScreenSpace", CommandBuffer_AddText_DefaultsToTopLeftScreenSpace),
-    ("CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin", CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin),
+    ("CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring", CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring),
     ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
     ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
@@ -291,12 +291,13 @@ static void CommandBuffer_AddText_DefaultsToTopLeftScreenSpace()
     AssertText("Text", cmd.Text);
     AssertNear(new Vector2(12f, 24f), cmd.Position);
     AssertNear(Vector2.Zero, cmd.Origin);
+    AssertEqual(TextAnchor.TopLeft, cmd.Anchor);
     AssertEqual(18f, cmd.Size);
     AssertEqual(0f, cmd.RotationRadians);
     AssertEqual(DrawSpace.Screen, cmd.Space);
 }
 
-static void CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin()
+static void CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
     AtlasFont font = CreateTestFont(new FakeTexture());
@@ -305,7 +306,6 @@ static void CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin()
         font,
         "AB",
         new Vector2(100f, 80f),
-        new Vector2(34f, 36f),
         32f,
         Color.White,
         rotationRadians: 0.5f,
@@ -314,8 +314,9 @@ static void CommandBuffer_AddTextCentered_UsesMeasuredSizeAsOrigin()
     DrawTextCmd cmd = buffer.Text;
     AssertReferenceSame(font, cmd.Font);
     AssertText("AB", cmd.Text);
-    AssertNear(new Vector2(83f, 62f), cmd.Position);
-    AssertNear(new Vector2(17f, 18f), cmd.Origin);
+    AssertNear(new Vector2(100f, 80f), cmd.Position);
+    AssertNear(Vector2.Zero, cmd.Origin);
+    AssertEqual(TextAnchor.Center, cmd.Anchor);
     AssertEqual(32f, cmd.Size);
     AssertEqual(0.5f, cmd.RotationRadians);
     AssertEqual(DrawSpace.World, cmd.Space);
