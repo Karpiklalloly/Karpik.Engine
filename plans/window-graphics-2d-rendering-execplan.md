@@ -39,6 +39,7 @@ The observable outcome is a client sample or test scene where:
 - [x] (2026-05-03 13:05 +04:00) Extended font metadata parsing to accept native `msdf-atlas-gen` JSON, including em-space metrics, plane bounds, atlas bounds, and same-name PNG fallback from `FontLoader`.
 - [x] (2026-05-03 13:22 +04:00) Added a dedicated `TextSdf.frag` shader asset and wired `Preset2DPipeline.TextPipeline` to a separate text pipeline instead of aliasing the texture pipeline.
 - [x] (2026-05-03 13:36 +04:00) Replaced eager `AddTextCentered` measuring with a stored `TextAnchor.Center`; merge now applies anchor offsets after allocation-free text layout.
+- [x] (2026-05-03 13:48 +04:00) Expanded text anchoring to the full 3x3 anchor set and moved anchor offset math into a pure helper covered by tests.
 - [ ] Add transform and coordinate-space API to draw commands.
 - [ ] Add camera data model and camera state service.
 - [ ] Add SDF/MSDF font asset loading and text command batching.

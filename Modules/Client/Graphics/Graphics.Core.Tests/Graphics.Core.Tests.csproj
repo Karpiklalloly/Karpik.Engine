@@ -29,6 +29,7 @@
         <Compile Include="..\Graphics.Core\Resources\FontAtlasMetrics.cs" Link="Graphics.Core\Resources\FontAtlasMetrics.cs" />
         <Compile Include="..\Graphics.Core\Resources\FontGlyph.cs" Link="Graphics.Core\Resources\FontGlyph.cs" />
         <Compile Include="..\Graphics.Core\Text\TextGlyphQuad.cs" Link="Graphics.Core\Text\TextGlyphQuad.cs" />
+        <Compile Include="..\Graphics.Core\Text\TextAnchorTransform.cs" Link="Graphics.Core\Text\TextAnchorTransform.cs" />
         <Compile Include="..\Graphics.Core\Text\TextLayout.cs" Link="Graphics.Core\Text\TextLayout.cs" />
         <Compile Include="..\Graphics.Core\Text\TextLayoutResult.cs" Link="Graphics.Core\Text\TextLayoutResult.cs" />
     </ItemGroup>

@@ -26,6 +26,7 @@ var tests = new (string Name, Action Run)[]
     ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
     ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
     ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
+    ("TextAnchorTransform_GetOffset_MapsAllAnchors", TextAnchorTransform_GetOffset_MapsAllAnchors),
     ("TextLayout_Build_EmitsGlyphQuadsAndSize", TextLayout_Build_EmitsGlyphQuadsAndSize),
     ("TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation", TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation)
 };
@@ -495,6 +496,21 @@ static void AtlasFont_Dispose_RespectsAtlasTextureOwnership()
     {
         throw new InvalidOperationException("Expected external atlas texture to stay alive after font dispose.");
     }
+}
+
+static void TextAnchorTransform_GetOffset_MapsAllAnchors()
+{
+    Vector2 size = new Vector2(100f, 40f);
+
+    AssertNear(new Vector2(0f, 0f), TextAnchorTransform.GetOffset(TextAnchor.TopLeft, size));
+    AssertNear(new Vector2(50f, 0f), TextAnchorTransform.GetOffset(TextAnchor.TopCenter, size));
+    AssertNear(new Vector2(100f, 0f), TextAnchorTransform.GetOffset(TextAnchor.TopRight, size));
+    AssertNear(new Vector2(0f, 20f), TextAnchorTransform.GetOffset(TextAnchor.CenterLeft, size));
+    AssertNear(new Vector2(50f, 20f), TextAnchorTransform.GetOffset(TextAnchor.Center, size));
+    AssertNear(new Vector2(100f, 20f), TextAnchorTransform.GetOffset(TextAnchor.CenterRight, size));
+    AssertNear(new Vector2(0f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomLeft, size));
+    AssertNear(new Vector2(50f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomCenter, size));
+    AssertNear(new Vector2(100f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomRight, size));
 }
 
 static void TextLayout_Build_EmitsGlyphQuadsAndSize()
