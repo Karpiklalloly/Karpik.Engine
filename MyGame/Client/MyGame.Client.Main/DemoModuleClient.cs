@@ -52,6 +52,11 @@ public class MySystem : IEcsRun, IEcsInit
         public EcsReadonlyPool<Position> position = Inc;
         public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
+    
+    class CameraAspect : EcsAspect
+    {
+        public EcsPool<CameraHolder> holder = Inc;
+    }
 
     private const int AUTO_MOVE_PLAYER_INDEX = 0;
     private const int SHOW_WORLD_ENTITIES = 1;
@@ -68,6 +73,7 @@ public class MySystem : IEcsRun, IEcsInit
     [DI] private Time _time = null!;
     [DI] private IPhysicsWorld2D _physicsWorld2D;
     [DI] private IServiceContainer _serviceContainer;
+    [DI] private ImGuiOverlayState _overlay = null!;
 
     public void Init()
     {
@@ -75,31 +81,36 @@ public class MySystem : IEcsRun, IEcsInit
 
     public void Run()
     {
-        // ImGui.Begin("DemoWindow");
-        // ShowButtons();
-        // ShowStats();
-        // var span = _world.Where(out Aspect a);
-        // if (span.Count > 0)
-        // {
-        //     ImGui.Text($"Local Player (net id): {a.networkId.Get(span[0]).Id}");
-        //     ImGui.Text($"Local Player (local id): {span[0]}");
-        // }
-        // else
-        // {
-        //     ImGui.Text("No entities with Position component found.");
-        // }
-        //
-        // ImGui.End();
-        //
-        // ImGui.Begin("UI");
-        // // PrintUI(_uiManager.Root);
-        // ImGui.End();
-        //
-        //
-        // if (_input.IsPressed(Key.Escape))
-        // {
-        //     _time.IsPaused = !_time.IsPaused;
-        // }
+        if (!_overlay.Enabled)
+        {
+            return;
+        }
+        
+        ImGui.Begin("DemoWindow");
+        ShowButtons();
+        ShowStats();
+        var span = _world.Where(out Aspect a);
+        if (span.Count > 0)
+        {
+            ImGui.Text($"Local Player (net id): {a.networkId.Get(span[0]).Id}");
+            ImGui.Text($"Local Player (local id): {span[0]}");
+        }
+        else
+        {
+            ImGui.Text("No entities with Position component found.");
+        }
+        
+        ImGui.End();
+        
+        ImGui.Begin("UI");
+        // PrintUI(_uiManager.Root);
+        ImGui.End();
+        
+        
+        if (_input.IsPressed(Key.Escape))
+        {
+            _time.IsPaused = !_time.IsPaused;
+        }
     }
 
     private void ShowButtons()
@@ -272,12 +283,15 @@ public class MySystem : IEcsRun, IEcsInit
         {
             ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024}Kb");
         }
-        
-        // ImGui.Text($"Camera pos: {_renderer.MainCamera2D.Position}");
-        // ImGui.Text($"Camera zoom: {_renderer.MainCamera2D.Zoom}");
-        // var zoom = _renderer.MainCamera2D.Zoom;
-        // ImGui.SliderFloat($"Camera Zoom", ref zoom, 1, 100);
-        // _renderer.MainCamera2D.Zoom = zoom;
+
+        foreach (var e in _world.Where(out CameraAspect a))
+        {
+            ref var holder = ref a.holder.Get(e);
+            ImGui.Text($"Camera pos: {holder.Camera.Position}");
+            ImGui.Text($"Camera zoom: {holder.Camera.Zoom}");
+            ImGui.SliderFloat($"Camera Zoom", ref holder.Camera.Zoom, 1, 100);
+            ImGui.SliderFloat($"Camera PixelsPerUnit", ref holder.Camera.PixelsPerUnit, 1, 100);
+        }
     }
 
     // private void PrintUI(UIElement element, int indent = 0)

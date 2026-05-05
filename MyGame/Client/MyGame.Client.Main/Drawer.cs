@@ -15,12 +15,19 @@ public class Drawer
     // [DI] private ICamera2D _camera2D = null!;
     [DI] private Application _application = null!;
 
+    private IFont _font = null!;
+    
+    internal void SetFont(IFont font)
+    {
+        _font = font;
+    }
+
     public void Sprite(SpriteRenderer spriteRenderer, Transform2D transform)
     {
         ResizeIfNeed();
         _actions[_actionsCount++] = new SpriteAction()
         {
-            // Texture = spriteRenderer.Texture,
+            Texture = spriteRenderer.Texture,
             Position = transform.Position,
             Color = spriteRenderer.Color,
             Rotation = transform.Rotation,
@@ -31,16 +38,12 @@ public class Drawer
 
     internal void Draw()
     {
-        // _renderer.BeginMode2D(_camera2D);
-        //
-        // var span = _actions.AsSpan(0, _actionsCount);
-        // span.Sort(static (a, b) => a.Layer.CompareTo(b.Layer));
-        // while (_actionsCount > 0)
-        // {
-        //     span[--_actionsCount].Draw(_renderer);
-        // }
-        //
-        // _renderer.End2DMode();
+        var span = _actions.AsSpan(0, _actionsCount);
+        span.Sort(static (a, b) => a.Layer.CompareTo(b.Layer));
+        while (_actionsCount > 0)
+        {
+            span[--_actionsCount].Draw(_font);
+        }
     }
 
     private void ResizeIfNeed()
@@ -60,30 +63,27 @@ public class Drawer
         public double Rotation;
         public int Layer;
         
-        // public void Draw(IRenderer2D renderer)
-        // {
-        //     if (Texture is not null)
-        //     {
-        //         RectangleF sourceRec = new RectangleF(0, 0, Texture.Width, Texture.Height);
-        //         RectangleF destRec = new RectangleF(
-        //             Position.X,
-        //             -Position.Y,
-        //             Size.X,
-        //             Size.Y
-        //         );
-        //         Vector2 origin = new Vector2(Size.X / 2f, Size.Y / 2f);
-        //         
-        //         renderer.DrawTexture(Texture, sourceRec, destRec, origin, (float)Rotation, Color);
-        //         renderer.DrawText(
-        //             renderer.GetFontDefault(),
-        //             $"{Position}",
-        //             Position with{Y = -Position.Y - 1},
-        //             origin,
-        //             (float)Rotation,
-        //             1,
-        //             0.5f,
-        //             Color.Red);
-        //     }
-        // }
+        public void Draw(IFont font)
+        {
+            if (Texture is not null)
+            {
+                RectangleF sourceRec = new RectangleF(0, 0, Texture.Width, Texture.Height);
+                RectangleF destRec = new RectangleF(
+                    Position.X,
+                    -Position.Y,
+                    Size.X,
+                    Size.Y
+                );
+                Vector2 origin = new Vector2(Size.X / 2f, Size.Y / 2f);
+                GraphicsContext.Buffer.AddTextureCentered(
+                    Texture,
+                    Position,
+                    Size,
+                    Color,
+                    (float)Rotation,
+                    DrawSpace.World);
+                GraphicsContext.Buffer.AddText(font, $"{Position}", Position, 1, Color.Red, origin, TextAnchor.CenterLeft, (float)Rotation, DrawSpace.World);
+            }
+        }
     }
 }

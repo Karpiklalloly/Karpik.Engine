@@ -6,6 +6,8 @@ public sealed class VeldridTexture2D(Texture texture, ResourceSet resourceSet) :
 {
     public readonly Texture Texture = texture;
     public readonly ResourceSet ResourceSet = resourceSet;
+    public uint Width => Texture.Width;
+    public uint Height => Texture.Height;
     
     public void Dispose() => Texture.Dispose();
 }
