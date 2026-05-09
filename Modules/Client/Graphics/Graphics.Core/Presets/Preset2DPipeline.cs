@@ -5,6 +5,7 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using Veldrid;
 using Veldrid.SPIRV;
+using Pipeline = Veldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.Core.Presets;
 
