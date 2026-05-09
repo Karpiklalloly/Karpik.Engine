@@ -3,7 +3,6 @@
   <Folder Name="/first-parties/Kveldrid/" />
   <Folder Name="/first-parties/Kveldrid/src/">
     <Project Path="first-parties/Kveldrid-spirv/src/Veldrid.SPIRV/Veldrid.SPIRV.csproj" />
-    <Project Path="first-parties/Kveldrid/src/NeoDemo/NeoDemo.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.ImageSharp/Veldrid.ImageSharp.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.ImGui/Veldrid.ImGui.csproj" />
     <Project Path="first-parties/Kveldrid/src/Veldrid.MetalBindings/Veldrid.MetalBindings.csproj" />
