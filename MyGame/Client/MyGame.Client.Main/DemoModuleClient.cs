@@ -32,9 +32,9 @@ internal class DemoModuleClient : IModule
         b.Add((object)new MySystem());
         b.Add(new SetLocalPlayerSystem());
         b.Add(new ApplySpriteSystem());
-        b.Add(new DisplaySystem());
+        b.Add((object)new DisplaySystem());
         b.Add(new DrawSpriteSystem());
-        b.Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50);
+        b.Add((object)new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50);
         b.Add(new InputSystem());
         b.AddCaller<SetLocalPlayerTargetRpc>();
 

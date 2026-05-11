@@ -12,7 +12,7 @@ using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class InputSystem : IEcsRun
+public class InputSystem : ISystemUpdate
 {
     class Aspect : EcsAspect
     {
@@ -30,7 +30,7 @@ public class InputSystem : IEcsRun
     // [DI] private IRenderer _renderer;
     [DI] private Application _application;
     
-    public void Run()
+    public void Update()
     {
         if (_input.IsMouseRightButtonDown)
         {

@@ -13,7 +13,7 @@ using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class DisplaySystem : IEcsRun, IEcsInit
+public class DisplaySystem : ISystemUpdate, ISystemInit
 {
     class Aspect : EcsAspect
     {
@@ -31,7 +31,7 @@ public class DisplaySystem : IEcsRun, IEcsInit
     private AssetHandle<FontAsset> _fontAsset;
     private entlong _cameraHolder;
 
-    public void Run()
+    public void Update()
     {
         var camera = _cameraHolder.Get<CameraHolder>().Camera;
         _cameraState.SetActive(in camera);

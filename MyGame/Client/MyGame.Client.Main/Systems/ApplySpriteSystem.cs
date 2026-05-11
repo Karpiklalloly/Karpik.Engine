@@ -4,7 +4,7 @@ using Karpik.Engine.MyGame.Shared.Main;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class ApplySpriteSystem : IEcsRun
+public class ApplySpriteSystem : ISystemUpdate
 {
     class Aspect : EcsAspect
     {
@@ -16,7 +16,7 @@ public class ApplySpriteSystem : IEcsRun
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private IServiceContainer _serviceContainer = null!;
     
-    public void Run()
+    public void Update()
     {
         foreach (var e in _world.Where(out Aspect a))
         {
