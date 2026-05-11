@@ -120,44 +120,6 @@ namespace Karpik.Engine.Shared.DragonECS
                 
             }
         }
-        
-        public class OnEventFixedRunner<T> : EcsRunner<IEcsFixedRunOnEvent<T>>, IEcsFixedRunOnEvent<T>, IEcsInject<EcsEventWorld> where T : struct, IEcsComponentEvent
-        {
-            private class Aspect : EcsAspect
-            {
-                public EcsPool<T> evt = Inc;
-            }
-
-            private EcsEventWorld _eventWorld;
-
-            public void Run()
-            {
-                var span = _eventWorld.Where(out Aspect a);
-                if (span.Count == 0)
-                {
-                    return;
-                }
-
-                foreach (var e in span)
-                {
-                    foreach (var run in Process)
-                    {
-                        run.RunOnEvent(ref a.evt.Get(e));
-                    }
-                }
-
-                a.evt.ClearAll();
-            }
-
-            public void RunOnEvent(ref T evt)
-            {
-            }
-
-            public void Inject(EcsEventWorld obj)
-            {
-                _eventWorld = obj;
-            }
-        }
     }
     
     public static class Requests
@@ -213,44 +175,6 @@ namespace Karpik.Engine.Shared.DragonECS
             }
 
             public void RunOnRequest(ref T evt)
-            {
-            }
-
-            public void Inject(EcsDefaultWorld obj)
-            {
-                _world = obj;
-            }
-        }
-        
-        public class OnRequestFixedRunner<T> : EcsRunner<IEcsFixedRunOnRequest<T>>, IEcsFixedRunOnRequest<T>, IEcsInject<EcsDefaultWorld> where T : struct, IEcsComponentRequest
-        {
-            private class Aspect : EcsAspect
-            {
-                public EcsPool<T> evt = Inc;
-            }
-
-            private EcsDefaultWorld _world;
-
-            public void Run()
-            {
-                var span = _world.Where(out Aspect a);
-                if (span.Count == 0)
-                {
-                    return;
-                }
-
-                foreach (var e in span)
-                {
-                    foreach (var run in Process)
-                    {
-                        run.RunOnEvent(ref a.evt.Get(e));
-                    }
-                }
-                
-                a.evt.ClearAll();
-            }
-
-            public void RunOnEvent(ref T evt)
             {
             }
 
@@ -322,51 +246,7 @@ namespace Karpik.Engine.Shared.DragonECS
             _world = obj;
         }
     }
-    
-    public abstract class FixedRunOnEventSystem<TEvent, TAspect> : IEcsFixedRunOnEvent<TEvent>, IEcsInject<EcsEventWorld>
-        where TEvent : struct, IEcsComponentEvent
-        where TAspect : EcsAspect, new()
-    {
-        private EcsEventWorld _world;
-        
-        public void RunOnEvent(ref TEvent evt)
-        {
-            var aspect = _world.GetAspect<TAspect>();
-            if (aspect.IsMatches(evt.Target))
-            {
-                FixedRunOnEvent(ref evt, ref aspect);
-            }
-        }
-        
-        public abstract void FixedRunOnEvent(ref TEvent evt, ref TAspect aspect);
-        public void Inject(EcsEventWorld obj)
-        {
-            _world = obj;
-        }
-    }
-    
-    public abstract class FixedRunOnRequestSystem<TRequest, TAspect> : IEcsFixedRunOnRequest<TRequest>,  IEcsInject<EcsDefaultWorld>
-        where TRequest : struct, IEcsComponentRequest
-        where TAspect : EcsAspect, new()
-    {
-        private EcsDefaultWorld _world;
-        
-        public void RunOnEvent(ref TRequest evt)
-        {
-            var aspect = _world.GetAspect<TAspect>();
-            if (aspect.IsMatches(evt.Target))
-            {
-                FixedRunOnEvent(ref evt, ref aspect);
-            }
-        }
-        
-        public abstract void FixedRunOnEvent(ref TRequest evt, ref TAspect aspect);
-        public void Inject(EcsDefaultWorld obj)
-        {
-            _world = obj;
-        }
-    }
-    
+
     public interface IEcsRunOnEvent<T> : IEcsProcess where T : struct, IEcsComponentEvent
     {
         public void RunOnEvent(ref T evt);

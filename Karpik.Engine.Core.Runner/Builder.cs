@@ -46,7 +46,7 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
             added = true;
         }
 
-        if (system is IEcsProcess process)
+        if (!added && system is IEcsProcess process)
         {
             builder.Add(process, layer, order);
             added = true;

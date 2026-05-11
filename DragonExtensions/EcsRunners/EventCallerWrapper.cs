@@ -120,44 +120,6 @@ namespace Karpik.Engine.Shared.DragonECS
                 
             }
         }
-        
-        public class OnEventFixedRunner<T> : EcsRunner<IEcsFixedRunOnEvent<T>>, IEcsFixedRunOnEvent<T>, IEcsInject<EcsEventWorld> where T : struct, IEcsComponentEvent
-        {
-            private class Aspect : EcsAspect
-            {
-                public EcsPool<T> evt = Inc;
-            }
-
-            private EcsEventWorld _eventWorld;
-
-            public void Run()
-            {
-                var span = _eventWorld.Where(out Aspect a);
-                if (span.Count == 0)
-                {
-                    return;
-                }
-
-                foreach (var e in span)
-                {
-                    foreach (var run in Process)
-                    {
-                        run.RunOnEvent(ref a.evt.Get(e));
-                    }
-                }
-
-                a.evt.ClearAll();
-            }
-
-            public void RunOnEvent(ref T evt)
-            {
-            }
-
-            public void Inject(EcsEventWorld obj)
-            {
-                _eventWorld = obj;
-            }
-        }
     }
     
     public static class RequestsWrapper
@@ -213,44 +175,6 @@ namespace Karpik.Engine.Shared.DragonECS
             }
 
             public void RunOnRequest(ref T evt)
-            {
-            }
-
-            public void Inject(EcsDefaultWorld obj)
-            {
-                _world = obj;
-            }
-        }
-        
-        public class OnRequestFixedRunner<T> : EcsRunner<IEcsFixedRunOnRequest<T>>, IEcsFixedRunOnRequest<T>, IEcsInject<EcsDefaultWorld> where T : struct, IEcsComponentRequest
-        {
-            private class Aspect : EcsAspect
-            {
-                public EcsPool<T> evt = Inc;
-            }
-
-            private EcsDefaultWorld _world;
-
-            public void Run()
-            {
-                var span = _world.Where(out Aspect a);
-                if (span.Count == 0)
-                {
-                    return;
-                }
-
-                foreach (var e in span)
-                {
-                    foreach (var run in Process)
-                    {
-                        run.RunOnEvent(ref a.evt.Get(e));
-                    }
-                }
-                
-                a.evt.ClearAll();
-            }
-
-            public void RunOnEvent(ref T evt)
             {
             }
 

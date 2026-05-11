@@ -97,6 +97,7 @@ public class EngineRunner : IEngineRunner
         _pipeline.Destroy();
         _pipeline = null;
         _modules.Clear();
+        _fixedRunTicker.Destroy();
     }
 
     public Dictionary<string, byte[]> GetHotReloadData()

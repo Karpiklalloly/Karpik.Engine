@@ -46,4 +46,9 @@ internal class FixedRunTicker
     {
         _fixedRun.Invoke();
     }
+
+    public void Destroy()
+    {
+        _fixedRun = null!;
+    }
 }
