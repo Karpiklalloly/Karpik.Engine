@@ -111,31 +111,19 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
 
     public IBuilder AddRunner<TRunner>() where TRunner : new()
     {
-        RunnerRegistration<TRunner>.AddRunner?.Invoke(builder);
-        
-        return this;
-    }
-
-    private static class RunnerRegistration<TRunner> where TRunner : new()
-    {
-        public static readonly Func<EcsPipeline.Builder, EcsPipeline.Builder>? AddRunner = CreateAddRunner();
-
-        private static Func<EcsPipeline.Builder, EcsPipeline.Builder>? CreateAddRunner()
+        Type runnerType = typeof(TRunner);
+        if (!typeof(EcsRunner).IsAssignableFrom(runnerType) ||
+            !typeof(IEcsRunner).IsAssignableFrom(runnerType))
         {
-            Type runnerType = typeof(TRunner);
-            if (!typeof(EcsRunner).IsAssignableFrom(runnerType) ||
-                !typeof(IEcsRunner).IsAssignableFrom(runnerType))
-            {
-                return null;
-            }
-
-            MethodInfo method = typeof(EcsPipeline.Builder)
-                .GetMethod(nameof(EcsPipeline.Builder.AddRunner), BindingFlags.Instance | BindingFlags.Public)!
-                .MakeGenericMethod(runnerType);
-
-            return (Func<EcsPipeline.Builder, EcsPipeline.Builder>)Delegate.CreateDelegate(
-                typeof(Func<EcsPipeline.Builder, EcsPipeline.Builder>),
-                method);
+            throw new InvalidOperationException(
+                $"Runner {runnerType.FullName} must inherit {nameof(EcsRunner)} and implement {nameof(IEcsRunner)}.");
         }
+
+        MethodInfo method = typeof(EcsPipeline.Builder)
+            .GetMethod(nameof(EcsPipeline.Builder.AddRunner), BindingFlags.Instance | BindingFlags.Public)!
+            .MakeGenericMethod(runnerType);
+
+        method.Invoke(builder, null);
+        return this;
     }
 }
