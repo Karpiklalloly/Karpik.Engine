@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-public class ServerGroundCheckSystem : IEcsRun
+public class ServerGroundCheckSystem : ISystemUpdate
 {
     class PlayerAspect : EcsAspect
     {
@@ -19,7 +19,7 @@ public class ServerGroundCheckSystem : IEcsRun
     [DI] private IPhysicsWorld2D _physicsWorld = null!;
     [DI] private EcsDefaultWorld _world = null!;
 
-    public void Run()
+    public void Update()
     {
         Span<RaycastHit2D> hits = stackalloc RaycastHit2D[4];
         

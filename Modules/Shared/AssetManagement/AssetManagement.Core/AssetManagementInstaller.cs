@@ -6,7 +6,7 @@ using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 [Module(-10000)]
-public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfiguratable, IModuleDestroy
+public class AssetManagementInstaller : IInstaller, IInstallerListener, IInstallerDestroy
 {
     public string Name => "AssetManagement.Core";
     
@@ -18,18 +18,14 @@ public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfigu
         services.Register<IAssetsManager>(_assetsManager);
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
-    {
-    }
-
     public void OnConfigureComplete(IServiceContainer services)
     {
         _assetsManager.RegisterLoaders(Assembly.GetExecutingAssembly());
     }
 
-    public void OnAnotherModuleLoaded(IServiceContainer services, IModule anotherModule, Assembly anotherModuleAssembly)
+    public void OnAnotherModuleLoaded(IServiceContainer services, IInstaller anotherInstaller, Assembly anotherModuleAssembly)
     {
-        if (anotherModule.Name == "Graphics.Core")
+        if (anotherInstaller.Name == "Graphics.Core")
         {
             
         }

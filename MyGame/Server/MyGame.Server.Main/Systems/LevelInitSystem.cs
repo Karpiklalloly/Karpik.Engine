@@ -10,7 +10,7 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 /// <summary>
 /// Server-side level initialization system - creates platforms and spawn points
 /// </summary>
-public class LevelInitSystem : IEcsInit
+public class LevelInitSystem : ISystemInit
 {
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private NetworkIdGenerator _networkIdGenerator = null!;

@@ -25,26 +25,26 @@ using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
-internal class DemoModuleClient : IEcsModule
+internal class DemoModuleClient : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
-        b.Add(new MySystem())
-            .Add(new SetLocalPlayerSystem())
-            .Add(new ApplySpriteSystem())
-            .Add(new DisplaySystem())
-            .Add(new DrawSpriteSystem())
-            .Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50)
-            .Add(new InputSystem())
-            .AddCaller<SetLocalPlayerTargetRpc>();
-        
+        b.Add((object)new MySystem());
+        b.Add(new SetLocalPlayerSystem());
+        b.Add(new ApplySpriteSystem());
+        b.Add(new DisplaySystem());
+        b.Add(new DrawSpriteSystem());
+        b.Add(new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50);
+        b.Add(new InputSystem());
+        b.AddCaller<SetLocalPlayerTargetRpc>();
+
 #if DEBUG
         // b.Add(new GameUISystem(), EcsConsts.POST_END_LAYER, 60);
 #endif
     }
 }
 
-public class MySystem : IEcsRun, IEcsInit
+public class MySystem : ISystemUpdate, ISystemInit
 {
     class Aspect : EcsAspect
     {
@@ -79,7 +79,7 @@ public class MySystem : IEcsRun, IEcsInit
     {
     }
 
-    public void Run()
+    public void Update()
     {
         if (!_overlay.Enabled)
         {

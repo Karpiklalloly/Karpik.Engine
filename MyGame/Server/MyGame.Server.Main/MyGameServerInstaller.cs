@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Server.Main;
 
 [Module]
-public class MyGameServerInstaller : IModule, IModuleConfiguratable
+public class MyGameServerInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "MyGame.Server.Main";
     
@@ -16,9 +16,9 @@ public class MyGameServerInstaller : IModule, IModuleConfiguratable
         services.Register(new NetworkIdGenerator());
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new MyGameServerModule());
+        module = new MyGameServerModule();
     }
     
     public void OnConfigureComplete(IServiceContainer services)

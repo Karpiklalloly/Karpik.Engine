@@ -4,13 +4,12 @@ using Network.Server.LiteNetLib.Systems;
 
 namespace Network.Server.LiteNetLib;
 
-internal class NetworkServerModule : IEcsModule
+internal class NetworkServerModule : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
-        b
-            .Add(new InitNetworkClientSystem())
-            .Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER)
-            .Add(new DestroyNetworkClientSystem());
+        b.Add(new InitNetworkClientSystem());
+        b.Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);
+        b.Add(new DestroyNetworkClientSystem());
     }
 }

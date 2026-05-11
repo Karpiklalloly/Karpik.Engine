@@ -8,7 +8,7 @@ using Veldrid;
 namespace Karpik.Engine.MyGame.Client.Main;
 
 [Module]
-public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfiguratable
+public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerConfiguratable
 {
     public string Name => "MyGame.Client.Main";
     
@@ -29,7 +29,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         services.Register(new Drawer());
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
         _manager.Initialize();
         _networkManager = services.Get<INetworkManager>();
@@ -71,7 +71,7 @@ public class MyGameClientInstaller : IModule, IModuleDestroy, IModuleConfigurata
         _input = services.Get<Input>();
         _input.KeyPressed += _onInput;
 
-        container.Register<IEcsModule>(new DemoModuleClient());
+        module = new DemoModuleClient();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

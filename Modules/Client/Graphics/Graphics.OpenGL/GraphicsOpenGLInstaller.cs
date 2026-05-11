@@ -13,7 +13,7 @@ using Veldrid.StartupUtilities;
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
 [Module(-100)]
-public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDestroy
+public class GraphicsOpenGLInstaller : IInstaller, IInstallerConfiguratable, IInstallerDestroy
 {
     public string Name => "Graphics.OpenGL";
     
@@ -28,7 +28,7 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
         var gdOptions = new GraphicsDeviceOptions(
             debug: false,
@@ -45,6 +45,7 @@ public class GraphicsOpenGLInstaller : IModule, IModuleConfiguratable, IModuleDe
         container.Register(_graphicsDevice);
         container.Register(_mergeThread);
         container.Register(new Preset2DPipeline());
+        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

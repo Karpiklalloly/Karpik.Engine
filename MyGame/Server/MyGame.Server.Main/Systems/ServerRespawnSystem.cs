@@ -7,7 +7,7 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 /// <summary>
 /// Server-side respawn system - handles player respawn when they fall off or hit death zone
 /// </summary>
-public class ServerRespawnSystem : IEcsRun
+public class ServerRespawnSystem : ISystemUpdate
 {
     class PlayerAspect : EcsAspect
     {
@@ -25,7 +25,7 @@ public class ServerRespawnSystem : IEcsRun
     
     [DI] private EcsDefaultWorld _world = null!;
 
-    public void Run()
+    public void Update()
     {
         foreach (var playerEntity in _world.Where(out PlayerAspect a))
         {

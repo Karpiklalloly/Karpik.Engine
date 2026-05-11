@@ -6,7 +6,7 @@ using nkast.Aether.Physics2D.Dynamics;
 namespace Karpik.Engine.Shared.Physics.Aether2D;
 
 [Module]
-public class Physics2DAetherInstaller : IModule
+public class Physics2DAetherInstaller : IInstaller
 {
     public string Name => "Physics2D.Aether2D";
     public void OnRegisterServices(IServiceRegister services)

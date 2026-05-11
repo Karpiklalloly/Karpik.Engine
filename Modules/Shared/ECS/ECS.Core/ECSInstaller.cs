@@ -7,7 +7,7 @@ using Newtonsoft.Json.Serialization;
 namespace Karpik.Engine.Shared.ECS;
 
 [Module]
-public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
+public class ECSInstaller : IInstaller, IInstallerHotReload, IInstallerConfiguratable
 {
     public string Name => "ECS.Core";
     
@@ -32,9 +32,9 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
             .Register(new MetaWorld(_metaWorld));
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new ECSModule());
+        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)

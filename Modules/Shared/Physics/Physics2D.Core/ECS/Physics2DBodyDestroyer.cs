@@ -3,7 +3,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class Physics2DBodyDestroyer : IEcsRun
+public class Physics2DBodyDestroyer : ISystemLate
 {
     class Aspect : EcsAspect 
     {
@@ -14,7 +14,7 @@ public class Physics2DBodyDestroyer : IEcsRun
     [DI] private IPhysicsWorld2D _physics = null!;
     [DI] private EcsDefaultWorld _world = null!;
     
-    public void Run()
+    public void LateRun()
     {
         foreach (var e in _world.Where(out Aspect destroy))
         {

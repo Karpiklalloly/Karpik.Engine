@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-public interface ISystemRender
+public interface ISystemRender : ISystem
 {
     public void Render();
 }

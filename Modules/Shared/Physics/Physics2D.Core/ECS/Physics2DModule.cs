@@ -3,9 +3,9 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-internal class Physics2DModule : IEcsModule
+internal class Physics2DModule : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
         b.Add(new Physics2DBodyCreator(), EcsConsts.PRE_BEGIN_LAYER);
         b.Add(new Physics2DBodyDestroyer(), EcsConsts.POST_END_LAYER);

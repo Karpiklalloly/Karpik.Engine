@@ -7,7 +7,7 @@ using Veldrid.StartupUtilities;
 namespace Karpik.Engine.Modules.Window.Sdl2;
 
 [Module(-200)]
-public class WindowSdlInstaller : IModule, IModuleDestroy
+public class WindowSdlInstaller : IInstaller, IInstallerDestroy
 {
     private Sdl2Window _window = null!;
     private SDL2Window _sdl2Window = null!;

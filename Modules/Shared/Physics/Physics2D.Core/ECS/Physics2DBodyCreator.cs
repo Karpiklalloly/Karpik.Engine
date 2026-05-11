@@ -3,7 +3,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class Physics2DBodyCreator : IEcsRun
+public class Physics2DBodyCreator : ISystemBegin
 {
     class Aspect : EcsAspect 
     {
@@ -15,7 +15,7 @@ public class Physics2DBodyCreator : IEcsRun
     [DI] private IPhysicsWorld2D _physics = null!;
     [DI] private EcsDefaultWorld _world = null!;
     
-    public void Run()
+    public void Begin()
     {
         foreach (var e in _world.Where(out Aspect create))
         {

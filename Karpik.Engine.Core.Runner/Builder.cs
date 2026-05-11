@@ -1,42 +1,122 @@
 ﻿using DCFApixels.DragonECS;
+using DCFApixels.DragonECS.RunnersCore;
 using DragonExtensions;
+using System.Reflection;
 
 namespace Karpik.Engine.Core.Runner;
 
 public class Builder(EcsPipeline.Builder builder) : IBuilder
 {
-    public void Add(ISystemInit init, int order = 0)
+    public IBuilder Add(object system, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new InitSystem(init), order);
+        if (system is ISystemInit init)
+        {
+            Add(init, layer, order);
+        }
+        if (system is ISystemBegin begin)
+        {
+            Add(begin, layer, order);
+        }
+        if (system is ISystemFixedUpdate fixedUpdate)
+        {
+            Add(fixedUpdate, layer, order);
+        }
+        if (system is ISystemUpdate update)
+        {
+            Add(update, layer, order);
+        }
+        if (system is ISystemLate end)
+        {
+            Add(end, layer, order);
+        }
+        if (system is ISystemRender render)
+        {
+            Add(render, layer, order);
+        }
+        if (system is ISystemDestroy destroy)
+        {
+            Add(destroy, layer, order);
+        }
+        
+        return this;
     }
 
-    public void Add(ISystemBegin begin, int order = 0)
+    public IBuilder Add(ISystemInit init, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new BeginSystem(begin), order);
+        builder.Add(new InitSystem(init), layer, order);
+        
+        return this;
     }
 
-    public void Add(ISystemFixedUpdate fixedUpdate, int order = 0)
+    public IBuilder Add(ISystemBegin begin, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new FixedUpdateSystem(fixedUpdate), order);
+        builder.Add(new BeginSystem(begin), layer, order);
+        
+        return this;
     }
 
-    public void Add(ISystemUpdate update, int order = 0)
+    public IBuilder Add(ISystemFixedUpdate fixedUpdate, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new UpdateSystem(update), order);
+        builder.Add(new FixedUpdateSystem(fixedUpdate), layer, order);
+        
+        return this;
     }
 
-    public void Add(ISystemLate end, int order = 0)
+    public IBuilder Add(ISystemUpdate update, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new LateSystem(end), order);
+        builder.Add(new UpdateSystem(update), layer, order);
+        
+        return this;
     }
 
-    public void Add(ISystemRender render, int order = 0)
+    public IBuilder Add(ISystemLate end, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new RenderSystem(render), order);
+        builder.Add(new LateSystem(end), layer, order);
+        
+        return this;
     }
 
-    public void Add(ISystemDestroy destroy, int order = 0)
+    public IBuilder Add(ISystemRender render, string layer = "BASIC_LAYER", int order = 0)
     {
-        builder.Add(new DragonExtensions.DestroySystem(destroy), order);
+        builder.Add(new RenderSystem(render), layer, order);
+        
+        return this;
+    }
+
+    public IBuilder Add(ISystemDestroy destroy, string layer = "BASIC_LAYER", int order = 0)
+    {
+        builder.Add(new DragonExtensions.DestroySystem(destroy), layer, order);
+        
+        return this;
+    }
+
+    public IBuilder AddRunner<TRunner>() where TRunner : new()
+    {
+        RunnerRegistration<TRunner>.AddRunner?.Invoke(builder);
+        
+        return this;
+    }
+
+    private static class RunnerRegistration<TRunner> where TRunner : new()
+    {
+        public static readonly Func<EcsPipeline.Builder, EcsPipeline.Builder>? AddRunner = CreateAddRunner();
+
+        private static Func<EcsPipeline.Builder, EcsPipeline.Builder>? CreateAddRunner()
+        {
+            Type runnerType = typeof(TRunner);
+            if (!typeof(EcsRunner).IsAssignableFrom(runnerType) ||
+                !typeof(IEcsRunner).IsAssignableFrom(runnerType))
+            {
+                return null;
+            }
+
+            MethodInfo method = typeof(EcsPipeline.Builder)
+                .GetMethod(nameof(EcsPipeline.Builder.AddRunner), BindingFlags.Instance | BindingFlags.Public)!
+                .MakeGenericMethod(runnerType);
+
+            return (Func<EcsPipeline.Builder, EcsPipeline.Builder>)Delegate.CreateDelegate(
+                typeof(Func<EcsPipeline.Builder, EcsPipeline.Builder>),
+                method);
+        }
     }
 }

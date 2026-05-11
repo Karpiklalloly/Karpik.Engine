@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Modules.Window.Core;
 
 [Module]
-public class WindowCoreInstaller : IModule, IModuleConfiguratable
+public class WindowCoreInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Window.Core";
     public void OnRegisterServices(IServiceRegister services)
@@ -12,9 +12,9 @@ public class WindowCoreInstaller : IModule, IModuleConfiguratable
         services.Register(new InputCaptureState());
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new WindowCoreModule());
+        module = new WindowCoreModule();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

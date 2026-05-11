@@ -4,23 +4,23 @@ using Karpik.Engine.Shared.Tweening;
 
 namespace Karpik.Engine.Shared;
 
-public class TweenUpdateSystem : IEcsRun
+public class TweenUpdateSystem : ISystemLate
 {
     [DI] private Tween _tween = null!;
     [DI] private Time _time = null!;
     
-    public void Run()
+    public void LateRun()
     {
         _tween.Update(_time.DeltaTime);
     }
 }
 
-public class TweenUpdatePausableSystem : IEcsRun
+public class TweenUpdatePausableSystem : ISystemLate
 {
     [DI] private Tween _tween = null!;
     [DI] private Time _time = null!;
     
-    public void Run()
+    public void LateRun()
     {
         if (!_time.IsPaused)
         {

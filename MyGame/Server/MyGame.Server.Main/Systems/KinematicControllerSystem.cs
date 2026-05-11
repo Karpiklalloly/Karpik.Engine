@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-public class KinematicControllerSystem : IEcsRun
+public class KinematicControllerSystem : ISystemUpdate
 {
     class Aspect : EcsAspect
     {
@@ -18,7 +18,7 @@ public class KinematicControllerSystem : IEcsRun
     [DI] private IPhysicsWorld2D _physicsWorld2D = null!;
     [DI] private Time _time = null!;
     
-    public void Run()
+    public void Update()
     {
         Span<RaycastHit2D> hits = stackalloc RaycastHit2D[16];
         foreach (var e in _world.Where(out Aspect a))

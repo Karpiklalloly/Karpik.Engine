@@ -6,7 +6,7 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public class GraphicsCoreInitSystem : IEcsInit
+public class GraphicsCoreInitSystem : ISystemInit
 {
     [DI] private Preset2DPipeline _pipelines = null!;
     [DI] private GraphicsDevice _device = null!;
@@ -20,7 +20,8 @@ public class GraphicsCoreInitSystem : IEcsInit
     }
 }
 
-public class GraphicsCoreBeginSystem : IEcsRun
+// TODO: не инжектится после рефаторинга
+public class GraphicsCoreBeginSystem : ISystemBegin
 {
     [DI] private GraphicsDevice _device = null!;
     [DI] private IWindow _window = null!; // Инъекция окна для отслеживания размера
@@ -28,7 +29,7 @@ public class GraphicsCoreBeginSystem : IEcsRun
     [DI] private ImGuiOverlayState _imguiOverlay = null!;
     [DI] private InputCaptureState _inputCapture = null!;
     
-    public void Run()
+    public void Begin()
     {
         if (_device.MainSwapchain.Framebuffer.Width != (uint)_window.Width ||
             _device.MainSwapchain.Framebuffer.Height != (uint)_window.Height)
@@ -47,22 +48,22 @@ public class GraphicsCoreBeginSystem : IEcsRun
     }
 }
 
-public class GraphicsCoreMergeSystem : IEcsRun
+public class GraphicsCoreMergeSystem : ISystemBegin
 {
     [DI] private IMergeThread _mergeThread = null!;
 
-    public void Run()
+    public void Begin()
     {
         _mergeThread.BeginMerge();
     }
 }
 
-public class GraphicsCoreSubmitSceneSystem : IEcsRun
+public class GraphicsCoreSubmitSceneSystem : ISystemRender
 {
     [DI] private IMergeThread _mergeThread = null!;
     [DI] private GraphicsDevice _device = null!;
 
-    public void Run()
+    public void Render()
     {
         // Ждем, если мердж еще не успел закончиться (обычно он уже готов)
         _mergeThread.WaitForCompletion();
@@ -72,12 +73,12 @@ public class GraphicsCoreSubmitSceneSystem : IEcsRun
     }
 }
 
-public class ImGuiRenderSystem : IEcsRun
+public class ImGuiRenderSystem : ISystemRender
 {
     [DI] private ImGuiOverlayState _overlay = null!;
     [DI] private ImGuiRenderContext _imgui = null!;
 
-    public void Run()
+    public void Render()
     {
         if (!_overlay.Enabled)
         {
@@ -88,11 +89,11 @@ public class ImGuiRenderSystem : IEcsRun
     }
 }
 
-public class GraphicsCoreSwapBuffersSystem : IEcsRun
+public class GraphicsCoreSwapBuffersSystem : ISystemRender
 {
     [DI] private GraphicsDevice _device = null!;
 
-    public void Run()
+    public void Render()
     {
         _device.SwapBuffers();
     }

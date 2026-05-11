@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-public interface ISystemDestroy
+public interface ISystemDestroy : ISystem
 {
     public void Destroy();
 }

@@ -1,21 +1,31 @@
 ﻿using System.Reflection;
 using DCFApixels.DragonECS;
+using Karpik.Engine.Core.Runner;
+using Karpik.Engine.Shared.DragonECS;
 
 namespace Karpik.Engine.Core;
 
 public class EngineRunner : IEngineRunner
 {
-    private readonly List<IModule> _modules = new();
+    private readonly List<IInstaller> _modules = new();
     private EcsPipeline _pipeline = null!;
     private Time _time = new();
     private EcsServiceProvider _serviceProvider = null!;
     private Application _application;
+    
+    // Runners
+    private EcsBeginRunner _beginRunner = null!;
+    private EcsFixedRunner _fixedRunner = null!;
+    private EcsUpdateRunner _updateRunner = null!;
+    private EcsLateRunner _lateRunner = null!;
+    private EcsRenderRunner _renderRunner = null!;
+    private FixedRunTicker _fixedRunTicker = null!;
 
     public void RegisterTypes(Type[] types)
     {
         foreach (var type in FilterTypesToModules(types))
         {
-            var moduleInstance = (IModule)Activator.CreateInstance(type)!;
+            var moduleInstance = (IInstaller)Activator.CreateInstance(type)!;
             RegisterModule(moduleInstance);
         }
     }
@@ -28,12 +38,15 @@ public class EngineRunner : IEngineRunner
         _serviceProvider.Register(_application);
         
         var newBuilder = EcsPipeline.New();
+        var newModuleBuilder = new Builder(newBuilder);
         newBuilder.AddModule(new JobSystemModule());
         newBuilder
             .Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
             .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
         _serviceProvider.Register(_time);
         
+        newBuilder.Inject<IServiceContainer>(_serviceProvider);
+        newBuilder.Inject<IServiceRegister>(_serviceProvider);
         newBuilder.Inject(_serviceProvider);
 
         scheduler.Schedule(() =>
@@ -48,13 +61,19 @@ public class EngineRunner : IEngineRunner
                 ApplyInitialState(_modules, _serviceProvider, hotReloadData);
             }
             
-            ConfigureAndAddModule(_serviceProvider, newBuilder);
+            ConfigureAndAddModule(_serviceProvider, newModuleBuilder);
             var newPipeline = BuildPipeline(newBuilder, _serviceProvider);
             AnotherModuleLoaded();
 
             _pipeline = newPipeline;
             InjectIntoSystems(newPipeline, _serviceProvider);
             _pipeline.Init();
+            _beginRunner = _pipeline.GetRunner<EcsBeginRunner>();
+            _fixedRunner = _pipeline.GetRunner<EcsFixedRunner>();
+            _updateRunner = _pipeline.GetRunner<EcsUpdateRunner>();
+            _lateRunner = _pipeline.GetRunner<EcsLateRunner>();
+            _renderRunner = _pipeline.GetRunner<EcsRenderRunner>();
+            _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application);
 
             ConfigureComplete();
         });
@@ -63,6 +82,11 @@ public class EngineRunner : IEngineRunner
     public void Run(double dt)
     {
         _time.Update(dt);
+        _beginRunner.BeginRun();
+        _fixedRunTicker.FixedRun();
+        _updateRunner.Update();
+        _lateRunner.LateRun();
+        _renderRunner.Render();
         _pipeline.Run();
     }
 
@@ -79,42 +103,42 @@ public class EngineRunner : IEngineRunner
         return PreHotReload(GetModules(), _serviceProvider);
     }
 
-    public List<IModule> GetModules()
+    public List<IInstaller> GetModules()
     {
         return _modules;
     }
 
-    public void RegisterModule(IModule module)
+    public void RegisterModule(IInstaller installer)
     {
-        if (_modules.Any(m => m.GetType() == module.GetType()))
+        if (_modules.Any(m => m.GetType() == installer.GetType()))
         {
             return;
         }
 
-        Console.WriteLine($"Register module {module.Name}");
-        _modules.Add(module);
+        Console.WriteLine($"Register module {installer.Name}");
+        _modules.Add(installer);
     }
 
     private Type[] FilterTypesToModules(Type[] types)
     {
         var classTypes = types.Where(t => t.IsClass && !t.IsAbstract);
-        var moduleTypes = classTypes.Where(t => typeof(IModule).IsAssignableFrom(t) || typeof(IModule).IsAssignableTo(t));
+        var moduleTypes = classTypes.Where(t => typeof(IInstaller).IsAssignableFrom(t) || typeof(IInstaller).IsAssignableTo(t));
         var withAttr = moduleTypes.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null);
         return withAttr.ToArray();
     }
     
-    private int GetPriority(IModule module)
+    private int GetPriority(IInstaller installer)
     {
-        var attr = module.GetType().GetCustomAttribute<ModuleAttribute>();
+        var attr = installer.GetType().GetCustomAttribute<ModuleAttribute>();
         return attr?.Priority ?? 0;
     }
 
-    private Dictionary<string, byte[]> PreHotReload(List<IModule> oldModules, EcsServiceProvider newServiceProvider)
+    private Dictionary<string, byte[]> PreHotReload(List<IInstaller> oldModules, EcsServiceProvider newServiceProvider)
     {
         Dictionary<string, byte[]> hotReloadInfo = [];
         foreach (var oldModule in oldModules)
         {
-            if (oldModule is IModuleHotReload oldModuleHotReload)
+            if (oldModule is IInstallerHotReload oldModuleHotReload)
             {
                 string name = oldModule.GetType().FullName ?? oldModule.GetType().Name;
                 hotReloadInfo[name] = oldModuleHotReload.OnPrepareHotReload(newServiceProvider);
@@ -124,26 +148,26 @@ public class EngineRunner : IEngineRunner
         return hotReloadInfo;
     }
 
-    private List<IModule> CreateModules(Type[] allNewModuleTypes)
+    private List<IInstaller> CreateModules(Type[] allNewModuleTypes)
     {
-        var newModuleInstances = new List<IModule>();
+        var newModuleInstances = new List<IInstaller>();
         foreach (var type in allNewModuleTypes)
         {
-            newModuleInstances.Add((IModule)Activator.CreateInstance(type)!);
+            newModuleInstances.Add((IInstaller)Activator.CreateInstance(type)!);
         }
 
         return newModuleInstances;
     }
 
-    private void ApplyInitialState(List<IModule> modules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> stateData)
+    private void ApplyInitialState(List<IInstaller> modules, EcsServiceProvider serviceProvider, Dictionary<string, byte[]> stateData)
     {
-        List<(IModuleHotReload, byte[])> needToReload = [];
+        List<(IInstallerHotReload, byte[])> needToReload = [];
         
         foreach (var module in modules)
         {
             try
             {
-                if (module is IModuleHotReload hotReloadableModule)
+                if (module is IInstallerHotReload hotReloadableModule)
                 {
                     string name = module.GetType().FullName ?? module.GetType().Name;
                     if (stateData.TryGetValue(name, out var data))
@@ -177,9 +201,9 @@ public class EngineRunner : IEngineRunner
         }
     }
 
-    private void Destroy(List<IModule> oldModules)
+    private void Destroy(List<IInstaller> oldModules)
     {
-        foreach (var oldModule in oldModules.OfType<IModuleDestroy>())
+        foreach (var oldModule in oldModules.OfType<IInstallerDestroy>())
         {
             oldModule.Destroy();
         }
@@ -194,25 +218,23 @@ public class EngineRunner : IEngineRunner
         }
     }
 
-    private void ConfigureAndAddModule(EcsServiceProvider newServiceProvider, EcsPipeline.Builder newBuilder)
+    private void ConfigureAndAddModule(EcsServiceProvider newServiceProvider, IBuilder newBuilder)
     {
-        foreach (var module in _modules.OfType<IModuleConfiguratable>())
+        foreach (var installer in _modules.OfType<IInstallerConfiguratable>())
         {
-            Console.WriteLine($"On Configure module {module.Name}");
-            module.OnConfigure(newServiceProvider, newServiceProvider);
-            var ecsModule = newServiceProvider.Get<IEcsModule>();
-            if (ecsModule is not null)
+            Console.WriteLine($"On Configure module {installer.Name}");
+            installer.OnConfigure(newServiceProvider, newServiceProvider, out IModule? module);
+            if (module is not null)
             {
-                Console.WriteLine($"Got module {ecsModule.GetType().Name}");
-                newBuilder.AddModule(ecsModule);
+                Console.WriteLine($"Got module {module.GetType().Name}");
+                module.Import(newBuilder);
             }
-            newServiceProvider.Forget<IEcsModule>();
         }
     }
 
     private void ConfigureComplete()
     {
-        foreach (var module in _modules.OfType<IModuleConfiguratable>())
+        foreach (var module in _modules.OfType<IInstallerConfiguratable>())
         {
             Console.WriteLine($"On Configure Complete {module.Name}");
             module.OnConfigureComplete(_serviceProvider);
@@ -221,7 +243,7 @@ public class EngineRunner : IEngineRunner
 
     private void AnotherModuleLoaded()
     {
-        var listeners = _modules.OfType<IModuleListener>().ToArray();
+        var listeners = _modules.OfType<IInstallerListener>().ToArray();
         foreach (var module in _modules)
         {
             foreach (var listener in listeners)
@@ -234,7 +256,13 @@ public class EngineRunner : IEngineRunner
 
     private EcsPipeline BuildPipeline(EcsPipeline.Builder newBuilder, EcsServiceProvider newServiceProvider)
     {
+        newBuilder.AddRunner<EcsBeginRunner>();
+        newBuilder.AddRunner<EcsFixedRunner>();
+        newBuilder.AddRunner<EcsUpdateRunner>();
+        newBuilder.AddRunner<EcsLateRunner>();
+        newBuilder.AddRunner<EcsRenderRunner>();
         var newPipeline = newBuilder.Build(newServiceProvider);
+        newServiceProvider.Register(newPipeline.Injector);
         newServiceProvider.Register(newPipeline);
         newServiceProvider.InjectAll();
         return newPipeline;

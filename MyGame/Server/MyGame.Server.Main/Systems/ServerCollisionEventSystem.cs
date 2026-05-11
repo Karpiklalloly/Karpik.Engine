@@ -7,7 +7,7 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 /// <summary>
 /// Server-side collision event system - handles collectibles, death zones, finish zones
 /// </summary>
-public class ServerCollisionEventSystem : IEcsRun
+public class ServerCollisionEventSystem : ISystemUpdate
 {
     class PlayerAspect : EcsAspect
     {
@@ -24,7 +24,7 @@ public class ServerCollisionEventSystem : IEcsRun
 
     private List<int> _entitiesToDestroy = [];
 
-    public void Run()
+    public void Update()
     {
         var collisions = _physicsWorld.GetFrameCollisions();
         

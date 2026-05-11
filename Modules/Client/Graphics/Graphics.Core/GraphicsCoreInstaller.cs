@@ -5,7 +5,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Graphics.Core;
 
 [Module(-101)]
-public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDestroy
+public class GraphicsCoreInstaller : IInstaller, IInstallerConfiguratable, IInstallerDestroy
 {
     public string Name => "Graphics.Core";
     private readonly ImGuiRenderContext _imguiRenderContext = new();
@@ -23,9 +23,9 @@ public class GraphicsCoreInstaller : IModule, IModuleConfiguratable, IModuleDest
         services.Register(_imguiRenderContext);
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new GraphicsCoreModule());
+        module = new GraphicsCoreModule();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

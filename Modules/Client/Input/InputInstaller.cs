@@ -5,7 +5,7 @@ using Karpik.Engine.Modules.Window.Core;
 namespace Karpik.Engine.Client.InputModule;
 
 [Module]
-public class InputInstaller : IModule, IModuleConfiguratable
+public class InputInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Input";
 
@@ -14,10 +14,10 @@ public class InputInstaller : IModule, IModuleConfiguratable
         services.Register(new Input());
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
         services.Get<Input>()!.Init(services.Get<IInputSource>()!, services.Get<InputCaptureState>()!);
-        container.Register<IEcsModule>(new InputModuleEcs());
+        module = new InputModuleEcs();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

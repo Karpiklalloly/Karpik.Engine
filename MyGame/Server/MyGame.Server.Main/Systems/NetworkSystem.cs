@@ -10,7 +10,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
+internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 {
     [DI] private INetworkManager _networkManager = null!;
     [DI] private TargetRpcSender _rpc = null!;
@@ -144,7 +144,7 @@ internal class NetworkSystem : IEcsInit, IEcsRun, IEcsDestroy
         reader.Recycle();
     }
 
-    public void Run()
+    public void Update()
     {
         SendSnapshotToAll();
         if (_needSendLocalPlayer.Count > 0)

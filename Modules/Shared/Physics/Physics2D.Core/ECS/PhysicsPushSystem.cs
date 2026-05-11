@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class PhysicsPushSystem : IEcsRun
+public class PhysicsPushSystem : ISystemBegin
 {
     class TeleportAspect : EcsAspect 
     {
@@ -25,7 +25,7 @@ public class PhysicsPushSystem : IEcsRun
     private Vector2[] _vecBuf = new Vector2[1024];
     private float[] _floatBuf = new float[1024];
     
-    public void Run()
+    public void Begin()
     {
         ProcessTeleports();
         ProcessVelocities();

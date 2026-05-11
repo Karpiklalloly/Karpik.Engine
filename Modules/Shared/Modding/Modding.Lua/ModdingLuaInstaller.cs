@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Module]
-public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratable
+public class ModdingLuaInstaller : IInstaller, IInstallerDestroy, IInstallerConfiguratable
 {
     public string Name => "Modding.Lua";
  
@@ -23,9 +23,9 @@ public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratabl
         services.Register<IModManager>(_modManager);
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new ModdingLuaModule());
+        module = new ModdingLuaModule();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

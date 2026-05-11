@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Network.LiteNetLib;
 
 [Module]
-public class NetworkClientInstaller : IModule, IModuleConfiguratable
+public class NetworkClientInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Network.Client.Core";
     
@@ -13,9 +13,9 @@ public class NetworkClientInstaller : IModule, IModuleConfiguratable
         
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new NetworkClientModule());
+        module = new NetworkClientModule();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

@@ -3,11 +3,11 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Modules.Window.Core;
 
-internal class UpdateSystem : IEcsRun
+internal class UpdateSystem : ISystemBegin
 {
     [DI] private IInputSource _inputSource = null!;
     
-    public void Run()
+    public void Begin()
     {
         _inputSource.Update();
     }

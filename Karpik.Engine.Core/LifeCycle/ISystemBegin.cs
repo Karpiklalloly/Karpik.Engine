@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-public interface ISystemBegin
+public interface ISystemBegin : ISystem
 {
     public void Begin();
 }

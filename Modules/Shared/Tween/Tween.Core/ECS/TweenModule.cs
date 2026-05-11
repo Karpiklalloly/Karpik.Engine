@@ -1,13 +1,13 @@
 using DCFApixels.DragonECS;
+using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Tweening;
 
-internal class TweenModule : IEcsModule
+internal class TweenModule : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
-        b
-            .Add(new TweenUpdateSystem(), EcsConsts.POST_END_LAYER)
-            .Add(new TweenUpdatePausableSystem(), EcsConsts.POST_END_LAYER);
+        b.Add(new TweenUpdateSystem(), EcsConsts.POST_END_LAYER);
+        b.Add(new TweenUpdatePausableSystem(), EcsConsts.POST_END_LAYER);
     }
 }

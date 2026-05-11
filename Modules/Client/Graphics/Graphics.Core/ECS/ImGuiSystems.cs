@@ -6,7 +6,7 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public sealed class ImGuiBeginSystem : IEcsRun
+public sealed class ImGuiBeginSystem : ISystemBegin
 {
     [DI] private IInputSource _inputSource = null!;
     [DI] private Time _time = null!;
@@ -14,7 +14,7 @@ public sealed class ImGuiBeginSystem : IEcsRun
     [DI] private ImGuiRenderContext _imgui = null!;
     [DI] private InputCaptureState _inputCapture = null!;
 
-    public void Run()
+    public void Begin()
     {
         IReadOnlyList<KeyEvent> keyEvents = _inputSource.KeyEvents;
         for (int i = 0; i < keyEvents.Count; i++)
@@ -45,7 +45,7 @@ public sealed class ImGuiBeginSystem : IEcsRun
     }
 }
 
-public sealed class ImGuiDebugPanelSystem : IEcsRun
+public sealed class ImGuiDebugPanelSystem : ISystemRender
 {
     [DI] private ImGuiOverlayState _overlay = null!;
     [DI] private IInputSource _inputSource = null!;
@@ -53,7 +53,7 @@ public sealed class ImGuiDebugPanelSystem : IEcsRun
 
     private string _text = string.Empty;
 
-    public void Run()
+    public void Render()
     {
         if (!_overlay.Enabled)
         {

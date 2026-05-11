@@ -8,15 +8,15 @@ namespace Karpik.Engine.MyGame.Server.Main;
 /// <summary>
 /// Server module for MyGame - includes physics and game logic
 /// </summary>
-internal class MyGameServerModule : IEcsModule
+internal class MyGameServerModule : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
         // Level initialization - create platforms and spawn points
         b.Add(new LevelInitSystem());
         
         // Network system - handles client connections and snapshots
-        b.Add(new NetworkSystem());
+        b.Add((object)new NetworkSystem());
         
         // Player input - applies forces based on PlayerInputState
         b.Add(new InputSystem());

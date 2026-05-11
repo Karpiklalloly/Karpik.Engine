@@ -2,58 +2,121 @@
 
 namespace DragonExtensions;
 
-public class InitSystem(ISystemInit system) : IEcsInit
+public class InitSystem(ISystemInit system) : IEcsInit, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+    
     public void Init()
     {
         system.Init();
     }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
 }
 
-public class BeginSystem(ISystemBegin system) : IBeginRunSystem
+public class BeginSystem(ISystemBegin system) : IBeginRunSystem, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+
     public void BeginRun()
     {
         system.Begin();
     }
+    
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
 }
 
-public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun
+public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+
     public void FixedRun()
     {
         system.FixedUpdate();
     }
-}
-
-public class UpdateSystem(ISystemUpdate system) : IUpdateSystem
-{
-    public void Update()
+    
+    public void OnInjected()
     {
-        system.Run();
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
     }
 }
 
-public class LateSystem(ISystemLate system) : ILateRunSystem
+public class UpdateSystem(ISystemUpdate system) : IUpdateSystem, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+
+    public void Update()
+    {
+        system.Update();
+    }
+    
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
+public class LateSystem(ISystemLate system) : ILateRunSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
     public void LateRun()
     {
         system.LateRun();
     }
+    
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
 }
 
-public class RenderSystem(ISystemRender system) : IRenderSystem
+public class RenderSystem(ISystemRender system) : IRenderSystem, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+
     public void Render()
     {
         system.Render();
     }
+    
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
 }
 
-public class DestroySystem(ISystemDestroy system) : IEcsDestroy
+public class DestroySystem(ISystemDestroy system) : IEcsDestroy, IOnInjectedDI
 {
+    [DI] private IServiceContainer _container = null!;
+
     public void Destroy()
     {
         system.Destroy();
+    }
+    
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
     }
 }

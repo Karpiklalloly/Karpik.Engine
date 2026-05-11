@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Physics.Core;
 
 [Module]
-public class Physics2DInstaller : IModule, IModuleConfiguratable
+public class Physics2DInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Physics2D.Core";
     public void OnRegisterServices(IServiceRegister services)
@@ -12,9 +12,9 @@ public class Physics2DInstaller : IModule, IModuleConfiguratable
         
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        container.Register<IEcsModule>(new Physics2DModule());
+        module = new Physics2DModule();
     }
 
     public void OnConfigureComplete(IServiceContainer services)

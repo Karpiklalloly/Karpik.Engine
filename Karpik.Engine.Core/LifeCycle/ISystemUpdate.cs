@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-public interface ISystemUpdate
+public interface ISystemUpdate : ISystem
 {
-    public void Run();
+    public void Update();
 }
