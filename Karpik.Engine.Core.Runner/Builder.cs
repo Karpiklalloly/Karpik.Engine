@@ -9,33 +9,52 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
 {
     public IBuilder Add(object system, string layer = "BASIC_LAYER", int order = 0)
     {
+        bool added = false;
         if (system is ISystemInit init)
         {
             Add(init, layer, order);
+            added = true;
         }
         if (system is ISystemBegin begin)
         {
             Add(begin, layer, order);
+            added = true;
         }
         if (system is ISystemFixedUpdate fixedUpdate)
         {
             Add(fixedUpdate, layer, order);
+            added = true;
         }
         if (system is ISystemUpdate update)
         {
             Add(update, layer, order);
+            added = true;
         }
         if (system is ISystemLate end)
         {
             Add(end, layer, order);
+            added = true;
         }
         if (system is ISystemRender render)
         {
             Add(render, layer, order);
+            added = true;
         }
         if (system is ISystemDestroy destroy)
         {
             Add(destroy, layer, order);
+            added = true;
+        }
+
+        if (system is IEcsProcess process)
+        {
+            builder.Add(process);
+            added = true;
+        }
+
+        if (!added)
+        {
+            Console.WriteLine($"[Builder] Warning: System of type {system.GetType().FullName} does not implement any known system interfaces and will not be added to the pipeline.");
         }
         
         return this;

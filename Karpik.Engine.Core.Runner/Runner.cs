@@ -83,11 +83,12 @@ public class EngineRunner : IEngineRunner
     {
         _time.Update(dt);
         _beginRunner.BeginRun();
+        _pipeline.Run();
         _fixedRunTicker.FixedRun();
         _updateRunner.Update();
         _lateRunner.LateRun();
         _renderRunner.Render();
-        _pipeline.Run();
+        
     }
 
     public void Destroy()
