@@ -78,7 +78,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
     {
         _container = services;
         _networkManager.NetworkReceiveEvent += NetworkManagerOnNetworkReceiveEvent;
-        _networkManager.PeerConnectedEvent += NetworkManagerOnPeerConnectedEvent;
+        _networkManager.PeerDisconnectedEvent += NetworkManagerOnPeerDisconnectedEvent;
     }
     
     private void NetworkManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
@@ -96,7 +96,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
         reader.Recycle();
     }
     
-    private void NetworkManagerOnPeerConnectedEvent(IPeer peer)
+    private void NetworkManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
     {
         Console.WriteLine("Disconnected from server. Clearing world...");
         _manager.ClearClientCache();
@@ -105,7 +105,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
     public void Destroy()
     {
         _networkManager.NetworkReceiveEvent -= NetworkManagerOnNetworkReceiveEvent;
-        _networkManager.PeerConnectedEvent -= NetworkManagerOnPeerConnectedEvent;
+        _networkManager.PeerDisconnectedEvent -= NetworkManagerOnPeerDisconnectedEvent;
 
         _input.KeyPressed -= _onInput;
         _onInput = null!;
