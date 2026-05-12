@@ -18,9 +18,10 @@ public class KinematicControllerSystem : ISystemUpdate
     [DI] private IPhysicsWorld2D _physicsWorld2D = null!;
     [DI] private Time _time = null!;
     
+    private RaycastHit2D[] _hits = new RaycastHit2D[16];
+    
     public void Update()
     {
-        Span<RaycastHit2D> hits = stackalloc RaycastHit2D[16];
         foreach (var e in _world.Where(out Aspect a))
         {
             ref var ctrl = ref a.controller.Get(e);
@@ -72,7 +73,7 @@ public class KinematicControllerSystem : ISystemUpdate
             Vector2 rayStart = testPos + new Vector2(0, 0.9f);
             Vector2 rayEnd = testPos - new Vector2(0, 0.9f);
             
-            int hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, hits);
+            int hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
             if (hitCount > 0 && velocity.X != 0)
             {
                 velocity.X = 0;
@@ -83,19 +84,19 @@ public class KinematicControllerSystem : ISystemUpdate
             rayStart = proposedPos + new Vector2(0, 1f);
             rayEnd = proposedPos - new Vector2(0, 1f);
             
-            hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, hits);
+            hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
             if (hitCount > 0)
             {
                 if (velocity.Y < 0) // Падаем вниз
                 {
                     ctrl.IsGrounded = true;
                     velocity.Y = 0;
-                    proposedPos.Y = hits[0].Point.Y + 1f; // На поверхность
+                    proposedPos.Y = _hits[0].Point.Y + 1f; // На поверхность
                 }
                 else if (velocity.Y > 0) // Прыгаем вверх
                 {
                     velocity.Y = 0;
-                    proposedPos.Y = hits[0].Point.Y - 1f;
+                    proposedPos.Y = _hits[0].Point.Y - 1f;
                 }
             }
             else if (velocity.Y < 0)
@@ -105,10 +106,9 @@ public class KinematicControllerSystem : ISystemUpdate
             
             // Применить скорость и позицию
             velocity.Y = 0;
-            Console.WriteLine(velocity);
             _physicsWorld2D.SetVelocity(bodyRef.Handle, velocity);
             
-            hits.Clear();
+            Array.Clear(_hits, 0, _hits.Length);
         }
     }
 }

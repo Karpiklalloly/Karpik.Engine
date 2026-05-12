@@ -8,7 +8,7 @@ namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>, IOnInjectedDI
 {
-    public override string? DefaultPath => "Sprites/Textures/default.jpg";
+    public override string? DefaultPath => "Sprites/default.jpg";
     public override string[] SupportedExtensions => [".jpg", ".png", ".bmp", ".tga", ".psd", ".gif", ".hdr"];
 
     [DI] private GraphicsDevice _device = null!;

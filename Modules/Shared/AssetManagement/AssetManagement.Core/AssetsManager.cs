@@ -153,6 +153,14 @@ internal class AssetsManager : IAssetsManager
             await Logger.Instance.Log(nameof(AssetsManager), $"Not found {targetPath}, loading default asset {loader.DefaultPath}.", LogLevel.Warning);
             targetPath = loader.DefaultPath;
         }
+        
+        if (!_fileSystem.Exists(targetPath))
+        {
+            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
+            targetPath = _fileSystem.Exists(modsSubPath)
+                ? modsSubPath
+                : _fileSystem.Combine(ContentPath, targetPath);
+        }
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);
 

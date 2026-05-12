@@ -15,25 +15,26 @@ public class ApplySpriteSystem : ISystemUpdate
 
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private IServiceContainer _serviceContainer = null!;
+    [DI] private MainThreadScheduler _mainThreadScheduler = null!;
     
     public void Update()
     {
         foreach (var e in _world.Where(out Aspect a))
         {
-            var data = a.data.Get(e);
+            int entity = e;
+            SpriteData data = a.data.Get(entity);
             a.ignore.Add(e);
             a.data.Del(e);
-            Job.Run(async () =>
-            {
-                ref var renderer = ref a.renderer.Add(e);
+            
+            SpriteRenderer renderer = default;
+            renderer.TexturePath = data.TexturePath;
+            renderer.Color = data.Color;
+            renderer = renderer.OnLoad(renderer, _serviceContainer).GetAwaiter().GetResult();
+            renderer.Width = data.Size.X;
+            renderer.Height = data.Size.Y;
 
-                renderer.TexturePath = data.TexturePath;
-                renderer.Color = data.Color;
-                var r2 = await renderer.OnLoad(renderer, _serviceContainer);
-                r2.Width = data.Size.X;
-                r2.Height = data.Size.Y;
-                a.renderer.Get(e) = r2;
-            });
+            ref SpriteRenderer storedRenderer = ref a.renderer.Add(entity);
+            storedRenderer = renderer;
         }
     }
 }
