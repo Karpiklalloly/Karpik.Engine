@@ -337,6 +337,16 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             TextGlyphQuad glyph = context.TextGlyphs[i];
             Vector2 glyphPosition = textPosition + glyph.Position;
             Vector2 glyphOrigin = textOrigin - glyph.Position;
+            if (cmd.Space == DrawSpace.World)
+            {
+                glyphPosition = new Vector2(
+                    textPosition.X + glyph.Position.X,
+                    textPosition.Y - glyph.Position.Y - glyph.Size.Y);
+                glyphOrigin = new Vector2(
+                    textOrigin.X - glyph.Position.X,
+                    glyph.Position.Y + glyph.Size.Y - textOrigin.Y);
+            }
+
             DrawTransform2D transform = new DrawTransform2D(
                 glyphPosition,
                 glyph.Size,

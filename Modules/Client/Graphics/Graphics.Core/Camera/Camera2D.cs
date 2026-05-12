@@ -73,7 +73,7 @@ public struct Camera2D
 
         float scale = EffectiveScale();
         Vector2 viewportCenter = ViewportPosition + ViewportSize * 0.5f;
-        return viewportCenter + local * scale;
+        return viewportCenter + new Vector2(local.X, -local.Y) * scale;
     }
 
     public readonly Vector2 ScreenToWorld(Vector2 screenPosition)
@@ -81,6 +81,7 @@ public struct Camera2D
         float scale = EffectiveScale();
         Vector2 viewportCenter = ViewportPosition + ViewportSize * 0.5f;
         Vector2 local = (screenPosition - viewportCenter) / scale;
+        local.Y = -local.Y;
 
         if (RotationRadians != 0f)
         {

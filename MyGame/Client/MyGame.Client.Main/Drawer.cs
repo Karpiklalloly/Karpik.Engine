@@ -67,13 +67,6 @@ public class Drawer
         {
             if (Texture is not null)
             {
-                RectangleF sourceRec = new RectangleF(0, 0, Texture.Width, Texture.Height);
-                RectangleF destRec = new RectangleF(
-                    Position.X,
-                    -Position.Y,
-                    Size.X,
-                    Size.Y
-                );
                 Vector2 origin = new Vector2(Size.X / 2f, Size.Y / 2f);
                 GraphicsContext.Buffer.AddTextureCentered(
                     Texture,
