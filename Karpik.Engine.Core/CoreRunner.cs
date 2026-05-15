@@ -5,20 +5,33 @@ namespace Karpik.Engine.Core;
 public class CoreRunner
 {
     private ProcessManager? _processManager;
-    private volatile bool _hotReloadInProgress = false;
-    
-    private static IpcClient? _ipcClient;
-    private static Bootstrap _bootstrap;
+    private static Bootstrap _bootstrap = null!;
     private static Ref<bool> _isRunning = new(true);
-    private static HotReloadState? _initialState;
     private static volatile bool _stateCollected = false;
     
-    public void Start(Ref<bool> isRunning, Side side)
-    {
-        Console.WriteLine("[Watcher] Starting...");
+    public void Start(Ref<bool> isRunning, Side side) => Start(isRunning, side, HotReloadOptions.Default);
 
-#if SUPER_HOT_RELOAD
-        _processManager = new ProcessManager(side);
+    public void Start(Ref<bool> isRunning, Side side, HotReloadOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(isRunning);
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (options.Mode == HotReloadMode.RestartWorker)
+        {
+            RunWithWorkerRestart(isRunning, side, options);
+            return;
+        }
+
+        RunEngine(isRunning, side);
+    }
+    
+    internal ProcessManager? GetProcessManager() => _processManager;
+
+    private void RunWithWorkerRestart(Ref<bool> isRunning, Side side, HotReloadOptions options)
+    {
+        Console.WriteLine("[Watcher] Starting restart-worker hot reload...");
+
+        _processManager = new ProcessManager(side, options);
         _processManager.OnWorkerExited += (exitCode) =>
         {
             Console.WriteLine($"[Watcher] Worker exited with code: {exitCode}");
@@ -28,17 +41,20 @@ public class CoreRunner
                 _ = RestartWorkerAsync();
             }
         };
-        
+
         _processManager.OnWorkerReady += () =>
         {
             Console.WriteLine("[Watcher] Worker is ready!");
         };
-        
+
         _processManager.StartWorkerAsync().Wait();
-        
+
         Console.WriteLine("[Watcher] Press 'Q' to quit");
-        
-        while (isRunning.Value && (_processManager.IsWorkerRunning || _processManager.IsWorkerReady || _hotReloadInProgress))
+
+        while (isRunning.Value
+               && (_processManager.IsWorkerRunning
+                   || _processManager.IsWorkerReady
+                   || _processManager.IsReloadInProgress))
         {
             if (Console.KeyAvailable)
             {
@@ -49,26 +65,17 @@ public class CoreRunner
                     isRunning.Value = false;
                 }
             }
-            
-            // Just wait for worker to exit or hot reload request
+
             Thread.Sleep(100);
         }
-        
-        // Cleanup
+
         Console.WriteLine("[Watcher] Shutting down...");
         _processManager?.StopWorkerAsync().Wait();
         _processManager?.Dispose();
-        
+
         Console.WriteLine("[Watcher] Exited");
-#else
-        RunEngine(side);
-#endif
-        
-        
     }
-    
-    internal ProcessManager? GetProcessManager() => _processManager;
-    
+
     private async Task RestartWorkerAsync()
     {
         if (_processManager == null) return;
@@ -82,9 +89,11 @@ public class CoreRunner
             Console.WriteLine($"[Watcher] Failed to restart worker: {ex.Message}");
         }
     }
-    
-    private static void RunEngine(Side side)
+
+    private static void RunEngine(Ref<bool> isRunning, Side side)
     {
+        _isRunning = isRunning;
+        _stateCollected = false;
         _bootstrap = new Bootstrap(side);
         var loader = new ModuleLoader();
         switch (side)
@@ -101,15 +110,8 @@ public class CoreRunner
         var types = GetTypes(loader);
         _bootstrap.RegisterTypes(types);
         
-        Dictionary<string, byte[]>? initialHotReloadData = null;
-        if (_initialState != null && _initialState.ModuleStates.Count > 0)
-        {
-            initialHotReloadData = _initialState.ModuleStates;
-            Console.WriteLine($"[Worker] Will apply hot reload state from {_initialState.ModuleStates.Count} modules");
-        }
-        
         Console.WriteLine(Environment.CurrentManagedThreadId);
-        var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
+        var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning);
 
         switch (side)
         {

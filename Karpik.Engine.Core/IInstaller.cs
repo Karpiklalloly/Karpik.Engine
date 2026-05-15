@@ -13,6 +13,10 @@ public interface IInstallerListener : IInstaller
     public void OnAnotherModuleLoaded(IServiceContainer services, IInstaller anotherInstaller, Assembly anotherModuleAssembly);
 }
 
+/// <summary>
+/// Legacy reload hook. Restart-worker hot reload v1 persists only ECS world state;
+/// non-ECS modules should recreate runtime resources through normal lifecycle hooks.
+/// </summary>
 public interface IInstallerHotReload : IInstaller
 {
     byte[] OnPrepareHotReload(IServiceContainer services);

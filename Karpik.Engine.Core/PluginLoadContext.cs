@@ -16,7 +16,7 @@ public class PluginLoadContext : AssemblyLoadContext
         "Karpik.Jobs",
     };
 
-    public PluginLoadContext(string shadowCopyDirectory) : base(isCollectible: true)
+    public PluginLoadContext(string shadowCopyDirectory) : base(isCollectible: false)
     {
         _shadowCopyDirectory = shadowCopyDirectory;
     }
@@ -31,8 +31,8 @@ public class PluginLoadContext : AssemblyLoadContext
         string libraryName = assemblyName.Name + ".dll";
         var searchPaths = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, libraryName),
-            Path.Combine(_shadowCopyDirectory, libraryName)
+            Path.Combine(_shadowCopyDirectory, libraryName),
+            Path.Combine(AppContext.BaseDirectory, libraryName)
         };
         
         foreach (var path in searchPaths)
@@ -54,10 +54,11 @@ public class PluginLoadContext : AssemblyLoadContext
 
         var searchPaths = new[]
         {
+            Path.Combine(_shadowCopyDirectory, libraryName),
+            Path.Combine(_shadowCopyDirectory, "runtimes", "win-x64", "native", libraryName),
             Path.Combine(AppContext.BaseDirectory, libraryName),
             Path.Combine(AppContext.BaseDirectory, "modules", "runtimes", "win-x64", "native", libraryName),
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", libraryName),
-            Path.Combine(_shadowCopyDirectory, libraryName)
+            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", libraryName)
         };
 
         foreach (var path in searchPaths)

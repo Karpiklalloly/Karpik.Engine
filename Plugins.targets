@@ -1,27 +1,31 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-    <Target Name="DeployAllModules" AfterTargets="Build">
-        <!-- 1. Собираем все проекты плагинов из списка -->
+    <Target Name="DeployAllModules" AfterTargets="Build" Condition="'@(PluginReference)' != ''">
         <MSBuild
                 Projects="@(PluginReference)"
                 Targets="Build"
-                Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=$(RuntimeIdentifier)">
+                Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier)">
             <Output TaskParameter="TargetOutputs" ItemName="_ModuleOutputs" />
         </MSBuild>
 
+        <RemoveDir Directories="$(OutputPath)modules" />
+
         <ItemGroup>
-            <!-- 2. Берем все DLL из папок сборки этих проектов -->
-            <!-- Используем RecursiveDir, чтобы подхватить нативные библиотеки (если есть) -->
-            <_FilesToCopy Include="%(PluginReference.RelativeDir)bin\$(Configuration)\net10.0\**\*.*" />
+            <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\" />
+            <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\" Condition="'$(RuntimeIdentifier)' != ''" />
+            <_FilesToCopy Include="%(_PluginOutputRoots.Identity)**\*.*" />
+            <_RequiredModuleDll Include="@(PluginReference->'$(OutputPath)modules\%(Filename).dll')" />
         </ItemGroup>
 
-        <!-- 3. Копируем всё в плоскую структуру в папку modules -->
-        <!-- Мы исключаем копирование Engine.Interfaces.dll, так как она уже есть в корне у Launcher -->
         <Copy
                 SourceFiles="@(_FilesToCopy)"
                 DestinationFolder="$(OutputPath)modules\%(RecursiveDir)"
                 SkipUnchangedFiles="false"
-                Condition="'%(Filename)' != 'Karpik.Engine.Core' AND '%(Filename)' != 'Karpik.Jobs'"
+                Condition="'%(_FilesToCopy.Filename)' != 'Karpik.Engine.Core' AND '%(_FilesToCopy.Filename)' != 'Karpik.Jobs'"
         />
+
+        <Error
+                Condition="!Exists('%(_RequiredModuleDll.Identity)')"
+                Text="Required module DLL was not staged: %(_RequiredModuleDll.Identity). Build the matching launcher project and check PluginReference output paths." />
     </Target>
 </Project>

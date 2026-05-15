@@ -17,6 +17,7 @@ public class Program
         
         var pipeName = ParseArg(args, "--pipe-name");
         var stateBase64 = ParseArg(args, "--state");
+        var stateFile = ParseArg(args, "--state-file");
         var waitForDebugger = HasArg(args, "--wait-for-debugger");
         var side = ParseArg(args, "--side");
         
@@ -32,7 +33,24 @@ public class Program
             Console.WriteLine("[Worker] Debugger attached!");
         }
         
-        if (!string.IsNullOrEmpty(stateBase64))
+        if (!string.IsNullOrEmpty(stateFile))
+        {
+            try
+            {
+                var stateBytes = File.ReadAllBytes(stateFile);
+                _initialState = HotReloadState.Deserialize(stateBytes);
+                Console.WriteLine($"[Worker] Loaded initial state with {_initialState.ModuleStates.Count} modules");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Worker] Failed to deserialize initial state file '{stateFile}': {ex.Message}");
+            }
+            finally
+            {
+                TryDeleteStateFile(stateFile);
+            }
+        }
+        else if (!string.IsNullOrEmpty(stateBase64))
         {
             try
             {
@@ -94,7 +112,17 @@ public class Program
         
         _bootstrap = new Bootstrap(side);
         var loader = new ModuleLoader();
-        loader.LoadClientModules();
+        switch (side)
+        {
+            case Side.Client:
+                loader.LoadClientModules();
+                break;
+            case Side.Server:
+                loader.LoadServerModules();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side), side, null);
+        }
         var types = GetTypes(loader);
         _bootstrap.RegisterTypes(types);
         
@@ -197,6 +225,18 @@ public class Program
     private static bool HasArg(string[] args, string name)
     {
         return args.Any(arg => arg == name || arg.StartsWith($"{name}="));
+    }
+
+    private static void TryDeleteStateFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Worker] Failed to delete state file '{path}': {ex.Message}");
+        }
     }
 
     private static void ServerLoop(MainThreadScheduler mainThreadScheduler)

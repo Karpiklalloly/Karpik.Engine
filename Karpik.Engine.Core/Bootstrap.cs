@@ -4,20 +4,16 @@ namespace Karpik.Engine.Core;
 
 internal class Bootstrap
 {
-    private readonly Side _side;
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
     private Application _application;
-    private IEngineRunner _runner;
-#if !SUPER_HOT_RELOAD
+    private IEngineRunner _runner = null!;
     private AssemblyLoadContext _context;
-#endif
 
     public Bootstrap(Side side)
     {
         _application = new Application(side);
 
-#if !SUPER_HOT_RELOAD
         _context = new AssemblyLoadContext("CORE");
         string s = Directory.GetCurrentDirectory();
         _context.LoadFromAssemblyPath(Path.Combine(s, "Karpik.Engine.Core.Runner.dll"));
@@ -25,10 +21,7 @@ internal class Bootstrap
             .SelectMany(x => x.GetTypes())
             .First(x => x.IsAssignableTo(typeof(IEngineRunner))
             || x.IsAssignableFrom(typeof(IEngineRunner)));
-        _runner = (IEngineRunner)Activator.CreateInstance(type);
-#else
-        _runner = new EngineRunner();
-#endif
+        _runner = (IEngineRunner)Activator.CreateInstance(type)!;
     }
         
     public MainThreadScheduler Initialize(int mainThreadId, Ref<bool> isRunning, Dictionary<string, byte[]>? initialHotReloadState = null)
@@ -51,7 +44,7 @@ internal class Bootstrap
         {
             var type = types.First(x => x.IsAssignableTo(typeof(IEngineRunner))
                                        || x.IsAssignableFrom(typeof(IEngineRunner)));
-            _runner = (IEngineRunner)Activator.CreateInstance(type);
+            _runner = (IEngineRunner)Activator.CreateInstance(type)!;
         }
         _runner.RegisterTypes(types);
     }

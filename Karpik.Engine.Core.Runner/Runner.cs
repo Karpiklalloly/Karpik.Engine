@@ -7,6 +7,7 @@ namespace Karpik.Engine.Core;
 
 public class EngineRunner : IEngineRunner
 {
+    private const string EcsHotReloadInstallerFullName = "Karpik.Engine.Shared.ECS.ECSInstaller";
     private readonly List<IInstaller> _modules = new();
     private EcsPipeline _pipeline = null!;
     private Time _time = new();
@@ -140,9 +141,14 @@ public class EngineRunner : IEngineRunner
         Dictionary<string, byte[]> hotReloadInfo = [];
         foreach (var oldModule in oldModules)
         {
+            var name = oldModule.GetType().FullName ?? oldModule.GetType().Name;
+            if (name != EcsHotReloadInstallerFullName)
+            {
+                continue;
+            }
+
             if (oldModule is IInstallerHotReload oldModuleHotReload)
             {
-                string name = oldModule.GetType().FullName ?? oldModule.GetType().Name;
                 hotReloadInfo[name] = oldModuleHotReload.OnPrepareHotReload(newServiceProvider);
             }
         }
