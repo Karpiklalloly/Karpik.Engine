@@ -88,7 +88,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
             world.GetPool<KinematicCharacterController>().Add(player) = new KinematicCharacterController
             {
                 MoveSpeed = 8.0f,
-                JumpForce = 18.0f,
+                JumpForce = 300.0f,
                 Gravity = 30.0f,
                 MaxFallSpeed = 25.0f,
                 IsGrounded = false,

@@ -15,11 +15,16 @@ public class SDL2InputSource : IInputSource
     public IReadOnlyList<char> PressedKeyChars => _snapshot.KeyCharPresses;
     public IReadOnlyList<KeyEvent> KeyEvents => _snapshot.KeyEvents;
     public IReadOnlyList<Key> PressedKeys { get; private set; }
+    public IReadOnlyList<Key> PressingKeys { get; private set; }
+    public IReadOnlyList<Key> UnPressedKeys { get; private set; }
+    public IReadOnlyList<Key> UnPressingKeys { get; private set; }
     public IReadOnlyList<MouseEvent> MouseEvents => _snapshot.MouseEvents;
     public ImmutableHashSet<MouseButton> PressedMouses { get; private set; }
     public ImmutableHashSet<MouseButton> ReleasedMouses { get; private set; }
     public Vector2 MousePosition => _snapshot.MousePosition;
-    public Vector2 MouseDelta => _window.MouseDelta; 
+    public Vector2 MouseDelta => _window.MouseDelta;
+
+    private int i = 0;
 
     public SDL2InputSource(Sdl2Window window)
     {
@@ -30,10 +35,31 @@ public class SDL2InputSource : IInputSource
     {
         // TODO: Аллокации каждый кадр - кринж. Пул надо использовать
         _snapshot = _window.PumpEvents();
-        PressedKeys = KeyEvents.Where(static x => x.Down).Select(static x => x.Key).ToList();
+        PressedKeys = KeyEvents.Where(static x => x is { Down: true, Repeat: false }).Select(static x => x.Key).ToList();
+        PressingKeys = KeyEvents.Where(static x => x is { Repeat: true, Down: true }).Select(static x => x.Key).ToList();
+        UnPressedKeys = KeyEvents.Where(static x => x is { Down: false, Repeat: false }).Select(static x => x.Key).ToList();
+        UnPressingKeys = KeyEvents.Where(static x => x is { Down: false, Repeat: true }).Select(static x => x.Key).ToList();
         PressedMouses = _snapshot.MouseEvents.Where(static x => x.Down).Select(static x => x.MouseButton).ToImmutableHashSet();
         ReleasedMouses = _snapshot.MouseEvents.Where(static x => !x.Down).Select(static x => x.MouseButton).ToImmutableHashSet();
-        
+
+        i++;
+        var events = KeyEvents.Select(x => x.ToString()).ToList();
+        if (events.Count > 0)
+        {
+            events.ForEach(x => Console.WriteLine(x));
+        }
+        // if (i == 100)
+        // {
+        //     Console.WriteLine("==== Input Snapshot ====");
+        //     
+        //
+        //     
+        //     Console.WriteLine($"PressedKeys: {string.Join(", ", PressedKeys)}");
+        //     Console.WriteLine($"PressingKeys: {string.Join(", ", PressingKeys)}");
+        //     Console.WriteLine($"UnPressedKeys: {string.Join(", ", UnPressedKeys)}");
+        //     Console.WriteLine($"UnPressingKeys: {string.Join(", ", UnPressingKeys)}");
+        //     i = 0;
+        // }
     }
 
     public bool IsMouseButtonDown(MouseButton button)

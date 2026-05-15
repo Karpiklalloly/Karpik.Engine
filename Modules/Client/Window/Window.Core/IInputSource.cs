@@ -10,6 +10,9 @@ public interface IInputSource
     public IReadOnlyList<char> PressedKeyChars { get; }
     public IReadOnlyList<KeyEvent> KeyEvents { get; }
     public IReadOnlyList<Key> PressedKeys { get; }
+    public IReadOnlyList<Key> PressingKeys { get; }
+    public IReadOnlyList<Key> UnPressedKeys { get; }
+    public IReadOnlyList<Key> UnPressingKeys { get; }
     public IReadOnlyList<MouseEvent> MouseEvents { get; }
     public ImmutableHashSet<MouseButton> PressedMouses { get; }
     public ImmutableHashSet<MouseButton> ReleasedMouses { get; }

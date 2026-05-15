@@ -106,7 +106,7 @@ public class Input
         _captureState = captureState;
         foreach (Key key in Enum.GetValues<Key>())
         {
-            _keyStates[key] = State.DownHold;
+            _keyStates[key] = State.UpHold;
         }
     }
 
@@ -119,27 +119,31 @@ public class Input
         CharUnPressed = null!;
         CharPressing = null!;
         
-        _keys.Clear();
+        _pressedKeys.Clear();
+        _unpressedKeys.Clear();
         _chars.Clear();
 
         _source = null!;
         _captureState = null!;
     }
     
-    private List<Key> _keys = new();
+    private List<Key> _pressedKeys = new();
+    private List<Key> _unpressedKeys = new();
     private List<char> _chars = new();
     
     internal void Update()
     {
-        _keys.Clear();
+        _pressedKeys.Clear();
+        _unpressedKeys.Clear();
         _chars.Clear();
         
         if (!_captureState.Keyboard)
         {
-            _keys.AddRange(_source.PressedKeys);
+            _pressedKeys.AddRange(_source.PressedKeys);
+            _unpressedKeys.AddRange(_source.UnPressedKeys);
         }
         
-        foreach (var key in _keys)
+        foreach (var key in _pressedKeys)
         {
             if (_keyStates.ContainsKey(key))
             {
@@ -164,7 +168,7 @@ public class Input
             }
         }
         
-        foreach (var key in _keyStates.Keys.Except(_keys))
+        foreach (var key in _unpressedKeys)
         {
             if (_keyStates[key] == State.DownEvent || _keyStates[key] == State.DownHold)
             {

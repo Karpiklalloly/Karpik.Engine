@@ -58,7 +58,7 @@ public class InputSystem : ISystemUpdate
             moveX += 1;
         }
 
-        if (_input.IsPressing(Key.Space) || _input.IsDown(Key.W) || _input.IsDown(Key.Up))
+        if (_input.IsPressed(Key.Space) || _input.IsPressed(Key.W) || _input.IsPressed(Key.Up))
         {
             jump = true;
         }

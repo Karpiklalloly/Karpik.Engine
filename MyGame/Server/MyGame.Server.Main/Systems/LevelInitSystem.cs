@@ -74,7 +74,7 @@ public class LevelInitSystem : ISystemInit
             Friction = 0.8f,
             Restitution = 0.0f,
             IsSensor = false,
-            CategoryBits = Physics2DLayers.Player,
+            CategoryBits = Physics2DLayers.Platform,
             MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
         };
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);

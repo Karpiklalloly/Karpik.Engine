@@ -4,8 +4,11 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-public class KinematicControllerSystem : ISystemUpdate
+public class KinematicControllerSystem : ISystemFixedUpdate
 {
+    private const float HALF_HEIGHT = 1.0f;
+    private const float SKIN_WIDTH = 0.05f;
+    
     class Aspect : EcsAspect
     {
         public EcsPool<PhysicsBodyRef> body = Inc;
@@ -20,7 +23,7 @@ public class KinematicControllerSystem : ISystemUpdate
     
     private RaycastHit2D[] _hits = new RaycastHit2D[16];
     
-    public void Update()
+    public void FixedUpdate()
     {
         foreach (var e in _world.Where(out Aspect a))
         {
@@ -54,6 +57,7 @@ public class KinematicControllerSystem : ISystemUpdate
                 bool canJump = (float)_time.TotalTime - ctrl.LastJumpTime > ctrl.JumpCooldown;
                 if (jump && canJump)
                 {
+                    Console.WriteLine($"{ctrl.JumpForce}");
                     velocity.Y = ctrl.JumpForce;
                     ctrl.LastJumpTime = (float)_time.TotalTime;
                     ctrl.IsGrounded = false;
@@ -80,35 +84,38 @@ public class KinematicControllerSystem : ISystemUpdate
                 proposedPos.X = transform.Position.X;
             }
             
-            // Проверить Y движение
-            rayStart = proposedPos + new Vector2(0, 1f);
-            rayEnd = proposedPos - new Vector2(0, 1f);
-            
-            hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
-            if (hitCount > 0)
+            if (velocity.Y < 0)
             {
-                if (velocity.Y < 0) // Падаем вниз
+                rayStart = transform.Position - new Vector2(0, HALF_HEIGHT);
+                rayEnd = proposedPos - new Vector2(0, HALF_HEIGHT + SKIN_WIDTH);
+
+                hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
+                if (hitCount > 0)
                 {
                     ctrl.IsGrounded = true;
                     velocity.Y = 0;
-                    proposedPos.Y = _hits[0].Point.Y + 1f; // На поверхность
+                    proposedPos.Y = _hits[0].Point.Y + HALF_HEIGHT;
                 }
-                else if (velocity.Y > 0) // Прыгаем вверх
+                else
+                {
+                    ctrl.IsGrounded = false;
+                }
+            }
+            else if (velocity.Y > 0)
+            {
+                rayStart = transform.Position + new Vector2(0, HALF_HEIGHT);
+                rayEnd = proposedPos + new Vector2(0, HALF_HEIGHT + SKIN_WIDTH);
+
+                hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
+                if (hitCount > 0)
                 {
                     velocity.Y = 0;
-                    proposedPos.Y = _hits[0].Point.Y - 1f;
+                    proposedPos.Y = _hits[0].Point.Y - HALF_HEIGHT;
                 }
             }
-            else if (velocity.Y < 0)
-            {
-                ctrl.IsGrounded = false;
-            }
             
-            // Применить скорость и позицию
-            velocity.Y = 0;
+            // Применить скорость. Kinematic body moves during the physics step.
             _physicsWorld2D.SetVelocity(bodyRef.Handle, velocity);
-            
-            Array.Clear(_hits, 0, _hits.Length);
         }
     }
 }

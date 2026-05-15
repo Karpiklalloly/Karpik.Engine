@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
-public class ServerGroundCheckSystem : ISystemUpdate
+public class ServerGroundCheckSystem : ISystemFixedUpdate
 {
     class PlayerAspect : EcsAspect
     {
@@ -19,7 +19,7 @@ public class ServerGroundCheckSystem : ISystemUpdate
     [DI] private IPhysicsWorld2D _physicsWorld = null!;
     [DI] private EcsDefaultWorld _world = null!;
 
-    public void Update()
+    public void FixedUpdate()
     {
         Span<RaycastHit2D> hits = stackalloc RaycastHit2D[4];
         
@@ -33,21 +33,7 @@ public class ServerGroundCheckSystem : ISystemUpdate
             
             int hitCount = _physicsWorld.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, hits);
             
-            bool wasGrounded = controller.IsGrounded;
-            if (hitCount > 0)
-            {
-                Console.WriteLine($"Hits {hitCount}");
-            }
             controller.IsGrounded = hitCount > 0;
-            
-            if (!wasGrounded && controller.IsGrounded)
-            {
-                Console.WriteLine($"Player {entity} landed");
-            }
-            else if (wasGrounded && !controller.IsGrounded)
-            {
-                Console.WriteLine($"Player {entity} jumped/fell");
-            }
         }
     }
 }
