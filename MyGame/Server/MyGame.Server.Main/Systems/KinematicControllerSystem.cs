@@ -58,7 +58,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
                 if (jump && canJump)
                 {
                     Console.WriteLine($"{ctrl.JumpForce}");
-                    velocity.Y = ctrl.JumpForce;
+                    velocity.Y = ctrl.JumpForce * 3;
                     ctrl.LastJumpTime = (float)_time.TotalTime;
                     ctrl.IsGrounded = false;
                 }

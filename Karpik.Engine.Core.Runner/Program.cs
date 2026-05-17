@@ -20,6 +20,11 @@ public class Program
         var stateFile = ParseArg(args, "--state-file");
         var waitForDebugger = HasArg(args, "--wait-for-debugger");
         var side = ParseArg(args, "--side");
+
+        if (!string.IsNullOrWhiteSpace(pipeName))
+        {
+            AppContext.SetData("Karpik.HotReload.PipeName", pipeName);
+        }
         
         Enum.TryParse(side, out Side s);
         

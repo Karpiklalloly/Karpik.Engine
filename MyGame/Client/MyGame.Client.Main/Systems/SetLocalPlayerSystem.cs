@@ -16,12 +16,55 @@ public class SetLocalPlayerSystem : IEcsRunOnEvent<SetLocalPlayerTargetRpc>
     }
     
     [DI] private EcsDefaultWorld _world;
+    [DI] private ClientReconnectTokenStore _reconnectTokenStore = null!;
     
     public void RunOnEvent(ref SetLocalPlayerTargetRpc evt)
     {
         Logger.Instance.Log(nameof(SetLocalPlayerSystem), $"Got SetLocalPlayerTargetRpc for netId {evt.LocalPlayerNetId}");
-        var entity = FindByNetworkId(evt.LocalPlayerNetId, _world);
-        _world.GetPool<LocalPlayer>().Add(entity.ID);
+        _reconnectTokenStore.Save(evt.ReconnectToken);
+        StoreClientReconnectToken(evt.ReconnectToken);
+
+        var entity = FindOrCreateByNetworkId(evt.LocalPlayerNetId, _world);
+        var localPlayerPool = _world.GetPool<LocalPlayer>();
+        if (!localPlayerPool.Has(entity.ID))
+        {
+            localPlayerPool.Add(entity.ID);
+        }
+
+        var sessionPool = _world.GetPool<PlayerSession>();
+        if (sessionPool.Has(entity.ID))
+        {
+            sessionPool.Get(entity.ID).ReconnectToken = evt.ReconnectToken;
+        }
+        else
+        {
+            sessionPool.Add(entity.ID).ReconnectToken = evt.ReconnectToken;
+        }
+    }
+
+    private void StoreClientReconnectToken(long reconnectToken)
+    {
+        var pool = _world.GetPool<ClientReconnectSession>();
+        foreach (var entity in _world.Where(EcsStaticMask.Inc<ClientReconnectSession>().Build()))
+        {
+            pool.Get(entity).ReconnectToken = reconnectToken;
+            return;
+        }
+
+        pool.Add(_world.NewEntity()).ReconnectToken = reconnectToken;
+    }
+
+    protected entlong FindOrCreateByNetworkId(int networkId, EcsWorld world)
+    {
+        var entity = FindByNetworkId(networkId, world);
+        if (entity.IsAlive)
+        {
+            return entity;
+        }
+
+        var created = world.NewEntity();
+        world.GetPool<NetworkId>().Add(created).Id = networkId;
+        return world.GetEntityLong(created);
     }
 
     protected entlong FindByNetworkId(int networkId, EcsWorld world)

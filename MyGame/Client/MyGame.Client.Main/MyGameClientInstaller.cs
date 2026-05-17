@@ -16,6 +16,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
     private NetworkManager _manager = new();
     private EcsDefaultWorld _world = null!;
     private TargetClientRpcDispatcher _targetClientRpcDispatcher = null!;
+    private ClientReconnectTokenStore _reconnectTokenStore = null!;
 
     private Input _input = null!;
     private Action<Key> _onInput = null!;
@@ -27,6 +28,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
         services.Register<IRpc>(new Rpc());
         services.Register(new TargetClientRpcDispatcher());
         services.Register(new Drawer());
+        services.Register(new ClientReconnectTokenStore());
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
@@ -35,6 +37,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
         _networkManager = services.Get<INetworkManager>();
         _world = services.Get<EcsDefaultWorld>();
         _targetClientRpcDispatcher = services.Get<TargetClientRpcDispatcher>();
+        _reconnectTokenStore = services.Get<ClientReconnectTokenStore>();
 
         // var renderer = services.Get<IRenderer>();
         //
@@ -78,7 +81,65 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
     {
         _container = services;
         _networkManager.NetworkReceiveEvent += NetworkManagerOnNetworkReceiveEvent;
+        _networkManager.PeerConnectedEvent += NetworkManagerOnPeerConnectedEvent;
         _networkManager.PeerDisconnectedEvent += NetworkManagerOnPeerDisconnectedEvent;
+
+        var peer = _networkManager.FirstPeer;
+        if (peer is { ConnectionState: ConnectionState.Connected })
+        {
+            SendHandshake(peer);
+        }
+    }
+
+    private void NetworkManagerOnPeerConnectedEvent(IPeer peer)
+    {
+        SendHandshake(peer);
+    }
+
+    private void SendHandshake(IPeer peer)
+    {
+        var writer = _networkManager.CreateWriter();
+        var reconnectToken = GetReconnectToken();
+        _reconnectTokenStore.Save(reconnectToken);
+        writer.Put((byte)PacketType.Handshake);
+        writer.Put(reconnectToken);
+        peer.Send(writer, DeliveryMethod.ReliableOrdered);
+        Console.WriteLine($"[MyGameClientInstaller] Sent handshake with reconnect token {reconnectToken}");
+    }
+
+    private long GetReconnectToken()
+    {
+        var clientSessionPool = _world.GetPool<ClientReconnectSession>();
+        foreach (var entity in _world.Where(EcsStaticMask.Inc<ClientReconnectSession>().Build()))
+        {
+            var token = clientSessionPool.Get(entity).ReconnectToken;
+            if (token > 0)
+            {
+                return token;
+            }
+        }
+
+        var sessionPool = _world.GetPool<PlayerSession>();
+
+        foreach (var entity in _world.Where(EcsStaticMask.Inc<PlayerSession>().Inc<LocalPlayer>().Build()))
+        {
+            var token = sessionPool.Get(entity).ReconnectToken;
+            if (token > 0)
+            {
+                return token;
+            }
+        }
+
+        foreach (var entity in _world.Where(EcsStaticMask.Inc<PlayerSession>().Build()))
+        {
+            var token = sessionPool.Get(entity).ReconnectToken;
+            if (token > 0)
+            {
+                return token;
+            }
+        }
+
+        return _reconnectTokenStore.Load();
     }
     
     private void NetworkManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
@@ -105,6 +166,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
     public void Destroy()
     {
         _networkManager.NetworkReceiveEvent -= NetworkManagerOnNetworkReceiveEvent;
+        _networkManager.PeerConnectedEvent -= NetworkManagerOnPeerConnectedEvent;
         _networkManager.PeerDisconnectedEvent -= NetworkManagerOnPeerDisconnectedEvent;
 
         _input.KeyPressed -= _onInput;

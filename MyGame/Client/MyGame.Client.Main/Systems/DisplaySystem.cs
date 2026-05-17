@@ -53,22 +53,22 @@ public class DisplaySystem : ISystemUpdate, ISystemInit
         var camera = Camera2D.CreateDefault();
         camera.Position = new Vector2(0, 0);
         camera.Zoom = 1f;
-        camera.PixelsPerUnit = 64;
+        camera.PixelsPerUnit = 30;
         camera.RotationRadians = 0;
-        _cameraHolder = _world.NewEntityLong();
-        _cameraHolder.Add<CameraHolder>() = new CameraHolder()
+        if (_world.GetPool<CameraHolder>().Count == 0)
         {
-            Camera = camera
-        };
+            _cameraHolder = _world.NewEntityLong();
+            _cameraHolder.Add<CameraHolder>() = new CameraHolder()
+            {
+                Camera = camera
+            };
+        }
+        else
+        {
+            _cameraHolder = _world.GetEntityLong(_world.Where(EcsStaticMask.Inc<CameraHolder>().Build()).First());
+             _cameraHolder.Get<CameraHolder>().Camera = camera;
+        }
 
         _fontAsset = _assetsManager.LoadAssetAsync<FontAsset>("PressStart.font-json").GetAwaiter().GetResult();
-
-        IFont font = _fontAsset.Asset!.Font;
-
-        Console.WriteLine(font.Size);
-        Console.WriteLine(font.LineHeight);
-        Console.WriteLine(font.DistanceRange);
-        Console.WriteLine(font.TryGetGlyph((uint)'A', out var glyph));
-        Console.WriteLine(glyph.SourceUv);
     }
 }

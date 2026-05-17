@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Jobs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -86,12 +87,9 @@ public class ECSInstaller : IInstaller, IInstallerHotReload, IInstallerConfigura
         }
 
         var hotReloadData = JsonConvert.DeserializeObject<HotReloadInfo>(Encoding.UTF8.GetString(data));
-        services.Get<MainThreadScheduler>().Schedule(() =>
-        {
-            EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, services);
-            EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, services);
-            EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, services);
-        });
+        EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, services).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, services).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, services).GetAwaiter().GetResult();
 
         return true;
     }

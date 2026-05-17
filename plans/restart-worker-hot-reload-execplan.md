@@ -21,6 +21,31 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
 - [x] (2026-05-15 20:22:42 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 18 warnings and 0 errors.
 - [x] (2026-05-15 20:22:42 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
 - [x] (2026-05-15 20:30:00 +04:00) Fixed runtime `AssemblyLoadContext is unloading or was already unloaded` failure by making `PluginLoadContext` non-collectible and keeping an explicit loader field reference.
+- [x] (2026-05-16 13:52:33 +04:00) Added a stable reconnect handshake so client worker restart reattaches to an existing server-side player entity instead of spawning a duplicate.
+- [x] (2026-05-16 14:26:01 +04:00) Replaced client-generated session identity with a server-issued reconnect token persisted in ECS.
+- [x] (2026-05-16 14:26:01 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-16 14:26:01 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 61 warnings and 0 errors.
+- [x] (2026-05-16 22:28:01 +04:00) Fixed player accumulation by treating `PlayerConnection` as runtime peer binding and allowing valid reconnect tokens to hand off an existing player even before the old peer disconnect event arrives.
+- [x] (2026-05-16 22:28:01 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-17 17:56:28 +04:00) Fixed client-side entity accumulation by rebuilding the generated network-id cache from restored ECS entities before applying the first snapshot after hot reload.
+- [x] (2026-05-17 17:56:28 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 62 warnings and 0 errors.
+- [x] (2026-05-17 17:56:28 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-17 18:43:01 +04:00) Fixed server level duplication after hot reload by making `LevelInitSystem` idempotent and advancing `NetworkIdGenerator` before creating fresh level entities.
+- [x] (2026-05-17 18:43:01 +04:00) Removed unsafe generated duplicate-entity cleanup; generated client snapshot cache now only binds to restored `NetworkId` entities and does not delete arbitrary restored entities.
+- [x] (2026-05-17 18:43:01 +04:00) Made client `SpriteRenderer` and `IgnoreSpriteData` runtime-only across worker restart by clearing them during `ApplySpriteSystem.Init()`.
+- [x] (2026-05-17 18:43:01 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 8 warnings and 0 errors.
+- [x] (2026-05-17 18:43:01 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 61 warnings and 0 errors.
+- [x] (2026-05-17 19:04:16 +04:00) Moved the client reconnect token into a dedicated `ClientReconnectSession` ECS component so it does not depend on snapshot/RPC ordering for the player entity.
+- [x] (2026-05-17 19:04:16 +04:00) Made `SetLocalPlayerTargetRpc` create a lightweight local entity with the target `NetworkId` when the snapshot for that player has not arrived yet.
+- [x] (2026-05-17 19:04:16 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 61 warnings and 0 errors.
+- [x] (2026-05-17 19:04:16 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-17 19:14:57 +04:00) Added server-side disconnected player TTL cleanup and queued deleted `NetworkId` values into snapshot deletion output.
+- [x] (2026-05-17 19:14:57 +04:00) Made the client send a handshake in `OnConfigureComplete` if the peer is already connected before the `PeerConnectedEvent` handler is attached.
+- [x] (2026-05-17 19:14:57 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 61 warnings and 0 errors.
+- [x] (2026-05-17 19:14:57 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-17 19:28:39 +04:00) Added a client reconnect-token store keyed by the launcher hot-reload pipe name, so worker restarts can send the server-issued token even if ECS/RPC ordering fails.
+- [x] (2026-05-17 19:28:39 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 6 warnings and 0 errors.
+- [x] (2026-05-17 19:28:39 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 62 warnings and 0 errors after rerunning separately; the first parallel attempt hit a locked `Karpik.Engine.Core.Runner.dll` in `obj`.
 
 ## Surprises & Discoveries
 
@@ -34,6 +59,22 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
   Evidence: MSBuild attempted to copy literal paths ending in `bin\Debug\net10.0\**\*.*`; moving the wildcard into batched item include `%(_PluginOutputRoots.Identity)**\*.*` fixed module staging.
 - Observation: The worker still used a collectible plugin load context after switching to process restart.
   Evidence: Client startup failed loading `Veldrid.StartupUtilities` from `WindowSdlInstaller.OnRegisterServices` with `AssemblyLoadContext is unloading or was already unloaded`; `PluginLoadContext` used `base(isCollectible: true)`. The dependency was present in staged `modules`, so the failure was context lifecycle, not deployment.
+- Observation: Network connection identity and gameplay player identity must be separated for restart-worker client reload.
+  Evidence: Server-side `NetworkSystem` previously spawned a player directly in `PeerConnectedEvent`; a restarted client gets a new `IPeer`, so this created duplicate player entities. The fix adds `PacketType.Handshake`, ECS `PlayerSession`/`PlayerConnection` components, and server-side attach-or-create logic keyed by a server-issued reconnect token.
+- Observation: `PlayerConnection.Connected` is not a reliable persisted boundary.
+  Evidence: During client hot reload the new handshake can arrive before the old disconnect event, and during server worker restore the old `Connected=true` value may survive without a real peer mapping. Reconnect must key on `PlayerSession.ReconnectToken`; `PlayerConnection` is reset on server network init and only describes the current worker's peer binding.
+- Observation: Client snapshot cache must be restored from ECS after worker restart.
+  Evidence: Client hot reload restores ECS entities with `NetworkId`, but a new `NetworkManager` starts with empty `_netToEnt`/`_entToNet` dictionaries. Generated `ApplySnapshot` previously created new entities for known server network ids instead of binding snapshots to restored entities, so visible players could still accumulate on the client.
+- Observation: Level bootstrap must be idempotent after ECS restore.
+  Evidence: Server `MyGameServerModule` runs `LevelInitSystem` before `NetworkSystem`. With `NetworkIdGenerator.EnsureAtLeast(...)` only in `NetworkSystem.Init()`, a server hot reload restored existing level entities and then created a second level using reused network ids. `LevelInitSystem` now advances the id generator itself and skips level creation when restored `Platform` entities already exist.
+- Observation: Generic duplicate cleanup in generated snapshot code is unsafe.
+  Evidence: Deleting arbitrary entities with duplicate `NetworkId` can remove the visible/restored platform instead of the newer duplicate. The generated client cache rebuild now binds to the first restored entity for each `NetworkId` and leaves deletion policy to game-specific systems.
+- Observation: Client render resources are runtime state, not hot reload state.
+  Evidence: `SpriteRenderer` stores loaded texture handles and `IgnoreSpriteData` suppresses renderer creation. After worker restart, restored runtime render components could stop `ApplySpriteSystem` from recreating texture-backed renderers from networked `SpriteData`, causing platforms to disappear visually.
+- Observation: The reconnect token must not live only on the replicated player entity.
+  Evidence: `SetLocalPlayerTargetRpc` can arrive before the unreliable snapshot that creates the entity with `LocalPlayerNetId`. Storing the token only on the player entity can fail or attach it to the wrong local entity, causing the next client hot reload handshake to send `0` and the server to create a new player.
+- Observation: TTL only controls how long a disconnected player can wait; it cannot preserve position if reconnect identity is lost.
+  Evidence: With a longer TTL, duplicate player entities remain visible longer. With a shorter TTL, the old positioned entity expires before the client can reattach, so the server creates a new player at spawn. The fix must make the client reliably send the same server-issued reconnect token after worker restart.
 
 ## Decision Log
 
@@ -49,7 +90,17 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
 
 ## Outcomes & Retrospective
 
-Implemented the restart-worker hot reload code path and verified `Karpik.Engine.Core`, `ClientLauncher`, and `ServerLauncher` build. Client module staging includes `ECS.Core`, `Graphics.Core`, and `Network.Client.Core`; server staging includes `ECS.Core` and `Network.Server.Core` and does not include `Network.Client.Core`.
+Implemented the restart-worker hot reload code path and verified `Karpik.Engine.Core`, `ClientLauncher`, and `ServerLauncher` build. Client module staging includes `ECS.Core`, `Graphics.Core`, and `Network.Client.Core`; server staging includes `ECS.Core` and `Network.Server.Core` and does not include `Network.Client.Core`. Client reconnect after worker restart now sends a reconnect-token handshake so the server reattaches the new peer to the existing player entity when ECS state is present.
+
+The reconnect token is now server-issued. On first connect the client sends token `0`, the server creates a player with a cryptographically random positive `long` token, and returns that token in `SetLocalPlayerTargetRpc`. The client persists it in ECS via `PlayerSession`, so after hot reload it sends the stored token in the handshake. The server reattaches a matching token to the existing player and replaces any stale peer binding; missing, stale, or zero identities create a fresh player/token instead.
+
+Generated client snapshot application now seeds its network-id cache from restored ECS entities before reading destroyed ids and snapshot entities. This keeps restored client entities, including the local player with `PlayerSession`, bound to incoming snapshots instead of duplicating them after reload. Server level initialization is idempotent after ECS restore, and client sprite runtime state is recreated from networked `SpriteData` instead of trusting restored texture handles.
+
+Client reconnect identity is stored in `ClientReconnectSession`, a client-side ECS component independent of the replicated player entity. `SetLocalPlayerTargetRpc` writes the token there immediately and creates a minimal local `NetworkId` entity if the snapshot has not arrived yet, so the token survives hot reload even under unreliable snapshot ordering.
+
+Disconnected server player entities are now treated as pending reconnects instead of permanent state. `NetworkSystem` assigns a short reconnect TTL, removes the cleanup marker when a matching token reconnects, and deletes expired disconnected players. Deleted network entity ids are queued into snapshot deletion output so clients remove stale local copies instead of keeping visual duplicates.
+
+The client also persists the server-issued reconnect token in a launcher-session file under `reload/client-session`, keyed by the hot-reload pipe name. This is connection identity for the developer hot-reload worker, not gameplay state; gameplay state still survives through ECS. The file store is read only during handshake and written only when `SetLocalPlayerTargetRpc` arrives.
 
 ## Context and Orientation
 

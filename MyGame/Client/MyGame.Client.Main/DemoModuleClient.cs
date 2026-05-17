@@ -31,7 +31,7 @@ internal class DemoModuleClient : IModule
     {
         b.Add((object)new MySystem());
         b.Add(new SetLocalPlayerSystem());
-        b.Add(new ApplySpriteSystem());
+        b.Add((object)new ApplySpriteSystem());
         b.Add((object)new DisplaySystem());
         b.Add(new DrawSpriteSystem());
         b.Add((object)new FlushDrawersSystem(), EcsConsts.POST_END_LAYER, 50);

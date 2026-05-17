@@ -22,6 +22,22 @@ public struct Player : IEcsComponent;
 
 public struct LocalPlayer : IEcsComponent;
 
+public struct PlayerSession : IEcsComponent
+{
+    public long ReconnectToken;
+}
+
+public struct ClientReconnectSession : IEcsComponent
+{
+    public long ReconnectToken;
+}
+
+public struct PlayerConnection : IEcsComponent
+{
+    public int PeerId;
+    public bool Connected;
+}
+
 public struct MoveCommand : IStateCommand
 {
     public Vector3 Direction;
@@ -78,6 +94,7 @@ public struct SetLocalPlayerTargetRpc : ITargetRpcCommand
     public int Source { get; set; }
     public int Target { get; set; }
     public int LocalPlayerNetId;
+    public long ReconnectToken;
 }
 
 [Serializable] [NetworkedComponent]

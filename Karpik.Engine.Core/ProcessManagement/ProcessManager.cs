@@ -131,6 +131,7 @@ internal class ProcessManager : IDisposable
             Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
             IsWorkerReady = false;
             _readyTcs?.TrySetCanceled();
+            CleanupWorkerShadowCopies(capturedProcess.Id);
             OnWorkerExited?.Invoke(exitCode);
         };
         
@@ -267,8 +268,13 @@ internal class ProcessManager : IDisposable
             _workerProcess?.Kill(entireProcessTree: true);
         }
         
+        var workerProcessId = _workerProcess?.Id;
         _ipcServer?.Dispose();
         _ipcServer = null;
+        if (workerProcessId.HasValue)
+        {
+            CleanupWorkerShadowCopies(workerProcessId.Value);
+        }
         _workerProcess?.Dispose();
         _workerProcess = null;
     }
@@ -351,6 +357,28 @@ internal class ProcessManager : IDisposable
         File.WriteAllBytes(path, state.Serialize());
         return path;
     }
+
+    private static void CleanupWorkerShadowCopies(int processId)
+    {
+        var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");
+        if (!Directory.Exists(shadowRoot))
+        {
+            return;
+        }
+
+        foreach (var directory in Directory.GetDirectories(shadowRoot, $"{processId}_*"))
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                Console.WriteLine($"[ProcessManager] Removed worker shadow directory: {directory}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProcessManager] Failed to remove worker shadow directory '{directory}': {ex.Message}");
+            }
+        }
+    }
     
     public void Dispose()
     {
@@ -360,7 +388,12 @@ internal class ProcessManager : IDisposable
         {
             if (IsWorkerRunning)
             {
+                var processId = _workerProcess?.Id;
                 _workerProcess?.Kill(entireProcessTree: true);
+                if (processId.HasValue)
+                {
+                    CleanupWorkerShadowCopies(processId.Value);
+                }
             }
         }
         catch { }

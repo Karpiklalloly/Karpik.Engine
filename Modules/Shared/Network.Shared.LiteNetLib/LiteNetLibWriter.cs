@@ -17,6 +17,8 @@ public class LiteNetLibWriter : IWriter
 
     public void Put(int value) => Writer.Put(value);
 
+    public void Put(long value) => Writer.Put(value);
+
     public void Put(bool value) => Writer.Put(value);
 
     public void Put(string value) => Writer.Put(value);

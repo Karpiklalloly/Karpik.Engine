@@ -13,4 +13,19 @@ public class NetworkIdGenerator
     {
         return _id;
     }
+
+    public void EnsureAtLeast(int id)
+    {
+        var current = Volatile.Read(ref _id);
+        while (current < id)
+        {
+            var previous = Interlocked.CompareExchange(ref _id, id, current);
+            if (previous == current)
+            {
+                return;
+            }
+
+            current = previous;
+        }
+    }
 }

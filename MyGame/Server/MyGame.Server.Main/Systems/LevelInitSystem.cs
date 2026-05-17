@@ -12,14 +12,50 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 /// </summary>
 public class LevelInitSystem : ISystemInit
 {
+    private class PlatformAspect : EcsAspect
+    {
+        public EcsReadonlyPool<Platform> Platform = Inc;
+    }
+
+    private class NetworkIdAspect : EcsAspect
+    {
+        public EcsReadonlyPool<NetworkId> NetworkId = Inc;
+    }
+
     [DI] private EcsDefaultWorld _world = null!;
     [DI] private NetworkIdGenerator _networkIdGenerator = null!;
 
     public void Init()
     {
+        _networkIdGenerator.EnsureAtLeast(GetMaxNetworkId());
+        if (HasExistingLevel())
+        {
+            return;
+        }
+
         CreatePlatforms();
         CreateSpawnPoints();
         CreateBoxes();
+    }
+
+    private bool HasExistingLevel()
+    {
+        return _world.Where(out PlatformAspect _).Count > 0;
+    }
+
+    private int GetMaxNetworkId()
+    {
+        var maxNetworkId = 0;
+        foreach (var entity in _world.Where(out NetworkIdAspect aspect))
+        {
+            var networkId = aspect.NetworkId.Get(entity).Id;
+            if (networkId > maxNetworkId)
+            {
+                maxNetworkId = networkId;
+            }
+        }
+
+        return maxNetworkId;
     }
 
     private void CreatePlatforms()
