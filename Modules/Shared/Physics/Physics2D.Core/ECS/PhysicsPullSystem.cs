@@ -4,7 +4,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class PhysicsPullSystem : ISystemLate
+public class PhysicsPullSystem : ISystemLateUpdate
 {
     class TransformAspect : EcsAspect 
     {
@@ -25,7 +25,7 @@ public class PhysicsPullSystem : ISystemLate
     private Vector2[] _vecBuf = new Vector2[2048];
     private float[] _floatBuf = new float[2048];
     
-    public void LateRun()
+    public void LateUpdate()
     {
         SyncTransforms();
         SyncVelocities();

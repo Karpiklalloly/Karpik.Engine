@@ -14,11 +14,11 @@ internal class InitSystem : ISystemInit
     }
 }
 
-internal class UpdateSystem : ISystemLate
+internal class UpdateSystem : ISystemLateUpdate
 {
     [DI] private ModManager _modManager = null!;
     
-    public void LateRun()
+    public void LateUpdate()
     {
         _modManager.UpdateMods();
     }

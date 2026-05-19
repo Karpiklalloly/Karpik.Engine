@@ -70,13 +70,13 @@ public class UpdateSystem(ISystemUpdate system) : IUpdateSystem, IOnInjectedDI
     }
 }
 
-public class LateSystem(ISystemLate system) : ILateRunSystem, IOnInjectedDI
+public class LateSystem(ISystemLateUpdate system) : ILateRunSystem, IOnInjectedDI
 {
     [DI] private IServiceContainer _container = null!;
 
     public void LateRun()
     {
-        system.LateRun();
+        system.LateUpdate();
     }
     
     public void OnInjected()

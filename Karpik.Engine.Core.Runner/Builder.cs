@@ -30,7 +30,7 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
             Add(update, layer, order);
             added = true;
         }
-        if (system is ISystemLate end)
+        if (system is ISystemLateUpdate end)
         {
             Add(end, layer, order);
             added = true;
@@ -88,7 +88,7 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
         return this;
     }
 
-    public IBuilder Add(ISystemLate end, string layer = "BASIC_LAYER", int order = 0)
+    public IBuilder Add(ISystemLateUpdate end, string layer = "BASIC_LAYER", int order = 0)
     {
         builder.Add(new LateSystem(end), layer, order);
         
