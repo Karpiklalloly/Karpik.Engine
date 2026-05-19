@@ -10,6 +10,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     private const float SKIN_WIDTH = 1.0f;
     private const float WALL_SKIN_WIDTH = 0.03f;
     private const float VERTICAL_SKIN_WIDTH = 0.03f;
+    private const float GROUND_CONTACT_TOLERANCE = 0.08f;
     private const float RAY_SPACING = 0.35f;
     
     class Aspect : EcsAspect
@@ -140,6 +141,9 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     {
         Vector2 to = from + new Vector2(0, -distance);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        bool hasGroundHit = false;
+        float closestGap = float.MaxValue;
+        Vector2 closestNormal = Vector2.UnitY;
         for (int i = 0; i < hitsCount; i++)
         {
             RaycastHit2D hit = hits[i];
@@ -152,26 +156,36 @@ public class KinematicControllerSystem : ISystemFixedUpdate
             if (angle <= controller.MaxGroundAngle)
             {
                 float gapFromFoot = hit.Fraction * distance;
-                if (gapFromFoot <= VERTICAL_SKIN_WIDTH)
+                if (gapFromFoot < closestGap)
                 {
-                    controller.IsGrounded = true;
-                    controller.GroundNormal = hit.Normal;
-                    if (targetVelocity.Y < 0f)
-                    {
-                        targetVelocity.Y = 0f;
-                    }
-
-                    return;
+                    hasGroundHit = true;
+                    closestGap = gapFromFoot;
+                    closestNormal = hit.Normal;
                 }
-
-                if (targetVelocity.Y < 0f)
-                {
-                    float maxFallVelocity = (gapFromFoot - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
-                    targetVelocity.Y = MathF.Max(targetVelocity.Y, -maxFallVelocity);
-                }
-
-                return;
             }
+        }
+
+        if (!hasGroundHit)
+        {
+            return;
+        }
+
+        if (closestGap <= VERTICAL_SKIN_WIDTH || IsRestingOnGround(closestGap, targetVelocity.Y))
+        {
+            controller.IsGrounded = true;
+            controller.GroundNormal = closestNormal;
+            if (targetVelocity.Y < 0f)
+            {
+                targetVelocity.Y = 0f;
+            }
+
+            return;
+        }
+
+        if (targetVelocity.Y < 0f)
+        {
+            float maxFallVelocity = (closestGap - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
+            targetVelocity.Y = MathF.Max(targetVelocity.Y, -maxFallVelocity);
         }
     }
 
@@ -186,6 +200,8 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     {
         Vector2 to = from + new Vector2(0, distance);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        bool hasCeilHit = false;
+        float closestGap = float.MaxValue;
         for (int i = 0; i < hitsCount; i++)
         {
             RaycastHit2D hit = hits[i];
@@ -198,25 +214,34 @@ public class KinematicControllerSystem : ISystemFixedUpdate
             if (angle <= controller.MaxGroundAngle)
             {
                 float gapFromHead = hit.Fraction * distance;
-                if (gapFromHead <= VERTICAL_SKIN_WIDTH)
+                if (gapFromHead < closestGap)
                 {
-                    controller.IsCeiled = true;
-                    if (targetVelocity.Y > 0f)
-                    {
-                        targetVelocity.Y = 0f;
-                    }
-
-                    return;
+                    hasCeilHit = true;
+                    closestGap = gapFromHead;
                 }
-
-                if (targetVelocity.Y > 0f)
-                {
-                    float maxRiseVelocity = (gapFromHead - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
-                    targetVelocity.Y = MathF.Min(targetVelocity.Y, maxRiseVelocity);
-                }
-
-                return;
             }
+        }
+
+        if (!hasCeilHit)
+        {
+            return;
+        }
+
+        if (closestGap <= VERTICAL_SKIN_WIDTH)
+        {
+            controller.IsCeiled = true;
+            if (targetVelocity.Y > 0f)
+            {
+                targetVelocity.Y = 0f;
+            }
+
+            return;
+        }
+
+        if (targetVelocity.Y > 0f)
+        {
+            float maxRiseVelocity = (closestGap - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
+            targetVelocity.Y = MathF.Min(targetVelocity.Y, maxRiseVelocity);
         }
     }
     
@@ -265,6 +290,11 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     private static bool IsPushableBox(int entity, EcsReadonlyPool<PhysicsBox> boxes)
     {
         return entity >= 0 && boxes.Has(entity);
+    }
+
+    private static bool IsRestingOnGround(float gapFromFoot, float verticalVelocity)
+    {
+        return verticalVelocity <= 0f && gapFromFoot <= GROUND_CONTACT_TOLERANCE;
     }
 
     private static void ClampRightWall(ref KinematicCharacterController controller, ref Vector2 targetVelocity, float gapFromEdge, float fixedDeltaTime)
