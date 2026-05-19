@@ -8,6 +8,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
 {
     private const float HALF_HEIGHT = 1.0f;
     private const float SKIN_WIDTH = 1.0f;
+    private const int SIDE_RAY_COUNT = 5;
     
     class Aspect : EcsAspect
     {
@@ -15,6 +16,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         public EcsPool<Transform2D> transform = Inc;
         public EcsPool<KinematicCharacterController> controller = Inc;
         public EcsPool<WannaMove> move = Opt;
+        public EcsReadonlyPool<PhysicsBox> boxes = Opt;
     }
     
     [DI] private EcsDefaultWorld _world = null!;
@@ -42,7 +44,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
                 jump = move.Jump;
             }
 
-            CheckGround(ref controller, ref bodyRef, ref transform, targetVelocity);
+            CheckGround(ref controller, ref bodyRef, ref transform, targetVelocity, a.boxes);
             ApplyHorizontalInput(ref controller, moveX, ref targetVelocity);
             ApplyGravity(ref controller, ref targetVelocity);
             ApplyJump(ref controller, jump, ref targetVelocity);
@@ -77,7 +79,8 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         ref KinematicCharacterController controller,
         ref PhysicsBodyRef bodyRef,
         ref Transform2D transform,
-        Vector2 velocity)
+        Vector2 velocity,
+        EcsReadonlyPool<PhysicsBox> boxes)
     {
         controller.IsGrounded = false;
         controller.IsCeiled = false;
@@ -101,13 +104,13 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         CastGroundRay(leftFoot, ref bodyRef, ref controller, _hits, downCastDistance);
         CastGroundRay(rightFoot, ref bodyRef, ref controller, _hits, downCastDistance);
         
-        CastWallRay(position + new Vector2(0, HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance);
-        CastWallRay(position + new Vector2(0, 0), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance);
-        CastWallRay(position + new Vector2(0, -HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance);
-        
-        CastWallRay(position + new Vector2(0, HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance);
-        CastWallRay(position + new Vector2(0, 0), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance);
-        CastWallRay(position + new Vector2(0, -HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance);
+        for (int i = 0; i < SIDE_RAY_COUNT; i++)
+        {
+            float y = -HALF_HEIGHT + (HALF_HEIGHT * 2f) * i / (SIDE_RAY_COUNT - 1);
+            Vector2 sideOrigin = position + new Vector2(0, y);
+            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance, boxes);
+            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance, boxes);
+        }
     }
 
     private void CastGroundRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits, float distance)
@@ -153,7 +156,14 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         }
     }
     
-    private void CastWallRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits, Vector2 direction, float distance)
+    private void CastWallRay(
+        Vector2 from,
+        ref PhysicsBodyRef bodyRef,
+        ref KinematicCharacterController controller,
+        Span<RaycastHit2D> hits,
+        Vector2 direction,
+        float distance,
+        EcsReadonlyPool<PhysicsBox> boxes)
     {
         Vector2 to = from + direction + new Vector2(MathF.Sign(direction.X) * distance, 0);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
@@ -161,6 +171,11 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         {
             RaycastHit2D hit = hits[i];
             if (hit.Body.Equals(bodyRef.Handle))
+            {
+                continue;
+            }
+
+            if (IsPushableBox(hit.Entity, boxes))
             {
                 continue;
             }
@@ -175,6 +190,11 @@ public class KinematicControllerSystem : ISystemFixedUpdate
                 controller.TouchLeft = true;
             }
         }
+    }
+
+    private static bool IsPushableBox(int entity, EcsReadonlyPool<PhysicsBox> boxes)
+    {
+        return entity >= 0 && boxes.Has(entity);
     }
     
     private void ApplyHorizontalInput(ref KinematicCharacterController controller, float moveX, ref Vector2 targetVelocity)
