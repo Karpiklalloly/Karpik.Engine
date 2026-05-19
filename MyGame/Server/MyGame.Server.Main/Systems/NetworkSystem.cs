@@ -320,7 +320,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
             Gravity = -9.8f,
             MaxFallSpeed = 25.0f,
             IsGrounded = false,
-            LastJumpTime = 0,
+            LastJumpTime = -0.2f,
             JumpCooldown = 0.2f,
             MaxGroundAngle = 45 * MathF.PI / 180
         };
