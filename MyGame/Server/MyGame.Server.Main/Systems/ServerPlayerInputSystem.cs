@@ -1,11 +1,9 @@
-using System.Numerics;
-using DragonExtensions;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
 
-namespace Karpik.Engine.MyGame.Server.Main.Systems;
+namespace Karpik.Engine.MyGame.Server.Main;
 
 internal class InputSystem : IEcsRunOnEvent<PlatformerInputCommand>
 {

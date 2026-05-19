@@ -7,7 +7,7 @@ namespace Karpik.Engine.MyGame.Server.Main.Systems;
 public class KinematicControllerSystem : ISystemFixedUpdate
 {
     private const float HALF_HEIGHT = 1.0f;
-    private const float SKIN_WIDTH = 0.05f;
+    private const float SKIN_WIDTH = 1.0f;
     
     class Aspect : EcsAspect
     {
@@ -27,94 +27,171 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     {
         foreach (var e in _world.Where(out Aspect a))
         {
-            ref var ctrl = ref a.controller.Get(e);
+            ref var controller = ref a.controller.Get(e);
             ref var bodyRef = ref a.body.Get(e);
             ref var transform = ref a.transform.Get(e);
-            
-            float moveX = 0;
-            bool jump = false;
-            
-            ref var wanna = ref a.move.Get(e);
-            moveX = wanna.MoveX;
-            jump = wanna.Jump;
-            // Сбросить после использования
-            wanna.MoveX = 0;
-            wanna.Jump = false;
-            
-            Vector2 velocity = _physicsWorld2D.GetVelocity(bodyRef.Handle);
+            ref var move = ref a.move.Get(e);
 
-            float dt = (float)_time.FixedDeltaTime;
-            
-            // Целевая скорость по X
-            float targetVelX = moveX * ctrl.MoveSpeed;
-            // Плавное замедление (LERP)
-            velocity.X = velocity.X + (targetVelX - velocity.X) * 10f * dt;
-            
-            if (ctrl.IsGrounded)
-            {
-                velocity.Y = 0;
-                
-                bool canJump = (float)_time.TotalTime - ctrl.LastJumpTime > ctrl.JumpCooldown;
-                if (jump && canJump)
-                {
-                    velocity.Y = ctrl.JumpForce * 3;
-                    ctrl.LastJumpTime = (float)_time.TotalTime;
-                    ctrl.IsGrounded = false;
-                }
-            }
-            else
-            {
-                velocity.Y -= ctrl.Gravity * dt;
-                velocity.Y = MathF.Max(velocity.Y, -ctrl.MaxFallSpeed);
-            }
-            
-            Vector2 proposedPos = transform.Position + velocity * dt;
-            
-            // Проверить X движение
-            Vector2 testPos = proposedPos;
-            testPos.Y = transform.Position.Y; // Y не меняем
-            Vector2 rayStart = testPos + new Vector2(0, 0.9f);
-            Vector2 rayEnd = testPos - new Vector2(0, 0.9f);
-            
-            int hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
-            if (hitCount > 0 && velocity.X != 0)
-            {
-                velocity.X = 0;
-                proposedPos.X = transform.Position.X;
-            }
-            
-            if (velocity.Y < 0)
-            {
-                rayStart = transform.Position - new Vector2(0, HALF_HEIGHT);
-                rayEnd = proposedPos - new Vector2(0, HALF_HEIGHT + SKIN_WIDTH);
+            Vector2 targetVelocity = _physicsWorld2D.GetVelocity(bodyRef.Handle);
 
-                hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
-                if (hitCount > 0)
-                {
-                    ctrl.IsGrounded = true;
-                    velocity.Y = 0;
-                    proposedPos.Y = _hits[0].Point.Y + HALF_HEIGHT;
-                }
-                else
-                {
-                    ctrl.IsGrounded = false;
-                }
-            }
-            else if (velocity.Y > 0)
+            CheckGround(ref controller, ref bodyRef, ref transform);
+            ApplyHorizontalInput(ref controller, ref move, ref targetVelocity);
+            ApplyGravity(ref controller, ref targetVelocity);
+            ApplyJump(ref controller, ref move, ref targetVelocity);
+            
+            if (controller.IsCeiled && targetVelocity.Y > 0)
             {
-                rayStart = transform.Position + new Vector2(0, HALF_HEIGHT);
-                rayEnd = proposedPos + new Vector2(0, HALF_HEIGHT + SKIN_WIDTH);
+                targetVelocity.Y = 0;
+            }
 
-                hitCount = _physicsWorld2D.Raycast(rayStart, rayEnd, Physics2DLayers.Platform, _hits);
-                if (hitCount > 0)
-                {
-                    velocity.Y = 0;
-                    proposedPos.Y = _hits[0].Point.Y - HALF_HEIGHT;
-                }
+            if (controller.TouchLeft && targetVelocity.X < 0)
+            {
+                targetVelocity.X = 0;
+            }
+
+            if (controller.TouchRight && targetVelocity.X > 0)
+            {
+                targetVelocity.X = 0;
+            }
+
+            _physicsWorld2D.SetVelocity(bodyRef.Handle, targetVelocity);
+
+            move.MoveX = 0;
+            move.Jump = false;
+        }
+    }
+
+    private void CheckGround(ref KinematicCharacterController controller, ref PhysicsBodyRef bodyRef, ref Transform2D transform)
+    {
+        controller.IsGrounded = false;
+        controller.IsCeiled = false;
+        controller.TouchLeft = false;
+        controller.TouchRight = false;
+        controller.GroundNormal = Vector2.UnitY;
+        Vector2 position = transform.Position;
+
+        Vector2 leftHead = position + new Vector2(-SKIN_WIDTH / 2, HALF_HEIGHT);
+        Vector2 rightHead = position + new Vector2(SKIN_WIDTH / 2, HALF_HEIGHT);
+        CastCeilRay(leftHead, ref bodyRef, ref controller, _hits);
+        CastCeilRay(rightHead, ref bodyRef, ref controller, _hits);
+        
+        Vector2 leftFoot = position + new Vector2(-SKIN_WIDTH / 2, -HALF_HEIGHT);
+        Vector2 rightFoot = position + new Vector2(SKIN_WIDTH / 2, -HALF_HEIGHT);
+        CastGroundRay(leftFoot, ref bodyRef, ref controller, _hits);
+        CastGroundRay(rightFoot, ref bodyRef, ref controller, _hits);
+        
+        CastWallRay(position + new Vector2(0, HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0));
+        CastWallRay(position + new Vector2(0, 0), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0));
+        CastWallRay(position + new Vector2(0, -HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0));
+        
+        CastWallRay(position + new Vector2(0, HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0));
+        CastWallRay(position + new Vector2(0, 0), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0));
+        CastWallRay(position + new Vector2(0, -HALF_HEIGHT), ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0));
+    }
+
+    private void CastGroundRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits)
+    {
+        Vector2 to = from + new Vector2(0, -KinematicCharacterController.GROUND_CHECK_DISTANCE);
+        int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        for (int i = 0; i < hitsCount; i++)
+        {
+            RaycastHit2D hit = _hits[i];
+            if (hit.Body.Equals(bodyRef.Handle))
+            {
+                continue;
+            }
+
+            float angle = MathF.Acos(Math.Clamp(Vector2.Dot(hit.Normal, Vector2.UnitY), -1, 1));
+            if (angle <= controller.MaxGroundAngle)
+            {
+                controller.IsGrounded = true;
+                controller.GroundNormal = hit.Normal;
+                return;
+            }
+        }
+    }
+
+    private void CastCeilRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits)
+    {
+        Vector2 to = from + new Vector2(0, KinematicCharacterController.GROUND_CHECK_DISTANCE);
+        int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        for (int i = 0; i < hitsCount; i++)
+        {
+            RaycastHit2D hit = _hits[i];
+            if (hit.Body.Equals(bodyRef.Handle))
+            {
+                continue;
+            }
+
+            float angle = MathF.Acos(Math.Clamp(Vector2.Dot(hit.Normal, -Vector2.UnitY), -1, 1));
+            if (angle <= controller.MaxGroundAngle)
+            {
+                controller.IsCeiled = true;
+                return;
+            }
+        }
+    }
+    
+    private void CastWallRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits, Vector2 direction)
+    {
+        Vector2 to = from + direction + new Vector2(MathF.Sign(direction.X) * KinematicCharacterController.GROUND_CHECK_DISTANCE, 0);
+        int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        for (int i = 0; i < hitsCount; i++)
+        {
+            RaycastHit2D hit = _hits[i];
+            if (hit.Body.Equals(bodyRef.Handle))
+            {
+                continue;
+            }
+
+            if (direction.X > 0f && hit.Normal.X < -0.7f)
+            {
+                controller.TouchRight = true;
             }
             
-            // Применить скорость. Kinematic body moves during the physics step.
-            _physicsWorld2D.SetVelocity(bodyRef.Handle, velocity);
+            if (direction.X < 0f && hit.Normal.X > 0.7f)
+            {
+                controller.TouchLeft = true;
+            }
+        }
+    }
+    
+    private void ApplyHorizontalInput(ref KinematicCharacterController controller, ref WannaMove move, ref Vector2 targetVelocity)
+    {
+        if (controller.IsGrounded)
+        {
+            Vector2 tangent = new Vector2(controller.GroundNormal.Y, -controller.GroundNormal.X);
+            targetVelocity.X = tangent.X * move.MoveX * controller.MoveSpeed;
+        }
+        else if (controller.IsCeiled)
+        {
+            Vector2 tangent = new Vector2(controller.GroundNormal.Y, -controller.GroundNormal.X);
+            targetVelocity.X = tangent.X * move.MoveX * controller.MoveSpeed;
+        }
+        else
+        {
+            targetVelocity.X = move.MoveX * controller.MoveSpeed;
+        }
+    }
+
+    private void ApplyGravity(ref KinematicCharacterController controller, ref Vector2 targetVelocity)
+    {
+        if (controller.IsGrounded)
+        {
+            targetVelocity.Y = 0;
+            return;
+        }
+
+        targetVelocity.Y += controller.Gravity * (float)_time.FixedDeltaTime;
+        targetVelocity.Y = MathF.Max(targetVelocity.Y, -controller.MaxFallSpeed);
+    }
+
+    private void ApplyJump(ref KinematicCharacterController controller, ref WannaMove move, ref Vector2 targetVelocity)
+    {
+        if (move.Jump && controller.IsGrounded)
+        {
+            targetVelocity.Y = controller.JumpSpeed;
+            controller.IsGrounded = false;
         }
     }
 }

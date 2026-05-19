@@ -22,14 +22,10 @@ internal class MyGameServerModule : IModule
         b.Add(new InputSystem());
         b.Add(new KinematicControllerSystem(), EcsConsts.PRE_BEGIN_LAYER);
         
-        // Ground check - updates JumpState based on velocity/collisions
-        b.Add(new ServerGroundCheckSystem(), EcsConsts.POST_END_LAYER);
-        
         // Collision events - collectibles, death zones, finish
         b.Add(new ServerCollisionEventSystem());
         
         // Respawn - handle player death and respawn
-        b.Add(new ServerRespawnSystem())
-            .AddCaller<PlatformerInputCommand>();
+        b.AddCaller<PlatformerInputCommand>();
     }
 }

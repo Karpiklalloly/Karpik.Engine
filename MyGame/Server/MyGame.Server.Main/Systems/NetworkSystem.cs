@@ -316,12 +316,13 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         world.GetPool<KinematicCharacterController>().Add(player) = new KinematicCharacterController
         {
             MoveSpeed = 8.0f,
-            JumpForce = 30.0f,
-            Gravity = 9.8f,
+            JumpSpeed = 9.0f,
+            Gravity = -9.8f,
             MaxFallSpeed = 25.0f,
             IsGrounded = false,
             LastJumpTime = 0,
-            JumpCooldown = 0.2f
+            JumpCooldown = 0.2f,
+            MaxGroundAngle = 45 * MathF.PI / 180
         };
 
         return _world.GetEntityLong(player);

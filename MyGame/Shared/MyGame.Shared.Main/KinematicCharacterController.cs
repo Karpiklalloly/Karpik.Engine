@@ -8,6 +8,8 @@ namespace Karpik.Engine.MyGame.Shared.Main;
 /// </summary>
 public struct KinematicCharacterController : IEcsComponent
 {
+    public const float GROUND_CHECK_DISTANCE = 0.1f;
+    
     /// <summary>
     /// Horizontal movement speed (units per second)
     /// </summary>
@@ -16,7 +18,7 @@ public struct KinematicCharacterController : IEcsComponent
     /// <summary>
     /// Jump impulse force (units per second)
     /// </summary>
-    public float JumpForce;
+    public float JumpSpeed;
     
     /// <summary>
     /// Gravity acceleration (units per second squared)
@@ -32,6 +34,11 @@ public struct KinematicCharacterController : IEcsComponent
     /// Current grounded state - true if player is standing on something
     /// </summary>
     public bool IsGrounded;
+
+    public bool IsCeiled;
+
+    public bool TouchLeft;
+    public bool TouchRight;
     
     /// <summary>
     /// Time when jump was last performed
@@ -42,6 +49,10 @@ public struct KinematicCharacterController : IEcsComponent
     /// Minimum time between jumps (cooldown)
     /// </summary>
     public float JumpCooldown;
+
+    public float MaxGroundAngle;
+
+    public Vector2 GroundNormal;
 }
 
 public struct WannaMove : IEcsComponent
