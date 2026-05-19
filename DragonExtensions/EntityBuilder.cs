@@ -1,6 +1,6 @@
 namespace DragonExtensions;
 
-public ref struct EntityBuilder(EcsWorld world)
+public ref struct EntityBuilder(EcsWorld world) : IDisposable
 {
     private int _entityId = -1;
     private List<(Type Type, object Component)> _buffer = new();
@@ -17,7 +17,7 @@ public ref struct EntityBuilder(EcsWorld world)
         return this;
     }
 
-    public entlong Commit()
+    private entlong Commit()
     {
         lock (world)
         {
@@ -32,5 +32,10 @@ public ref struct EntityBuilder(EcsWorld world)
             _entityId = -1;
             return world.GetEntityLong(id);
         }
+    }
+
+    public void Dispose()
+    {
+        Commit();
     }
 }
