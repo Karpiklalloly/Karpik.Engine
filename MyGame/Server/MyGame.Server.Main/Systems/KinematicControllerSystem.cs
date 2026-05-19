@@ -8,7 +8,9 @@ public class KinematicControllerSystem : ISystemFixedUpdate
 {
     private const float HALF_HEIGHT = 1.0f;
     private const float SKIN_WIDTH = 1.0f;
-    private const int SIDE_RAY_COUNT = 5;
+    private const float WALL_SKIN_WIDTH = 0.03f;
+    private const float VERTICAL_SKIN_WIDTH = 0.03f;
+    private const float RAY_SPACING = 0.35f;
     
     class Aspect : EcsAspect
     {
@@ -44,10 +46,16 @@ public class KinematicControllerSystem : ISystemFixedUpdate
                 jump = move.Jump;
             }
 
-            CheckGround(ref controller, ref bodyRef, ref transform, targetVelocity, a.boxes);
+            CheckGround(ref controller, ref bodyRef, ref transform, ref targetVelocity);
             ApplyHorizontalInput(ref controller, moveX, ref targetVelocity);
             ApplyGravity(ref controller, ref targetVelocity);
-            ApplyJump(ref controller, jump, ref targetVelocity);
+            bool jumped = ApplyJump(ref controller, jump, ref targetVelocity);
+            if (!controller.IsGrounded && !jumped)
+            {
+                CheckGround(ref controller, ref bodyRef, ref transform, ref targetVelocity);
+            }
+
+            CheckWalls(ref controller, ref bodyRef, ref transform, ref targetVelocity, a.boxes);
             
             if (controller.IsCeiled && targetVelocity.Y > 0)
             {
@@ -79,8 +87,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         ref KinematicCharacterController controller,
         ref PhysicsBodyRef bodyRef,
         ref Transform2D transform,
-        Vector2 velocity,
-        EcsReadonlyPool<PhysicsBox> boxes)
+        ref Vector2 targetVelocity)
     {
         controller.IsGrounded = false;
         controller.IsCeiled = false;
@@ -89,31 +96,47 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         controller.GroundNormal = Vector2.UnitY;
         Vector2 position = transform.Position;
         float fixedDeltaTime = (float)_time.FixedDeltaTime;
-        float downCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE + MathF.Max(0f, -velocity.Y * fixedDeltaTime);
-        float upCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE + MathF.Max(0f, velocity.Y * fixedDeltaTime);
-        float sideCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE
-            + MathF.Max(MathF.Abs(velocity.X), controller.MoveSpeed) * fixedDeltaTime;
+        float downCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE + MathF.Max(0f, -targetVelocity.Y * fixedDeltaTime);
+        float upCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE + MathF.Max(0f, targetVelocity.Y * fixedDeltaTime);
 
-        Vector2 leftHead = position + new Vector2(-SKIN_WIDTH / 2, HALF_HEIGHT);
-        Vector2 rightHead = position + new Vector2(SKIN_WIDTH / 2, HALF_HEIGHT);
-        CastCeilRay(leftHead, ref bodyRef, ref controller, _hits, upCastDistance);
-        CastCeilRay(rightHead, ref bodyRef, ref controller, _hits, upCastDistance);
-        
-        Vector2 leftFoot = position + new Vector2(-SKIN_WIDTH / 2, -HALF_HEIGHT);
-        Vector2 rightFoot = position + new Vector2(SKIN_WIDTH / 2, -HALF_HEIGHT);
-        CastGroundRay(leftFoot, ref bodyRef, ref controller, _hits, downCastDistance);
-        CastGroundRay(rightFoot, ref bodyRef, ref controller, _hits, downCastDistance);
-        
-        for (int i = 0; i < SIDE_RAY_COUNT; i++)
+        int verticalRayCount = GetRayCount(SKIN_WIDTH);
+        for (int i = 0; i < verticalRayCount; i++)
         {
-            float y = -HALF_HEIGHT + (HALF_HEIGHT * 2f) * i / (SIDE_RAY_COUNT - 1);
-            Vector2 sideOrigin = position + new Vector2(0, y);
-            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance, boxes);
-            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance, boxes);
+            float x = GetRayOffset(i, verticalRayCount, SKIN_WIDTH / 2f);
+            CastCeilRay(position + new Vector2(x, HALF_HEIGHT), ref bodyRef, ref controller, _hits, upCastDistance, ref targetVelocity, fixedDeltaTime);
+            CastGroundRay(position + new Vector2(x, -HALF_HEIGHT), ref bodyRef, ref controller, _hits, downCastDistance, ref targetVelocity, fixedDeltaTime);
         }
     }
 
-    private void CastGroundRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits, float distance)
+    private void CheckWalls(
+        ref KinematicCharacterController controller,
+        ref PhysicsBodyRef bodyRef,
+        ref Transform2D transform,
+        ref Vector2 targetVelocity,
+        EcsReadonlyPool<PhysicsBox> boxes)
+    {
+        float fixedDeltaTime = (float)_time.FixedDeltaTime;
+        float sideCastDistance = KinematicCharacterController.GROUND_CHECK_DISTANCE + MathF.Abs(targetVelocity.X * fixedDeltaTime);
+        Vector2 position = transform.Position;
+
+        int sideRayCount = GetRayCount(HALF_HEIGHT * 2f);
+        for (int i = 0; i < sideRayCount; i++)
+        {
+            float y = GetRayOffset(i, sideRayCount, HALF_HEIGHT);
+            Vector2 sideOrigin = position + new Vector2(0, y);
+            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(SKIN_WIDTH / 2, 0), sideCastDistance, SKIN_WIDTH / 2f, ref targetVelocity, fixedDeltaTime, boxes);
+            CastWallRay(sideOrigin, ref bodyRef, ref controller, _hits, new Vector2(-SKIN_WIDTH / 2, 0), sideCastDistance, SKIN_WIDTH / 2f, ref targetVelocity, fixedDeltaTime, boxes);
+        }
+    }
+
+    private void CastGroundRay(
+        Vector2 from,
+        ref PhysicsBodyRef bodyRef,
+        ref KinematicCharacterController controller,
+        Span<RaycastHit2D> hits,
+        float distance,
+        ref Vector2 targetVelocity,
+        float fixedDeltaTime)
     {
         Vector2 to = from + new Vector2(0, -distance);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
@@ -128,14 +151,38 @@ public class KinematicControllerSystem : ISystemFixedUpdate
             float angle = MathF.Acos(Math.Clamp(Vector2.Dot(hit.Normal, Vector2.UnitY), -1, 1));
             if (angle <= controller.MaxGroundAngle)
             {
-                controller.IsGrounded = true;
-                controller.GroundNormal = hit.Normal;
+                float gapFromFoot = hit.Fraction * distance;
+                if (gapFromFoot <= VERTICAL_SKIN_WIDTH)
+                {
+                    controller.IsGrounded = true;
+                    controller.GroundNormal = hit.Normal;
+                    if (targetVelocity.Y < 0f)
+                    {
+                        targetVelocity.Y = 0f;
+                    }
+
+                    return;
+                }
+
+                if (targetVelocity.Y < 0f)
+                {
+                    float maxFallVelocity = (gapFromFoot - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
+                    targetVelocity.Y = MathF.Max(targetVelocity.Y, -maxFallVelocity);
+                }
+
                 return;
             }
         }
     }
 
-    private void CastCeilRay(Vector2 from, ref PhysicsBodyRef bodyRef, ref KinematicCharacterController controller, Span<RaycastHit2D> hits, float distance)
+    private void CastCeilRay(
+        Vector2 from,
+        ref PhysicsBodyRef bodyRef,
+        ref KinematicCharacterController controller,
+        Span<RaycastHit2D> hits,
+        float distance,
+        ref Vector2 targetVelocity,
+        float fixedDeltaTime)
     {
         Vector2 to = from + new Vector2(0, distance);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
@@ -150,7 +197,24 @@ public class KinematicControllerSystem : ISystemFixedUpdate
             float angle = MathF.Acos(Math.Clamp(Vector2.Dot(hit.Normal, -Vector2.UnitY), -1, 1));
             if (angle <= controller.MaxGroundAngle)
             {
-                controller.IsCeiled = true;
+                float gapFromHead = hit.Fraction * distance;
+                if (gapFromHead <= VERTICAL_SKIN_WIDTH)
+                {
+                    controller.IsCeiled = true;
+                    if (targetVelocity.Y > 0f)
+                    {
+                        targetVelocity.Y = 0f;
+                    }
+
+                    return;
+                }
+
+                if (targetVelocity.Y > 0f)
+                {
+                    float maxRiseVelocity = (gapFromHead - VERTICAL_SKIN_WIDTH) / fixedDeltaTime;
+                    targetVelocity.Y = MathF.Min(targetVelocity.Y, maxRiseVelocity);
+                }
+
                 return;
             }
         }
@@ -163,10 +227,14 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         Span<RaycastHit2D> hits,
         Vector2 direction,
         float distance,
+        float extent,
+        ref Vector2 targetVelocity,
+        float fixedDeltaTime,
         EcsReadonlyPool<PhysicsBox> boxes)
     {
         Vector2 to = from + direction + new Vector2(MathF.Sign(direction.X) * distance, 0);
         int hitsCount = _physicsWorld2D.Raycast(from, to, Physics2DLayers.Platform, hits);
+        float rayLength = extent + distance;
         for (int i = 0; i < hitsCount; i++)
         {
             RaycastHit2D hit = hits[i];
@@ -180,14 +248,16 @@ public class KinematicControllerSystem : ISystemFixedUpdate
                 continue;
             }
 
+            float distanceFromOrigin = hit.Fraction * rayLength;
+            float gapFromEdge = distanceFromOrigin - extent;
             if (direction.X > 0f && hit.Normal.X < -0.7f)
             {
-                controller.TouchRight = true;
+                ClampRightWall(ref controller, ref targetVelocity, gapFromEdge, fixedDeltaTime);
             }
             
             if (direction.X < 0f && hit.Normal.X > 0.7f)
             {
-                controller.TouchLeft = true;
+                ClampLeftWall(ref controller, ref targetVelocity, gapFromEdge, fixedDeltaTime);
             }
         }
     }
@@ -195,6 +265,65 @@ public class KinematicControllerSystem : ISystemFixedUpdate
     private static bool IsPushableBox(int entity, EcsReadonlyPool<PhysicsBox> boxes)
     {
         return entity >= 0 && boxes.Has(entity);
+    }
+
+    private static void ClampRightWall(ref KinematicCharacterController controller, ref Vector2 targetVelocity, float gapFromEdge, float fixedDeltaTime)
+    {
+        if (gapFromEdge <= WALL_SKIN_WIDTH)
+        {
+            controller.TouchRight = true;
+            if (targetVelocity.X > 0f)
+            {
+                targetVelocity.X = 0f;
+            }
+
+            return;
+        }
+
+        if (targetVelocity.X <= 0f)
+        {
+            return;
+        }
+
+        float maxVelocity = (gapFromEdge - WALL_SKIN_WIDTH) / fixedDeltaTime;
+        targetVelocity.X = MathF.Min(targetVelocity.X, maxVelocity);
+    }
+
+    private static void ClampLeftWall(ref KinematicCharacterController controller, ref Vector2 targetVelocity, float gapFromEdge, float fixedDeltaTime)
+    {
+        if (gapFromEdge <= WALL_SKIN_WIDTH)
+        {
+            controller.TouchLeft = true;
+            if (targetVelocity.X < 0f)
+            {
+                targetVelocity.X = 0f;
+            }
+
+            return;
+        }
+
+        if (targetVelocity.X >= 0f)
+        {
+            return;
+        }
+
+        float maxVelocity = (gapFromEdge - WALL_SKIN_WIDTH) / fixedDeltaTime;
+        targetVelocity.X = MathF.Max(targetVelocity.X, -maxVelocity);
+    }
+
+    private static int GetRayCount(float size)
+    {
+        return Math.Max(2, (int)MathF.Ceiling(size / RAY_SPACING) + 1);
+    }
+
+    private static float GetRayOffset(int index, int count, float halfSize)
+    {
+        if (count <= 1)
+        {
+            return 0f;
+        }
+
+        return -halfSize + (halfSize * 2f) * index / (count - 1);
     }
     
     private void ApplyHorizontalInput(ref KinematicCharacterController controller, float moveX, ref Vector2 targetVelocity)
@@ -226,7 +355,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         targetVelocity.Y = MathF.Max(targetVelocity.Y, -controller.MaxFallSpeed);
     }
 
-    private void ApplyJump(ref KinematicCharacterController controller, bool jump, ref Vector2 targetVelocity)
+    private bool ApplyJump(ref KinematicCharacterController controller, bool jump, ref Vector2 targetVelocity)
     {
         float now = (float)_time.TotalTime;
         if (jump && controller.IsGrounded && now - controller.LastJumpTime >= controller.JumpCooldown)
@@ -234,6 +363,9 @@ public class KinematicControllerSystem : ISystemFixedUpdate
             targetVelocity.Y = controller.JumpSpeed;
             controller.IsGrounded = false;
             controller.LastJumpTime = now;
+            return true;
         }
+
+        return false;
     }
 }
