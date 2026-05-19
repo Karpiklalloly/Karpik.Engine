@@ -9,7 +9,8 @@ public class Physics2DBodyCreator : ISystemBegin
     {
         public EcsPool<Transform2D> Transforms = Inc;
         public EcsPool<CreateBodyRequest> Requests = Inc;
-        public EcsPool<PhysicsBodyRef> BodyRefs = Opt;
+        public EcsPool<PhysicsBodyDefinition> Definitions = Opt;
+        public EcsPool<PhysicsBodyRef> BodyRefs = Exc;
     }
     
     [DI] private IPhysicsWorld2D _physics = null!;
@@ -22,6 +23,10 @@ public class Physics2DBodyCreator : ISystemBegin
             ref var request = ref create.Requests.Get(e);
             ref var transform = ref create.Transforms.Get(e);
 
+            ref var definition = ref create.Definitions.TryAddOrGet(e);
+            definition.BodyConfig = request.BodyConfig;
+            definition.ShapeConfig = request.ShapeConfig;
+
             var handle = _physics.CreateBody(
                 e,
                 transform.Position,
@@ -29,7 +34,7 @@ public class Physics2DBodyCreator : ISystemBegin
                 request.BodyConfig,
                 request.ShapeConfig);
             
-            create.BodyRefs.TryAddOrGet(e).Handle = handle;
+            create.BodyRefs.Add(e).Handle = handle;
             create.Requests.Del(e);
         }
     }

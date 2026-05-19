@@ -24,8 +24,6 @@ public class SDL2InputSource : IInputSource
     public Vector2 MousePosition => _snapshot.MousePosition;
     public Vector2 MouseDelta => _window.MouseDelta;
 
-    private int i = 0;
-
     public SDL2InputSource(Sdl2Window window)
     {
         _window = window;
@@ -41,25 +39,6 @@ public class SDL2InputSource : IInputSource
         UnPressingKeys = KeyEvents.Where(static x => x is { Down: false, Repeat: true }).Select(static x => x.Key).ToList();
         PressedMouses = _snapshot.MouseEvents.Where(static x => x.Down).Select(static x => x.MouseButton).ToImmutableHashSet();
         ReleasedMouses = _snapshot.MouseEvents.Where(static x => !x.Down).Select(static x => x.MouseButton).ToImmutableHashSet();
-
-        i++;
-        var events = KeyEvents.Select(x => x.ToString()).ToList();
-        if (events.Count > 0)
-        {
-            events.ForEach(x => Console.WriteLine(x));
-        }
-        // if (i == 100)
-        // {
-        //     Console.WriteLine("==== Input Snapshot ====");
-        //     
-        //
-        //     
-        //     Console.WriteLine($"PressedKeys: {string.Join(", ", PressedKeys)}");
-        //     Console.WriteLine($"PressingKeys: {string.Join(", ", PressingKeys)}");
-        //     Console.WriteLine($"UnPressedKeys: {string.Join(", ", UnPressedKeys)}");
-        //     Console.WriteLine($"UnPressingKeys: {string.Join(", ", UnPressingKeys)}");
-        //     i = 0;
-        // }
     }
 
     public bool IsMouseButtonDown(MouseButton button)

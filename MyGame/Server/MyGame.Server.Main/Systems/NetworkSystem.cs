@@ -54,6 +54,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
     private List<int> _newEntities = [];
     private List<int> _destroyedNetworkIds = [];
     private List<int> _playersToDestroy = [];
+    private Dictionary<int, int> _entityToNetworkId = [];
     private Dictionary<IPeer, int> _peerToEntity = [];
     private Queue<(IPeer, int, long)> _needSendLocalPlayer = [];
 
@@ -65,6 +66,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         _network.Initialize();
         _networkIdGenerator.EnsureAtLeast(GetMaxNetworkId());
         ResetRuntimeConnections();
+        RebuildNetworkIdCache();
         _networkManager.ConnectionRequestEvent += OnConnectionRequest;
         _networkManager.NetworkReceiveEvent += OnNetworkReceive;
         _onPeerConnected = peer =>
@@ -155,6 +157,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
     {
         var writer = _networkManager.CreateWriter();
         writer.Put((byte)PacketType.Snapshot);
+        UpdateNetworkIdCache();
         _network.WriteSnapshot(_world, writer, _destroyedNetworkIds);
         _networkManager.SendToAll(writer, DeliveryMethod.Unreliable);
 
@@ -213,6 +216,9 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
         _playersToDestroy.Clear();
         _playersToDestroy = null!;
+
+        _entityToNetworkId.Clear();
+        _entityToNetworkId = null!;
         
         _networkManager.Stop();
     }
@@ -270,7 +276,9 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         var world = _world;
         var player = world.NewEntity();
 
-        world.GetPool<NetworkId>().Add(player).Id = _networkIdGenerator.Next();
+        var networkId = _networkIdGenerator.Next();
+        world.GetPool<NetworkId>().Add(player).Id = networkId;
+        CacheNetworkId(player, networkId);
         world.GetPool<PlayerSession>().Add(player).ReconnectToken = reconnectToken;
         world.GetPool<Health>().Add(player).Value = 1;
         world.GetPool<Player>().Add(player);
@@ -308,8 +316,8 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         world.GetPool<KinematicCharacterController>().Add(player) = new KinematicCharacterController
         {
             MoveSpeed = 8.0f,
-            JumpForce = 300.0f,
-            Gravity = 30.0f,
+            JumpForce = 30.0f,
+            Gravity = 9.8f,
             MaxFallSpeed = 25.0f,
             IsGrounded = false,
             LastJumpTime = 0,
@@ -513,13 +521,34 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
     private void QueueDestroyedNetworkId(int entity)
     {
-        var networkIdPool = _world.GetPool<NetworkId>();
-        if (!networkIdPool.Has(entity))
+        if (!_entityToNetworkId.Remove(entity, out var networkId))
         {
             return;
         }
 
-        _destroyedNetworkIds.Add(networkIdPool.Get(entity).Id);
+        if (!_destroyedNetworkIds.Contains(networkId))
+        {
+            _destroyedNetworkIds.Add(networkId);
+        }
+    }
+
+    private void RebuildNetworkIdCache()
+    {
+        _entityToNetworkId.Clear();
+        UpdateNetworkIdCache();
+    }
+
+    private void UpdateNetworkIdCache()
+    {
+        foreach (var entity in _world.Where(out NetworkIdAspect aspect))
+        {
+            _entityToNetworkId[entity] = aspect.NetworkId.Get(entity).Id;
+        }
+    }
+
+    private void CacheNetworkId(int entity, int networkId)
+    {
+        _entityToNetworkId[entity] = networkId;
     }
 }
 

@@ -257,9 +257,19 @@ public class Program
             while (currentTime >= nextTickTime && loops < 5)
             {
                 mainThreadScheduler.Execute();
+                if (_stateCollected)
+                {
+                    break;
+                }
+
                 _bootstrap.Loop(Application.TICK_DT);
                 nextTickTime += Application.TICK_DT;
                 loops++;
+            }
+
+            if (_stateCollected)
+            {
+                break;
             }
             
             if (loops >= 5)

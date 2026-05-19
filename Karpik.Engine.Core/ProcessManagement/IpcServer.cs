@@ -22,7 +22,7 @@ public class IpcServer : IDisposable
         _pipe = new NamedPipeServerStream(
             _pipeName,
             PipeDirection.InOut,
-            maxNumberOfServerInstances: 1,
+            maxNumberOfServerInstances: NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
         
@@ -195,7 +195,28 @@ public class IpcServer : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        _pipe?.Dispose();
+
+        try
+        {
+            _pipe?.Dispose();
+        }
+        catch
+        {
+            // Ignore pipe disposal errors during worker restart/shutdown.
+        }
+
+        try
+        {
+            if (_listenTask is { IsCompleted: false })
+            {
+                _listenTask.Wait(TimeSpan.FromMilliseconds(250));
+            }
+        }
+        catch
+        {
+            // The listen loop is expected to observe cancellation or a disposed pipe.
+        }
+
         _cts.Dispose();
     }
 }

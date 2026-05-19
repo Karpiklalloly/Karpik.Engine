@@ -49,7 +49,7 @@ public class CoreRunner
 
         _processManager.StartWorkerAsync().Wait();
 
-        Console.WriteLine("[Watcher] Press 'Q' to quit");
+        Console.WriteLine("[Watcher] Press 'R' to hot reload, 'Q' to quit");
 
         while (isRunning.Value
                && (_processManager.IsWorkerRunning
@@ -63,6 +63,18 @@ public class CoreRunner
                 {
                     Console.WriteLine("[Watcher] Quit requested by user");
                     isRunning.Value = false;
+                }
+                else if (key == ConsoleKey.R)
+                {
+                    Console.WriteLine("[Watcher] Hot reload requested by user");
+                    try
+                    {
+                        _processManager.HotReloadAsync().GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Watcher] Hot reload failed: {ex.Message}");
+                    }
                 }
             }
 

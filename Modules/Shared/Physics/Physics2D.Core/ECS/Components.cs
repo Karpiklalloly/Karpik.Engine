@@ -123,6 +123,12 @@ public struct PhysicsBodyRef : IEcsComponent
     public PhysicsBodyHandle Handle;
 }
 
+public struct PhysicsBodyDefinition : IEcsComponent
+{
+    public BodyConfig BodyConfig;
+    public ShapeConfig ShapeConfig;
+}
+
 public struct CreateBodyRequest : IEcsComponent 
 {
     public BodyConfig BodyConfig;

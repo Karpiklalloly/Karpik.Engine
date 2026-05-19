@@ -46,6 +46,17 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
 - [x] (2026-05-17 19:28:39 +04:00) Added a client reconnect-token store keyed by the launcher hot-reload pipe name, so worker restarts can send the server-issued token even if ECS/RPC ordering fails.
 - [x] (2026-05-17 19:28:39 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 6 warnings and 0 errors.
 - [x] (2026-05-17 19:28:39 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 62 warnings and 0 errors after rerunning separately; the first parallel attempt hit a locked `Karpik.Engine.Core.Runner.dll` in `obj`.
+- [x] (2026-05-17 19:44:41 +04:00) Added watcher console hotkey `R` for manual restart-worker hot reload, so `ServerLauncher` can reload the server worker without an in-game client UI.
+- [x] (2026-05-17 19:44:41 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors; an earlier parallel build hit a locked `StaticAnalyzer.dll`.
+- [x] (2026-05-17 19:53:13 +04:00) Fixed server hot reload crash on Windows pipe reuse by allowing multiple named-pipe server instances, disposing stale IPC server state before each worker start, and catching manual reload exceptions in the watcher loop.
+- [x] (2026-05-17 19:53:13 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 1 warning and 0 errors.
+- [x] (2026-05-17 19:57:39 +04:00) Fixed server hot reload crash from reading `NetworkId` pools inside `OnDelEntity`; deleted network ids are now read from an `entity -> networkId` cache populated while the ECS world is stable.
+- [x] (2026-05-17 19:57:39 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 7 warnings and 0 errors.
+- [x] (2026-05-17 20:01:46 +04:00) Fixed server worker ticking once after ECS state capture destroyed worlds; `ServerLoop` now exits immediately after `_stateCollected`, matching the existing client loop guard.
+- [x] (2026-05-17 20:01:46 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 6 warnings and 0 errors.
+- [x] (2026-05-17 20:17:00 +04:00) Made physics body handles runtime-only across worker restart by adding persistent `PhysicsBodyDefinition` data and re-queuing `CreateBodyRequest` during physics module init.
+- [x] (2026-05-17 20:17:00 +04:00) `dotnet build ServerLauncher/ServerLauncher.csproj -m:1 /nr:false` succeeded with 9 warnings and 0 errors.
+- [x] (2026-05-17 20:17:00 +04:00) `dotnet build ClientLauncher/ClientLauncher.csproj -m:1 /nr:false` succeeded with 62 warnings and 0 errors.
 
 ## Surprises & Discoveries
 
@@ -75,6 +86,8 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
   Evidence: `SetLocalPlayerTargetRpc` can arrive before the unreliable snapshot that creates the entity with `LocalPlayerNetId`. Storing the token only on the player entity can fail or attach it to the wrong local entity, causing the next client hot reload handshake to send `0` and the server to create a new player.
 - Observation: TTL only controls how long a disconnected player can wait; it cannot preserve position if reconnect identity is lost.
   Evidence: With a longer TTL, duplicate player entities remain visible longer. With a shorter TTL, the old positioned entity expires before the client can reattach, so the server creates a new player at spawn. The fix must make the client reliably send the same server-issued reconnect token after worker restart.
+- Observation: `PhysicsBodyRef` is a process-local runtime handle, not stable hot reload state.
+  Evidence: After server hot reload, `PhysicsPullSystem` restored stale `PhysicsBodyHandle` values and `AetherPhysicsWorld.GetTransforms()` dereferenced a null body slot in the fresh Aether world. `CreateBodyRequest` had already been deleted after initial body creation, so the snapshot no longer contained enough data to recreate bodies.
 
 ## Decision Log
 
@@ -101,6 +114,16 @@ Client reconnect identity is stored in `ClientReconnectSession`, a client-side E
 Disconnected server player entities are now treated as pending reconnects instead of permanent state. `NetworkSystem` assigns a short reconnect TTL, removes the cleanup marker when a matching token reconnects, and deletes expired disconnected players. Deleted network entity ids are queued into snapshot deletion output so clients remove stale local copies instead of keeping visual duplicates.
 
 The client also persists the server-issued reconnect token in a launcher-session file under `reload/client-session`, keyed by the hot-reload pipe name. This is connection identity for the developer hot-reload worker, not gameplay state; gameplay state still survives through ECS. The file store is read only during handshake and written only when `SetLocalPlayerTargetRpc` arrives.
+
+Manual restart-worker hot reload is now exposed at the watcher level: pressing `R` in the launcher console calls `ProcessManager.HotReloadAsync()`. This works for `ServerLauncher` as well as `ClientLauncher`; the client in-game button remains just a worker-side request path.
+
+Windows can keep the previous named pipe instance busy briefly after worker restart. `IpcServer` now allows multiple server instances for the same pipe name and `ProcessManager` disposes stale IPC state before starting a replacement worker, preventing `All pipe instances are busy` from crashing server hot reload.
+
+Entity deletion callbacks can run while Dragon ECS is flushing pending deletes from another query. `NetworkSystem.OnDelEntity` must not call `GetPool<NetworkId>()` during that callback. Deleted network ids are now pulled from a cache that is rebuilt at server network init and refreshed before snapshots.
+
+Server state capture runs through the main-thread scheduler and `ECSInstaller.OnPrepareHotReload()` destroys ECS worlds after serializing them. The server loop must not run another tick after that scheduler action. `ServerLoop` now checks `_stateCollected` immediately after `mainThreadScheduler.Execute()` and exits before `_bootstrap.Loop(...)`.
+
+Physics runtime handles are also outside the reload boundary. `PhysicsBodyRef` stores an index into the current worker's `IPhysicsWorld2D`, so restored refs are cleared during physics init. Body shape/config data is persisted in `PhysicsBodyDefinition`, and missing runtime bodies are recreated by queuing `CreateBodyRequest` before the first physics begin step.
 
 ## Context and Orientation
 

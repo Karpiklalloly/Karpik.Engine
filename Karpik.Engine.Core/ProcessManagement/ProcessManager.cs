@@ -74,6 +74,8 @@ internal class ProcessManager : IDisposable
 
         IsWorkerReady = false;
         _readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ipcServer?.Dispose();
         
         _ipcServer = new IpcServer(_pipeName);
         _ipcServer.OnMessageReceived += HandleWorkerMessage;
