@@ -26,6 +26,12 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 - Modules are independent, expose clear APIs, and depend on interfaces rather than concrete modules.
 - Use DI through `[DI]` fields and interfaces; avoid singleton/service locator patterns for replaceable logic.
 
+## Build / Verification
+- When running `dotnet build` from an agent shell, prefer single-node builds with MSBuild node reuse disabled:
+  `dotnet build <project-or-solution> -m:1 -nr:false`.
+- Do not run plain `dotnet build` unless parallel MSBuild worker processes are explicitly needed; in this workspace it can leave many idle `dotnet.exe` build nodes alive for a long time.
+- For targeted validation, build the smallest relevant project instead of the full solution.
+
 ## Skills
 Large domain-specific rules live in repo-local skills:
 
