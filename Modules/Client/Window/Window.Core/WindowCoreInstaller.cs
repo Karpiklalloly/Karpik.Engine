@@ -7,7 +7,7 @@ namespace Karpik.Engine.Modules.Window.Core;
 public class WindowCoreInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Window.Core";
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register(new InputCaptureState());
     }

@@ -22,15 +22,15 @@ public class ECSInstaller : IInstaller, IInstallerHotReload, IInstallerConfigura
 
     private bool _reloaded = false;
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services
             .Register(_world)
-            .Register(new DefaultWorld(_world))
+            .Register(new DefaultWorld(_world, serviceContainer))
             .Register(_eventWorld)
-            .Register(new EventWorld(_eventWorld))
+            .Register(new EventWorld(_eventWorld, serviceContainer))
             .Register(_metaWorld)
-            .Register(new MetaWorld(_metaWorld));
+            .Register(new MetaWorld(_metaWorld, serviceContainer));
     }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)

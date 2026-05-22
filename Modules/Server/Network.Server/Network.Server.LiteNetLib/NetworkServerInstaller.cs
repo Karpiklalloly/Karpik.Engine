@@ -7,7 +7,7 @@ namespace Network.Server.LiteNetLib;
 public class NetworkServerInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Network.Server.LiteNetLib";
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }

@@ -7,7 +7,7 @@ namespace Karpik.Engine.Shared.Physics.Core;
 public class Physics2DInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Physics2D.Core";
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }

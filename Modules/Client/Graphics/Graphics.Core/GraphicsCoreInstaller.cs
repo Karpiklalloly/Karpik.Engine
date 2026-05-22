@@ -10,7 +10,7 @@ public class GraphicsCoreInstaller : IInstaller, IInstallerConfiguratable, IInst
     public string Name => "Graphics.Core";
     private readonly ImGuiRenderContext _imguiRenderContext = new();
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         var overlayState = new ImGuiOverlayState();
         if (Environment.GetEnvironmentVariable("KARPIK_IMGUI_ENABLED") == "1")

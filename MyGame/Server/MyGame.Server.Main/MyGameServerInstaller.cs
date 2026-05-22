@@ -9,7 +9,7 @@ public class MyGameServerInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "MyGame.Server.Main";
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register<ITargetRpcSender>(new TargetRpcSender());
         services.Register(new CommandDispatcher());

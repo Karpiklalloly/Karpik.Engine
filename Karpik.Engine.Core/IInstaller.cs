@@ -5,7 +5,7 @@ namespace Karpik.Engine.Core;
 public interface IInstaller
 {
     public string Name { get; }
-    public void OnRegisterServices(IServiceRegister services);
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer);
 }
 
 public interface IInstallerListener : IInstaller

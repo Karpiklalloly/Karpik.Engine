@@ -11,7 +11,7 @@ public class ModdingLuaInstaller : IInstaller, IInstallerDestroy, IInstallerConf
  
     private ModManager _modManager;
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         _modManager = new ModManager();
 #if SERVER

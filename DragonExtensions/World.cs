@@ -1,6 +1,9 @@
+using Karpik.Engine.Core;
+using Karpik.Jobs;
+
 namespace DragonExtensions;
 
-public class World(EcsWorld world)
+public class World(EcsWorld world, IServiceContainer container)
 {
     public EcsWorld Base => world;
 
@@ -82,5 +85,68 @@ public class World(EcsWorld world)
         }
         component = default;
         return false;
+    }
+
+    public async JobHandle EnableAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    {
+        var pool = world.GetPool<T>();
+        var component = pool.Get(entityId);
+        component = await component.EnableAsync(new ComponentLifecycleContext(container, world, entityId));
+        pool.Get(entityId) = component;
+    }
+    
+    public void Enable<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    {
+        var pool = world.GetPool<T>();
+        ref var component = ref pool.Get(entityId);
+        component.Enable(new ComponentLifecycleContext(container, world, entityId));
+    }
+
+    public async JobHandle AddEnabledAsync<T>(int entityId, T component) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    {
+        var pool = world.GetPool<T>();
+        pool.Add(entityId) = component;
+        component = pool.Get(entityId);
+        component = await component.EnableAsync(new ComponentLifecycleContext(container, world, entityId));
+        pool.Get(entityId) = component;
+    }
+    
+    public void AddEnabled<T>(int entityId, T component) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    {
+        var pool = world.GetPool<T>();
+        pool.Add(entityId) = component;
+        ref var stored = ref pool.Get(entityId);
+        stored.Enable(new ComponentLifecycleContext(container, world, entityId));
+    }
+    
+    public async JobHandle DisableAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    {
+        var pool = world.GetPool<T>();
+        var component = pool.Get(entityId);
+        component = await component.DisableAsync(new ComponentLifecycleContext(container, world, entityId));
+        pool.Get(entityId) = component;
+    }
+    
+    public void Disable<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    {
+        var pool = world.GetPool<T>();
+        ref var component = ref pool.Get(entityId);
+        component.Disable(new ComponentLifecycleContext(container, world, entityId));
+    }
+    
+    public async JobHandle DelEnabledAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    {
+        var pool = world.GetPool<T>();
+        var component = pool.Get(entityId);
+        component = await component.DisableAsync(new ComponentLifecycleContext(container, world, entityId));
+        pool.Del(entityId);
+    }
+    
+    public void DelEnabled<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    {
+        var pool = world.GetPool<T>();
+        ref var component = ref pool.Get(entityId);
+        component.Disable(new ComponentLifecycleContext(container, world, entityId));
+        pool.Del(entityId);
     }
 }

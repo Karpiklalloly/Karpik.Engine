@@ -12,7 +12,7 @@ public class AssetManagementInstaller : IInstaller, IInstallerListener, IInstall
     
     private AssetsManager _assetsManager = null!;
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         _assetsManager = new AssetsManager(new PhysicalFileSystem());
         services.Register<IAssetsManager>(_assetsManager);

@@ -8,7 +8,7 @@ namespace Karpik.Engine.MyGame.Shared.Main;
 public class MyGameSharedInstaller : IInstaller
 {
     public string Name => "MyGame.Shared.Main";
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainerS)
     {
         services.Register(new NetworkManager());
     }

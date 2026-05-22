@@ -23,7 +23,7 @@ public class MyGameClientInstaller : IInstaller, IInstallerDestroy, IInstallerCo
 
     private IServiceContainer _container = null!;
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register<IRpc>(new Rpc());
         services.Register(new TargetClientRpcDispatcher());

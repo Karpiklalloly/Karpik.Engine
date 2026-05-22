@@ -8,7 +8,7 @@ public class ModdingInstaller : IInstaller
 {
     public string Name => "Modding.Core";
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }

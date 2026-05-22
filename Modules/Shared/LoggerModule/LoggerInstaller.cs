@@ -7,7 +7,7 @@ public class LoggerInstaller : IInstaller
 {
     public string Name => "Logger";
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register<ILogger>(Logger.Instance);
     }

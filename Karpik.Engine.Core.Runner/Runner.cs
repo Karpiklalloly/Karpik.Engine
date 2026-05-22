@@ -222,7 +222,7 @@ public class EngineRunner : IEngineRunner
         foreach (var module in _modules)
         {
             Console.WriteLine($"On Register Services for module {module.Name}");
-            module.OnRegisterServices(newServiceProvider);
+            module.OnRegisterServices(newServiceProvider, newServiceProvider);
         }
     }
 

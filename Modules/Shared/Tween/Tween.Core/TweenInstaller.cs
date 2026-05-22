@@ -8,7 +8,7 @@ public class TweenInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Tween.Core";
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register(new Tween());
     }

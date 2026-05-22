@@ -8,7 +8,7 @@ public class NetworkClientInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Network.Client.Core";
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }

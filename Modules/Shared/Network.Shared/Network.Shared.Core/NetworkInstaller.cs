@@ -8,7 +8,7 @@ public class NetworkInstaller : IInstaller
 {
     public string Name => "Network.Shared.Core";
  
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register(new NetworkConfig());
     }

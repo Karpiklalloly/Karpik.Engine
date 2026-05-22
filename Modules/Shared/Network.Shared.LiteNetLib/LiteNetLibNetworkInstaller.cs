@@ -9,7 +9,7 @@ public class LiteNetLibNetworkInstaller : IInstaller
 {
     public string Name => "Network.Shared.LiteNetLib";
  
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register<INetworkManager>(new LiteNetLibNetworkManager());
     }

@@ -9,7 +9,7 @@ public class InputInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Input";
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register(new Input());
     }

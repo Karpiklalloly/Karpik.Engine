@@ -14,7 +14,7 @@ public class WindowSdlInstaller : IInstaller, IInstallerDestroy
 
     public string Name => "Window.Sdl2";
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         WindowCreateInfo windowCI = new WindowCreateInfo
         {

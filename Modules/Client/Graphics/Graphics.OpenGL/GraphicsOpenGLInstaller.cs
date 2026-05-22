@@ -23,7 +23,7 @@ public class GraphicsOpenGLInstaller : IInstaller, IInstallerConfiguratable, IIn
     
     private List<AssetHandle<ShaderAsset>> _shaderAssets = [];
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }
