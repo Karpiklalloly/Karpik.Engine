@@ -48,7 +48,8 @@
 
 ## 🔗 Связанные документы
 
-- [Architecture Overview](architecture/overview.md)
-- [Performance Overview](performance/overview.md)
-- [Process Isolation](../plans/process-isolation-architecture.md)
-- [Улучшение сети](network-improvement.md)
+- [Backlog](backlog.md)
+- [Architecture Overview](../01_Architecture/overview.md)
+- [Job System Research](../03_Research/job-system.md)
+- [Process Isolation](../../plans/process-isolation-architecture.md)
+- [Улучшение сети](../02_ADR/network-improvement.md)

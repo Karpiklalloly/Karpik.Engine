@@ -23,6 +23,16 @@ public readonly struct PhysicsBodyHandle : IEquatable<PhysicsBodyHandle>
     {
         return Value;
     }
+
+    public static bool operator ==(PhysicsBodyHandle left, PhysicsBodyHandle right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(PhysicsBodyHandle left, PhysicsBodyHandle right)
+    {
+        return !(left == right);
+    }
 }
 
 

@@ -1,6 +1,7 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
@@ -23,7 +24,7 @@ public class ApplySpriteSystem : ISystemInit, ISystemUpdate
         public EcsPool<IgnoreSpriteData> Ignore = Inc;
     }
 
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     [DI] private IServiceContainer _serviceContainer = null!;
     [DI] private MainThreadScheduler _mainThreadScheduler = null!;
 
@@ -40,7 +41,7 @@ public class ApplySpriteSystem : ISystemInit, ISystemUpdate
 
         foreach (var entity in _runtimeSpriteEntities)
         {
-            _world.GetPool<SpriteRenderer>().Del(entity);
+            _world.DelEnabled(entity, _world.Base.GetPool<SpriteRenderer>());
         }
 
         _ignoredSpriteDataEntities.Clear();
@@ -51,7 +52,7 @@ public class ApplySpriteSystem : ISystemInit, ISystemUpdate
 
         foreach (var entity in _ignoredSpriteDataEntities)
         {
-            _world.GetPool<IgnoreSpriteData>().Del(entity);
+            _world.Del<IgnoreSpriteData>(entity);
         }
     }
     
@@ -67,12 +68,9 @@ public class ApplySpriteSystem : ISystemInit, ISystemUpdate
             SpriteRenderer renderer = default;
             renderer.TexturePath = data.TexturePath;
             renderer.Color = data.Color;
-            renderer = renderer.OnLoad(renderer, _serviceContainer).GetAwaiter().GetResult();
             renderer.Width = data.Size.X;
             renderer.Height = data.Size.Y;
-
-            ref SpriteRenderer storedRenderer = ref a.renderer.Add(entity);
-            storedRenderer = renderer;
+            _world.AddEnabled(entity, renderer ,a.renderer);
         }
     }
 }

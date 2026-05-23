@@ -75,9 +75,8 @@ public class World(EcsWorld world, IServiceContainer container)
 
     public bool Exists(int entityId) => world.IsUsed(entityId);
 
-    public bool TryGet<T>(int entityId, out T component) where T : struct, IEcsComponent
+    public bool TryGet<T>(int entityId, out T component, EcsPool<T> pool) where T : struct, IEcsComponent
     {
-        var pool = world.GetPool<T>();
         if (pool.Has(entityId))
         {
             component = pool.Get(entityId);
@@ -87,13 +86,12 @@ public class World(EcsWorld world, IServiceContainer container)
         return false;
     }
 
-    public async JobHandle EnableAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    public async JobHandle EnableAsync<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             var component = pool.Get(entityId);
-            component = await component.EnableAsync(new ComponentLifecycleContext(container, world, entityId));
+            component = await component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -102,13 +100,13 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public void Enable<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    public void Enable<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             ref var component = ref pool.Get(entityId);
-            component.Enable(new ComponentLifecycleContext(container, world, entityId));
+            component = component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
         {
@@ -116,14 +114,13 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
 
-    public async JobHandle AddEnabledAsync<T>(int entityId, T component) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    public async JobHandle AddEnabledAsync<T>(int entityId, T component, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             pool.Add(entityId) = component;
             component = pool.Get(entityId);
-            component = await component.EnableAsync(new ComponentLifecycleContext(container, world, entityId));
+            component = await component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -132,14 +129,14 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public void AddEnabled<T>(int entityId, T component) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    public void AddEnabled<T>(int entityId, T component, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             pool.Add(entityId) = component;
-            ref var stored = ref pool.Get(entityId);
-            stored.Enable(new ComponentLifecycleContext(container, world, entityId));
+            component = pool.Get(entityId);
+            component = component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
         {
@@ -147,13 +144,12 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public async JobHandle DisableAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    public async JobHandle DisableAsync<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             var component = pool.Get(entityId);
-            component = await component.DisableAsync(new ComponentLifecycleContext(container, world, entityId));
+            component = await component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -162,13 +158,13 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public void Disable<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    public void Disable<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
-            ref var component = ref pool.Get(entityId);
-            component.Disable(new ComponentLifecycleContext(container, world, entityId));
+            var component = pool.Get(entityId);
+            component = component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
         {
@@ -176,13 +172,12 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public async JobHandle DelEnabledAsync<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
+    public async JobHandle DelEnabledAsync<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
             var component = pool.Get(entityId);
-            component = await component.DisableAsync(new ComponentLifecycleContext(container, world, entityId));
+            component = await component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId));
             pool.Del(entityId);
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -191,13 +186,12 @@ public class World(EcsWorld world, IServiceContainer container)
         }
     }
     
-    public void DelEnabled<T>(int entityId) where T : struct, IEcsComponent, IComponentLifecycle<T>
+    public void DelEnabled<T>(int entityId, EcsPool<T> pool) where T : struct, IEcsComponent, IComponentLifecycleAsync<T>
     {
         try
         {
-            var pool = world.GetPool<T>();
-            ref var component = ref pool.Get(entityId);
-            component.Disable(new ComponentLifecycleContext(container, world, entityId));
+            var component = pool.Get(entityId);
+            component = component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
             pool.Del(entityId);
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
