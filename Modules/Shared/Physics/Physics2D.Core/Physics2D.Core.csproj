@@ -11,6 +11,7 @@
       <ProjectReference Include="..\..\..\..\DragonExtensions\DragonExtensions.csproj" />
       <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\..\ECS\ECS.Core\ECS.Core.csproj" />
       <ProjectReference Include="..\..\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
     </ItemGroup>
 </Project>

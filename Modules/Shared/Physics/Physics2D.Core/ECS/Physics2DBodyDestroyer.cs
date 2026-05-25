@@ -1,5 +1,6 @@
 ﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -12,7 +13,7 @@ public class Physics2DBodyDestroyer : ISystemLateUpdate
     }
     
     [DI] private IPhysicsWorld2D _physics = null!;
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     
     public void LateUpdate()
     {

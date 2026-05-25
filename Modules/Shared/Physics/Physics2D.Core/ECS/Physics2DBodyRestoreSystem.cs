@@ -1,5 +1,6 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -19,7 +20,7 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
         public EcsPool<PhysicsBodyRef> BodyRefs = Exc;
     }
 
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
 
     public void Init()
     {

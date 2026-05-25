@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Physics.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
@@ -22,7 +23,7 @@ public class KinematicControllerSystem : ISystemFixedUpdate
         public EcsReadonlyPool<PhysicsBox> boxes = Opt;
     }
     
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     [DI] private IPhysicsWorld2D _physicsWorld2D = null!;
     [DI] private Time _time = null!;
     

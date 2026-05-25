@@ -41,9 +41,9 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
     [DI] private ILogger _logger = null!;
     [DI] private NetworkConfig _config = null!;
     
-    [DI] private EcsDefaultWorld _world = null!;
-    [DI] private EcsEventWorld _eventWorld = null!;
-    [DI] private EcsMetaWorld _metaWorld = null!;
+    [DI] private DefaultWorld _world = null!;
+    [DI] private EventWorld _eventWorld = null!;
+    [DI] private MetaWorld _metaWorld = null!;
     [DI] private NetworkManager _network = null!;
     [DI] private CommandDispatcher _commandDispatcher = null!;
     [DI] private NetworkIdGenerator _networkIdGenerator = null!;
@@ -85,9 +85,9 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         
         _listeners =
         [
-            new WorldEventListener(_world),
-            new WorldEventListener(_eventWorld),
-            new WorldEventListener(_metaWorld)
+            new WorldEventListener(_world.Base),
+            new WorldEventListener(_eventWorld.Base),
+            new WorldEventListener(_metaWorld.Base)
         ];
         _listeners[0].OnNewEntityDeleted += OnDelEntity;
         _listeners[0].OnNewEntityCreated += OnNewEntity;
@@ -96,12 +96,12 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
     private Vector2 GetSpawnPosition()
     {
         var mask = EcsStaticMask.Inc<RespawnPoint>().Inc<Transform2D>().Build();
-        var span = _world.Where(mask);
+        var span = _world.Base.Where(mask);
         
         // Default spawn position - LevelInitSystem will create platforms but we'll use a safe default
         // If LevelInitSystem creates RespawnPoint entities, we could query them here
         // For now, spawn at a position above the ground platform (y=-5 is ground level)
-        return _world.GetPool<Transform2D>().Get(span[0]).Position;
+        return _world.Base.GetPool<Transform2D>().Get(span[0]).Position;
     }
     
     private void OnNetworkReceive(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
@@ -125,7 +125,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
                     return;
                 }
 
-                var playerEntity = _world.GetEntityLong(player);
+                var playerEntity = _world.Get(player);
                 if (playerEntity.IsAlive)
                 {
                     _commandDispatcher.Dispatch(playerEntity.ID, reader);
@@ -158,7 +158,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         var writer = _networkManager.CreateWriter();
         writer.Put((byte)PacketType.Snapshot);
         UpdateNetworkIdCache();
-        _network.WriteSnapshot(_world, writer, _destroyedNetworkIds);
+        _network.WriteSnapshot(_world.Base, writer, _destroyedNetworkIds);
         _networkManager.SendToAll(writer, DeliveryMethod.Unreliable);
 
         _destroyedNetworkIds.Clear();
@@ -229,7 +229,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
         if (_peerToEntity.TryGetValue(peer, out var previousEntity))
         {
-            var previousPlayer = _world.GetEntityLong(previousEntity);
+            var previousPlayer = _world.Get(previousEntity);
             if (previousPlayer.IsAlive)
             {
                 var previousToken = GetReconnectToken(previousEntity);
@@ -266,7 +266,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
     private void SendLocalPlayer(IPeer peer, int player, long reconnectToken)
     {
-        var networkId = _world.GetPool<NetworkId>().Get(player).Id;
+        var networkId = _world.Base.GetPool<NetworkId>().Get(player).Id;
         _needSendLocalPlayer.Enqueue((peer, networkId, reconnectToken));
         Console.WriteLine($"Attached peer {peer.Id} to player network id {networkId}, reconnect token {reconnectToken}");
     }
@@ -274,46 +274,52 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
     private entlong CreatePlayer(long reconnectToken)
     {
         var world = _world;
-        var player = world.NewEntity();
+        var player = world.New();
 
         var networkId = _networkIdGenerator.Next();
-        world.GetPool<NetworkId>().Add(player).Id = networkId;
-        CacheNetworkId(player, networkId);
-        world.GetPool<PlayerSession>().Add(player).ReconnectToken = reconnectToken;
-        world.GetPool<Health>().Add(player).Value = 1;
-        world.GetPool<Player>().Add(player);
-        world.GetPool<SpriteData>().Add(player) = new SpriteData
+        world.Add(player.ID, new NetworkId() { Id = networkId });
+        CacheNetworkId(player.ID, networkId);
+        world.Add(player.ID, new PlayerSession() { ReconnectToken = reconnectToken });
+        world.Add(player.ID, new Player());
+        world.Add(player.ID, new Health() { Value = 1 });
+        world.Add(player.ID, new SpriteData
         {
             Color = Color.White,
             TexturePath = "Sprites/Player.png",
             Size = new Vector2(1, 2)
-        };
+        });
 
         Vector2 spawnPosition = GetSpawnPosition();
 
-        ref var transform = ref world.GetPool<Transform2D>().Add(player);
-        transform.Position = spawnPosition;
-        transform.Rotation = 0;
-
-        ref var velocity = ref world.GetPool<Velocity2D>().Add(player);
-        velocity.Linear = Vector2.Zero;
-        velocity.Angular = 0;
-
-        ref var bodyRequest = ref world.GetPool<CreateBodyRequest>().Add(player);
-        bodyRequest.BodyConfig = new BodyConfig
+        world.Add(player.ID, new Transform2D()
         {
-            Type = BodyType.Kinematic,
-            Mass = 1.0f,
-            Friction = 0.0f,
-            Restitution = 0.0f,
-            IsSensor = false,
-            IgnoreGravity = true,
-            CategoryBits = Physics2DLayers.Player,
-            MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
-        };
-        bodyRequest.ShapeConfig = ShapeConfig.Box(new Vector2(1, 2));
+            Position = spawnPosition,
+            Rotation = 0
+        });
+        
+        world.Add(player.ID, new Velocity2D()
+        {
+            Linear = Vector2.Zero,
+            Angular = 0
+        });
+        
+        world.Add(player.ID, new CreateBodyRequest()
+        {
+            BodyConfig = new BodyConfig
+            {
+                Type = BodyType.Kinematic,
+                Mass = 1.0f,
+                Friction = 0.0f,
+                Restitution = 0.0f,
+                IsSensor = false,
+                IgnoreGravity = true,
+                CategoryBits = Physics2DLayers.Player,
+                MaskBits = Physics2DLayers.Player | Physics2DLayers.Platform
+            },
+            ShapeConfig = ShapeConfig.Box(new Vector2(1, 2))
+        });
 
-        world.GetPool<KinematicCharacterController>().Add(player) = new KinematicCharacterController
+        world.Add(player.ID, new KinematicCharacterController
         {
             MoveSpeed = 8.0f,
             JumpSpeed = 9.0f,
@@ -323,9 +329,9 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
             LastJumpTime = -0.2f,
             JumpCooldown = 0.2f,
             MaxGroundAngle = 45 * MathF.PI / 180
-        };
+        });
 
-        return _world.GetEntityLong(player);
+        return player;
     }
 
     private entlong FindPlayerByReconnectToken(long reconnectToken)
@@ -342,7 +348,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
                 continue;
             }
 
-            return _world.GetEntityLong(entity);
+            return _world.Get(entity);
         }
 
         return entlong.NULL;
@@ -350,7 +356,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
     private long GetReconnectToken(int entity)
     {
-        var pool = _world.GetPool<PlayerSession>();
+        var pool = _world.Base.GetPool<PlayerSession>();
         return pool.Has(entity)
             ? pool.Get(entity).ReconnectToken
             : 0;
@@ -399,13 +405,13 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
     private void MarkConnected(int entity, int peerId)
     {
-        var pool = _world.GetPool<PlayerConnection>();
+        var pool = _world.Base.GetPool<PlayerConnection>();
         if (pool.Has(entity))
         {
             ref var connection = ref pool.Get(entity);
             connection.PeerId = peerId;
             connection.Connected = true;
-            _world.GetPool<PlayerDisconnectCleanup>().TryDel(entity);
+            _world.Base.GetPool<PlayerDisconnectCleanup>().TryDel(entity);
             return;
         }
 
@@ -414,12 +420,12 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
             PeerId = peerId,
             Connected = true
         };
-        _world.GetPool<PlayerDisconnectCleanup>().TryDel(entity);
+        _world.Base.GetPool<PlayerDisconnectCleanup>().TryDel(entity);
     }
 
     private void MarkDisconnected(int entity)
     {
-        var pool = _world.GetPool<PlayerConnection>();
+        var pool = _world.Base.GetPool<PlayerConnection>();
         if (!pool.Has(entity))
         {
             return;
@@ -429,7 +435,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
         connection.PeerId = -1;
         connection.Connected = false;
 
-        var cleanupPool = _world.GetPool<PlayerDisconnectCleanup>();
+        var cleanupPool = _world.Base.GetPool<PlayerDisconnectCleanup>();
         if (cleanupPool.Has(entity))
         {
             cleanupPool.Get(entity).RemainingSeconds = DisconnectedPlayerTtlSeconds;
@@ -442,8 +448,8 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
     private void ResetRuntimeConnections()
     {
-        var connectionPool = _world.GetPool<PlayerConnection>();
-        var cleanupPool = _world.GetPool<PlayerDisconnectCleanup>();
+        var connectionPool = _world.Base.GetPool<PlayerConnection>();
+        var cleanupPool = _world.Base.GetPool<PlayerDisconnectCleanup>();
 
         foreach (var entity in _world.Where(out PlayerAspect aspect))
         {
@@ -507,7 +513,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 
         foreach (var entity in _playersToDestroy)
         {
-            var player = _world.GetEntityLong(entity);
+            var player = _world.Get(entity);
             if (!player.IsAlive)
             {
                 continue;
@@ -516,7 +522,7 @@ internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
             RemoveExistingPeerBindings(entity);
             QueueDestroyedNetworkId(entity);
             Console.WriteLine($"Removing disconnected player entity {entity}");
-            _world.DelEntity(entity);
+            _world.Del(entity);
         }
     }
 

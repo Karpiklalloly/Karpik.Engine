@@ -1,6 +1,7 @@
 using System.Numerics;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Physics.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
@@ -20,7 +21,7 @@ public class ServerCollisionEventSystem : ISystemUpdate
     }
     
     [DI] private IPhysicsWorld2D _physicsWorld = null!;
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
 
     private List<int> _entitiesToDestroy = [];
 
@@ -36,9 +37,9 @@ public class ServerCollisionEventSystem : ISystemUpdate
         
         foreach (var entity in _entitiesToDestroy)
         {
-            if (_world.GetEntityLong(entity).IsAlive)
+            if (_world.Get(entity).IsAlive)
             {
-                _world.DelEntity(entity);
+                _world.Del(entity);
             }
         }
         
@@ -47,8 +48,8 @@ public class ServerCollisionEventSystem : ISystemUpdate
     
     private void ProcessCollision(int entityA, int entityB, Vector2 normal, List<int> entitiesToDestroy)
     {
-        bool aIsPlayer = _world.GetPool<Player>().Has(entityA);
-        bool bIsPlayer = _world.GetPool<Player>().Has(entityB);
+        bool aIsPlayer = _world.Base.GetPool<Player>().Has(entityA);
+        bool bIsPlayer = _world.Base.GetPool<Player>().Has(entityB);
         
         if (!aIsPlayer && !bIsPlayer)
             return;
@@ -56,9 +57,9 @@ public class ServerCollisionEventSystem : ISystemUpdate
         int playerEntity = aIsPlayer ? entityA : entityB;
         int otherEntity = aIsPlayer ? entityB : entityA;
 
-        if (_world.GetPool<Collectible>().Has(otherEntity))
+        if (_world.Base.GetPool<Collectible>().Has(otherEntity))
         {
-            ref var collectible = ref _world.GetPool<Collectible>().Get(otherEntity);
+            ref var collectible = ref _world.Base.GetPool<Collectible>().Get(otherEntity);
             if (!collectible.IsCollected)
             {
                 collectible.IsCollected = true;

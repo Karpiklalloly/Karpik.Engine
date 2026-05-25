@@ -4,6 +4,7 @@ using DCFApixels.DragonECS;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
@@ -22,7 +23,7 @@ public class LevelInitSystem : ISystemInit
         public EcsReadonlyPool<NetworkId> NetworkId = Inc;
     }
 
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     [DI] private NetworkIdGenerator _networkIdGenerator = null!;
 
     public void Init()
@@ -94,15 +95,15 @@ public class LevelInitSystem : ISystemInit
 
     private void CreatePlatform(Vector2 position, Vector2 size, string name)
     {
-        var entity = _world.NewEntity();
+        var entity = _world.New();
         
         // Add transform
-        ref var transform = ref _world.GetPool<Transform2D>().Add(entity);
+        ref var transform = ref _world.Base.GetPool<Transform2D>().Add(entity.ID);
         transform.Position = position;
         transform.Rotation = 0;
         
         // Add body request - static platform
-        ref var bodyRequest = ref _world.GetPool<CreateBodyRequest>().Add(entity);
+        ref var bodyRequest = ref _world.Base.GetPool<CreateBodyRequest>().Add(entity.ID);
         bodyRequest.BodyConfig = new BodyConfig
         {
             Type = BodyType.Static,
@@ -116,9 +117,9 @@ public class LevelInitSystem : ISystemInit
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);
         
         // Add platform tag
-        _world.GetPool<Platform>().Add(entity);
-        _world.GetPool<NetworkId>().Add(entity).Id = _networkIdGenerator.Next();
-        _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
+        _world.Base.GetPool<Platform>().Add(entity.ID);
+        _world.Base.GetPool<NetworkId>().Add(entity.ID).Id = _networkIdGenerator.Next();
+        _world.Base.GetPool<SpriteData>().Add(entity.ID) = new SpriteData()
         {
             Color = Color.White,
             TexturePath = "Platform.png",
@@ -138,15 +139,15 @@ public class LevelInitSystem : ISystemInit
 
     private void CreateSpawnPoint(Vector2 position, string name)
     {
-        var entity = _world.NewEntity();
+        var entity = _world.New();
         
         // Add transform
-        ref var transform = ref _world.GetPool<Transform2D>().Add(entity);
+        ref var transform = ref _world.Base.GetPool<Transform2D>().Add(entity.ID);
         transform.Position = position;
         transform.Rotation = 0;
         
         // Add respawn point marker
-        _world.GetPool<RespawnPoint>().Add(entity);
+        _world.Base.GetPool<RespawnPoint>().Add(entity.ID);
     }
 
     private void CreateBoxes()
@@ -159,20 +160,20 @@ public class LevelInitSystem : ISystemInit
 
     private void CreateBox(Vector2 position, Vector2 size, float mass)
     {
-        var entity = _world.NewEntity();
+        var entity = _world.New();
         
         // Add transform
-        ref var transform = ref _world.GetPool<Transform2D>().Add(entity);
+        ref var transform = ref _world.Base.GetPool<Transform2D>().Add(entity.ID);
         transform.Position = position;
         transform.Rotation = 0;
         
         // Add velocity for dynamic body
-        ref var velocity = ref _world.GetPool<Velocity2D>().Add(entity);
+        ref var velocity = ref _world.Base.GetPool<Velocity2D>().Add(entity.ID);
         velocity.Linear = Vector2.Zero;
         velocity.Angular = 0;
         
         // Add body request - dynamic box
-        ref var bodyRequest = ref _world.GetPool<CreateBodyRequest>().Add(entity);
+        ref var bodyRequest = ref _world.Base.GetPool<CreateBodyRequest>().Add(entity.ID);
         bodyRequest.BodyConfig = new BodyConfig
         {
             Type = BodyType.Dynamic,
@@ -186,9 +187,9 @@ public class LevelInitSystem : ISystemInit
         bodyRequest.ShapeConfig = ShapeConfig.Box(size);
         
         // Add box tag for identification
-        _world.GetPool<PhysicsBox>().Add(entity);
-        _world.GetPool<NetworkId>().Add(entity).Id = _networkIdGenerator.Next();
-        _world.GetPool<SpriteData>().Add(entity) = new SpriteData()
+        _world.Base.GetPool<PhysicsBox>().Add(entity.ID);
+        _world.Base.GetPool<NetworkId>().Add(entity.ID).Id = _networkIdGenerator.Next();
+        _world.Base.GetPool<SpriteData>().Add(entity.ID) = new SpriteData()
         {
             Color = Color.White,
             TexturePath = "Box.png",

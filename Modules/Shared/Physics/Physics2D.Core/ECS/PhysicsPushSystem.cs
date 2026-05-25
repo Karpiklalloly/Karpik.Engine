@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -19,7 +20,7 @@ public class PhysicsPushSystem : ISystemBegin
     }
 
     [DI] private IPhysicsWorld2D _physics = null!;
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[1024];
     private Vector2[] _vecBuf = new Vector2[1024];

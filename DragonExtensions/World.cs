@@ -74,6 +74,7 @@ public class World(EcsWorld world, IServiceContainer container)
     public bool Has<T>(int entityId) where T : struct, IEcsComponent => world.GetPool<T>().Has(entityId);
 
     public ref T Get<T>(int entityId) where T : struct, IEcsComponent => ref world.GetPool<T>().Get(entityId);
+    public entlong Get(int entityId) => world.GetEntityLong(entityId);
 
     public ReadOnlySpan<object> GetComponentsFor(int entityId) => world.GetComponentsFor(entityId);
     
