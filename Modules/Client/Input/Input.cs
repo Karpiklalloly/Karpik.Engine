@@ -15,13 +15,13 @@ public class Input
         UpHold
     }
 
-    public event Action<Key> KeyPressed;
-    public event Action<Key> KeyUnPressed;
-    public event Action<Key> KeyPressing;
+    public event Action<Key>? KeyPressed;
+    public event Action<Key>? KeyUnPressed;
+    public event Action<Key>? KeyPressing;
     
-    public event Action<char> CharPressed;
-    public event Action<char> CharUnPressed;
-    public event Action<char> CharPressing;
+    public event Action<char>? CharPressed;
+    public event Action<char>? CharUnPressed;
+    public event Action<char>? CharPressing;
 
     private ConcurrentDictionary<Key, State> _keyStates = new();
     private ConcurrentDictionary<char, State> _charStates = new();
