@@ -20,7 +20,7 @@ public class DisplaySystem : ISystemUpdate, ISystemInit
         public EcsReadonlyPool<Position> position = Inc;
     }
     
-    [DI] private EcsDefaultWorld _world;
+    [DI] private DefaultWorld _world;
     // [DI] private IRenderer _renderer;
     [DI] private Time _time = null!;
     [DI] private IAssetsManager _assetsManager = null!;
@@ -55,9 +55,9 @@ public class DisplaySystem : ISystemUpdate, ISystemInit
         camera.Zoom = 1f;
         camera.PixelsPerUnit = 30;
         camera.RotationRadians = 0;
-        if (_world.GetPool<CameraHolder>().Count == 0)
+        if (_world.Base.GetPool<CameraHolder>().Count == 0)
         {
-            _cameraHolder = _world.NewEntityLong();
+            _cameraHolder = _world.New();
             _cameraHolder.Add<CameraHolder>() = new CameraHolder()
             {
                 Camera = camera
@@ -65,7 +65,7 @@ public class DisplaySystem : ISystemUpdate, ISystemInit
         }
         else
         {
-            _cameraHolder = _world.GetEntityLong(_world.Where(EcsStaticMask.Inc<CameraHolder>().Build()).First());
+            _cameraHolder = _world.Base.GetEntityLong(_world.Base.Where(EcsStaticMask.Inc<CameraHolder>().Build()).First());
              _cameraHolder.Get<CameraHolder>().Camera = camera;
         }
 

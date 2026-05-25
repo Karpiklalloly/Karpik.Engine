@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DCFApixels.DragonECS;
+using DragonExtensions;
 #if DEBUG
 using DebugModule;
 #endif
@@ -63,8 +64,8 @@ public class MySystem : ISystemUpdate, ISystemInit
     private bool[] _bools = new bool[2];
 
     [DI] private IModManager _modManager = null!;
-    [DI] private EcsDefaultWorld _world = null!;
-    [DI] private EcsEventWorld _eventWorld = null!;
+    [DI] private DefaultWorld _world = null!;
+    [DI] private EventWorld _eventWorld = null!;
     [DI] private IAssetsManager _assetsManager = null!;
     // [DI] private IRenderer2D _renderer = null!;
     [DI] private IRpc _rpc = null!;
@@ -146,7 +147,7 @@ public class MySystem : ISystemUpdate, ISystemInit
             var entities = _world.Entities;
             foreach (var entity in entities)
             {
-                _world.DelEntity(entity);
+                _world.Del(entity);
             }
         }
         
@@ -272,10 +273,10 @@ public class MySystem : ISystemUpdate, ISystemInit
             }
             ImGui.End();
         }
-
-        if (_world.GetPool<PhysicsBodyRef>().Count > 1)
+        
+        if (_world.Base.GetPool<PhysicsBodyRef>().Count > 1)
         {
-            ImGui.Text($"Position: {_world.GetPool<Transform2D>().Get(2).Position}");
+            ImGui.Text($"Position: {_world.Base.GetPool<Transform2D>().Get(2).Position}");
         }
         
         ImGui.Text($"GC: {GC.GetTotalMemory(false) / 1024 / 1024}Mb");
@@ -361,7 +362,7 @@ public class MySystem : ISystemUpdate, ISystemInit
         {
             handle = await _assetsManager.LoadAssetAsync<ComponentsTemplateAsset>(path);
             var entity = CreateEntity(_world);
-            await handle.Asset.Template.ApplyTo(entity.ID, _world);
+            await handle.Asset.Template.ApplyTo(entity.ID, _world.Base);
         }
         catch (Exception e)
         {
@@ -404,11 +405,11 @@ public class MySystem : ISystemUpdate, ISystemInit
         });
     }
 
-    protected entlong CreateEntity(EcsWorld world)
+    protected entlong CreateEntity(World world)
     {
         lock (world)
         {
-            return world.NewEntityLong();
+            return world.New();
         }
     }
 }

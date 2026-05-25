@@ -6,6 +6,8 @@ namespace DragonExtensions;
 public class World(EcsWorld world, IServiceContainer container)
 {
     public EcsWorld Base => world;
+    
+    public EcsSpan Entities => world.Entities;
 
     public entlong New()
     {
@@ -72,6 +74,10 @@ public class World(EcsWorld world, IServiceContainer container)
     public bool Has<T>(int entityId) where T : struct, IEcsComponent => world.GetPool<T>().Has(entityId);
 
     public ref T Get<T>(int entityId) where T : struct, IEcsComponent => ref world.GetPool<T>().Get(entityId);
+
+    public ReadOnlySpan<object> GetComponentsFor(int entityId) => world.GetComponentsFor(entityId);
+    
+    public void GetComponentPoolsFor(int entityId, List<IEcsPool> pools) => world.GetComponentPoolsFor(entityId, pools);
 
     public bool Exists(int entityId) => world.IsUsed(entityId);
 

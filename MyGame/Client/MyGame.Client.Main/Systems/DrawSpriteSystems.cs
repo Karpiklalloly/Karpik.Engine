@@ -16,7 +16,7 @@ public class DrawSpriteSystem : ISystemRender
         public EcsReadonlyPool<Transform2D> position = Inc;
     }
     
-    [DI] private EcsDefaultWorld _world;
+    [DI] private DefaultWorld _world;
     [DI] private Drawer _drawer;
     
     public void Render()

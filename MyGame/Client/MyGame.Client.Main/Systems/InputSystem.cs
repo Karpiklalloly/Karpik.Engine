@@ -21,7 +21,7 @@ public class InputSystem : ISystemUpdate
         public EcsReadonlyPool<NetworkId> networkId = Inc;
     }
     
-    [DI] private EcsDefaultWorld _world;
+    [DI] private DefaultWorld _world;
     [DI] private Rpc _rpc;
     [DI] private Input _input;
     // [DI] private ICamera _camera;
