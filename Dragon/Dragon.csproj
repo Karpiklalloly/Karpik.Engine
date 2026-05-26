@@ -14,11 +14,4 @@
       <Folder Include="Injections\Utils\" />
     </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\Tools\StaticAnalyzer\StaticAnalyzer.csproj">
-            <OutputItemType>Analyzer</OutputItemType>
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-        </ProjectReference>
-    </ItemGroup>
-
 </Project>

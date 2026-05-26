@@ -6,3 +6,4 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 K001 | ECS | Error | UseWorldAnalyzer
+K002 | ECS | Error | DoNotUseDragonLifecycleAnalyzer
