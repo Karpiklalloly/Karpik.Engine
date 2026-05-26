@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyName>Karpik.Engine.Core.Runner.Tests</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Dragon\Dragon.csproj" />
+      <ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+    </ItemGroup>
+
+</Project>
