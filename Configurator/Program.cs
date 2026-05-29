@@ -17,13 +17,26 @@ class Program
 {
     const string CONFIG_LABEL = "ProjectConfigurator";
 
-    static void Main(string[] args)
+    enum ProjectSide
+    {
+        Unknown,
+        Shared,
+        Client,
+        Server
+    }
+
+    static int Main(string[] args)
     {
         var rootPath = FindSolutionRoot(Directory.GetCurrentDirectory());
-        if (rootPath == null) { Console.WriteLine("Root not found (no .slnx)"); return; }
+        if (rootPath == null) { Console.WriteLine("Root not found (no .slnx)"); return 1; }
 
         var slnxPath = Directory.GetFiles(rootPath, "*.slnx").FirstOrDefault()!;
         var propsPath = Path.Combine(rootPath, "Directory.Build.props");
+
+        if (args.Contains("--validate"))
+        {
+            return ValidateProjectReferences(rootPath, slnxPath);
+        }
 
         var modules = ScanSlnx(slnxPath);
         LoadConfig(propsPath, modules);
@@ -33,7 +46,7 @@ class Program
         {
             GenerateFiles(rootPath, modules, slnxPath);
             Console.WriteLine("Files generated successfully.");
-            return;
+            return 0;
         }
 
         // --- UI LOOP START ---
@@ -82,6 +95,7 @@ class Program
             else if (key == ConsoleKey.Q) running = false;
         }
         // --- UI LOOP END ---
+        return 0;
     }
 
     static List<ModuleInfo> ScanSlnx(string slnxPath)
@@ -162,7 +176,8 @@ class Program
         var slnxDoc = XDocument.Load(slnxPath);
         var myGameProjs = slnxDoc.Descendants("Project")
             .Select(p => p.Attribute("Path")?.Value)
-            .Where(p => !string.IsNullOrEmpty(p) && p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
+            .OfType<string>()
+            .Where(p => p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
 
         foreach (var path in myGameProjs) {
             projectRefGroup.Add(CreateRef(ns, "PluginReference", path!, true));
@@ -205,7 +220,8 @@ class Program
         var slnxDoc = XDocument.Load(slnxPath);
         var myGameProjs = slnxDoc.Descendants("Project")
             .Select(p => p.Attribute("Path")?.Value)
-            .Where(p => !string.IsNullOrEmpty(p) && p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
+            .OfType<string>()
+            .Where(p => p.Replace('\\', '/').StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase));
             
         foreach (var projPath in myGameProjs)
         {
@@ -325,6 +341,109 @@ class Program
         // }
 
         return el;
+    }
+
+    static int ValidateProjectReferences(string rootPath, string slnxPath)
+    {
+        var projects = LoadSolutionProjects(rootPath, slnxPath);
+        var errors = new List<string>();
+
+        foreach (var project in projects)
+        {
+            var fromSide = GetProjectSide(project);
+            if (fromSide == ProjectSide.Unknown)
+            {
+                continue;
+            }
+
+            foreach (var reference in ReadProjectReferences(project))
+            {
+                var toSide = GetProjectSide(reference);
+                if (toSide == ProjectSide.Unknown)
+                {
+                    continue;
+                }
+
+                if (!IsProjectReferenceAllowed(fromSide, toSide))
+                {
+                    errors.Add(
+                        $"{Path.GetRelativePath(rootPath, project)} ({fromSide}) references forbidden project " +
+                        $"{Path.GetRelativePath(rootPath, reference)} ({toSide})");
+                }
+            }
+        }
+
+        if (errors.Count == 0)
+        {
+            Console.WriteLine("Project side validation passed.");
+            return 0;
+        }
+
+        Console.Error.WriteLine("Project side validation failed:");
+        foreach (var error in errors)
+        {
+            Console.Error.WriteLine($"  - {error}");
+        }
+
+        return 1;
+    }
+
+    static List<string> LoadSolutionProjects(string rootPath, string slnxPath)
+    {
+        var doc = XDocument.Load(slnxPath);
+        return doc.Descendants("Project")
+            .Select(p => p.Attribute("Path")?.Value)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => Path.GetFullPath(Path.Combine(rootPath, p!)))
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static List<string> ReadProjectReferences(string projectPath)
+    {
+        var projectDirectory = Path.GetDirectoryName(projectPath)!;
+        var doc = XDocument.Load(projectPath);
+
+        return doc.Descendants()
+            .Where(e => e.Name.LocalName == "ProjectReference")
+            .Select(e => e.Attribute("Include")?.Value)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => Path.GetFullPath(Path.Combine(projectDirectory, p!)))
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static ProjectSide GetProjectSide(string projectPath)
+    {
+        var normalized = projectPath.Replace('\\', '/');
+
+        if (normalized.Contains("/Modules/Client/", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("/MyGame/Client/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectSide.Client;
+        }
+
+        if (normalized.Contains("/Modules/Server/", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("/MyGame/Server/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectSide.Server;
+        }
+
+        if (normalized.Contains("/Modules/Shared/", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("/MyGame/Shared/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProjectSide.Shared;
+        }
+
+        return ProjectSide.Unknown;
+    }
+
+    static bool IsProjectReferenceAllowed(ProjectSide fromSide, ProjectSide toSide)
+    {
+        return fromSide == toSide ||
+               (fromSide is ProjectSide.Client or ProjectSide.Server && toSide == ProjectSide.Shared);
     }
     
     static void LoadConfig(string path, List<ModuleInfo> modules) { /* ... */ }
