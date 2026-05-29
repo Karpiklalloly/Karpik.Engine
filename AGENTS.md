@@ -51,3 +51,14 @@ Before working on a specific subsystem, load the matching skill and follow it. T
 
 ## ExecPlans
 For complex features, significant refactors, multi-hour investigations, or work with major unknowns, use an ExecPlan from design through implementation as described in `plans/PLANS.md`.
+
+## Knowledge Base
+Use `docs/knowledge` for compact reusable notes that are not active plans and not durable architecture decisions.
+
+- Use `docs/02_ADR` for accepted or proposed architecture decisions.
+- Use `plans/PLANS.md` and task-specific ExecPlans for active implementation work.
+- Use `docs/knowledge/investigations` for debugging and research findings.
+- Use `docs/knowledge/patterns` for recurring implementation rules and local idioms.
+- Use `docs/knowledge/postmortems` for completed incident or regression analysis.
+
+After a large task, investigation, or architectural discussion, propose 3-7 short learnings that may be worth recording in `docs/knowledge`. Do not write them automatically unless the developer confirms.
