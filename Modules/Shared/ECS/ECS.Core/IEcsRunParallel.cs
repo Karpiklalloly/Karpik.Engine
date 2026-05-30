@@ -35,23 +35,7 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
 
     private void BuildDependencyGraph(EcsProcess<IEcsRunParallel> process)
     {
-        _executionNodes = process
-            .Select(static (system, index) => new SystemExecutionNode(index, system))
-            .ToArray();
-
-        for (int i = 0; i < _executionNodes.Length; i++)
-        {
-            var nodeA = _executionNodes[i];
-
-            for (int j = i + 1; j < _executionNodes.Length; j++)
-            {
-                var nodeB = _executionNodes[j];
-                if (HasDirectedConflict(nodeA, nodeB))
-                {
-                    nodeB.AddDependency(nodeA);
-                }
-            }
-        }
+        _executionNodes = CreateDependencyGraph(process);
 
         _jobHandles = new JobHandle[_executionNodes.Length];
         _dependencyHandleBuffers = new JobHandle[_executionNodes.Length][];
@@ -66,8 +50,49 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
                               $"{string.Join(", ", node.Dependencies.Select(d => d.System.GetType().Name))}");
         }
     }
+
+    internal static SystemExecutionNode[] CreateDependencyGraph(IReadOnlyList<IEcsRunParallel> systems)
+    {
+        var nodes = new SystemExecutionNode[systems.Count];
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            nodes[i] = new SystemExecutionNode(i, systems[i]);
+        }
+
+        return AddDependencies(nodes);
+    }
+
+    private static SystemExecutionNode[] CreateDependencyGraph(EcsProcess<IEcsRunParallel> systems)
+    {
+        var nodes = new SystemExecutionNode[systems.Length];
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            nodes[i] = new SystemExecutionNode(i, systems[i]);
+        }
+
+        return AddDependencies(nodes);
+    }
+
+    private static SystemExecutionNode[] AddDependencies(SystemExecutionNode[] nodes)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            var nodeA = nodes[i];
+
+            for (int j = i + 1; j < nodes.Length; j++)
+            {
+                var nodeB = nodes[j];
+                if (HasDirectedConflict(nodeA, nodeB))
+                {
+                    nodeB.AddDependency(nodeA);
+                }
+            }
+        }
+
+        return nodes;
+    }
     
-    private bool HasDirectedConflict(SystemExecutionNode previousNode, SystemExecutionNode subsequentNode)
+    private static bool HasDirectedConflict(SystemExecutionNode previousNode, SystemExecutionNode subsequentNode)
     {
         if (!previousNode.IsAccessKnown || !subsequentNode.IsAccessKnown)
         {
