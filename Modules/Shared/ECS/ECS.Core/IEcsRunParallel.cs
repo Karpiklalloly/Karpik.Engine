@@ -71,7 +71,7 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
             return true;
         }
 
-        return false;
+        return previousNode.ReadTypes.Overlaps(subsequentNode.WriteTypes);
     }
 
     public void Init()
