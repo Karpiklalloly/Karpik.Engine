@@ -12,23 +12,22 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
 {
     private SystemExecutionNode[] _executionNodes;
     private JobSystem _jobSystem;
-    private readonly Dictionary<SystemExecutionNode, JobHandle> _jobHandles = new();
+    private JobHandle[] _jobHandles;
+    private JobHandle[][] _dependencyHandleBuffers;
 
     public void RunParallel()
     {
-        _jobHandles.Clear();
-
-        foreach (var node in _executionNodes)
+        for (int nodeIndex = 0; nodeIndex < _executionNodes.Length; nodeIndex++)
         {
-            var dependencyHandles = new JobHandle[node.Dependencies.Count];
+            var node = _executionNodes[nodeIndex];
+            var dependencyHandles = _dependencyHandleBuffers[nodeIndex];
             for (int i = 0; i < node.Dependencies.Count; i++)
             {
-                dependencyHandles[i] = _jobHandles[node.Dependencies[i]];
+                dependencyHandles[i] = _jobHandles[node.Dependencies[i].Index];
             }
-            
-            var handle = _jobSystem.Enqueue(node.System.RunParallel, dependencyHandles);
 
-            _jobHandles.Add(node, handle);
+            _jobHandles[nodeIndex].Dispose();
+            _jobHandles[nodeIndex] = _jobSystem.Enqueue(node.System.RunParallel, dependencyHandles);
         }
 
         _jobSystem.WaitForCompletion();
@@ -36,7 +35,9 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
 
     private void BuildDependencyGraph(EcsProcess<IEcsRunParallel> process)
     {
-        _executionNodes = process.Select(static system => new SystemExecutionNode(system)).ToArray();
+        _executionNodes = process
+            .Select(static (system, index) => new SystemExecutionNode(index, system))
+            .ToArray();
 
         for (int i = 0; i < _executionNodes.Length; i++)
         {
@@ -50,6 +51,13 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
                     nodeB.AddDependency(nodeA);
                 }
             }
+        }
+
+        _jobHandles = new JobHandle[_executionNodes.Length];
+        _dependencyHandleBuffers = new JobHandle[_executionNodes.Length][];
+        for (int i = 0; i < _executionNodes.Length; i++)
+        {
+            _dependencyHandleBuffers[i] = new JobHandle[_executionNodes[i].DependencyCount];
         }
 
         foreach (var node in _executionNodes)
@@ -94,11 +102,11 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
         }
         Array.Resize(ref _executionNodes, 0);
 
-        foreach (var pair in _jobHandles)
+        foreach (var handle in _jobHandles)
         {
-            var value = pair.Value;
-            value.Dispose();
+            handle.Dispose();
         }
-        _jobHandles.Clear();
+        Array.Resize(ref _jobHandles, 0);
+        Array.Resize(ref _dependencyHandleBuffers, 0);
     }
 }

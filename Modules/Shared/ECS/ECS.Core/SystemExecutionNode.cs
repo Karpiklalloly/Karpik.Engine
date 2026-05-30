@@ -5,6 +5,7 @@ namespace Karpik.Engine.Shared;
 
 internal class SystemExecutionNode
 {
+    public int Index { get; }
     public IEcsRunParallel System { get; }
     public HashSet<Type> ReadTypes { get; }
     public HashSet<Type> WriteTypes { get; }
@@ -13,8 +14,9 @@ internal class SystemExecutionNode
     public int IncomingDependenciesCount { get; set; } // Счётчик для выполнения
     public int DependencyCount => Dependencies.Count;
 
-    public SystemExecutionNode(IEcsRunParallel system)
+    public SystemExecutionNode(int index, IEcsRunParallel system)
     {
+        Index = index;
         System = system;
         (ReadTypes, WriteTypes, IsAccessKnown) = GetAspectTypes(system);
     }
