@@ -8,6 +8,7 @@ internal class SystemExecutionNode
     public IEcsRunParallel System { get; }
     public HashSet<Type> ReadTypes { get; }
     public HashSet<Type> WriteTypes { get; }
+    public bool IsAccessKnown { get; }
     public List<SystemExecutionNode> Dependencies { get; } = new();
     public int IncomingDependenciesCount { get; set; } // Счётчик для выполнения
     public int DependencyCount => Dependencies.Count;
@@ -15,7 +16,7 @@ internal class SystemExecutionNode
     public SystemExecutionNode(IEcsRunParallel system)
     {
         System = system;
-        (ReadTypes, WriteTypes) = GetAspectTypes(system);
+        (ReadTypes, WriteTypes, IsAccessKnown) = GetAspectTypes(system);
     }
 
     public void AddDependency(SystemExecutionNode other)
@@ -23,15 +24,15 @@ internal class SystemExecutionNode
         Dependencies.Add(other);
     }
 
-    private (HashSet<Type>, HashSet<Type>) GetAspectTypes(IEcsRunParallel system)
+    private (HashSet<Type>, HashSet<Type>, bool) GetAspectTypes(IEcsRunParallel system)
     {
         var readTypes = new HashSet<Type>();
         var writeTypes = new HashSet<Type>();
+        bool isAccessKnown = false;
 
         var nested = system.GetType().GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic);
         var aspectDefinitions = nested.Where(t => t.IsAssignableTo(typeof(EcsAspect)));
         
-        int i = 0;
         foreach (var definition in aspectDefinitions)
         {
             var pools = definition.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -41,12 +42,20 @@ internal class SystemExecutionNode
                 bool isReadonly = !type.IsAssignableTo(typeof(IEcsPool))
                                   && type.IsAssignableTo(typeof(IEcsReadonlyPool));
 
-                if (isReadonly) readTypes.Add(type.GetGenericArguments()[0]);
-                else writeTypes.Add(type.GetGenericArguments()[0]);
+                if (isReadonly)
+                {
+                    readTypes.Add(type.GetGenericArguments()[0]);
+                    isAccessKnown = true;
+                }
+                else if (type.IsAssignableTo(typeof(IEcsPool)))
+                {
+                    writeTypes.Add(type.GetGenericArguments()[0]);
+                    isAccessKnown = true;
+                }
             }
         }
 
-        return (readTypes, writeTypes);
+        return (readTypes, writeTypes, isAccessKnown);
     }
 
     public void Destroy()

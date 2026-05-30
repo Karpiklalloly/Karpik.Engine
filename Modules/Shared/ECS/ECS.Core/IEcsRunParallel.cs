@@ -61,6 +61,11 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
     
     private bool HasDirectedConflict(SystemExecutionNode previousNode, SystemExecutionNode subsequentNode)
     {
+        if (!previousNode.IsAccessKnown || !subsequentNode.IsAccessKnown)
+        {
+            return true;
+        }
+
         var writesOfPrevious = previousNode.WriteTypes;
     
         var subsequentReadsOrWrites = new HashSet<Type>(subsequentNode.ReadTypes);
