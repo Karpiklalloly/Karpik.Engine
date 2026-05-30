@@ -62,10 +62,6 @@ internal class SystemExecutionNode
     {
         ReadTypes.Clear();
         WriteTypes.Clear();
-        foreach (var item in Dependencies)
-        {
-            item.Destroy();
-        }
         Dependencies.Clear();
     }
 }

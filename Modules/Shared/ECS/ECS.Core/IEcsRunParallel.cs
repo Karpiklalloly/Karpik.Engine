@@ -96,10 +96,8 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
 
         foreach (var pair in _jobHandles)
         {
-            var key = pair.Key;
             var value = pair.Value;
             value.Dispose();
-            key.Destroy();
         }
         _jobHandles.Clear();
     }
