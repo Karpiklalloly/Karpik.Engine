@@ -132,16 +132,12 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Module Metadata
 
-- [ ] Добавить metadata/config:
-  - [ ] name;
-  - [ ] version;
-  - [ ] required/optional;
-  - [ ] enabled/disabled;
-  - [ ] side: Client, Server, Shared;
-  - [ ] dependencies;
-  - [ ] load order;
-  - [ ] init order;
-  - [ ] configuration schema.
+- [ ] Выводить side, plugin id, logical module id и implementation из структуры каталогов и имен `.csproj`.
+- [ ] Хранить enabled/disabled и выбранную implementation в структурированных `KarpikModuleSelection`.
+- [ ] Использовать `KarpikModuleDependency` как единственный source-level project dependency item в `Modules` и `MyGame`.
+- [ ] Статически преобразовывать `KarpikModuleDependency` в MSBuild `ProjectReference`, чтобы IDE сразу видела типы.
+- [ ] Поддержать required/optional runtime dependencies.
+- [ ] Добавить configuration schema для build-time validation без runtime binding.
 
 ### Module Validation
 
@@ -149,10 +145,14 @@ System dependency graph для публичных `ISystem*` перенесён 
   - [ ] missing dependencies;
   - [ ] required/disabled conflicts;
   - [ ] circular dependencies.
-- [ ] Поддержать зависимости модулей через `.csproj` project references.
+- [ ] Валидировать conventions и запрещать прямой source-level `ProjectReference` в `Modules` и `MyGame`.
+- [ ] Строить deterministic topo-order загрузки DLL для Client и Server.
+- [ ] Оставить `[Module(priority)]` для installer lifecycle, добавить deterministic tie-break и reverse destroy order.
 - [ ] Выдавать clear errors before runtime.
-- [ ] Добавить optional generated module manifest.
+- [ ] Хранить generated manifest внутри `Generated/ModuleLoader.cs`.
 - [ ] Покрыть module graph тестами.
+
+Подробный план: [`plans/module-graph-execplan.md`](../../plans/module-graph-execplan.md).
 
 ## 0.5 Scheduler / Jobs / Memory
 
