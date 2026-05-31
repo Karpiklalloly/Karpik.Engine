@@ -4,101 +4,87 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Shared;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Jobs;
+using Xunit;
 
-var tests = new (string Name, Action Run)[]
-{
-    ("DependencyGraph_Empty_ReturnsEmptyGraph", DependencyGraph_Empty_ReturnsEmptyGraph),
-    ("DependencyGraph_DisjointWrites_DoNotCreateDependency", DependencyGraph_DisjointWrites_DoNotCreateDependency),
-    ("DependencyGraph_WriteThenRead_CreatesDependency", DependencyGraph_WriteThenRead_CreatesDependency),
-    ("DependencyGraph_ReadThenWrite_CreatesDependency", DependencyGraph_ReadThenWrite_CreatesDependency),
-    ("DependencyGraph_WriteThenWrite_CreatesDependency", DependencyGraph_WriteThenWrite_CreatesDependency),
-    ("DependencyGraph_UnknownAccess_CreatesSequentialBarrier", DependencyGraph_UnknownAccess_CreatesSequentialBarrier),
-    ("DependencyGraph_Conflicts_PreserveRegistrationOrder", DependencyGraph_Conflicts_PreserveRegistrationOrder),
-    ("World_AddEnabledAsync_StoresInputBeforeEnableAndPersistsResult", World_AddEnabledAsync_StoresInputBeforeEnableAndPersistsResult),
-    ("World_AddEnabled_StoresInputBeforeEnableAndPersistsResult", World_AddEnabled_StoresInputBeforeEnableAndPersistsResult),
-    ("World_EnableVariants_PersistLifecycleResult", World_EnableVariants_PersistLifecycleResult),
-    ("World_DisableVariants_PersistLifecycleResult", World_DisableVariants_PersistLifecycleResult),
-    ("World_DelEnabledAsync_DisablesBeforeDeletingComponent", World_DelEnabledAsync_DisablesBeforeDeletingComponent),
-    ("World_DelEnabled_DisablesBeforeDeletingComponent", World_DelEnabled_DisablesBeforeDeletingComponent),
-    ("World_LifecycleFailures_AreWrappedWithDiagnostics", World_LifecycleFailures_AreWrappedWithDiagnostics)
-};
+[CollectionDefinition(nameof(EcsCoreCollection))]
+public sealed class EcsCoreCollection : ICollectionFixture<LifecycleFixture>;
 
-try
+[Collection(nameof(EcsCoreCollection))]
+public sealed class EcsCoreTests(LifecycleFixture fixture)
 {
-    foreach (var test in tests)
+    private readonly LifecycleFixture _fixture = fixture;
+
+    [Fact]
+    public void DependencyGraph_Empty_ReturnsEmptyGraph()
     {
-        test.Run();
-        Console.WriteLine($"PASS {test.Name}");
+        SystemExecutionNode[] nodes = CreateGraph();
+
+        if (nodes.Length != 0)
+        {
+            throw new InvalidOperationException($"Expected empty graph, got {nodes.Length} nodes.");
+        }
     }
-}
-finally
-{
-    LifecycleFixture.Shared.Dispose();
-}
 
-static void DependencyGraph_Empty_ReturnsEmptyGraph()
-{
-    SystemExecutionNode[] nodes = CreateGraph();
-
-    if (nodes.Length != 0)
+    [Fact]
+    public void DependencyGraph_DisjointWrites_DoNotCreateDependency()
     {
-        throw new InvalidOperationException($"Expected empty graph, got {nodes.Length} nodes.");
+        SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new WriteB());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1]);
     }
-}
 
-static void DependencyGraph_DisjointWrites_DoNotCreateDependency()
+    [Fact]
+    public void DependencyGraph_WriteThenRead_CreatesDependency()
+    {
+        SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new ReadA());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1], nodes[0]);
+    }
+
+    [Fact]
+    public void DependencyGraph_ReadThenWrite_CreatesDependency()
+    {
+        SystemExecutionNode[] nodes = CreateGraph(new ReadA(), new WriteA());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1], nodes[0]);
+    }
+
+    [Fact]
+    public void DependencyGraph_WriteThenWrite_CreatesDependency()
+    {
+        SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new WriteA());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1], nodes[0]);
+    }
+
+    [Fact]
+    public void DependencyGraph_UnknownAccess_CreatesSequentialBarrier()
+    {
+        SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new UnknownAccess(), new WriteB());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1], nodes[0]);
+        AssertDependencies(nodes[2], nodes[1]);
+    }
+
+    [Fact]
+    public void DependencyGraph_Conflicts_PreserveRegistrationOrder()
+    {
+        SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new ReadA(), new WriteA());
+
+        AssertDependencies(nodes[0]);
+        AssertDependencies(nodes[1], nodes[0]);
+        AssertDependencies(nodes[2], nodes[0], nodes[1]);
+    }
+
+    [Fact]
+    public void World_AddEnabledAsync_StoresInputBeforeEnableAndPersistsResult()
 {
-    SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new WriteB());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1]);
-}
-
-static void DependencyGraph_WriteThenRead_CreatesDependency()
-{
-    SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new ReadA());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1], nodes[0]);
-}
-
-static void DependencyGraph_ReadThenWrite_CreatesDependency()
-{
-    SystemExecutionNode[] nodes = CreateGraph(new ReadA(), new WriteA());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1], nodes[0]);
-}
-
-static void DependencyGraph_WriteThenWrite_CreatesDependency()
-{
-    SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new WriteA());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1], nodes[0]);
-}
-
-static void DependencyGraph_UnknownAccess_CreatesSequentialBarrier()
-{
-    SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new UnknownAccess(), new WriteB());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1], nodes[0]);
-    AssertDependencies(nodes[2], nodes[1]);
-}
-
-static void DependencyGraph_Conflicts_PreserveRegistrationOrder()
-{
-    SystemExecutionNode[] nodes = CreateGraph(new WriteA(), new ReadA(), new WriteA());
-
-    AssertDependencies(nodes[0]);
-    AssertDependencies(nodes[1], nodes[0]);
-    AssertDependencies(nodes[2], nodes[0], nodes[1]);
-}
-
-static void World_AddEnabledAsync_StoresInputBeforeEnableAndPersistsResult()
-{
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     ComponentLifecycleTrace.Reset();
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
@@ -114,9 +100,10 @@ static void World_AddEnabledAsync_StoresInputBeforeEnableAndPersistsResult()
     AssertLifecycleComponent(pool.Get(entity.ID), expectedValue: 17, expectedEnableCount: 1, expectedDisableCount: 0);
 }
 
-static void World_AddEnabled_StoresInputBeforeEnableAndPersistsResult()
+    [Fact]
+    public void World_AddEnabled_StoresInputBeforeEnableAndPersistsResult()
 {
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     ComponentLifecycleTrace.Reset();
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
@@ -129,9 +116,10 @@ static void World_AddEnabled_StoresInputBeforeEnableAndPersistsResult()
     AssertLifecycleComponent(pool.Get(entity.ID), expectedValue: 21, expectedEnableCount: 1, expectedDisableCount: 0);
 }
 
-static void World_EnableVariants_PersistLifecycleResult()
+    [Fact]
+    public void World_EnableVariants_PersistLifecycleResult()
 {
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
     pool.Add(entity.ID) = new LifecycleComponent { Value = 5 };
@@ -149,9 +137,10 @@ static void World_EnableVariants_PersistLifecycleResult()
     AssertLifecycleComponent(pool.Get(entity.ID), expectedValue: 25, expectedEnableCount: 2, expectedDisableCount: 0);
 }
 
-static void World_DisableVariants_PersistLifecycleResult()
+    [Fact]
+    public void World_DisableVariants_PersistLifecycleResult()
 {
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
     pool.Add(entity.ID) = new LifecycleComponent { Value = 20 };
@@ -169,9 +158,10 @@ static void World_DisableVariants_PersistLifecycleResult()
     AssertLifecycleComponent(pool.Get(entity.ID), expectedValue: 14, expectedEnableCount: 0, expectedDisableCount: 2);
 }
 
-static void World_DelEnabledAsync_DisablesBeforeDeletingComponent()
+    [Fact]
+    public void World_DelEnabledAsync_DisablesBeforeDeletingComponent()
 {
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     ComponentLifecycleTrace.Reset();
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
@@ -185,9 +175,10 @@ static void World_DelEnabledAsync_DisablesBeforeDeletingComponent()
     AssertEqual(false, pool.Has(entity.ID), "Component presence after DelEnabledAsync");
 }
 
-static void World_DelEnabled_DisablesBeforeDeletingComponent()
+    [Fact]
+    public void World_DelEnabled_DisablesBeforeDeletingComponent()
 {
-    var fixture = LifecycleFixture.Shared;
+    var fixture = _fixture;
     ComponentLifecycleTrace.Reset();
     var entity = fixture.World.New();
     var pool = fixture.Backend.GetPool<LifecycleComponent>();
@@ -201,7 +192,8 @@ static void World_DelEnabled_DisablesBeforeDeletingComponent()
     AssertEqual(false, pool.Has(entity.ID), "Component presence after DelEnabled");
 }
 
-static void World_LifecycleFailures_AreWrappedWithDiagnostics()
+    [Fact]
+    public void World_LifecycleFailures_AreWrappedWithDiagnostics()
 {
     var cases = new (string Phase, bool AddBeforeInvoke, bool FailEnable, Action<DefaultWorld, int, EcsPool<LifecycleComponent>> Invoke)[]
     {
@@ -217,7 +209,7 @@ static void World_LifecycleFailures_AreWrappedWithDiagnostics()
 
     foreach (var testCase in cases)
     {
-        var fixture = LifecycleFixture.Shared;
+        var fixture = _fixture;
         ComponentLifecycleTrace.Reset();
         ComponentLifecycleTrace.FailEnable = testCase.FailEnable;
         ComponentLifecycleTrace.FailDisable = !testCase.FailEnable;
@@ -241,19 +233,19 @@ static void World_LifecycleFailures_AreWrappedWithDiagnostics()
     }
 }
 
-static SystemExecutionNode[] CreateGraph(params IEcsRunParallel[] systems)
+    private static SystemExecutionNode[] CreateGraph(params IEcsRunParallel[] systems)
 {
     return EcsRunParallelRunner.CreateDependencyGraph(systems);
 }
 
-static void AssertLifecycleContext(LifecycleFixture fixture, int entityId)
+    private static void AssertLifecycleContext(LifecycleFixture fixture, int entityId)
 {
     AssertEqual(fixture.Services, ComponentLifecycleTrace.Services, "Lifecycle service container");
     AssertEqual(fixture.Backend, ComponentLifecycleTrace.World, "Lifecycle world");
     AssertEqual(entityId, ComponentLifecycleTrace.EntityId, "Lifecycle entity id");
 }
 
-static void AssertLifecycleComponent(
+    private static void AssertLifecycleComponent(
     LifecycleComponent component,
     int expectedValue,
     int expectedEnableCount,
@@ -264,7 +256,7 @@ static void AssertLifecycleComponent(
     AssertEqual(expectedDisableCount, component.DisableCount, "Lifecycle component disable count");
 }
 
-static void AssertEqual<T>(T expected, T actual, string description)
+    private static void AssertEqual<T>(T expected, T actual, string description)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
     {
@@ -272,7 +264,7 @@ static void AssertEqual<T>(T expected, T actual, string description)
     }
 }
 
-static TException AssertThrows<TException>(Action action, string description) where TException : Exception
+    private static TException AssertThrows<TException>(Action action, string description) where TException : Exception
 {
     try
     {
@@ -286,7 +278,7 @@ static TException AssertThrows<TException>(Action action, string description) wh
     throw new InvalidOperationException($"Expected {description} to throw {typeof(TException).Name}.");
 }
 
-static void AssertDependencies(SystemExecutionNode node, params SystemExecutionNode[] expected)
+    private static void AssertDependencies(SystemExecutionNode node, params SystemExecutionNode[] expected)
 {
     if (node.Dependencies.Count != expected.Length)
     {
@@ -302,6 +294,8 @@ static void AssertDependencies(SystemExecutionNode node, params SystemExecutionN
                 $"Dependency {i} mismatch for node {node.Index}. Expected node {expected[i].Index}, got node {node.Dependencies[i].Index}.");
         }
     }
+}
+
 }
 
 readonly struct ComponentA : IEcsComponent;
@@ -350,15 +344,13 @@ sealed class UnknownAccess : IEcsRunParallel
     }
 }
 
-sealed class LifecycleFixture : IDisposable
+public sealed class LifecycleFixture : IDisposable
 {
-    public static LifecycleFixture Shared { get; } = new();
-
     public ServiceProvider Services { get; } = new();
     public EcsDefaultWorld Backend { get; } = new();
     public DefaultWorld World { get; }
 
-    private LifecycleFixture()
+    public LifecycleFixture()
     {
         World = new DefaultWorld(Backend, Services);
     }

@@ -19,6 +19,7 @@
   </Folder>
   <Folder Name="/Modules/Client/Graphics/">
     <Project Path="Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" />
+    <Project Path="Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj" />
     <Project Path="Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" />
   </Folder>
   <Folder Name="/Modules/Client/Network.Client/">
@@ -45,6 +46,7 @@
   </Folder>
   <Folder Name="/Modules/Shared/ECS/">
     <Project Path="Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
+    <Project Path="ECS.Core.Tests/ECS.Core.Tests.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Modding/">
     <Project Path="Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />

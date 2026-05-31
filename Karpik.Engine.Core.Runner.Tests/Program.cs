@@ -1,51 +1,45 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
+using Xunit;
 
-var tests = new (string Name, Action Run)[]
+public sealed class EngineRunnerLifecycleTests
 {
-    ("EngineRunner_Run_ExecutesLifecyclePhasesIn04Order", EngineRunner_Run_ExecutesLifecyclePhasesIn04Order)
-};
-
-foreach (var test in tests)
-{
-    test.Run();
-    Console.WriteLine($"PASS {test.Name}");
-}
-
-static void EngineRunner_Run_ExecutesLifecyclePhasesIn04Order()
-{
-    LifecycleTrace.Clear();
-
-    var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
-    var runner = new EngineRunner();
-
-    runner.RegisterModule(new LifecycleSmokeInstaller());
-    runner.Setup(new Application(Side.Server), scheduler);
-    scheduler.Execute();
-
-    runner.Run(Application.TICK_DT);
-    runner.Destroy();
-
-    AssertSequence(
-        ["Init", "Begin", "DragonRun", "FixedUpdate", "Update", "LateUpdate", "Render", "Destroy"],
-        LifecycleTrace.Items);
-}
-
-static void AssertSequence(string[] expected, IReadOnlyList<string> actual)
-{
-    if (expected.Length != actual.Count)
+    [Fact]
+    public void EngineRunner_Run_ExecutesLifecyclePhasesIn04Order()
     {
-        throw new InvalidOperationException(
-            $"Expected {expected.Length} lifecycle events, got {actual.Count}: {string.Join(", ", actual)}");
+        LifecycleTrace.Clear();
+
+        var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+        var runner = new EngineRunner();
+
+        runner.RegisterModule(new LifecycleSmokeInstaller());
+        runner.Setup(new Application(Side.Server), scheduler);
+        scheduler.Execute();
+
+        runner.Run(Application.TICK_DT);
+        runner.Destroy();
+
+        AssertSequence(
+            ["Init", "Begin", "DragonRun", "FixedUpdate", "Update", "LateUpdate", "Render", "Destroy"],
+            LifecycleTrace.Items);
     }
 
-    for (int i = 0; i < expected.Length; i++)
+    private static void AssertSequence(string[] expected, IReadOnlyList<string> actual)
     {
-        if (!string.Equals(expected[i], actual[i], StringComparison.Ordinal))
+        if (expected.Length != actual.Count)
         {
             throw new InvalidOperationException(
-                $"Lifecycle event {i} mismatch. Expected '{expected[i]}', got '{actual[i]}'. Full order: {string.Join(", ", actual)}");
+                $"Expected {expected.Length} lifecycle events, got {actual.Count}: {string.Join(", ", actual)}");
+        }
+
+        for (int i = 0; i < expected.Length; i++)
+        {
+            if (!string.Equals(expected[i], actual[i], StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Lifecycle event {i} mismatch. Expected '{expected[i]}', got '{actual[i]}'. Full order: {string.Join(", ", actual)}");
+            }
         }
     }
 }

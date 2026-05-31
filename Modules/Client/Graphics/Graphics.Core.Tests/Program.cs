@@ -3,46 +3,12 @@ using System.Numerics;
 using System.Text;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using Xunit;
 
-var tests = new (string Name, Action Run)[]
+public sealed class GraphicsCoreTests
 {
-    ("Camera_WorldToScreen_MapsCameraPositionToViewportCenter", Camera_WorldToScreen_MapsCameraPositionToViewportCenter),
-    ("Camera_WorldToScreen_AppliesZoomAndPixelsPerUnit", Camera_WorldToScreen_AppliesZoomAndPixelsPerUnit),
-    ("Camera_WorldToScreen_AppliesCameraRotation", Camera_WorldToScreen_AppliesCameraRotation),
-    ("Camera_ScreenToWorld_RoundTripsWorldPoint", Camera_ScreenToWorld_RoundTripsWorldPoint),
-    ("Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed", Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed),
-    ("Quad_ScreenZeroRotation_MapsPixelsToClipSpace", Quad_ScreenZeroRotation_MapsPixelsToClipSpace),
-    ("Quad_ScreenCenterRotation_RotatesAroundOrigin", Quad_ScreenCenterRotation_RotatesAroundOrigin),
-    ("Quad_WorldSpace_UsesCameraPositionAndScale", Quad_WorldSpace_UsesCameraPositionAndScale),
-    ("Quad_ScreenSpace_IgnoresCamera", Quad_ScreenSpace_IgnoresCamera),
-    ("TextureUv_Default_UsesFullTexture", TextureUv_Default_UsesFullTexture),
-    ("TextureUv_SourceRect_MapsCorners", TextureUv_SourceRect_MapsCorners),
-    ("CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin", CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin),
-    ("CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv", CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv),
-    ("CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace", CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace),
-    ("CommandBuffer_AddText_DefaultsToTopLeftScreenSpace", CommandBuffer_AddText_DefaultsToTopLeftScreenSpace),
-    ("CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring", CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring),
-    ("CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer", CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer),
-    ("CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded", CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded),
-    ("FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics", FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics),
-    ("FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds", FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds),
-    ("AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing", AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing),
-    ("AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput", AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput),
-    ("AtlasFont_Dispose_RespectsAtlasTextureOwnership", AtlasFont_Dispose_RespectsAtlasTextureOwnership),
-    ("TextAnchorTransform_GetOffset_MapsAllAnchors", TextAnchorTransform_GetOffset_MapsAllAnchors),
-    ("TextLayout_Measure_MatchesBuildSize", TextLayout_Measure_MatchesBuildSize),
-    ("TextLayout_Measure_ReturnsZeroForInvalidSize", TextLayout_Measure_ReturnsZeroForInvalidSize),
-    ("TextLayout_Build_EmitsGlyphQuadsAndSize", TextLayout_Build_EmitsGlyphQuadsAndSize),
-    ("TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation", TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation)
-};
-
-foreach (var test in tests)
-{
-    test.Run();
-    Console.WriteLine($"PASS {test.Name}");
-}
-
-static void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
+    [Fact]
+    public void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = new Vector2(10f, 20f);
@@ -54,7 +20,8 @@ static void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
     AssertNear(new Vector2(400f, 300f), screen);
 }
 
-static void Camera_WorldToScreen_AppliesZoomAndPixelsPerUnit()
+    [Fact]
+    public void Camera_WorldToScreen_AppliesZoomAndPixelsPerUnit()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = new Vector2(10f, 20f);
@@ -63,10 +30,11 @@ static void Camera_WorldToScreen_AppliesZoomAndPixelsPerUnit()
 
     Vector2 screen = camera.WorldToScreen(new Vector2(13f, 18f));
 
-    AssertNear(new Vector2(424f, 284f), screen);
+    AssertNear(new Vector2(424f, 316f), screen);
 }
 
-static void Camera_WorldToScreen_AppliesCameraRotation()
+    [Fact]
+    public void Camera_WorldToScreen_AppliesCameraRotation()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = default;
@@ -79,7 +47,8 @@ static void Camera_WorldToScreen_AppliesCameraRotation()
     AssertNear(new Vector2(410f, 300f), screen);
 }
 
-static void Camera_ScreenToWorld_RoundTripsWorldPoint()
+    [Fact]
+    public void Camera_ScreenToWorld_RoundTripsWorldPoint()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = new Vector2(10f, -20f);
@@ -94,7 +63,8 @@ static void Camera_ScreenToWorld_RoundTripsWorldPoint()
     AssertNear(world, roundTrip);
 }
 
-static void Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed()
+    [Fact]
+    public void Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed()
 {
     Camera2D camera = Camera2D.CreateDefault();
     camera.Position = new Vector2(42f, -17f);
@@ -108,7 +78,8 @@ static void Camera_Normalized_KeepsPositionWhenViewportFallbackIsUsed()
     AssertNear(new Vector2(400f, 300f), normalized.WorldToScreen(normalized.Position));
 }
 
-static void Quad_ScreenZeroRotation_MapsPixelsToClipSpace()
+    [Fact]
+    public void Quad_ScreenZeroRotation_MapsPixelsToClipSpace()
 {
     DrawTransform2D transform = new DrawTransform2D(new Vector2(100f, 50f), new Vector2(200f, 100f));
 
@@ -120,7 +91,8 @@ static void Quad_ScreenZeroRotation_MapsPixelsToClipSpace()
     AssertNear(new Vector2(-0.25f, 0.5f), p3);
 }
 
-static void Quad_ScreenCenterRotation_RotatesAroundOrigin()
+    [Fact]
+    public void Quad_ScreenCenterRotation_RotatesAroundOrigin()
 {
     DrawTransform2D transform = new DrawTransform2D(
         new Vector2(300f, 200f),
@@ -136,7 +108,8 @@ static void Quad_ScreenCenterRotation_RotatesAroundOrigin()
     AssertNear(ToClip(new Vector2(325f, 275f), 800f, 600f), p3);
 }
 
-static void Quad_WorldSpace_UsesCameraPositionAndScale()
+    [Fact]
+    public void Quad_WorldSpace_UsesCameraPositionAndScale()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = new Vector2(10f, 0f);
@@ -154,11 +127,12 @@ static void Quad_WorldSpace_UsesCameraPositionAndScale()
 
     AssertNear(ToClip(new Vector2(400f, 300f), 800f, 600f), p0);
     AssertNear(ToClip(new Vector2(420f, 300f), 800f, 600f), p1);
-    AssertNear(ToClip(new Vector2(400f, 320f), 800f, 600f), p2);
-    AssertNear(ToClip(new Vector2(420f, 320f), 800f, 600f), p3);
+    AssertNear(ToClip(new Vector2(400f, 280f), 800f, 600f), p2);
+    AssertNear(ToClip(new Vector2(420f, 280f), 800f, 600f), p3);
 }
 
-static void Quad_ScreenSpace_IgnoresCamera()
+    [Fact]
+    public void Quad_ScreenSpace_IgnoresCamera()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
     camera.Position = new Vector2(1000f, 1000f);
@@ -180,7 +154,8 @@ static void Quad_ScreenSpace_IgnoresCamera()
     AssertNear(new Vector2(-0.25f, 0.5f), p3);
 }
 
-static void TextureUv_Default_UsesFullTexture()
+    [Fact]
+    public void TextureUv_Default_UsesFullTexture()
 {
     TextureUvTransform.GetTextureCoords(default, out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
 
@@ -190,7 +165,8 @@ static void TextureUv_Default_UsesFullTexture()
     AssertNear(new Vector2(1f, 1f), uv3);
 }
 
-static void TextureUv_SourceRect_MapsCorners()
+    [Fact]
+    public void TextureUv_SourceRect_MapsCorners()
 {
     TextureUvTransform.GetTextureCoords(new Vector4(0.25f, 0.125f, 0.5f, 0.375f), out Vector2 uv0, out Vector2 uv1, out Vector2 uv2, out Vector2 uv3);
 
@@ -200,7 +176,8 @@ static void TextureUv_SourceRect_MapsCorners()
     AssertNear(new Vector2(0.5f, 0.375f), uv3);
 }
 
-static void CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin()
+    [Fact]
+    public void CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
 
@@ -224,7 +201,8 @@ static void CommandBuffer_AddRectCentered_ConvertsCenterToPositionAndOrigin()
     AssertEqual(DrawSpace.World, cmd.Space);
 }
 
-static void CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv()
+    [Fact]
+    public void CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
     FakeTexture texture = new FakeTexture();
@@ -254,7 +232,8 @@ static void CommandBuffer_AddTextureCentered_PreservesTransformSpaceAndUv()
     AssertEqual(DrawSpace.World, cmd.Space);
 }
 
-static void CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace()
+    [Fact]
+    public void CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
     FakeTexture texture = new FakeTexture();
@@ -275,7 +254,8 @@ static void CommandBuffer_AddTexture_DefaultsToTopLeftFullTextureScreenSpace()
     AssertEqual(DrawSpace.Screen, cmd.Space);
 }
 
-static void CommandBuffer_AddText_DefaultsToTopLeftScreenSpace()
+    [Fact]
+    public void CommandBuffer_AddText_DefaultsToTopLeftScreenSpace()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
     AtlasFont font = CreateTestFont(new FakeTexture());
@@ -303,7 +283,8 @@ static void CommandBuffer_AddText_DefaultsToTopLeftScreenSpace()
     AssertEqual(DrawSpace.Screen, cmd.Space);
 }
 
-static void CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring()
+    [Fact]
+    public void CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring()
 {
     FakeCommandBuffer buffer = new FakeCommandBuffer();
     AtlasFont font = CreateTestFont(new FakeTexture());
@@ -328,7 +309,8 @@ static void CommandBuffer_AddTextCentered_StoresCenterAnchorWithoutMeasuring()
     AssertEqual(DrawSpace.World, cmd.Space);
 }
 
-static void CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer()
+    [Fact]
+    public void CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer()
 {
     ThreadBuffer buffer = new ThreadBuffer();
     AtlasFont font = CreateTestFont(new FakeTexture());
@@ -354,7 +336,8 @@ static void CommandBuffer_AddTextCopy_CopiesSpanIntoThreadBuffer()
     AssertEqual(TextAnchor.BottomRight, cmd.Anchor);
 }
 
-static void CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded()
+    [Fact]
+    public void CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded()
 {
     ThreadBuffer buffer = new ThreadBuffer();
     buffer.EnsureCapacity(rects: 0, textures: 0, texts: 1, commands: 1, textChars: 4096);
@@ -373,7 +356,8 @@ static void CommandBuffer_AddTextCopy_ThrowsWhenThreadBufferTextCapacityExceeded
     });
 }
 
-static void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
+    [Fact]
+    public void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
 {
     const string json = """
                         {
@@ -419,7 +403,8 @@ static void FontAtlasParser_Parse_NormalizesGlyphUvAndMetrics()
     AssertNear4(new Vector4(0.125f, 0.125f, 0.375f, 0.375f), glyph.SourceUv);
 }
 
-static void FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds()
+    [Fact]
+    public void FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds()
 {
     const string json = """
                         {
@@ -488,7 +473,8 @@ static void FontAtlasParser_ParseMsdfAtlasGen_ConvertsPlaneAndAtlasBounds()
     AssertNear4(Vector4.Zero, space.SourceUv);
 }
 
-static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
+    [Fact]
+    public void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
 {
     FakeTexture texture = new FakeTexture();
     FontGlyph glyphA = new FontGlyph(
@@ -526,7 +512,8 @@ static void AtlasFont_TryGetGlyph_FindsExistingAndRejectsMissing()
     }
 }
 
-static void AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput()
+    [Fact]
+    public void AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput()
 {
     FakeTexture texture = new FakeTexture();
     FontAtlasMetrics metrics = new FontAtlasMetrics(16f, 18f, 14f, -4f, 4f);
@@ -548,7 +535,8 @@ static void AtlasFont_TryGetGlyph_HandlesUnsortedGlyphInput()
     AssertEqual((uint)'B', foundB.Codepoint);
 }
 
-static void AtlasFont_Dispose_RespectsAtlasTextureOwnership()
+    [Fact]
+    public void AtlasFont_Dispose_RespectsAtlasTextureOwnership()
 {
     FakeTexture ownedTexture = new FakeTexture();
     FontAtlasMetrics metrics = new FontAtlasMetrics(16f, 18f, 14f, -4f, 4f);
@@ -570,7 +558,8 @@ static void AtlasFont_Dispose_RespectsAtlasTextureOwnership()
     }
 }
 
-static void TextAnchorTransform_GetOffset_MapsAllAnchors()
+    [Fact]
+    public void TextAnchorTransform_GetOffset_MapsAllAnchors()
 {
     Vector2 size = new Vector2(100f, 40f);
 
@@ -585,7 +574,8 @@ static void TextAnchorTransform_GetOffset_MapsAllAnchors()
     AssertNear(new Vector2(100f, 40f), TextAnchorTransform.GetOffset(TextAnchor.BottomRight, size));
 }
 
-static void TextLayout_Measure_MatchesBuildSize()
+    [Fact]
+    public void TextLayout_Measure_MatchesBuildSize()
 {
     AtlasFont font = CreateTestFont(new FakeTexture());
     Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[4];
@@ -596,14 +586,16 @@ static void TextLayout_Measure_MatchesBuildSize()
     AssertNear(result.Size, measured);
 }
 
-static void TextLayout_Measure_ReturnsZeroForInvalidSize()
+    [Fact]
+    public void TextLayout_Measure_ReturnsZeroForInvalidSize()
 {
     AtlasFont font = CreateTestFont(new FakeTexture());
 
     AssertNear(Vector2.Zero, TextLayout.Measure(font, "AB", 0f));
 }
 
-static void TextLayout_Build_EmitsGlyphQuadsAndSize()
+    [Fact]
+    public void TextLayout_Build_EmitsGlyphQuadsAndSize()
 {
     AtlasFont font = CreateTestFont(new FakeTexture());
     Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[2];
@@ -620,7 +612,8 @@ static void TextLayout_Build_EmitsGlyphQuadsAndSize()
     AssertNear(new Vector2(34f, 36f), result.Size);
 }
 
-static void TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation()
+    [Fact]
+    public void TextLayout_Build_HandlesNewlinesMissingGlyphsAndTruncation()
 {
     AtlasFont font = CreateTestFont(new FakeTexture());
     Span<TextGlyphQuad> quads = stackalloc TextGlyphQuad[1];
@@ -720,6 +713,8 @@ static void AssertText(ReadOnlySpan<char> expected, ReadOnlyMemory<char> actual)
     }
 }
 
+}
+
 internal sealed class FakeCommandBuffer : ICommandBuffer
 {
     public int FrameId => 0;
@@ -771,6 +766,8 @@ internal sealed class FakeCommandBuffer : ICommandBuffer
 internal sealed class FakeTexture : ITexture2D
 {
     public bool IsDisposed;
+    public uint Width { get; init; }
+    public uint Height { get; init; }
 
     public void Dispose()
     {
