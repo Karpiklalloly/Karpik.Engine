@@ -15,7 +15,7 @@ public class SetLocalPlayerSystem : IEcsRunOnEvent<SetLocalPlayerTargetRpc>
         public EcsReadonlyPool<NetworkId> netId = Inc;
     }
     
-    [DI] private EcsDefaultWorld _world;
+    [DI] private DefaultWorld _world;
     [DI] private ClientReconnectTokenStore _reconnectTokenStore = null!;
     
     public void RunOnEvent(ref SetLocalPlayerTargetRpc evt)
@@ -24,14 +24,14 @@ public class SetLocalPlayerSystem : IEcsRunOnEvent<SetLocalPlayerTargetRpc>
         _reconnectTokenStore.Save(evt.ReconnectToken);
         StoreClientReconnectToken(evt.ReconnectToken);
 
-        var entity = FindOrCreateByNetworkId(evt.LocalPlayerNetId, _world);
-        var localPlayerPool = _world.GetPool<LocalPlayer>();
+        var entity = FindOrCreateByNetworkId(evt.LocalPlayerNetId, _world.Base);
+        var localPlayerPool = _world.Base.GetPool<LocalPlayer>();
         if (!localPlayerPool.Has(entity.ID))
         {
             localPlayerPool.Add(entity.ID);
         }
 
-        var sessionPool = _world.GetPool<PlayerSession>();
+        var sessionPool = _world.Base.GetPool<PlayerSession>();
         if (sessionPool.Has(entity.ID))
         {
             sessionPool.Get(entity.ID).ReconnectToken = evt.ReconnectToken;
@@ -44,14 +44,14 @@ public class SetLocalPlayerSystem : IEcsRunOnEvent<SetLocalPlayerTargetRpc>
 
     private void StoreClientReconnectToken(long reconnectToken)
     {
-        var pool = _world.GetPool<ClientReconnectSession>();
-        foreach (var entity in _world.Where(EcsStaticMask.Inc<ClientReconnectSession>().Build()))
+        var pool = _world.Base.GetPool<ClientReconnectSession>();
+        foreach (var entity in _world.Base.Where(EcsStaticMask.Inc<ClientReconnectSession>().Build()))
         {
             pool.Get(entity).ReconnectToken = reconnectToken;
             return;
         }
 
-        pool.Add(_world.NewEntity()).ReconnectToken = reconnectToken;
+        pool.Add(_world.New().ID).ReconnectToken = reconnectToken;
     }
 
     protected entlong FindOrCreateByNetworkId(int networkId, EcsWorld world)

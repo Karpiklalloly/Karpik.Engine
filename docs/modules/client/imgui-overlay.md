@@ -31,17 +31,17 @@ EndProgramLayer 1800     SwapBuffers
 Use direct ECS systems. Guard every panel with `ImGuiOverlayState.Enabled`.
 
 ```csharp
-using DCFApixels.DragonECS;
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Core;
 
-public sealed class MyDebugPanelSystem : IEcsRun
+public sealed class MyDebugPanelSystem : ISystemRender
 {
     [DI] private ImGuiOverlayState _overlay = null!;
 
     private string _text = string.Empty;
 
-    public void Run()
+    public void Render()
     {
         if (!_overlay.Enabled)
         {

@@ -470,16 +470,24 @@ public sealed class CircleColliderAspect : EcsAspect
 }
 ```
 
-### Использование SystemAPI.Query (альтернатива Aspect)
+### Использование Aspect В Системе
 
 ```csharp
-public partial struct VelocityDebugSystem : IEcsRun
+public sealed class VelocityDebugSystem : ISystemUpdate
 {
-    public void Run()
+    private sealed class Aspect : EcsAspect
     {
-        foreach (var (velocity, entity) in SystemAPI.Query<RefRO<RigidBodyComponent>>())
+        public EcsReadonlyPool<Velocity2D> Velocities = Inc;
+    }
+
+    [DI] private DefaultWorld _world = null!;
+
+    public void Update()
+    {
+        foreach (var entity in _world.Where(out Aspect aspect))
         {
-            UnityEngine.Debug.Log($"Entity {entity}: velocity={velocity.ReadOnlyVal.Velocity}");
+            ref readonly var velocity = ref aspect.Velocities.Get(entity);
+            var speedSquared = velocity.Linear.LengthSquared();
         }
     }
 }

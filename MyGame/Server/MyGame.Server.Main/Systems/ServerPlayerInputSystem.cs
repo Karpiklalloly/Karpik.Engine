@@ -2,6 +2,7 @@ using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
+using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Server.Main;
 
@@ -12,16 +13,16 @@ internal class InputSystem : IEcsRunOnEvent<PlatformerInputCommand>
         public EcsReadonlyPool<NetworkId> netId = Inc;
     }
 
-    [DI] private EcsDefaultWorld _world = null!;
+    [DI] private DefaultWorld _world = null!;
     [DI] private IPhysicsWorld2D _physicsWorld2D = null!;
     [DI] private Time _time = null!;
     
     public void RunOnEvent(ref PlatformerInputCommand evt)
     {
-        var entity = FindByNetworkId(evt.Target, _world);
+        var entity = FindByNetworkId(evt.Target, _world.Base);
         if (!entity.IsAlive) return;
 
-        _world.GetPool<WannaMove>().TryAddOrGet(entity.ID) = new WannaMove()
+        _world.Base.GetPool<WannaMove>().TryAddOrGet(entity.ID) = new WannaMove()
         {
             MoveX = evt.MoveX,
             Jump = evt.Jump

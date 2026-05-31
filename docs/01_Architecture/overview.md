@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> 📅 Обновлено: 2026-03-26
+> 📅 Обновлено: 2026-05-31
 
 ## 🏗️ Структура проекта
 
@@ -59,7 +59,7 @@ KarpikEngine/
 │  ClientLauncher (Watcher)           │
 │  - ProcessManager                   │
 │  - IPC Server                       │
-│  - FileSystemWatcher                │
+│  - Worker restart orchestration     │
 └──────────────┬──────────────────────┘
                │ Named Pipe
                ▼
@@ -76,7 +76,7 @@ KarpikEngine/
 - Crash isolation
 - Hot reload без memory leaks
 
-**Подробнее:** [Process Isolation Architecture](../../plans/process-isolation-architecture.md)
+**Подробнее:** [Hot Reload](hot-reload.md)
 
 ---
 
@@ -95,3 +95,4 @@ KarpikEngine/
 
 - [Roadmap](../roadmap.md)
 - [Performance Overview](../performance/overview.md)
+- [Hot Reload](hot-reload.md)

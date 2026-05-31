@@ -338,24 +338,25 @@ public struct DrawTextCmd
 ## Usage пример
 
 ```csharp
-// ECS система (выполняется параллельно)
-public class SpriteRenderSystem : IEcsRunParallel
+// ECS render-command система. В 0.4 выполняется последовательно.
+public class SpriteRenderSystem : ISystemRender
 {
     class Aspect : EcsAspect
     {
-        public EcsPool<Position> Position = Inc;
-        public EcsPool<Sprite> Sprite = Inc;
+        public EcsReadonlyPool<Position> Position = Inc;
+        public EcsReadonlyPool<Sprite> Sprite = Inc;
     }
+
+    [DI] private DefaultWorld _world = null!;
     
-    public void Run()
+    public void Render()
     {
-        // Каждый поток автоматически получает свой буфер
         var buffer = GraphicsContext.Buffer;
         
         foreach (var entity in _world.Where(out Aspect a))
         {
-            ref var pos = ref a.Position.Get(entity);
-            ref var sprite = ref a.Sprite.Get(entity);
+            ref readonly var pos = ref a.Position.Get(entity);
+            ref readonly var sprite = ref a.Sprite.Get(entity);
             
             buffer.Add(new DrawTextureCmd
             {

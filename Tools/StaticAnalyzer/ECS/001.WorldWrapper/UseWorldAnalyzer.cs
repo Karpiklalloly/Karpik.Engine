@@ -96,7 +96,7 @@ public class UseWorldAnalyzer : DiagnosticAnalyzer
         {
             var name = iface.Name;
 
-            if (name is "ISystem")
+            if (name is "ISystem" or "IEcsProcess")
             {
                 return true;
             }
