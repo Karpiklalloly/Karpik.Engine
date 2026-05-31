@@ -8,9 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Jobs\Karpik.Jobs.csproj" />
-      <ProjectReference Include="..\..\LoggerModule\LoggerModule.csproj" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <KarpikModuleDependency Include="Karpik.Jobs" />
+      <KarpikModuleDependency Include="LoggerModule" />
     </ItemGroup>
 
     <ItemGroup>

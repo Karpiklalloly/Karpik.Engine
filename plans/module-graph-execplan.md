@@ -6,19 +6,21 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 Replace the current filename-only Configurator prototype with a deterministic module graph that fails before runtime when module configuration is inconsistent.
 
-Module projects and game projects use `KarpikModuleDependency` as their only source-level project-dependency item. MSBuild expands those items into standard `ProjectReference` items during project evaluation, so Rider and the compiler see referenced types immediately after project reload. Running Configurator is not required for IDE type resolution.
+Module projects and game projects use `KarpikModuleDependency` identifiers as their only source-level project-dependency item. MSBuild resolves identifiers through tracked `Generated/KarpikModuleCatalog.props` and expands them into standard `ProjectReference` items during project evaluation, so Rider and the compiler see referenced types immediately after project reload. Running Configurator is not required after adding a dependency to an existing project id; adding or moving projects requires regenerating the tracked catalog.
 
 Configurator derives module identity, side, and implementation relationships from repository conventions instead of duplicating them in `.csproj` metadata. It uses the same `KarpikModuleDependency` items to validate enabled modules, compute DLL closure, topologically sort load order, and generate the loader.
 
 ## Progress
 
 - [x] (2026-05-31 20:58 +04:00) Initial design discussion completed and decisions recorded.
-- [ ] Add MSBuild expansion for `KarpikModuleDependency`.
-- [ ] Migrate module and game project dependencies.
-- [ ] Extract Configurator model, parsing, validation, and generation.
-- [ ] Migrate the game profile and regenerate loader artifacts.
-- [ ] Stabilize installer init and destroy order.
-- [ ] Add tests and run acceptance validation.
+- [x] (2026-05-31 21:08 +04:00) Add MSBuild expansion for `KarpikModuleDependency`.
+- [x] (2026-05-31 21:08 +04:00) Migrate module and game project dependencies.
+- [x] (2026-05-31 21:08 +04:00) Validate Milestone 1 from the command line: no direct `ProjectReference` remains under `Modules` or `MyGame`; evaluated analyzer metadata is forwarded; `ECS.Core`, `Graphics.OpenGL`, `MyGame.Client.Main`, and `MyGame.Server.Main` build successfully with `-m:1 -nr:false`. Rider project reload remains a manual IDE check.
+- [x] (2026-05-31 21:24 +04:00) Extract Configurator model, parsing, validation, and generation.
+- [x] (2026-05-31 21:24 +04:00) Migrate the game profile and regenerate loader artifacts.
+- [x] (2026-05-31 21:24 +04:00) Stabilize installer init and destroy order.
+- [x] (2026-05-31 21:24 +04:00) Add tests and run acceptance validation. `Configurator.Tests` passed 7/7, runner lifecycle tests passed 4/4, full solution tests passed 53/53, both launcher builds passed, and repeated generation produced byte-identical SHA256 hashes. Rider project reload remains a manual IDE check.
+- [x] (2026-05-31 21:47 +04:00) Replace dependency paths with shorthand project ids, generate `Generated/KarpikModuleCatalog.props`, validate metadata forwarding, and rerun acceptance validation. `Configurator.Tests` passed 9/9, full solution tests passed 55/55, both launcher builds passed, and all three generated artifacts were byte-identical across repeated generation.
 
 ## Surprises & Discoveries
 
@@ -36,6 +38,21 @@ Configurator derives module identity, side, and implementation relationships fro
 
 - Observation: `Generated/ModuleLoader.cs` is compiled into both `Karpik.Engine.Core` and `Karpik.Engine.Core.Runner`, causing existing `CS0436` conflicts.
   Evidence: targeted runner test build.
+
+- Observation: The `KarpikModuleDependency` expansion must live in `Directory.Build.targets`, not `Directory.Build.props`. Props are imported before project-local items are declared, while targets are imported after the project body and still participate in evaluated IDE and compiler references.
+  Evidence: MSBuild import order and `dotnet msbuild Modules\Shared\StatAndAbilities\StatAndAbilities.csproj -getItem:KarpikModuleDependency -getItem:ProjectReference -m:1 -nr:false`.
+
+- Observation: Representative builds that share dependency outputs must run sequentially even with `-m:1`; launching independent `dotnet build` processes in parallel can race on common output DLLs.
+  Evidence: parallel `Graphics.OpenGL` and `MyGame.Client.Main` validation raced on `Window.Core.dll`; the sequential `Graphics.OpenGL` rerun succeeded.
+
+- Observation: `Modules/Shared/StatAndAbilities/StatAndAbilities.csproj` referenced a non-existent sibling `Modules/Shared/StatAndAbilities.Codegen` directory instead of the repository-root codegen project.
+  Evidence: first graph-validator run after parser extraction; corrected dependency path resolves to `StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj`.
+
+- Observation: Once the `StatAndAbilities.Codegen` analyzer path was corrected, launcher staging exposed stale generated-template imports of `Karpik.StatAndAbilities`; the runtime API namespace is `Karpik.Engine.Shared.StatAndAbilities`.
+  Evidence: `ClientLauncher` build errors from generated `DefaultStat` and `DefaultRangeStat` sources; corrected in all three StatAndAbilities generator templates.
+
+- Observation: MSBuild evaluation-time item functions do not provide a reliable join from dependency ids to discovered project items. A tracked generated catalog is simpler, deterministic, and preserves dependency metadata during the final item transform.
+  Evidence: prototype `WithMetadataValue` expansion left `ResolvedProjectPath` empty; generated `KarpikModuleCatalog.props` resolves ids and `dotnet msbuild ... -getItem:ProjectReference` confirms forwarded analyzer metadata.
 
 ## Decision Log
 
@@ -59,17 +76,29 @@ Configurator derives module identity, side, and implementation relationships fro
   Rationale: Teardown must release consumers before providers.
   Date/Author: 2026-05-31 / developer and agent
 
+- Decision: Source-level `KarpikModuleDependency` values are project ids, not relative paths. Logical module ids such as `Physics2D` resolve to their core plugin; implementation ids such as `Physics2D.Aether2D` resolve to the concrete plugin; infrastructure ids such as `Dragon` resolve by project filename.
+  Rationale: Project files stay compact and project moves no longer require rewriting dependent `.csproj` files. Compile dependencies remain independent from the selected runtime implementation.
+  Date/Author: 2026-05-31 / developer and agent
+
+- Decision: Generate and track `Generated/KarpikModuleCatalog.props`.
+  Rationale: The catalog keeps MSBuild evaluation and Rider design-time resolution deterministic without recursive filesystem scans or unreliable MSBuild item joins.
+  Date/Author: 2026-05-31 / agent
+
 ## Outcomes & Retrospective
 
-No outcome yet. Update this after each milestone and link an ADR before closing the plan.
+The filename-only Configurator prototype has been replaced with a deterministic validated module graph. `KarpikModuleDependency` identifiers are the only source-level dependency declarations under `Modules` and `MyGame`; MSBuild resolves them through a generated catalog during evaluation for IDE and compiler compatibility. The structured profile lists every logical module explicitly, generated artifacts are deterministic and validated as read-only during launcher builds, and the loader is compiled only into `Karpik.Engine.Core`.
+
+Installer lifecycle is now deterministic for equal priorities and destroys consumers before providers by reversing init order. The migration exposed and fixed an existing broken `StatAndAbilities.Codegen` path plus stale generated-template namespaces.
+
+Accepted architecture decision: [[../docs/02_ADR/module-graph]].
 
 ## Context and Orientation
 
-`Configurator/Program.cs` scans `KarpikEngine.slnx`, derives modules from filenames, writes `AutoGenerated.targets`, and writes `Generated/ModuleLoader.cs`. Its current profile load/save methods are empty.
+`Configurator/RepositoryParser.cs` scans `KarpikEngine.slnx` and raw project XML. `Configurator/ArtifactGenerator.cs` writes `AutoGenerated.targets`, `Generated/KarpikModuleCatalog.props`, and `Generated/ModuleLoader.cs`.
 
 `Directory.Build.targets` invokes `Configurator --validate` before launcher and publish builds. Extend this existing validation path rather than adding a second build-time tool.
 
-`Generated/ModuleLoader.cs` is a tracked generated artifact. It stages and loads DLLs before `EngineRunner` discovers installer types.
+`Generated/KarpikModuleCatalog.props` is a tracked generated artifact imported by `Directory.Build.targets`. It maps dependency ids to project paths during evaluation. `Generated/ModuleLoader.cs` stages and loads DLLs before `EngineRunner` discovers installer types.
 
 `Karpik.Engine.Core.Runner/Runner.cs` sorts installers by `[Module(priority)]`, then runs service registration and configuration callbacks. It currently destroys modules in forward order.
 
@@ -124,7 +153,7 @@ Module and game projects declare all project dependencies with one item type:
 
 ```xml
 <ItemGroup>
-  <KarpikModuleDependency Include="..\Graphics.Core\Graphics.Core.csproj" />
+  <KarpikModuleDependency Include="Graphics" />
 </ItemGroup>
 ```
 
@@ -132,7 +161,7 @@ The same item is used for infrastructure, third-party, analyzer, and codegen pro
 
 ```xml
 <KarpikModuleDependency
-    Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+    Include="StatAndAbilities.Codegen"
     OutputItemType="Analyzer"
     ReferenceOutputAssembly="false" />
 ```
@@ -141,22 +170,24 @@ Optional runtime-only dependency:
 
 ```xml
 <KarpikModuleDependency
-    Include="..\DebugModule\DebugModule.csproj"
+    Include="DebugModule"
     Optional="true"
     ReferenceOutputAssembly="false" />
 ```
 
 ### MSBuild expansion
 
-Add a shared MSBuild rule that expands declared dependencies during evaluation:
+Import the generated catalog and expand declared dependencies during evaluation:
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="@(KarpikModuleDependency)" />
+  <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')" />
 </ItemGroup>
 ```
 
 Preserve item metadata such as `OutputItemType`, `ReferenceOutputAssembly`, `ExcludeAssets`, and conditions. Verify Rider design-time resolution and command-line builds after introducing the rule.
+
+Configurator derives catalog ids from solution projects. A module core plugin such as `Physics2D.Core.csproj` also receives logical alias `Physics2D`. Concrete implementations and infrastructure projects use their `.csproj` filename without extension. Unknown and ambiguous ids fail validation.
 
 Do not hand-write `ProjectReference` inside project files under `Modules` or `MyGame`. Configurator validation must reject direct declarations there.
 
@@ -215,7 +246,7 @@ Validate naming, candidates, selections, settings, side boundaries, required dep
 
 ### Milestone 3: Generate deterministic artifacts
 
-Generate `AutoGenerated.targets` and `Generated/ModuleLoader.cs` only after full validation.
+Generate `AutoGenerated.targets`, `Generated/KarpikModuleCatalog.props`, and `Generated/ModuleLoader.cs` only after full validation.
 
 Keep `--validate` read-only: build expected content in memory, compare it to tracked generated artifacts, and fail with a command hint when files are stale.
 
@@ -289,6 +320,6 @@ Do not run formatting across the entire solution as part of this task. Use targe
 
 - Active plan: `plans/module-graph-execplan.md`
 - Existing generator: `Configurator/Program.cs`
-- Generated artifacts: `AutoGenerated.targets`, `Generated/ModuleLoader.cs`
+- Generated artifacts: `AutoGenerated.targets`, `Generated/KarpikModuleCatalog.props`, `Generated/ModuleLoader.cs`
 - Build hook: `Directory.Build.targets`
 - Runtime lifecycle: `Karpik.Engine.Core.Runner/Runner.cs`

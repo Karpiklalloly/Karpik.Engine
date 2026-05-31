@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
+    <Import Project="$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props"
+            Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
+
+    <ItemGroup>
+        <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')" />
+    </ItemGroup>
+
+    <Target Name="KarpikValidateResolvedModuleDependencies"
+            BeforeTargets="PrepareForBuild">
+        <Error Condition="'%(KarpikModuleDependency.Identity)' != '' AND '%(KarpikModuleDependency.ResolvedProjectPath)' == ''"
+               Text="$(MSBuildProjectFullPath): unknown KarpikModuleDependency id '%(KarpikModuleDependency.Identity)'." />
+    </Target>
+
     <ItemGroup>
         <PackageReference Update="Newtonsoft.Json" Version="13.0.4" />
     </ItemGroup>

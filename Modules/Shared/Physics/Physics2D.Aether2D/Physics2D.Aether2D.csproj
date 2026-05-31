@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Physics2D.Core\Physics2D.Core.csproj" />
+      <KarpikModuleDependency Include="Physics2D" />
     </ItemGroup>
 
     <ItemGroup>

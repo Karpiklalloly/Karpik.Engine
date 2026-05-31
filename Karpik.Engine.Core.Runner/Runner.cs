@@ -9,6 +9,10 @@ public class EngineRunner : IEngineRunner
 {
     private const string EcsHotReloadInstallerFullName = "Karpik.Engine.Shared.ECS.ECSInstaller";
     private readonly List<IInstaller> _modules = new();
+    private readonly Dictionary<Assembly, int> _assemblyLoadRanks = new();
+    private readonly Dictionary<IInstaller, ModuleRegistration> _moduleRegistrations = new();
+    private int _nextAssemblyLoadRank;
+    private int _nextRegistrationRank;
     private EcsPipeline _pipeline = null!;
     private Time _time = new();
     private EcsServiceProvider _serviceProvider = null!;
@@ -24,6 +28,14 @@ public class EngineRunner : IEngineRunner
 
     public void RegisterTypes(Type[] types)
     {
+        foreach (var type in types)
+        {
+            if (!_assemblyLoadRanks.ContainsKey(type.Assembly))
+            {
+                _assemblyLoadRanks.Add(type.Assembly, _nextAssemblyLoadRank++);
+            }
+        }
+
         foreach (var type in FilterTypesToModules(types))
         {
             var moduleInstance = (IInstaller)Activator.CreateInstance(type)!;
@@ -52,7 +64,7 @@ public class EngineRunner : IEngineRunner
 
         scheduler.Schedule(() =>
         {
-            _modules.Sort((a, b) => GetPriority(a).CompareTo(GetPriority(b)));
+            _modules.Sort(CompareModules);
 
             RegisterServices(_serviceProvider);
 
@@ -98,6 +110,10 @@ public class EngineRunner : IEngineRunner
         _pipeline.Destroy();
         _pipeline = null;
         _modules.Clear();
+        _moduleRegistrations.Clear();
+        _assemblyLoadRanks.Clear();
+        _nextAssemblyLoadRank = 0;
+        _nextRegistrationRank = 0;
         _fixedRunTicker.Destroy();
     }
 
@@ -120,6 +136,10 @@ public class EngineRunner : IEngineRunner
 
         Console.WriteLine($"Register module {installer.Name}");
         _modules.Add(installer);
+        _moduleRegistrations.Add(installer, new ModuleRegistration(
+            _assemblyLoadRanks.GetValueOrDefault(installer.GetType().Assembly, int.MaxValue),
+            installer.GetType().FullName ?? installer.GetType().Name,
+            _nextRegistrationRank++));
     }
 
     private Type[] FilterTypesToModules(Type[] types)
@@ -134,6 +154,28 @@ public class EngineRunner : IEngineRunner
     {
         var attr = installer.GetType().GetCustomAttribute<ModuleAttribute>();
         return attr?.Priority ?? 0;
+    }
+
+    private int CompareModules(IInstaller left, IInstaller right)
+    {
+        var comparison = GetPriority(left).CompareTo(GetPriority(right));
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        var leftRegistration = _moduleRegistrations[left];
+        var rightRegistration = _moduleRegistrations[right];
+        comparison = leftRegistration.AssemblyLoadRank.CompareTo(rightRegistration.AssemblyLoadRank);
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        comparison = StringComparer.Ordinal.Compare(leftRegistration.TypeFullName, rightRegistration.TypeFullName);
+        return comparison != 0
+            ? comparison
+            : leftRegistration.RegistrationRank.CompareTo(rightRegistration.RegistrationRank);
     }
 
     private Dictionary<string, byte[]> PreHotReload(List<IInstaller> oldModules, EcsServiceProvider newServiceProvider)
@@ -211,11 +253,16 @@ public class EngineRunner : IEngineRunner
 
     private void Destroy(List<IInstaller> oldModules)
     {
-        foreach (var oldModule in oldModules.OfType<IInstallerDestroy>())
+        for (var index = oldModules.Count - 1; index >= 0; index--)
         {
-            oldModule.Destroy();
+            if (oldModules[index] is IInstallerDestroy oldModule)
+            {
+                oldModule.Destroy();
+            }
         }
     }
+
+    private readonly record struct ModuleRegistration(int AssemblyLoadRank, string TypeFullName, int RegistrationRank);
 
     private void RegisterServices(EcsServiceProvider newServiceProvider)
     {

@@ -17,16 +17,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
-      <ProjectReference Include="..\..\..\Shared\ECS\ECS.Core\ECS.Core.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
-      <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
-      <ProjectReference Include="..\..\Window\Window.Core\Window.Core.csproj" />
+      <KarpikModuleDependency Include="Veldrid.SPIRV" />
+      <KarpikModuleDependency Include="Veldrid.StartupUtilities" />
+      <KarpikModuleDependency Include="Veldrid.Utilities" />
+      <KarpikModuleDependency Include="ECS" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="AssetManagement" />
+      <KarpikModuleDependency Include="Veldrid" />
+      <KarpikModuleDependency Include="Veldrid.SDL2" />
+      <KarpikModuleDependency Include="Veldrid.ImGui" />
+      <KarpikModuleDependency Include="Window" />
     </ItemGroup>
 
     <ItemGroup>

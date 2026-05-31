@@ -14,10 +14,6 @@
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-        <Compile Include="$(MSBuildThisFileDirectory)../Generated/ModuleLoader.cs" />
-    </ItemGroup>
-
     <!-- Import plugins targets to copy native DLLs and modules -->
     <Import Project="..\Plugins.targets" />
 

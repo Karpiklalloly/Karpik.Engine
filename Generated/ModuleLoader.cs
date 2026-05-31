@@ -7,100 +7,133 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-public class ModuleLoader
+public sealed class ModuleLoader
 {
+    public readonly record struct PluginDescriptor(string AssemblyName, string Side);
     public Assembly[] LoadedAssemblies = [];
     private PluginLoadContext? _loadContext;
     private string? _shadowCopyDirectory;
 
-    public readonly string[] SharedAssemblies = {
-        "AssetManagement.Core",
+    public readonly string[] SharedAssemblies =
+    {
         "DebugModule",
-        "ECS.Core",
         "LoggerModule",
+        "AssetManagement.Core",
+        "MyGameResources",
+        "Network.Shared.Core",
+        "ECS.Core",
         "Modding.Core",
         "Modding.Lua",
-        "Network.Shared.Core",
         "Network.Shared.LiteNetLib",
         "Physics2D.Core",
+        "MyGame.Shared.Main",
         "Physics2D.Aether2D",
         "StatAndAbilities",
         "Tween.Core",
         "UnsafeUtilities",
-        "MyGameResources",
-        "MyGame.Shared.Main",
     };
-    public readonly string[] ClientOnlyAssemblies = {
-        "Graphics.Core",
-        "Graphics.OpenGL",
-        "Input",
+
+    public readonly string[] ClientOnlyAssemblies =
+    {
         "Network.Client.Core",
         "Network.Client.LiteNetLib",
         "Window.Core",
-        "Window.Sdl2",
+        "Graphics.Core",
+        "Graphics.OpenGL",
+        "Input",
         "MyGame.Client.Main",
+        "Window.Sdl2",
     };
-    public readonly string[] ServerOnlyAssemblies = {
+
+    public readonly string[] ServerOnlyAssemblies =
+    {
         "Network.Server.Core",
         "Network.Server.LiteNetLib",
         "MyGame.Server.Main",
     };
 
-    public void LoadClientModules() => LoadPluginCollection(SharedAssemblies.Concat(ClientOnlyAssemblies));
-    public void LoadServerModules() => LoadPluginCollection(SharedAssemblies.Concat(ServerOnlyAssemblies));
+    public readonly PluginDescriptor[] ClientModules =
+    {
+        new("DebugModule", "Shared"),
+        new("LoggerModule", "Shared"),
+        new("AssetManagement.Core", "Shared"),
+        new("MyGameResources", "Shared"),
+        new("Network.Shared.Core", "Shared"),
+        new("ECS.Core", "Shared"),
+        new("Modding.Core", "Shared"),
+        new("Modding.Lua", "Shared"),
+        new("Network.Shared.LiteNetLib", "Shared"),
+        new("Physics2D.Core", "Shared"),
+        new("MyGame.Shared.Main", "Shared"),
+        new("Physics2D.Aether2D", "Shared"),
+        new("StatAndAbilities", "Shared"),
+        new("Tween.Core", "Shared"),
+        new("UnsafeUtilities", "Shared"),
+        new("Network.Client.Core", "Client"),
+        new("Network.Client.LiteNetLib", "Client"),
+        new("Window.Core", "Client"),
+        new("Graphics.Core", "Client"),
+        new("Graphics.OpenGL", "Client"),
+        new("Input", "Client"),
+        new("MyGame.Client.Main", "Client"),
+        new("Window.Sdl2", "Client"),
+    };
+
+    public readonly PluginDescriptor[] ServerModules =
+    {
+        new("DebugModule", "Shared"),
+        new("LoggerModule", "Shared"),
+        new("AssetManagement.Core", "Shared"),
+        new("MyGameResources", "Shared"),
+        new("Network.Shared.Core", "Shared"),
+        new("ECS.Core", "Shared"),
+        new("Modding.Core", "Shared"),
+        new("Modding.Lua", "Shared"),
+        new("Network.Shared.LiteNetLib", "Shared"),
+        new("Physics2D.Core", "Shared"),
+        new("MyGame.Shared.Main", "Shared"),
+        new("Physics2D.Aether2D", "Shared"),
+        new("StatAndAbilities", "Shared"),
+        new("Tween.Core", "Shared"),
+        new("UnsafeUtilities", "Shared"),
+        new("Network.Server.Core", "Server"),
+        new("Network.Server.LiteNetLib", "Server"),
+        new("MyGame.Server.Main", "Server"),
+    };
+
+
+    public void LoadClientModules() => LoadPluginCollection(ClientModules.Select(module => module.AssemblyName));
+    public void LoadServerModules() => LoadPluginCollection(ServerModules.Select(module => module.AssemblyName));
 
     public void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
         var sourceDirectory = Path.Combine(AppContext.BaseDirectory, "modules");
         if (!Directory.Exists(sourceDirectory))
-        {
-            throw new DirectoryNotFoundException(
-                $"Module staging directory was not found: {sourceDirectory}. Build the launcher project before starting the worker.");
-        }
-
+            throw new DirectoryNotFoundException($"Module staging directory was not found: {sourceDirectory}. Build the launcher project before starting the worker.");
         var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");
         _shadowCopyDirectory = Path.Combine(shadowRoot, $"{Environment.ProcessId}_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_shadowCopyDirectory);
-
         CopyDirectory(sourceDirectory, _shadowCopyDirectory);
-
         var requiredAssemblies = assemblyNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var missing = requiredAssemblies
-            .Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll")))
-            .ToArray();
-
+        var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll"))).ToArray();
         if (missing.Length > 0)
-        {
-            throw new FileNotFoundException(
-                $"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
-        }
-
+            throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
         _loadContext = new PluginLoadContext(_shadowCopyDirectory);
-        var loadedList = new List<Assembly>(requiredAssemblies.Length);
-
+        var loaded = new List<Assembly>(requiredAssemblies.Length);
         foreach (var name in requiredAssemblies)
-        {
-            var shadowPath = Path.Combine(_shadowCopyDirectory, name + ".dll");
-            loadedList.Add(_loadContext.LoadFromAssemblyPath(shadowPath));
-        }
-
-        LoadedAssemblies = loadedList.ToArray();
+            loaded.Add(_loadContext.LoadFromAssemblyPath(Path.Combine(_shadowCopyDirectory, name + ".dll")));
+        LoadedAssemblies = loaded.ToArray();
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
     {
         foreach (var directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
-        {
-            var relativePath = Path.GetRelativePath(sourceDirectory, directory);
-            Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
-        }
-
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, directory)));
         foreach (var file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
         {
-            var relativePath = Path.GetRelativePath(sourceDirectory, file);
-            var destinationPath = Path.Combine(destinationDirectory, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-            File.Copy(file, destinationPath, overwrite: true);
+            var destination = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
         }
     }
 }

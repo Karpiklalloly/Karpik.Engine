@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -8,10 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\DragonExtensions\DragonExtensions.csproj" />
-      <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
-      <ProjectReference Include="..\..\ECS\ECS.Core\ECS.Core.csproj" />
-      <ProjectReference Include="..\..\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <KarpikModuleDependency Include="DragonExtensions" />
+      <KarpikModuleDependency Include="Dragon" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="ECS" />
+      <KarpikModuleDependency Include="Network.Shared" />
     </ItemGroup>
 </Project>

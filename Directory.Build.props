@@ -8,44 +8,45 @@
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
     <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             (                                 $(MSBuildProjectName.Contains('MyGame.'))                                 OR  $(MSBuildProjectName.Contains('Karpik.Engine'))                             )">
 
-        <ProjectReference Include="$(MSBuildThisFileDirectory)Network.Codegen\Network.Codegen\Network.Codegen.csproj">
+        <KarpikModuleDependency Include="Network.Codegen">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
+        </KarpikModuleDependency>
 
-        <ProjectReference Include="$(MSBuildThisFileDirectory)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
+        <KarpikModuleDependency Include="StatAndAbilities.Codegen">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
+        </KarpikModuleDependency>
 
     </ItemGroup>
 
     <ItemGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)Modules')) OR $(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)MyGame'))">
 
-        <ProjectReference Include="$(MSBuildThisFileDirectory)Tools\StaticAnalyzer\StaticAnalyzer.csproj">
+        <KarpikModuleDependency Include="StaticAnalyzer">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </ProjectReference>
+        </KarpikModuleDependency>
 
     </ItemGroup>
-    
-    <PropertyGroup Label="ProjectConfigurator">
-    <EnableAssetManagement>true</EnableAssetManagement>
-    <EnableECS>true</EnableECS>
-    <EnableGraphics>true</EnableGraphics>
-    <ImplGraphics>Raylib</ImplGraphics>
-    <EnableModding>true</EnableModding>
-    <ImplModding>Lua</ImplModding>
-    <EnableNetworkClient>true</EnableNetworkClient>
-    <ImplNetworkClient>LiteNetLib</ImplNetworkClient>
-    <EnableNetworkServer>true</EnableNetworkServer>
-    <ImplNetworkServer>LiteNetLib</ImplNetworkServer>
-    <EnableNetworkShared>true</EnableNetworkShared>
-    <ImplNetworkShared>LiteNetLib</ImplNetworkShared>
-    <EnableTween>true</EnableTween>
-    <EnableUIToolkit>true</EnableUIToolkit>
-  </PropertyGroup>
+
+    <ItemGroup Label="ProjectConfigurator">
+        <KarpikModuleSelection Include="AssetManagement" Enabled="true" />
+        <KarpikModuleSelection Include="DebugModule" Enabled="true" />
+        <KarpikModuleSelection Include="ECS" Enabled="true" />
+        <KarpikModuleSelection Include="Graphics" Enabled="true" Implementation="OpenGL" />
+        <KarpikModuleSelection Include="Input" Enabled="true" />
+        <KarpikModuleSelection Include="LoggerModule" Enabled="true" />
+        <KarpikModuleSelection Include="Modding" Enabled="true" Implementation="Lua" />
+        <KarpikModuleSelection Include="Network.Client" Enabled="true" Implementation="LiteNetLib" />
+        <KarpikModuleSelection Include="Network.Server" Enabled="true" Implementation="LiteNetLib" />
+        <KarpikModuleSelection Include="Network.Shared" Enabled="true" Implementation="LiteNetLib" />
+        <KarpikModuleSelection Include="Physics2D" Enabled="true" Implementation="Aether2D" />
+        <KarpikModuleSelection Include="StatAndAbilities" Enabled="true" />
+        <KarpikModuleSelection Include="Tween" Enabled="true" />
+        <KarpikModuleSelection Include="UnsafeUtilities" Enabled="true" />
+        <KarpikModuleSelection Include="Window" Enabled="true" Implementation="Sdl2" />
+    </ItemGroup>
 </Project>

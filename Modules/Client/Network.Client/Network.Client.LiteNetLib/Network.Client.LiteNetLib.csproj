@@ -12,10 +12,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-      <ProjectReference Include="..\..\..\Shared\LoggerModule\LoggerModule.csproj" />
-      <ProjectReference Include="..\..\..\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
-      <ProjectReference Include="..\Network.Client.Core\Network.Client.Core.csproj" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <KarpikModuleDependency Include="LoggerModule" />
+      <KarpikModuleDependency Include="Network.Shared" />
+      <KarpikModuleDependency Include="Network.Client" />
     </ItemGroup>
 
 </Project>

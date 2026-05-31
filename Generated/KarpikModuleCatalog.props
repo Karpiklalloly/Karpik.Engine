@@ -1,0 +1,202 @@
+<Project>
+  <ItemGroup>
+    <KarpikModuleDependency Update="AssetManagement">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="AssetManagement.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="ClientLauncher">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\ClientLauncher\ClientLauncher.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Configurator">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Configurator\Configurator.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Configurator.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Configurator.Tests\Configurator.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="DebugModule">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\DebugModule\DebugModule.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Dragon">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Dragon\Dragon.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="DragonExtensions">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\DragonExtensions\DragonExtensions.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="ECS">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="ECS.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="ECS.Core.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\ECS.Core.Tests\ECS.Core.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Graphics">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Graphics.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Graphics.Core.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core.Tests\Graphics.Core.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Graphics.OpenGL">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.OpenGL\Graphics.OpenGL.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Input">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Input\Input.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Client.Publish">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Client.Publish\Karpik.Engine.Client.Publish.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Core\Karpik.Engine.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Core.Codegen">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Core.Runner">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Core.Runner.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.Server.Publish">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Server.Publish\Karpik.Engine.Server.Publish.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Jobs">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Jobs\Karpik.Jobs.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="LoggerModule">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\LoggerModule\LoggerModule.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Modding">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Modding.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Modding.Lua">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Lua\Modding.Lua.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Modding.TestModule">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.TestModule\Modding.TestModule.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="MyGame.Client.Main">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Client\MyGame.Client.Main\MyGame.Client.Main.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="MyGame.Server.Main">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Server\MyGame.Server.Main\MyGame.Server.Main.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="MyGame.Shared.Main">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="MyGameResources">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\MyGameResources\MyGameResources.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Client">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Client.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Client.LiteNetLib">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.LiteNetLib\Network.Client.LiteNetLib.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Codegen">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Network.Codegen\Network.Codegen\Network.Codegen.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Server">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Server.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Server.LiteNetLib">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.LiteNetLib\Network.Server.LiteNetLib.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Shared">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Shared.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Network.Shared.LiteNetLib">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared.LiteNetLib\Network.Shared.LiteNetLib.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Physics2D">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Physics2D.Aether2D">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Aether2D\Physics2D.Aether2D.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Physics2D.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="ServerLauncher">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\ServerLauncher\ServerLauncher.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="StatAndAbilities">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\StatAndAbilities\StatAndAbilities.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="StatAndAbilities.Codegen">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="StaticAnalyzer">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Tools\StaticAnalyzer\StaticAnalyzer.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="TestVeldrid">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\TestVeldrid\TestVeldrid.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Tween">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Tween\Tween.Core\Tween.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Tween.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Tween\Tween.Core\Tween.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="UnsafeUtilities">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\UnsafeUtilities\UnsafeUtilities.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.ImGui">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.ImageSharp">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.ImageSharp\Veldrid.ImageSharp.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.MetalBindings">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.MetalBindings\Veldrid.MetalBindings.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.OpenGLBindings">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.OpenGLBindings\Veldrid.OpenGLBindings.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.RenderDoc">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.RenderDoc\Veldrid.RenderDoc.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.SDL2">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.SPIRV">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.StartupUtilities">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Veldrid.Utilities">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Window">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Core\Window.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Window.Core">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Core\Window.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Window.Sdl2">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Sdl2\Window.Sdl2.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+  </ItemGroup>
+</Project>

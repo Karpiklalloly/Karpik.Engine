@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -7,16 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Client\Input\Input.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Shared\DebugModule\DebugModule.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
-    <ProjectReference Include="..\..\..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj" />
-    <ProjectReference Include="..\..\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj" />
+    <KarpikModuleDependency Include="Karpik.Engine.Core" />
+    <KarpikModuleDependency Include="Graphics" />
+    <KarpikModuleDependency Include="Input" />
+    <KarpikModuleDependency Include="Network.Client" />
+    <KarpikModuleDependency Include="DebugModule" />
+    <KarpikModuleDependency Include="ECS" />
+    <KarpikModuleDependency Include="Modding" />
+    <KarpikModuleDependency Include="Network.Shared" />
+    <KarpikModuleDependency Include="Physics2D" />
+    <KarpikModuleDependency Include="MyGame.Shared.Main" />
   </ItemGroup>
 
   <ItemGroup>
