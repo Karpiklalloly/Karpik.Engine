@@ -272,6 +272,26 @@ Use the resulting order consistently for register/configure/complete/listener ca
 
 Add `Configurator.Tests` as an xUnit project in `KarpikEngine.slnx`. Expand runner lifecycle tests. Update roadmap checkboxes as milestones complete and create or update an ADR before closing this plan.
 
+### Milestone 6: Add optional Rider authoring integration
+
+Implement a small Rider plugin that contributes an intention action for unresolved types owned by projects present in `Generated/KarpikModuleCatalog.props`.
+
+When the developer uses a type from an unreferenced module, offer an action such as:
+
+```text
+Add Karpik module dependency 'Physics2D'
+```
+
+The action must resolve the target project to its stable module or infrastructure id, add the source-level item to the current `.csproj`, and request project reload:
+
+```xml
+<ItemGroup>
+  <KarpikModuleDependency Include="Physics2D" />
+</ItemGroup>
+```
+
+Do not replace the MSBuild catalog or make builds depend on the plugin. The plugin is authoring assistance only. Keep Configurator validation as the enforcement layer so an accidentally added direct `ProjectReference` under `Modules` or `MyGame` still fails during validation.
+
 ## Validation And Acceptance
 
 Add Configurator tests for:
@@ -315,6 +335,13 @@ Expected observations:
 - Client and Server launcher builds pass validation.
 - Existing `CS0436` loader conflict is removed.
 - Generated loader order is deterministic across repeated generation.
+
+For the optional Rider plugin, verify manually or with plugin tests:
+
+- `Alt+Enter` on a type from an unreferenced known module offers `Add Karpik module dependency '<id>'`.
+- Applying the action adds `KarpikModuleDependency`, not a direct `ProjectReference`.
+- The project reload resolves the type and displays the materialized reference without a missing-file warning.
+- Unknown or ambiguous catalog mappings do not offer an unsafe quick-fix.
 
 ## Idempotence And Recovery
 
