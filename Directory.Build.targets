@@ -4,7 +4,8 @@
             Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
 
     <ItemGroup>
-        <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')" />
+        <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')"
+                          Visible="true" />
     </ItemGroup>
 
     <Target Name="KarpikValidateResolvedModuleDependencies"

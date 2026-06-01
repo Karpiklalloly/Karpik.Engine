@@ -4,6 +4,12 @@
         <!-- Это поможет избежать проблем, если разные модули используют разные версии NuGet пакетов -->
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
+
+    <ItemDefinitionGroup>
+        <KarpikModuleDependency>
+            <Visible>false</Visible>
+        </KarpikModuleDependency>
+    </ItemDefinitionGroup>
     
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
     <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             (                                 $(MSBuildProjectName.Contains('MyGame.'))                                 OR  $(MSBuildProjectName.Contains('Karpik.Engine'))                             )">

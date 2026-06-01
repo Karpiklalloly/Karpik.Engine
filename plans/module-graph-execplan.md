@@ -21,6 +21,7 @@ Configurator derives module identity, side, and implementation relationships fro
 - [x] (2026-05-31 21:24 +04:00) Stabilize installer init and destroy order.
 - [x] (2026-05-31 21:24 +04:00) Add tests and run acceptance validation. `Configurator.Tests` passed 7/7, runner lifecycle tests passed 4/4, full solution tests passed 53/53, both launcher builds passed, and repeated generation produced byte-identical SHA256 hashes. Rider project reload remains a manual IDE check.
 - [x] (2026-05-31 21:47 +04:00) Replace dependency paths with shorthand project ids, generate `Generated/KarpikModuleCatalog.props`, validate metadata forwarding, and rerun acceptance validation. `Configurator.Tests` passed 9/9, full solution tests passed 55/55, both launcher builds passed, and all three generated artifacts were byte-identical across repeated generation.
+- [x] (2026-06-01) Hide source-level `KarpikModuleDependency` ids from the IDE project tree while keeping materialized `ProjectReference` items visible.
 
 ## Surprises & Discoveries
 
@@ -54,6 +55,9 @@ Configurator derives module identity, side, and implementation relationships fro
 - Observation: MSBuild evaluation-time item functions do not provide a reliable join from dependency ids to discovered project items. A tracked generated catalog is simpler, deterministic, and preserves dependency metadata during the final item transform.
   Evidence: prototype `WithMetadataValue` expansion left `ResolvedProjectPath` empty; generated `KarpikModuleCatalog.props` resolves ids and `dotnet msbuild ... -getItem:ProjectReference` confirms forwarded analyzer metadata.
 
+- Observation: IDE project trees can display source-level custom MSBuild items as file paths. Shorthand ids then appear as missing files even though the materialized `ProjectReference` resolves correctly.
+  Evidence: evaluated `KarpikModuleDependency` items expose project-relative `FullPath` values such as `...\Physics2D.Core\Dragon`; applying `Visible=false` hides only the declarative item.
+
 ## Decision Log
 
 - Decision: Do not add explicit role, side, module id, or plugin id metadata to module projects.
@@ -83,6 +87,10 @@ Configurator derives module identity, side, and implementation relationships fro
 - Decision: Generate and track `Generated/KarpikModuleCatalog.props`.
   Rationale: The catalog keeps MSBuild evaluation and Rider design-time resolution deterministic without recursive filesystem scans or unreliable MSBuild item joins.
   Date/Author: 2026-05-31 / agent
+
+- Decision: Set default `Visible=false` metadata on `KarpikModuleDependency` and explicitly set `Visible=true` on materialized `ProjectReference`.
+  Rationale: Rider should display resolved project dependencies, not declarative ids interpreted as missing files.
+  Date/Author: 2026-06-01 / agent
 
 ## Outcomes & Retrospective
 
