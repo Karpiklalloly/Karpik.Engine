@@ -49,6 +49,14 @@ Large domain-specific rules live in repo-local skills:
 
 Before working on a specific subsystem, load the matching skill and follow it. This root file contains only project-wide invariants.
 
+## Superpowers Adaptation
+Use `superpowers:brainstorming` for new subsystems, architectural changes, cross-module APIs, and changes with significant unknowns.
+
+- Do not require brainstorming for narrow fixes, local refactors, or self-contained algorithms unless the developer explicitly asks for it.
+- For substantial KarpikEngine work, write specifications and plans using the existing ExecPlan format from `plans/PLANS.md`. Do not create `docs/superpowers/*`.
+- During architecture evaluation, apply the relevant `karpik-*` skills after the brainstorming workflow. KarpikEngine real-time constraints take priority over generic abstraction and TDD guidance.
+- Use subagents and worktrees only when the task benefits from independent parallel work or isolated branches.
+
 ## ExecPlans
 For complex features, significant refactors, multi-hour investigations, or work with major unknowns, use an ExecPlan from design through implementation as described in `plans/PLANS.md`.
 
