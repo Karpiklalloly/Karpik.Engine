@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintaining Changelogs"
+  short_description: "Keep human-readable changelogs and SemVer releases."
+  default_prompt: "Use $maintaining-changelogs to update CHANGELOG.md and choose the next semantic version."
