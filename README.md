@@ -2,139 +2,142 @@
 
 **🌐 Language:** [🇺🇸 English](README-ENG.md) | 🇷🇺 Русский
 
-> Игровой движок для инди-разработчиков с ECS архитектурой, горячей перезагрузкой и встроенной поддержкой мультиплеера
+> 2D-first игровой движок на C# с ECS-архитектурой, горячей перезагрузкой и разделением Client / Server / Shared
 
-KarpikEngine — это современный игровой движок, созданный для разработки многопользовательских игр. Построен на архитектуре Entity-Component-System и обеспечивает чёткое разделение клиентской и серверной логики с первого дня.
+KarpikEngine — экспериментальный open-source движок для разработки 2D-игр. Основные приоритеты: data-oriented архитектура, отсутствие аллокаций в hot paths, предсказуемый lifecycle и возможность начать с single-player логики без блокировки дальнейшего перехода к мультиплееру.
+
+Актуальный релиз: **v0.4**. Подробности: [Changelog_0.4.md](Changelog_0.4.md).
 
 ## ✨ Ключевые особенности
 
-### 🏗️ Dragon ECS архитектура
-- Основан на [Dragon ECS](https://github.com/DCFApixels/DragonECS) от DCFApixels
-- Высокопроизводительная обработка сущностей и компонентов
-- Интуитивно понятная система для разработчиков
+### 🏗️ ECS и lifecycle
+- Используется [Dragon ECS](https://github.com/DCFApixels/DragonECS) от DCFApixels
+- Gameplay-состояние хранится в ECS `struct`-компонентах
+- Движок задаёт предсказуемый pipeline: `Init -> Begin -> FixedUpdate -> Update -> LateUpdate -> Render -> Destroy`
+- Для пользовательского кода добавлены фасады `DefaultWorld`, `EventWorld` и `MetaWorld`
+- Physics и gameplay simulation выполняются с фиксированным dt
 
 ### 🔥 Горячая перезагрузка
-- Полная поддержка Hot Reload без ограничений стандартного .NET
-- Изменяйте код и сразу видеть результат без перезапуска игры
-- Все сущности ECS миров сохраняются между перезагрузками
+- Hot Reload работает через restart-worker модель без ограничений стандартного .NET Hot Reload
+- Между перезагрузками сохраняются ECS-миры
+- Сервисы, графические ресурсы, сокеты и process-local handles пересоздаются в новом worker-процессе
+- Клиент и сервер можно перезагружать независимо
 
-### 🌐 Client-Server архитектура
-- Даже single-player игры проектируются с разделением на клиент и сервер
-- Лёгкая адаптация под многопользовательский режим в любой момент
-- Встроенная RPC система для коммуникации
+### 🌐 Client / Server / Shared
+- Клиентская, серверная и общая логика разделены на уровне проектов
+- Configurator проверяет недопустимые зависимости до запуска приложения
+- Добавлены RPC и базовый сетевой sample с переподключением после Hot Reload
 
 ### 📦 Модульная архитектура
-- Чёткое разделение на Client, Server и Shared части
-- Переиспользуемые модули между проектами
-- Автоматическая генерация конфигурации через Configurator
+- Модули имеют независимый lifecycle и подключаются через интерфейсы
+- Зависимости задаются короткими идентификаторами `KarpikModuleDependency`
+- Configurator валидирует граф модулей, циклы, side leaks и generated-файлы
+- Rider и компилятор получают обычные `ProjectReference` через generated-каталог
 
-### ⚡ Job System
-- Многопоточная обработка данных через Karpik.Jobs
-- Параллельное выполнение систем ECS
-- Эффективное использование многоядерных процессоров
+### 🎨 2D runtime
+- Добавлены OpenGL renderer, SDL2 window/input backend и command-buffer API
+- Поддерживаются прямоугольники, текстуры, атласные SDF-шрифты, batching и `Camera2D`
+- Добавлены ImGui overlay, AssetManagement, Tween и Lua-моддинг
+- Добавлены Physics2D API, backend `Physics2D.Aether2D` и platformer sample
 
-### 🎨 UI система
-- HTML+CSS вдохновлённая система интерфейсов
-- Гибкая вёрстка и стилизация
-- Интеграция с ECS архитектурой
-
-### 🔧 Поддержка моддинга на Lua
-- Интеграция с MoonSharp для выполнения Lua скриптов
-- Возможность добавления нового функционала через моды
+### ⚡ Производительность
+- Runtime проектируется без аллокаций после warm-up в frame, fixed-update, render и network hot paths
+- `Karpik.Jobs` уже используется внутри движка
+- Безопасный scheduler для параллельного выполнения пользовательских ECS-систем запланирован на `v0.5`
 
 ## 🚀 Быстрый старт
 
 ### Требования
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) или выше
 
-### Установка
+### Установка и запуск
 1. Клонируйте репозиторий:
    ```bash
    git clone https://github.com/your-username/KarpikEngine.git
    cd KarpikEngine
    ```
 
-2. Соберите проект:
+2. Соберите launchers:
    ```bash
-   dotnet build
+   dotnet build ServerLauncher/ServerLauncher.csproj -m:1 -nr:false
+   dotnet build ClientLauncher/ClientLauncher.csproj -m:1 -nr:false
    ```
 
 3. Запустите сервер:
    ```bash
-   dotnet run --project ServerLauncher
+   dotnet run --project ServerLauncher/ServerLauncher.csproj
    ```
 
 4. В другом терминале запустите клиент:
    ```bash
-   dotnet run --project ClientLauncher
+   dotnet run --project ClientLauncher/ClientLauncher.csproj
    ```
 
 ### Горячая перезагрузка
-Для работы Hot Reload в Debug режиме:
-1. Включите в настройках IDE автоматическое подключение отладчика к дочерним процессам
-2. Запустите игру
-3. Измените код и соберите проект (может потребоваться 2 сборки)
-4. Нажмите `Hot Reload` в дебаг панели
+1. Измените код и соберите соответствующий launcher.
+2. Нажмите `Hot Reload` в клиентской debug-панели или клавишу `R` в консоли launcher.
+3. Новый worker-процесс восстановит ECS-состояние.
 
-> 💡 **Совет:** Рекомендуется хранить все данные в ECS мирах — они автоматически сохраняются при горячей перезагрузке.
+В Debug-режиме включите автоматическое подключение IDE debugger к дочерним процессам, если хотите отлаживать worker после рестарта.
 
-## 🗺️ Текущие возможности
+> Храните состояние, которое должно пережить Hot Reload, в ECS-компонентах. Runtime-ресурсы и process-local handles должны пересоздаваться.
 
-### ✅ Реализовано
-- **ECS ядро** — полноценная Dragon ECS интеграция
-- **Client-Server архитектура** — RPC система и сетевое взаимодействие
-- **Hot Reload** — полная поддержка горячей перезагрузки
-- **Asset Management** — загрузка и выгрузка ресурсов
-- **Job System** — многопоточная обработка
-- **UI система** — HTML+CSS стили интерфейсов
-- **Tween система** — анимации и переходы (GTweens)
-- **Dependency Injection** — AutoInject для систем
-- **2D рендеринг** — базовые возможности отрисовки
+## 🗺️ Состояние проекта
 
-### 🔮 В разработке
-- **Audio API** — система воспроизведения аудио
-- **Input API** — обработка клавиатуры, мыши и геймпадов
-- **3D поддержка** — после стабилизации 2D функционала
-- **Расширенный моддинг** — полная интеграция Lua с кодогенерацией
-- **Инструменты разработчика** — редакторы, отладчики, профайлеры
-- **И куча остального** 
+### ✅ Реализовано в v0.4
+- ECS core, world-фасады и engine-owned lifecycle систем
+- Client / Server / Shared границы и Configurator validation
+- Restart-worker Hot Reload с восстановлением ECS-миров
+- OpenGL 2D renderer, SDL2 window/input, batching, камера и текст
+- AssetManagement, Tween, Lua-моддинг и Dependency Injection
+- Physics2D API, Aether2D backend и platformer sample
+- Тесты lifecycle, ECS component lifecycle и графа модулей
+
+### 🔮 Следующие направления
+- `v0.5`: scheduler, стабилизация `Karpik.Jobs`, no-GC scheduling и memory allocators
+- Развитие 2D renderer, asset pipeline, input и audio API
+- Новый UI API вместо удалённого prototype UI Toolkit
+- Инструменты разработчика, профилирование и расширение сетевого sample
+
+Подробнее: [Roadmap 1.0](docs/04_Roadmap/karpikengine-1.0-roadmap.md).
 
 ## 🏗️ Архитектура проекта
 
-Проект разделён на **Модули** и **Игровые проекты**. Каждый из них делится на Client, Server и Shared части.
+Проект разделён на переиспользуемые **модули** и игровые проекты **MyGame**. Обе группы делятся на Client, Server и Shared части.
 
-### Модули
-- Содержат обобщённую логику, не зависящую от конкретной игры
-- Примеры: AssetManagement, Network, UI
-- Могут реагировать на события жизненного цикла (см. [`IModule.cs`](Karpik.Engine.Core.Runner/IModule.cs))
+### Основные каталоги
+- `Modules/Client` — rendering, input и client-side presentation
+- `Modules/Server` — серверная логика и validation
+- `Modules/Shared` — общая логика без зависимости от runtime side
+- `MyGame` — sample game с клиентской, серверной и общей частями
+- `Configurator` — validation и генерация графа модулей
 
-### Игровые проекты
-- MyGame.**Client**.Main — клиентская часть
-- MyGame.**Server**.Main — серверная часть  
-- MyGame.**Shared**.Main — общая логика
+### Добавление зависимости
+В проектах внутри `Modules` и `MyGame` используйте `KarpikModuleDependency`, а не прямой `ProjectReference`:
 
-### Добавление нового модуля
-После создания нового проекта выполните:
+```xml
+<KarpikModuleDependency Include="Physics2D" />
+```
+
+После добавления, удаления или перемещения проекта выполните:
+
 ```bash
 dotnet run --project Configurator/Configurator.csproj -- --generate
+dotnet run --project Configurator/Configurator.csproj -- --validate
 ```
+
+Добавление существующего идентификатора зависимости требует только reload проекта или сборки.
 
 ## 🤝 Участие в разработке
 
-KarpikEngine — open-source проект, и мы приветствуем любой вклад!
-
-### Как помочь проекту:
-- 💡 **Предлагайте новые фичи** — создавайте Issues с идеями
-- 🔧 **Делайте Pull Requests** — исправляйте баги, добавляйте функции
-- 📝 **Улучшайте документацию** — помогайте другим разработчикам
-- 🐛 **Сообщайте о багах** — тестируйте и делитесь проблемами
+KarpikEngine — open-source проект. Issue и Pull Request должны учитывать real-time ограничения: отсутствие аллокаций в hot paths, cache locality, фиксированный dt для симуляции и границы Client / Server / Shared.
 
 ## 💬 Сообщество
 
 - 💬 **Discord:** [https://discord.gg/UvdEuY2D2V](https://discord.gg/UvdEuY2D2V)
-- 🐛 **GitHub Issues** — для багов и предложений
-- 📖 **GitHub Discussions** — для общих вопросов
+- 🐛 **GitHub Issues** — баги и предложения
+- 📖 **GitHub Discussions** — общие вопросы
 
 ## 📄 Лицензия
 
-Этот проект распространяется под лицензией MIT. Подробности в файле [LICENSE](LICENSE).
+Проект распространяется под лицензией MIT. Подробности в файле [LICENSE](LICENSE).
