@@ -116,6 +116,7 @@ public class NetworkGenerator : IIncrementalGenerator
                     }
 
                     public partial void ApplySnapshot(EcsWorld world, IReader reader) {
+                        EnsureCacheContainsExistingWorldEntities(world);
                         int delCount = reader.GetInt();
                         for(int i=0; i<delCount; i++) {
                             int netId = reader.GetInt();
@@ -136,6 +137,17 @@ public class NetworkGenerator : IIncrementalGenerator
             {{apply}}            }
                     }
                     public partial void ClearClientCache() { _netToEnt.Clear(); _entToNet.Clear(); }
+                    private void EnsureCacheContainsExistingWorldEntities(EcsWorld world) {
+                        if(_netToEnt.Count > 0) return;
+
+                        var ents = world.Where(out Aspect a);
+                        foreach(var entity in ents) {
+                            int netId = a.networkId.Get(entity).Id;
+                            if(_netToEnt.ContainsKey(netId)) continue;
+                            _netToEnt[netId] = entity;
+                            _entToNet[entity] = netId;
+                        }
+                    }
             {{classes}}    }
             }
             """;

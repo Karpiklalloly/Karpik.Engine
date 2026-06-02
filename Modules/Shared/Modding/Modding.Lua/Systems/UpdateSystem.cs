@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-internal class UpdateSystem : IEcsRunLate, IEcsInit
+internal class InitSystem : ISystemInit
 {
     [DI] private ModManager _modManager = null!;
     
@@ -12,8 +12,13 @@ internal class UpdateSystem : IEcsRunLate, IEcsInit
     {
         _modManager.StartMods();
     }
+}
+
+internal class UpdateSystem : ISystemLateUpdate
+{
+    [DI] private ModManager _modManager = null!;
     
-    public void RunLate()
+    public void LateUpdate()
     {
         _modManager.UpdateMods();
     }

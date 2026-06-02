@@ -62,9 +62,14 @@ namespace DCFApixels.DragonECS
 
         #region AutoToString
         /// <summary> slow but automatic conversion of ValueType to string in the format "name(field1, field2... fieldn)" </summary>
-        public static string AutoToString<T>(this T self, bool isWriteName = true) where T : struct
+        public static string AutoToString<T>(this T self, bool isWriteName = true)
         {
             return AutoToString(self, typeof(T), isWriteName);
+        }
+        
+        public static string AutoToString(this object self, bool isWriteName = true)
+        {
+            return AutoToString(self, self.GetType(), isWriteName);
         }
 
         internal static string AutoToString(object target, Type type, bool isWriteName)
@@ -73,18 +78,18 @@ namespace DCFApixels.DragonECS
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' in call to target method. The parameter of method does not have matching annotations.
             var fields = type.GetFields(RFL_FLAGS);
 #pragma warning restore IL2070
-            string[] values = new string[fields.Length];
+            Tuple<string, string>[] values = new Tuple<string, string>[fields.Length];
             for (int i = 0; i < fields.Length; i++)
             {
-                values[i] = (fields[i].GetValue(target) ?? "NULL").ToString();
+                values[i] = new Tuple<string, string>(fields[i].Name, (fields[i].GetValue(target) ?? "NULL").ToString());
             }
             if (isWriteName)
             {
-                return $"{type.Name}({string.Join(", ", values)})";
+                return $"{type.Name}({string.Join("\n", values)})";
             }
             else
             {
-                return $"({string.Join(", ", values)})";
+                return $"({string.Join("\n", values)})";
             }
 #else
             EcsDebug.PrintWarning($"Reflection is not available, the {nameof(AutoToString)} method does not work.");

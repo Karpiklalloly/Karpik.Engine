@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Hot Reload"
+  short_description: "Hot Reload state and plugin loading rules."
+  default_prompt: "Use Karpik Hot Reload when working with hot reload, plugin load contexts, IPC reload flow, or ECS state preservation in KarpikEngine."

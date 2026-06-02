@@ -11,11 +11,26 @@
       <None Update="Pressstart2p.ttf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="libveldrid-spirv.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
-      <ProjectReference Include="..\..\..\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
+      <KarpikModuleDependency Include="Veldrid.SPIRV" />
+      <KarpikModuleDependency Include="Veldrid.StartupUtilities" />
+      <KarpikModuleDependency Include="Veldrid.Utilities" />
+      <KarpikModuleDependency Include="ECS" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="AssetManagement" />
+      <KarpikModuleDependency Include="Veldrid" />
+      <KarpikModuleDependency Include="Veldrid.SDL2" />
+      <KarpikModuleDependency Include="Veldrid.ImGui" />
+      <KarpikModuleDependency Include="Window" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="StbImageSharp" Version="2.30.15" />
     </ItemGroup>
 
 </Project>

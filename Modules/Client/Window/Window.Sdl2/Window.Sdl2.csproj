@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Modules.Window.Sdl2</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <KarpikModuleDependency Include="Veldrid.SDL2" />
+      <KarpikModuleDependency Include="Veldrid.StartupUtilities" />
+      <KarpikModuleDependency Include="Window" />
+    </ItemGroup>
+
+</Project>

@@ -1,15 +1,14 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Network.LiteNetLib.Systems;
+﻿using Karpik.Engine.Client.Network.LiteNetLib.Systems;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib;
 
-internal class NetworkClientModule : IEcsModule
+internal class NetworkClientModule : IModule
 {
-    public void Import(EcsPipeline.Builder b)
+    public void Import(IBuilder b)
     {
-        b
-            .Add(new InitNetworkClientSystem())
-            .Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);
+        b.Add(new InitNetworkClientSystem());
+        b.Add(new DestroyNetworkClientSystem());
+        b.Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);
     }
 }

@@ -1,4 +1,67 @@
-﻿# v0.3
+﻿# v0.4
+
+## Главные изменения
+* **Lifecycle систем:** Добавлен собственный предсказуемый pipeline движка: `Init -> Begin -> FixedUpdate -> Update -> LateUpdate -> Render -> Destroy`.
+* **ECS API:** Добавлены фасады `DefaultWorld`, `EventWorld` и `MetaWorld`, data-first операции с компонентами и асинхронный lifecycle через `JobHandle`.
+* **Горячая перезагрузка:** Перезагрузка переведена на restart-worker модель. Новый процесс восстанавливает ECS-миры, пересоздаёт runtime-ресурсы и корректно переподключается к серверу.
+* **Граф модулей:** Зависимости модулей теперь задаются единым типом `KarpikModuleDependency`, валидируются до запуска и разворачиваются в обычные `ProjectReference` для IDE и компилятора.
+* **2D-рендеринг:** Backend Raylib заменён на OpenGL/Veldrid-подобный pipeline с command buffers, batching, камерой, текстурами, атласными шрифтами и ImGui overlay.
+* **Physics2D:** Добавлены общий API физики, backend `Physics2D.Aether2D`, ECS-синхронизация и демонстрационная platformer-сцена.
+
+## Lifecycle и ECS
+* Добавлены интерфейсы `ISystemInit`, `ISystemBegin`, `ISystemFixedUpdate`, `ISystemUpdate`, `ISystemLateUpdate`, `ISystemRender` и `ISystemDestroy`.
+* `FixedUpdate` используется для физики и игровой симуляции с фиксированным dt. Фазы в `v0.4` выполняются последовательно; scheduler-managed parallel execution вынесен в `v0.5`.
+* Добавлены предпочтительные world-фасады `DefaultWorld`, `EventWorld` и `MetaWorld`.
+* Добавлены операции добавления и удаления компонентов с вызовом engine-owned lifecycle. Ошибки lifecycle содержат world, entity, тип компонента и фазу.
+* Подключён `StaticAnalyzer`: он проверяет использование raw Dragon lifecycle API и подсказывает переход на фасады движка.
+* Добавлены тесты порядка фаз, component lifecycle и прототипа графа зависимостей ECS-систем.
+
+## Горячая перезагрузка
+* Hot Reload теперь использует отдельный worker-процесс как единственную надёжную границу выгрузки managed и native состояния.
+* Между worker-процессами сохраняется только ECS-состояние. Сервисы, графические ресурсы, сокеты и runtime handles пересоздаются после рестарта.
+* Исправлено восстановление client/server состояния: reconnect token, повторная привязка player entity, очистка отключённых игроков, восстановление сетевого кэша и пересоздание физических тел.
+* Для ручной перезагрузки сервера и клиента можно нажать `R` в консоли launcher. Клиентская debug-панель также сохраняет кнопку `Hot Reload`.
+
+## Модули и валидация
+* Проекты в `Modules` и `MyGame` задают зависимости только через короткие идентификаторы:
+
+```xml
+<KarpikModuleDependency Include="Physics2D" />
+```
+
+* Configurator выводит side, plugin id, logical module id и implementation из структуры каталогов и имён `.csproj`.
+* Добавлена структурированная конфигурация `KarpikModuleSelection`, проверка disabled/required зависимостей, циклов, side leaks и устаревших generated-файлов.
+* Генерируется отслеживаемый каталог `Generated/KarpikModuleCatalog.props`, поэтому Rider и компилятор видят ссылки на проекты после reload.
+* Порядок инициализации installer-ов детерминирован, а уничтожение выполняется в обратном порядке.
+* После добавления, удаления или перемещения проекта выполните:
+
+```powershell
+dotnet run --project Configurator/Configurator.csproj -- --generate
+dotnet run --project Configurator/Configurator.csproj -- --validate
+```
+
+## Графика, окно и ввод
+* Удалён backend `Graphics.Raylib`. Добавлены `Graphics.OpenGL`, `Window.Core` и `Window.Sdl2`.
+* Добавлен 2D command-buffer renderer: `DrawRect`, `DrawTexture`, `DrawText`, batching и merge thread.
+* Добавлены `Camera2D`, camera-relative rendering, поворот и выбор центра отрисовки.
+* Добавлена загрузка текстур, шейдеров и атласных SDF-шрифтов через AssetManagement.
+* Добавлен ImGui overlay для runtime-диагностики.
+* Ввод переведён на SDL2 window/input source.
+
+## Physics2D и пример игры
+* Добавлены `Physics2D.Core` и реализация `Physics2D.Aether2D`.
+* Добавлены ECS-компоненты тела, формы, трансформа, скорости и collision layers.
+* Добавлены системы создания, восстановления, push/pull синхронизации и шага физики.
+* Пример игры расширен до platformer-сцены с платформами, игроком, kinematic controller и серверной обработкой ввода.
+
+## Изменения при обновлении
+* Пользовательские ECS-системы следует переводить с Dragon `IEcs*` lifecycle API на `ISystem*` интерфейсы движка.
+* В проектах внутри `Modules` и `MyGame` нельзя добавлять прямые `ProjectReference`: используйте `KarpikModuleDependency`.
+* Gameplay-состояние, которое должно пережить Hot Reload, храните в ECS-компонентах. Process-local handles и runtime-ресурсы должны пересоздаваться.
+* UI Toolkit из `v0.3` удалён из runtime. Новый UI API будет спроектирован отдельно.
+
+
+# v0.3
 
 ## Главные изменения
 * **Ассеты:** Добавлена система для загрузки и выгрузки ресурсов.

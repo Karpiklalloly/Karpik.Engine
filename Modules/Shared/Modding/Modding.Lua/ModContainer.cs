@@ -13,8 +13,21 @@ public class ModContainer : IModContainer
     public string DirectoryPath { get; }
     public AssetHandle<ModMetaDataAsset> MetaDataHandle { get; }
     public Script Script { get; }
-    public bool IsEnabled { get; set; } = true;
-    
+
+    public bool IsEnabled
+    {
+        get;
+        set
+        {
+            if (!field && value && !_isStarted)
+            {
+                Start();
+            }
+
+            field = value;
+        }
+    } = true;
+
     public IReadOnlyList<DynValue> UpdateFunctions => _updateFunction;
     public IReadOnlyList<DynValue> StartFunctions => _startFunction;
     public IReadOnlyList<DynValue> LoadFunctions => _loadFunction;
@@ -28,6 +41,8 @@ public class ModContainer : IModContainer
     private readonly List<DynValue> _loadFunction = new();
     private readonly List<DynValue> _unloadFunction = new();
     private readonly Dictionary<string, DynValue> _loadedModules = new();
+
+    private bool _isStarted = false;
     
     internal ModContainer(string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
     {
@@ -68,6 +83,8 @@ public class ModContainer : IModContainer
 
     public void Update()
     {
+        if (!IsEnabled) return;
+        
         foreach (var func in _updateFunction)
         {
             try
@@ -83,6 +100,10 @@ public class ModContainer : IModContainer
 
     public void Start()
     {
+        if (!IsEnabled) return;
+
+        _isStarted = true;
+
         foreach (var func in _startFunction)
         {
             try
@@ -134,6 +155,7 @@ public class ModContainer : IModContainer
 
             await foreach (var scriptFile in rootScripts.ToArray().ToAsyncEnumerable())
             {
+                string fileName = _assetsManager.FileSystem.GetFileName(scriptFile);
                 try
                 {
                     Script.DoStream(FileSystem.OpenRead(scriptFile));
@@ -142,33 +164,33 @@ public class ModContainer : IModContainer
                     if (updateFunction.IsNotNil() && updateFunction.Type == DataType.Function)
                     {
                         _updateFunction.Add(updateFunction);
-                        await Log($"Registered update for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
+                        await Log($"Registered update for {fileName}");
                     }
                     
                     var startFunction = Script.Globals.Get(EventModMethods.OnStart);
                     if (startFunction.IsNotNil() && startFunction.Type == DataType.Function)
                     {
                         _startFunction.Add(startFunction);
-                        await Log($"Registered start for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
+                        await Log($"Registered start for {fileName}");
                     }
                     
                     var loadFunction = Script.Globals.Get(EventModMethods.OnLoad);
                     if (loadFunction.IsNotNil() && loadFunction.Type == DataType.Function)
                     {
                         _loadFunction.Add(loadFunction);
-                        await Log($"Registered load for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
+                        await Log($"Registered load for {fileName}");
                     }
                     
                     var unloadFunction = Script.Globals.Get(EventModMethods.OnUnload);
                     if (unloadFunction.IsNotNil() && unloadFunction.Type == DataType.Function)
                     {
                         _unloadFunction.Add(unloadFunction);
-                        await Log($"Registered unload for {_assetsManager.FileSystem.GetFileName(scriptFile)}");
+                        await Log($"Registered unload for {fileName}");
                     }
                 }
                 catch (Exception e)
                 {
-                    await Log($"Error loading {_assetsManager.FileSystem.GetFileName(scriptFile)}: {e}", LogLevel.Error);
+                    await Log($"Error loading {fileName}: {e}", LogLevel.Error);
                 }
             }
         }

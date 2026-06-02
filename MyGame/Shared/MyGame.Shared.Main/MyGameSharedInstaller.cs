@@ -5,21 +5,11 @@ using Karpik.Engine.Shared.DragonECS;
 namespace Karpik.Engine.MyGame.Shared.Main;
 
 [Module]
-public class MyGameSharedInstaller : IModule, IModuleConfiguratable
+public class MyGameSharedInstaller : IInstaller
 {
     public string Name => "MyGame.Shared.Main";
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainerS)
     {
         services.Register(new NetworkManager());
-    }
-
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
-    {
-        module = null;
-    }
-
-    public void OnConfigureComplete(IServiceContainer services)
-    {
-        
     }
 }

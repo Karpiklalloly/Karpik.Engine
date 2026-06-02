@@ -10,6 +10,7 @@ public abstract class BaseAssetLoader<TAsset, TValue> : IAssetLoader where TAsse
     public Type AssetType => typeof(TAsset);
     [DI] protected MainThreadScheduler MainThreadScheduler { get; private set; }
     [DI] protected IAssetsManager AssetsManager { get; private set; }
+    [DI] protected IServiceContainer ServiceContainer { get; private set; }
     protected ArrayPool<byte> ArrayPool { get; } = ArrayPool<byte>.Shared;
 
     public async JobHandle<Asset> LoadAsync(Stream stream, string assetName)

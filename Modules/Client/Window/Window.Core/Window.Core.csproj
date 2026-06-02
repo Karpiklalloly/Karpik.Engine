@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Modules.Window.Core</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <KarpikModuleDependency Include="Dragon" />
+      <KarpikModuleDependency Include="Veldrid.SDL2" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+    </ItemGroup>
+
+</Project>

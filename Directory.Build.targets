@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <Import Project="$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props"
+            Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
+
+    <ItemGroup>
+        <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')"
+                          Visible="true" />
+    </ItemGroup>
+
+    <Target Name="KarpikValidateResolvedModuleDependencies"
+            BeforeTargets="PrepareForBuild">
+        <Error Condition="'%(KarpikModuleDependency.Identity)' != '' AND '%(KarpikModuleDependency.ResolvedProjectPath)' == ''"
+               Text="$(MSBuildProjectFullPath): unknown KarpikModuleDependency id '%(KarpikModuleDependency.Identity)'." />
+    </Target>
+
+    <ItemGroup>
+        <PackageReference Update="Newtonsoft.Json" Version="13.0.4" />
+    </ItemGroup>
+
+    <Target Name="KarpikValidateProjectGraph"
+            BeforeTargets="Build"
+            Condition="
+              '$(KarpikSkipValidation)' != 'true'
+              AND (
+                '$(MSBuildProjectName)' == 'ClientLauncher'
+                OR '$(MSBuildProjectName)' == 'ServerLauncher'
+                OR '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
+                OR '$(MSBuildProjectName)' == 'Karpik.Engine.Server.Publish'
+              )">
+        <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)Configurator/Configurator.csproj&quot; -- --validate"
+              WorkingDirectory="$(MSBuildThisFileDirectory)" />
+    </Target>
+</Project>

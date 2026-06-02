@@ -1,17 +1,14 @@
-﻿using System.Reflection;
-using System.Text;
-using DCFApixels.DragonECS.Core.Internal;
+﻿using System.Text;
 using Karpik.Engine.Core;
-using Karpik.Engine.Core.Hot;
-using Karpik.Engine.Core.ModuleManagement;
 using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Jobs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
 namespace Karpik.Engine.Shared.ECS;
 
 [Module]
-public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
+public class ECSInstaller : IInstaller, IInstallerHotReload, IInstallerConfiguratable
 {
     public string Name => "ECS.Core";
     
@@ -24,20 +21,21 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
     private string _snapshotMeta = string.Empty;
 
     private bool _reloaded = false;
-    private EcsPipeline.Builder _builder = null!;
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
-        _builder = EcsPipeline.New();
         services
             .Register(_world)
+            .Register(new DefaultWorld(_world, serviceContainer))
             .Register(_eventWorld)
-            .Register(_metaWorld);
+            .Register(new EventWorld(_eventWorld, serviceContainer))
+            .Register(_metaWorld)
+            .Register(new MetaWorld(_metaWorld, serviceContainer));
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
-        module = new ECSModule();
+        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)
@@ -45,7 +43,7 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
         
     }
 
-    public byte[] OnPrepareHotReload()
+    public byte[] OnPrepareHotReload(IServiceContainer services)
     {
         _snapshotDefault = _world.Snapshot;
         _snapshotEvent = _eventWorld.Snapshot;
@@ -89,13 +87,9 @@ public class ECSInstaller : IModule, IModuleHotReload, IModuleConfiguratable
         }
 
         var hotReloadData = JsonConvert.DeserializeObject<HotReloadInfo>(Encoding.UTF8.GetString(data));
-        var assetManager = services.Get<IAssetsManager>();
-        services.Get<MainThreadScheduler>().Schedule(() =>
-        {
-            EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, assetManager);
-            EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, assetManager);
-            EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, assetManager);
-        });
+        EcsWorld.FromSnapshot(_world, hotReloadData!.EcsDefaultWorldJson, services).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(_eventWorld, hotReloadData.EcsEventWorldJson, services).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(_metaWorld, hotReloadData.EcsMetaWorldJson, services).GetAwaiter().GetResult();
 
         return true;
     }

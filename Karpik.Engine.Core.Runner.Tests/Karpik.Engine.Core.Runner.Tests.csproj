@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <AssemblyName>Karpik.Engine.Core.Runner.Tests</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+      <PackageReference Include="xunit" Version="2.9.2" />
+      <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Dragon\Dragon.csproj" />
+      <ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+    </ItemGroup>
+
+</Project>

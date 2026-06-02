@@ -8,17 +8,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\DragonExtensions\DragonExtensions.csproj" />
-      <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Jobs\Karpik.Jobs.csproj" />
-      <ProjectReference Include="..\..\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
-      <ProjectReference Include="..\..\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+      <KarpikModuleDependency Include="DragonExtensions" />
+      <KarpikModuleDependency Include="Dragon" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <KarpikModuleDependency Include="Karpik.Jobs" />
+      <KarpikModuleDependency Include="AssetManagement" />
+      <KarpikModuleDependency Include="Network.Shared" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+      <PackageReference Include="Newtonsoft.Json" />
     </ItemGroup>
 
 </Project>

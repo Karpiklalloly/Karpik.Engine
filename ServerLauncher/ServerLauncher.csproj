@@ -15,7 +15,6 @@
     <ItemGroup>
       <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
-      <ProjectReference Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>
 
     <ItemGroup>

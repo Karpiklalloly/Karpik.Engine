@@ -5,22 +5,17 @@ using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
-[Module(-100)]
-public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfiguratable, IModuleDestroy
+[Module(-10000)]
+public class AssetManagementInstaller : IInstaller, IInstallerListener, IInstallerDestroy
 {
     public string Name => "AssetManagement.Core";
     
     private AssetsManager _assetsManager = null!;
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         _assetsManager = new AssetsManager(new PhysicalFileSystem());
         services.Register<IAssetsManager>(_assetsManager);
-    }
-
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
-    {
-        module = null;
     }
 
     public void OnConfigureComplete(IServiceContainer services)
@@ -28,8 +23,12 @@ public class AssetManagementInstaller : IModule, IModuleListener, IModuleConfigu
         _assetsManager.RegisterLoaders(Assembly.GetExecutingAssembly());
     }
 
-    public void OnAnotherModuleLoaded(IServiceContainer services, IModule anotherModule, Assembly anotherModuleAssembly)
+    public void OnAnotherModuleLoaded(IServiceContainer services, IInstaller anotherInstaller, Assembly anotherModuleAssembly)
     {
+        if (anotherInstaller.Name == "Graphics.Core")
+        {
+            
+        }
         _assetsManager.RegisterLoaders(anotherModuleAssembly);
         _assetsManager.RegisterSavers(anotherModuleAssembly);
     }

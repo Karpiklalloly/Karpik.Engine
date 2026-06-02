@@ -8,9 +8,10 @@ internal class ProcessManager : IDisposable
     private IpcServer? _ipcServer;
     private readonly string _workerExePath;
     private readonly string _pipeName;
-    private HotReloadState? _pendingState;
     private readonly Side _side;
-    private readonly bool _waitForDebugger;
+    private readonly HotReloadOptions _options;
+    private bool _hasStartedWorker;
+    private bool _reloadInProgress;
     
     private readonly CancellationTokenSource _cts = new();
     private Task? _monitorTask;
@@ -41,15 +42,17 @@ internal class ProcessManager : IDisposable
     }
     
     public bool IsWorkerReady { get; private set; }
+
+    public bool IsReloadInProgress => _reloadInProgress;
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
-    public ProcessManager(Side side, string? workerExePath = null, string? pipeName = null, bool waitForDebugger = true)
+    public ProcessManager(Side side, HotReloadOptions options, string? pipeName = null)
     {
-        _workerExePath = workerExePath ?? GetDefaultWorkerPath();
+        _options = options;
+        _workerExePath = options.WorkerExecutablePath ?? GetDefaultWorkerPath();
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
         _side = side;
-        _waitForDebugger = waitForDebugger;
     }
     
     public string GetPipeName() => _pipeName;
@@ -62,41 +65,64 @@ internal class ProcessManager : IDisposable
             return;
         }
         
-        _pendingState = initialState;
-        IsWorkerReady = false;
-        _readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        
-        _ipcServer = new IpcServer(_pipeName);
-        var ipcTask = _ipcServer.WaitForConnectionAsync(cancellationToken);
-        
-        var args = $"--pipe-name={_pipeName}";
-        if (initialState != null)
+        if (!File.Exists(_workerExePath))
         {
-            var stateBase64 = Convert.ToBase64String(initialState.Serialize());
-            args += $" --state={stateBase64}";
-        }
-        if (_waitForDebugger)
-        {
-            args += " --wait-for-debugger";
+            throw new FileNotFoundException(
+                $"Worker executable was not found. Build the launcher project before starting hot reload. Expected path: {_workerExePath}",
+                _workerExePath);
         }
 
-        args += $" --side={_side}";
+        IsWorkerReady = false;
+        _readyTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _ipcServer?.Dispose();
+        
+        _ipcServer = new IpcServer(_pipeName);
+        _ipcServer.OnMessageReceived += HandleWorkerMessage;
+        using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
+        var ipcTask = _ipcServer.WaitForConnectionAsync(connectionCts.Token);
+        
+        var arguments = new List<string>
+        {
+            $"--pipe-name={_pipeName}",
+            $"--side={_side}"
+        };
+
+        if (initialState != null)
+        {
+            arguments.Add($"--state-file={WriteStateFile(initialState)}");
+        }
+        var shouldWaitForDebugger = _hasStartedWorker
+            ? _options.WaitForDebuggerOnReloadWorkerStart
+            : _options.WaitForDebuggerOnInitialWorkerStart;
+
+        if (shouldWaitForDebugger)
+        {
+            arguments.Add("--wait-for-debugger");
+        }
         
         Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
-        Console.WriteLine($"[ProcessManager] Arguments: {args}");
+        Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", arguments)}");
         
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _workerExePath,
+            UseShellExecute = false,
+            CreateNoWindow = false,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+            WorkingDirectory = Path.GetDirectoryName(_workerExePath) ?? AppContext.BaseDirectory
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
         _workerProcess = new Process
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = _workerExePath,
-                Arguments = args,
-                UseShellExecute = false,
-                CreateNoWindow = false,
-                RedirectStandardOutput = false,
-                RedirectStandardError = false,
-                WorkingDirectory = Path.GetDirectoryName(_workerExePath) ?? AppContext.BaseDirectory
-            },
+            StartInfo = startInfo,
             EnableRaisingEvents = true
         };
         
@@ -105,7 +131,9 @@ internal class ProcessManager : IDisposable
         {
             var exitCode = capturedProcess.ExitCode;
             Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
+            IsWorkerReady = false;
             _readyTcs?.TrySetCanceled();
+            CleanupWorkerShadowCopies(capturedProcess.Id);
             OnWorkerExited?.Invoke(exitCode);
         };
         
@@ -116,9 +144,28 @@ internal class ProcessManager : IDisposable
         
         Console.WriteLine($"[ProcessManager] Worker started with PID: {_workerProcess.Id}");
         
-        await ipcTask;
-        
-        _ipcServer.OnMessageReceived += msg =>
+        try
+        {
+            await ipcTask;
+        }
+        catch
+        {
+            if (IsWorkerRunning)
+            {
+                _workerProcess?.Kill(entireProcessTree: true);
+            }
+
+            _ipcServer.Dispose();
+            _ipcServer = null;
+            _workerProcess?.Dispose();
+            _workerProcess = null;
+            throw;
+        }
+
+        _hasStartedWorker = true;
+        _monitorTask = MonitorLoop(_cts.Token);
+
+        void HandleWorkerMessage(IpcMessage msg)
         {
             if (msg.Type == IpcMessageType.WorkerReady)
             {
@@ -132,9 +179,7 @@ internal class ProcessManager : IDisposable
                 Console.WriteLine("[ProcessManager] Worker requested hot reload");
                 _ = HotReloadAsync(cancellationToken);
             }
-        };
-        
-        _monitorTask = MonitorLoop(_cts.Token);
+        }
     }
     
     public async Task<bool> WaitForWorkerReadyAsync(TimeSpan timeout)
@@ -149,34 +194,56 @@ internal class ProcessManager : IDisposable
 
     public async Task HotReloadAsync(CancellationToken cancellationToken = default)
     {
+        if (_reloadInProgress)
+        {
+            Console.WriteLine("[ProcessManager] Hot reload is already in progress");
+            return;
+        }
+
         if (_ipcServer == null || !IsWorkerRunning)
         {
             Console.WriteLine("[ProcessManager] Cannot hot reload: worker not running");
             return;
         }
-        
-        Console.WriteLine("[ProcessManager] Starting hot reload...");
-        
-        var state = await _ipcServer.RequestStateAsync(cancellationToken);
-        OnHotReloadRequested?.Invoke(state);
-        
-        await _ipcServer.SendShutdownRequestAsync(cancellationToken);
-        
-        var timeout = TimeSpan.FromSeconds(5);
-        if (!await WaitForExitAsync(timeout))
+
+        _reloadInProgress = true;
+        try
         {
-            Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
-            _workerProcess?.Kill(entireProcessTree: true);
+            Console.WriteLine("[ProcessManager] Starting hot reload...");
+
+            var (receivedState, state) = await _ipcServer.TryRequestStateAsync(
+                _options.StateRequestTimeout,
+                cancellationToken);
+
+            if (!receivedState || state == null)
+            {
+                Console.WriteLine("[ProcessManager] Hot reload aborted: failed to collect ECS state. Existing worker remains running.");
+                return;
+            }
+
+            OnHotReloadRequested?.Invoke(state);
+
+            await _ipcServer.SendShutdownRequestAsync(_options.GracefulShutdownTimeout, cancellationToken);
+
+            if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
+            {
+                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+                _workerProcess?.Kill(entireProcessTree: true);
+            }
+
+            _ipcServer.Dispose();
+            _ipcServer = null;
+            _workerProcess?.Dispose();
+            _workerProcess = null;
+
+            await StartWorkerAsync(state, cancellationToken);
+
+            Console.WriteLine("[ProcessManager] Hot reload complete!");
         }
-        
-        _ipcServer.Dispose();
-        _ipcServer = null;
-        _workerProcess?.Dispose();
-        _workerProcess = null;
-        
-        await StartWorkerAsync(state, cancellationToken);
-        
-        Console.WriteLine("[ProcessManager] Hot reload complete!");
+        finally
+        {
+            _reloadInProgress = false;
+        }
     }
 
     public async Task StopWorkerAsync(CancellationToken cancellationToken = default)
@@ -190,9 +257,9 @@ internal class ProcessManager : IDisposable
         
         if (_ipcServer != null && _ipcServer.IsConnected)
         {
-            await _ipcServer.SendShutdownRequestAsync(cancellationToken);
+            await _ipcServer.SendShutdownRequestAsync(_options.GracefulShutdownTimeout, cancellationToken);
             
-            if (!await WaitForExitAsync(TimeSpan.FromSeconds(5)))
+            if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
             {
                 Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
                 _workerProcess?.Kill(entireProcessTree: true);
@@ -203,8 +270,13 @@ internal class ProcessManager : IDisposable
             _workerProcess?.Kill(entireProcessTree: true);
         }
         
+        var workerProcessId = _workerProcess?.Id;
         _ipcServer?.Dispose();
         _ipcServer = null;
+        if (workerProcessId.HasValue)
+        {
+            CleanupWorkerShadowCopies(workerProcessId.Value);
+        }
         _workerProcess?.Dispose();
         _workerProcess = null;
     }
@@ -277,6 +349,38 @@ internal class ProcessManager : IDisposable
         Console.WriteLine("[ProcessManager] Make sure Karpik.Engine.Core.Runner is built and copied to the output directory.");
         return fallbackPath;
     }
+
+    private static string WriteStateFile(HotReloadState state)
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "reload", "state");
+        Directory.CreateDirectory(directory);
+
+        var path = Path.Combine(directory, $"{Guid.NewGuid():N}.bin");
+        File.WriteAllBytes(path, state.Serialize());
+        return path;
+    }
+
+    private static void CleanupWorkerShadowCopies(int processId)
+    {
+        var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");
+        if (!Directory.Exists(shadowRoot))
+        {
+            return;
+        }
+
+        foreach (var directory in Directory.GetDirectories(shadowRoot, $"{processId}_*"))
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+                Console.WriteLine($"[ProcessManager] Removed worker shadow directory: {directory}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProcessManager] Failed to remove worker shadow directory '{directory}': {ex.Message}");
+            }
+        }
+    }
     
     public void Dispose()
     {
@@ -286,7 +390,12 @@ internal class ProcessManager : IDisposable
         {
             if (IsWorkerRunning)
             {
+                var processId = _workerProcess?.Id;
                 _workerProcess?.Kill(entireProcessTree: true);
+                if (processId.HasValue)
+                {
+                    CleanupWorkerShadowCopies(processId.Value);
+                }
             }
         }
         catch { }

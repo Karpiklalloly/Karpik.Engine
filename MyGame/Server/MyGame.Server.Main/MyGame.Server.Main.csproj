@@ -8,12 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-      <ProjectReference Include="..\..\..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj" />
-      <ProjectReference Include="..\..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
-      <ProjectReference Include="..\..\..\Modules\Shared\LoggerModule\LoggerModule.csproj" />
-      <ProjectReference Include="..\..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
-      <ProjectReference Include="..\..\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <KarpikModuleDependency Include="Network.Server" />
+      <KarpikModuleDependency Include="ECS" />
+      <KarpikModuleDependency Include="LoggerModule" />
+      <KarpikModuleDependency Include="Network.Shared" />
+      <KarpikModuleDependency Include="MyGame.Shared.Main" />
     </ItemGroup>
 
 </Project>

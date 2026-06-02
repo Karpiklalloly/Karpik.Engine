@@ -1,18 +1,34 @@
 <Solution>
+  <Folder Name="/first-parties/" />
+  <Folder Name="/first-parties/Kveldrid/" />
+  <Folder Name="/first-parties/Kveldrid/src/">
+    <Project Path="first-parties/Kveldrid-spirv/src/Veldrid.SPIRV/Veldrid.SPIRV.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.ImageSharp/Veldrid.ImageSharp.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.ImGui/Veldrid.ImGui.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.MetalBindings/Veldrid.MetalBindings.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.OpenGLBindings/Veldrid.OpenGLBindings.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.RenderDoc/Veldrid.RenderDoc.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.SDL2/Veldrid.SDL2.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.StartupUtilities/Veldrid.StartupUtilities.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid.Utilities/Veldrid.Utilities.csproj" />
+    <Project Path="first-parties/Kveldrid/src/Veldrid/Veldrid.csproj" />
+  </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/Client/">
     <Project Path="Modules/Client/Input/Input.csproj" />
   </Folder>
   <Folder Name="/Modules/Client/Graphics/">
     <Project Path="Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" />
-    <Project Path="Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" />
+    <Project Path="Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj" />
+    <Project Path="Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" />
   </Folder>
   <Folder Name="/Modules/Client/Network.Client/">
     <Project Path="Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj" />
     <Project Path="Modules/Client/Network.Client/Network.Client.LiteNetLib/Network.Client.LiteNetLib.csproj" />
   </Folder>
-  <Folder Name="/Modules/Client/UIToolkit/">
-    <Project Path="Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" />
+  <Folder Name="/Modules/Client/Window/">
+    <Project Path="Modules/Client/Window/Window.Core/Window.Core.csproj" />
+    <Project Path="Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" />
   </Folder>
   <Folder Name="/Modules/Server/" />
   <Folder Name="/Modules/Server/Network.Server/">
@@ -23,12 +39,14 @@
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
     <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
+    <Project Path="Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/AssetManagement/">
     <Project Path="Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/ECS/">
     <Project Path="Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
+    <Project Path="ECS.Core.Tests/ECS.Core.Tests.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Modding/">
     <Project Path="Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
@@ -38,6 +56,10 @@
   <Folder Name="/Modules/Shared/Netwok.Shared/">
     <Project Path="Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
     <Project Path="Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj" />
+  </Folder>
+  <Folder Name="/Modules/Shared/Physics/">
+    <Project Path="Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
+    <Project Path="Modules/Shared/Physics/Physics2D.Core/Physics2D.Core.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Tween/">
     <Project Path="Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
@@ -55,11 +77,13 @@
     <Project Path="MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
   </Folder>
   <Project Path="ClientLauncher/ClientLauncher.csproj" />
+  <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
   <Project Path="Dragon/Dragon.csproj" />
   <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
   <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
+  <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
   <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
   <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
@@ -67,5 +91,6 @@
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
   <Project Path="ServerLauncher/ServerLauncher.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
+  <Project Path="TestVeldrid/TestVeldrid.csproj" />
   <Project Path="Tools/StaticAnalyzer/StaticAnalyzer.csproj" />
 </Solution>

@@ -30,4 +30,9 @@ public struct AssetHandle<T> : IDisposable where T : Asset
     {
         return handle.Asset;
     }
+
+    public override string ToString()
+    {
+        return Asset?.Path;
+    }
 }

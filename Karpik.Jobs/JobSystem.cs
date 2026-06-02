@@ -23,7 +23,7 @@ public class JobSystem
 
     private readonly SemaphoreSlim _workSemaphore = new SemaphoreSlim(0);
 
-    public JobSystem(int workerCount = -1)
+    public JobSystem(int workerCount = -1, string prefix = "JobWorker")
     {
         _workerCount = workerCount == -1
             ? Math.Min(Environment.ProcessorCount, MaxThreads)
@@ -40,7 +40,7 @@ public class JobSystem
             {
                 IsBackground = true,
                 Priority = ThreadPriority.Highest,
-                Name = $"JobWorker-{i}"
+                Name = $"{prefix}-{i}"
             };
             _threads[i].Start(i);
         }

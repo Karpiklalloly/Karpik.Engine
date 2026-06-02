@@ -1,13 +1,12 @@
 using System.Diagnostics;
 using Karpik.Engine.Core.Hot;
-using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Core.Runner;
 
 public class Program
 {
     private static IpcClient? _ipcClient;
-    private static Bootstrap _bootstrap = new();
+    private static Bootstrap _bootstrap;
     private static Ref<bool> _isRunning = new(true);
     private static HotReloadState? _initialState;
     private static volatile bool _stateCollected = false;
@@ -18,8 +17,16 @@ public class Program
         
         var pipeName = ParseArg(args, "--pipe-name");
         var stateBase64 = ParseArg(args, "--state");
+        var stateFile = ParseArg(args, "--state-file");
         var waitForDebugger = HasArg(args, "--wait-for-debugger");
         var side = ParseArg(args, "--side");
+
+        if (!string.IsNullOrWhiteSpace(pipeName))
+        {
+            AppContext.SetData("Karpik.HotReload.PipeName", pipeName);
+        }
+        
+        Enum.TryParse(side, out Side s);
         
         if (waitForDebugger)
         {
@@ -31,7 +38,24 @@ public class Program
             Console.WriteLine("[Worker] Debugger attached!");
         }
         
-        if (!string.IsNullOrEmpty(stateBase64))
+        if (!string.IsNullOrEmpty(stateFile))
+        {
+            try
+            {
+                var stateBytes = File.ReadAllBytes(stateFile);
+                _initialState = HotReloadState.Deserialize(stateBytes);
+                Console.WriteLine($"[Worker] Loaded initial state with {_initialState.ModuleStates.Count} modules");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Worker] Failed to deserialize initial state file '{stateFile}': {ex.Message}");
+            }
+            finally
+            {
+                TryDeleteStateFile(stateFile);
+            }
+        }
+        else if (!string.IsNullOrEmpty(stateBase64))
         {
             try
             {
@@ -74,7 +98,6 @@ public class Program
         
         try
         {
-            var tryParse = Enum.TryParse(side, out Side s);
             RunEngine(s);
         }
         catch (Exception ex)
@@ -92,8 +115,19 @@ public class Program
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
         
+        _bootstrap = new Bootstrap(side);
         var loader = new ModuleLoader();
-        loader.LoadClientModules();
+        switch (side)
+        {
+            case Side.Client:
+                loader.LoadClientModules();
+                break;
+            case Side.Server:
+                loader.LoadServerModules();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(side), side, null);
+        }
         var types = GetTypes(loader);
         _bootstrap.RegisterTypes(types);
         
@@ -198,12 +232,20 @@ public class Program
         return args.Any(arg => arg == name || arg.StartsWith($"{name}="));
     }
 
+    private static void TryDeleteStateFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Worker] Failed to delete state file '{path}': {ex.Message}");
+        }
+    }
+
     private static void ServerLoop(MainThreadScheduler mainThreadScheduler)
     {
-        const int TICKS_PER_SECOND = 20;
-        const int SLEEP_TIME = 1000 / TICKS_PER_SECOND;
-        const double TICK_DT = 1.0 / TICKS_PER_SECOND;
-        
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
         
@@ -215,15 +257,25 @@ public class Program
             while (currentTime >= nextTickTime && loops < 5)
             {
                 mainThreadScheduler.Execute();
-                _bootstrap.Loop(TICK_DT);
-                nextTickTime += TICK_DT;
+                if (_stateCollected)
+                {
+                    break;
+                }
+
+                _bootstrap.Loop(Application.TICK_DT);
+                nextTickTime += Application.TICK_DT;
                 loops++;
+            }
+
+            if (_stateCollected)
+            {
+                break;
             }
             
             if (loops >= 5)
             {
                 Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - nextTickTime:F4}s");
-                nextTickTime = currentTime + TICK_DT;
+                nextTickTime = currentTime + Application.TICK_DT;
             }
             
             double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;
@@ -252,7 +304,6 @@ public class Program
             
             mainThreadScheduler.Execute();
             
-            // Check if state was collected during Execute() - if so, skip Loop() and exit
             if (_stateCollected)
             {
                 break;

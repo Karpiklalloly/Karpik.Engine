@@ -1,4 +1,6 @@
-﻿namespace Karpik.Engine.Shared.Network.Core;
+﻿using System.Drawing;
+
+namespace Karpik.Engine.Shared.Network.Core;
 
 public interface IReader
 {
@@ -14,4 +16,5 @@ public interface IReader
     public double GetDouble();
     public bool GetBool();
     public string GetString();
+    public Color GetColor();
 }

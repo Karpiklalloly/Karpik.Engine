@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Modding.Core\Modding.Core.csproj" />
+      <KarpikModuleDependency Include="Modding" />
     </ItemGroup>
 
 </Project>

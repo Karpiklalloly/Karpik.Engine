@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Client.Graphics.OpenGL</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <KarpikModuleDependency Include="Veldrid.SPIRV" />
+        <KarpikModuleDependency Include="Veldrid.Utilities" />
+        <KarpikModuleDependency Include="ECS" />
+        <KarpikModuleDependency Include="Graphics" />
+        <KarpikModuleDependency Include="Veldrid" />
+        <KarpikModuleDependency Include="Veldrid.SDL2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="AssetManagement\" />
+    </ItemGroup>
+
+</Project>

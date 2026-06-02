@@ -4,21 +4,11 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Modding;
 
 [Module]
-public class ModdingInstaller : IModule, IModuleConfiguratable
+public class ModdingInstaller : IInstaller
 {
     public string Name => "Modding.Core";
 
-    public void OnRegisterServices(IServiceRegister services)
-    {
-        
-    }
-
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
-    {
-        module = null;
-    }
-
-    public void OnConfigureComplete(IServiceContainer services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         
     }

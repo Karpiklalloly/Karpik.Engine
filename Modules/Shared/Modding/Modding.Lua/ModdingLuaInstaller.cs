@@ -5,13 +5,13 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Module]
-public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratable
+public class ModdingLuaInstaller : IInstaller, IInstallerDestroy, IInstallerConfiguratable
 {
     public string Name => "Modding.Lua";
  
     private ModManager _modManager;
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         _modManager = new ModManager();
 #if SERVER
@@ -23,7 +23,7 @@ public class ModdingLuaInstaller : IModule, IModuleDestroy, IModuleConfiguratabl
         services.Register<IModManager>(_modManager);
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
         module = new ModdingLuaModule();
     }

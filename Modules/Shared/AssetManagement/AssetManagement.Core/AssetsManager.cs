@@ -129,7 +129,7 @@ internal class AssetsManager : IAssetsManager
             return existingAsset;
         }
 
-        var extension = NormalizeExtension(Path.GetExtension(path));
+        var extension = NormalizeExtension(_fileSystem.GetExtension(path));
         var loaderKey = (extension, assetType);
 
         if (!_loaders.TryGetValue(loaderKey, out var loader))
@@ -152,6 +152,14 @@ internal class AssetsManager : IAssetsManager
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
             await Logger.Instance.Log(nameof(AssetsManager), $"Not found {targetPath}, loading default asset {loader.DefaultPath}.", LogLevel.Warning);
             targetPath = loader.DefaultPath;
+        }
+        
+        if (!_fileSystem.Exists(targetPath))
+        {
+            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
+            targetPath = _fileSystem.Exists(modsSubPath)
+                ? modsSubPath
+                : _fileSystem.Combine(ContentPath, targetPath);
         }
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);

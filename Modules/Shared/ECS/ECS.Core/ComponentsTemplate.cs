@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Serialization;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using Newtonsoft.Json;
@@ -13,7 +14,7 @@ public class ComponentsTemplate
     [JsonProperty("Components")]
     private IEcsComponentMember[] _components;
 
-    private IAssetsManager _manager;
+    private IServiceContainer _container;
 
     public ComponentsTemplate()
     {
@@ -35,13 +36,13 @@ public class ComponentsTemplate
         foreach (var template in Components)
         {
             template.ApplyTo(entityID, world);
-            await template.OnLoad(_manager, entityID, world);
+            await template.OnLoad(_container, entityID, world);
         }
     }
 
-    public void OnLoad(IAssetsManager manager)
+    public void OnLoad(IServiceContainer container)
     {
-        _manager = manager;
+        _container = container;
     }
     
     [OnSerializing]

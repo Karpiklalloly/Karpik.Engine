@@ -1,10 +1,9 @@
 ﻿using System.Drawing;
 using DCFApixels.DragonECS;
-using DCFApixels.DragonECS.Core;
+using DragonExtensions;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Shared.AssetManagement.Core;
-using Karpik.Engine.Shared.ECS;
 using Karpik.Jobs;
 using Newtonsoft.Json;
 
@@ -12,34 +11,35 @@ namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
 
 [Serializable]
-public struct SpriteRenderer : IEcsComponent, IHasDependencies, IEcsComponentOnLoad<SpriteRenderer>, IEcsComponentLifecycle<SpriteRenderer>
+public struct SpriteRenderer : IEcsComponent, IHasDependencies, IComponentLifecycleAsync<SpriteRenderer>
 {
-    [JsonIgnore] public ITexture2D Texture => _handle.Asset.Texture;
+    [JsonIgnore] public ITexture2D? Texture => _handle.Asset?.Texture;
     [JsonConverter(typeof(ColorConverter))] public Color Color;
     public int Layer;
     public string TexturePath;
     
-    private AssetHandle<Texture2DAsset> _handle;
+    // Size in world units (meters). If 0, uses texture size scaled by default factor
+    public float Width;
+    public float Height;
     
-    public async JobHandle<SpriteRenderer> OnLoad(SpriteRenderer renderer, IAssetsManager manager)
-    {
-        renderer._handle.Dispose();
-        renderer._handle = await manager.LoadAssetAsync<Texture2DAsset>(renderer.TexturePath);
-        return renderer;
-    }
-
-    public void Enable(ref SpriteRenderer component)
-    {
-
-    }
-
-    public void Disable(ref SpriteRenderer component)
-    {
-        component._handle.Dispose();
-    }
+    private AssetHandle<TextureAsset> _handle;
 
     public IEnumerable<string> GetDependencyPaths()
     {
         yield return TexturePath;
+    }
+
+    public async JobHandle<SpriteRenderer> EnableAsync(SpriteRenderer component, ComponentLifecycleContext context)
+    {
+        var manager = context.Services.Get<IAssetsManager>();
+        component._handle.Dispose();
+        component._handle = await manager.LoadAssetAsync<TextureAsset>(component.TexturePath);
+        return component;
+    }
+
+    public JobHandle<SpriteRenderer> DisableAsync(SpriteRenderer component, ComponentLifecycleContext context)
+    {
+        component._handle.Dispose();
+        return JobHandle<SpriteRenderer>.FromResult(component);
     }
 }

@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <AssemblyName>Graphics.Core.Tests</AssemblyName>
+        <RootNamespace>Karpik.Engine.Client.Graphics.Core.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="..\Graphics.Core\Camera\Camera2D.cs" Link="Graphics.Core\Camera\Camera2D.cs" />
+        <Compile Include="..\Graphics.Core\CommandBufferDrawExtensions.cs" Link="Graphics.Core\CommandBufferDrawExtensions.cs" />
+        <Compile Include="..\Graphics.Core\AssetManagement\FontAtlasData.cs" Link="Graphics.Core\AssetManagement\FontAtlasData.cs" />
+        <Compile Include="..\Graphics.Core\AssetManagement\FontAtlasParser.cs" Link="Graphics.Core\AssetManagement\FontAtlasParser.cs" />
+        <Compile Include="..\Graphics.Core\Buffers\ThreadBuffer.cs" Link="Graphics.Core\Buffers\ThreadBuffer.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawCommand.cs" Link="Graphics.Core\Commands\DrawCommand.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawRectCmd.cs" Link="Graphics.Core\Commands\DrawRectCmd.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawTextCmd.cs" Link="Graphics.Core\Commands\DrawTextCmd.cs" />
+        <Compile Include="..\Graphics.Core\Commands\DrawTextureCmd.cs" Link="Graphics.Core\Commands\DrawTextureCmd.cs" />
+        <Compile Include="..\Graphics.Core\DrawSpace.cs" Link="Graphics.Core\DrawSpace.cs" />
+        <Compile Include="..\Graphics.Core\DrawTransform2D.cs" Link="Graphics.Core\DrawTransform2D.cs" />
+        <Compile Include="..\Graphics.Core\ICommandBuffer.cs" Link="Graphics.Core\ICommandBuffer.cs" />
+        <Compile Include="..\Graphics.Core\TextAnchor.cs" Link="Graphics.Core\TextAnchor.cs" />
+        <Compile Include="..\Graphics.Core\Merge\QuadTransform2D.cs" Link="Graphics.Core\Merge\QuadTransform2D.cs" />
+        <Compile Include="..\Graphics.Core\Merge\TextureUvTransform.cs" Link="Graphics.Core\Merge\TextureUvTransform.cs" />
+        <Compile Include="..\Graphics.Core\Resources\IFont.cs" Link="Graphics.Core\Resources\IFont.cs" />
+        <Compile Include="..\Graphics.Core\Resources\ITexture2D.cs" Link="Graphics.Core\Resources\ITexture2D.cs" />
+        <Compile Include="..\Graphics.Core\Resources\AtlasFont.cs" Link="Graphics.Core\Resources\AtlasFont.cs" />
+        <Compile Include="..\Graphics.Core\Resources\FontAtlasMetrics.cs" Link="Graphics.Core\Resources\FontAtlasMetrics.cs" />
+        <Compile Include="..\Graphics.Core\Resources\FontGlyph.cs" Link="Graphics.Core\Resources\FontGlyph.cs" />
+        <Compile Include="..\Graphics.Core\Text\TextGlyphQuad.cs" Link="Graphics.Core\Text\TextGlyphQuad.cs" />
+        <Compile Include="..\Graphics.Core\Text\TextAnchorTransform.cs" Link="Graphics.Core\Text\TextAnchorTransform.cs" />
+        <Compile Include="..\Graphics.Core\Text\TextLayout.cs" Link="Graphics.Core\Text\TextLayout.cs" />
+        <Compile Include="..\Graphics.Core\Text\TextLayoutResult.cs" Link="Graphics.Core\Text\TextLayoutResult.cs" />
+    </ItemGroup>
+
+</Project>

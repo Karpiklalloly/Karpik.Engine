@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Core;
 
-public class JobSystemModule : IEcsModule
+internal class JobSystemModule : IEcsModule
 {
     public void Import(EcsPipeline.Builder b)
     {

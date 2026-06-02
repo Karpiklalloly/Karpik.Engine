@@ -1,25 +1,14 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Log;
 
 [Module]
-public class LoggerInstaller : IModule, IModuleConfiguratable
+public class LoggerInstaller : IInstaller
 {
     public string Name => "Logger";
 
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register<ILogger>(Logger.Instance);
-    }
-
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
-    {
-        module = null;
-    }
-
-    public void OnConfigureComplete(IServiceContainer services)
-    {
-        
     }
 }

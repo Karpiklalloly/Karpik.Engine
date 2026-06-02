@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Engine Performance"
+  short_description: "Real-time C# performance rules for KarpikEngine."
+  default_prompt: "Use Karpik Engine Performance when evaluating hot-path C# code, allocations, cache locality, SIMD, or low-level optimization in KarpikEngine."

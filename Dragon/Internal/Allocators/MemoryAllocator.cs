@@ -334,10 +334,12 @@ namespace DCFApixels.DragonECS.Core.Internal
             #endregion
         }
 
+#if DEBUG
         public static void Clear()
         {
             Array.Clear(_debugInfos);
         }
+#endif
     }
 
     internal static class MemoryAllocatorHandlerExtensions

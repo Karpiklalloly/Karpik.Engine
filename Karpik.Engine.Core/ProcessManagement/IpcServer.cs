@@ -22,7 +22,7 @@ public class IpcServer : IDisposable
         _pipe = new NamedPipeServerStream(
             _pipeName,
             PipeDirection.InOut,
-            maxNumberOfServerInstances: 1,
+            maxNumberOfServerInstances: NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
         
@@ -45,6 +45,14 @@ public class IpcServer : IDisposable
     }
     
     public async Task<HotReloadState?> RequestStateAsync(CancellationToken cancellationToken = default)
+    {
+        var (_, state) = await TryRequestStateAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        return state;
+    }
+
+    public async Task<(bool Received, HotReloadState? State)> TryRequestStateAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
     {
         await SendAsync(new IpcMessage(IpcMessageType.StateRequest), cancellationToken);
         
@@ -70,21 +78,26 @@ public class IpcServer : IDisposable
         OnMessageReceived += Handler;
         
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(10));
+        cts.CancelAfter(timeout);
         
         try
         {
-            return await tcs.Task.WaitAsync(cts.Token);
+            return (true, await tcs.Task.WaitAsync(cts.Token));
         }
-        catch (TimeoutException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             OnMessageReceived -= Handler;
             Console.WriteLine("[IpcServer] Timeout waiting for StateResponse");
-            return null;
+            return (false, null);
         }
     }
     
-    public async Task SendShutdownRequestAsync(CancellationToken cancellationToken = default)
+    public Task SendShutdownRequestAsync(CancellationToken cancellationToken = default)
+    {
+        return SendShutdownRequestAsync(TimeSpan.FromSeconds(5), cancellationToken);
+    }
+
+    public async Task SendShutdownRequestAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<bool>();
         
@@ -101,14 +114,14 @@ public class IpcServer : IDisposable
         await SendAsync(new IpcMessage(IpcMessageType.ShutdownRequest), cancellationToken);
         
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        cts.CancelAfter(timeout);
         
         try
         {
             await tcs.Task.WaitAsync(cts.Token);
             Console.WriteLine("[IpcServer] Worker acknowledged shutdown");
         }
-        catch (TimeoutException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             OnMessageReceived -= Handler;
             Console.WriteLine("[IpcServer] Timeout waiting for ShutdownAck, will force kill");
@@ -182,7 +195,28 @@ public class IpcServer : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        _pipe?.Dispose();
+
+        try
+        {
+            _pipe?.Dispose();
+        }
+        catch
+        {
+            // Ignore pipe disposal errors during worker restart/shutdown.
+        }
+
+        try
+        {
+            if (_listenTask is { IsCompleted: false })
+            {
+                _listenTask.Wait(TimeSpan.FromMilliseconds(250));
+            }
+        }
+        catch
+        {
+            // The listen loop is expected to observe cancellation or a disposed pipe.
+        }
+
         _cts.Dispose();
     }
 }

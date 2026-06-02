@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
-using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Modules.Window.Core;
+using Veldrid;
 
 namespace Karpik.Engine.Client.InputModule;
 
@@ -14,97 +15,102 @@ public class Input
         UpHold
     }
 
-    public event Action<KeyboardKeys> KeyPressed;
-    public event Action<KeyboardKeys> KeyUnPressed;
-    public event Action<KeyboardKeys> KeyPressing;
+    public event Action<Key>? KeyPressed;
+    public event Action<Key>? KeyUnPressed;
+    public event Action<Key>? KeyPressing;
     
-    public event Action<char> CharPressed;
-    public event Action<char> CharUnPressed;
-    public event Action<char> CharPressing;
-    
-    private ConcurrentDictionary<KeyboardKeys, State> _keyStates = new();
+    public event Action<char>? CharPressed;
+    public event Action<char>? CharUnPressed;
+    public event Action<char>? CharPressing;
+
+    private ConcurrentDictionary<Key, State> _keyStates = new();
     private ConcurrentDictionary<char, State> _charStates = new();
     private Vector2 _mousePosition = Vector2.Zero;
     private Vector2 _mouseDelta = Vector2.Zero;
     private bool _isMouseLocked = false;
     
+    private IInputSource _source;
+    private InputCaptureState _captureState;
+    
     public Vector2 MousePosition => _mousePosition;
     public Vector2 MouseDelta => _mouseDelta;
     
-    public IEnumerable<KeyboardKeys> PressedKeys => _keyStates.Keys.Where(IsPressed);
+    public IEnumerable<Key> PressedKeys => _keyStates.Keys.Where(IsPressed);
+    public IEnumerable<char> Chars => new List<char>(_chars);
     
-    public bool IsMouseLeftButtonDown => _window.IsMouseButtonPressed((int)MouseButtons.Left);
+    public bool IsMouseLeftButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Left);
     
-    public bool IsMouseLeftButtonUp => _window.IsMouseButtonReleased((int)MouseButtons.Left);
+    public bool IsMouseLeftButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Left);
     
-    public bool IsMouseLeftButtonHold => _window.IsMouseButtonDown((int)MouseButtons.Left);
+    public bool IsMouseLeftButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Left);
     
-    public bool IsMouseRightButtonDown => _window.IsMouseButtonPressed((int)MouseButtons.Right);
+    public bool IsMouseRightButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Right);
     
-    public bool IsMouseRightButtonUp => _window.IsMouseButtonReleased((int)MouseButtons.Right);
+    public bool IsMouseRightButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Right);
     
-    public bool IsMouseRightButtonHold => _window.IsMouseButtonDown((int)MouseButtons.Right);
+    public bool IsMouseRightButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Right);
     
-    public bool IsMouseMiddleButtonDown => _window.IsMouseButtonPressed((int)MouseButtons.Middle);
+    public bool IsMouseMiddleButtonDown => !_captureState.Mouse && _source.IsMouseButtonPressed(MouseButton.Middle);
     
-    public bool IsMouseMiddleButtonUp => _window.IsMouseButtonReleased((int)MouseButtons.Middle);
+    public bool IsMouseMiddleButtonUp => !_captureState.Mouse && _source.IsMouseButtonReleased(MouseButton.Middle);
     
-    public bool IsMouseMiddleButtonHold => _window.IsMouseButtonDown((int)MouseButtons.Middle);
+    public bool IsMouseMiddleButtonHold => !_captureState.Mouse && _source.IsMouseButtonDown(MouseButton.Middle);
 
     public bool IsMouseLocked => _isMouseLocked;
 
-    public bool IsPressed(KeyboardKeys key)
+    public bool IsPressed(Key key)
     {
-        return _window.IsKeyPressed((int)key);
+        return _keyStates[key] is State.DownEvent;
     }
     
-    public bool IsUnPressed(KeyboardKeys key)
+    public bool IsUnPressed(Key key)
     {
-        return _window.IsKeyReleased((int)key);
+        return _keyStates[key] is State.UpEvent;
     }
 
-    public bool IsPressing(KeyboardKeys key)
+    public bool IsPressing(Key key)
     {
-        return _window.IsKeyDown((int)key) && !_window.IsKeyPressed((int)key);
+        return _keyStates[key] is State.DownHold;
     }
     
-    public bool IsUnPressing(KeyboardKeys key)
+    public bool IsUnPressing(Key key)
     {
-        return _window.IsKeyUp((int)key) && !_window.IsKeyReleased((int)key);
+        return _keyStates[key] is State.UpHold;
     }
     
-    public bool IsDown(KeyboardKeys key)
+    public bool IsDown(Key key)
     {
-        return _window.IsKeyDown((int)key);
+        return _keyStates[key] is State.DownHold or State.DownEvent;
     }
     
-    public bool IsUp(KeyboardKeys key)
+    public bool IsUp(Key key)
     {
-        return _window.IsKeyUp((int)key);
+        return _keyStates[key] is State.UpHold or State.UpEvent;
     }
     
     public void LockCursor()
     {
         _isMouseLocked = true;
-        _window.DisableCursor();
+        _source.DisableCursor();
     }
     
     public void UnlockCursor()
     {
         _isMouseLocked = false;
-        _window.EnableCursor();
+        _source.EnableCursor();
     }
-
-    private List<KeyboardKeys> _keys = new();
-    private List<char> _chars = new();
-    private IWindow _window;
-
-    internal void Init(IWindow window)
+    
+    internal void Init(IInputSource source, InputCaptureState captureState)
     {
-        _window = window;
+        _source = source;
+        _captureState = captureState;
+        foreach (Key key in Enum.GetValues<Key>())
+        {
+            _keyStates[key] = State.UpHold;
+        }
     }
 
-    internal void Destory()
+    internal void Destroy()
     {
         KeyPressed = null!;
         KeyUnPressed = null!;
@@ -113,25 +119,31 @@ public class Input
         CharUnPressed = null!;
         CharPressing = null!;
         
-        _keys.Clear();
+        _pressedKeys.Clear();
+        _unpressedKeys.Clear();
         _chars.Clear();
 
-        _window = null!;
+        _source = null!;
+        _captureState = null!;
     }
+    
+    private List<Key> _pressedKeys = new();
+    private List<Key> _unpressedKeys = new();
+    private List<char> _chars = new();
     
     internal void Update()
     {
-        _keys.Clear();
+        _pressedKeys.Clear();
+        _unpressedKeys.Clear();
         _chars.Clear();
         
-        while (true)
+        if (!_captureState.Keyboard)
         {
-            var key = (KeyboardKeys)_window.GetKeyPressed();
-            if (key == KeyboardKeys.Null) break;
-            _keys.Add(key);
+            _pressedKeys.AddRange(_source.PressedKeys);
+            _unpressedKeys.AddRange(_source.UnPressedKeys);
         }
         
-        foreach (var key in _keys)
+        foreach (var key in _pressedKeys)
         {
             if (_keyStates.ContainsKey(key))
             {
@@ -156,7 +168,7 @@ public class Input
             }
         }
         
-        foreach (var key in _keyStates.Keys.Except(_keys))
+        foreach (var key in _unpressedKeys)
         {
             if (_keyStates[key] == State.DownEvent || _keyStates[key] == State.DownHold)
             {
@@ -169,16 +181,25 @@ public class Input
                 _keyStates[key] = State.UpHold;
             }
         }
-
-        while (true)
+        
+        if (!_captureState.Text)
         {
-            var key = _window.GetCharPressed();
-            if (key == 0) break;
-            // CharPressed?.Invoke(key);
-            _chars.Add(key);
+            _chars.AddRange(_source.PressedKeyChars);
         }
 
-        _mousePosition = _window.GetMousePosition();
-        _mouseDelta = _window.GetMouseDelta();
+        for (int i = 0; i < _chars.Count; i++)
+        {
+            CharPressed?.Invoke(_chars[i]);
+        }
+
+        if (_captureState.Mouse)
+        {
+            _mouseDelta = Vector2.Zero;
+        }
+        else
+        {
+            _mouseDelta = _source.MouseDelta;
+            _mousePosition = _source.MousePosition;
+        }
     }
 }

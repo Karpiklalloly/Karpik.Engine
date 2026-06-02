@@ -1,11 +1,10 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/DebugModule/DebugModule.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" Condition="'$(IsClient)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.Raylib/Graphics.Raylib.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Input/Input.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/LoggerModule/LoggerModule.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
@@ -16,15 +15,16 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj" Condition="'$(IsServer)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Physics/Physics2D.Core/Physics2D.Core.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/UIToolkit/UIToolkit.Core/UIToolkit.Core.csproj" Condition="'$(IsClient)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Core/Window.Core.csproj" Condition="'$(IsClient)' == 'true'" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Generated/ModuleLoader.cs" />
+    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />
   </ItemGroup>
 </Project>

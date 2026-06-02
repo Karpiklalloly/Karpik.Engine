@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karpik Dragon ECS"
+  short_description: "Dragon ECS component, pool, aspect, and system conventions."
+  default_prompt: "Use Karpik Dragon ECS when implementing or reviewing ECS components, systems, aspects, pools, or entity data flow."

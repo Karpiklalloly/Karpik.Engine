@@ -8,9 +8,9 @@
     </PropertyGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\..\..\Dragon\Dragon.csproj" />
-      <ProjectReference
-              Include="..\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+      <KarpikModuleDependency Include="Dragon" />
+      <KarpikModuleDependency
+              Include="StatAndAbilities.Codegen"
               OutputItemType="Analyzer"
               ReferenceOutputAssembly="false"/>
     </ItemGroup>

@@ -4,20 +4,20 @@ using Karpik.Engine.Shared.Network.Core;
 namespace Karpik.Engine.MyGame.Client.Main;
 
 // Реализация интерфейса в конечном приложении
-public class Rpc : IRpc
+public class Rpc : IRpc, IOnInjectedDI
 {
     [DI] private INetworkManager _netManager;
     private IWriter _writer;
                     
-    private void OnInjected() => _writer = _netManager.CreateWriter();
+    public void OnInjected() => _writer = _netManager.CreateWriter();
 
     public IWriter GetWriter() => _writer;
 
     public void Send(DeliveryMethod deliveryMethod)
     {
-        if (_netManager?.FirstPeer is { ConnectionState: ConnectionState.Connected })
+        if (_netManager?.FirstPeer is { ConnectionState: ConnectionState.Connected } peer)
         {
-            _netManager.FirstPeer.Send(_writer, deliveryMethod);
+            peer.Send(_writer, deliveryMethod);
         }
     }
 }

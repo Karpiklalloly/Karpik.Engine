@@ -3,5 +3,6 @@
 public enum PacketType : byte
 {
     Snapshot,
-    Command
+    Command,
+    Handshake
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using DragonExtensions;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
@@ -24,7 +26,7 @@ public abstract class ComponentTemplateBase : IComponentTemplate
     public abstract object GetRaw();
     public abstract void SetRaw(object raw);
     public abstract void ApplyTo(int entityID, EcsWorld world);
-    public abstract JobHandle OnLoad(IAssetsManager manager, int entityID, EcsWorld world);
+    public abstract JobHandle OnLoad(IServiceContainer container, int entityID, EcsWorld world);
 }
 
 [Serializable]
@@ -79,8 +81,7 @@ public abstract class ComponentTemplateBase<T> : ComponentTemplateBase, ICloneab
 public class ComponentTemplate<T> : ComponentTemplateBase<T>
     where T : struct, IEcsComponent
 {
-    private static readonly IEcsComponentOnLoad<T>? _loader = default(T) as IEcsComponentOnLoad<T>;
-    
+    private static readonly IComponentLifecycleAsync<T>? _lifecycle = default(T) as IComponentLifecycleAsync<T>;
     public ComponentTemplate(T component) : base(component) { }
 
     public override void ApplyTo(int entityID, EcsWorld world)
@@ -88,13 +89,13 @@ public class ComponentTemplate<T> : ComponentTemplateBase<T>
         EcsPool<T>.Apply(ref _component, entityID, world.ID);
     }
 
-    public override async JobHandle OnLoad(IAssetsManager manager, int entityID, EcsWorld world)
+    public override async JobHandle OnLoad(IServiceContainer container, int entityID, EcsWorld world)
     {
         var pool = world.GetPool<T>();
         ref var c = ref pool.Get(entityID);
-        if (_loader is not null)
+        if (_lifecycle is not null)
         {
-            var result = await _loader.OnLoad(c, manager);
+            var result = await _lifecycle.EnableAsync(c, new ComponentLifecycleContext(container, world, entityID));
             pool.Get(entityID) = result;
         }
     }
@@ -111,7 +112,7 @@ public class TagComponentTemplate<T> : ComponentTemplateBase<T>
         EcsTagPool<T>.Apply(ref _component, entityID, world.ID);
     }
 
-    public override JobHandle OnLoad(IAssetsManager manager, int entityID, EcsWorld world)
+    public override JobHandle OnLoad(IServiceContainer container, int entityID, EcsWorld world)
     {
         return JobHandle.Completed;
     }

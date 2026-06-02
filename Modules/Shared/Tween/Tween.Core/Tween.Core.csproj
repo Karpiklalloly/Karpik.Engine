@@ -8,9 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Dragon\Dragon.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <KarpikModuleDependency Include="Dragon" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
+      <KarpikModuleDependency Include="Karpik.Engine.Core" />
     </ItemGroup>
 
 </Project>

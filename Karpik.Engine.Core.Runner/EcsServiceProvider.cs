@@ -26,7 +26,7 @@ public class EcsServiceProvider : IServiceRegister, IServiceContainer, IInjectio
         return _serviceProvider.GetService(serviceType);
     }
 
-    public T Get<T>() where T : class
+    public T? Get<T>() where T : class
     {
         return _serviceProvider.Get<T>();
     }

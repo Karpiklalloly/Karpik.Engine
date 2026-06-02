@@ -17,7 +17,7 @@ namespace Karpik.Engine.Shared.StatAndAbilities.Codegen
         {
             var source = 
                 $$"""
-                  using Karpik.StatAndAbilities;
+                  using Karpik.Engine.Shared.StatAndAbilities;
                   using System;
                   using System.Collections.Generic;
                   using System.Runtime.CompilerServices;
@@ -75,7 +75,7 @@ namespace Karpik.Engine.Shared.StatAndAbilities.Codegen
         {
             var source = 
                 $$"""
-                  using Karpik.StatAndAbilities;
+                  using Karpik.Engine.Shared.StatAndAbilities;
                   using System;
                   using System.Runtime.CompilerServices;
 

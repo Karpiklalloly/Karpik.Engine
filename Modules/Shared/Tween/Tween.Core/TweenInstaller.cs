@@ -4,16 +4,16 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Shared.Tweening;
 
 [Module]
-public class TweenInstaller : IModule, IModuleConfiguratable
+public class TweenInstaller : IInstaller, IInstallerConfiguratable
 {
     public string Name => "Tween.Core";
     
-    public void OnRegisterServices(IServiceRegister services)
+    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
     {
         services.Register(new Tween());
     }
 
-    public void OnConfigure(IServiceContainer services, out IEcsModule? module)
+    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
     {
         module = new TweenModule();
     }

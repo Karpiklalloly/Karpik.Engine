@@ -4,6 +4,7 @@ public interface IFileSystem
 {
     public char DirectorySeparatorChar { get; }
     public bool Exists(string path);
+    public string GetExtension(string path);
     public bool ExistsDirectory(string path);
     public Stream OpenRead(string path);
     public Stream OpenWrite(string path);
