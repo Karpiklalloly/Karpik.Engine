@@ -22,6 +22,7 @@ Configurator derives module identity, side, and implementation relationships fro
 - [x] (2026-05-31 21:24 +04:00) Add tests and run acceptance validation. `Configurator.Tests` passed 7/7, runner lifecycle tests passed 4/4, full solution tests passed 53/53, both launcher builds passed, and repeated generation produced byte-identical SHA256 hashes. Rider project reload remains a manual IDE check.
 - [x] (2026-05-31 21:47 +04:00) Replace dependency paths with shorthand project ids, generate `Generated/KarpikModuleCatalog.props`, validate metadata forwarding, and rerun acceptance validation. `Configurator.Tests` passed 9/9, full solution tests passed 55/55, both launcher builds passed, and all three generated artifacts were byte-identical across repeated generation.
 - [x] (2026-06-01) Hide source-level `KarpikModuleDependency` ids from the IDE project tree while keeping materialized `ProjectReference` items visible.
+- [x] (2026-06-02) Close the optional Rider authoring-plugin experiment without adoption. Manual Rider smoke tests continued to offer only the standard direct project-reference fix, so module dependencies remain an explicit `.csproj` edit in this plan.
 
 ## Surprises & Discoveries
 
@@ -58,6 +59,9 @@ Configurator derives module identity, side, and implementation relationships fro
 - Observation: IDE project trees can display source-level custom MSBuild items as file paths. Shorthand ids then appear as missing files even though the materialized `ProjectReference` resolves correctly.
   Evidence: evaluated `KarpikModuleDependency` items expose project-relative `FullPath` values such as `...\Physics2D.Core\Dragon`; applying `Visible=false` hides only the declarative item.
 
+- Observation: Loading a Rider backend plugin package is not sufficient evidence that an unresolved-type authoring action works end to end. The prototype backend loaded after Rider restart, but repeated manual `Alt+Enter` checks on an unresolved known Shared type still exposed only Rider's standard direct project-reference fix.
+  Evidence: manual Rider smoke tests with unresolved `Tween` in `MyGame.Server.Main`.
+
 ## Decision Log
 
 - Decision: Do not add explicit role, side, module id, or plugin id metadata to module projects.
@@ -91,6 +95,10 @@ Configurator derives module identity, side, and implementation relationships fro
 - Decision: Set default `Visible=false` metadata on `KarpikModuleDependency` and explicitly set `Visible=true` on materialized `ProjectReference`.
   Rationale: Rider should display resolved project dependencies, not declarative ids interpreted as missing files.
   Date/Author: 2026-06-01 / agent
+
+- Decision: Do not ship a Rider authoring plugin as part of this plan.
+  Rationale: The optional prototype did not pass the required manual IDE smoke test. Explicit `.csproj` editing is predictable and does not compromise the deterministic MSBuild and Configurator path. Any future Rider integration must be a separate task with an automated IDE-level test harness before adoption.
+  Date/Author: 2026-06-02 / developer and agent
 
 ## Outcomes & Retrospective
 
@@ -272,17 +280,9 @@ Use the resulting order consistently for register/configure/complete/listener ca
 
 Add `Configurator.Tests` as an xUnit project in `KarpikEngine.slnx`. Expand runner lifecycle tests. Update roadmap checkboxes as milestones complete and create or update an ADR before closing this plan.
 
-### Milestone 6: Add optional Rider authoring integration
+### Milestone 6: Rider authoring integration experiment closed
 
-Implement a small Rider plugin that contributes an intention action for unresolved types owned by projects present in `Generated/KarpikModuleCatalog.props`.
-
-When the developer uses a type from an unreferenced module, offer an action such as:
-
-```text
-Add Karpik module dependency 'Physics2D'
-```
-
-The action must resolve the target project to its stable module or infrastructure id, add the source-level item to the current `.csproj`, and request project reload:
+The optional Rider plugin experiment was not adopted. Developers add module dependencies explicitly:
 
 ```xml
 <ItemGroup>
@@ -290,7 +290,7 @@ The action must resolve the target project to its stable module or infrastructur
 </ItemGroup>
 ```
 
-Do not replace the MSBuild catalog or make builds depend on the plugin. The plugin is authoring assistance only. Keep Configurator validation as the enforcement layer so an accidentally added direct `ProjectReference` under `Modules` or `MyGame` still fails during validation.
+Keep Configurator validation as the enforcement layer so an accidentally added direct `ProjectReference` under `Modules` or `MyGame` still fails during validation. If Rider authoring assistance is revisited, track it in a separate plan and require an automated IDE-level test for unresolved-type action discovery, application, and project reload.
 
 ## Validation And Acceptance
 
@@ -335,13 +335,6 @@ Expected observations:
 - Client and Server launcher builds pass validation.
 - Existing `CS0436` loader conflict is removed.
 - Generated loader order is deterministic across repeated generation.
-
-For the optional Rider plugin, verify manually or with plugin tests:
-
-- `Alt+Enter` on a type from an unreferenced known module offers `Add Karpik module dependency '<id>'`.
-- Applying the action adds `KarpikModuleDependency`, not a direct `ProjectReference`.
-- The project reload resolves the type and displays the materialized reference without a missing-file warning.
-- Unknown or ambiguous catalog mappings do not offer an unsafe quick-fix.
 
 ## Idempotence And Recovery
 
