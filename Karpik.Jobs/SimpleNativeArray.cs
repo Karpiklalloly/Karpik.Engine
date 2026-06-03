@@ -1,26 +1,31 @@
-﻿using System.Runtime.InteropServices;
+using Karpik.Memory;
 
 namespace Karpik.Jobs;
 
-public unsafe struct SimpleNativeArray<T> : IDisposable where T : unmanaged
+public struct SimpleNativeArray<T> : IDisposable where T : unmanaged
 {
-    private T* _ptr;
+    private NativeArray<T>? _array;
     public readonly int Length;
 
     public SimpleNativeArray(int length)
     {
         Length = length;
-        _ptr = (T*)NativeMemory.Alloc((nuint)(length * sizeof(T)));
+        _array = new NativeArray<T>(length);
     }
 
-    public ref T this[int index] => ref _ptr[index];
+    public ref T this[int index]
+    {
+        get
+        {
+            NativeArray<T> array = _array ?? throw new ObjectDisposedException(nameof(SimpleNativeArray<T>));
+            return ref array[index];
+        }
+    }
 
     public void Dispose()
     {
-        if (_ptr != null)
-        {
-            NativeMemory.Free(_ptr);
-            _ptr = null;
-        }
+        NativeArray<T> array = _array ?? throw new ObjectDisposedException(nameof(SimpleNativeArray<T>));
+        _array = null;
+        array.Dispose();
     }
 }

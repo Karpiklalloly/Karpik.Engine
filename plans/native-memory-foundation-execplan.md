@@ -9,12 +9,14 @@ Create `Karpik.Memory`, a standalone unmanaged memory project used by `Karpik.Jo
 ## Progress
 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 1 of `plans/scheduler-jobs-memory-execplan.md`.
-- [ ] Record baseline behavior of `Karpik.Jobs/SimpleNativeArray.cs`.
-- [ ] Create `Karpik.Memory` and focused tests.
-- [ ] Implement ownership tracking and Debug diagnostics.
-- [ ] Implement required allocators and containers.
-- [ ] Add benchmarks and allocation checks.
-- [ ] Migrate the jobs prototype off `SimpleNativeArray<T>` where applicable and close the gate.
+- [x] (2026-06-03 21:29 +04:00) Recorded baseline behavior of `Karpik.Jobs/SimpleNativeArray.cs`: unmanaged allocation/free only, unchecked indexing, no invalid length/overflow guard, no active allocation diagnostics, and copied owner values can create stale aliases or double-dispose hazards.
+- [x] (2026-06-03 20:59 +04:00) Created `Karpik.Memory` and `Karpik.Memory.Tests`; watched ownership diagnostics tests fail on missing `NativeAllocation`, `NativeAllocationToken`, `NativeMemoryDiagnostics`, and `NativeAllocationKind`, then pass after implementation.
+- [x] (2026-06-03 20:59 +04:00) Implemented the first allocation ownership spine: aligned unmanaged allocation, explicit dispose, active-allocation diagnostics, double-dispose failure, disposed-token failure, and cross-allocation token validation.
+- [x] (2026-06-03 21:06 +04:00) Implemented Milestone 2 containers and tests for `NativeArray<T>`, `NativeSlice<T>`, `NativeResult<T>`, and `NativeResultHandle<T>`: negative/zero length, bounds, span/clear, access after dispose, double dispose, and stale borrowed view/handle checks.
+- [x] (2026-06-03 21:29 +04:00) Implemented Milestone 3 allocators and tests for `NativeLinearAllocator`, `NativePool<T>`, and `NativeArena`: alignment, capacity exhaustion, reset/reuse, multi-block arena growth, stale borrowed views/handles, double return, and disposal invalidation.
+- [x] (2026-06-03 22:14 +04:00) Added Release allocation-budget tests and `Karpik.Memory.Benchmarks`. `dotnet test Karpik.Memory.Tests\Karpik.Memory.Tests.csproj -c Release -m:1 -nr:false` passed 51/51. `dotnet run --project Karpik.Memory.Benchmarks\Karpik.Memory.Benchmarks.csproj -c Release` measured: `NativeArray<int>` traversal `0 B`, `NativeLinearAllocator` allocate/reset `0 B`, `NativePool<int>` rent/return `0 B`, `NativeResult<int>` handle write `0 B`, and outside-frame `NativeArena` allocate/reset `1680000 B` managed over 10000 iterations due to managed block metadata. Latest smoke timings: array `155.570 ms`, linear allocator `22.005 ms`, pool `44.653 ms`, result `76.766 ms`, arena `22.127 ms`.
+- [x] (2026-06-03 21:32 +04:00) Migrated `Karpik.Jobs/SimpleNativeArray<T>` to wrap `Karpik.Memory.NativeArray<T>` while preserving `Length`, `ref` indexer, and `Dispose`; added `Karpik.Jobs.Tests` compatibility coverage and verified double-dispose now fails through the shared ownership contract.
+- [x] (2026-06-03 22:14 +04:00) Added accepted ADR `docs/02_ADR/native-memory-ownership.md`.
 
 ## Surprises & Discoveries
 
@@ -37,7 +39,7 @@ Create `Karpik.Memory`, a standalone unmanaged memory project used by `Karpik.Jo
 
 ## Outcomes & Retrospective
 
-No outcome yet.
+`Karpik.Memory` now provides the first native ownership foundation for `0.5`: aligned allocation ownership, Debug misuse diagnostics, dense containers, caller-owned result storage, a preallocated linear allocator, a fixed-capacity pool, and an outside-frame arena. Release allocation checks show `0 B` managed allocation for preallocated array traversal, linear allocate/reset, pool rent/return, and result handle writes. `NativeArena` remains explicitly outside-frame because repeated block growth/reset allocates managed metadata.
 
 ## Context And Orientation
 
