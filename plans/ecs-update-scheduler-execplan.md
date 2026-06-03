@@ -1,0 +1,232 @@
+# Build the generated ECS update scheduler
+
+This ExecPlan is a living document. It must be maintained according to `plans/PLANS.md`.
+
+## Purpose / Big Picture
+
+Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik scheduler for `ISystemUpdate`. Updates are parallel by default, statically validated at build time, and executed through compact generated metadata with no runtime reflection in the frame path.
+
+`ISystemFixedUpdate` remains sequential in `0.5`.
+
+## Progress
+
+- [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 3 of `plans/scheduler-jobs-memory-execplan.md`.
+- [ ] Preserve prototype graph tests as baseline evidence.
+- [ ] Add scheduler metadata attributes and diagnostics.
+- [ ] Implement Roslyn analysis for the supported ECS subset.
+- [ ] Generate compact metadata registry and per-phase update graph.
+- [ ] Integrate `ISystemUpdate` scheduler with parallel, deterministic, and single-thread modes.
+- [ ] Migrate update systems and quarantine the Dragon prototype.
+- [ ] Run scheduler acceptance gate.
+
+## Surprises & Discoveries
+
+- Observation: Prototype graph construction reflects nested `EcsAspect` definitions into `HashSet<Type>` and `List<SystemExecutionNode>`.
+  Evidence: `Modules/Shared/ECS/ECS.Core/SystemExecutionNode.cs`.
+
+- Observation: Prototype conflict evaluation allocates a temporary `HashSet<Type>` for each compared pair.
+  Evidence: `Modules/Shared/ECS/ECS.Core/IEcsRunParallel.cs`.
+
+- Observation: `Builder` currently wraps every `ISystemUpdate` as a sequential Dragon `UpdateSystem`.
+  Evidence: `Karpik.Engine.Core.Runner/Builder.cs`.
+
+- Observation: The repository already has both a Roslyn analyzer project and an incremental generator project, but neither currently generates ECS access metadata.
+  Evidence: `Tools/StaticAnalyzer` and `Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen`.
+
+## Decision Log
+
+- Decision: Schedule only `ISystemUpdate` in `0.5`; keep `ISystemFixedUpdate`, `Begin`, `LateUpdate`, and `Render` sequential.
+  Rationale: This creates a narrow, testable first public parallel contract without changing fixed-simulation semantics.
+  Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Every `ISystemUpdate` is parallel-scheduled unless explicitly `[SequentialSystem]`.
+  Rationale: New systems cannot silently bypass scheduling or safety checks.
+  Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Unknown or contradictory ECS access fails the build.
+  Rationale: Runtime sequential fallback would hide analyzer gaps and allow unsafe parallel execution assumptions to drift.
+  Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Helper methods may declare `[Reads<T>]` and `[Writes<T>]` summaries; deliberately opaque update systems must use `[SequentialSystem]`.
+  Rationale: Whole-program proof for arbitrary C# is not feasible. Explicit summaries keep the analyzable subset practical and fail closed.
+  Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Deterministic mode executes the generated graph sequentially in stable topological order.
+  Rationale: Replay and diagnostics need a stable control trajectory, not a misleading claim that worker interleaving is deterministic.
+  Date/Author: 2026-06-03 / developer and agent
+
+## Outcomes & Retrospective
+
+No outcome yet.
+
+## Context And Orientation
+
+Current prototype:
+
+- `Modules/Shared/ECS/ECS.Core/IEcsRunParallel.cs`
+- `Modules/Shared/ECS/ECS.Core/SystemExecutionNode.cs`
+- `ECS.Core.Tests`
+
+Lifecycle integration:
+
+- `Karpik.Engine.Core/LifeCycle/ISystemUpdate.cs`
+- `Karpik.Engine.Core.Runner/Builder.cs`
+- `Karpik.Engine.Core.Runner/Runner.cs`
+- Dragon extension runners used by the current sequential wrappers
+
+Analyzer and codegen:
+
+- `Tools/StaticAnalyzer/StaticAnalyzer.csproj`
+- `Tools/StaticAnalyzer/DiagnosticIds.cs`
+- create `Tools/StaticAnalyzer.Tests/StaticAnalyzer.Tests.csproj`
+- `Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj`
+
+Create focused scheduler types under `Modules/Shared/ECS/ECS.Core/Scheduling/`:
+
+- attributes and mode enum;
+- generated metadata contracts;
+- compact node and edge storage;
+- graph builder used at initialization;
+- update runner using `Karpik.Jobs`;
+- graph dump diagnostics.
+
+## Real-Time Assessment
+
+Graph construction may allocate at startup. Per-frame scheduling may not. Frame execution traverses dense generated arrays and reserved descriptor slots only.
+
+Do not traverse `Type`, `HashSet<Type>`, `List<T>`, reflection metadata, LINQ, or dynamically grown collections during update execution. Convert component types and systems to stable integer IDs during generated registry initialization.
+
+## Plan Of Work
+
+Implement the scheduler in five reviewable milestones. Preserve the sequential fallback until generated metadata and runtime tests pass.
+
+## Milestones
+
+### Milestone 1: Public metadata and diagnostics
+
+Add attributes:
+
+- `[SequentialSystem]`;
+- `[Reads<T>]`;
+- `[Writes<T>]`;
+- `[RunsAfter<TSystem>]`;
+- `[RunsBefore<TSystem>]`.
+
+Define diagnostics with actionable messages:
+
+- update system has opaque unsummarized call;
+- explicit summary contradicts inferred access;
+- invalid explicit order cycle;
+- `[MainThreadOnly]` or graphics command access used from `ISystemUpdate`;
+- summary targets unsupported managed component type;
+- generated registry missing a registered update system.
+
+### Milestone 2: Roslyn analysis and generated registry
+
+Use Roslyn `IOperation` and control-flow APIs to inspect each `ISystemUpdate.Update()` and reachable source methods.
+
+Supported inference:
+
+- `EcsPool<T>` field, local, parameter, and aspect access means write;
+- `EcsReadonlyPool<T>` means read;
+- known `DefaultWorld` facade helper calls are summarized;
+- source helper methods are traversed;
+- library-boundary helpers require explicit `[Reads<T>]` / `[Writes<T>]`.
+
+External calls with no ECS-capable receiver or argument may use a small reviewed pure allowlist, including routine BCL math operations. Any external call that receives a world, pool, aspect, ECS facade, or ECS-derived ref requires an explicit summary unless the analyzer understands that helper directly.
+
+Fail closed for:
+
+- reflection;
+- `dynamic`;
+- unresolved virtual/interface dispatch;
+- delegate invocation with unknown target;
+- external assembly call that may touch ECS and lacks summary;
+- unsupported generic aliasing;
+- `Unsafe` access that may alias ECS storage.
+
+Generate stable registry data:
+
+- system integer ID;
+- component integer IDs;
+- read and write spans;
+- explicit ordering edges;
+- sequential marker;
+- diagnostic display names outside the frame path.
+
+Generate one provider per compiled module assembly. During startup, aggregate providers for loaded modules into one compact runtime registry and flatten the graph. Startup discovery may allocate; frame traversal may not.
+
+### Milestone 3: Compact update graph
+
+At initialization:
+
+- validate generated metadata covers every registered `ISystemUpdate`;
+- build deterministic conflict edges from sorted integer component IDs;
+- apply explicit before/after edges;
+- detect cycles;
+- reserve exact job descriptor and dependency capacities;
+- emit stable graph dump.
+
+Conflict rules:
+
+- read/read may overlap;
+- read/write, write/read, and write/write serialize;
+- `[SequentialSystem]` becomes a barrier in stable registration/topological order.
+
+### Milestone 4: Runtime integration
+
+Replace sequential `ISystemUpdate` execution with the generated scheduler while preserving:
+
+- parallel production-default mode;
+- single-thread fallback mode;
+- deterministic sequential mode;
+- exception propagation to orchestration thread;
+- quiesce hook for shutdown and restart-worker hot reload.
+
+Keep fixed update sequential. Do not add `[MainThreadOnly]` update dispatch. Main-thread frame work belongs in `Begin` or `Render`.
+
+Update server overload handling in `Karpik.Engine.Core/CoreRunner.cs`: retain bounded catch-up diagnostics but preserve fixed backlog instead of resetting `nextTickTime` and silently skipping pending ticks.
+
+### Milestone 5: Migration and quarantine
+
+Migrate engine and sample `ISystemUpdate` implementations:
+
+- fix pool types so reads use `EcsReadonlyPool<T>`;
+- add helper summaries only at real library boundaries;
+- mark intentionally opaque systems `[SequentialSystem]`;
+- update analyzer tests for invalid systems.
+
+Quarantine or remove the Dragon `IEcsRunParallel` prototype only after replacement tests pass.
+
+## Concrete Steps
+
+Commands run from `C:\Users\artem\RiderProjects\KarpikEngine`.
+
+```powershell
+dotnet test ECS.Core.Tests\ECS.Core.Tests.csproj -m:1 -nr:false
+dotnet test Tools\StaticAnalyzer.Tests\StaticAnalyzer.Tests.csproj -m:1 -nr:false
+dotnet test Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false
+dotnet build Modules\Shared\ECS\ECS.Core\ECS.Core.csproj -m:1 -nr:false
+dotnet build ServerLauncher\ServerLauncher.csproj -m:1 -nr:false
+```
+
+## Validation And Acceptance
+
+Accept when:
+
+- disjoint updates overlap under a barrier-based concurrency test;
+- all conflicting combinations serialize;
+- explicit ordering and cycle diagnostics work;
+- opaque access fails build;
+- summaries and `[SequentialSystem]` resolve supported exceptions;
+- deterministic and single-thread modes produce stable order;
+- reserved-capacity update scheduling measures `0 B/frame`;
+- server launcher builds and executes fixed ticks sequentially with parallel update batches.
+
+## Idempotence And Recovery
+
+Keep the sequential update path selectable until scheduler acceptance passes. Keep prototype tests as reference coverage. If generated metadata misses a registered system, fail initialization rather than running it unsafely.
+
+## Artifacts And Notes
+
+Update `docs/02_ADR/scheduler-jobs-runtime.md` with generated metadata precedence, supported analyzer subset, deterministic semantics, and sequential opt-out.
