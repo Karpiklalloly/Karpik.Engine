@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 [assembly: InternalsVisibleTo("Karpik.Engine.Core")]
 namespace Karpik.Jobs;
 
+[AllocatingCompatibility("Legacy delegate-based job system. Uses managed delegates, wrappers, continuations, CTS, semaphores, and ConcurrentQueue; do not use from no-GC frame hot paths.")]
 public class JobSystem
 {
     private const int CacheLineSize = 64;
@@ -23,6 +24,7 @@ public class JobSystem
 
     private readonly SemaphoreSlim _workSemaphore = new SemaphoreSlim(0);
 
+    [AllocatingCompatibility("Creates managed worker threads, thread state arrays, semaphores, wrapper pool metadata, and ConcurrentQueue instances.")]
     public JobSystem(int workerCount = -1, string prefix = "JobWorker")
     {
         _workerCount = workerCount == -1
@@ -245,19 +247,24 @@ public class JobSystem
         return new JobHandle(completion, cts);
     }
 
+    [AllocatingCompatibility("Allocates managed completion/cancellation state and publishes a delegate wrapper.")]
     public JobHandle Enqueue(Action job) =>
         EnqueueInternal(job, null);
 
+    [AllocatingCompatibility("Allocates managed completion/cancellation state, dependency continuations, and publishes a delegate wrapper.")]
     public JobHandle Enqueue(Action job, params Span<JobHandle> dependencies) =>
         EnqueueInternal(job, dependencies);
 
+    [AllocatingCompatibility("Allocates managed completion/cancellation state and delegate batch wrappers.")]
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1) =>
         EnqueueParallelInternal(action, size, batchSize, null);
 
+    [AllocatingCompatibility("Allocates managed completion/cancellation state, dependency continuations, and delegate batch wrappers.")]
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1,
         params Span<JobHandle> dependencies) =>
         EnqueueParallelInternal(action, size, batchSize, dependencies);
     
+    [AllocatingCompatibility("Allocates managed typed completion/cancellation state and a delegate result wrapper.")]
     public JobHandle<T> Enqueue<T>(Func<T> job, params Span<JobHandle> dependencies)
     {
         if (!_isRunning) return default;
@@ -313,6 +320,7 @@ public class JobSystem
         return new JobHandle<T>(completion, cts);
     }
 
+    [AllocatingCompatibility("Allocates managed completion state and continuation delegates for the combined handles.")]
     public static JobHandle Combine(params JobHandle[] handles)
     {
         if (handles == null || handles.Length == 0) return default;

@@ -8,6 +8,10 @@ public sealed unsafe class JobScheduler : IDisposable
 {
     public const int DefaultPayloadAlignment = 16;
 
+    private const int WorkerRuntimeNotStarted = 0;
+    private const int WorkerRuntimeRunning = 1;
+    private const int WorkerRuntimeStopped = 2;
+
     private readonly JobDescriptorPool _descriptors;
     private readonly NativeLinearAllocator _payloadAllocator;
     private readonly NativeMemorySlice _payloadBlock;
@@ -15,10 +19,15 @@ public sealed unsafe class JobScheduler : IDisposable
     private readonly NativeArray<int> _completedGenerations;
     private readonly NativeArray<int> _failedGenerations;
     private readonly JobProfilerHooks? _profilerHooks;
+    private readonly WorkStealingDeque<ValueJobHandle>[] _workerQueues;
+    private readonly ManualResetEventSlim _workerWakeEvent;
+    private readonly WorkerThreadState[] _workerStates;
+    private readonly Thread[] _workerThreads;
     private readonly byte* _payloadBasePointer;
     private readonly int _payloadStride;
     private ValueJobHandle _lastExceptionHandle;
     private Exception? _lastException;
+    private int _workerRuntimeState;
     private bool _isDisposed;
 
     public JobScheduler(
@@ -26,7 +35,9 @@ public sealed unsafe class JobScheduler : IDisposable
         int maxPayloadByteLength,
         int payloadAlignment = DefaultPayloadAlignment,
         int maxDependenciesPerJob = 4,
-        JobProfilerHooks? profilerHooks = null)
+        JobProfilerHooks? profilerHooks = null,
+        int workerCount = 1,
+        int workerQueueCapacity = 64)
     {
         if (capacity <= 0)
         {
@@ -57,10 +68,28 @@ public sealed unsafe class JobScheduler : IDisposable
                 "Max dependencies per job must be greater than or equal to zero.");
         }
 
+        if (workerCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(workerCount),
+                workerCount,
+                "Worker count must be greater than zero.");
+        }
+
+        if (workerQueueCapacity <= 0 || (workerQueueCapacity & (workerQueueCapacity - 1)) != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(workerQueueCapacity),
+                workerQueueCapacity,
+                "Worker queue capacity must be a positive power of two.");
+        }
+
         Capacity = capacity;
         MaxPayloadByteLength = maxPayloadByteLength;
         PayloadAlignment = payloadAlignment;
         MaxDependenciesPerJob = maxDependenciesPerJob;
+        WorkerCount = workerCount;
+        WorkerQueueCapacity = workerQueueCapacity;
 
         _payloadStride = AlignUp(maxPayloadByteLength, payloadAlignment);
         int payloadByteCapacity = checked(capacity * _payloadStride);
@@ -75,14 +104,26 @@ public sealed unsafe class JobScheduler : IDisposable
         _failedGenerations.Clear();
         _payloadBasePointer = (byte*)_payloadBlock.Pointer;
         _profilerHooks = profilerHooks;
+        _workerQueues = new WorkStealingDeque<ValueJobHandle>[workerCount];
+        for (int i = 0; i < workerCount; i++)
+        {
+            _workerQueues[i] = new WorkStealingDeque<ValueJobHandle>(workerQueueCapacity);
+        }
+
+        _workerWakeEvent = new ManualResetEventSlim(initialState: false);
+        _workerStates = new WorkerThreadState[workerCount];
+        _workerThreads = new Thread[workerCount];
     }
 
     public int Capacity { get; }
     public int MaxPayloadByteLength { get; }
     public int PayloadAlignment { get; }
     public int MaxDependenciesPerJob { get; }
+    public int WorkerCount { get; }
+    public int WorkerQueueCapacity { get; }
     public int ScheduledCount => _descriptors.RentedCount;
     public int AvailableDescriptorCount => _descriptors.AvailableCount;
+    public bool AreWorkersRunning => Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeRunning;
 
     public ValueJobHandle Schedule<TJob>(in TJob job)
         where TJob : unmanaged, IJob
@@ -289,7 +330,7 @@ public sealed unsafe class JobScheduler : IDisposable
         EnsureNotDisposed();
         return handle.IsValid &&
                (uint)handle.Descriptor.Index < (uint)Capacity &&
-               _completedGenerations[handle.Descriptor.Index] == handle.Descriptor.Generation;
+               Volatile.Read(ref _completedGenerations[handle.Descriptor.Index]) == handle.Descriptor.Generation;
     }
 
     public bool HasException(ValueJobHandle handle)
@@ -297,7 +338,7 @@ public sealed unsafe class JobScheduler : IDisposable
         EnsureNotDisposed();
         return handle.IsValid &&
                (uint)handle.Descriptor.Index < (uint)Capacity &&
-               _failedGenerations[handle.Descriptor.Index] == handle.Descriptor.Generation;
+               Volatile.Read(ref _failedGenerations[handle.Descriptor.Index]) == handle.Descriptor.Generation;
     }
 
     public Exception? GetException(ValueJobHandle handle)
@@ -333,6 +374,114 @@ public sealed unsafe class JobScheduler : IDisposable
         return true;
     }
 
+    public bool TryPublish(ValueJobHandle handle, int workerIndex)
+    {
+        EnsureNotDisposed();
+        if (Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeStopped ||
+            !IsValidWorkerIndex(workerIndex) ||
+            !handle.IsValid ||
+            (uint)handle.Descriptor.Index >= (uint)Capacity ||
+            !_descriptors.IsRented(handle.Descriptor))
+        {
+            return false;
+        }
+
+        if (!_workerQueues[workerIndex].TryPushBottom(handle))
+        {
+            return false;
+        }
+
+        if (Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeRunning)
+        {
+            _workerWakeEvent.Set();
+        }
+
+        return true;
+    }
+
+    public bool TryRunNext(int workerIndex)
+    {
+        EnsureNotDisposed();
+        if (Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeRunning ||
+            !IsValidWorkerIndex(workerIndex))
+        {
+            return false;
+        }
+
+        WorkStealingDeque<ValueJobHandle> localQueue = _workerQueues[workerIndex];
+        if (localQueue.TryPopBottom(out ValueJobHandle localHandle))
+        {
+            return TryCompleteOrRequeue(localHandle, localQueue);
+        }
+
+        for (int offset = 1; offset < WorkerCount; offset++)
+        {
+            int victimIndex = (workerIndex + offset) % WorkerCount;
+            WorkStealingDeque<ValueJobHandle> victimQueue = _workerQueues[victimIndex];
+            if (victimQueue.TryStealTop(out ValueJobHandle stolenHandle))
+            {
+                return TryCompleteOrRequeue(stolenHandle, victimQueue);
+            }
+        }
+
+        return false;
+    }
+
+    public int GetWorkerQueueCount(int workerIndex)
+    {
+        EnsureNotDisposed();
+        return IsValidWorkerIndex(workerIndex)
+            ? _workerQueues[workerIndex].Count
+            : 0;
+    }
+
+    public bool StartWorkers()
+    {
+        EnsureNotDisposed();
+        if (Interlocked.CompareExchange(
+                ref _workerRuntimeState,
+                WorkerRuntimeRunning,
+                WorkerRuntimeNotStarted) != WorkerRuntimeNotStarted)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < WorkerCount; i++)
+        {
+            WorkerThreadState state = new(this, i);
+            Thread thread = new(WorkerLoop)
+            {
+                IsBackground = true,
+                Name = $"Karpik Value Job Worker {i}"
+            };
+
+            _workerStates[i] = state;
+            _workerThreads[i] = thread;
+            thread.Start(state);
+        }
+
+        return true;
+    }
+
+    public void StopWorkers()
+    {
+        if (Volatile.Read(ref _workerRuntimeState) != WorkerRuntimeRunning)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _workerRuntimeState, WorkerRuntimeStopped) != WorkerRuntimeRunning)
+        {
+            return;
+        }
+
+        _workerWakeEvent.Set();
+        for (int i = 0; i < _workerThreads.Length; i++)
+        {
+            _workerThreads[i]?.Join();
+        }
+    }
+
     public void Dispose()
     {
         if (_isDisposed)
@@ -340,7 +489,14 @@ public sealed unsafe class JobScheduler : IDisposable
             throw new ObjectDisposedException(nameof(JobScheduler));
         }
 
+        StopWorkers();
         _isDisposed = true;
+        for (int i = 0; i < _workerQueues.Length; i++)
+        {
+            _workerQueues[i].Dispose();
+        }
+
+        _workerWakeEvent.Dispose();
         _failedGenerations.Dispose();
         _completedGenerations.Dispose();
         _dependencies.Dispose();
@@ -410,15 +566,117 @@ public sealed unsafe class JobScheduler : IDisposable
 
     private void MarkCompleted(ValueJobHandle handle)
     {
-        _completedGenerations[handle.Descriptor.Index] = handle.Descriptor.Generation;
+        Volatile.Write(ref _completedGenerations[handle.Descriptor.Index], handle.Descriptor.Generation);
+        if (Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeRunning)
+        {
+            _workerWakeEvent.Set();
+        }
     }
 
     private void MarkFailed(ValueJobHandle handle, Exception exception)
     {
         MarkCompleted(handle);
-        _failedGenerations[handle.Descriptor.Index] = handle.Descriptor.Generation;
+        Volatile.Write(ref _failedGenerations[handle.Descriptor.Index], handle.Descriptor.Generation);
         _lastExceptionHandle = handle;
         _lastException = exception;
+    }
+
+    private bool TryCompleteOrRequeue(ValueJobHandle handle, WorkStealingDeque<ValueJobHandle> queue)
+    {
+        if (TryComplete(handle))
+        {
+            return true;
+        }
+
+        queue.TryPushBottom(handle);
+        return false;
+    }
+
+    private WorkerRunResult TryRunNextPublished(int workerIndex)
+    {
+        WorkStealingDeque<ValueJobHandle> localQueue = _workerQueues[workerIndex];
+        if (localQueue.TryStealTop(out ValueJobHandle localHandle))
+        {
+            return TryCompleteOrRequeuePublished(localHandle, localQueue);
+        }
+
+        for (int offset = 1; offset < WorkerCount; offset++)
+        {
+            int victimIndex = (workerIndex + offset) % WorkerCount;
+            WorkStealingDeque<ValueJobHandle> victimQueue = _workerQueues[victimIndex];
+            if (victimQueue.TryStealTop(out ValueJobHandle stolenHandle))
+            {
+                return TryCompleteOrRequeuePublished(stolenHandle, victimQueue);
+            }
+        }
+
+        return WorkerRunResult.Empty;
+    }
+
+    private WorkerRunResult TryCompleteOrRequeuePublished(
+        ValueJobHandle handle,
+        WorkStealingDeque<ValueJobHandle> queue)
+    {
+        if (TryComplete(handle))
+        {
+            return WorkerRunResult.Completed;
+        }
+
+        queue.TryPushBottom(handle);
+        return WorkerRunResult.PendingDependency;
+    }
+
+    private void RunWorkerLoop(int workerIndex)
+    {
+        while (Volatile.Read(ref _workerRuntimeState) == WorkerRuntimeRunning)
+        {
+            WorkerRunResult result;
+            try
+            {
+                result = TryRunNextPublished(workerIndex);
+            }
+            catch
+            {
+                result = WorkerRunResult.Completed;
+            }
+
+            if (result == WorkerRunResult.Completed)
+            {
+                continue;
+            }
+
+            _workerWakeEvent.Reset();
+            if (Volatile.Read(ref _workerRuntimeState) != WorkerRuntimeRunning)
+            {
+                break;
+            }
+
+            if (result == WorkerRunResult.Empty && HasQueuedWorkerWork())
+            {
+                continue;
+            }
+
+            _workerWakeEvent.Wait(millisecondsTimeout: result == WorkerRunResult.PendingDependency ? 1 : -1);
+        }
+    }
+
+    private bool HasQueuedWorkerWork()
+    {
+        for (int i = 0; i < _workerQueues.Length; i++)
+        {
+            if (_workerQueues[i].Count != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void WorkerLoop(object? state)
+    {
+        WorkerThreadState workerState = (WorkerThreadState)state!;
+        workerState.Scheduler.RunWorkerLoop(workerState.WorkerIndex);
     }
 
     private void EmitPublished(ValueJobHandle handle, ref JobDescriptor descriptor)
@@ -512,8 +770,33 @@ public sealed unsafe class JobScheduler : IDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsValidWorkerIndex(int workerIndex)
+    {
+        return (uint)workerIndex < (uint)WorkerCount;
+    }
+
     private static int AlignUp(int value, int alignment)
     {
         return checked((value + alignment - 1) & -alignment);
+    }
+
+    private enum WorkerRunResult
+    {
+        Empty,
+        PendingDependency,
+        Completed
+    }
+
+    private sealed class WorkerThreadState
+    {
+        public WorkerThreadState(JobScheduler scheduler, int workerIndex)
+        {
+            Scheduler = scheduler;
+            WorkerIndex = workerIndex;
+        }
+
+        public JobScheduler Scheduler { get; }
+        public int WorkerIndex { get; }
     }
 }

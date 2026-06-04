@@ -5,9 +5,11 @@ namespace Karpik.Jobs;
 
 internal sealed class JobDescriptorPool : IDisposable
 {
+    private readonly object _sync = new();
     private readonly NativeArray<JobDescriptor> _descriptors;
     private readonly NativeArray<int> _freeStack;
     private int _availableCount;
+    private int _rentedCount;
     private bool _isDisposed;
 
     public JobDescriptorPool(int capacity)
@@ -33,51 +35,76 @@ internal sealed class JobDescriptorPool : IDisposable
     }
 
     public int Capacity { get; }
-    public int RentedCount { get; private set; }
-    public int AvailableCount => _availableCount;
+    public int RentedCount
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _rentedCount;
+            }
+        }
+    }
+
+    public int AvailableCount
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _availableCount;
+            }
+        }
+    }
 
     public bool TryRent(JobDescriptorKind kind, out JobDescriptorHandle handle)
     {
         EnsureNotDisposed();
 
-        if (_availableCount == 0)
+        lock (_sync)
         {
-            handle = default;
-            return false;
+            if (_availableCount == 0)
+            {
+                handle = default;
+                return false;
+            }
+
+            int index = _freeStack[--_availableCount];
+            ref JobDescriptor descriptor = ref _descriptors[index];
+            descriptor.ResetForRent(kind);
+            _rentedCount++;
+
+            handle = new JobDescriptorHandle(index, descriptor.Generation);
+            return true;
         }
-
-        int index = _freeStack[--_availableCount];
-        ref JobDescriptor descriptor = ref _descriptors[index];
-        descriptor.ResetForRent(kind);
-        RentedCount++;
-
-        handle = new JobDescriptorHandle(index, descriptor.Generation);
-        return true;
     }
 
     public bool TryReturn(JobDescriptorHandle handle)
     {
         EnsureNotDisposed();
 
-        if (!TryValidate(handle))
+        lock (_sync)
         {
-            return false;
-        }
-
-        ref JobDescriptor descriptor = ref _descriptors[handle.Index];
-        descriptor.ResetAfterReturn();
-        unchecked
-        {
-            descriptor.Generation++;
-            if (descriptor.Generation == 0)
+            if (!TryValidate(handle))
             {
-                descriptor.Generation = 1;
+                return false;
             }
-        }
 
-        _freeStack[_availableCount++] = handle.Index;
-        RentedCount--;
-        return true;
+            ref JobDescriptor descriptor = ref _descriptors[handle.Index];
+            descriptor.ResetAfterReturn();
+            unchecked
+            {
+                descriptor.Generation++;
+                if (descriptor.Generation == 0)
+                {
+                    descriptor.Generation = 1;
+                }
+            }
+
+            _freeStack[_availableCount++] = handle.Index;
+            _rentedCount--;
+            return true;
+        }
     }
 
     public ref JobDescriptor Get(JobDescriptorHandle handle)
@@ -95,7 +122,10 @@ internal sealed class JobDescriptorPool : IDisposable
     public bool IsRented(JobDescriptorHandle handle)
     {
         EnsureNotDisposed();
-        return TryValidate(handle);
+        lock (_sync)
+        {
+            return TryValidate(handle);
+        }
     }
 
     public void Dispose()

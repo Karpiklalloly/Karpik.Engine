@@ -17,9 +17,10 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 17:02 +04:00) Added value-job dependency storage, pending completion checks, completed/failed generation tracking, and cold-path exception reporting.
 - [x] (2026-06-04 17:22 +04:00) Added optional value-job profiler hooks and explicit parallel batch publication metadata through `JobProfilerEvent` and `JobBatchInfo`.
 - [x] (2026-06-04 17:42 +04:00) Added standalone bounded `WorkStealingDeque<T>` backed by native storage with owner bottom push/pop, thief top steal, wrap-around tests, and 0 B steady-state allocation test.
-- [ ] Wire bounded work-stealing deques into value-job worker publication.
-- [ ] Keep legacy delegate `JobSystem` queues isolated as allocating compatibility path.
-- [ ] Keep delegate compatibility APIs explicitly allocating.
+- [x] (2026-06-04 19:31 +04:00) Wired bounded `WorkStealingDeque<ValueJobHandle>` instances into value-job worker publication through `TryPublish`, deterministic `TryRunNext`, local owner pop, cross-worker steal, pending dependency requeue, capacity failure, and 0 B steady-state publish/run allocation tests.
+- [x] (2026-06-04 19:36 +04:00) Added one-shot value-job worker runtime startup/shutdown, background worker loops, wake-up on publish/completion, steal-only worker drain for externally published queues, stopped-publication rejection, volatile completion visibility, and 0 B orchestration-thread schedule/publish/wait test.
+- [x] (2026-06-04 19:44 +04:00) Kept legacy delegate `JobSystem` isolated from `JobScheduler` with reflection tests proving the value scheduler does not reference `JobSystem`, `JobHandle`, `JobWrapper`, `JobCompletion`, `CancellationTokenSource`, or `ConcurrentQueue<JobWrapper>`.
+- [x] (2026-06-04 19:44 +04:00) Marked delegate `JobSystem`, constructor, `Enqueue`, `EnqueueParallel`, and `Combine` APIs with `AllocatingCompatibilityAttribute` so managed-allocation compatibility paths are machine-checkable.
 - [ ] Run standalone acceptance gate.
 
 ## Surprises & Discoveries
@@ -63,6 +64,24 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: A power-of-two bounded deque keeps circular indexing cheap and avoids dynamic growth policy in the scheduler hot path.
   Evidence: `WorkStealingDeque<T>` rejects non-power-of-two capacity and indexes native storage with `index & (capacity - 1)`.
 
+- Observation: Value-job worker publication is deterministic/manual, not a background worker loop yet.
+  Evidence: `JobScheduler.TryPublish` pushes a `ValueJobHandle` into a configured worker deque, and `JobScheduler.TryRunNext` drains or steals one handle per call.
+
+- Observation: A stolen job whose dependencies are still pending must return to the victim queue, not the thief's local queue.
+  Evidence: `JobSchedulerWorkerPublicationTests.TryRunNext_WhenStolenDependencyIsPending_RequeuesToVictimWorker` uses queue capacity 1 and verifies the pending handle remains on the original worker until its dependency completes.
+
+- Observation: Real worker loops cannot call owner `TryPopBottom` on queues filled by the orchestration thread.
+  Evidence: `JobScheduler.RunWorkerLoop` drains published work through `TryRunNextPublished`, which uses `TryStealTop` even for the worker's assigned queue; manual `TryRunNext` returns `false` while workers are running.
+
+- Observation: `IsCompleted` can become visible before descriptor reuse is observed by a subsequent `TrySchedule` on a capacity-1 scheduler.
+  Evidence: Worker runtime tests wait for both `IsCompleted(handle)` and `ScheduledCount == 0` when immediately reusing a single descriptor slot.
+
+- Observation: The wake-up path needs a lost-signal guard after resetting the shared event.
+  Evidence: `JobScheduler.RunWorkerLoop` rechecks `HasQueuedWorkerWork()` after `_workerWakeEvent.Reset()` before waiting.
+
+- Observation: Legacy delegate publication remains intentionally managed-allocation-heavy and isolated from the no-GC value scheduler.
+  Evidence: `JobSystemCompatibilityBoundaryTests.ValueJobScheduler_DoesNotReferenceLegacyDelegateCompatibilityTypes` rejects references from `JobScheduler` to legacy delegate runtime types.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
@@ -91,6 +110,22 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 
 - Decision: Work-stealing deque storage is fixed native `NativeArray<T>` and exposes non-throwing `TryPushBottom`, `TryPopBottom`, and `TryStealTop`.
   Rationale: Queue overflow and empty cases must be predictable and allocation-free; queue growth is a scheduler policy decision outside the deque primitive.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Pending dependency execution requeues the handle on the queue it was removed from.
+  Rationale: Workers must not execute incomplete jobs. Requeueing to the source queue preserves the stolen/local capacity slot and avoids using the thief queue as an implicit fallback.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Background value-job workers use steal-only queue access for externally published work.
+  Rationale: The orchestration thread owns `TryPushBottom`; letting worker threads also pop bottom would violate the deque's single-owner bottom contract. Worker threads claim work through top CAS instead.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Descriptor pool rent/return is protected by a no-allocation lock for the initial threaded runtime.
+  Rationale: Worker completion can return slots while the orchestration thread rents new slots. This keeps slot ownership correct now; a lock-free free-list can replace it if profiling shows contention.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Delegate-based jobs are marked with `AllocatingCompatibilityAttribute` instead of being hidden or renamed in this milestone.
+  Rationale: Existing callers keep source compatibility, while reflection tests and API metadata make it explicit that these paths allocate managed state and are not safe for no-GC frame hot paths.
   Date/Author: 2026-06-04 / agent
 
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.
