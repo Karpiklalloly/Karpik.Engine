@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Karpik.Memory;
 
@@ -13,6 +14,7 @@ public sealed unsafe class JobScheduler : IDisposable
     private readonly NativeArray<ValueJobHandle> _dependencies;
     private readonly NativeArray<int> _completedGenerations;
     private readonly NativeArray<int> _failedGenerations;
+    private readonly JobProfilerHooks? _profilerHooks;
     private readonly byte* _payloadBasePointer;
     private readonly int _payloadStride;
     private ValueJobHandle _lastExceptionHandle;
@@ -23,7 +25,8 @@ public sealed unsafe class JobScheduler : IDisposable
         int capacity,
         int maxPayloadByteLength,
         int payloadAlignment = DefaultPayloadAlignment,
-        int maxDependenciesPerJob = 4)
+        int maxDependenciesPerJob = 4,
+        JobProfilerHooks? profilerHooks = null)
     {
         if (capacity <= 0)
         {
@@ -68,7 +71,10 @@ public sealed unsafe class JobScheduler : IDisposable
         _dependencies = new NativeArray<ValueJobHandle>(checked(capacity * maxDependenciesPerJob));
         _completedGenerations = new NativeArray<int>(capacity);
         _failedGenerations = new NativeArray<int>(capacity);
+        _completedGenerations.Clear();
+        _failedGenerations.Clear();
         _payloadBasePointer = (byte*)_payloadBlock.Pointer;
+        _profilerHooks = profilerHooks;
     }
 
     public int Capacity { get; }
@@ -138,6 +144,7 @@ public sealed unsafe class JobScheduler : IDisposable
         StoreDependencies(ref descriptor, descriptorHandle.Index, dependencies);
 
         handle = new ValueJobHandle(descriptorHandle);
+        EmitPublished(handle, ref descriptor);
         return true;
     }
 
@@ -208,12 +215,14 @@ public sealed unsafe class JobScheduler : IDisposable
         descriptor.PayloadByteLength = Unsafe.SizeOf<TJob>();
         descriptor.StartIndex = 0;
         descriptor.EndIndex = length;
+        descriptor.BatchSize = batchSize;
         descriptor.BatchCount = length == 0 ? 0 : (length + batchSize - 1) / batchSize;
         descriptor.Execute = null;
         descriptor.ExecuteFor = &JobForExecutor<TJob>.Execute;
         StoreDependencies(ref descriptor, descriptorHandle.Index, dependencies);
 
         handle = new ValueJobHandle(descriptorHandle);
+        EmitPublished(handle, ref descriptor);
         return true;
     }
 
@@ -241,19 +250,23 @@ public sealed unsafe class JobScheduler : IDisposable
         {
             if (descriptor.Kind == JobDescriptorKind.Single)
             {
+                EmitStarted(handle, ref descriptor);
                 descriptor.Execute(descriptor.PayloadPointer);
                 MarkCompleted(handle);
+                EmitCompleted(handle, ref descriptor);
                 return true;
             }
 
             if (descriptor.Kind == JobDescriptorKind.ParallelBatch)
             {
+                EmitStarted(handle, ref descriptor);
                 for (int i = descriptor.StartIndex; i < descriptor.EndIndex; i++)
                 {
                     descriptor.ExecuteFor(descriptor.PayloadPointer, i);
                 }
 
                 MarkCompleted(handle);
+                EmitCompleted(handle, ref descriptor);
                 return true;
             }
 
@@ -262,6 +275,7 @@ public sealed unsafe class JobScheduler : IDisposable
         catch (Exception exception)
         {
             MarkFailed(handle, exception);
+            EmitFailed(handle, ref descriptor);
             throw;
         }
         finally
@@ -294,6 +308,29 @@ public sealed unsafe class JobScheduler : IDisposable
                _lastExceptionHandle.Descriptor.Generation == handle.Descriptor.Generation
             ? _lastException
             : null;
+    }
+
+    public bool TryGetBatchInfo(ValueJobHandle handle, out JobBatchInfo batchInfo)
+    {
+        EnsureNotDisposed();
+
+        if (!handle.IsValid ||
+            (uint)handle.Descriptor.Index >= (uint)Capacity ||
+            !_descriptors.IsRented(handle.Descriptor))
+        {
+            batchInfo = default;
+            return false;
+        }
+
+        ref JobDescriptor descriptor = ref _descriptors.Get(handle.Descriptor);
+        if (descriptor.Kind != JobDescriptorKind.ParallelBatch)
+        {
+            batchInfo = default;
+            return false;
+        }
+
+        batchInfo = CreateBatchInfo(ref descriptor);
+        return true;
     }
 
     public void Dispose()
@@ -382,6 +419,75 @@ public sealed unsafe class JobScheduler : IDisposable
         _failedGenerations[handle.Descriptor.Index] = handle.Descriptor.Generation;
         _lastExceptionHandle = handle;
         _lastException = exception;
+    }
+
+    private void EmitPublished(ValueJobHandle handle, ref JobDescriptor descriptor)
+    {
+        JobProfilerCallback? callback = _profilerHooks?.Published;
+        if (callback is null)
+        {
+            return;
+        }
+
+        JobProfilerEvent profilerEvent = CreateProfilerEvent(handle, ref descriptor);
+        callback(in profilerEvent);
+    }
+
+    private void EmitStarted(ValueJobHandle handle, ref JobDescriptor descriptor)
+    {
+        JobProfilerCallback? callback = _profilerHooks?.Started;
+        if (callback is null)
+        {
+            return;
+        }
+
+        JobProfilerEvent profilerEvent = CreateProfilerEvent(handle, ref descriptor);
+        callback(in profilerEvent);
+    }
+
+    private void EmitCompleted(ValueJobHandle handle, ref JobDescriptor descriptor)
+    {
+        JobProfilerCallback? callback = _profilerHooks?.Completed;
+        if (callback is null)
+        {
+            return;
+        }
+
+        JobProfilerEvent profilerEvent = CreateProfilerEvent(handle, ref descriptor);
+        callback(in profilerEvent);
+    }
+
+    private void EmitFailed(ValueJobHandle handle, ref JobDescriptor descriptor)
+    {
+        JobProfilerCallback? callback = _profilerHooks?.Failed;
+        if (callback is null)
+        {
+            return;
+        }
+
+        JobProfilerEvent profilerEvent = CreateProfilerEvent(handle, ref descriptor);
+        callback(in profilerEvent);
+    }
+
+    private static JobProfilerEvent CreateProfilerEvent(ValueJobHandle handle, ref JobDescriptor descriptor)
+    {
+        return new JobProfilerEvent(
+            handle,
+            descriptor.Kind,
+            descriptor.DependencyCount,
+            CreateBatchInfo(ref descriptor),
+            Stopwatch.GetTimestamp());
+    }
+
+    private static JobBatchInfo CreateBatchInfo(ref JobDescriptor descriptor)
+    {
+        return descriptor.Kind == JobDescriptorKind.ParallelBatch
+            ? new JobBatchInfo(
+                descriptor.StartIndex,
+                descriptor.EndIndex,
+                descriptor.BatchSize,
+                descriptor.BatchCount)
+            : default;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

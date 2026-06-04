@@ -11,6 +11,7 @@ internal unsafe struct JobDescriptor
     public int EndIndex;
     public int BatchIndex;
     public int BatchCount;
+    public int BatchSize;
     public int PayloadByteOffset;
     public int PayloadByteLength;
     public int ExceptionIndex;
@@ -30,6 +31,7 @@ internal unsafe struct JobDescriptor
         EndIndex = 0;
         BatchIndex = 0;
         BatchCount = 0;
+        BatchSize = 0;
         PayloadByteOffset = 0;
         PayloadByteLength = 0;
         ExceptionIndex = -1;
@@ -50,6 +52,7 @@ internal unsafe struct JobDescriptor
         EndIndex = 0;
         BatchIndex = 0;
         BatchCount = 0;
+        BatchSize = 0;
         PayloadByteOffset = 0;
         PayloadByteLength = 0;
         ExceptionIndex = -1;

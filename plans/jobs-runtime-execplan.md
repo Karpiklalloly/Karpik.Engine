@@ -15,7 +15,7 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 16:25 +04:00) Added public `IJob`/`IJobFor` value-job contracts and internal preallocated native descriptor storage with stale-handle invalidation and 0 B steady-state managed allocation test.
 - [x] (2026-06-04 16:44 +04:00) Added `JobScheduler` value scheduling entry points backed by native descriptor and payload storage: `TrySchedule`, `TryScheduleParallel`, `Schedule`, `ScheduleParallel`, and `Complete`.
 - [x] (2026-06-04 17:02 +04:00) Added value-job dependency storage, pending completion checks, completed/failed generation tracking, and cold-path exception reporting.
-- [ ] Add profiler hooks and richer batch publication records.
+- [x] (2026-06-04 17:22 +04:00) Added optional value-job profiler hooks and explicit parallel batch publication metadata through `JobProfilerEvent` and `JobBatchInfo`.
 - [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
 - [ ] Keep delegate compatibility APIs explicitly allocating.
 - [ ] Run standalone acceptance gate.
@@ -55,6 +55,9 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: Completed dependency handles must remain meaningful after their descriptor slot is returned and reused.
   Evidence: `JobScheduler` tracks completed generations per descriptor slot, so a job can depend on an already-completed handle without keeping the old slot rented.
 
+- Observation: Profiler hooks must be opt-in and checked before timestamp capture.
+  Evidence: `JobScheduler` only calls `Stopwatch.GetTimestamp()` while creating `JobProfilerEvent` after a non-null callback is found; Release tests keep no-hook schedule/complete at 0 B managed allocation.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
@@ -75,6 +78,10 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 
 - Decision: Exception reporting is a cold-path managed report, not a hot-path descriptor allocation.
   Rationale: Throwing already leaves the no-GC path. The scheduler records completed/failed generation state and the latest exception while preserving 0 B normal schedule/complete behavior.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Profiler callbacks use `JobProfilerCallback(in JobProfilerEvent)` and are stored on optional `JobProfilerHooks`.
+  Rationale: Hooks are configured outside the hot path, callback payload is a stack struct, and disabled hooks avoid timestamp work entirely.
   Date/Author: 2026-06-04 / agent
 
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.

@@ -1,6 +1,6 @@
 namespace Karpik.Jobs;
 
-internal enum JobDescriptorKind : byte
+public enum JobDescriptorKind : byte
 {
     Empty = 0,
     Single = 1,
