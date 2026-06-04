@@ -92,6 +92,12 @@ internal sealed class JobDescriptorPool : IDisposable
         return ref _descriptors[handle.Index];
     }
 
+    public bool IsRented(JobDescriptorHandle handle)
+    {
+        EnsureNotDisposed();
+        return TryValidate(handle);
+    }
+
     public void Dispose()
     {
         if (_isDisposed)

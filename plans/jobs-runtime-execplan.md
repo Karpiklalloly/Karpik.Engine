@@ -14,7 +14,8 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 16:04 +04:00) Added lightweight jobs benchmark project covering independent jobs, dependency chains, parallel batches, and p50/p95/p99 completion latency at 1/2/4/8 workers.
 - [x] (2026-06-04 16:25 +04:00) Added public `IJob`/`IJobFor` value-job contracts and internal preallocated native descriptor storage with stale-handle invalidation and 0 B steady-state managed allocation test.
 - [x] (2026-06-04 16:44 +04:00) Added `JobScheduler` value scheduling entry points backed by native descriptor and payload storage: `TrySchedule`, `TryScheduleParallel`, `Schedule`, `ScheduleParallel`, and `Complete`.
-- [ ] Add dependencies, batching, completion, exception reporting, and profiler hooks.
+- [x] (2026-06-04 17:02 +04:00) Added value-job dependency storage, pending completion checks, completed/failed generation tracking, and cold-path exception reporting.
+- [ ] Add profiler hooks and richer batch publication records.
 - [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
 - [ ] Keep delegate compatibility APIs explicitly allocating.
 - [ ] Run standalone acceptance gate.
@@ -48,6 +49,12 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: The no-GC value scheduling path must not reuse the existing public `JobHandle`.
   Evidence: Existing `JobHandle` owns managed `JobCompletion` and optional `CancellationTokenSource`; the new `JobScheduler` returns `ValueJobHandle` over native descriptor identity instead.
 
+- Observation: `NativeResult<T>` storage is not implicitly zeroed by the API contract.
+  Evidence: Dependency test initially compared an uninitialized `NativeResult<int>` value to zero before any job executed; the test now writes the initial value explicitly.
+
+- Observation: Completed dependency handles must remain meaningful after their descriptor slot is returned and reused.
+  Evidence: `JobScheduler` tracks completed generations per descriptor slot, so a job can depend on an already-completed handle without keeping the old slot rented.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
@@ -60,6 +67,14 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 
 - Decision: Initial value scheduling executes through `Complete(ValueJobHandle)` on the orchestration thread and does not yet publish to worker queues.
   Rationale: Milestone 2 validates API shape, native payload copy, descriptor lifetime, stale-handle safety, and 0 B schedule/complete before adding dependencies and work stealing.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Value scheduler dependencies are stored in a fixed native table sized as `capacity * maxDependenciesPerJob`.
+  Rationale: Dependency publication stays bounded and allocation-free; exceeding the configured dependency budget returns `false` before renting a descriptor.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Exception reporting is a cold-path managed report, not a hot-path descriptor allocation.
+  Rationale: Throwing already leaves the no-GC path. The scheduler records completed/failed generation state and the latest exception while preserving 0 B normal schedule/complete behavior.
   Date/Author: 2026-06-04 / agent
 
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.

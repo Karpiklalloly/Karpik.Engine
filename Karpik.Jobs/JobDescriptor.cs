@@ -6,6 +6,7 @@ internal unsafe struct JobDescriptor
     public int Generation;
     public int DependencyCount;
     public int RemainingDependencies;
+    public int DependencyOffset;
     public int StartIndex;
     public int EndIndex;
     public int BatchIndex;
@@ -24,6 +25,7 @@ internal unsafe struct JobDescriptor
         Kind = kind;
         DependencyCount = 0;
         RemainingDependencies = 0;
+        DependencyOffset = 0;
         StartIndex = 0;
         EndIndex = 0;
         BatchIndex = 0;
@@ -43,6 +45,7 @@ internal unsafe struct JobDescriptor
         Kind = JobDescriptorKind.Empty;
         DependencyCount = 0;
         RemainingDependencies = 0;
+        DependencyOffset = 0;
         StartIndex = 0;
         EndIndex = 0;
         BatchIndex = 0;
