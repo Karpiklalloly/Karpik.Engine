@@ -12,7 +12,8 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 16:04 +04:00) Measured current delegate-based jobs managed allocation, throughput, and round-trip tail latency in Release with `Karpik.Jobs.Benchmarks`.
 - [x] (2026-06-03 22:36 +04:00) Added focused baseline correctness tests for the current delegate-based `JobSystem`: independent jobs execute exactly once, dependency chains preserve order, fan-out/fan-in complete before dependent work, `EnqueueParallel` covers every index once, exceptions propagate through awaiters, and shutdown rejects new publication with a completed default handle.
 - [x] (2026-06-04 16:04 +04:00) Added lightweight jobs benchmark project covering independent jobs, dependency chains, parallel batches, and p50/p95/p99 completion latency at 1/2/4/8 workers.
-- [ ] Add value-type public contracts and native descriptor storage.
+- [x] (2026-06-04 16:25 +04:00) Added public `IJob`/`IJobFor` value-job contracts and internal preallocated native descriptor storage with stale-handle invalidation and 0 B steady-state managed allocation test.
+- [ ] Add value-type scheduling entry points backed by native descriptor storage.
 - [ ] Add dependencies, batching, completion, exception reporting, and profiler hooks.
 - [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
 - [ ] Keep delegate compatibility APIs explicitly allocating.
@@ -41,11 +42,18 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: Adding more workers does not monotonically improve current delegate-runtime throughput for tiny jobs; 8-worker independent throughput was lower than 2-worker throughput in the latest baseline run.
   Evidence: Latest baseline measured about 1,010,581 jobs/s at 2 workers and about 580,659 jobs/s at 8 workers.
 
+- Observation: `NativeArray<T>` storage is not implicitly zeroed by the API contract.
+  Evidence: The initial `IJobFor` contract test incremented uninitialized native integers and failed until the test explicitly called `NativeArray<int>.Clear()`.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
   Rationale: Copyable value payloads can live in native descriptors without closures or managed wrapper objects.
   Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Descriptor exhaustion uses a non-throwing `TryRent` result for the preallocated descriptor pool.
+  Rationale: Exhaustion must be predictable and observable in scheduler hot paths; exceptions are reserved for invalid debug/safety access such as stale handle `Get`.
+  Date/Author: 2026-06-04 / agent
 
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.
   Rationale: Single-producer descriptor ownership and dependency publication are easier to prove and benchmark.
