@@ -16,7 +16,9 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 16:44 +04:00) Added `JobScheduler` value scheduling entry points backed by native descriptor and payload storage: `TrySchedule`, `TryScheduleParallel`, `Schedule`, `ScheduleParallel`, and `Complete`.
 - [x] (2026-06-04 17:02 +04:00) Added value-job dependency storage, pending completion checks, completed/failed generation tracking, and cold-path exception reporting.
 - [x] (2026-06-04 17:22 +04:00) Added optional value-job profiler hooks and explicit parallel batch publication metadata through `JobProfilerEvent` and `JobBatchInfo`.
-- [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
+- [x] (2026-06-04 17:42 +04:00) Added standalone bounded `WorkStealingDeque<T>` backed by native storage with owner bottom push/pop, thief top steal, wrap-around tests, and 0 B steady-state allocation test.
+- [ ] Wire bounded work-stealing deques into value-job worker publication.
+- [ ] Keep legacy delegate `JobSystem` queues isolated as allocating compatibility path.
 - [ ] Keep delegate compatibility APIs explicitly allocating.
 - [ ] Run standalone acceptance gate.
 
@@ -58,6 +60,9 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: Profiler hooks must be opt-in and checked before timestamp capture.
   Evidence: `JobScheduler` only calls `Stopwatch.GetTimestamp()` while creating `JobProfilerEvent` after a non-null callback is found; Release tests keep no-hook schedule/complete at 0 B managed allocation.
 
+- Observation: A power-of-two bounded deque keeps circular indexing cheap and avoids dynamic growth policy in the scheduler hot path.
+  Evidence: `WorkStealingDeque<T>` rejects non-power-of-two capacity and indexes native storage with `index & (capacity - 1)`.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
@@ -82,6 +87,10 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 
 - Decision: Profiler callbacks use `JobProfilerCallback(in JobProfilerEvent)` and are stored on optional `JobProfilerHooks`.
   Rationale: Hooks are configured outside the hot path, callback payload is a stack struct, and disabled hooks avoid timestamp work entirely.
+  Date/Author: 2026-06-04 / agent
+
+- Decision: Work-stealing deque storage is fixed native `NativeArray<T>` and exposes non-throwing `TryPushBottom`, `TryPopBottom`, and `TryStealTop`.
+  Rationale: Queue overflow and empty cases must be predictable and allocation-free; queue growth is a scheduler policy decision outside the deque primitive.
   Date/Author: 2026-06-04 / agent
 
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.
