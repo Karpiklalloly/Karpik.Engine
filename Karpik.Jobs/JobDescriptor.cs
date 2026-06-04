@@ -1,6 +1,6 @@
 namespace Karpik.Jobs;
 
-internal struct JobDescriptor
+internal unsafe struct JobDescriptor
 {
     public JobDescriptorKind Kind;
     public int Generation;
@@ -15,6 +15,9 @@ internal struct JobDescriptor
     public int ExceptionIndex;
     public long ProfilerStartTimestamp;
     public long ProfilerEndTimestamp;
+    public void* PayloadPointer;
+    public delegate*<void*, void> Execute;
+    public delegate*<void*, int, void> ExecuteFor;
 
     internal void ResetForRent(JobDescriptorKind kind)
     {
@@ -30,6 +33,9 @@ internal struct JobDescriptor
         ExceptionIndex = -1;
         ProfilerStartTimestamp = 0;
         ProfilerEndTimestamp = 0;
+        PayloadPointer = null;
+        Execute = null;
+        ExecuteFor = null;
     }
 
     internal void ResetAfterReturn()
@@ -46,5 +52,8 @@ internal struct JobDescriptor
         ExceptionIndex = -1;
         ProfilerStartTimestamp = 0;
         ProfilerEndTimestamp = 0;
+        PayloadPointer = null;
+        Execute = null;
+        ExecuteFor = null;
     }
 }
