@@ -48,7 +48,7 @@ public readonly struct JobHandleAwaiter<T> : INotifyCompletion
         _handle.Wait();
         _handle.Completion?.ThrowIfFailed();
             
-        return _handle.Completion is not null ? _handle.Completion.Result : default;
+        return _handle.Completion is not null ? _handle.Completion.Result : default!;
     }
 
     public void OnCompleted(Action continuation)

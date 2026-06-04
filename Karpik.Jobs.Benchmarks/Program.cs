@@ -30,6 +30,13 @@ for (int i = 0; i < workerCounts.Length; i++)
     RunRoundTripLatency(workerCount);
 }
 
+Console.WriteLine();
+Console.WriteLine("Karpik.Jobs value scheduler benchmark");
+RunValueScheduleComplete();
+RunValuePublishRunNext();
+RunValueWorkerRuntime();
+RunValueParallelBatch();
+
 static int[] BuildWorkerCounts()
 {
     Span<int> candidates = stackalloc[] { 1, 2, 4, 8 };
@@ -176,6 +183,119 @@ static void RunRoundTripLatency(int workerCount)
     }
 }
 
+static void RunValueScheduleComplete()
+{
+    using JobScheduler scheduler = new(capacity: 1, maxPayloadByteLength: 64);
+    ValueNoOpJob job = default;
+
+    ValueJobHandle warmup = scheduler.Schedule(in job);
+    scheduler.Complete(warmup);
+    ForceFullCollection();
+
+    long beforeBytes = GC.GetAllocatedBytesForCurrentThread();
+    long beforeTimestamp = Stopwatch.GetTimestamp();
+
+    for (int i = 0; i < IndependentJobs; i++)
+    {
+        ValueJobHandle handle = scheduler.Schedule(in job);
+        scheduler.Complete(handle);
+    }
+
+    long elapsedTicks = Stopwatch.GetTimestamp() - beforeTimestamp;
+    long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - beforeBytes;
+    PrintThroughput("value-schedule-complete", "jobs", IndependentJobs, elapsedTicks, allocatedBytes);
+}
+
+static void RunValuePublishRunNext()
+{
+    using JobScheduler scheduler = new(
+        capacity: 1,
+        maxPayloadByteLength: 64,
+        workerCount: 1,
+        workerQueueCapacity: 1);
+    ValueNoOpJob job = default;
+
+    ValueJobHandle warmup = scheduler.Schedule(in job);
+    scheduler.TryPublish(warmup, workerIndex: 0);
+    scheduler.TryRunNext(workerIndex: 0);
+    ForceFullCollection();
+
+    long beforeBytes = GC.GetAllocatedBytesForCurrentThread();
+    long beforeTimestamp = Stopwatch.GetTimestamp();
+
+    for (int i = 0; i < IndependentJobs; i++)
+    {
+        ValueJobHandle handle = scheduler.Schedule(in job);
+        scheduler.TryPublish(handle, workerIndex: 0);
+        scheduler.TryRunNext(workerIndex: 0);
+    }
+
+    long elapsedTicks = Stopwatch.GetTimestamp() - beforeTimestamp;
+    long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - beforeBytes;
+    PrintThroughput("value-publish-run-next", "jobs", IndependentJobs, elapsedTicks, allocatedBytes);
+}
+
+static void RunValueWorkerRuntime()
+{
+    using JobScheduler scheduler = new(
+        capacity: 1,
+        maxPayloadByteLength: 64,
+        workerCount: 1,
+        workerQueueCapacity: 1);
+    ValueNoOpJob job = default;
+
+    scheduler.StartWorkers();
+    ValueJobHandle warmup = scheduler.Schedule(in job);
+    scheduler.TryPublish(warmup, workerIndex: 0);
+    WaitUntilCompletedAndReturned(scheduler, warmup);
+    ForceFullCollection();
+
+    long beforeBytes = GC.GetAllocatedBytesForCurrentThread();
+    long beforeTimestamp = Stopwatch.GetTimestamp();
+
+    for (int i = 0; i < LatencySamples; i++)
+    {
+        ValueJobHandle handle = scheduler.Schedule(in job);
+        scheduler.TryPublish(handle, workerIndex: 0);
+        WaitUntilCompletedAndReturned(scheduler, handle);
+    }
+
+    long elapsedTicks = Stopwatch.GetTimestamp() - beforeTimestamp;
+    long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - beforeBytes;
+    PrintThroughput("value-worker-runtime", "jobs", LatencySamples, elapsedTicks, allocatedBytes);
+
+    scheduler.StopWorkers();
+}
+
+static void RunValueParallelBatch()
+{
+    using JobScheduler scheduler = new(capacity: 1, maxPayloadByteLength: 64);
+    ValueNoOpForJob job = default;
+
+    ValueJobHandle warmup = scheduler.ScheduleParallel(in job, ParallelBatchSize, batchSize: ParallelBatchSize);
+    scheduler.Complete(warmup);
+    ForceFullCollection();
+
+    long beforeBytes = GC.GetAllocatedBytesForCurrentThread();
+    long beforeTimestamp = Stopwatch.GetTimestamp();
+
+    ValueJobHandle handle = scheduler.ScheduleParallel(in job, ParallelItems, ParallelBatchSize);
+    scheduler.Complete(handle);
+
+    long elapsedTicks = Stopwatch.GetTimestamp() - beforeTimestamp;
+    long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - beforeBytes;
+    PrintThroughput("value-parallel-batch", "items", ParallelItems, elapsedTicks, allocatedBytes);
+}
+
+static void WaitUntilCompletedAndReturned(JobScheduler scheduler, ValueJobHandle handle)
+{
+    SpinWait spinWait = default;
+    while (!scheduler.IsCompleted(handle) || scheduler.ScheduledCount != 0)
+    {
+        spinWait.SpinOnce();
+    }
+}
+
 static void WarmupIndependent(JobSystem jobs)
 {
     for (int i = 0; i < WarmupJobs; i++)
@@ -244,4 +364,18 @@ internal static class BenchmarkActions
 {
     public static readonly Action NoOp = static () => { };
     public static readonly Action<int> NoOpIndex = static _ => { };
+}
+
+internal struct ValueNoOpJob : IJob
+{
+    public void Execute()
+    {
+    }
+}
+
+internal struct ValueNoOpForJob : IJobFor
+{
+    public void Execute(int index)
+    {
+    }
 }

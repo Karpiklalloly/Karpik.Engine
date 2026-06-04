@@ -21,7 +21,7 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - [x] (2026-06-04 19:36 +04:00) Added one-shot value-job worker runtime startup/shutdown, background worker loops, wake-up on publish/completion, steal-only worker drain for externally published queues, stopped-publication rejection, volatile completion visibility, and 0 B orchestration-thread schedule/publish/wait test.
 - [x] (2026-06-04 19:44 +04:00) Kept legacy delegate `JobSystem` isolated from `JobScheduler` with reflection tests proving the value scheduler does not reference `JobSystem`, `JobHandle`, `JobWrapper`, `JobCompletion`, `CancellationTokenSource`, or `ConcurrentQueue<JobWrapper>`.
 - [x] (2026-06-04 19:44 +04:00) Marked delegate `JobSystem`, constructor, `Enqueue`, `EnqueueParallel`, and `Combine` APIs with `AllocatingCompatibilityAttribute` so managed-allocation compatibility paths are machine-checkable.
-- [ ] Run standalone acceptance gate.
+- [x] (2026-06-04 20:17 +04:00) Ran standalone acceptance gate: clean `Karpik.Jobs` build, Debug/Release focused tests, benchmark project build, delegate baseline benchmark, and value scheduler benchmark with `0 B` managed allocation in measured value paths.
 
 ## Surprises & Discoveries
 
@@ -82,6 +82,12 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 - Observation: Legacy delegate publication remains intentionally managed-allocation-heavy and isolated from the no-GC value scheduler.
   Evidence: `JobSystemCompatibilityBoundaryTests.ValueJobScheduler_DoesNotReferenceLegacyDelegateCompatibilityTypes` rejects references from `JobScheduler` to legacy delegate runtime types.
 
+- Observation: Value scheduler measured `0 B` managed allocation after warm-up for schedule/complete, publish/run-next, worker-runtime publish/wait, and parallel batch paths.
+  Evidence: `dotnet run --project Karpik.Jobs.Benchmarks\Karpik.Jobs.Benchmarks.csproj -c Release --no-build` on 2026-06-04 measured `managedBytes=0` for `value-schedule-complete`, `value-publish-run-next`, `value-worker-runtime`, and `value-parallel-batch`.
+
+- Observation: Fresh delegate baseline still allocates managed memory and remains compatibility-only.
+  Evidence: The same benchmark run measured about `2,800,000-2,915,456 B` for 10,000 independent delegate jobs, about `511,792-511,856 B` for 1,000 dependency-chain jobs, and about `59,728-65,872 B` for delegate parallel batches depending on worker count.
+
 ## Decision Log
 
 - Decision: New hot-path jobs are `struct` payloads implementing `IJob` or `IJobFor`.
@@ -128,6 +134,10 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
   Rationale: Existing callers keep source compatibility, while reflection tests and API metadata make it explicit that these paths allocate managed state and are not safe for no-GC frame hot paths.
   Date/Author: 2026-06-04 / agent
 
+- Decision: Standalone overflow uses bounded failure plus diagnostics for this accepted slice, not hidden native fallback storage.
+  Rationale: Silent fallback growth would make capacity mistakes harder to catch and complicate ECS reserved-capacity guarantees. `TrySchedule`/`TryPublish` now expose descriptor, payload, dependency, queue, and requeue overflow counters through `JobRuntimeDiagnostics`.
+  Date/Author: 2026-06-04 / agent
+
 - Decision: Only the orchestration thread may call `Schedule` and `Complete`; workers only execute.
   Rationale: Single-producer descriptor ownership and dependency publication are easier to prove and benchmark.
   Date/Author: 2026-06-03 / developer and agent
@@ -140,13 +150,30 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
   Rationale: Completion slots remain reusable and do not own result lifetime.
   Date/Author: 2026-06-03 / developer and agent
 
-- Decision: Standalone queue overflow may allocate native fallback storage and increment counters; ECS integration may not use that fallback.
-  Rationale: Standalone jobs remain usable under unexpected load without blocking or managed allocation, while frame scheduling stays fully reserved.
+- Decision: Standalone queue overflow returns `false` and increments diagnostics.
+  Rationale: Standalone jobs remain predictable under unexpected load without blocking, managed allocation, or hidden capacity growth, while frame scheduling stays fully reserved.
   Date/Author: 2026-06-03 / developer and agent
 
 ## Outcomes & Retrospective
 
-No outcome yet.
+Standalone value-job runtime accepted on 2026-06-04 for the current 0.5 slice.
+
+Validation:
+
+- `dotnet build Karpik.Jobs\Karpik.Jobs.csproj -m:1 -nr:false` -> 0 warnings, 0 errors.
+- `dotnet test Karpik.Jobs.Tests\Karpik.Jobs.Tests.csproj -m:1 -nr:false` -> 54/54 passed.
+- `dotnet test Karpik.Jobs.Tests\Karpik.Jobs.Tests.csproj -c Release -m:1 -nr:false` -> 54/54 passed.
+- `dotnet build Karpik.Jobs.Benchmarks\Karpik.Jobs.Benchmarks.csproj -c Release -m:1 -nr:false` -> 0 warnings, 0 errors.
+- `dotnet run --project Karpik.Jobs.Benchmarks\Karpik.Jobs.Benchmarks.csproj -c Release --no-build` -> value scheduler measured `0 B` managed allocation for all value benchmark rows.
+
+Benchmark summary from the final run:
+
+- `value-schedule-complete`: 10,000 jobs, `6.230 ms`, `1,605,111 jobs/s`, `0 B`.
+- `value-publish-run-next`: 10,000 jobs, `8.733 ms`, `1,145,108 jobs/s`, `0 B`.
+- `value-worker-runtime`: 1,000 jobs, `16.668 ms`, `59,996 jobs/s`, `0 B`.
+- `value-parallel-batch`: 32,768 items, `11.616 ms`, `2,821,034 items/s`, `0 B`.
+
+Delegate compatibility baseline still allocates by design and remains marked with `AllocatingCompatibilityAttribute`.
 
 ## Context And Orientation
 
@@ -293,7 +320,7 @@ Accept when:
 
 - exactly-once, dependencies, fan-in/out, `IJobFor`, exceptions, shutdown, wrap-around, and contention tests pass;
 - preallocated value scheduling measures `0 B` managed allocation after warm-up;
-- native overflow fallback increments diagnostics and is absent when ECS-reserved capacity is used;
+- overflow paths increment diagnostics and the reserved-capacity normal path keeps counters at zero;
 - throughput and tail-latency evidence is recorded;
 - delegate APIs remain compatibility-only and are not used by ECS scheduling.
 
@@ -303,4 +330,4 @@ Keep old delegate behavior until compatibility tests pass. Hide queue replacemen
 
 ## Artifacts And Notes
 
-Create ADR `docs/02_ADR/scheduler-jobs-runtime.md` before changing public contracts. Record queue memory-ordering rules and overflow policy there.
+ADR `docs/02_ADR/scheduler-jobs-runtime.md` records queue memory-ordering rules, overflow policy, compatibility boundary, and validation commands.

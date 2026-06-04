@@ -2,7 +2,7 @@
 
 internal class JobCompletion
 {
-    private volatile int _remaining;
+    private int _remaining;
     private readonly ManualResetEventSlim _event;
     private Action? _continuation;
     private Exception? _exception;
@@ -64,7 +64,7 @@ internal class JobCompletion
 
 internal sealed class JobCompletion<T> : JobCompletion
 {
-    internal T Result { get; private set; }
+    internal T Result { get; private set; } = default!;
 
     public JobCompletion(int initialCount) : base(initialCount) { }
 

@@ -6,10 +6,10 @@ namespace Karpik.Jobs;
 public readonly struct JobHandle : IDisposable
 {
     public static JobHandle Completed => new(new JobCompletion(0), null);
-    internal readonly JobCompletion Completion;
-    private readonly CancellationTokenSource _cts;
+    internal readonly JobCompletion? Completion;
+    private readonly CancellationTokenSource? _cts;
 
-    internal JobHandle(JobCompletion completion, CancellationTokenSource cts)
+    internal JobHandle(JobCompletion? completion, CancellationTokenSource? cts)
     {
         Completion = completion;
         _cts = cts;
@@ -33,10 +33,10 @@ public readonly struct JobHandle : IDisposable
 public readonly struct JobHandle<T> : IDisposable
 {
     // Храним ссылку именно как Generic версию
-    internal readonly JobCompletion<T> Completion;
-    private readonly CancellationTokenSource _cts;
+    internal readonly JobCompletion<T>? Completion;
+    private readonly CancellationTokenSource? _cts;
 
-    internal JobHandle(JobCompletion<T> completion, CancellationTokenSource cts)
+    internal JobHandle(JobCompletion<T>? completion, CancellationTokenSource? cts)
     {
         Completion = completion;
         _cts = cts;

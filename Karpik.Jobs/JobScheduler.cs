@@ -28,6 +28,12 @@ public sealed unsafe class JobScheduler : IDisposable
     private ValueJobHandle _lastExceptionHandle;
     private Exception? _lastException;
     private int _workerRuntimeState;
+    private long _descriptorExhaustionCount;
+    private long _payloadTooLargeCount;
+    private long _dependencyBudgetExhaustionCount;
+    private long _invalidDependencyCount;
+    private long _workerQueueOverflowCount;
+    private long _requeueOverflowCount;
     private bool _isDisposed;
 
     public JobScheduler(
@@ -161,7 +167,14 @@ public sealed unsafe class JobScheduler : IDisposable
     {
         EnsureNotDisposed();
 
-        if (!CanStorePayload<TJob>() || !CanStoreDependencies(dependencies))
+        if (!CanStorePayload<TJob>())
+        {
+            Interlocked.Increment(ref _payloadTooLargeCount);
+            handle = default;
+            return false;
+        }
+
+        if (!CanStoreDependencies(dependencies))
         {
             handle = default;
             return false;
@@ -169,6 +182,7 @@ public sealed unsafe class JobScheduler : IDisposable
 
         if (!_descriptors.TryRent(JobDescriptorKind.Single, out JobDescriptorHandle descriptorHandle))
         {
+            Interlocked.Increment(ref _descriptorExhaustionCount);
             handle = default;
             return false;
         }
@@ -235,7 +249,20 @@ public sealed unsafe class JobScheduler : IDisposable
     {
         EnsureNotDisposed();
 
-        if (length < 0 || batchSize <= 0 || !CanStorePayload<TJob>() || !CanStoreDependencies(dependencies))
+        if (length < 0 || batchSize <= 0)
+        {
+            handle = default;
+            return false;
+        }
+
+        if (!CanStorePayload<TJob>())
+        {
+            Interlocked.Increment(ref _payloadTooLargeCount);
+            handle = default;
+            return false;
+        }
+
+        if (!CanStoreDependencies(dependencies))
         {
             handle = default;
             return false;
@@ -243,6 +270,7 @@ public sealed unsafe class JobScheduler : IDisposable
 
         if (!_descriptors.TryRent(JobDescriptorKind.ParallelBatch, out JobDescriptorHandle descriptorHandle))
         {
+            Interlocked.Increment(ref _descriptorExhaustionCount);
             handle = default;
             return false;
         }
@@ -388,6 +416,7 @@ public sealed unsafe class JobScheduler : IDisposable
 
         if (!_workerQueues[workerIndex].TryPushBottom(handle))
         {
+            Interlocked.Increment(ref _workerQueueOverflowCount);
             return false;
         }
 
@@ -433,6 +462,18 @@ public sealed unsafe class JobScheduler : IDisposable
         return IsValidWorkerIndex(workerIndex)
             ? _workerQueues[workerIndex].Count
             : 0;
+    }
+
+    public JobRuntimeDiagnostics GetDiagnostics()
+    {
+        EnsureNotDisposed();
+        return new JobRuntimeDiagnostics(
+            Volatile.Read(ref _descriptorExhaustionCount),
+            Volatile.Read(ref _payloadTooLargeCount),
+            Volatile.Read(ref _dependencyBudgetExhaustionCount),
+            Volatile.Read(ref _invalidDependencyCount),
+            Volatile.Read(ref _workerQueueOverflowCount),
+            Volatile.Read(ref _requeueOverflowCount));
     }
 
     public bool StartWorkers()
@@ -508,6 +549,7 @@ public sealed unsafe class JobScheduler : IDisposable
     {
         if (dependencies.Length > MaxDependenciesPerJob)
         {
+            Interlocked.Increment(ref _dependencyBudgetExhaustionCount);
             return false;
         }
 
@@ -518,6 +560,7 @@ public sealed unsafe class JobScheduler : IDisposable
                 (uint)dependency.Descriptor.Index >= (uint)Capacity ||
                 (!IsCompleted(dependency) && !_descriptors.IsRented(dependency.Descriptor)))
             {
+                Interlocked.Increment(ref _invalidDependencyCount);
                 return false;
             }
         }
@@ -588,7 +631,11 @@ public sealed unsafe class JobScheduler : IDisposable
             return true;
         }
 
-        queue.TryPushBottom(handle);
+        if (!queue.TryPushBottom(handle))
+        {
+            Interlocked.Increment(ref _requeueOverflowCount);
+        }
+
         return false;
     }
 
@@ -622,7 +669,11 @@ public sealed unsafe class JobScheduler : IDisposable
             return WorkerRunResult.Completed;
         }
 
-        queue.TryPushBottom(handle);
+        if (!queue.TryPushBottom(handle))
+        {
+            Interlocked.Increment(ref _requeueOverflowCount);
+        }
+
         return WorkerRunResult.PendingDependency;
     }
 

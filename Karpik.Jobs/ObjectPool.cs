@@ -15,7 +15,7 @@ internal sealed class ObjectPool<T> : IDisposable where T : class, new()
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public T? Rent()
+    public T Rent()
     {
         if (_items.TryTake(out var item)) return item;
         return _factory();

@@ -20,7 +20,7 @@ public class JobSystem
     private readonly ObjectPool<JobWrapper> _jobWrapperPool;
 
     private int _enqueueIndex = 0;
-    private volatile int _outstandingJobs = 0;
+    private int _outstandingJobs = 0;
 
     private readonly SemaphoreSlim _workSemaphore = new SemaphoreSlim(0);
 
@@ -72,9 +72,9 @@ public class JobSystem
         }
     }
 
-    private void WorkerLoop(object state)
+    private void WorkerLoop(object? state)
     {
-        int threadId = (int)state;
+        int threadId = (int)state!;
 
         while (true)
         {
@@ -88,9 +88,9 @@ public class JobSystem
             // Drain available work: process own queue and attempt to steal until no work found.
             while (true)
             {
-                if (TryPopTask(threadId, out var wrapper) || TryStealTask(threadId, out wrapper))
+                if (TryPopTask(threadId, out JobWrapper? wrapper) || TryStealTask(threadId, out wrapper))
                 {
-                    ExecuteJob(wrapper, threadId);
+                    ExecuteJob(wrapper!, threadId);
                     break;
                 }
             }
@@ -98,13 +98,13 @@ public class JobSystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryPopTask(int threadId, out JobWrapper wrapper)
+    private bool TryPopTask(int threadId, out JobWrapper? wrapper)
     {
         return _threadStates[threadId].Queue.TryDequeue(out wrapper);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryStealTask(int thiefId, out JobWrapper wrapper)
+    private bool TryStealTask(int thiefId, out JobWrapper? wrapper)
     {
         int victimId = (thiefId + 1 + ThreadLocalRandom.Next(0, _workerCount - 1)) % _workerCount;
         if (victimId == thiefId)
@@ -123,12 +123,12 @@ public class JobSystem
 
         try
         {
-            if (!wrapper.Cts.Token.IsCancellationRequested)
+            if (!wrapper.Cts!.Token.IsCancellationRequested)
             {
                 if (wrapper.IsParallel)
-                    wrapper.ParallelAction(wrapper.StartIndex, wrapper.EndIndex);
+                    wrapper.ParallelAction!(wrapper.StartIndex, wrapper.EndIndex);
                 else
-                    wrapper.Action();
+                    wrapper.Action!();
             }
         }
         catch (Exception ex)
@@ -182,7 +182,14 @@ public class JobSystem
             var dependenciesCompletion = new JobCompletion(dependencies.Length);
             foreach (var dependency in dependencies)
             {
-                dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                if (dependency.Completion is null)
+                {
+                    dependenciesCompletion.Signal();
+                }
+                else
+                {
+                    dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                }
             }
 
             dependenciesCompletion.AddContinuation(enqueueAction);
@@ -212,7 +219,7 @@ public class JobSystem
                 {
                     for (int j = start; j < end; j++)
                     {
-                        if (wrapper.Cts.Token.IsCancellationRequested) return;
+                        if (wrapper.Cts!.Token.IsCancellationRequested) return;
                         action(j);
                     }
                 };
@@ -238,7 +245,14 @@ public class JobSystem
             var dependenciesCompletion = new JobCompletion(dependencies.Length);
             foreach (var dependency in dependencies)
             {
-                dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                if (dependency.Completion is null)
+                {
+                    dependenciesCompletion.Signal();
+                }
+                else
+                {
+                    dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                }
             }
 
             dependenciesCompletion.AddContinuation(enqueueBatches);
@@ -249,7 +263,7 @@ public class JobSystem
 
     [AllocatingCompatibility("Allocates managed completion/cancellation state and publishes a delegate wrapper.")]
     public JobHandle Enqueue(Action job) =>
-        EnqueueInternal(job, null);
+        EnqueueInternal(job, Span<JobHandle>.Empty);
 
     [AllocatingCompatibility("Allocates managed completion/cancellation state, dependency continuations, and publishes a delegate wrapper.")]
     public JobHandle Enqueue(Action job, params Span<JobHandle> dependencies) =>
@@ -257,7 +271,7 @@ public class JobSystem
 
     [AllocatingCompatibility("Allocates managed completion/cancellation state and delegate batch wrappers.")]
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1) =>
-        EnqueueParallelInternal(action, size, batchSize, null);
+        EnqueueParallelInternal(action, size, batchSize, Span<JobHandle>.Empty);
 
     [AllocatingCompatibility("Allocates managed completion/cancellation state, dependency continuations, and delegate batch wrappers.")]
     public JobHandle EnqueueParallel(Action<int> action, int size, int batchSize = -1,
@@ -303,7 +317,7 @@ public class JobSystem
             _workSemaphore.Release();
         };
 
-        if (dependencies == null || dependencies.Length == 0)
+        if (dependencies.IsEmpty || dependencies.Length == 0)
         {
             enqueueAction();
         }
@@ -312,7 +326,14 @@ public class JobSystem
             var dependenciesCompletion = new JobCompletion(dependencies.Length);
             foreach (var dependency in dependencies)
             {
-                dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                if (dependency.Completion is null)
+                {
+                    dependenciesCompletion.Signal();
+                }
+                else
+                {
+                    dependency.Completion.AddContinuation(() => dependenciesCompletion.Signal());
+                }
             }
             dependenciesCompletion.AddContinuation(enqueueAction);
         }
@@ -321,13 +342,20 @@ public class JobSystem
     }
 
     [AllocatingCompatibility("Allocates managed completion state and continuation delegates for the combined handles.")]
-    public static JobHandle Combine(params JobHandle[] handles)
+    public static JobHandle Combine(params JobHandle[]? handles)
     {
         if (handles == null || handles.Length == 0) return default;
         var completion = new JobCompletion(handles.Length);
         foreach (var handle in handles)
         {
-            handle.Completion.AddContinuation(() => completion.Signal());
+            if (handle.Completion is null)
+            {
+                completion.Signal();
+            }
+            else
+            {
+                handle.Completion.AddContinuation(() => completion.Signal());
+            }
         }
 
         return new JobHandle(completion, null);
