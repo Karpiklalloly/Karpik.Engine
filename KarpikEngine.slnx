@@ -90,6 +90,7 @@
   <Project Path="Karpik.Memory.Benchmarks/Karpik.Memory.Benchmarks.csproj" />
   <Project Path="Karpik.Memory.Tests/Karpik.Memory.Tests.csproj" />
   <Project Path="Karpik.Memory/Karpik.Memory.csproj" />
+  <Project Path="Karpik.Jobs.Benchmarks/Karpik.Jobs.Benchmarks.csproj" />
   <Project Path="Karpik.Jobs.Tests/Karpik.Jobs.Tests.csproj" />
   <Project Path="Karpik.Jobs/Karpik.Jobs.csproj" />
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />

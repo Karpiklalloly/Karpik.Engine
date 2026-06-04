@@ -9,9 +9,9 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 ## Progress
 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 2 of `plans/scheduler-jobs-memory-execplan.md`.
-- [ ] Measure current jobs managed allocation, throughput, and tail latency.
+- [x] (2026-06-04 16:04 +04:00) Measured current delegate-based jobs managed allocation, throughput, and round-trip tail latency in Release with `Karpik.Jobs.Benchmarks`.
 - [x] (2026-06-03 22:36 +04:00) Added focused baseline correctness tests for the current delegate-based `JobSystem`: independent jobs execute exactly once, dependency chains preserve order, fan-out/fan-in complete before dependent work, `EnqueueParallel` covers every index once, exceptions propagate through awaiters, and shutdown rejects new publication with a completed default handle.
-- [ ] Add focused jobs benchmarks.
+- [x] (2026-06-04 16:04 +04:00) Added lightweight jobs benchmark project covering independent jobs, dependency chains, parallel batches, and p50/p95/p99 completion latency at 1/2/4/8 workers.
 - [ ] Add value-type public contracts and native descriptor storage.
 - [ ] Add dependencies, batching, completion, exception reporting, and profiler hooks.
 - [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
@@ -28,6 +28,18 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 
 - Observation: Current completion stores continuations in multicast delegates and owns `ManualResetEventSlim`.
   Evidence: `Karpik.Jobs/JobCompletion.cs`.
+
+- Observation: Current delegate-based independent short jobs allocate about 280-291 B of managed memory per publication on the orchestration thread after warm-up, even when the user job delegate is cached.
+  Evidence: `dotnet run --project Karpik.Jobs.Benchmarks\Karpik.Jobs.Benchmarks.csproj -c Release --no-build` on 2026-06-04 measured 2,800,000-2,915,456 B for 10,000 independent jobs across 1/2/4/8 workers.
+
+- Observation: Current dependency-chain publication allocates about 512 B per chained job after warm-up because every dependency path creates completion and continuation state.
+  Evidence: `Karpik.Jobs.Benchmarks` measured 511,792-511,856 B for 1,000 chain jobs across 1/2/4/8 workers.
+
+- Observation: Current-thread allocation measurements do not include allocations performed by worker threads.
+  Evidence: Benchmark intentionally uses `GC.GetAllocatedBytesForCurrentThread()` to isolate orchestration-thread publication cost.
+
+- Observation: Adding more workers does not monotonically improve current delegate-runtime throughput for tiny jobs; 8-worker independent throughput was lower than 2-worker throughput in the latest baseline run.
+  Evidence: Latest baseline measured about 1,010,581 jobs/s at 2 workers and about 580,659 jobs/s at 8 workers.
 
 ## Decision Log
 
