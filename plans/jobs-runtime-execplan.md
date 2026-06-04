@@ -9,8 +9,9 @@ Replace the managed-allocation-heavy short-job path in `Karpik.Jobs` with a stan
 ## Progress
 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 2 of `plans/scheduler-jobs-memory-execplan.md`.
-- [ ] Measure current jobs correctness, managed allocation, throughput, and tail latency.
-- [ ] Add focused jobs tests and benchmarks.
+- [ ] Measure current jobs managed allocation, throughput, and tail latency.
+- [x] (2026-06-03 22:36 +04:00) Added focused baseline correctness tests for the current delegate-based `JobSystem`: independent jobs execute exactly once, dependency chains preserve order, fan-out/fan-in complete before dependent work, `EnqueueParallel` covers every index once, exceptions propagate through awaiters, and shutdown rejects new publication with a completed default handle.
+- [ ] Add focused jobs benchmarks.
 - [ ] Add value-type public contracts and native descriptor storage.
 - [ ] Add dependencies, batching, completion, exception reporting, and profiler hooks.
 - [ ] Replace `ConcurrentQueue<JobWrapper>` with bounded work-stealing deques.
