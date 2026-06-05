@@ -4,6 +4,29 @@
 
 ## P0 - Runtime Correctness
 
+### Migrate gameplay-loop scheduling to no-GC value jobs
+
+**Problem:** gameplay hot paths must not use delegate-based `JobSystem.Enqueue(...)`. Delegate jobs allocate managed completion/cancellation/continuation/wrapper state and are now explicitly marked as `AllocatingCompatibility`. Regular `Update`, `FixedUpdate`, ECS `Run`, `IEcsRunParallel`, simulation tick, prediction, replication, and server tick scheduling must use the new value-job runtime or a no-GC engine adapter over it.
+
+**Scope:** do not mechanically replace every `Enqueue` call. Migrate only gameplay/frame hot paths first. Keep legacy `JobSystem` for tooling, loading, rare background work, async convenience, and compatibility APIs.
+
+**Affected places:**
+
+- `Modules/Shared/ECS/ECS.Core/IEcsRunParallel.cs`
+- `Modules/Shared/ECS/ECS.Core/SystemExecutionNode.cs`
+- `Karpik.Jobs/JobScheduler.cs`
+- `Karpik.Jobs/JobSystem.cs`
+- `plans/ecs-update-scheduler-execplan.md`
+
+**Acceptance criteria:**
+
+- [ ] ECS/gameplay parallel scheduling no longer publishes frame work through `JobSystem.Enqueue(...)`.
+- [ ] A scheduler adapter hides `JobScheduler` details from gameplay systems.
+- [ ] Job payloads used in the gameplay loop are unmanaged structs with caller-owned native handles/slices/results only.
+- [ ] Delegate `JobSystem` remains available only as an off-hot-path compatibility path.
+- [ ] Allocation tests prove steady-state gameplay/ECS scheduling is `0 B` managed allocation after warm-up.
+- [ ] Tests cover dependencies, conflict/sequential barriers, shutdown/reload quiescence, and worker publication failure diagnostics.
+
 ### Освобождать физические тела при удалении ECS entity
 
 **Проблема:** при удалении сущности ECS связанное тело может остаться в `IPhysicsWorld2D`. На disconnect это оставляет в физическом мире stale body, которое продолжает участвовать в simulation/collision queries без живой gameplay entity.
