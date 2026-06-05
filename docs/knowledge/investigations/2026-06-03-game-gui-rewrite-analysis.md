@@ -1,6 +1,7 @@
 ---
-title: "Analysis of Habr article: why game GUI is rewritten"
+title: "Analysis of Habr articles: why and how game GUI is rewritten"
 date: "2026-06-03"
+updated: "2026-06-05"
 tags:
   - knowledge
   - investigation
@@ -9,17 +10,22 @@ tags:
   - rendering
 ---
 
-# Analysis of Habr Article: Why Game GUI Is Rewritten
+# Analysis of Habr Articles: Why and How Game GUI Is Rewritten
 
 ## Question
 
-What practical architecture lessons should KarpikEngine take from the Habr article "Почему игровой GUI пишут заново (Ч.1)" by Sergei Kushnirenko?
+What practical architecture lessons should KarpikEngine take from Sergei Kushnirenko's Habr articles about why and how game GUI systems are rewritten?
 
-Source: https://habr.com/ru/articles/1039592/
+Sources:
+
+- Part 1, "Почему игровой GUI пишут заново (Ч.1)": https://habr.com/ru/articles/1039592/
+- Part 2, "Как игровой GUI пишут заново (Ч.2)": https://habr.com/ru/articles/1041522/
 
 ## Context
 
-The article surveys why game teams repeatedly rewrite GUI systems. It describes the long-lived retained-mode GUI skeleton used across engines: control trees, reflected properties, property bindings, templates/prefabs, input dispatch, layout constraints, 9-slice rendering, integer pixel alignment, engine abstraction through Bridge-style backends, localization, text rendering, effects, render-to-texture, and diegetic UI.
+The first article surveys why game teams repeatedly rewrite GUI systems. It describes the long-lived retained-mode GUI skeleton used across engines: control trees, reflected properties, property bindings, templates/prefabs, input dispatch, layout constraints, 9-slice rendering, integer pixel alignment, engine abstraction through Bridge-style backends, localization, text rendering, effects, render-to-texture, and diegetic UI.
+
+The second article classifies GUI architecture along independent axes: where UI lives relative to the game world, what function it serves, how it is stored in memory, how data flows into it, how elements are laid out, and how it is rendered. Its practical point is that there is no single correct UI architecture; HUD, menus, prompts, tools, and diegetic screens have different update rates, latency needs, authoring needs, and rendering constraints.
 
 This note evaluates the article through KarpikEngine constraints: real-time suitability, zero avoidable allocations in hot paths, predictable frame cost, clean Client/Shared boundaries, and data-oriented implementation where many UI elements are processed every frame.
 
@@ -55,6 +61,30 @@ This note evaluates the article through KarpikEngine constraints: real-time suit
 
 - Immediate-mode UI is useful for tools/debug panels, but it is not a replacement for authored game UI. Dear ImGui-style rebuilding each frame is acceptable for editor/dev tooling if allocations are controlled, but retained authored UI remains the better basis for production HUD/menu systems.
 
+## Additional Findings From Part 2
+
+- UI function should drive architecture. A HUD has few elements but may update every frame; inventory/settings screens may have many elements but update rarely and often while paused; contextual prompts appear/disappear frequently; diegetic screens need scene integration. One subsystem can share primitives, but one runtime policy for all of these is the wrong abstraction.
+
+- The storage model should be chosen by hot-path profile. Scene graphs are readable and good for authoring, but pointer-heavy. Flat lists and SoA arrays are better for runtime iteration, but hierarchy changes require ordering/indirection. Pure ECS UI is tempting in an ECS engine, but UI hierarchy, clipping, z-order, event capture, and parent-before-child layout fight ECS's preferred flat independent-entity model.
+
+- Retained mode is the right baseline for production UI when paired with dirty flags and cached derived data. Immediate mode is still valuable for tools and debug overlays. Retained-immediate hybrids are attractive for developer ergonomics, but they must compile/diff into a no-GC runtime representation rather than rebuild rich objects every frame.
+
+- MVVM/MVC-style patterns are useful only where the engine provides an efficient binder. For game HUD hot paths, a naive binder based on reflection, strings, notifications, or allocations is worse than direct typed binding slots. MVVM is a good fit for menu-heavy screens and tooling, not for continuously changing world state.
+
+- Reactive/observable UI avoids polling, but a large subscription graph becomes hard to debug and can allocate through delegates, closures, iterators, or async/reactive machinery. For KarpikEngine it should not be the default hot-path dataflow.
+
+- Unidirectional data flow is strong for complex menus, shops, inventory, settings, and meta-game UI because actions and state transitions can be logged and replayed. It is a poor fit for per-frame entity/world state if implemented with immutable state copies or per-change allocations.
+
+- Layout should be tiered. Anchors + offsets are the default for production HUD because they are predictable and cheap. Flex/flow layout is useful for lists and menus if recalculated only on dirty input. General constraint solvers belong in editors/offline preprocessing or rare paused screens, not in frame-critical UI.
+
+- Canvas-style batching is useful but dangerous when one changing element forces a whole canvas rebuild. Dynamic and static UI should be separated into independent invalidation/render groups, similar to Unity sub-canvases: static backgrounds should not rebuild because a timer text changed.
+
+- Layer-based rendering should be a first-class concept, not an afterthought. HUD, fullscreen damage/meta effects, menus, tooltips, debug overlays, render-to-texture UI, and VR compositor layers can require different depth, blend, ordering, and render-target rules.
+
+- Pure SVG/vector UI has unpredictable cost because tessellation depends on shape complexity. SDF/MSDF fonts and distance-field vector-like assets are the better game-engine compromise: fixed atlas cost, predictable shader work, and scalable output.
+
+- GPU-driven UI and shader/fullscreen-pass UI are specialized tools. They make sense when CPU command generation is the bottleneck, when there are thousands of icons/markers, or when the UI is really an effect. They should not be the starting point for ordinary HUD/menu work.
+
 ## KarpikEngine Implications
 
 - Treat GUI as a Client subsystem with explicit interfaces to rendering, input, assets, audio, actions, and localization. Do not let it depend on Server code.
@@ -75,6 +105,17 @@ This note evaluates the article through KarpikEngine constraints: real-time suit
 
 - Split screen-space UI and diegetic/render-to-texture UI early. They can share authoring/layout/text code, but their render scheduling and resource ownership differ enough that a single path will become fragile.
 
+- Define UI profiles explicitly:
+  - HUD: retained runtime, typed bindings, anchors/manual layout, cached text/quads, no allocations.
+  - Menus/inventory/settings: retained authored hierarchy, optional UDF/MVVM-style state layer, flex/flow where useful, dirty-only layout.
+  - Contextual prompts: pooled instances, cheap spawn/despawn, stable atlas/material use.
+  - Debug/tools: ImGui or immediate-mode wrappers are acceptable.
+  - Diegetic UI: separate world/render-to-texture path with explicit depth, transparency, lighting, and update-frequency rules.
+
+- Let ECS feed UI data, but do not make production UI a pure ECS hierarchy. A UI module can read stable snapshots or binding values derived from ECS systems; it should not express every button/label as gameplay ECS entities unless profiling proves that model is better for a narrow case.
+
+- Prefer a layered renderer: static screen UI, dynamic HUD, prompts/tooltips, menus/modals, fullscreen meta effects, debug overlay, and diegetic render targets should be independently invalidated and independently batched.
+
 ## Risks / Things To Challenge
 
 - A classic OOP control hierarchy is easy to build but poor for processing many controls under real-time constraints. If KarpikEngine implements this directly, it should be editor/authoring facing, not the final hot runtime layout.
@@ -85,15 +126,20 @@ This note evaluates the article through KarpikEngine constraints: real-time suit
 
 - Async UI event queues are not automatically bad, but unbounded queues processed at frame end are dangerous. If queues are used, they need budgets, coalescing, and instrumentation.
 
+- Importing web/app patterns directly is risky. MVVM, reactive streams, Redux-style state, flexbox, and constraint solvers are useful in selected UI profiles, but none of them should be allowed to allocate or perform unbounded work inside `Update`, `FixedUpdate`, ECS `Run`, or render command generation.
+
+- A generic "UI canvas" abstraction can hide rebuild costs. Any canvas/render group must expose invalidation metrics: number of dirty elements, rebuilt vertices, rebuilt text runs, draw calls, atlas/material breaks, and time spent in layout/hit/render cache rebuild.
+
 ## Outcome
 
-The article is a useful checklist of features that cause game GUI systems to grow beyond the first simple implementation. For KarpikEngine the main lesson is to separate authoring convenience from runtime execution: retained trees, reflected properties, templates, and string names are good tools for editors and assets, but hot paths should operate on compact cached data, stable ids, explicit dirty flags, and preallocated render/input structures.
+The articles are a useful checklist of features and architectural axes that cause game GUI systems to grow beyond the first simple implementation. For KarpikEngine the main lesson is to separate authoring convenience from runtime execution: retained trees, reflected properties, templates, string names, MVVM-like state, reactive updates, and flexible layout are good tools in the right profile, but hot paths should operate on compact cached data, stable ids, explicit dirty flags, typed bindings, layered invalidation, and preallocated render/input structures.
 
-The technically correct direction is not "rewrite GUI until it feels clean"; it is to define the runtime data model and invalidation model first, then let editor-facing abstractions compile into it.
+The technically correct direction is not "rewrite GUI until it feels clean" or "pick one universal UI paradigm"; it is to define UI profiles, runtime data layout, dataflow rules, layout cost limits, and invalidation boundaries first, then let editor-facing abstractions compile into those constraints.
 
 ## Links
 
-- Source article: https://habr.com/ru/articles/1039592/
+- Source article, part 1: https://habr.com/ru/articles/1039592/
+- Source article, part 2: https://habr.com/ru/articles/1041522/
 - Related subsystem: Client GUI / rendering / input / localization
-- Related code: not inspected for this note
+- Related code: Client GUI candidate; existing Graphics/Input/Text primitives were not changed by this note
 - Related tests: not run; this is a research note
