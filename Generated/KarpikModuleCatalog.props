@@ -69,6 +69,21 @@
     <KarpikModuleDependency Update="Karpik.Jobs">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Jobs\Karpik.Jobs.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Jobs.Benchmarks">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Jobs.Benchmarks\Karpik.Jobs.Benchmarks.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Jobs.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Jobs.Tests\Karpik.Jobs.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Memory">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Memory\Karpik.Memory.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Memory.Benchmarks">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Memory.Benchmarks\Karpik.Memory.Benchmarks.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Memory.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Memory.Tests\Karpik.Memory.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
     <KarpikModuleDependency Update="LoggerModule">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\LoggerModule\LoggerModule.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>

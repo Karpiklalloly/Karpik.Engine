@@ -16,6 +16,7 @@ using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.DragonECS;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.Extensions;
 using Karpik.Engine.Shared.Log;
 using Karpik.Engine.Shared.Modding;
@@ -45,6 +46,7 @@ internal class DemoModuleClient : IModule
     }
 }
 
+[SequentialSystem]
 public class MySystem : ISystemUpdate, ISystemInit
 {
     class Aspect : EcsAspect

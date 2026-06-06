@@ -23,6 +23,7 @@
         <ProjectReference Include="..\..\Dragon\Dragon.csproj" />
         <ProjectReference Include="..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
         <ProjectReference Include="..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
+        <ProjectReference Include="..\..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
         <ProjectReference Include="..\StaticAnalyzer\StaticAnalyzer.csproj" />
     </ItemGroup>
 

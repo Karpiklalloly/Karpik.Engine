@@ -9,10 +9,12 @@ using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
+[SequentialSystem]
 public class DisplaySystem : ISystemUpdate, ISystemInit
 {
     class Aspect : EcsAspect

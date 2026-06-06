@@ -2,12 +2,14 @@ using System.Numerics;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.Physics.Core;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
 /// <summary>
 /// Server-side collision event system - handles collectibles, death zones, finish zones
 /// </summary>
+[SequentialSystem]
 public class ServerCollisionEventSystem : ISystemUpdate
 {
     class PlayerAspect : EcsAspect

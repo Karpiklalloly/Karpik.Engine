@@ -26,7 +26,7 @@ internal static class AnalyzerTestHarness
             assemblyName: "AnalyzerTestAssembly",
             syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references: references,
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
 
         Diagnostic[] compilationErrors = compilation
             .GetDiagnostics()
@@ -45,7 +45,7 @@ internal static class AnalyzerTestHarness
             assemblyName: "AnalyzerMetadataReference",
             syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references: DefaultReferences,
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
 
         Diagnostic[] compilationErrors = compilation
             .GetDiagnostics()

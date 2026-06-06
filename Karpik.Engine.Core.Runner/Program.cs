@@ -274,8 +274,7 @@ public class Program
             
             if (loops >= 5)
             {
-                Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - nextTickTime:F4}s");
-                nextTickTime = currentTime + Application.TICK_DT;
+                Console.WriteLine($"Server overloading! Fixed tick backlog preserved. Lag: {currentTime - nextTickTime:F4}s");
             }
             
             double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;

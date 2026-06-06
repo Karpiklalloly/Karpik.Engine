@@ -134,6 +134,43 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
     }
 
     [Fact]
+    public async Task GenericSourceHelperSubstitutesComponentTypeArguments()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            [Reads<Position>]
+            public sealed class MovementSystem : ISystemUpdate
+            {
+                private EcsDefaultWorld _world;
+
+                public void Update()
+                {
+                    WriteGeneric<Position>();
+                }
+
+                private void WriteGeneric<T>()
+                    where T : struct, IEcsComponent
+                {
+                    var pool = _world.GetPool<T>();
+                    pool.Get(1);
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsAccessSummaryContradiction, diagnostic.Id);
+    }
+
+    [Fact]
     public async Task DelegateInvocationInsideUpdate_IsOpaque()
     {
         var diagnostics = await AnalyzeAsync(
@@ -421,6 +458,27 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
     }
 
     [Fact]
+    public async Task UnsafeAddressOfInsideUpdate_IsOpaque()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using Karpik.Engine.Core;
+
+            public sealed class MovementSystem : ISystemUpdate
+            {
+                public unsafe void Update()
+                {
+                    int value = 0;
+                    int* pointer = &value;
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsOpaqueUpdateAccess, diagnostic.Id);
+    }
+
+    [Fact]
     public async Task DragonWorldGetPool_IsInferredAsWrite()
     {
         var diagnostics = await AnalyzeAsync(
@@ -607,6 +665,269 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(DiagnosticIds.EcsAccessSummaryContradiction, diagnostic.Id);
+    }
+
+    [Fact]
+    public async Task WrappedDefaultWorldWhereReadonlyAspect_IsInferredAsRead()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            [Reads<Position>]
+            public sealed class MovementSystem : ISystemUpdate
+            {
+                private sealed class Aspect : EcsAspect
+                {
+                    public EcsReadonlyPool<Position> Positions = Inc;
+                }
+
+                private DefaultWorld _world;
+
+                public void Update()
+                {
+                    _ = _world.Where(out Aspect aspect);
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task WrappedDefaultWorldWhereMutableAspect_IsInferredAsWrite()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            [Reads<Position>]
+            public sealed class MovementSystem : ISystemUpdate
+            {
+                private sealed class Aspect : EcsAspect
+                {
+                    public EcsPool<Position> Positions = Inc;
+                }
+
+                private DefaultWorld _world;
+
+                public void Update()
+                {
+                    _ = _world.Where(out Aspect aspect);
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsAccessSummaryContradiction, diagnostic.Id);
+    }
+
+    [Theory]
+    [InlineData("_world.Enable<LifecycleComponent>(1, _pool);", "Enable")]
+    [InlineData("_world.AddEnabled<LifecycleComponent>(1, new LifecycleComponent(), _pool);", "AddEnabled")]
+    [InlineData("_world.Disable<LifecycleComponent>(1, _pool);", "Disable")]
+    [InlineData("_world.DelEnabled<LifecycleComponent>(1, _pool);", "DelEnabled")]
+    public async Task WrappedDefaultWorldLifecycleMethods_AreOpaque(string call, string methodName)
+    {
+        var diagnostics = await AnalyzeAsync(
+            $$"""
+            using DCFApixels.DragonECS;
+            using DragonExtensions;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS;
+            using Karpik.Jobs;
+
+            public sealed class MovementSystem : ISystemUpdate
+            {
+                private DefaultWorld _world;
+                private EcsPool<LifecycleComponent> _pool;
+
+                public void Update()
+                {
+                    {{call}}
+                }
+            }
+
+            public struct LifecycleComponent : IEcsComponent, IComponentLifecycleAsync<LifecycleComponent>
+            {
+                public JobHandle<LifecycleComponent> EnableAsync(
+                    LifecycleComponent component,
+                    ComponentLifecycleContext context) => throw null!;
+
+                public JobHandle<LifecycleComponent> DisableAsync(
+                    LifecycleComponent component,
+                    ComponentLifecycleContext context) => throw null!;
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsOpaqueUpdateAccess, diagnostic.Id);
+        Assert.Contains($"lifecycle facade {methodName}", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public async Task MigratedInputRpcUpdateWithoutSequentialSystem_IsOpaque()
+    {
+        var externalSource =
+            """
+            public enum Key
+            {
+                A
+            }
+
+            public sealed class Input
+            {
+                public bool IsDown(Key key) => false;
+            }
+
+            public sealed class Rpc
+            {
+                public void PlatformerInput(PlatformerInputCommand command)
+                {
+                }
+            }
+
+            public struct PlatformerInputCommand
+            {
+                public int Target;
+            }
+            """;
+
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS;
+
+            public sealed class InputSystem : ISystemUpdate
+            {
+                private sealed class Aspect : EcsAspect
+                {
+                    public EcsReadonlyPool<NetworkId> NetworkIds = Inc;
+                }
+
+                private DefaultWorld _world;
+                private Input _input;
+                private Rpc _rpc;
+
+                public void Update()
+                {
+                    if (!_input.IsDown(Key.A))
+                    {
+                        return;
+                    }
+
+                    foreach (var entity in _world.Where(out Aspect aspect))
+                    {
+                        _rpc.PlatformerInput(new PlatformerInputCommand
+                        {
+                            Target = aspect.NetworkIds.Get(entity).Id
+                        });
+                    }
+                }
+            }
+
+            public struct NetworkId : IEcsComponent
+            {
+                public int Id;
+            }
+            """,
+            externalSource);
+
+        Assert.Equal(2, diagnostics.Count);
+        Assert.All(diagnostics, diagnostic => Assert.Equal(DiagnosticIds.EcsOpaqueUpdateAccess, diagnostic.Id));
+        Assert.Contains(diagnostics, diagnostic => diagnostic.GetMessage().Contains("IsDown"));
+        Assert.Contains(diagnostics, diagnostic => diagnostic.GetMessage().Contains("PlatformerInput"));
+    }
+
+    [Fact]
+    public async Task MigratedInputRpcUpdateWithSequentialSystem_IsAccepted()
+    {
+        var externalSource =
+            """
+            public enum Key
+            {
+                A
+            }
+
+            public sealed class Input
+            {
+                public bool IsDown(Key key) => false;
+            }
+
+            public sealed class Rpc
+            {
+                public void PlatformerInput(PlatformerInputCommand command)
+                {
+                }
+            }
+
+            public struct PlatformerInputCommand
+            {
+                public int Target;
+            }
+            """;
+
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            [SequentialSystem]
+            public sealed class InputSystem : ISystemUpdate
+            {
+                private sealed class Aspect : EcsAspect
+                {
+                    public EcsReadonlyPool<NetworkId> NetworkIds = Inc;
+                }
+
+                private DefaultWorld _world;
+                private Input _input;
+                private Rpc _rpc;
+
+                public void Update()
+                {
+                    if (!_input.IsDown(Key.A))
+                    {
+                        return;
+                    }
+
+                    foreach (var entity in _world.Where(out Aspect aspect))
+                    {
+                        _rpc.PlatformerInput(new PlatformerInputCommand
+                        {
+                            Target = aspect.NetworkIds.Get(entity).Id
+                        });
+                    }
+                }
+            }
+
+            public struct NetworkId : IEcsComponent
+            {
+                public int Id;
+            }
+            """,
+            externalSource);
+
+        Assert.Empty(diagnostics);
     }
 
     [Fact]

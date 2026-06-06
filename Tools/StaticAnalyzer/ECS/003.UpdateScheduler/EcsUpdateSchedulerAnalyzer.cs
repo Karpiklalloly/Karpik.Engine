@@ -67,6 +67,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             context.Compilation,
             result,
             visitedMethods,
+            new Dictionary<ITypeSymbol, ITypeSymbol>(SymbolEqualityComparer.Default),
             context.CancellationToken,
             diagnostic => context.ReportDiagnostic(diagnostic));
 
@@ -175,6 +176,14 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
     private static bool TryGetPoolAccess(ITypeSymbol? type, out SchedulerAccess access)
     {
+        return TryGetPoolAccess(type, static componentType => componentType, out access);
+    }
+
+    private static bool TryGetPoolAccess(
+        ITypeSymbol? type,
+        Func<ITypeSymbol, ITypeSymbol> substituteType,
+        out SchedulerAccess access)
+    {
         access = default;
 
         if (type is not INamedTypeSymbol namedType || namedType.TypeArguments.Length != 1)
@@ -190,7 +199,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         if (mode is null || !IsDragonEcsNamespace(namedType.ContainingNamespace))
             return false;
 
-        access = new SchedulerAccess(namedType.TypeArguments[0], mode.Value, null);
+        access = new SchedulerAccess(substituteType(namedType.TypeArguments[0]), mode.Value, null);
         return true;
     }
 
@@ -322,6 +331,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         private readonly Compilation _compilation;
         private readonly AccessAnalysisResult _result;
         private readonly HashSet<ISymbol> _visitedMethods;
+        private readonly IReadOnlyDictionary<ITypeSymbol, ITypeSymbol> _typeSubstitutions;
         private readonly CancellationToken _cancellationToken;
         private readonly Action<Diagnostic> _reportDiagnostic;
 
@@ -330,6 +340,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             Compilation compilation,
             AccessAnalysisResult result,
             HashSet<ISymbol> visitedMethods,
+            IReadOnlyDictionary<ITypeSymbol, ITypeSymbol> typeSubstitutions,
             CancellationToken cancellationToken,
             Action<Diagnostic> reportDiagnostic)
         {
@@ -337,6 +348,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             _compilation = compilation;
             _result = result;
             _visitedMethods = visitedMethods;
+            _typeSubstitutions = typeSubstitutions;
             _cancellationToken = cancellationToken;
             _reportDiagnostic = reportDiagnostic;
         }
@@ -360,9 +372,15 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            if (TryGetPoolAccess(operation.TargetMethod.ContainingType, out SchedulerAccess access))
+            if (TryGetPoolAccess(operation.TargetMethod.ContainingType, SubstituteType, out SchedulerAccess access))
             {
                 _result.Inferred.Add(access);
+                base.VisitInvocation(operation);
+                return;
+            }
+
+            if (TryAddAspectAccesses(operation.TargetMethod))
+            {
                 base.VisitInvocation(operation);
                 return;
             }
@@ -370,6 +388,13 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             if (TryGetWorldFacadeAccess(operation.TargetMethod, out access))
             {
                 _result.Inferred.Add(access);
+                base.VisitInvocation(operation);
+                return;
+            }
+
+            if (IsWorldLifecycleFacadeMethod(operation.TargetMethod))
+            {
+                ReportOpaque(operation.Syntax.GetLocation(), "lifecycle facade " + operation.TargetMethod.Name);
                 base.VisitInvocation(operation);
                 return;
             }
@@ -428,7 +453,62 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             return containingTypeName is "global::System.Math" or "global::System.MathF";
         }
 
-        private static bool TryGetWorldFacadeAccess(IMethodSymbol method, out SchedulerAccess access)
+        private bool TryAddAspectAccesses(IMethodSymbol method)
+        {
+            if (method.Name != "Where" || !IsDragonEcsSpan(method.ReturnType))
+                return false;
+
+            bool foundAspect = false;
+            foreach (ITypeSymbol typeArgument in method.TypeArguments)
+            {
+                ITypeSymbol aspectType = SubstituteType(typeArgument);
+                if (!IsAspectType(aspectType))
+                    continue;
+
+                foundAspect = true;
+                AddAspectAccesses(aspectType);
+            }
+
+            return foundAspect;
+        }
+
+        private void AddAspectAccesses(ITypeSymbol aspectType)
+        {
+            if (aspectType is not INamedTypeSymbol namedAspect)
+                return;
+
+            foreach (IFieldSymbol field in namedAspect.GetMembers().OfType<IFieldSymbol>())
+            {
+                if (field.IsStatic)
+                    continue;
+
+                if (TryGetPoolAccess(field.Type, SubstituteType, out SchedulerAccess access))
+                    _result.Inferred.Add(access);
+            }
+        }
+
+        private static bool IsAspectType(ITypeSymbol type)
+        {
+            if (type is not INamedTypeSymbol namedType)
+                return false;
+
+            for (INamedTypeSymbol? current = namedType; current is not null; current = current.BaseType)
+            {
+                if (current.Name == "EcsAspect" && IsDragonEcsNamespace(current.ContainingNamespace))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsDragonEcsSpan(ITypeSymbol type)
+        {
+            return type is INamedTypeSymbol namedType &&
+                   namedType.Name == "EcsSpan" &&
+                   IsDragonEcsNamespace(namedType.ContainingNamespace);
+        }
+
+        private bool TryGetWorldFacadeAccess(IMethodSymbol method, out SchedulerAccess access)
         {
             access = default;
 
@@ -437,7 +517,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
             if (IsDragonGetPoolMethod(method))
             {
-                access = new SchedulerAccess(method.TypeArguments[0], SchedulerAccessMode.Write, null);
+                access = new SchedulerAccess(SubstituteType(method.TypeArguments[0]), SchedulerAccessMode.Write, null);
                 return true;
             }
 
@@ -457,8 +537,23 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             if (mode is null)
                 return false;
 
-            access = new SchedulerAccess(method.TypeArguments[0], mode.Value, null);
+            access = new SchedulerAccess(SubstituteType(method.TypeArguments[0]), mode.Value, null);
             return true;
+        }
+
+        private static bool IsWorldLifecycleFacadeMethod(IMethodSymbol method)
+        {
+            if (method.TypeArguments.Length != 1)
+                return false;
+
+            if (method.Name is not ("Enable" or "AddEnabled" or "Disable" or "DelEnabled" or
+                "EnableAsync" or "AddEnabledAsync" or "DisableAsync" or "DelEnabledAsync"))
+            {
+                return false;
+            }
+
+            return method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
+                   "global::DragonExtensions.World";
         }
 
         private static bool IsDragonGetPoolMethod(IMethodSymbol method)
@@ -504,6 +599,12 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             base.VisitTypeOf(operation);
         }
 
+        public override void VisitAddressOf(IAddressOfOperation operation)
+        {
+            ReportOpaque(operation.Syntax.GetLocation(), "address-of");
+            base.VisitAddressOf(operation);
+        }
+
         private void VisitSourceMethod(IMethodSymbol method, Location fallbackLocation)
         {
             if (!_visitedMethods.Add(method))
@@ -516,7 +617,65 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            Visit(operation);
+            var sourceWalker = new SchedulerOperationWalker(
+                _systemType,
+                _compilation,
+                _result,
+                _visitedMethods,
+                CreateTypeSubstitutions(method),
+                _cancellationToken,
+                _reportDiagnostic);
+
+            sourceWalker.Visit(operation);
+        }
+
+        private IReadOnlyDictionary<ITypeSymbol, ITypeSymbol> CreateTypeSubstitutions(IMethodSymbol method)
+        {
+            var substitutions = new Dictionary<ITypeSymbol, ITypeSymbol>(SymbolEqualityComparer.Default);
+
+            foreach (var substitution in _typeSubstitutions)
+                substitutions[substitution.Key] = substitution.Value;
+
+            AddTypeSubstitutions(method.ContainingType.TypeParameters, method.ContainingType.TypeArguments, substitutions);
+            AddTypeSubstitutions(method.TypeParameters, method.TypeArguments, substitutions);
+
+            return substitutions;
+        }
+
+        private void AddTypeSubstitutions(
+            ImmutableArray<ITypeParameterSymbol> typeParameters,
+            ImmutableArray<ITypeSymbol> typeArguments,
+            Dictionary<ITypeSymbol, ITypeSymbol> substitutions)
+        {
+            int count = Math.Min(typeParameters.Length, typeArguments.Length);
+            for (int i = 0; i < count; i++)
+            {
+                ITypeSymbol typeArgument = SubstituteType(typeArguments[i]);
+                if (!SymbolEqualityComparer.Default.Equals(typeParameters[i], typeArgument))
+                    substitutions[typeParameters[i]] = typeArgument;
+            }
+        }
+
+        private ITypeSymbol SubstituteType(ITypeSymbol type)
+        {
+            if (_typeSubstitutions.TryGetValue(type, out ITypeSymbol replacement))
+                return replacement;
+
+            if (type is not INamedTypeSymbol namedType || namedType.TypeArguments.Length == 0)
+                return type;
+
+            ITypeSymbol[] substitutedTypeArguments = new ITypeSymbol[namedType.TypeArguments.Length];
+            bool changed = false;
+
+            for (int i = 0; i < substitutedTypeArguments.Length; i++)
+            {
+                ITypeSymbol originalTypeArgument = namedType.TypeArguments[i];
+                ITypeSymbol substitutedTypeArgument = SubstituteType(originalTypeArgument);
+                substitutedTypeArguments[i] = substitutedTypeArgument;
+                changed |= !SymbolEqualityComparer.Default.Equals(originalTypeArgument, substitutedTypeArgument);
+            }
+
+            return changed ? namedType.Construct(substitutedTypeArguments) : type;
         }
 
         private bool IsEcsCapableCall(IInvocationOperation operation)

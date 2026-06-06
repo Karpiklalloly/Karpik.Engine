@@ -2,9 +2,11 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
+[SequentialSystem]
 public class ApplySpriteSystem : ISystemInit, ISystemUpdate
 {
     class Aspect : EcsAspect

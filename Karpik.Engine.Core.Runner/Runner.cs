@@ -1,6 +1,8 @@
 ﻿using System.Reflection;
 using DCFApixels.DragonECS;
+using DragonExtensions;
 using Karpik.Engine.Core.Runner;
+using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.DragonECS;
 
 namespace Karpik.Engine.Core;
@@ -22,9 +24,12 @@ public class EngineRunner : IEngineRunner
     private EcsBeginRunner _beginRunner = null!;
     private EcsFixedRunner _fixedRunner = null!;
     private EcsUpdateRunner _updateRunner = null!;
+    private EcsUpdateScheduler _ecsUpdateScheduler = new();
     private EcsLateRunner _lateRunner = null!;
     private EcsRenderRunner _renderRunner = null!;
     private FixedRunTicker _fixedRunTicker = null!;
+
+    public EcsUpdateSchedulerMode UpdateSchedulerMode { get; set; } = EcsUpdateSchedulerMode.Parallel;
 
     public void RegisterTypes(Type[] types)
     {
@@ -84,6 +89,7 @@ public class EngineRunner : IEngineRunner
             _beginRunner = _pipeline.GetRunner<EcsBeginRunner>();
             _fixedRunner = _pipeline.GetRunner<EcsFixedRunner>();
             _updateRunner = _pipeline.GetRunner<EcsUpdateRunner>();
+            ConfigureEcsUpdateScheduler(_updateRunner);
             _lateRunner = _pipeline.GetRunner<EcsLateRunner>();
             _renderRunner = _pipeline.GetRunner<EcsRenderRunner>();
             _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application);
@@ -98,7 +104,7 @@ public class EngineRunner : IEngineRunner
         _beginRunner.BeginRun();
         _pipeline.Run();
         _fixedRunTicker.FixedRun();
-        _updateRunner.Update();
+        _ecsUpdateScheduler.Update();
         _lateRunner.LateRun();
         _renderRunner.Render();
         
@@ -107,6 +113,7 @@ public class EngineRunner : IEngineRunner
     public void Destroy()
     {
         Destroy(GetModules());
+        _ecsUpdateScheduler.Dispose();
         _pipeline.Destroy();
         _pipeline = null;
         _modules.Clear();
@@ -115,6 +122,7 @@ public class EngineRunner : IEngineRunner
         _nextAssemblyLoadRank = 0;
         _nextRegistrationRank = 0;
         _fixedRunTicker.Destroy();
+        _ecsUpdateScheduler = new EcsUpdateScheduler();
     }
 
     public Dictionary<string, byte[]> GetHotReloadData()
@@ -333,6 +341,80 @@ public class EngineRunner : IEngineRunner
         foreach (var system in newPipeline.AllRunners)
         {
             newServiceProvider.Inject(system.Value);
+        }
+    }
+
+    private void ConfigureEcsUpdateScheduler(EcsUpdateRunner updateRunner)
+    {
+        ISystemUpdate[] systems = ExtractUpdateSystems(updateRunner);
+        EcsUpdateSystemDescriptor[] descriptors = CollectEcsUpdateDescriptors(systems);
+        _ecsUpdateScheduler.Initialize(systems, descriptors, UpdateSchedulerMode);
+    }
+
+    private static ISystemUpdate[] ExtractUpdateSystems(EcsUpdateRunner updateRunner)
+    {
+        var systems = new ISystemUpdate[updateRunner.Process.Length];
+        for (int i = 0; i < updateRunner.Process.Length; i++)
+        {
+            if (updateRunner.Process[i] is not UpdateSystem updateSystem)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported update process '{updateRunner.Process[i].GetType().FullName}'. " +
+                    $"Register Karpik {nameof(ISystemUpdate)} systems through {nameof(Builder)}.");
+            }
+
+            systems[i] = updateSystem.System;
+        }
+
+        return systems;
+    }
+
+    private static EcsUpdateSystemDescriptor[] CollectEcsUpdateDescriptors(ReadOnlySpan<ISystemUpdate> systems)
+    {
+        if (systems.Length == 0)
+        {
+            return [];
+        }
+
+        var assemblies = new HashSet<Assembly>();
+        for (int i = 0; i < systems.Length; i++)
+        {
+            assemblies.Add(systems[i].GetType().Assembly);
+        }
+
+        var descriptors = new List<EcsUpdateSystemDescriptor>();
+        foreach (Assembly assembly in assemblies)
+        {
+            AddProviderDescriptors(assembly, descriptors);
+        }
+
+        return descriptors.ToArray();
+    }
+
+    private static void AddProviderDescriptors(
+        Assembly assembly,
+        List<EcsUpdateSystemDescriptor> descriptors)
+    {
+        Type providerInterface = typeof(IEcsUpdateRegistryProvider);
+        foreach (Type type in assembly.GetTypes())
+        {
+            if (type.IsAbstract || !providerInterface.IsAssignableFrom(type))
+            {
+                continue;
+            }
+
+            var provider = (IEcsUpdateRegistryProvider?)Activator.CreateInstance(type, nonPublic: true);
+            if (provider is null)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to create ECS update registry provider '{type.FullName}'.");
+            }
+
+            ReadOnlySpan<EcsUpdateSystemDescriptor> providerDescriptors = provider.GetUpdateSystems();
+            for (int i = 0; i < providerDescriptors.Length; i++)
+            {
+                descriptors.Add(providerDescriptors[i]);
+            }
         }
     }
 }
