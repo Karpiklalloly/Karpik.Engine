@@ -17,6 +17,16 @@ public sealed class SchedulerMetadataAttributeTests
     }
 
     [Fact]
+    public void MainThreadOnlyAttribute_IsSingleUseClassOrMethodMarker()
+    {
+        AttributeUsageAttribute usage = GetUsage<MainThreadOnlyAttribute>();
+
+        Assert.Equal(AttributeTargets.Class | AttributeTargets.Method, usage.ValidOn);
+        Assert.False(usage.AllowMultiple);
+        Assert.True(usage.Inherited);
+    }
+
+    [Fact]
     public void ReadsAndWritesAttributes_ExposeComponentTypesAndAccessModes()
     {
         EcsAccessAttribute[] attributes = typeof(AccessDecoratedSystem)

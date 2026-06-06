@@ -15,7 +15,12 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 - [x] (2026-06-06 11:57 +04:00) Added scheduler metadata attributes and diagnostics: `SequentialSystemAttribute`, access/order attributes, scheduler diagnostic IDs K003-K008, analyzer release tracking, and descriptor tests.
 - [x] (2026-06-06 12:09 +04:00) Implemented first Roslyn analysis slice for `ISystemUpdate.Update()`: direct `EcsPool<T>` write access, `EcsReadonlyPool<T>` read access, source helper traversal, helper summary validation, delegate/dynamic opaque access, sequential opt-out, and managed-component summary rejection.
 - [x] (2026-06-06 12:25 +04:00) Hardened library-boundary calls: metadata-only methods without `[Reads<T>]` / `[Writes<T>]` now report opaque access, while summarized external helpers and reviewed BCL math calls remain accepted.
-- [ ] Continue Roslyn hardening for unresolved virtual/interface dispatch, unsafe/generic alias edge cases, main-thread-only APIs, reviewed world facade summaries, and migrated-system coverage.
+- [x] (2026-06-06 12:53 +04:00) Hardened unresolved dispatch: virtual/interface calls without scheduler summaries now report opaque access, while summarized interface calls are accepted as explicit contracts.
+- [x] (2026-06-06 12:58 +04:00) Added `[MainThreadOnly]` marker and K006 analyzer enforcement for method/type calls from `ISystemUpdate.Update()`.
+- [x] (2026-06-06 13:02 +04:00) Hardened reflection checks: `typeof(...)` inside scheduled `ISystemUpdate.Update()` now reports opaque access.
+- [x] (2026-06-06 13:07 +04:00) Added first reviewed world facade summaries: Dragon `EcsWorld.GetPool<T>()` / `GetPoolUnchecked<T>()` and wrapper `World.Get<T>()` are inferred as write access instead of opaque calls.
+- [x] (2026-06-06 13:18 +04:00) Extended reviewed wrapper facade summaries: `World.Has<T>()` and `World.TryGet<T>()` infer read access; `World.Add<T>()`, `World.Set<T>()`, `World.Del<T>()`, and `World.Event<T>()` infer write access.
+- [ ] Continue Roslyn hardening for unsafe/generic alias edge cases, lifecycle world facade methods, and migrated-system coverage.
 - [ ] Generate compact metadata registry and per-phase update graph.
 - [ ] Integrate `ISystemUpdate` scheduler with parallel, deterministic, and single-thread modes.
 - [ ] Migrate update systems and quarantine the Dragon prototype.
@@ -46,6 +51,21 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 
 - Observation: Metadata-only helper bodies are invisible to the analyzer, so accepting them without summaries would silently hide ECS access behind a library boundary.
   Evidence: `EcsUpdateSchedulerAnalyzerTests.ExternalMethodWithoutSummary_IsOpaque`.
+
+- Observation: Source virtual methods are not safe to analyze as concrete helper bodies because runtime dispatch may reach an override that is not visible from the call site.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.VirtualSourceMethodWithoutSummary_IsOpaque`.
+
+- Observation: Main-thread-only API must be detected before source-helper traversal or summary handling, otherwise a marked empty helper body could be incorrectly treated as scheduler-safe.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.MainThreadOnlyMethodCallFromUpdate_IsRejected`.
+
+- Observation: Reflection can enter the operation tree without an invocation, so external-call fail-closed logic does not catch `typeof(...)`.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.TypeOfReflectionInsideUpdate_IsOpaque`.
+
+- Observation: Dragon world pool access and Karpik world wrapper access arrive as metadata calls in analyzer tests, so they need reviewed summaries before external-call fail-closed logic.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.DragonWorldGetPool_IsInferredAsWrite` and `EcsUpdateSchedulerAnalyzerTests.WrappedDefaultWorldGet_IsInferredAsWrite`.
+
+- Observation: Wrapper facade methods are also metadata calls in analyzer tests, so unreviewed `World.Has<T>()`, `World.TryGet<T>()`, `World.Add<T>()`, `World.Set<T>()`, `World.Del<T>()`, and `World.Event<T>()` fail closed as opaque access.
+  Evidence: red run of `Tools\StaticAnalyzer.Tests\StaticAnalyzer.Tests.csproj` before extending `TryGetWorldFacadeAccess`, where the new wrapper tests reported `K003`.
 
 ## Decision Log
 
@@ -80,6 +100,33 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 - Decision: External metadata-only calls from `ISystemUpdate.Update()` fail closed unless they carry scheduler access summaries or match a reviewed pure allowlist.
   Rationale: The scheduler must not infer safety from an unavailable method body; explicit summaries make library-boundary ECS access visible to code generation.
   Date/Author: 2026-06-06 / agent
+
+- Decision: Virtual and interface dispatch require explicit scheduler summaries unless the dispatch target is statically sealed.
+  Rationale: The analyzer cannot prove which override will execute, so unsummarized dynamic dispatch is unsafe for parallel scheduling.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: `[MainThreadOnly]` may mark either a method or a type, and any call to it from scheduled `ISystemUpdate.Update()` reports K006.
+  Rationale: Update scheduling must not move graphics or thread-affine work onto worker threads; those operations belong in sequential lifecycle phases.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: Reflection metadata access inside scheduled update code reports K003 unless it is moved into generated/startup metadata construction.
+  Rationale: Runtime reflection obscures access analysis and is not suitable for frame-path scheduler decisions.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: `EcsWorld.GetPool<T>()`, `EcsWorld.GetPoolUnchecked<T>()`, and wrapper `World.Get<T>()` are classified as write access in scheduler analysis.
+  Rationale: These APIs expose mutable component storage or mutable refs; conservative write classification preserves scheduler safety.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: Reviewed wrapper `World.Has<T>()` and `World.TryGet<T>()` are classified as read access, while `World.Add<T>()`, `World.Set<T>()`, `World.Del<T>()`, and `World.Event<T>()` are classified as write access.
+  Rationale: This matches the facade semantics and avoids false opaque diagnostics during migration while keeping mutable/ref-return and event creation paths serialized conservatively.
+  Date/Author: 2026-06-06 / agent
+
+## Future Versions / Backlog
+
+- Future version: Replace most per-method analyzer allowlists and manual access summaries with a generated cross-assembly ECS access manifest.
+  Scope: each compiled module analyzes its source-visible helper/facade methods and emits compact metadata such as method identity, generic component argument mapping, and inferred read/write access. Downstream analyzer runs consume those manifests when a method body is metadata-only.
+  Rationale: Roslyn cannot fully analyze metadata-only methods without a contract, but hand-maintained analyzer switches do not scale. A generated manifest keeps the contract derived from source, preserves fail-closed behavior when metadata is missing or unprovable, and reduces `[Reads<T>]` / `[Writes<T>]` usage to true escape hatches for external or opaque boundaries.
+  Not in 0.5: keep `0.5` focused on fail-closed analysis, generated scheduler metadata, runtime graph integration, and migration. The manifest is a future hardening/simplification step after the first scheduler is accepted.
 
 ## Outcomes & Retrospective
 

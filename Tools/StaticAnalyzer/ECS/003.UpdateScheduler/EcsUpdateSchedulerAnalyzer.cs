@@ -343,6 +343,16 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
         public override void VisitInvocation(IInvocationOperation operation)
         {
+            if (IsMainThreadOnly(operation.TargetMethod))
+            {
+                _reportDiagnostic(Diagnostic.Create(
+                    SchedulerDiagnosticDescriptors.MainThreadOnlyUpdateAccess,
+                    operation.Syntax.GetLocation(),
+                    operation.TargetMethod.Name));
+                base.VisitInvocation(operation);
+                return;
+            }
+
             if (operation.TargetMethod.MethodKind == MethodKind.DelegateInvoke)
             {
                 ReportOpaque(operation.Syntax.GetLocation(), "delegate invocation");
@@ -357,14 +367,31 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
+            if (TryGetWorldFacadeAccess(operation.TargetMethod, out access))
+            {
+                _result.Inferred.Add(access);
+                base.VisitInvocation(operation);
+                return;
+            }
+
             if (HasAccessSummary(operation.TargetMethod))
             {
                 AddAccessSummaries(operation.TargetMethod, _result.Declared);
                 AddAccessSummaries(operation.TargetMethod, _result.Inferred);
 
-                if (IsSourceMethod(operation.TargetMethod))
+                if (!IsUnresolvedDispatch(operation.TargetMethod) &&
+                    IsSourceMethod(operation.TargetMethod))
+                {
                     VisitSourceMethod(operation.TargetMethod, operation.Syntax.GetLocation());
+                }
 
+                base.VisitInvocation(operation);
+                return;
+            }
+
+            if (IsUnresolvedDispatch(operation.TargetMethod))
+            {
+                ReportOpaque(operation.Syntax.GetLocation(), operation.TargetMethod.Name);
                 base.VisitInvocation(operation);
                 return;
             }
@@ -401,10 +428,80 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             return containingTypeName is "global::System.Math" or "global::System.MathF";
         }
 
+        private static bool TryGetWorldFacadeAccess(IMethodSymbol method, out SchedulerAccess access)
+        {
+            access = default;
+
+            if (method.TypeArguments.Length != 1)
+                return false;
+
+            if (IsDragonGetPoolMethod(method))
+            {
+                access = new SchedulerAccess(method.TypeArguments[0], SchedulerAccessMode.Write, null);
+                return true;
+            }
+
+            if (method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) !=
+                "global::DragonExtensions.World")
+            {
+                return false;
+            }
+
+            SchedulerAccessMode? mode = method.Name switch
+            {
+                "Has" or "TryGet" => SchedulerAccessMode.Read,
+                "Get" or "Add" or "Set" or "Del" or "Event" => SchedulerAccessMode.Write,
+                _ => null
+            };
+
+            if (mode is null)
+                return false;
+
+            access = new SchedulerAccess(method.TypeArguments[0], mode.Value, null);
+            return true;
+        }
+
+        private static bool IsDragonGetPoolMethod(IMethodSymbol method)
+        {
+            if (method.Name is not ("GetPool" or "GetPoolUnchecked"))
+                return false;
+
+            return method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
+                   "global::DCFApixels.DragonECS.EcsPoolExtensions";
+        }
+
+        private static bool IsUnresolvedDispatch(IMethodSymbol method)
+        {
+            if (method.ContainingType.TypeKind == TypeKind.Interface)
+                return true;
+
+            if (method.IsAbstract)
+                return true;
+
+            if (method.IsVirtual || method.IsOverride)
+            {
+                return !method.IsSealed && !method.ContainingType.IsSealed;
+            }
+
+            return false;
+        }
+
+        private static bool IsMainThreadOnly(IMethodSymbol method)
+        {
+            return HasAttribute(method, "MainThreadOnlyAttribute") ||
+                   HasAttribute(method.ContainingType, "MainThreadOnlyAttribute");
+        }
+
         public override void VisitDynamicInvocation(IDynamicInvocationOperation operation)
         {
             ReportOpaque(operation.Syntax.GetLocation(), "dynamic invocation");
             base.VisitDynamicInvocation(operation);
+        }
+
+        public override void VisitTypeOf(ITypeOfOperation operation)
+        {
+            ReportOpaque(operation.Syntax.GetLocation(), "typeof");
+            base.VisitTypeOf(operation);
         }
 
         private void VisitSourceMethod(IMethodSymbol method, Location fallbackLocation)
