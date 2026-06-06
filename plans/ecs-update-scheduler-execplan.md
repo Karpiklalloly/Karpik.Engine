@@ -11,9 +11,11 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 ## Progress
 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 3 of `plans/scheduler-jobs-memory-execplan.md`.
-- [ ] Preserve prototype graph tests as baseline evidence.
-- [ ] Add scheduler metadata attributes and diagnostics.
-- [ ] Implement Roslyn analysis for the supported ECS subset.
+- [x] (2026-06-05 23:07 +04:00) Preserved prototype graph behavior as baseline evidence: existing dependency graph tests still pass, and `ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs` now covers read/read overlap, mixed read/write aspect conflicts, unknown-access barrier behavior, and `SystemExecutionNode.Destroy` cleanup.
+- [x] (2026-06-06 11:57 +04:00) Added scheduler metadata attributes and diagnostics: `SequentialSystemAttribute`, access/order attributes, scheduler diagnostic IDs K003-K008, analyzer release tracking, and descriptor tests.
+- [x] (2026-06-06 12:09 +04:00) Implemented first Roslyn analysis slice for `ISystemUpdate.Update()`: direct `EcsPool<T>` write access, `EcsReadonlyPool<T>` read access, source helper traversal, helper summary validation, delegate/dynamic opaque access, sequential opt-out, and managed-component summary rejection.
+- [x] (2026-06-06 12:25 +04:00) Hardened library-boundary calls: metadata-only methods without `[Reads<T>]` / `[Writes<T>]` now report opaque access, while summarized external helpers and reviewed BCL math calls remain accepted.
+- [ ] Continue Roslyn hardening for unresolved virtual/interface dispatch, unsafe/generic alias edge cases, main-thread-only APIs, reviewed world facade summaries, and migrated-system coverage.
 - [ ] Generate compact metadata registry and per-phase update graph.
 - [ ] Integrate `ISystemUpdate` scheduler with parallel, deterministic, and single-thread modes.
 - [ ] Migrate update systems and quarantine the Dragon prototype.
@@ -27,11 +29,23 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 - Observation: Prototype conflict evaluation allocates a temporary `HashSet<Type>` for each compared pair.
   Evidence: `Modules/Shared/ECS/ECS.Core/IEcsRunParallel.cs`.
 
+- Observation: The prototype treats unknown access as a barrier relative to registration order, but later disjoint systems do not depend on each other unless they conflict or cross the unknown node.
+  Evidence: `PrototypeDependencyGraphBaselineTests.DependencyGraph_UnknownAccess_BarriersAllLaterSystemsInRegistrationOrder`.
+
 - Observation: `Builder` currently wraps every `ISystemUpdate` as a sequential Dragon `UpdateSystem`.
   Evidence: `Karpik.Engine.Core.Runner/Builder.cs`.
 
 - Observation: The repository already has both a Roslyn analyzer project and an incremental generator project, but neither currently generates ECS access metadata.
   Evidence: `Tools/StaticAnalyzer` and `Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen`.
+
+- Observation: Scheduler metadata is declarative only; the next milestone must still infer, validate, and emit diagnostics for actual `ISystemUpdate.Update()` bodies.
+  Evidence: `SchedulerMetadataAttributeTests` validates attribute shape, and `SchedulerDiagnosticDescriptorTests` validates descriptor IDs/severity, but no analyzer traversal exists yet.
+
+- Observation: Source helper summaries cannot be trusted as boundaries when the helper body is available; the analyzer must still traverse the source body and reject contradictory summaries.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.SourceHelperSummaryContradictingBody_IsRejected`.
+
+- Observation: Metadata-only helper bodies are invisible to the analyzer, so accepting them without summaries would silently hide ECS access behind a library boundary.
+  Evidence: `EcsUpdateSchedulerAnalyzerTests.ExternalMethodWithoutSummary_IsOpaque`.
 
 ## Decision Log
 
@@ -54,6 +68,18 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 - Decision: Deterministic mode executes the generated graph sequentially in stable topological order.
   Rationale: Replay and diagnostics need a stable control trajectory, not a misleading claim that worker interleaving is deterministic.
   Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Scheduler diagnostics occupy K003-K008 and remain build errors from their first public definition.
+  Rationale: The scheduler contract must fail closed instead of allowing unsafe parallel execution when access or order cannot be proven.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: The first analyzer slice treats `EcsPool<T>` receiver calls as write access and `EcsReadonlyPool<T>` receiver calls as read access.
+  Rationale: This is conservative for scheduler safety and matches Dragon ECS mutability semantics; precise method-level read/write refinement can only reduce serialization later.
+  Date/Author: 2026-06-06 / agent
+
+- Decision: External metadata-only calls from `ISystemUpdate.Update()` fail closed unless they carry scheduler access summaries or match a reviewed pure allowlist.
+  Rationale: The scheduler must not infer safety from an unavailable method body; explicit summaries make library-boundary ECS access visible to code generation.
+  Date/Author: 2026-06-06 / agent
 
 ## Outcomes & Retrospective
 

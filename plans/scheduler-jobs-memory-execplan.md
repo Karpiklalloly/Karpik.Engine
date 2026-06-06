@@ -22,8 +22,8 @@ Do not begin a later child against temporary APIs from unfinished earlier childr
 - [x] (2026-06-02 23:32 +04:00) Initial broad `0.5` draft created from the roadmap and current prototypes.
 - [x] (2026-06-03 00:33 +04:00) Design discussion completed: scope, threading, scheduler safety, graphics ownership, overload behavior, memory primitives, and child-plan order agreed.
 - [x] (2026-06-03 00:33 +04:00) Split the broad draft into one master ExecPlan and four ordered child ExecPlans.
-- [ ] Complete `plans/native-memory-foundation-execplan.md`.
-- [ ] Complete `plans/jobs-runtime-execplan.md`.
+- [x] (2026-06-05 23:07 +04:00) Completed `plans/native-memory-foundation-execplan.md`; `Karpik.Memory` ownership primitives, containers, allocation-budget tests, benchmarks, jobs compatibility migration, and ADR are in place.
+- [x] (2026-06-05 23:07 +04:00) Completed `plans/jobs-runtime-execplan.md`; standalone value jobs runtime, bounded work stealing, worker loops, compatibility boundary, diagnostics, benchmarks, and ADR are in place.
 - [ ] Complete `plans/ecs-update-scheduler-execplan.md`.
 - [ ] Complete `plans/client-threading-render-pipeline-execplan.md`.
 - [ ] Run the `0.5` release gate and update the roadmap and ADRs.
