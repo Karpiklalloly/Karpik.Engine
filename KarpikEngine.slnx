@@ -1,5 +1,13 @@
 <Solution>
   <Folder Name="/first-parties/" />
+  <Folder Name="/first-parties/Karpik.Jobs/">
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Benchmarks/Karpik.Memory.Benchmarks.csproj" />
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Tests/Karpik.Memory.Tests.csproj" />
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Memory/Karpik.Memory.csproj" />
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs.Benchmarks/Karpik.Jobs.Benchmarks.csproj" />
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs.Tests/Karpik.Jobs.Tests.csproj" />
+    <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs/Karpik.Jobs.csproj" />
+  </Folder>
   <Folder Name="/first-parties/Kveldrid/" />
   <Folder Name="/first-parties/Kveldrid/src/">
     <Project Path="first-parties/Kveldrid-spirv/src/Veldrid.SPIRV/Veldrid.SPIRV.csproj" />
@@ -87,12 +95,6 @@
   <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
   <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Benchmarks/Karpik.Memory.Benchmarks.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Tests/Karpik.Memory.Tests.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Memory/Karpik.Memory.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs.Benchmarks/Karpik.Jobs.Benchmarks.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs.Tests/Karpik.Jobs.Tests.csproj" />
-  <Project Path="first-parties/Karpik.Jobs/Karpik.Jobs/Karpik.Jobs.csproj" />
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
   <Project Path="ServerLauncher/ServerLauncher.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />

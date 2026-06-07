@@ -27,6 +27,7 @@
       <KarpikModuleDependency Include="Veldrid.SDL2" />
       <KarpikModuleDependency Include="Veldrid.ImGui" />
       <KarpikModuleDependency Include="Window" />
+      <KarpikModuleDependency Include="Karpik.Jobs" />
     </ItemGroup>
 
     <ItemGroup>
