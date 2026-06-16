@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/first-parties/Karpik.Jobs" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid-spirv" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid-spirv/ext/SPIRV-Cross" vcs="Git" />
