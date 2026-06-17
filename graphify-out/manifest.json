@@ -1,0 +1,3387 @@
+{
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\hooks.json": {
+    "mtime": 1781631174.5539405,
+    "ast_hash": "7ac762362257f50e4bb122867202ab54",
+    "semantic_hash": "7ac762362257f50e4bb122867202ab54"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ClientLauncher\\ClientLauncher.csproj": {
+    "mtime": 1780427295.0983496,
+    "ast_hash": "55ee62d05013cb1c931c0e86befa1b89",
+    "semantic_hash": "55ee62d05013cb1c931c0e86befa1b89"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ClientLauncher\\Program.cs": {
+    "mtime": 1780427295.0993671,
+    "ast_hash": "b4cf71eafc2ab19299b44130cfc67d15",
+    "semantic_hash": "b4cf71eafc2ab19299b44130cfc67d15"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator.Tests\\Configurator.Tests.csproj": {
+    "mtime": 1780427349.0176246,
+    "ast_hash": "062730c833ec4f3c492633c378b287c0",
+    "semantic_hash": "062730c833ec4f3c492633c378b287c0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator.Tests\\ConfiguratorTests.cs": {
+    "mtime": 1780427349.018657,
+    "ast_hash": "409167ece1a34ee74b5ae3c1d677ad0d",
+    "semantic_hash": "409167ece1a34ee74b5ae3c1d677ad0d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\ArtifactGenerator.cs": {
+    "mtime": 1780427349.0196679,
+    "ast_hash": "ac31076052a927c5b42e629fc1dc29cd",
+    "semantic_hash": "ac31076052a927c5b42e629fc1dc29cd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\Configurator.csproj": {
+    "mtime": 1780427295.0993671,
+    "ast_hash": "b647dc15fab58e6992174448b97572a2",
+    "semantic_hash": "b647dc15fab58e6992174448b97572a2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\GraphValidator.cs": {
+    "mtime": 1780427349.0196679,
+    "ast_hash": "1f5b0741c334e23abd820277140577ec",
+    "semantic_hash": "1f5b0741c334e23abd820277140577ec"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\Models.cs": {
+    "mtime": 1780427349.0206764,
+    "ast_hash": "ca99bf8be4c115038cf19adcf83b0acf",
+    "semantic_hash": "ca99bf8be4c115038cf19adcf83b0acf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\Program.cs": {
+    "mtime": 1780427349.0217118,
+    "ast_hash": "d71233fce650e19634be39d934c26de8",
+    "semantic_hash": "d71233fce650e19634be39d934c26de8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Configurator\\RepositoryParser.cs": {
+    "mtime": 1780427349.0217118,
+    "ast_hash": "7bb795a87369aaf4e2d374d18ac6ec48",
+    "semantic_hash": "7bb795a87369aaf4e2d374d18ac6ec48"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\ComponentLifecycleContext.cs": {
+    "mtime": 1780427349.028268,
+    "ast_hash": "7ce20f9f633cebcd04a16ea8c283a592",
+    "semantic_hash": "7ce20f9f633cebcd04a16ea8c283a592"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\ComponentLifecycleException.cs": {
+    "mtime": 1780427349.0292842,
+    "ast_hash": "6ab8a1d64520d09c4a7a89ac58573aaa",
+    "semantic_hash": "6ab8a1d64520d09c4a7a89ac58573aaa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\DragonExtensions.csproj": {
+    "mtime": 1780855229.8851087,
+    "ast_hash": "c445224a1f91d448eb93da29b1b933db",
+    "semantic_hash": "c445224a1f91d448eb93da29b1b933db"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\EcsRunners\\EventCallerWrapper.cs": {
+    "mtime": 1780427349.0302925,
+    "ast_hash": "fcdc6369b25fbfd2d07114a5849554ef",
+    "semantic_hash": "fcdc6369b25fbfd2d07114a5849554ef"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\EcsRunners\\EventCallers.cs": {
+    "mtime": 1780427349.0312986,
+    "ast_hash": "c756650007cbf0cdaa87f0f4229bf2f2",
+    "semantic_hash": "c756650007cbf0cdaa87f0f4229bf2f2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\EcsRunners\\LifeCycleRunners.cs": {
+    "mtime": 1780427349.0312986,
+    "ast_hash": "bcee406959ed27ce76260b72fd2c68a4",
+    "semantic_hash": "bcee406959ed27ce76260b72fd2c68a4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\EntityBuilder.cs": {
+    "mtime": 1780427349.0324216,
+    "ast_hash": "3d588d3ba429c0ece7611dbefa16a0bc",
+    "semantic_hash": "3d588d3ba429c0ece7611dbefa16a0bc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\GlobalUsings.cs": {
+    "mtime": 1780427349.0324216,
+    "ast_hash": "6489852c37853e87a53e67c5184dd79c",
+    "semantic_hash": "6489852c37853e87a53e67c5184dd79c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\IComponentLifecycleAsync.cs": {
+    "mtime": 1780427349.033429,
+    "ast_hash": "f2bb284125ef239ab44ea0a6c240105a",
+    "semantic_hash": "f2bb284125ef239ab44ea0a6c240105a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\LifeCycleBridge.cs": {
+    "mtime": 1780752731.153633,
+    "ast_hash": "5da3805d45eff4f745f49dd42bbad307",
+    "semantic_hash": "5da3805d45eff4f745f49dd42bbad307"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\StaticExtensions.cs": {
+    "mtime": 1780427349.0344386,
+    "ast_hash": "3c6fbcb10ac5cecdb49666e253c2464c",
+    "semantic_hash": "3c6fbcb10ac5cecdb49666e253c2464c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\DragonExtensions\\World.cs": {
+    "mtime": 1780427349.035447,
+    "ast_hash": "6a2df42e631af5b11c7b9060c539b02b",
+    "semantic_hash": "6a2df42e631af5b11c7b9060c539b02b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Builtin\\Aspects.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "ba6a04fc5b4aba01dd4c2ad4c31ed832",
+    "semantic_hash": "ba6a04fc5b4aba01dd4c2ad4c31ed832"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Builtin\\BaseProcesses.cs": {
+    "mtime": 1780427295.1013806,
+    "ast_hash": "6e67bb621ab85579aa3eb0fe4deb96d5",
+    "semantic_hash": "6e67bb621ab85579aa3eb0fe4deb96d5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Builtin\\Worlds.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "713ae29ed20f1e62c84117f0d44af587",
+    "semantic_hash": "713ae29ed20f1e62c84117f0d44af587"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Collections\\EcsGroup.cs": {
+    "mtime": 1780427295.1027577,
+    "ast_hash": "e618a5befca522a094663e849efb3654",
+    "semantic_hash": "e618a5befca522a094663e849efb3654"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Collections\\EcsSpan.cs": {
+    "mtime": 1780427295.1037788,
+    "ast_hash": "3ac1a7d14aab2bd1d1a6ff8fb5af409d",
+    "semantic_hash": "3ac1a7d14aab2bd1d1a6ff8fb5af409d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Consts.cs": {
+    "mtime": 1780427295.104789,
+    "ast_hash": "909b598bb9eedb54fbf8bd4aa2277b48",
+    "semantic_hash": "909b598bb9eedb54fbf8bd4aa2277b48"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DataInterfaces.cs": {
+    "mtime": 1780427295.104789,
+    "ast_hash": "ec1870ff73c5df6d0cf09946e2732388",
+    "semantic_hash": "ec1870ff73c5df6d0cf09946e2732388"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\EcsDebug.cs": {
+    "mtime": 1780427295.1057973,
+    "ast_hash": "a5f9b7c02d408d6267357593f6f04177",
+    "semantic_hash": "a5f9b7c02d408d6267357593f6f04177"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\EcsDebugUtility.cs": {
+    "mtime": 1780427349.0237257,
+    "ast_hash": "9b4d822c8a7f3ad1f0f0406cd4286afd",
+    "semantic_hash": "9b4d822c8a7f3ad1f0f0406cd4286afd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\Interfaces\\IEcsTypeMetaProvider.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "b62e05379a6e31870468f37df45104c5",
+    "semantic_hash": "b62e05379a6e31870468f37df45104c5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\EcsMetaAttribute.cs": {
+    "mtime": 1769937731.0840404,
+    "ast_hash": "97fea4c28b2f8a1249c68d65fe11a4f3",
+    "semantic_hash": "97fea4c28b2f8a1249c68d65fe11a4f3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaColorAttribute.cs": {
+    "mtime": 1769937731.0853548,
+    "ast_hash": "b44a9a0a941e871251f6dc92ebd723c1",
+    "semantic_hash": "b44a9a0a941e871251f6dc92ebd723c1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaDescriptionAttribute.cs": {
+    "mtime": 1769937731.086361,
+    "ast_hash": "9374fecefce3bc4107bf1d523d3912ff",
+    "semantic_hash": "9374fecefce3bc4107bf1d523d3912ff"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaGroupAttribute.cs": {
+    "mtime": 1769937731.0874016,
+    "ast_hash": "19b179fb038f39e3fd43c2aa73099702",
+    "semantic_hash": "19b179fb038f39e3fd43c2aa73099702"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaIDAttribute.cs": {
+    "mtime": 1769937731.0874016,
+    "ast_hash": "ee63ed67633addd2cddedbd22922668e",
+    "semantic_hash": "ee63ed67633addd2cddedbd22922668e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaNameAttribute.cs": {
+    "mtime": 1769937731.0887785,
+    "ast_hash": "fad8d013ac8fac81c99cec367b1b26d1",
+    "semantic_hash": "fad8d013ac8fac81c99cec367b1b26d1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\MetaAttributes\\MetaTagsAttribute.cs": {
+    "mtime": 1769937731.0887785,
+    "ast_hash": "c1c209f8af683fb27c9af3338f706a76",
+    "semantic_hash": "c1c209f8af683fb27c9af3338f706a76"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\DebugUtils\\TypeMeta.cs": {
+    "mtime": 1780427295.1057973,
+    "ast_hash": "1af686c87a62f2f024553e7742b97523",
+    "semantic_hash": "1af686c87a62f2f024553e7742b97523"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Dragon.csproj": {
+    "mtime": 1780427349.0252347,
+    "ast_hash": "f4286db7ec1073e5d91682f2273cfbf0",
+    "semantic_hash": "f4286db7ec1073e5d91682f2273cfbf0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsAspect.cs": {
+    "mtime": 1780427295.1083167,
+    "ast_hash": "8696a027f4f7458b17af23ad3f347a5f",
+    "semantic_hash": "8696a027f4f7458b17af23ad3f347a5f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsMask.cs": {
+    "mtime": 1780427295.1088219,
+    "ast_hash": "fdf031dc98ab48cde3e5b20cbf9cd124",
+    "semantic_hash": "fdf031dc98ab48cde3e5b20cbf9cd124"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsPipeline.Builder.cs": {
+    "mtime": 1780427295.1103036,
+    "ast_hash": "729d4c95f2ea5fcd971dfe684eb3d49d",
+    "semantic_hash": "729d4c95f2ea5fcd971dfe684eb3d49d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsPipeline.cs": {
+    "mtime": 1780427295.1113195,
+    "ast_hash": "fb1dc40770b7c36f36973913abbdfa32",
+    "semantic_hash": "fb1dc40770b7c36f36973913abbdfa32"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsRunner.cs": {
+    "mtime": 1780427295.1123273,
+    "ast_hash": "f3802a2d2e0008189904ba0643468527",
+    "semantic_hash": "f3802a2d2e0008189904ba0643468527"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsStaticCleaner.cs": {
+    "mtime": 1780427295.1123273,
+    "ast_hash": "e43e00c0fcb402c3fbb118b06848c85e",
+    "semantic_hash": "e43e00c0fcb402c3fbb118b06848c85e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsStaticMask.cs": {
+    "mtime": 1780427295.1133316,
+    "ast_hash": "b45b6b2f72d4a21b45fc00e0e6324bbd",
+    "semantic_hash": "b45b6b2f72d4a21b45fc00e0e6324bbd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsWorld.cache.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "12e36aed6c1e169ec804f2cae57a583c",
+    "semantic_hash": "12e36aed6c1e169ec804f2cae57a583c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsWorld.cs": {
+    "mtime": 1780427295.1133316,
+    "ast_hash": "6a54520ba461f5b9122c636b9c9d5be8",
+    "semantic_hash": "6a54520ba461f5b9122c636b9c9d5be8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsWorld.pools.cs": {
+    "mtime": 1769937868.1989772,
+    "ast_hash": "4652e5ae5e441da920db3bcc644b7182",
+    "semantic_hash": "4652e5ae5e441da920db3bcc644b7182"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\EcsWorld.static.cs": {
+    "mtime": 1780427295.1143947,
+    "ast_hash": "15d287d31a7f9b9ce17832da3ec34acf",
+    "semantic_hash": "15d287d31a7f9b9ce17832da3ec34acf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Executors\\EcsWhereExecutor.cs": {
+    "mtime": 1763953569.1543767,
+    "ast_hash": "d78976d0553f76dd14c3980da62d85f5",
+    "semantic_hash": "d78976d0553f76dd14c3980da62d85f5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Executors\\EcsWhereToGroupExecutor.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "0544d8899e75cb826e65970c3ca4b8c8",
+    "semantic_hash": "0544d8899e75cb826e65970c3ca4b8c8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Executors\\MaskQueryExecutor.cs": {
+    "mtime": 1780427295.1154027,
+    "ast_hash": "6b54be05c0f0d7f26f3bb6ac746f22c8",
+    "semantic_hash": "6b54be05c0f0d7f26f3bb6ac746f22c8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Executors\\Queries.cs": {
+    "mtime": 1780427295.1165016,
+    "ast_hash": "9279313ea6ea0fba5cb6baa7eca306fd",
+    "semantic_hash": "9279313ea6ea0fba5cb6baa7eca306fd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Injections\\EcsPipelineExtensions.cs": {
+    "mtime": 1780427295.1170082,
+    "ast_hash": "bc9c4f40759fe7393739bc7f094b907b",
+    "semantic_hash": "bc9c4f40759fe7393739bc7f094b907b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Injections\\Graph\\InjectionBranch.cs": {
+    "mtime": 1780427295.1180387,
+    "ast_hash": "ef3cc73544f29af8a46dc0c891827ae3",
+    "semantic_hash": "ef3cc73544f29af8a46dc0c891827ae3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Injections\\Graph\\InjectionNode.cs": {
+    "mtime": 1780427295.11906,
+    "ast_hash": "5eb72f3d7567eb48d0560645a75ee573",
+    "semantic_hash": "5eb72f3d7567eb48d0560645a75ee573"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Injections\\Injector.cs": {
+    "mtime": 1780427295.11906,
+    "ast_hash": "3ea0a2130f68919c6a9b5372558951e1",
+    "semantic_hash": "3ea0a2130f68919c6a9b5372558951e1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Injections\\Utils\\Interfaces.cs": {
+    "mtime": 1769937780.1901603,
+    "ast_hash": "615e3266c14bcee809fa5d1853fa285e",
+    "semantic_hash": "615e3266c14bcee809fa5d1853fa285e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\Allocators\\AllocatorUtility.cs": {
+    "mtime": 1780427295.1200678,
+    "ast_hash": "9146612ed25b094f9544799ce25696b8",
+    "semantic_hash": "9146612ed25b094f9544799ce25696b8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\Allocators\\MemoryAllocator.cs": {
+    "mtime": 1780427349.0252347,
+    "ast_hash": "6524c7c3f37a4f1880f0990058f482a9",
+    "semantic_hash": "6524c7c3f37a4f1880f0990058f482a9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\Allocators\\TempBuffer.cs": {
+    "mtime": 1780427295.1210756,
+    "ast_hash": "d7ac383caaf34bf49ffc26ffa5245ee5",
+    "semantic_hash": "d7ac383caaf34bf49ffc26ffa5245ee5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\ArraySortHalperX.cs": {
+    "mtime": 1780427295.1220803,
+    "ast_hash": "0b7b7e6c12214c67bce0f13969faa007",
+    "semantic_hash": "0b7b7e6c12214c67bce0f13969faa007"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\ArrayUtility.cs": {
+    "mtime": 1780427295.1220803,
+    "ast_hash": "922b8a1a2344dea8875e94b84500eee7",
+    "semantic_hash": "922b8a1a2344dea8875e94b84500eee7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\BitsUtility.cs": {
+    "mtime": 1780427295.1235077,
+    "ast_hash": "0b49bd15bd39942305068513f973d648",
+    "semantic_hash": "0b49bd15bd39942305068513f973d648"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\EcsTypeCodeManager.cs": {
+    "mtime": 1780427295.1245146,
+    "ast_hash": "fb361b3e23b361ce1839d4efcff49465",
+    "semantic_hash": "fb361b3e23b361ce1839d4efcff49465"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\IdDispenser.cs": {
+    "mtime": 1780427295.1255183,
+    "ast_hash": "230eea3d8a8e2a9ae039e545caab506f",
+    "semantic_hash": "230eea3d8a8e2a9ae039e545caab506f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\ReflectionUtility.cs": {
+    "mtime": 1780427295.1255183,
+    "ast_hash": "8292d1ee39be45737dc51e8bee5e1b29",
+    "semantic_hash": "8292d1ee39be45737dc51e8bee5e1b29"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\SparseArray.cs": {
+    "mtime": 1780427295.1255183,
+    "ast_hash": "d98550f8ffa8b72eefbaf5879b9f3fba",
+    "semantic_hash": "d98550f8ffa8b72eefbaf5879b9f3fba"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\StructList.cs": {
+    "mtime": 1780427295.1270964,
+    "ast_hash": "da8f22900be90d00dced739aa7757d6b",
+    "semantic_hash": "da8f22900be90d00dced739aa7757d6b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Internal\\UnsafeArray.cs": {
+    "mtime": 1780427295.1270964,
+    "ast_hash": "652c212b354668fe2f5146b5028a7305",
+    "semantic_hash": "652c212b354668fe2f5146b5028a7305"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Pools\\EcsPool.cs": {
+    "mtime": 1780427349.026259,
+    "ast_hash": "53f870d49d885c419e876a688262bfed",
+    "semantic_hash": "53f870d49d885c419e876a688262bfed"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Pools\\EcsPoolBase.cs": {
+    "mtime": 1780427295.1291294,
+    "ast_hash": "40f44625c72579c8b244889e28613660",
+    "semantic_hash": "40f44625c72579c8b244889e28613660"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Pools\\EcsTagPool.cs": {
+    "mtime": 1780427295.1291294,
+    "ast_hash": "93d17f23997369f2f3fd1e5109c840c8",
+    "semantic_hash": "93d17f23997369f2f3fd1e5109c840c8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\AllowedInWorldsAttribute.cs": {
+    "mtime": 1780427295.1305132,
+    "ast_hash": "86b3809a0f013c222225b8d32991387c",
+    "semantic_hash": "86b3809a0f013c222225b8d32991387c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\DependencyGraph.cs": {
+    "mtime": 1780427295.131519,
+    "ast_hash": "9542bc9e98714edd8d69846350051ba7",
+    "semantic_hash": "9542bc9e98714edd8d69846350051ba7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\EcsPipelineTemplate.cs": {
+    "mtime": 1780427295.132544,
+    "ast_hash": "3e8a2dfa4c28fa99f55df96afb9624a1",
+    "semantic_hash": "3e8a2dfa4c28fa99f55df96afb9624a1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\EcsTypeCode.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "f50fe5c6432dff32aefe7e9b66d68d49",
+    "semantic_hash": "f50fe5c6432dff32aefe7e9b66d68d49"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\Exceptions.cs": {
+    "mtime": 1780427295.1335456,
+    "ast_hash": "a50732192d56915afd64b2162c126a53",
+    "semantic_hash": "a50732192d56915afd64b2162c126a53"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\IConfigContainer.cs": {
+    "mtime": 1780427295.1340508,
+    "ast_hash": "9715cbf3c748a7f636848544905c20fd",
+    "semantic_hash": "9715cbf3c748a7f636848544905c20fd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\ITemplateNode.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "29e8db33fea19aa23d65189105612b62",
+    "semantic_hash": "29e8db33fea19aa23d65189105612b62"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\LayersMap.cs": {
+    "mtime": 1780427295.1340508,
+    "ast_hash": "7c8bcf6cb04b87ffa71947006a2d5276",
+    "semantic_hash": "7c8bcf6cb04b87ffa71947006a2d5276"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\ReadOnlySpanDummy.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "00b95fe4797d41eca5e4743d25c9e065",
+    "semantic_hash": "00b95fe4797d41eca5e4743d25c9e065"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\Uncheked\\EntitiesMatrix.cs": {
+    "mtime": 1756194611.0,
+    "ast_hash": "d60d78164c16ba85886fd8ac18a94582",
+    "semantic_hash": "d60d78164c16ba85886fd8ac18a94582"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\Uncheked\\EntitySlotInfo.cs": {
+    "mtime": 1780427295.1350577,
+    "ast_hash": "40d1a31571e42c8e1058206b4bb04af1",
+    "semantic_hash": "40d1a31571e42c8e1058206b4bb04af1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\Utils\\Uncheked\\UncheckedUtility.cs": {
+    "mtime": 1780427295.1360877,
+    "ast_hash": "c86a74e899947a76e785599857d6c138",
+    "semantic_hash": "c86a74e899947a76e785599857d6c138"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\entlong.cs": {
+    "mtime": 1780427295.1371176,
+    "ast_hash": "a67ce42179e66b46dd23bd5a3441dd9b",
+    "semantic_hash": "a67ce42179e66b46dd23bd5a3441dd9b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ECS.Core.Tests\\ECS.Core.Tests.csproj": {
+    "mtime": 1780427349.035447,
+    "ast_hash": "3d93e5ca8c409fd93f33bff4bb40e08f",
+    "semantic_hash": "3d93e5ca8c409fd93f33bff4bb40e08f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ECS.Core.Tests\\EcsUpdateGraphBuilderTests.cs": {
+    "mtime": 1780751930.1313725,
+    "ast_hash": "e4e5b46d478407e5ba0cdb0f8f3d2434",
+    "semantic_hash": "e4e5b46d478407e5ba0cdb0f8f3d2434"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ECS.Core.Tests\\Program.cs": {
+    "mtime": 1780427349.0364535,
+    "ast_hash": "2afc34c82860bf90e44499c42735b846",
+    "semantic_hash": "2afc34c82860bf90e44499c42735b846"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ECS.Core.Tests\\PrototypeDependencyGraphBaselineTests.cs": {
+    "mtime": 1780686436.1240995,
+    "ast_hash": "961b405dcdcdfaffbc8639139cbe56e7",
+    "semantic_hash": "961b405dcdcdfaffbc8639139cbe56e7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ECS.Core.Tests\\SchedulerMetadataAttributeTests.cs": {
+    "mtime": 1780736124.5305905,
+    "ast_hash": "af98be91a3ea8e2095b1ac5b5a9a5077",
+    "semantic_hash": "af98be91a3ea8e2095b1ac5b5a9a5077"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Client.Publish\\Client.cs": {
+    "mtime": 1780427295.1391618,
+    "ast_hash": "0c5a1d2198fd5e194f214f50b1e7809e",
+    "semantic_hash": "0c5a1d2198fd5e194f214f50b1e7809e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Client.Publish\\Karpik.Engine.Client.Publish.csproj": {
+    "mtime": 1780427295.1391618,
+    "ast_hash": "7fe031b11cbbd819bc146d6eac1be1e4",
+    "semantic_hash": "7fe031b11cbbd819bc146d6eac1be1e4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Generator\\Karpik.Engine.Core.Codegen\\EcsUpdateRegistryGenerator.cs": {
+    "mtime": 1780751294.7782233,
+    "ast_hash": "290320881cce5ce1d1e68bef47eba188",
+    "semantic_hash": "290320881cce5ce1d1e68bef47eba188"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Generator\\Karpik.Engine.Core.Codegen\\Karpik.Engine.Core.Codegen.csproj": {
+    "mtime": 1780427295.1401794,
+    "ast_hash": "081cb20094d14f858cb0bb796b4e708d",
+    "semantic_hash": "081cb20094d14f858cb0bb796b4e708d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Generator\\Karpik.Engine.Core.Codegen\\ModuleRegistratorGenerator.cs": {
+    "mtime": 1780427295.1401794,
+    "ast_hash": "3b3d5b3f1b72f6b2637432d46c4a4c84",
+    "semantic_hash": "3b3d5b3f1b72f6b2637432d46c4a4c84"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Generator\\Karpik.Engine.Core.Codegen\\Properties\\launchSettings.json": {
+    "mtime": 1780427295.1411858,
+    "ast_hash": "48fef689dc111dabb4fd5e0f0fd2f809",
+    "semantic_hash": "48fef689dc111dabb4fd5e0f0fd2f809"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner.Tests\\EcsUpdateSchedulerRuntimeTests.cs": {
+    "mtime": 1780753025.2806273,
+    "ast_hash": "452c950390ce6a2de63fdc5342fec6b5",
+    "semantic_hash": "452c950390ce6a2de63fdc5342fec6b5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner.Tests\\Karpik.Engine.Core.Runner.Tests.csproj": {
+    "mtime": 1780752857.5107489,
+    "ast_hash": "e1219ecaa1e0529e05736f31e4a45d6a",
+    "semantic_hash": "e1219ecaa1e0529e05736f31e4a45d6a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner.Tests\\Program.cs": {
+    "mtime": 1780427349.0403516,
+    "ast_hash": "668089fef38b8b5d489b360192205387",
+    "semantic_hash": "668089fef38b8b5d489b360192205387"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\Builder.cs": {
+    "mtime": 1780427349.0415244,
+    "ast_hash": "a9c3582eae1a05ca12942d737a549991",
+    "semantic_hash": "a9c3582eae1a05ca12942d737a549991"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\CustomLayers.cs": {
+    "mtime": 1780427295.1421907,
+    "ast_hash": "50a4b64fdd9e288d1ec7144428165c63",
+    "semantic_hash": "50a4b64fdd9e288d1ec7144428165c63"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\EcsServiceProvider.cs": {
+    "mtime": 1780427349.0415244,
+    "ast_hash": "35b8c1f6530826561afaabc7dd3e432b",
+    "semantic_hash": "35b8c1f6530826561afaabc7dd3e432b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\FixedRunTicker.cs": {
+    "mtime": 1780427349.0415244,
+    "ast_hash": "35ae2ab3786ad50e6975fe18ad58dd05",
+    "semantic_hash": "35ae2ab3786ad50e6975fe18ad58dd05"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\JobSystemModule.cs": {
+    "mtime": 1780427349.0430312,
+    "ast_hash": "ad6ec44039ceacf08797b3815dfd9de8",
+    "semantic_hash": "ad6ec44039ceacf08797b3815dfd9de8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\JobSystems.cs": {
+    "mtime": 1780427295.144335,
+    "ast_hash": "6140f0c67d5b34d1376d71f18fd58ac4",
+    "semantic_hash": "6140f0c67d5b34d1376d71f18fd58ac4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\Karpik.Engine.Core.Runner.csproj": {
+    "mtime": 1780427349.044095,
+    "ast_hash": "cbb8f91770980b9d2f224ea9f8f9087c",
+    "semantic_hash": "cbb8f91770980b9d2f224ea9f8f9087c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\Program.cs": {
+    "mtime": 1780753102.4959805,
+    "ast_hash": "48b366b77a818ab8408b515ff4a1a7af",
+    "semantic_hash": "48b366b77a818ab8408b515ff4a1a7af"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\Properties\\launchSettings.json": {
+    "mtime": 1780427295.147338,
+    "ast_hash": "ae45405f0d921f78b69df344a7a2eea6",
+    "semantic_hash": "ae45405f0d921f78b69df344a7a2eea6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core.Runner\\Runner.cs": {
+    "mtime": 1780752825.421024,
+    "ast_hash": "5a710bd7064f6c4e1bb9862408580725",
+    "semantic_hash": "5a710bd7064f6c4e1bb9862408580725"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Application.cs": {
+    "mtime": 1780427349.047329,
+    "ast_hash": "f1c2318318ed963352f5d5d2c8647c2a",
+    "semantic_hash": "f1c2318318ed963352f5d5d2c8647c2a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Bootstrap.cs": {
+    "mtime": 1780427349.047329,
+    "ast_hash": "56e1a91e8b8d87a18058fb2814ce00df",
+    "semantic_hash": "56e1a91e8b8d87a18058fb2814ce00df"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\CoreRunner.cs": {
+    "mtime": 1780427349.0483477,
+    "ast_hash": "0b9806648af3b7bb653b2d218dd8cd61",
+    "semantic_hash": "0b9806648af3b7bb653b2d218dd8cd61"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\HotReloadHandler.cs": {
+    "mtime": 1780427295.1532547,
+    "ast_hash": "4d3007ca9b9bbe68ca332f82f366f6b8",
+    "semantic_hash": "4d3007ca9b9bbe68ca332f82f366f6b8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\HotReloadOptions.cs": {
+    "mtime": 1780427349.0493534,
+    "ast_hash": "10a58018e6cb7c02f312ba8348b27c06",
+    "semantic_hash": "10a58018e6cb7c02f312ba8348b27c06"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\IEngineRunner.cs": {
+    "mtime": 1780427349.0493534,
+    "ast_hash": "0a374b55711d52617de035cb3a4fb50d",
+    "semantic_hash": "0a374b55711d52617de035cb3a4fb50d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\IInstaller.cs": {
+    "mtime": 1780427349.0503547,
+    "ast_hash": "4cebf3fc029d8fb9a67a2b06b0285b73",
+    "semantic_hash": "4cebf3fc029d8fb9a67a2b06b0285b73"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Job.cs": {
+    "mtime": 1780427349.0503547,
+    "ast_hash": "9f3109c98f7fb48677c80fb475425615",
+    "semantic_hash": "9f3109c98f7fb48677c80fb475425615"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Karpik.Engine.Core.csproj": {
+    "mtime": 1780856639.958231,
+    "ast_hash": "be2135267dd585f80e406ab1687063ca",
+    "semantic_hash": "be2135267dd585f80e406ab1687063ca"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\IBuilder.cs": {
+    "mtime": 1780427349.052485,
+    "ast_hash": "477c10b96f80c98565ff198c8be9bf06",
+    "semantic_hash": "477c10b96f80c98565ff198c8be9bf06"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\IRunner.cs": {
+    "mtime": 1780427349.052485,
+    "ast_hash": "182ca414e17988ee3ead2a8e504a6b7e",
+    "semantic_hash": "182ca414e17988ee3ead2a8e504a6b7e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystem.cs": {
+    "mtime": 1780427349.0537875,
+    "ast_hash": "64aef293129b91ce694fa3ab7fd03d5e",
+    "semantic_hash": "64aef293129b91ce694fa3ab7fd03d5e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemBegin.cs": {
+    "mtime": 1780427349.0537875,
+    "ast_hash": "de7413183f5e9f05d6d4a66bf006ff95",
+    "semantic_hash": "de7413183f5e9f05d6d4a66bf006ff95"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemDestroy.cs": {
+    "mtime": 1780427349.0547948,
+    "ast_hash": "fb273e66334bea5f93b97fb908f23c9d",
+    "semantic_hash": "fb273e66334bea5f93b97fb908f23c9d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemFixedUpdate.cs": {
+    "mtime": 1780427349.055923,
+    "ast_hash": "c7096b47c3b0ba0dc3ff36cdbd4df41a",
+    "semantic_hash": "c7096b47c3b0ba0dc3ff36cdbd4df41a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemInit.cs": {
+    "mtime": 1780427349.055923,
+    "ast_hash": "277cb4d11ee4da15b0c62dd235def9d2",
+    "semantic_hash": "277cb4d11ee4da15b0c62dd235def9d2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemLateUpdate.cs": {
+    "mtime": 1780427349.0569224,
+    "ast_hash": "114f5dff80bba6c79e5095d6fa3091f9",
+    "semantic_hash": "114f5dff80bba6c79e5095d6fa3091f9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemRender.cs": {
+    "mtime": 1780427349.0574298,
+    "ast_hash": "f7636aa500daa014efbafcbff1beecb9",
+    "semantic_hash": "f7636aa500daa014efbafcbff1beecb9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\LifeCycle\\ISystemUpdate.cs": {
+    "mtime": 1780427349.0579503,
+    "ast_hash": "a74d4e61f095c989d2d9994fd0aad059",
+    "semantic_hash": "a74d4e61f095c989d2d9994fd0aad059"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\MainThreadScheduler.cs": {
+    "mtime": 1780427295.1547606,
+    "ast_hash": "381c68987697286639e7a5a7545446b4",
+    "semantic_hash": "381c68987697286639e7a5a7545446b4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\ModuleAttribute.cs": {
+    "mtime": 1780427349.0579503,
+    "ast_hash": "534292246ee52cb3877db2030971fe3c",
+    "semantic_hash": "534292246ee52cb3877db2030971fe3c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\PluginLoadContext.cs": {
+    "mtime": 1780427349.0589688,
+    "ast_hash": "bd8ac413e583716f9a4fb21bdd5667cb",
+    "semantic_hash": "bd8ac413e583716f9a4fb21bdd5667cb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\ProcessManagement\\IpcClient.cs": {
+    "mtime": 1780427295.1547606,
+    "ast_hash": "b4196d0ca8f8b04f46030c4752059d4c",
+    "semantic_hash": "b4196d0ca8f8b04f46030c4752059d4c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\ProcessManagement\\IpcProtocol.cs": {
+    "mtime": 1780427295.1557722,
+    "ast_hash": "0d822d743ef14a7c12854d99b741b4c2",
+    "semantic_hash": "0d822d743ef14a7c12854d99b741b4c2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\ProcessManagement\\IpcServer.cs": {
+    "mtime": 1780427349.0602808,
+    "ast_hash": "dc44751c4e3d17ee1ef2dbb056506681",
+    "semantic_hash": "dc44751c4e3d17ee1ef2dbb056506681"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\ProcessManagement\\ProcessManager.cs": {
+    "mtime": 1780427349.0612912,
+    "ast_hash": "90b6674e5cda01c80a82ff55cd258a7e",
+    "semantic_hash": "90b6674e5cda01c80a82ff55cd258a7e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Ref.cs": {
+    "mtime": 1780427295.1572795,
+    "ast_hash": "2fa2dbd7ea954a57e62ccff2d34d8eba",
+    "semantic_hash": "2fa2dbd7ea954a57e62ccff2d34d8eba"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsAccessAttribute.cs": {
+    "mtime": 1780732145.4638612,
+    "ast_hash": "f5ffe2825752fc309603d9e708298f6e",
+    "semantic_hash": "f5ffe2825752fc309603d9e708298f6e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsAccessMode.cs": {
+    "mtime": 1780732123.6196012,
+    "ast_hash": "373b90fc60dcb8831822be0885596113",
+    "semantic_hash": "373b90fc60dcb8831822be0885596113"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsComponentAccessDescriptor.cs": {
+    "mtime": 1780751294.2611208,
+    "ast_hash": "f238744543f6472cbcbc040b2a564c63",
+    "semantic_hash": "f238744543f6472cbcbc040b2a564c63"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsOrderAttribute.cs": {
+    "mtime": 1780732212.6369956,
+    "ast_hash": "a0e6399f553fd1bb771ef94c5f3b710a",
+    "semantic_hash": "a0e6399f553fd1bb771ef94c5f3b710a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsOrderKind.cs": {
+    "mtime": 1780732195.6387913,
+    "ast_hash": "f3d869058ef8548eb5ba61ca2c3d7f66",
+    "semantic_hash": "f3d869058ef8548eb5ba61ca2c3d7f66"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsSystemOrderDescriptor.cs": {
+    "mtime": 1780751294.3867445,
+    "ast_hash": "8f88251e747b8764ef75641269d0aa1a",
+    "semantic_hash": "8f88251e747b8764ef75641269d0aa1a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateGraph.cs": {
+    "mtime": 1780752676.0430925,
+    "ast_hash": "841704ef08759ea30f550959944f8e77",
+    "semantic_hash": "841704ef08759ea30f550959944f8e77"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateGraphBuildException.cs": {
+    "mtime": 1780751897.327467,
+    "ast_hash": "ef2e85aa8b00d657ded57d420a439ca6",
+    "semantic_hash": "ef2e85aa8b00d657ded57d420a439ca6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateGraphBuilder.cs": {
+    "mtime": 1780751982.2560794,
+    "ast_hash": "3891810798b71bb40e5da1ae3ecb7039",
+    "semantic_hash": "3891810798b71bb40e5da1ae3ecb7039"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateGraphNode.cs": {
+    "mtime": 1780751897.4581602,
+    "ast_hash": "90fd5a99c5a19af44dd753cadd87243a",
+    "semantic_hash": "90fd5a99c5a19af44dd753cadd87243a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateScheduler.cs": {
+    "mtime": 1780752675.9341512,
+    "ast_hash": "1b9ccbbdb91e02ca5de2cc3234cf1dbc",
+    "semantic_hash": "1b9ccbbdb91e02ca5de2cc3234cf1dbc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateSchedulerMode.cs": {
+    "mtime": 1780752675.8222535,
+    "ast_hash": "eda6467f4b2b26fe7778daeba9aa03b1",
+    "semantic_hash": "eda6467f4b2b26fe7778daeba9aa03b1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\EcsUpdateSystemDescriptor.cs": {
+    "mtime": 1780751294.5214088,
+    "ast_hash": "32fe1a37046a0d096fb485908247dbae",
+    "semantic_hash": "32fe1a37046a0d096fb485908247dbae"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\IEcsUpdateRegistryProvider.cs": {
+    "mtime": 1780751294.6492198,
+    "ast_hash": "c954c137da9585c888601f5269ea247a",
+    "semantic_hash": "c954c137da9585c888601f5269ea247a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\MainThreadOnlyAttribute.cs": {
+    "mtime": 1780736154.5343392,
+    "ast_hash": "d7e1b3019bfd18be8d194a451d031039",
+    "semantic_hash": "d7e1b3019bfd18be8d194a451d031039"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\ReadsAttribute.cs": {
+    "mtime": 1780752675.6000543,
+    "ast_hash": "14bbb4fc33161ecab026dbf79e9020fc",
+    "semantic_hash": "14bbb4fc33161ecab026dbf79e9020fc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\RunsAfterAttribute.cs": {
+    "mtime": 1780732231.9943433,
+    "ast_hash": "98e2ccc50c127156bfbe187dc4a48d3a",
+    "semantic_hash": "98e2ccc50c127156bfbe187dc4a48d3a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\RunsBeforeAttribute.cs": {
+    "mtime": 1780732266.7781098,
+    "ast_hash": "abc354f0a6757325d4411f9ada2ff031",
+    "semantic_hash": "abc354f0a6757325d4411f9ada2ff031"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\SequentialSystemAttribute.cs": {
+    "mtime": 1780732283.7525156,
+    "ast_hash": "b0b7b4f23f8e58229f4339588336ff25",
+    "semantic_hash": "b0b7b4f23f8e58229f4339588336ff25"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Scheduling\\WritesAttribute.cs": {
+    "mtime": 1780752675.708399,
+    "ast_hash": "7ae444a571c7a9da4b3f98b7ebb04a09",
+    "semantic_hash": "7ae444a571c7a9da4b3f98b7ebb04a09"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\DIAttribute.cs": {
+    "mtime": 1780427349.0612912,
+    "ast_hash": "12a4a56beac5c536886d12eca0863f66",
+    "semantic_hash": "12a4a56beac5c536886d12eca0863f66"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\DIExtensions.cs": {
+    "mtime": 1780427349.0623014,
+    "ast_hash": "9f1d26c76cf2153a36b30a953abaa7bf",
+    "semantic_hash": "9f1d26c76cf2153a36b30a953abaa7bf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\IOnInjectedDI.cs": {
+    "mtime": 1780427349.0623014,
+    "ast_hash": "00a31a8b4a1f7828ceb61df48c76977d",
+    "semantic_hash": "00a31a8b4a1f7828ceb61df48c76977d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\IServiceContainer.cs": {
+    "mtime": 1780427349.0633166,
+    "ast_hash": "6345ef89cc450d6019a5707c132d583f",
+    "semantic_hash": "6345ef89cc450d6019a5707c132d583f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\IServiceRegister.cs": {
+    "mtime": 1780427349.0633166,
+    "ast_hash": "d2ab60a429987775c91d093da6b8caeb",
+    "semantic_hash": "d2ab60a429987775c91d093da6b8caeb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Services\\ServiceProvider.cs": {
+    "mtime": 1780427349.0653348,
+    "ast_hash": "f7b17760de69a821441908e174cd2b5c",
+    "semantic_hash": "f7b17760de69a821441908e174cd2b5c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Side.cs": {
+    "mtime": 1780427295.1572795,
+    "ast_hash": "8461d549bca577b599c2d6322db0acda",
+    "semantic_hash": "8461d549bca577b599c2d6322db0acda"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Core\\Time.cs": {
+    "mtime": 1780427349.0653348,
+    "ast_hash": "1b9e5301cb0d12a9b7bb35bd254eafda",
+    "semantic_hash": "1b9e5301cb0d12a9b7bb35bd254eafda"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Server.Publish\\Karpik.Engine.Server.Publish.csproj": {
+    "mtime": 1780427295.1588,
+    "ast_hash": "7680d16ba465ff953f3447c1c4a03429",
+    "semantic_hash": "7680d16ba465ff953f3447c1c4a03429"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Karpik.Engine.Server.Publish\\Server.cs": {
+    "mtime": 1780427295.1588,
+    "ast_hash": "739b37a0ee6aa66875dcda6ef6d30e59",
+    "semantic_hash": "739b37a0ee6aa66875dcda6ef6d30e59"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\KarpikEngine.slnx": {
+    "mtime": 1780856268.7615044,
+    "ast_hash": "715f4d71c345801a7444bcb3bd1c2e96",
+    "semantic_hash": "715f4d71c345801a7444bcb3bd1c2e96"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core.Tests\\Graphics.Core.Tests.csproj": {
+    "mtime": 1780427349.0683756,
+    "ast_hash": "054b7644b2c2cd83fec975a87a8e448a",
+    "semantic_hash": "054b7644b2c2cd83fec975a87a8e448a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core.Tests\\Program.cs": {
+    "mtime": 1780427349.0683756,
+    "ast_hash": "63295c004cda254567d937024fee3c21",
+    "semantic_hash": "63295c004cda254567d937024fee3c21"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\FontAsset.cs": {
+    "mtime": 1780427349.0695353,
+    "ast_hash": "6b6b18fd303fc80c28228ce6203c74e9",
+    "semantic_hash": "6b6b18fd303fc80c28228ce6203c74e9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\FontAtlasData.cs": {
+    "mtime": 1780427349.0705488,
+    "ast_hash": "c16eeb4ee428b6f195f0b4b47c04e360",
+    "semantic_hash": "c16eeb4ee428b6f195f0b4b47c04e360"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\FontAtlasParser.cs": {
+    "mtime": 1780427349.0715463,
+    "ast_hash": "0225838614c66fb7d53ec8eea554b0aa",
+    "semantic_hash": "0225838614c66fb7d53ec8eea554b0aa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\Loaders\\FontLoader.cs": {
+    "mtime": 1780427349.0720541,
+    "ast_hash": "874a338c7751ee0dbe6c302bc6025a4c",
+    "semantic_hash": "874a338c7751ee0dbe6c302bc6025a4c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\Loaders\\ShaderLoader.cs": {
+    "mtime": 1780427349.0720541,
+    "ast_hash": "b24a05b304b93ed7d6b47d999f7d2690",
+    "semantic_hash": "b24a05b304b93ed7d6b47d999f7d2690"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\Loaders\\TextureLoader.cs": {
+    "mtime": 1780427349.073065,
+    "ast_hash": "e421425ee9838984bb07b30244e4e4dd",
+    "semantic_hash": "e421425ee9838984bb07b30244e4e4dd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\ShaderAsset.cs": {
+    "mtime": 1780427349.0740733,
+    "ast_hash": "e38fadfc2a0fb601c48b494cafaab354",
+    "semantic_hash": "e38fadfc2a0fb601c48b494cafaab354"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\AssetManagement\\TextureAsset.cs": {
+    "mtime": 1780427349.0740733,
+    "ast_hash": "21824f71c3b2b082a1e3359f172170de",
+    "semantic_hash": "21824f71c3b2b082a1e3359f172170de"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Buffers\\QuadVertexBuffer.cs": {
+    "mtime": 1780427349.075579,
+    "ast_hash": "996fd8199ae116d85ed3cf7fa48d1d63",
+    "semantic_hash": "996fd8199ae116d85ed3cf7fa48d1d63"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Buffers\\ThreadBuffer.cs": {
+    "mtime": 1780427349.075579,
+    "ast_hash": "5369057460fe067ae996d56cbe0cccba",
+    "semantic_hash": "5369057460fe067ae996d56cbe0cccba"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Camera\\Camera2D.cs": {
+    "mtime": 1780427349.075579,
+    "ast_hash": "319b83181434c22b3feba7cbdd3137f2",
+    "semantic_hash": "319b83181434c22b3feba7cbdd3137f2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Camera\\GraphicsCameraState.cs": {
+    "mtime": 1780427349.077098,
+    "ast_hash": "f13b46326bf717e00e080fe962ad416a",
+    "semantic_hash": "f13b46326bf717e00e080fe962ad416a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\CommandBufferDrawExtensions.cs": {
+    "mtime": 1780427349.077098,
+    "ast_hash": "c92d87da736f7a3f499fe066b4061ce8",
+    "semantic_hash": "c92d87da736f7a3f499fe066b4061ce8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Commands\\DrawCommand.cs": {
+    "mtime": 1780427349.0781157,
+    "ast_hash": "41ad66ca1572ee6c171286ab47135c03",
+    "semantic_hash": "41ad66ca1572ee6c171286ab47135c03"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Commands\\DrawRectCmd.cs": {
+    "mtime": 1780427349.0791202,
+    "ast_hash": "542f1fbf5a2a268d57cebf5ca42fd623",
+    "semantic_hash": "542f1fbf5a2a268d57cebf5ca42fd623"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Commands\\DrawTextCmd.cs": {
+    "mtime": 1780427349.0791202,
+    "ast_hash": "07d93e5bf59395d4c96e113e80f190af",
+    "semantic_hash": "07d93e5bf59395d4c96e113e80f190af"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Commands\\DrawTextureCmd.cs": {
+    "mtime": 1780427349.0804937,
+    "ast_hash": "13cd956797e373c62a0d826161c5a906",
+    "semantic_hash": "13cd956797e373c62a0d826161c5a906"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Context\\GraphicsContext.cs": {
+    "mtime": 1780427349.0804937,
+    "ast_hash": "fce5dd657bae0754a7710260ddf70403",
+    "semantic_hash": "fce5dd657bae0754a7710260ddf70403"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\DrawSpace.cs": {
+    "mtime": 1780427349.081505,
+    "ast_hash": "15c622a7bb5f4b4cc7daeb5c34dc897d",
+    "semantic_hash": "15c622a7bb5f4b4cc7daeb5c34dc897d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\DrawTransform2D.cs": {
+    "mtime": 1780427349.0825155,
+    "ast_hash": "86fa9e517b22127cc604bdeceabefc53",
+    "semantic_hash": "86fa9e517b22127cc604bdeceabefc53"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ECS\\GraphicsCoreBeginSystem.cs": {
+    "mtime": 1780427349.0825155,
+    "ast_hash": "146dfdd2048d465f31f232e429a3bfa6",
+    "semantic_hash": "146dfdd2048d465f31f232e429a3bfa6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ECS\\GraphicsCoreModule.cs": {
+    "mtime": 1780427349.083524,
+    "ast_hash": "44505fe5e5eb320d97fc7212c7ae387f",
+    "semantic_hash": "44505fe5e5eb320d97fc7212c7ae387f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ECS\\ImGuiSystems.cs": {
+    "mtime": 1780427349.083524,
+    "ast_hash": "77f0d818fb10b90629a85c823967bdb0",
+    "semantic_hash": "77f0d818fb10b90629a85c823967bdb0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Graphics.Core.csproj": {
+    "mtime": 1780856640.0975685,
+    "ast_hash": "d61e6a4df97466899076c01d66bcbc85",
+    "semantic_hash": "d61e6a4df97466899076c01d66bcbc85"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\GraphicsCoreInstaller.cs": {
+    "mtime": 1780427349.0855377,
+    "ast_hash": "33d28eef0bf95db38b188432b159c83c",
+    "semantic_hash": "33d28eef0bf95db38b188432b159c83c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ICommandBuffer.cs": {
+    "mtime": 1780427349.0855377,
+    "ast_hash": "d10e628430b97b709bc2b4702ea028a9",
+    "semantic_hash": "d10e628430b97b709bc2b4702ea028a9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ImGuiOverlayState.cs": {
+    "mtime": 1780427349.0870435,
+    "ast_hash": "e7a5cd724fe582689f3b858fe716f04e",
+    "semantic_hash": "e7a5cd724fe582689f3b858fe716f04e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\ImGuiRenderContext.cs": {
+    "mtime": 1780427349.0870435,
+    "ast_hash": "552ed80a9b3b319d28bbaff7d205b722",
+    "semantic_hash": "552ed80a9b3b319d28bbaff7d205b722"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Merge\\IMergeThread.cs": {
+    "mtime": 1780427349.0881164,
+    "ast_hash": "ee294f57ce572633e3c6b7c5dc612ca1",
+    "semantic_hash": "ee294f57ce572633e3c6b7c5dc612ca1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Merge\\MergeContext.cs": {
+    "mtime": 1780427349.089121,
+    "ast_hash": "dafedd4bf218f4fdb3df0224aae5182a",
+    "semantic_hash": "dafedd4bf218f4fdb3df0224aae5182a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Merge\\MergeThread.cs": {
+    "mtime": 1780427349.0901225,
+    "ast_hash": "9681e5215840f512c984b13eececfc3b",
+    "semantic_hash": "9681e5215840f512c984b13eececfc3b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Merge\\QuadTransform2D.cs": {
+    "mtime": 1780427349.0901225,
+    "ast_hash": "79f918acd2bc01a5a135c520cb305d9a",
+    "semantic_hash": "79f918acd2bc01a5a135c520cb305d9a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Merge\\TextureUvTransform.cs": {
+    "mtime": 1780427349.0912232,
+    "ast_hash": "9342c321ca0bb2d9ffbacbf077cb4699",
+    "semantic_hash": "9342c321ca0bb2d9ffbacbf077cb4699"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Presets\\Preset2DPipeline.cs": {
+    "mtime": 1780427349.0922318,
+    "ast_hash": "39a1b2f0ab3f576fbd309846c083d278",
+    "semantic_hash": "39a1b2f0ab3f576fbd309846c083d278"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\AtlasFont.cs": {
+    "mtime": 1780427349.0937366,
+    "ast_hash": "6bf279b9c16365a4225e6b6e91b9b574",
+    "semantic_hash": "6bf279b9c16365a4225e6b6e91b9b574"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\FontAtlasMetrics.cs": {
+    "mtime": 1780427349.0937366,
+    "ast_hash": "fad02fe88fd6cf2202c76ecfc184aca2",
+    "semantic_hash": "fad02fe88fd6cf2202c76ecfc184aca2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\FontGlyph.cs": {
+    "mtime": 1780427349.0947862,
+    "ast_hash": "b45f89299ab977c7e45521c63fd7ca46",
+    "semantic_hash": "b45f89299ab977c7e45521c63fd7ca46"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\IFont.cs": {
+    "mtime": 1780427349.0957952,
+    "ast_hash": "2afcf00012587d1f249f08c3acfdd296",
+    "semantic_hash": "2afcf00012587d1f249f08c3acfdd296"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\IPipeline.cs": {
+    "mtime": 1780427349.0957952,
+    "ast_hash": "72f19dc4810339af35493a9c5056aaaa",
+    "semantic_hash": "72f19dc4810339af35493a9c5056aaaa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\IShader.cs": {
+    "mtime": 1780427349.0957952,
+    "ast_hash": "ce5d99a0e0157a681369c33c481fdcb6",
+    "semantic_hash": "ce5d99a0e0157a681369c33c481fdcb6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\ITexture2D.cs": {
+    "mtime": 1780427349.0957952,
+    "ast_hash": "4f93cc2b1e7eac64920e22c618333bbe",
+    "semantic_hash": "4f93cc2b1e7eac64920e22c618333bbe"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\VeldridPipeline.cs": {
+    "mtime": 1780427349.0973005,
+    "ast_hash": "2dabf0870a51fb36e575805f6073c0c2",
+    "semantic_hash": "2dabf0870a51fb36e575805f6073c0c2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\VeldridShader.cs": {
+    "mtime": 1780427349.0973005,
+    "ast_hash": "cf2c603c65f043022267ea6a7c550254",
+    "semantic_hash": "cf2c603c65f043022267ea6a7c550254"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Resources\\VeldridTexture2D.cs": {
+    "mtime": 1780427349.0983117,
+    "ast_hash": "4a5835db90cfc917d854d4b656e56f95",
+    "semantic_hash": "4a5835db90cfc917d854d4b656e56f95"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Sets\\TextureResources.cs": {
+    "mtime": 1780427349.099461,
+    "ast_hash": "39654e1a883747e12d8f766303a1d4f8",
+    "semantic_hash": "39654e1a883747e12d8f766303a1d4f8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\SystemToVeldridExtensions.cs": {
+    "mtime": 1780427349.099461,
+    "ast_hash": "0785c3870909aecaba40f59aa6db6b9a",
+    "semantic_hash": "0785c3870909aecaba40f59aa6db6b9a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\TextAnchor.cs": {
+    "mtime": 1780427349.1019974,
+    "ast_hash": "a8f1069a0a0a3034bffcfd0fd5a8ac44",
+    "semantic_hash": "a8f1069a0a0a3034bffcfd0fd5a8ac44"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Text\\TextAnchorTransform.cs": {
+    "mtime": 1780427349.1009655,
+    "ast_hash": "eda01c60d06cd9278e5b32ea837a0217",
+    "semantic_hash": "eda01c60d06cd9278e5b32ea837a0217"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Text\\TextGlyphQuad.cs": {
+    "mtime": 1780427349.1009655,
+    "ast_hash": "fc9f36098de7831410e90eb83a97a175",
+    "semantic_hash": "fc9f36098de7831410e90eb83a97a175"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Text\\TextLayout.cs": {
+    "mtime": 1780427349.1019974,
+    "ast_hash": "deee6269a5a799ae7e4fb0d7381a369e",
+    "semantic_hash": "deee6269a5a799ae7e4fb0d7381a369e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Text\\TextLayoutResult.cs": {
+    "mtime": 1780427349.1019974,
+    "ast_hash": "a0562099eb1fcb4b0c9940a26e562ad8",
+    "semantic_hash": "a0562099eb1fcb4b0c9940a26e562ad8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\Vertex2D.cs": {
+    "mtime": 1780427349.1019974,
+    "ast_hash": "0228e196a45ce5ef6183d17f551e30a8",
+    "semantic_hash": "0228e196a45ce5ef6183d17f551e30a8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.OpenGL\\Graphics.OpenGL.csproj": {
+    "mtime": 1780427349.1535711,
+    "ast_hash": "04a3687f72c4341837cb20e2a2c9f15d",
+    "semantic_hash": "04a3687f72c4341837cb20e2a2c9f15d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.OpenGL\\GraphicsOpenGLInstaller.cs": {
+    "mtime": 1780427349.1545808,
+    "ast_hash": "df82b675a74387f2efca9c2bcad195cf",
+    "semantic_hash": "df82b675a74387f2efca9c2bcad195cf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\Input.cs": {
+    "mtime": 1780427349.1555893,
+    "ast_hash": "8eee75180a7e41ceee8f227d63efe6a5",
+    "semantic_hash": "8eee75180a7e41ceee8f227d63efe6a5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\Input.csproj": {
+    "mtime": 1780427349.1555893,
+    "ast_hash": "46b7834f4eb0d6c85ecc55b886281de1",
+    "semantic_hash": "46b7834f4eb0d6c85ecc55b886281de1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\InputInstaller.cs": {
+    "mtime": 1780427349.157093,
+    "ast_hash": "4400783d0117fa8ead95702761b24cbc",
+    "semantic_hash": "4400783d0117fa8ead95702761b24cbc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\InputModuleEcs.cs": {
+    "mtime": 1780427349.158309,
+    "ast_hash": "8d7e78f376bdfe3156c9a09d75271013",
+    "semantic_hash": "8d7e78f376bdfe3156c9a09d75271013"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\MouseButtons.cs": {
+    "mtime": 1780427295.1832871,
+    "ast_hash": "050711fba8e9f5b39f59f3d79e73ee8a",
+    "semantic_hash": "050711fba8e9f5b39f59f3d79e73ee8a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Input\\Systems\\UpdateSystem.cs": {
+    "mtime": 1780427349.1593184,
+    "ast_hash": "071744911575329dec1f2621f109dd03",
+    "semantic_hash": "071744911575329dec1f2621f109dd03"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.Core\\Network.Client.Core.csproj": {
+    "mtime": 1780427349.1603217,
+    "ast_hash": "11ead67ac8b562e1b266d1b2588db13f",
+    "semantic_hash": "11ead67ac8b562e1b266d1b2588db13f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.LiteNetLib\\Network.Client.LiteNetLib.csproj": {
+    "mtime": 1780427349.1603217,
+    "ast_hash": "99f0722be35e83f2e69c50b9f36909b8",
+    "semantic_hash": "99f0722be35e83f2e69c50b9f36909b8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.LiteNetLib\\NetworkClientInstaller.cs": {
+    "mtime": 1780427349.161811,
+    "ast_hash": "c31dc589ba94eb0bafe3cae9908ed321",
+    "semantic_hash": "c31dc589ba94eb0bafe3cae9908ed321"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.LiteNetLib\\NetworkClientModule.cs": {
+    "mtime": 1780427349.162836,
+    "ast_hash": "5d53fddcfcbb77a0e313f25adf6f303f",
+    "semantic_hash": "5d53fddcfcbb77a0e313f25adf6f303f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.LiteNetLib\\Systems\\InitNetworkClientSystem.cs": {
+    "mtime": 1780427349.1811626,
+    "ast_hash": "857828ea62b9f6235ddae175cae1c877",
+    "semantic_hash": "857828ea62b9f6235ddae175cae1c877"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Network.Client\\Network.Client.LiteNetLib\\Systems\\UpdateNetworkClientSystem.cs": {
+    "mtime": 1780427349.197154,
+    "ast_hash": "39fffa27aea8c92701c85f0e71d4b42a",
+    "semantic_hash": "39fffa27aea8c92701c85f0e71d4b42a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\ECS\\UpdateSystem.cs": {
+    "mtime": 1780427349.2032776,
+    "ast_hash": "2d370c1d21357b3384d4d7495818bb54",
+    "semantic_hash": "2d370c1d21357b3384d4d7495818bb54"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\ECS\\WindowCoreModule.cs": {
+    "mtime": 1780427349.2032776,
+    "ast_hash": "e58b8c115083803c6ae157afa2e30339",
+    "semantic_hash": "e58b8c115083803c6ae157afa2e30339"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\IInputSource.cs": {
+    "mtime": 1780427349.2042828,
+    "ast_hash": "566b57fcee83c5c47f31896dda275862",
+    "semantic_hash": "566b57fcee83c5c47f31896dda275862"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\IWindow.cs": {
+    "mtime": 1780427349.205629,
+    "ast_hash": "e3d3a9140537f3c5f8790a291d95720b",
+    "semantic_hash": "e3d3a9140537f3c5f8790a291d95720b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\InputCaptureState.cs": {
+    "mtime": 1780427349.205629,
+    "ast_hash": "89223fd9bd2c658483fb6c986542872c",
+    "semantic_hash": "89223fd9bd2c658483fb6c986542872c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\Window.Core.csproj": {
+    "mtime": 1780427349.205629,
+    "ast_hash": "81e262e86769dc7ee80a3efb727ad51e",
+    "semantic_hash": "81e262e86769dc7ee80a3efb727ad51e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Core\\WindowCoreInstaller.cs": {
+    "mtime": 1780427349.2071352,
+    "ast_hash": "faef0398a7e66300734ddc02ab35f781",
+    "semantic_hash": "faef0398a7e66300734ddc02ab35f781"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Sdl2\\SDL2InputSource.cs": {
+    "mtime": 1780427349.2081683,
+    "ast_hash": "7c9676725dfa5a6b881e35f2aaacb4df",
+    "semantic_hash": "7c9676725dfa5a6b881e35f2aaacb4df"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Sdl2\\SDL2Window.cs": {
+    "mtime": 1780427349.2091687,
+    "ast_hash": "612ef96caa5810fbdf2e9e551457c7fa",
+    "semantic_hash": "612ef96caa5810fbdf2e9e551457c7fa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Sdl2\\Window.Sdl2.csproj": {
+    "mtime": 1780427349.2091687,
+    "ast_hash": "1d531f026f32e0fbf5a47c12d83e17de",
+    "semantic_hash": "1d531f026f32e0fbf5a47c12d83e17de"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Window\\Window.Sdl2\\WindowSdlInstaller.cs": {
+    "mtime": 1780427349.2105348,
+    "ast_hash": "502702211d9d9352f0317d73dbf3d189",
+    "semantic_hash": "502702211d9d9352f0317d73dbf3d189"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Server\\Network.Server\\Network.Server.Core\\Network.Server.Core.csproj": {
+    "mtime": 1780427349.2120428,
+    "ast_hash": "f8db0c9917dd3486d4e7f4719a6ddd08",
+    "semantic_hash": "f8db0c9917dd3486d4e7f4719a6ddd08"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Server\\Network.Server\\Network.Server.LiteNetLib\\Network.Server.LiteNetLib.csproj": {
+    "mtime": 1780427349.2130663,
+    "ast_hash": "ded1cb3719fbdbfa9abada865205e05f",
+    "semantic_hash": "ded1cb3719fbdbfa9abada865205e05f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Server\\Network.Server\\Network.Server.LiteNetLib\\NetworkServerInstaller.cs": {
+    "mtime": 1780427349.2140641,
+    "ast_hash": "19773c3586ec0b0d93a15017a3f5976d",
+    "semantic_hash": "19773c3586ec0b0d93a15017a3f5976d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Server\\Network.Server\\Network.Server.LiteNetLib\\NetworkServerModule.cs": {
+    "mtime": 1780427349.215064,
+    "ast_hash": "c36ff1469b9571502c0b95ef529c586d",
+    "semantic_hash": "c36ff1469b9571502c0b95ef529c586d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Server\\Network.Server\\Network.Server.LiteNetLib\\Systems\\UpdateSystem.cs": {
+    "mtime": 1780427349.216066,
+    "ast_hash": "2823af4fd62ad9a180127fff45995bd6",
+    "semantic_hash": "2823af4fd62ad9a180127fff45995bd6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\Asset.cs": {
+    "mtime": 1780427295.2028532,
+    "ast_hash": "aeb38a53fdc198af655021806e1d4709",
+    "semantic_hash": "aeb38a53fdc198af655021806e1d4709"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetHandle.cs": {
+    "mtime": 1780427349.2175686,
+    "ast_hash": "578aea6bfb086dcccdbd17fa12fedeff",
+    "semantic_hash": "578aea6bfb086dcccdbd17fa12fedeff"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetLoaders\\JsonLoader.cs": {
+    "mtime": 1780427295.2038653,
+    "ast_hash": "787b172589fe695febbd547a498436e3",
+    "semantic_hash": "787b172589fe695febbd547a498436e3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetLoaders\\RawTextLoader.cs": {
+    "mtime": 1780427295.2051919,
+    "ast_hash": "619bc01b96669eecc75b8311c44136c8",
+    "semantic_hash": "619bc01b96669eecc75b8311c44136c8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetManagement.Core.csproj": {
+    "mtime": 1780856640.232595,
+    "ast_hash": "6858b2df181efee872e215de8809ad94",
+    "semantic_hash": "6858b2df181efee872e215de8809ad94"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetManagementInstaller.cs": {
+    "mtime": 1780427349.2205954,
+    "ast_hash": "da8b554355de7e4924ac3d00d0e8bdcc",
+    "semantic_hash": "da8b554355de7e4924ac3d00d0e8bdcc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetPath.cs": {
+    "mtime": 1780427295.2072003,
+    "ast_hash": "d657cbc8db5031bfc33e89374c6894df",
+    "semantic_hash": "d657cbc8db5031bfc33e89374c6894df"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetSavers\\JsonSaver.cs": {
+    "mtime": 1780427295.2077045,
+    "ast_hash": "e2295dfe29fa5fa8d88a7ff9ad5d95fb",
+    "semantic_hash": "e2295dfe29fa5fa8d88a7ff9ad5d95fb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\AssetsManager.cs": {
+    "mtime": 1780427349.2216847,
+    "ast_hash": "3e5b2ca376f6af31a1fb25d83b117eae",
+    "semantic_hash": "3e5b2ca376f6af31a1fb25d83b117eae"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\Assets\\TextAsset.cs": {
+    "mtime": 1780427295.2089255,
+    "ast_hash": "7a56f8930082e05ccc139593cc6fc786",
+    "semantic_hash": "7a56f8930082e05ccc139593cc6fc786"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\BaseAssetLoader.cs": {
+    "mtime": 1780427349.2227056,
+    "ast_hash": "ecf6ba2623ae95f7bac36635c1887b19",
+    "semantic_hash": "ecf6ba2623ae95f7bac36635c1887b19"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\BaseAssetSaver.cs": {
+    "mtime": 1780427295.2104454,
+    "ast_hash": "cbc260bf4e4e3b9648be0c54e0185ef2",
+    "semantic_hash": "cbc260bf4e4e3b9648be0c54e0185ef2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\GlobalUsings.cs": {
+    "mtime": 1780427295.21145,
+    "ast_hash": "8d4a703edb0929b0ffe8f27ae5933005",
+    "semantic_hash": "8d4a703edb0929b0ffe8f27ae5933005"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\IAssetLoader.cs": {
+    "mtime": 1780427295.21145,
+    "ast_hash": "1c5f8ffa8e2e7fe490298f1a0ed0f64d",
+    "semantic_hash": "1c5f8ffa8e2e7fe490298f1a0ed0f64d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\IAssetSaver.cs": {
+    "mtime": 1780427295.2124653,
+    "ast_hash": "b42b30b8396db71338dd7218addf156d",
+    "semantic_hash": "b42b30b8396db71338dd7218addf156d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\IAssetsManager.cs": {
+    "mtime": 1780427295.2134757,
+    "ast_hash": "1f94dbad7cde924cdeb97f5558160bc3",
+    "semantic_hash": "1f94dbad7cde924cdeb97f5558160bc3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\IFileSystem.cs": {
+    "mtime": 1780427349.2237096,
+    "ast_hash": "b6b5ad413f34feefc120fc20a1c280f3",
+    "semantic_hash": "b6b5ad413f34feefc120fc20a1c280f3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\IHasDependencies.cs": {
+    "mtime": 1780427295.2134757,
+    "ast_hash": "14d61884b86f65fb43968fa2c7127136",
+    "semantic_hash": "14d61884b86f65fb43968fa2c7127136"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\LooseAssemblyNameBinder.cs": {
+    "mtime": 1780427295.2144816,
+    "ast_hash": "03b5cf0cf4fe7b7ba64ec55a48c55fad",
+    "semantic_hash": "03b5cf0cf4fe7b7ba64ec55a48c55fad"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\AssetManagement\\AssetManagement.Core\\PhysicalFileSystem.cs": {
+    "mtime": 1780427349.2247148,
+    "ast_hash": "5d11c108c773d916b0998a7218b84af7",
+    "semantic_hash": "5d11c108c773d916b0998a7218b84af7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\DebugModule\\DebugModule.csproj": {
+    "mtime": 1780427349.2257166,
+    "ast_hash": "2d6fca621e5a0f166c81e531e28bf71c",
+    "semantic_hash": "2d6fca621e5a0f166c81e531e28bf71c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\DebugModule\\DebugThings.cs": {
+    "mtime": 1780427295.2154875,
+    "ast_hash": "ff2cf58b17f0d200c635089a3c212105",
+    "semantic_hash": "ff2cf58b17f0d200c635089a3c212105"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\AssemblyInfo.cs": {
+    "mtime": 1780427349.2257166,
+    "ast_hash": "680e4923ac7ec195a8391c03a77c8322",
+    "semantic_hash": "680e4923ac7ec195a8391c03a77c8322"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\AssetManagement\\AssetLoaders\\ComponentsTemplateLoader.cs": {
+    "mtime": 1780427349.2272205,
+    "ast_hash": "520d45b430fa56a7fb9943790d8cd1cc",
+    "semantic_hash": "520d45b430fa56a7fb9943790d8cd1cc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\AssetManagement\\AssetSavers\\ComponentsTemplateSaver.cs": {
+    "mtime": 1780427295.216993,
+    "ast_hash": "d6a73d93589fd71ac338c79558d86a64",
+    "semantic_hash": "d6a73d93589fd71ac338c79558d86a64"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\AssetManagement\\Assets\\ComponentsTemplateAsset.cs": {
+    "mtime": 1780427295.2180195,
+    "ast_hash": "2cd0370af9c3475e68af6375c1ccdf68",
+    "semantic_hash": "2cd0370af9c3475e68af6375c1ccdf68"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\AssetManagement\\Converters\\ComponentArrayConverter.cs": {
+    "mtime": 1780427295.2190244,
+    "ast_hash": "7b5ac9a5520d702f7a1ab02a5f7a9731",
+    "semantic_hash": "7b5ac9a5520d702f7a1ab02a5f7a9731"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\ComponentsTemplate.cs": {
+    "mtime": 1780427349.2287297,
+    "ast_hash": "7577735d3153b5464b7ccc36caf7c001",
+    "semantic_hash": "7577735d3153b5464b7ccc36caf7c001"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\CoreComponentExtensions.cs": {
+    "mtime": 1780427295.220456,
+    "ast_hash": "7005000dee4b14643d07c9193f5ead63",
+    "semantic_hash": "7005000dee4b14643d07c9193f5ead63"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\ECS.Core.csproj": {
+    "mtime": 1780856640.3579507,
+    "ast_hash": "062746da22575ee67c44553bad173734",
+    "semantic_hash": "062746da22575ee67c44553bad173734"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\ECSInstaller.cs": {
+    "mtime": 1780427349.2317536,
+    "ast_hash": "d6e1a1534f36f0bb7c71f740cfdfcb44",
+    "semantic_hash": "d6e1a1534f36f0bb7c71f740cfdfcb44"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\EcsCommandBuffer.cs": {
+    "mtime": 1780427295.222609,
+    "ast_hash": "8984a768fa85b13a2fd0245272bb9032",
+    "semantic_hash": "8984a768fa85b13a2fd0245272bb9032"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\EcsMetaWorld.cs": {
+    "mtime": 1780427295.222609,
+    "ast_hash": "fc2e162159036ca83003c5d6e8f8f863",
+    "semantic_hash": "fc2e162159036ca83003c5d6e8f8f863"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\EcsWorldExtensions.cs": {
+    "mtime": 1780427349.2327528,
+    "ast_hash": "e34e6d490f144197316b30685d60f273",
+    "semantic_hash": "e34e6d490f144197316b30685d60f273"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\EntitySnapshot.cs": {
+    "mtime": 1780427295.2237012,
+    "ast_hash": "f1d955252c23c7aa4168b00d6e76456e",
+    "semantic_hash": "f1d955252c23c7aa4168b00d6e76456e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\GlobalUsings.cs": {
+    "mtime": 1780427295.2247128,
+    "ast_hash": "f4197a2354c7d978e86306a1bcd2fa33",
+    "semantic_hash": "f4197a2354c7d978e86306a1bcd2fa33"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\HotReloadInfo.cs": {
+    "mtime": 1780427295.2247128,
+    "ast_hash": "835d8161a6217b8078488819b3c7167d",
+    "semantic_hash": "835d8161a6217b8078488819b3c7167d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\IComponentTemplate.cs": {
+    "mtime": 1780427349.233964,
+    "ast_hash": "374e55ba67b8818501f377701943d004",
+    "semantic_hash": "374e55ba67b8818501f377701943d004"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\IEcsRunLate.cs": {
+    "mtime": 1780427295.226215,
+    "ast_hash": "b00be9e769515d79053de7d1ff4caf5b",
+    "semantic_hash": "b00be9e769515d79053de7d1ff4caf5b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\IEcsRunParallel.cs": {
+    "mtime": 1780427349.2349694,
+    "ast_hash": "66f4f37abe2f20b571b9fa87a791f1c6",
+    "semantic_hash": "66f4f37abe2f20b571b9fa87a791f1c6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\SystemExecutionNode.cs": {
+    "mtime": 1780427349.2359817,
+    "ast_hash": "e10a1fa174acf42b31e40d2ab6cda229",
+    "semantic_hash": "e10a1fa174acf42b31e40d2ab6cda229"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\ToTemplateExtensions.cs": {
+    "mtime": 1780427295.230511,
+    "ast_hash": "a709923f2163a24b04892b908d50de21",
+    "semantic_hash": "a709923f2163a24b04892b908d50de21"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\WorldEventListener.cs": {
+    "mtime": 1780427295.230511,
+    "ast_hash": "611dc9151da7692721a8282b7cc5a9d0",
+    "semantic_hash": "611dc9151da7692721a8282b7cc5a9d0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\ECS\\ECS.Core\\Worlds.cs": {
+    "mtime": 1780427349.2359817,
+    "ast_hash": "faa5eed4fb5f2d31336fdfed07d5ba18",
+    "semantic_hash": "faa5eed4fb5f2d31336fdfed07d5ba18"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\LoggerModule\\ConsoleChangers.cs": {
+    "mtime": 1780427295.231518,
+    "ast_hash": "fb6447a5b0d3a2c729ea25b90d84175c",
+    "semantic_hash": "fb6447a5b0d3a2c729ea25b90d84175c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\LoggerModule\\Logger.cs": {
+    "mtime": 1780427295.231518,
+    "ast_hash": "01587f2683345488e7e8f0f77ae8eecf",
+    "semantic_hash": "01587f2683345488e7e8f0f77ae8eecf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\LoggerModule\\LoggerInstaller.cs": {
+    "mtime": 1780427349.238521,
+    "ast_hash": "f1b5b0b24af920af43b517ccda83eceb",
+    "semantic_hash": "f1b5b0b24af920af43b517ccda83eceb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\LoggerModule\\LoggerModule.csproj": {
+    "mtime": 1780856640.4812996,
+    "ast_hash": "85b094eeb72399c8ca438ab03651c261",
+    "semantic_hash": "85b094eeb72399c8ca438ab03651c261"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\AssetManagement\\AssetLoaders\\ModMetaDataLoader.cs": {
+    "mtime": 1780427295.2335367,
+    "ast_hash": "057bc0cdfbf36bf4b652a3987c09ffb3",
+    "semantic_hash": "057bc0cdfbf36bf4b652a3987c09ffb3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\AssetManagement\\Assets\\ModMetaDataAsset.cs": {
+    "mtime": 1780427295.2350416,
+    "ast_hash": "8d8743d3a59518c673a13b2fbd819126",
+    "semantic_hash": "8d8743d3a59518c673a13b2fbd819126"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\EventModMethods.cs": {
+    "mtime": 1780427295.2350416,
+    "ast_hash": "6388b2696c433dcc72cab0961a1b3773",
+    "semantic_hash": "6388b2696c433dcc72cab0961a1b3773"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\ExecutionSide.cs": {
+    "mtime": 1780427295.2360501,
+    "ast_hash": "a2459fd1b4db225bed484c92e5e344b6",
+    "semantic_hash": "a2459fd1b4db225bed484c92e5e344b6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\IModContainer.cs": {
+    "mtime": 1780427295.2360501,
+    "ast_hash": "9b167dc5236b3a1d82278f57067b4b4b",
+    "semantic_hash": "9b167dc5236b3a1d82278f57067b4b4b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\IModManager.cs": {
+    "mtime": 1780427295.2370462,
+    "ast_hash": "2aa87a15e192c8b04297e23a76a66b2b",
+    "semantic_hash": "2aa87a15e192c8b04297e23a76a66b2b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\ModMetaData.cs": {
+    "mtime": 1780427295.2370462,
+    "ast_hash": "752d1649b75e938d868713b71b614837",
+    "semantic_hash": "752d1649b75e938d868713b71b614837"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\Modding.Core.csproj": {
+    "mtime": 1780856640.6075275,
+    "ast_hash": "bc722e4b4ba1b771ed38adf63cdffbab",
+    "semantic_hash": "bc722e4b4ba1b771ed38adf63cdffbab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Core\\ModdingInstaller.cs": {
+    "mtime": 1780427349.2417054,
+    "ast_hash": "51dfd74d3ddbaa384f6dc685a02453bb",
+    "semantic_hash": "51dfd74d3ddbaa384f6dc685a02453bb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\GameAPI.cs": {
+    "mtime": 1780427295.2382555,
+    "ast_hash": "09bc8e5985f726605b899ff0e407cd8d",
+    "semantic_hash": "09bc8e5985f726605b899ff0e407cd8d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\ModContainer.cs": {
+    "mtime": 1780427349.2427106,
+    "ast_hash": "3fbe7e029b2025af663de583237fce04",
+    "semantic_hash": "3fbe7e029b2025af663de583237fce04"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\ModManager.cs": {
+    "mtime": 1780427295.2393165,
+    "ast_hash": "8de589a0c57ee3fa142fd59a1bb9de21",
+    "semantic_hash": "8de589a0c57ee3fa142fd59a1bb9de21"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\ModScriptLoader.cs": {
+    "mtime": 1780427295.2403238,
+    "ast_hash": "cdf6dfad15ea4b1fd14aec2d623d6d07",
+    "semantic_hash": "cdf6dfad15ea4b1fd14aec2d623d6d07"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\Modding.Lua.csproj": {
+    "mtime": 1780427349.2437146,
+    "ast_hash": "4897535cfe9aa4225925ee383269a3ad",
+    "semantic_hash": "4897535cfe9aa4225925ee383269a3ad"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\ModdingLuaInstaller.cs": {
+    "mtime": 1780427349.245232,
+    "ast_hash": "280391cd0c496b73a273ed4413c9a1f5",
+    "semantic_hash": "280391cd0c496b73a273ed4413c9a1f5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\ModdingLuaModule.cs": {
+    "mtime": 1780427349.246238,
+    "ast_hash": "98ebb88f6a43647e3cd8e2f870f838c2",
+    "semantic_hash": "98ebb88f6a43647e3cd8e2f870f838c2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.Lua\\Systems\\UpdateSystem.cs": {
+    "mtime": 1780427349.2477577,
+    "ast_hash": "0355f1777e5b51a6d4395f1b1230ff51",
+    "semantic_hash": "0355f1777e5b51a6d4395f1b1230ff51"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.TestModule\\Modding.TestModule.csproj": {
+    "mtime": 1780427295.2435215,
+    "ast_hash": "9e9b3b67d842572dc9c16ffa7491d9d2",
+    "semantic_hash": "9e9b3b67d842572dc9c16ffa7491d9d2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Modding\\Modding.TestModule\\Program.cs": {
+    "mtime": 1780427295.2435215,
+    "ast_hash": "0af438b9ec5a3b6f8653fc049b9cdb30",
+    "semantic_hash": "0af438b9ec5a3b6f8653fc049b9cdb30"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibConnectionRequest.cs": {
+    "mtime": 1780427295.2445402,
+    "ast_hash": "afddd71312fe2a14e53f445a572225e4",
+    "semantic_hash": "afddd71312fe2a14e53f445a572225e4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibDisconnectInfo.cs": {
+    "mtime": 1780427295.2445402,
+    "ast_hash": "48b75d2ace90a32ec74c4815e2213e94",
+    "semantic_hash": "48b75d2ace90a32ec74c4815e2213e94"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibNetworkInstaller.cs": {
+    "mtime": 1780427349.2487712,
+    "ast_hash": "0fe6213a82fd71f90dc6dc691e539dab",
+    "semantic_hash": "0fe6213a82fd71f90dc6dc691e539dab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibNetworkManager.cs": {
+    "mtime": 1780427349.2497828,
+    "ast_hash": "99e46c4fee1fbd745505bed8e71d50f0",
+    "semantic_hash": "99e46c4fee1fbd745505bed8e71d50f0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibPeer.cs": {
+    "mtime": 1780427295.2455509,
+    "ast_hash": "bc0c9d1a729b15fd908882c2430b96c5",
+    "semantic_hash": "bc0c9d1a729b15fd908882c2430b96c5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibReader.cs": {
+    "mtime": 1780427349.2507935,
+    "ast_hash": "4799e3ea9eea0875a98dd13c4276074d",
+    "semantic_hash": "4799e3ea9eea0875a98dd13c4276074d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\LiteNetLibWriter.cs": {
+    "mtime": 1780427349.2518077,
+    "ast_hash": "398d491e4fae295dcdb6af119aac43e3",
+    "semantic_hash": "398d491e4fae295dcdb6af119aac43e3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared.LiteNetLib\\Network.Shared.LiteNetLib.csproj": {
+    "mtime": 1780427349.2528322,
+    "ast_hash": "d7636f8a5aade41b105080899a5f3cd2",
+    "semantic_hash": "d7636f8a5aade41b105080899a5f3cd2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\ComponentAttribute.cs": {
+    "mtime": 1780427295.2480786,
+    "ast_hash": "ca250f2006d01c2e1ced8d166a66ef79",
+    "semantic_hash": "ca250f2006d01c2e1ced8d166a66ef79"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\Components.cs": {
+    "mtime": 1780427295.249086,
+    "ast_hash": "cfd216df9f97846690d2b39972064a41",
+    "semantic_hash": "cfd216df9f97846690d2b39972064a41"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\ConnectionState.cs": {
+    "mtime": 1780427295.249086,
+    "ast_hash": "49920e7c811a10e8d6a17e98357b68d4",
+    "semantic_hash": "49920e7c811a10e8d6a17e98357b68d4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\DeliveryMethod.cs": {
+    "mtime": 1780427295.249086,
+    "ast_hash": "05a3d5ae70febf299417e2699a070323",
+    "semantic_hash": "05a3d5ae70febf299417e2699a070323"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IConnectionRequest.cs": {
+    "mtime": 1780427295.2500873,
+    "ast_hash": "705a844399bb2667d1562412d5785f8e",
+    "semantic_hash": "705a844399bb2667d1562412d5785f8e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IDisconnectInfo.cs": {
+    "mtime": 1780427295.2505908,
+    "ast_hash": "1df7ebf9cdb82a1e140277eceb1c0d53",
+    "semantic_hash": "1df7ebf9cdb82a1e140277eceb1c0d53"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\INetworkManager.cs": {
+    "mtime": 1780427349.2545743,
+    "ast_hash": "9e9b5a05fa19eb81d49508bc5c74fa81",
+    "semantic_hash": "9e9b5a05fa19eb81d49508bc5c74fa81"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IPeer.cs": {
+    "mtime": 1780427295.2515938,
+    "ast_hash": "a26a15b37bd889b90a41297e73b1de7c",
+    "semantic_hash": "a26a15b37bd889b90a41297e73b1de7c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IReader.cs": {
+    "mtime": 1780427349.2555876,
+    "ast_hash": "e52dbac9a8441a5bd358eba24296ef47",
+    "semantic_hash": "e52dbac9a8441a5bd358eba24296ef47"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IRpc.cs": {
+    "mtime": 1780427295.2525938,
+    "ast_hash": "d42b82789c2127580c93c8f18e8ad574",
+    "semantic_hash": "d42b82789c2127580c93c8f18e8ad574"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\ITargetRpcSender.cs": {
+    "mtime": 1780427295.2525938,
+    "ast_hash": "a12486ab920d4b7a844d238dd57fbe45",
+    "semantic_hash": "a12486ab920d4b7a844d238dd57fbe45"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\IWriter.cs": {
+    "mtime": 1780427349.2555876,
+    "ast_hash": "4b0374c79e478a44ce339d78c9eba6c1",
+    "semantic_hash": "4b0374c79e478a44ce339d78c9eba6c1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\Network.Shared.Core.csproj": {
+    "mtime": 1780427349.257094,
+    "ast_hash": "4c3fde148cd9d4f7825c71046f6b700b",
+    "semantic_hash": "4c3fde148cd9d4f7825c71046f6b700b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\NetworkConfig.cs": {
+    "mtime": 1780427349.2581189,
+    "ast_hash": "125a98563c5dd15663b362404371fc5d",
+    "semantic_hash": "125a98563c5dd15663b362404371fc5d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\NetworkInstaller.cs": {
+    "mtime": 1780427349.2591379,
+    "ast_hash": "8b42f0277f5cbc27be1324a75996aa83",
+    "semantic_hash": "8b42f0277f5cbc27be1324a75996aa83"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\PacketType.cs": {
+    "mtime": 1780427349.2606423,
+    "ast_hash": "639f9abece7b0c6271b1e850ea48eaa3",
+    "semantic_hash": "639f9abece7b0c6271b1e850ea48eaa3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Network.Shared\\Network.Shared.Core\\SerializerExtensions.cs": {
+    "mtime": 1780427295.2551024,
+    "ast_hash": "1378a6fd87e2151f9507bb324f0a3e98",
+    "semantic_hash": "1378a6fd87e2151f9507bb324f0a3e98"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Aether2D\\AetherPhysicsWorld.cs": {
+    "mtime": 1780427349.2616496,
+    "ast_hash": "7a91537116c710ca4d16b32b9235ebd7",
+    "semantic_hash": "7a91537116c710ca4d16b32b9235ebd7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Aether2D\\Physics2D.Aether2D.csproj": {
+    "mtime": 1780427349.2616496,
+    "ast_hash": "4bf1f5eae1d9d8f3c6ac541a08ec14e5",
+    "semantic_hash": "4bf1f5eae1d9d8f3c6ac541a08ec14e5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Aether2D\\Physics2DAetherInstaller.cs": {
+    "mtime": 1780427349.2626586,
+    "ast_hash": "d7358599db52eb111527fc0d0bda6e41",
+    "semantic_hash": "d7358599db52eb111527fc0d0bda6e41"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Aether2D\\SystemAetherConverters.cs": {
+    "mtime": 1780427349.2626586,
+    "ast_hash": "9b1783a51e042b718ab1aa59cc1b4158",
+    "semantic_hash": "9b1783a51e042b718ab1aa59cc1b4158"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\Components.cs": {
+    "mtime": 1780427349.263663,
+    "ast_hash": "43a6c0d34f84c82a18bb5fc7d849f4e7",
+    "semantic_hash": "43a6c0d34f84c82a18bb5fc7d849f4e7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\Physics2DBodyCreator.cs": {
+    "mtime": 1780427349.2646658,
+    "ast_hash": "1bf31955eeabe6f70f6c8a209013c6d6",
+    "semantic_hash": "1bf31955eeabe6f70f6c8a209013c6d6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\Physics2DBodyDestroyer.cs": {
+    "mtime": 1780427349.2656724,
+    "ast_hash": "d197969a049315122d2568e87a67faf8",
+    "semantic_hash": "d197969a049315122d2568e87a67faf8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\Physics2DBodyRestoreSystem.cs": {
+    "mtime": 1780427349.2656724,
+    "ast_hash": "fc57e565e04aeaad357603d3da4ecb4d",
+    "semantic_hash": "fc57e565e04aeaad357603d3da4ecb4d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\Physics2DModule.cs": {
+    "mtime": 1780427349.2671766,
+    "ast_hash": "39f2c1d7c1340568f9fc47d1c4505ee9",
+    "semantic_hash": "39f2c1d7c1340568f9fc47d1c4505ee9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\PhysicsPullSystem.cs": {
+    "mtime": 1780427349.2683384,
+    "ast_hash": "e178d731d9a7f17c7de75bfa8ba6fd1d",
+    "semantic_hash": "e178d731d9a7f17c7de75bfa8ba6fd1d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\PhysicsPushSystem.cs": {
+    "mtime": 1780427349.2693448,
+    "ast_hash": "95646c69f96330b19dd595af6b4b1db2",
+    "semantic_hash": "95646c69f96330b19dd595af6b4b1db2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\ECS\\PhysicsStepSystem.cs": {
+    "mtime": 1780427349.2703483,
+    "ast_hash": "7b528235300f5595c2ae5b5abd76db27",
+    "semantic_hash": "7b528235300f5595c2ae5b5abd76db27"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\IPhysicsWorld2D.cs": {
+    "mtime": 1780427349.2713478,
+    "ast_hash": "3db8f1672d6688a082237baed066941c",
+    "semantic_hash": "3db8f1672d6688a082237baed066941c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\Physics2D.Core.csproj": {
+    "mtime": 1780427349.2720098,
+    "ast_hash": "0d37536ce9aeae75c666d1bea3bd7113",
+    "semantic_hash": "0d37536ce9aeae75c666d1bea3bd7113"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\Physics2DInstaller.cs": {
+    "mtime": 1780427349.2725313,
+    "ast_hash": "0f121700aea1513dd929c14a784f7c19",
+    "semantic_hash": "0f121700aea1513dd929c14a784f7c19"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Physics\\Physics2D.Core\\Physics2DLayers.cs": {
+    "mtime": 1780427349.2735412,
+    "ast_hash": "5a5e4261dea692cb9d09b481a7d8575d",
+    "semantic_hash": "5a5e4261dea692cb9d09b481a7d8575d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\Buff.cs": {
+    "mtime": 1780427295.25612,
+    "ast_hash": "b23b23265e0f980ca99c529bd503e9cf",
+    "semantic_hash": "b23b23265e0f980ca99c529bd503e9cf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\BuffRange.cs": {
+    "mtime": 1780427295.25612,
+    "ast_hash": "faf2ab71046ad05c1282dc03c001d534",
+    "semantic_hash": "faf2ab71046ad05c1282dc03c001d534"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\BuffType.cs": {
+    "mtime": 1780427295.2571213,
+    "ast_hash": "3f64f06e9865b4a8080953e7639a9dea",
+    "semantic_hash": "3f64f06e9865b4a8080953e7639a9dea"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\Default.cs": {
+    "mtime": 1780427295.2571213,
+    "ast_hash": "d8ddf0ccaacb06464e5cd02eace65968",
+    "semantic_hash": "d8ddf0ccaacb06464e5cd02eace65968"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\Effect.cs": {
+    "mtime": 1780427295.2582688,
+    "ast_hash": "7d4e0bf214410f98c47cf09df9c3134b",
+    "semantic_hash": "7d4e0bf214410f98c47cf09df9c3134b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\EffectBuilder.cs": {
+    "mtime": 1780427295.2582688,
+    "ast_hash": "0a4be36f50783ca43ad7503a688f684e",
+    "semantic_hash": "0a4be36f50783ca43ad7503a688f684e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\IStat.cs": {
+    "mtime": 1780427295.259775,
+    "ast_hash": "e479b54d079c350aa5c33c40f13e5d3f",
+    "semantic_hash": "e479b54d079c350aa5c33c40f13e5d3f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\StatAttribute.cs": {
+    "mtime": 1780427295.259775,
+    "ast_hash": "905eee3226bfb7d5197a0e635a345cf9",
+    "semantic_hash": "905eee3226bfb7d5197a0e635a345cf9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\StatContainer.cs": {
+    "mtime": 1780427295.259775,
+    "ast_hash": "cdb56c97115a492dd08dc04e9cf185a7",
+    "semantic_hash": "cdb56c97115a492dd08dc04e9cf185a7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\Core\\StatPool.cs": {
+    "mtime": 1780427295.260822,
+    "ast_hash": "712209ea72e474c5dac52fbff309102b",
+    "semantic_hash": "712209ea72e474c5dac52fbff309102b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\StatAndAbilities\\StatAndAbilities.csproj": {
+    "mtime": 1780427349.275685,
+    "ast_hash": "f6c545a44655e0b3a7b42f1ebb402c89",
+    "semantic_hash": "f6c545a44655e0b3a7b42f1ebb402c89"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\ECS\\Systems\\TweenUpdateSystem.cs": {
+    "mtime": 1780427349.275685,
+    "ast_hash": "ba8f96c8a6ad2339fd63dff6a51eff7f",
+    "semantic_hash": "ba8f96c8a6ad2339fd63dff6a51eff7f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\ECS\\TweenModule.cs": {
+    "mtime": 1780427349.277192,
+    "ast_hash": "0e7bfb1347cbd9ef4ef7ad511cc51235",
+    "semantic_hash": "0e7bfb1347cbd9ef4ef7ad511cc51235"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween.Core.csproj": {
+    "mtime": 1780427349.2787106,
+    "ast_hash": "78f77c1ff756abfe8d0aa1a728be2e0e",
+    "semantic_hash": "78f77c1ff756abfe8d0aa1a728be2e0e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween.cs": {
+    "mtime": 1780427295.263327,
+    "ast_hash": "1d1fecc2e8e4df8cbe086ad43efeb053",
+    "semantic_hash": "1d1fecc2e8e4df8cbe086ad43efeb053"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\TweenInstaller.cs": {
+    "mtime": 1780427349.2797315,
+    "ast_hash": "608b1706be49607c4f61c4e413772d99",
+    "semantic_hash": "608b1706be49607c4f61c4e413772d99"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Builders\\GTweenSequenceBuilder.cs": {
+    "mtime": 1780427295.2643356,
+    "ast_hash": "a0081bdcb76eae9e0e41899fc8a32262",
+    "semantic_hash": "a0081bdcb76eae9e0e41899fc8a32262"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Contexts\\GTweensContext.cs": {
+    "mtime": 1780427295.265842,
+    "ast_hash": "42f26033f02ea0365589c5124ec0806d",
+    "semantic_hash": "42f26033f02ea0365589c5124ec0806d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Delegates\\ValidationDelegates.cs": {
+    "mtime": 1780427295.265842,
+    "ast_hash": "2703a8a56114095006f9f4547db901ab",
+    "semantic_hash": "2703a8a56114095006f9f4547db901ab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Easings\\Easing.cs": {
+    "mtime": 1780427295.2673557,
+    "ast_hash": "81677438e276f2fec0983ac15f2d79e0",
+    "semantic_hash": "81677438e276f2fec0983ac15f2d79e0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Easings\\EasingDelegate.cs": {
+    "mtime": 1780427295.2673557,
+    "ast_hash": "d76c56018672a28e81b5829489c82447",
+    "semantic_hash": "d76c56018672a28e81b5829489c82447"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Easings\\PresetEasingDelegateFactory.cs": {
+    "mtime": 1780427295.2683604,
+    "ast_hash": "a187deb952fa15e2f7bcdd94d2726d90",
+    "semantic_hash": "a187deb952fa15e2f7bcdd94d2726d90"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Enums\\ResetMode.cs": {
+    "mtime": 1780427295.2688677,
+    "ast_hash": "8bd1d8535080916cecea0d0db8eccc0b",
+    "semantic_hash": "8bd1d8535080916cecea0d0db8eccc0b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Enums\\RotationMode.cs": {
+    "mtime": 1780427295.2699697,
+    "ast_hash": "4ff52ba02c976c321ebf2ac2e5cefdef",
+    "semantic_hash": "4ff52ba02c976c321ebf2ac2e5cefdef"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Extensions\\AngleExtensions.cs": {
+    "mtime": 1780427295.2699697,
+    "ast_hash": "50668ca974efe83ac69ee4a4fd169ef8",
+    "semantic_hash": "50668ca974efe83ac69ee4a4fd169ef8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Extensions\\GTweenExtensions.cs": {
+    "mtime": 1780427295.2709749,
+    "ast_hash": "fa1db42bc3dfe256250e2166cdaba9d1",
+    "semantic_hash": "fa1db42bc3dfe256250e2166cdaba9d1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Extensions\\MathExtensions.cs": {
+    "mtime": 1780427295.271982,
+    "ast_hash": "e6cd8f0273c03c4ce7377a2244865340",
+    "semantic_hash": "e6cd8f0273c03c4ce7377a2244865340"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Extensions\\SystemColorExtensions.cs": {
+    "mtime": 1780427295.271982,
+    "ast_hash": "c138f9322f0e88c30cbf72866b75b868",
+    "semantic_hash": "c138f9322f0e88c30cbf72866b75b868"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Extensions\\ValidationExtensions.cs": {
+    "mtime": 1780427295.2729907,
+    "ast_hash": "4d3e625fa76b29d8b7da8bc97e45d919",
+    "semantic_hash": "4d3e625fa76b29d8b7da8bc97e45d919"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\FloatInterpolator.cs": {
+    "mtime": 1780427295.2729907,
+    "ast_hash": "88dea92eadaf41fbe638901ac4462341",
+    "semantic_hash": "88dea92eadaf41fbe638901ac4462341"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\IInterpolator.cs": {
+    "mtime": 1780427295.2739968,
+    "ast_hash": "22fe72d8dfb10012ae5cfd8a5f88c5a9",
+    "semantic_hash": "22fe72d8dfb10012ae5cfd8a5f88c5a9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\IntInterpolator.cs": {
+    "mtime": 1780427295.2750003,
+    "ast_hash": "36bef4539f86a28e939f26efb30cf896",
+    "semantic_hash": "36bef4539f86a28e939f26efb30cf896"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemColorInterpolator.cs": {
+    "mtime": 1780427295.2750003,
+    "ast_hash": "32a24d3ab138584f6b07949b8151ac96",
+    "semantic_hash": "32a24d3ab138584f6b07949b8151ac96"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemQuaternionInterpolator.cs": {
+    "mtime": 1780427295.2762012,
+    "ast_hash": "2b74b90170c038f5f0047cfde5f1371d",
+    "semantic_hash": "2b74b90170c038f5f0047cfde5f1371d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemVector2Interpolator.cs": {
+    "mtime": 1780427295.2772052,
+    "ast_hash": "0e7b1f79c6ce66d991eb2ffb1a4876f2",
+    "semantic_hash": "0e7b1f79c6ce66d991eb2ffb1a4876f2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemVector3Interpolator.cs": {
+    "mtime": 1780427295.2772052,
+    "ast_hash": "5e4832a02283b7c7ca1e53aea7cf41ba",
+    "semantic_hash": "5e4832a02283b7c7ca1e53aea7cf41ba"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemVector3RotationInterpolator.cs": {
+    "mtime": 1780427295.2782228,
+    "ast_hash": "2fed2d95e8e25603d50f79e69a39d4bf",
+    "semantic_hash": "2fed2d95e8e25603d50f79e69a39d4bf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Interpolators\\SystemVector4Interpolator.cs": {
+    "mtime": 1780427295.2782228,
+    "ast_hash": "a3ef6c6b2c1f8cd2f67da6c1c2c09ca4",
+    "semantic_hash": "a3ef6c6b2c1f8cd2f67da6c1c2c09ca4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\CallbackTweenBehaviour.cs": {
+    "mtime": 1780427295.2792294,
+    "ast_hash": "44a7f1e8270e05c66b4702209cd17058",
+    "semantic_hash": "44a7f1e8270e05c66b4702209cd17058"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\GroupTweenBehaviour.cs": {
+    "mtime": 1780427295.2802386,
+    "ast_hash": "4b5103e51fb8fe5dee60d17fb921abfb",
+    "semantic_hash": "4b5103e51fb8fe5dee60d17fb921abfb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\ITweenBehaviour.cs": {
+    "mtime": 1780427295.2812462,
+    "ast_hash": "c44ffe5baddd153d890f66c8853695cb",
+    "semantic_hash": "c44ffe5baddd153d890f66c8853695cb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\InterpolationTweenBehaviour.cs": {
+    "mtime": 1780427295.2812462,
+    "ast_hash": "b5a2a1f80d6e579d038626758f435820",
+    "semantic_hash": "b5a2a1f80d6e579d038626758f435820"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\SequenceTweenBehaviour.cs": {
+    "mtime": 1780427295.2812462,
+    "ast_hash": "ff989e305d760fb0bc1fd905e307ae01",
+    "semantic_hash": "ff989e305d760fb0bc1fd905e307ae01"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\TweenBehaviour.cs": {
+    "mtime": 1780427295.2822711,
+    "ast_hash": "fa23b03837675d91bc0fac3b5bfad04f",
+    "semantic_hash": "fa23b03837675d91bc0fac3b5bfad04f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\TweenBehaviours\\WaitTimeTween.cs": {
+    "mtime": 1780427295.2832758,
+    "ast_hash": "8d6f647e4e1638c8cd2e81d4580d2ba3",
+    "semantic_hash": "8d6f647e4e1638c8cd2e81d4580d2ba3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\FloatTweener.cs": {
+    "mtime": 1780427295.2832758,
+    "ast_hash": "c6800a21cc8e9d7605958191ce896bc1",
+    "semantic_hash": "c6800a21cc8e9d7605958191ce896bc1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\ITweener.cs": {
+    "mtime": 1780427295.284282,
+    "ast_hash": "c8b10834aa2a31ea7fb9447df22eb87c",
+    "semantic_hash": "c8b10834aa2a31ea7fb9447df22eb87c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\IntTweener.cs": {
+    "mtime": 1780427295.284282,
+    "ast_hash": "32b00cea5f49e0792653584de9e1918b",
+    "semantic_hash": "32b00cea5f49e0792653584de9e1918b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\SystemColorTweener.cs": {
+    "mtime": 1780427295.28539,
+    "ast_hash": "70456458d42009c662b0b582e28067c2",
+    "semantic_hash": "70456458d42009c662b0b582e28067c2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\SystemQuaternionTweener.cs": {
+    "mtime": 1780427295.28539,
+    "ast_hash": "84678ee024dad99e00e8acfdf724d394",
+    "semantic_hash": "84678ee024dad99e00e8acfdf724d394"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\SystemVector2Tweener.cs": {
+    "mtime": 1780427295.2868981,
+    "ast_hash": "abd080a41987eecfe9891b2e8b36f06f",
+    "semantic_hash": "abd080a41987eecfe9891b2e8b36f06f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\SystemVector3Tweener.cs": {
+    "mtime": 1780427295.2868981,
+    "ast_hash": "c405686f1ef75cfedc4534e73aea6d02",
+    "semantic_hash": "c405686f1ef75cfedc4534e73aea6d02"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\SystemVector4Tweener.cs": {
+    "mtime": 1780427295.287417,
+    "ast_hash": "3950d168ab7c1a5d25069e15332c3099",
+    "semantic_hash": "3950d168ab7c1a5d25069e15332c3099"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\Tweener.cs": {
+    "mtime": 1780427295.287417,
+    "ast_hash": "5f1fec751657e1646183dd96ab8b9cd9",
+    "semantic_hash": "5f1fec751657e1646183dd96ab8b9cd9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweeners\\Vector3RotationTweener.cs": {
+    "mtime": 1780427295.2884371,
+    "ast_hash": "231eaad6ec3ac1037d3cc420e7fc8b59",
+    "semantic_hash": "231eaad6ec3ac1037d3cc420e7fc8b59"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\Tween\\Tween.Core\\Tween\\Tweens\\GTween.cs": {
+    "mtime": 1780427295.2894447,
+    "ast_hash": "1c1104bf147975ef6165c875c162cb20",
+    "semantic_hash": "1c1104bf147975ef6165c875c162cb20"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\UnsafeUtilities\\ArrayList.cs": {
+    "mtime": 1780427349.2807426,
+    "ast_hash": "177b04212e346ba744dc4e014a491b69",
+    "semantic_hash": "177b04212e346ba744dc4e014a491b69"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Shared\\UnsafeUtilities\\UnsafeUtilities.csproj": {
+    "mtime": 1780427349.2817557,
+    "ast_hash": "0a59c6e84fce66a04321cc5ab54b0d89",
+    "semantic_hash": "0a59c6e84fce66a04321cc5ab54b0d89"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\AssetManagement\\Converters\\ColorConverter.cs": {
+    "mtime": 1780427295.2914534,
+    "ast_hash": "2958d66fc9e091ea0b917e09bfeea46d",
+    "semantic_hash": "2958d66fc9e091ea0b917e09bfeea46d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\ClientReconnectTokenStore.cs": {
+    "mtime": 1780427349.2828138,
+    "ast_hash": "359f38073c36c04ec03384987a427fa4",
+    "semantic_hash": "359f38073c36c04ec03384987a427fa4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Components.cs": {
+    "mtime": 1780427349.2828138,
+    "ast_hash": "7565dafc890f43747af877f0f8430a29",
+    "semantic_hash": "7565dafc890f43747af877f0f8430a29"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\DemoModuleClient.cs": {
+    "mtime": 1780753069.9181256,
+    "ast_hash": "cc70aecf29b3ad14e56e6ef69ce15e7f",
+    "semantic_hash": "cc70aecf29b3ad14e56e6ef69ce15e7f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Drawer.cs": {
+    "mtime": 1780427349.2848563,
+    "ast_hash": "8bea1d2fb9873957675e39d6bf426cb3",
+    "semantic_hash": "8bea1d2fb9873957675e39d6bf426cb3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\MyGame.Client.Main.csproj": {
+    "mtime": 1780427349.28587,
+    "ast_hash": "64964e010955b5d67eda4c407b496353",
+    "semantic_hash": "64964e010955b5d67eda4c407b496353"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\MyGameClientInstaller.cs": {
+    "mtime": 1780427349.2873778,
+    "ast_hash": "f896ebe0cd760fc42f84813fda3d54fc",
+    "semantic_hash": "f896ebe0cd760fc42f84813fda3d54fc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Rpc.cs": {
+    "mtime": 1780427349.2884188,
+    "ast_hash": "9817a4e0bc4d2918502c00b5eadafcca",
+    "semantic_hash": "9817a4e0bc4d2918502c00b5eadafcca"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\ApplySpriteSystem.cs": {
+    "mtime": 1780753070.2876437,
+    "ast_hash": "379fa28c89d0b853fe7ebfa97484ca49",
+    "semantic_hash": "379fa28c89d0b853fe7ebfa97484ca49"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\Components.cs": {
+    "mtime": 1780427349.2904255,
+    "ast_hash": "98cf70356571a3a26faf394ab5938947",
+    "semantic_hash": "98cf70356571a3a26faf394ab5938947"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\DisplaySystem.cs": {
+    "mtime": 1780753070.1622021,
+    "ast_hash": "c873092558fde77b100b5e0ee5e6f954",
+    "semantic_hash": "c873092558fde77b100b5e0ee5e6f954"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\DrawSpriteSystems.cs": {
+    "mtime": 1780427349.292546,
+    "ast_hash": "4d8f01059937b2b6257f2811a6b1067e",
+    "semantic_hash": "4d8f01059937b2b6257f2811a6b1067e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\FlushDrawersSystem.cs": {
+    "mtime": 1780427349.2935505,
+    "ast_hash": "3b7fe68621258b87c42d3b86c26082d3",
+    "semantic_hash": "3b7fe68621258b87c42d3b86c26082d3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\InputSystem.cs": {
+    "mtime": 1780753070.0425124,
+    "ast_hash": "64e71c2b5d018979a459735a03428e3d",
+    "semantic_hash": "64e71c2b5d018979a459735a03428e3d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\Systems\\SetLocalPlayerSystem.cs": {
+    "mtime": 1780427349.2965684,
+    "ast_hash": "ff90df44cedd431e5d9df9b157fe35b6",
+    "semantic_hash": "ff90df44cedd431e5d9df9b157fe35b6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Client\\MyGame.Client.Main\\TargetClientRpcDispatcher.cs": {
+    "mtime": 1780427295.2969809,
+    "ast_hash": "d9e2e1dc318201b6a303794d1735b1e5",
+    "semantic_hash": "d9e2e1dc318201b6a303794d1735b1e5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Content\\Player.json": {
+    "mtime": 1780427295.2969809,
+    "ast_hash": "c74720967562e51846f08762d5446bb2",
+    "semantic_hash": "c74720967562e51846f08762d5446bb2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Mods\\MyCoolMod\\Client\\Client.lua": {
+    "mtime": 1780427295.302312,
+    "ast_hash": "69d548eca99484d78732916ea3d33f34",
+    "semantic_hash": "69d548eca99484d78732916ea3d33f34"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Mods\\MyCoolMod\\Server\\ServerSide.lua": {
+    "mtime": 1780427295.3033142,
+    "ast_hash": "5a1113d09932fc6c72cb7c5bed1390c0",
+    "semantic_hash": "5a1113d09932fc6c72cb7c5bed1390c0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Mods\\MyCoolMod\\mod_info.json": {
+    "mtime": 1780427295.3033142,
+    "ast_hash": "8cfbc8df5d12209aa60c6a9c0af816a4",
+    "semantic_hash": "8cfbc8df5d12209aa60c6a9c0af816a4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\MyGameResources.csproj": {
+    "mtime": 1780427295.3033142,
+    "ast_hash": "b0e27ff8140ff54d6bfdbdee307adbc1",
+    "semantic_hash": "b0e27ff8140ff54d6bfdbdee307adbc1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\CommandDispatcher.cs": {
+    "mtime": 1780427349.3016927,
+    "ast_hash": "0c35100627f9c1e831f3cf1d019caa7b",
+    "semantic_hash": "0c35100627f9c1e831f3cf1d019caa7b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\GlobalUsings.cs": {
+    "mtime": 1780427349.3027806,
+    "ast_hash": "7a2786c8bcf69130d2b7ef9bcf8d62e9",
+    "semantic_hash": "7a2786c8bcf69130d2b7ef9bcf8d62e9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\MyGame.Server.Main.csproj": {
+    "mtime": 1780427349.3037782,
+    "ast_hash": "aca7cb4126ed97da8064381bd2821644",
+    "semantic_hash": "aca7cb4126ed97da8064381bd2821644"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\MyGameServerInstaller.cs": {
+    "mtime": 1780427349.3048491,
+    "ast_hash": "d47edd82a461c13a629129e68f9c3a37",
+    "semantic_hash": "d47edd82a461c13a629129e68f9c3a37"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\MyGameServerModule.cs": {
+    "mtime": 1780427349.3058555,
+    "ast_hash": "bf6233b54e761f6ae3668d83258287a2",
+    "semantic_hash": "bf6233b54e761f6ae3668d83258287a2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\NetworkIdGenerator.cs": {
+    "mtime": 1780427349.3073645,
+    "ast_hash": "25dde2dd53639dd13d85dd9c4710fc92",
+    "semantic_hash": "25dde2dd53639dd13d85dd9c4710fc92"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\Systems\\KinematicControllerSystem.cs": {
+    "mtime": 1780427349.3083813,
+    "ast_hash": "09504d84c85e8762bb98527db9393611",
+    "semantic_hash": "09504d84c85e8762bb98527db9393611"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\Systems\\LevelInitSystem.cs": {
+    "mtime": 1780427349.3088875,
+    "ast_hash": "22bc98f5eaf4d252f127331e36b1b5c2",
+    "semantic_hash": "22bc98f5eaf4d252f127331e36b1b5c2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\Systems\\NetworkSystem.cs": {
+    "mtime": 1780753070.5588603,
+    "ast_hash": "f8fbc131f8e3809d36cd72653e9c1a54",
+    "semantic_hash": "f8fbc131f8e3809d36cd72653e9c1a54"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\Systems\\ServerCollisionEventSystem.cs": {
+    "mtime": 1780753070.421706,
+    "ast_hash": "f0b9c0b0487259c8167c5c1d9c852b5c",
+    "semantic_hash": "f0b9c0b0487259c8167c5c1d9c852b5c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\Systems\\ServerPlayerInputSystem.cs": {
+    "mtime": 1780427349.3124423,
+    "ast_hash": "c9d870267913efe50be36ccf708d79e4",
+    "semantic_hash": "c9d870267913efe50be36ccf708d79e4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Server\\MyGame.Server.Main\\TargetRpcSender.cs": {
+    "mtime": 1780427349.31345,
+    "ast_hash": "59b5f103432af75ee76de342d20f0c79",
+    "semantic_hash": "59b5f103432af75ee76de342d20f0c79"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\Components.cs": {
+    "mtime": 1780427349.3144715,
+    "ast_hash": "e7ba8f7d3e92d22ef9ce3faa61640c3d",
+    "semantic_hash": "e7ba8f7d3e92d22ef9ce3faa61640c3d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\KinematicCharacterController.cs": {
+    "mtime": 1780427349.3154974,
+    "ast_hash": "98791c4a6ff56b54cae0f766662a2ce9",
+    "semantic_hash": "98791c4a6ff56b54cae0f766662a2ce9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\MyGame.Shared.Main.csproj": {
+    "mtime": 1780427349.316514,
+    "ast_hash": "73e02111139ad7b088e7d53d03d46038",
+    "semantic_hash": "73e02111139ad7b088e7d53d03d46038"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\MyGameSharedInstaller.cs": {
+    "mtime": 1780427349.3175159,
+    "ast_hash": "a8b27a31c8b1a9ff17ee148afbf35eac",
+    "semantic_hash": "a8b27a31c8b1a9ff17ee148afbf35eac"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\NetworkManager.cs": {
+    "mtime": 1780427295.3095608,
+    "ast_hash": "95ba8dbaa83f4b87f49f6ecf22629344",
+    "semantic_hash": "95ba8dbaa83f4b87f49f6ecf22629344"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\PlatformerCommands.cs": {
+    "mtime": 1780427349.3175159,
+    "ast_hash": "ba442620fd78fc9a8d045eec9c4351dd",
+    "semantic_hash": "ba442620fd78fc9a8d045eec9c4351dd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\Shared\\MyGame.Shared.Main\\PlatformerComponents.cs": {
+    "mtime": 1780427349.318844,
+    "ast_hash": "25a881b28ca24956ec885be6d0058b11",
+    "semantic_hash": "25a881b28ca24956ec885be6d0058b11"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\CommandIdDebugger.cs": {
+    "mtime": 1780427295.3095608,
+    "ast_hash": "8429dae11962b175677c7cfac08c0759",
+    "semantic_hash": "8429dae11962b175677c7cfac08c0759"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\CommandIdManager.cs": {
+    "mtime": 1780427295.3108895,
+    "ast_hash": "711f9615f7a236ee53d6fc21e01b947a",
+    "semantic_hash": "711f9615f7a236ee53d6fc21e01b947a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\Dummy.cs": {
+    "mtime": 1780427295.3108895,
+    "ast_hash": "97e1e76a1bd5da5ee10c66a1bc1eef91",
+    "semantic_hash": "97e1e76a1bd5da5ee10c66a1bc1eef91"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\GlobalCommandCollector.cs": {
+    "mtime": 1763883077.934547,
+    "ast_hash": "6138ca8840cb08ee5cf180cfde34d86c",
+    "semantic_hash": "6138ca8840cb08ee5cf180cfde34d86c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\GlobalCommandIdCoordinator.cs": {
+    "mtime": 1767445789.434975,
+    "ast_hash": "3f131b9d518759209f9d524cd3751f4f",
+    "semantic_hash": "3f131b9d518759209f9d524cd3751f4f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\Network.Codegen.csproj": {
+    "mtime": 1769945970.610464,
+    "ast_hash": "a3719b47f46e15848943aaf5fccee03b",
+    "semantic_hash": "a3719b47f46e15848943aaf5fccee03b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\NetworkGenerator.cs": {
+    "mtime": 1780427349.3198571,
+    "ast_hash": "c94c0f02ad339019320058cc7a5f3488",
+    "semantic_hash": "c94c0f02ad339019320058cc7a5f3488"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\ProjectTypeDetector.cs": {
+    "mtime": 1780427295.3123944,
+    "ast_hash": "02ac3493b55adf9a8ef783a0af115920",
+    "semantic_hash": "02ac3493b55adf9a8ef783a0af115920"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\Properties\\launchSettings.json": {
+    "mtime": 1751158274.18731,
+    "ast_hash": "1673c879e7cc8b6c0df3a34dad2104a9",
+    "semantic_hash": "1673c879e7cc8b6c0df3a34dad2104a9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\RpcGenerator.cs": {
+    "mtime": 1780427295.3134205,
+    "ast_hash": "e869d2cc6c7123da77d8e0317cd48481",
+    "semantic_hash": "e869d2cc6c7123da77d8e0317cd48481"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Network.Codegen\\Network.Codegen\\TargetClientRpcGenerator.cs": {
+    "mtime": 1780427295.3145628,
+    "ast_hash": "09b458c75d3607046ada222fe5b67bdb",
+    "semantic_hash": "09b458c75d3607046ada222fe5b67bdb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ServerLauncher\\Program.cs": {
+    "mtime": 1780427295.3181093,
+    "ast_hash": "6305d238dae315852064065b20e34a3d",
+    "semantic_hash": "6305d238dae315852064065b20e34a3d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\ServerLauncher\\ServerLauncher.csproj": {
+    "mtime": 1780427349.3213665,
+    "ast_hash": "c9dfe6d79ace3d38db50fc5b78a5215a",
+    "semantic_hash": "c9dfe6d79ace3d38db50fc5b78a5215a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\Attributes\\StatAttribute.cs": {
+    "mtime": 1780427295.3201249,
+    "ast_hash": "f86881f378314ff43b80840f070576ce",
+    "semantic_hash": "f86881f378314ff43b80840f070576ce"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\EzRangeStatGenerator.cs": {
+    "mtime": 1780427349.321872,
+    "ast_hash": "c12b70634caf9bc0d4413df27a767a47",
+    "semantic_hash": "c12b70634caf9bc0d4413df27a767a47"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\GenStatStruct.cs": {
+    "mtime": 1780427295.3211966,
+    "ast_hash": "a1d8f2535ca897610fad9f877267808e",
+    "semantic_hash": "a1d8f2535ca897610fad9f877267808e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\Properties\\launchSettings.json": {
+    "mtime": 1745754768.5070622,
+    "ast_hash": "2c8ccbd4f9e6223a4f262aafcfa93fdd",
+    "semantic_hash": "2c8ccbd4f9e6223a4f262aafcfa93fdd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\RangeStatGenerator.cs": {
+    "mtime": 1780427349.3239028,
+    "ast_hash": "fe84cd7b6efad31de76edd1f495e3129",
+    "semantic_hash": "fe84cd7b6efad31de76edd1f495e3129"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen.csproj": {
+    "mtime": 1769945970.6242044,
+    "ast_hash": "0e9f4cac8952c9df7a519b79980f198f",
+    "semantic_hash": "0e9f4cac8952c9df7a519b79980f198f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\StatGenerator.cs": {
+    "mtime": 1780427349.3249109,
+    "ast_hash": "dd5c95b1dba50fc967856750ebe59790",
+    "semantic_hash": "dd5c95b1dba50fc967856750ebe59790"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\StructReceiver.cs": {
+    "mtime": 1780427295.3232088,
+    "ast_hash": "dba7054ba8c22b9ac786038e5cd10445",
+    "semantic_hash": "dba7054ba8c22b9ac786038e5cd10445"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\StructWithStatReceiver.cs": {
+    "mtime": 1780427295.3242087,
+    "ast_hash": "5599ad0c646fb4a671815aedd7b3c1b7",
+    "semantic_hash": "5599ad0c646fb4a671815aedd7b3c1b7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\Utils\\AttributeAdder.cs": {
+    "mtime": 1745754768.512063,
+    "ast_hash": "0e6d13dfd522773d2f545630e6924131",
+    "semantic_hash": "0e6d13dfd522773d2f545630e6924131"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\Utils\\NodeExtensions.cs": {
+    "mtime": 1745754768.514063,
+    "ast_hash": "3257ca995b7debc600ff3996303599c4",
+    "semantic_hash": "3257ca995b7debc600ff3996303599c4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\StatAndAbilities.Codegen\\StatAndAbilities.Codegen\\Utils\\TypeSyntaxFactory.cs": {
+    "mtime": 1745754768.5150642,
+    "ast_hash": "a954767a649a9846010999a69a6c4746",
+    "semantic_hash": "a954767a649a9846010999a69a6c4746"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\TestVeldrid\\Program.cs": {
+    "mtime": 1780427349.3259273,
+    "ast_hash": "cb8161a2d8dc7e5f4ac3e186cf32054d",
+    "semantic_hash": "cb8161a2d8dc7e5f4ac3e186cf32054d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\TestVeldrid\\TestVeldrid.csproj": {
+    "mtime": 1780427349.3259273,
+    "ast_hash": "91e73a19c800f914b7bf8cc5546995d8",
+    "semantic_hash": "91e73a19c800f914b7bf8cc5546995d8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\TestVeldrid\\VertexPositionColor.cs": {
+    "mtime": 1780427349.3259273,
+    "ast_hash": "f1f3a079783bd3671c575327f80b4962",
+    "semantic_hash": "f1f3a079783bd3671c575327f80b4962"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer.Tests\\AnalyzerTestHarness.cs": {
+    "mtime": 1780741653.1611814,
+    "ast_hash": "a2e2e9156a748d209d20fbcb6a2e2369",
+    "semantic_hash": "a2e2e9156a748d209d20fbcb6a2e2369"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer.Tests\\EcsUpdateRegistryGeneratorTests.cs": {
+    "mtime": 1780751339.7511644,
+    "ast_hash": "7e050339204a8740d3c9b5745c0b8148",
+    "semantic_hash": "7e050339204a8740d3c9b5745c0b8148"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer.Tests\\EcsUpdateSchedulerAnalyzerTests.cs": {
+    "mtime": 1780750957.0651503,
+    "ast_hash": "9914f1283969c1e53b330917b44eb831",
+    "semantic_hash": "9914f1283969c1e53b330917b44eb831"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer.Tests\\SchedulerDiagnosticDescriptorTests.cs": {
+    "mtime": 1780732047.683398,
+    "ast_hash": "f6607dce7334abb2715635d5082f113d",
+    "semantic_hash": "f6607dce7334abb2715635d5082f113d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer.Tests\\StaticAnalyzer.Tests.csproj": {
+    "mtime": 1780751199.0571735,
+    "ast_hash": "467c8c1292601e4c6c82bc5022f9d377",
+    "semantic_hash": "467c8c1292601e4c6c82bc5022f9d377"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\DiagnosticIds.cs": {
+    "mtime": 1780732428.86726,
+    "ast_hash": "a234a0808a43437319610daed305db6c",
+    "semantic_hash": "a234a0808a43437319610daed305db6c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\ECS\\001.WorldWrapper\\UseWorldAnalyzer.cs": {
+    "mtime": 1780427349.3310947,
+    "ast_hash": "20d7327601815918dc06b32954f52775",
+    "semantic_hash": "20d7327601815918dc06b32954f52775"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\ECS\\001.WorldWrapper\\UseWorldCodeFixProvider.cs": {
+    "mtime": 1780427349.3310947,
+    "ast_hash": "0b98e50999744dd53079ae6e6051a76f",
+    "semantic_hash": "0b98e50999744dd53079ae6e6051a76f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\ECS\\002.LifecycleAPI\\DoNotUseDragonLifecycleAnalyzer.cs": {
+    "mtime": 1780427349.332101,
+    "ast_hash": "14ba2a2d39cc0244c820a149dcfafdab",
+    "semantic_hash": "14ba2a2d39cc0244c820a149dcfafdab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\ECS\\003.UpdateScheduler\\EcsUpdateSchedulerAnalyzer.cs": {
+    "mtime": 1780741951.4250586,
+    "ast_hash": "92a87b4dd10f3397bf466ae37b85a35e",
+    "semantic_hash": "92a87b4dd10f3397bf466ae37b85a35e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\ECS\\003.UpdateScheduler\\SchedulerDiagnosticDescriptors.cs": {
+    "mtime": 1780732540.2280107,
+    "ast_hash": "3fa0a29128021c1e9a9e97a324c9ba20",
+    "semantic_hash": "3fa0a29128021c1e9a9e97a324c9ba20"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\StaticAnalyzer.csproj": {
+    "mtime": 1780427349.3331058,
+    "ast_hash": "8da8cffbc51d1d5938cc365f39cac287",
+    "semantic_hash": "8da8cffbc51d1d5938cc365f39cac287"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Benchmarks\\Karpik.Jobs.Benchmarks.csproj": {
+    "mtime": 1780542782.8529427,
+    "ast_hash": "1a2de429d36d23f2217e5b8b96a5bcfb",
+    "semantic_hash": "1a2de429d36d23f2217e5b8b96a5bcfb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Benchmarks\\Program.cs": {
+    "mtime": 1780589633.0479653,
+    "ast_hash": "b03a78e67c71bc08f3435ffb29f14c88",
+    "semantic_hash": "b03a78e67c71bc08f3435ffb29f14c88"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobDescriptorStorageTests.cs": {
+    "mtime": 1780543379.674857,
+    "ast_hash": "2bea064d86c10058b4dfb5ccf5f9c6a5",
+    "semantic_hash": "2bea064d86c10058b4dfb5ccf5f9c6a5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobRuntimeDiagnosticsTests.cs": {
+    "mtime": 1780589695.758041,
+    "ast_hash": "bad7c9565494461dd66beadc19fae398",
+    "semantic_hash": "bad7c9565494461dd66beadc19fae398"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSchedulerDependencyTests.cs": {
+    "mtime": 1780544599.9355342,
+    "ast_hash": "130aa558cb9ebf3e00536c295a0e1d60",
+    "semantic_hash": "130aa558cb9ebf3e00536c295a0e1d60"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSchedulerProfilerTests.cs": {
+    "mtime": 1780583198.0430794,
+    "ast_hash": "7fc8a7fcc11c4a6aa5cc3757b2579940",
+    "semantic_hash": "7fc8a7fcc11c4a6aa5cc3757b2579940"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSchedulerValueSchedulingTests.cs": {
+    "mtime": 1780543963.3965096,
+    "ast_hash": "9f58fc5eb32c872f17bdb93402647ae9",
+    "semantic_hash": "9f58fc5eb32c872f17bdb93402647ae9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSchedulerWorkerPublicationTests.cs": {
+    "mtime": 1780586854.5038772,
+    "ast_hash": "ac608928c5f0f54fb538d2fd7ab4f2df",
+    "semantic_hash": "ac608928c5f0f54fb538d2fd7ab4f2df"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSchedulerWorkerRuntimeTests.cs": {
+    "mtime": 1780587337.3333573,
+    "ast_hash": "8db652ad47942b06e68d0e32efc9877b",
+    "semantic_hash": "8db652ad47942b06e68d0e32efc9877b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSystemBaselineTests.cs": {
+    "mtime": 1780511739.8103957,
+    "ast_hash": "2330abde90b016d2d23834086c371880",
+    "semantic_hash": "2330abde90b016d2d23834086c371880"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\JobSystemCompatibilityBoundaryTests.cs": {
+    "mtime": 1780587845.1461368,
+    "ast_hash": "56803d56c3cc5a88d9095d97ac48a4ab",
+    "semantic_hash": "56803d56c3cc5a88d9095d97ac48a4ab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\Karpik.Jobs.Tests.csproj": {
+    "mtime": 1780507852.8702981,
+    "ast_hash": "d3b177b90b1922d7f4f7da33ff7e18de",
+    "semantic_hash": "d3b177b90b1922d7f4f7da33ff7e18de"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\SimpleNativeArrayTests.cs": {
+    "mtime": 1780507852.9824018,
+    "ast_hash": "f9c78c9f1014a4b4ea4aff16cf085978",
+    "semantic_hash": "f9c78c9f1014a4b4ea4aff16cf085978"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.Tests\\WorkStealingDequeTests.cs": {
+    "mtime": 1780584359.2547662,
+    "ast_hash": "bd227046a3481f150e389bf0a9da6a2f",
+    "semantic_hash": "bd227046a3481f150e389bf0a9da6a2f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs.sln": {
+    "mtime": 1780854671.440701,
+    "ast_hash": "8b6cb4f9f93b7b0d07c580b7de74225c",
+    "semantic_hash": "8b6cb4f9f93b7b0d07c580b7de74225c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\AllocatingCompatibilityAttribute.cs": {
+    "mtime": 1780587792.3627732,
+    "ast_hash": "03f018b07858f5724f79f93be509d9bd",
+    "semantic_hash": "03f018b07858f5724f79f93be509d9bd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\AssemblyInfo.cs": {
+    "mtime": 1780543322.217395,
+    "ast_hash": "5dc611acf2c86516168714697753f415",
+    "semantic_hash": "5dc611acf2c86516168714697753f415"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\IJob.cs": {
+    "mtime": 1780543322.3445067,
+    "ast_hash": "a4568ce930e3a642040c4d1dd5957e82",
+    "semantic_hash": "a4568ce930e3a642040c4d1dd5957e82"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\IJobFor.cs": {
+    "mtime": 1780543322.4666166,
+    "ast_hash": "651c89f59dd060cefc55012645bc70b8",
+    "semantic_hash": "651c89f59dd060cefc55012645bc70b8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobBatchInfo.cs": {
+    "mtime": 1780583273.3760152,
+    "ast_hash": "4ff999a353705a07987d744f89906b82",
+    "semantic_hash": "4ff999a353705a07987d744f89906b82"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobCompletion.cs": {
+    "mtime": 1780589390.9751027,
+    "ast_hash": "444fb90e094c0194de79bed64f59f43d",
+    "semantic_hash": "444fb90e094c0194de79bed64f59f43d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobDescriptor.cs": {
+    "mtime": 1780583273.601905,
+    "ast_hash": "2b240fd848644be79d74c02535f5ebaf",
+    "semantic_hash": "2b240fd848644be79d74c02535f5ebaf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobDescriptorHandle.cs": {
+    "mtime": 1780543322.7386665,
+    "ast_hash": "cdd9e143cc354370f5e78c855bfba49b",
+    "semantic_hash": "cdd9e143cc354370f5e78c855bfba49b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobDescriptorKind.cs": {
+    "mtime": 1780583273.4891126,
+    "ast_hash": "555e4d4b24a8b92b162a5f726cf536b8",
+    "semantic_hash": "555e4d4b24a8b92b162a5f726cf536b8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobDescriptorPool.cs": {
+    "mtime": 1780587237.9310634,
+    "ast_hash": "b5f53e766063e80bdc87d2746f44b408",
+    "semantic_hash": "b5f53e766063e80bdc87d2746f44b408"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobExecutor.cs": {
+    "mtime": 1780544044.9386406,
+    "ast_hash": "066dee475112b808e5897080a9dc6748",
+    "semantic_hash": "066dee475112b808e5897080a9dc6748"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobForExecutor.cs": {
+    "mtime": 1780544045.0578144,
+    "ast_hash": "92455b4a16d00f86522144d18aaa81c3",
+    "semantic_hash": "92455b4a16d00f86522144d18aaa81c3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobHandle.cs": {
+    "mtime": 1780589408.7029963,
+    "ast_hash": "8d33f8ba6b040bf24c08e7b6b95b5239",
+    "semantic_hash": "8d33f8ba6b040bf24c08e7b6b95b5239"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobHandleAwaiter.cs": {
+    "mtime": 1780589415.4081018,
+    "ast_hash": "d5e88f0f8d9015dae2f42a14835dfa86",
+    "semantic_hash": "d5e88f0f8d9015dae2f42a14835dfa86"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobHandleCompletionSource.cs": {
+    "mtime": 1780427295.16131,
+    "ast_hash": "c3c068368e327aa221d5de89ca8b4899",
+    "semantic_hash": "c3c068368e327aa221d5de89ca8b4899"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobHandleMethodBuilder.cs": {
+    "mtime": 1780427295.1623342,
+    "ast_hash": "88000c4c28a2ba09e1f0d75f569b30ec",
+    "semantic_hash": "88000c4c28a2ba09e1f0d75f569b30ec"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobProfilerCallback.cs": {
+    "mtime": 1780583273.0368505,
+    "ast_hash": "86b3c16c8b6658e95660be026c25b0e3",
+    "semantic_hash": "86b3c16c8b6658e95660be026c25b0e3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobProfilerEvent.cs": {
+    "mtime": 1780583273.2607937,
+    "ast_hash": "80c782be81a28833d590c497430589b2",
+    "semantic_hash": "80c782be81a28833d590c497430589b2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobProfilerHooks.cs": {
+    "mtime": 1780583273.1500337,
+    "ast_hash": "fc955642b4cd274b938f0d61e44c70cf",
+    "semantic_hash": "fc955642b4cd274b938f0d61e44c70cf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobRuntimeDiagnostics.cs": {
+    "mtime": 1780589725.2643242,
+    "ast_hash": "3a0d779967ace08ad04ff847ee799fe9",
+    "semantic_hash": "3a0d779967ace08ad04ff847ee799fe9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobScheduler.cs": {
+    "mtime": 1780589748.718871,
+    "ast_hash": "81236fa6c6f6eb781aed64b94a00bf4d",
+    "semantic_hash": "81236fa6c6f6eb781aed64b94a00bf4d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobSystem.cs": {
+    "mtime": 1780589497.0119288,
+    "ast_hash": "86e03575ecb1d91c799a5e788b0d2439",
+    "semantic_hash": "86e03575ecb1d91c799a5e788b0d2439"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\JobWrapper.cs": {
+    "mtime": 1780589399.4541688,
+    "ast_hash": "812a523a361b21bacf6ab1672bc51007",
+    "semantic_hash": "812a523a361b21bacf6ab1672bc51007"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\Karpik.Jobs.csproj": {
+    "mtime": 1780507913.483048,
+    "ast_hash": "5475cc997366e0725b0f1d7899dd6b30",
+    "semantic_hash": "5475cc997366e0725b0f1d7899dd6b30"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\ObjectPool.cs": {
+    "mtime": 1780589485.296868,
+    "ast_hash": "ac238d340e9c5f9d60d10e7d218c941d",
+    "semantic_hash": "ac238d340e9c5f9d60d10e7d218c941d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\SimpleNativeArray.cs": {
+    "mtime": 1780507922.8771052,
+    "ast_hash": "d3f8e3822b62ef9ba3f9840fe1a0f592",
+    "semantic_hash": "d3f8e3822b62ef9ba3f9840fe1a0f592"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\ThreadLocalRandom.cs": {
+    "mtime": 1763883077.927644,
+    "ast_hash": "297088028dd82ec31c9b93b50d5899f3",
+    "semantic_hash": "297088028dd82ec31c9b93b50d5899f3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\ValueJobHandle.cs": {
+    "mtime": 1780544044.8126757,
+    "ast_hash": "0e8792be434629434f84ef87e78352f9",
+    "semantic_hash": "0e8792be434629434f84ef87e78352f9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Jobs\\WorkStealingDeque.cs": {
+    "mtime": 1780584439.3194551,
+    "ast_hash": "74b07305888db571f37a14d97b72a6b9",
+    "semantic_hash": "74b07305888db571f37a14d97b72a6b9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Benchmarks\\Karpik.Memory.Benchmarks.csproj": {
+    "mtime": 1780510354.6596503,
+    "ast_hash": "17f62a096d2ce060838a6fb10b777045",
+    "semantic_hash": "17f62a096d2ce060838a6fb10b777045"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Benchmarks\\Program.cs": {
+    "mtime": 1780510446.3067997,
+    "ast_hash": "1e12133cc05c7b87407bbcb7b74cc17f",
+    "semantic_hash": "1e12133cc05c7b87407bbcb7b74cc17f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\AllocationBudget.cs": {
+    "mtime": 1780510257.323339,
+    "ast_hash": "bd4662108aa4c055e96378c1f790c509",
+    "semantic_hash": "bd4662108aa4c055e96378c1f790c509"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\AssemblyInfo.cs": {
+    "mtime": 1780506271.8294432,
+    "ast_hash": "312068e2bd97799bb5d90526200f0b6f",
+    "semantic_hash": "312068e2bd97799bb5d90526200f0b6f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\Karpik.Memory.Tests.csproj": {
+    "mtime": 1780505832.31963,
+    "ast_hash": "d3a5254412f1375c6d7b41aa97f82a8d",
+    "semantic_hash": "d3a5254412f1375c6d7b41aa97f82a8d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeAllocationBudgetTests.cs": {
+    "mtime": 1780510222.9498553,
+    "ast_hash": "21cddaaf7c999cc35c75bbb479b88f86",
+    "semantic_hash": "21cddaaf7c999cc35c75bbb479b88f86"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeAllocationTests.cs": {
+    "mtime": 1780505877.2837963,
+    "ast_hash": "7dfd2584ee41d96523883c12768cfa05",
+    "semantic_hash": "7dfd2584ee41d96523883c12768cfa05"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeArenaTests.cs": {
+    "mtime": 1780510306.6155035,
+    "ast_hash": "1258007bf8d8396be06debaf93bd2f1b",
+    "semantic_hash": "1258007bf8d8396be06debaf93bd2f1b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeArrayTests.cs": {
+    "mtime": 1780510306.2311034,
+    "ast_hash": "e640689f1d9181dfed77aa31b8a9b56d",
+    "semantic_hash": "e640689f1d9181dfed77aa31b8a9b56d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeLinearAllocatorTests.cs": {
+    "mtime": 1780510306.5029867,
+    "ast_hash": "d64ff394a7768c7ff303e647d2262268",
+    "semantic_hash": "d64ff394a7768c7ff303e647d2262268"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativePoolTests.cs": {
+    "mtime": 1780510306.738101,
+    "ast_hash": "4a8ba64fb2e61a99c4e748b04eb5aaab",
+    "semantic_hash": "4a8ba64fb2e61a99c4e748b04eb5aaab"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory.Tests\\NativeResultTests.cs": {
+    "mtime": 1780510306.3735905,
+    "ast_hash": "282b1d1939c339ce7f0973b3e660446b",
+    "semantic_hash": "282b1d1939c339ce7f0973b3e660446b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\Karpik.Memory.csproj": {
+    "mtime": 1780505832.140221,
+    "ast_hash": "9109c7bd6dea6a9e66d7f28a37b15ec5",
+    "semantic_hash": "9109c7bd6dea6a9e66d7f28a37b15ec5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeAllocation.cs": {
+    "mtime": 1780507445.5182023,
+    "ast_hash": "d7db53deb8d73051481801f8e0ee309b",
+    "semantic_hash": "d7db53deb8d73051481801f8e0ee309b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeAllocationKind.cs": {
+    "mtime": 1780505904.5095458,
+    "ast_hash": "5b70258839c6aeeac79df538089b29fb",
+    "semantic_hash": "5b70258839c6aeeac79df538089b29fb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeAllocationToken.cs": {
+    "mtime": 1780507445.4144418,
+    "ast_hash": "43a9aa250d5ff70445f8cc7570902e93",
+    "semantic_hash": "43a9aa250d5ff70445f8cc7570902e93"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeArena.cs": {
+    "mtime": 1780507722.5486512,
+    "ast_hash": "e7d3792f2c1e287377cf92d1e2030390",
+    "semantic_hash": "e7d3792f2c1e287377cf92d1e2030390"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeArray.cs": {
+    "mtime": 1780506213.4225328,
+    "ast_hash": "fb19e987b6db70c33030d227025b4cd5",
+    "semantic_hash": "fb19e987b6db70c33030d227025b4cd5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeLinearAllocator.cs": {
+    "mtime": 1780507445.8851316,
+    "ast_hash": "905c5758ce8ded0f7691fec2bf1d5afa",
+    "semantic_hash": "905c5758ce8ded0f7691fec2bf1d5afa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeMemoryDiagnostics.cs": {
+    "mtime": 1780507445.632774,
+    "ast_hash": "0444790d3c0d65bee057bccca0afb5a0",
+    "semantic_hash": "0444790d3c0d65bee057bccca0afb5a0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeMemoryMath.cs": {
+    "mtime": 1780506213.641158,
+    "ast_hash": "ef637fc407d4f11d3ca96c8fab7e36a1",
+    "semantic_hash": "ef637fc407d4f11d3ca96c8fab7e36a1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeMemorySlice.cs": {
+    "mtime": 1780507722.4382617,
+    "ast_hash": "133ff533a243de9d8531f974737e5f90",
+    "semantic_hash": "133ff533a243de9d8531f974737e5f90"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativePool.cs": {
+    "mtime": 1780507586.73163,
+    "ast_hash": "5748ba7db34409ac992765cc51ec28c3",
+    "semantic_hash": "5748ba7db34409ac992765cc51ec28c3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativePoolHandle.cs": {
+    "mtime": 1780507586.8430595,
+    "ast_hash": "6098b58277bf65479d66d6b85006931f",
+    "semantic_hash": "6098b58277bf65479d66d6b85006931f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativePoolSlot.cs": {
+    "mtime": 1780507586.9503636,
+    "ast_hash": "7f73efade7316319f698fe8eab21ec78",
+    "semantic_hash": "7f73efade7316319f698fe8eab21ec78"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeResult.cs": {
+    "mtime": 1780506333.233879,
+    "ast_hash": "8125780604c805de62c65771eb303fe2",
+    "semantic_hash": "8125780604c805de62c65771eb303fe2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeResultHandle.cs": {
+    "mtime": 1780506333.3499236,
+    "ast_hash": "4bed0c3c98840a5ff28bbb23fdcf1f3b",
+    "semantic_hash": "4bed0c3c98840a5ff28bbb23fdcf1f3b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Karpik.Memory\\NativeSlice.cs": {
+    "mtime": 1780506213.532938,
+    "ast_hash": "3b0bde3061aa48bf96fa68d2998ff86a",
+    "semantic_hash": "3b0bde3061aa48bf96fa68d2998ff86a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Sample\\Program.cs": {
+    "mtime": 1780854294.3592684,
+    "ast_hash": "d69642516f4a8457c6a2ff98a2e580e2",
+    "semantic_hash": "d69642516f4a8457c6a2ff98a2e580e2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\Sample\\Sample.csproj": {
+    "mtime": 1780854294.3603075,
+    "ast_hash": "194b61e1c9a48b1742a8b63eb1ba369e",
+    "semantic_hash": "194b61e1c9a48b1742a8b63eb1ba369e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-dragon-ecs\\SKILL.md": {
+    "mtime": 1780427349.0008764,
+    "ast_hash": "a53b926d0b0d51b79c79e3dee3609e31",
+    "semantic_hash": "a53b926d0b0d51b79c79e3dee3609e31"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-dragon-ecs\\agents\\openai.yaml": {
+    "mtime": 1780427349.0021677,
+    "ast_hash": "21ebe3ad49a531005e16e1f10bf75feb",
+    "semantic_hash": "21ebe3ad49a531005e16e1f10bf75feb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-engine-architecture\\SKILL.md": {
+    "mtime": 1780427349.0021677,
+    "ast_hash": "39e94bbe55583befa646d46aff107778",
+    "semantic_hash": "39e94bbe55583befa646d46aff107778"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-engine-architecture\\agents\\openai.yaml": {
+    "mtime": 1780427349.0031755,
+    "ast_hash": "dffb91a502190c5f750133ebf25be8ce",
+    "semantic_hash": "dffb91a502190c5f750133ebf25be8ce"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-engine-performance\\SKILL.md": {
+    "mtime": 1780427349.004196,
+    "ast_hash": "6c81d5d68e96d62274245ce83a176adf",
+    "semantic_hash": "6c81d5d68e96d62274245ce83a176adf"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-engine-performance\\agents\\openai.yaml": {
+    "mtime": 1780427349.005704,
+    "ast_hash": "02fd3495b7998f11a857a667d67456c3",
+    "semantic_hash": "02fd3495b7998f11a857a667d67456c3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-hot-reload\\SKILL.md": {
+    "mtime": 1780427349.005704,
+    "ast_hash": "6601e379c9f6933c35102cd61b4a8cc5",
+    "semantic_hash": "6601e379c9f6933c35102cd61b4a8cc5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-hot-reload\\agents\\openai.yaml": {
+    "mtime": 1780427349.0072303,
+    "ast_hash": "9ec61eda2607e3e05fff717fde1c27c3",
+    "semantic_hash": "9ec61eda2607e3e05fff717fde1c27c3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-memory\\SKILL.md": {
+    "mtime": 1780511047.5917346,
+    "ast_hash": "82d0dcea17a7066c81909fa47756e271",
+    "semantic_hash": "82d0dcea17a7066c81909fa47756e271"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-networking\\SKILL.md": {
+    "mtime": 1780427349.0072303,
+    "ast_hash": "bf92389e4b504313c6b7aa928590c342",
+    "semantic_hash": "bf92389e4b504313c6b7aa928590c342"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-networking\\agents\\openai.yaml": {
+    "mtime": 1780427349.0082543,
+    "ast_hash": "ae56c68546b8be7e957c31db014ee74d",
+    "semantic_hash": "ae56c68546b8be7e957c31db014ee74d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-testing\\SKILL.md": {
+    "mtime": 1780427349.0097592,
+    "ast_hash": "666798e15cbbbba7e96517017bdca450",
+    "semantic_hash": "666798e15cbbbba7e96517017bdca450"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\karpik-testing\\agents\\openai.yaml": {
+    "mtime": 1780427349.0097592,
+    "ast_hash": "d55d2ce408ff2756970d39982cedf671",
+    "semantic_hash": "d55d2ce408ff2756970d39982cedf671"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\maintaining-changelogs\\SKILL.md": {
+    "mtime": 1780427679.5988617,
+    "ast_hash": "2461df4a2ef7b9731cd578e35033dc69",
+    "semantic_hash": "2461df4a2ef7b9731cd578e35033dc69"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\.codex\\skills\\maintaining-changelogs\\agents\\openai.yaml": {
+    "mtime": 1780427519.8639846,
+    "ast_hash": "80e88ea45d08d6d874849fa1a298f201",
+    "semantic_hash": "80e88ea45d08d6d874849fa1a298f201"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\AGENTS.md": {
+    "mtime": 1781631174.5385404,
+    "ast_hash": "694db97e09e829aa5ee6cba74d89648d",
+    "semantic_hash": "694db97e09e829aa5ee6cba74d89648d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Changelog_0.4.md": {
+    "mtime": 1780427349.0171041,
+    "ast_hash": "3184cdfbb0921fa07836ff7444a74216",
+    "semantic_hash": "3184cdfbb0921fa07836ff7444a74216"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Changelog_0.5.md": {
+    "mtime": 1780762663.0479195,
+    "ast_hash": "130b44bf4eefcfa29e2bcd7a652eb4c7",
+    "semantic_hash": "130b44bf4eefcfa29e2bcd7a652eb4c7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Changelog_0.5_ru.md": {
+    "mtime": 1780762663.052835,
+    "ast_hash": "74dbfb6ef56a537bdd2f2196cafb04d1",
+    "semantic_hash": "74dbfb6ef56a537bdd2f2196cafb04d1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Dragon\\README-RU.md": {
+    "mtime": 1780427349.0277636,
+    "ast_hash": "5a278ca3a7e76de0893b8f07c740fb8e",
+    "semantic_hash": "5a278ca3a7e76de0893b8f07c740fb8e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Modules\\Client\\Graphics\\Graphics.Core\\charset.txt": {
+    "mtime": 1780427349.1035025,
+    "ast_hash": "86d4374a617783fb1f5986e353d351c9",
+    "semantic_hash": "86d4374a617783fb1f5986e353d351c9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\README-ENG.md": {
+    "mtime": 1780427511.7860055,
+    "ast_hash": "734a1a7797e9473e135965f1c2a45a64",
+    "semantic_hash": "734a1a7797e9473e135965f1c2a45a64"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\README.md": {
+    "mtime": 1780427511.4801373,
+    "ast_hash": "8409c43f0b048d601206273b5c74b829",
+    "semantic_hash": "8409c43f0b048d601206273b5c74b829"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\AnalyzerReleases.Shipped.md": {
+    "mtime": 1780427349.3274364,
+    "ast_hash": "2ffa62c8a53fe1f68cee4239cffae484",
+    "semantic_hash": "2ffa62c8a53fe1f68cee4239cffae484"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\Tools\\StaticAnalyzer\\AnalyzerReleases.Unshipped.md": {
+    "mtime": 1780732461.686169,
+    "ast_hash": "f75a4e49765271b08ac2b4bd4953af96",
+    "semantic_hash": "f75a4e49765271b08ac2b4bd4953af96"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\changelog.md": {
+    "mtime": 1780761975.3534422,
+    "ast_hash": "b31b6c069d61d90a0b81035d5db3c790",
+    "semantic_hash": "b31b6c069d61d90a0b81035d5db3c790"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\changelog_ru.md": {
+    "mtime": 1780427349.3351283,
+    "ast_hash": "23c8139b25e4062f1abce1ffe7300b75",
+    "semantic_hash": "23c8139b25e4062f1abce1ffe7300b75"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\01_Architecture\\development-conventions.md": {
+    "mtime": 1780427349.3361418,
+    "ast_hash": "6095e18ee862ef6c18cbe78257f7fafc",
+    "semantic_hash": "6095e18ee862ef6c18cbe78257f7fafc"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\01_Architecture\\hot-reload.md": {
+    "mtime": 1780427349.3371432,
+    "ast_hash": "34e149ad5dc071c06acf369355ff4c89",
+    "semantic_hash": "34e149ad5dc071c06acf369355ff4c89"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\01_Architecture\\overview.md": {
+    "mtime": 1780427349.3399446,
+    "ast_hash": "c6a57e4a2b92be10fa26512cc8c038a2",
+    "semantic_hash": "c6a57e4a2b92be10fa26512cc8c038a2"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\README.md": {
+    "mtime": 1780427349.340942,
+    "ast_hash": "24956d2816e558120709dd72eba2adcb",
+    "semantic_hash": "24956d2816e558120709dd72eba2adcb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\adr-template.md": {
+    "mtime": 1780427349.3419738,
+    "ast_hash": "b242be8d3478de86ae91f94d393b6b7d",
+    "semantic_hash": "b242be8d3478de86ae91f94d393b6b7d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\module-graph.md": {
+    "mtime": 1780427349.3429945,
+    "ast_hash": "715124dfab77991ea0c5a0bada9f68a1",
+    "semantic_hash": "715124dfab77991ea0c5a0bada9f68a1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\native-memory-ownership.md": {
+    "mtime": 1780510670.8493774,
+    "ast_hash": "8dbd7c6d584162b6185cc5c48a1f1259",
+    "semantic_hash": "8dbd7c6d584162b6185cc5c48a1f1259"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\network-improvement.md": {
+    "mtime": 1780427349.3429945,
+    "ast_hash": "ba6e2ea086286776a48559464a8f9bd7",
+    "semantic_hash": "ba6e2ea086286776a48559464a8f9bd7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\02_ADR\\scheduler-jobs-runtime.md": {
+    "mtime": 1780753644.0685823,
+    "ast_hash": "b5c1e8130037d25a0c9b04e63e006f50",
+    "semantic_hash": "b5c1e8130037d25a0c9b04e63e006f50"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\03_Research\\ipc.md": {
+    "mtime": 1780427349.3454635,
+    "ast_hash": "5ee9fa4b57f51816e65b5cfb83852159",
+    "semantic_hash": "5ee9fa4b57f51816e65b5cfb83852159"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\03_Research\\job-system.md": {
+    "mtime": 1780427349.3466315,
+    "ast_hash": "4b358d5e7c8b8b7cda8b8567b229aea7",
+    "semantic_hash": "4b358d5e7c8b8b7cda8b8567b229aea7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\03_Research\\overview.md": {
+    "mtime": 1780427349.347137,
+    "ast_hash": "dae99bfbdf00428b3375e829b553a827",
+    "semantic_hash": "dae99bfbdf00428b3375e829b553a827"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\04_Roadmap\\0.4-system-lifecycle-plan.md": {
+    "mtime": 1780427349.349251,
+    "ast_hash": "b68e378cfb0e0c148f135fb8ddab6051",
+    "semantic_hash": "b68e378cfb0e0c148f135fb8ddab6051"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\04_Roadmap\\backlog.md": {
+    "mtime": 1780684954.524871,
+    "ast_hash": "b8ef0dfe3f7cb46dddc2acb536efc07b",
+    "semantic_hash": "b8ef0dfe3f7cb46dddc2acb536efc07b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\04_Roadmap\\karpikengine-1.0-roadmap.md": {
+    "mtime": 1780433021.5254974,
+    "ast_hash": "37fabecfae16ac32e6fbb34094929fb5",
+    "semantic_hash": "37fabecfae16ac32e6fbb34094929fb5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\04_Roadmap\\karpikengine-post-1.0-roadmap.md": {
+    "mtime": 1780427349.352252,
+    "ast_hash": "ac324f3b11abcbe6f1eab7c404f5765c",
+    "semantic_hash": "ac324f3b11abcbe6f1eab7c404f5765c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\04_Roadmap\\roadmap.md": {
+    "mtime": 1780427349.3553493,
+    "ast_hash": "53aa271205dbb1cb23efe4383c3d4949",
+    "semantic_hash": "53aa271205dbb1cb23efe4383c3d4949"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\README.md": {
+    "mtime": 1780427295.328777,
+    "ast_hash": "0360865d5e17c45584e3a659d3605cd1",
+    "semantic_hash": "0360865d5e17c45584e3a659d3605cd1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\README.md": {
+    "mtime": 1780427349.3563552,
+    "ast_hash": "5063669468194cb1000bce5ae8763d05",
+    "semantic_hash": "5063669468194cb1000bce5ae8763d05"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\investigations\\2026-06-03-game-gui-rewrite-analysis.md": {
+    "mtime": 1780606057.9855382,
+    "ast_hash": "3122b718bfbf284d155af7526303dc9b",
+    "semantic_hash": "3122b718bfbf284d155af7526303dc9b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\investigations\\README.md": {
+    "mtime": 1780427349.358503,
+    "ast_hash": "afaee2d8e4098c9477617578bed9d08e",
+    "semantic_hash": "afaee2d8e4098c9477617578bed9d08e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\patterns\\README.md": {
+    "mtime": 1780427349.3615448,
+    "ast_hash": "8757ffde97c370cdadef453345264b8b",
+    "semantic_hash": "8757ffde97c370cdadef453345264b8b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\postmortems\\README.md": {
+    "mtime": 1780427349.3625543,
+    "ast_hash": "f3e98b47de2ca94d79c8a73622b244fd",
+    "semantic_hash": "f3e98b47de2ca94d79c8a73622b244fd"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\templates\\investigation-template.md": {
+    "mtime": 1780427349.36356,
+    "ast_hash": "a0bee771d125ee60edd60c70173826a6",
+    "semantic_hash": "a0bee771d125ee60edd60c70173826a6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\templates\\pattern-template.md": {
+    "mtime": 1780427349.3645616,
+    "ast_hash": "636113da48aa28cce8011e84715bb188",
+    "semantic_hash": "636113da48aa28cce8011e84715bb188"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\knowledge\\templates\\postmortem-template.md": {
+    "mtime": 1780427349.3657906,
+    "ast_hash": "d8da6c5ca3d5313f520647e56b8cc866",
+    "semantic_hash": "d8da6c5ca3d5313f520647e56b8cc866"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\gameui-results.md": {
+    "mtime": 1780427349.3657906,
+    "ast_hash": "384422bdbaf9c433f94d7c173c27161a",
+    "semantic_hash": "384422bdbaf9c433f94d7c173c27161a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\graphics-architecture.md": {
+    "mtime": 1780427349.3672976,
+    "ast_hash": "7bb1bb0fa7bb0b5b1b1c0c4842bf1fa3",
+    "semantic_hash": "7bb1bb0fa7bb0b5b1b1c0c4842bf1fa3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\graphics-refactoring-plan.md": {
+    "mtime": 1780427349.36833,
+    "ast_hash": "2648e85d489e1c7d1586f9f0bb93e9a6",
+    "semantic_hash": "2648e85d489e1c7d1586f9f0bb93e9a6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\imgui-overlay.md": {
+    "mtime": 1780427349.3693373,
+    "ast_hash": "d5c2fea2cdb4a1de5b363b697134d68f",
+    "semantic_hash": "d5c2fea2cdb4a1de5b363b697134d68f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\input.md": {
+    "mtime": 1780427295.3324175,
+    "ast_hash": "d9b2989f8fdb9a262f3a3da9be7ad7d9",
+    "semantic_hash": "d9b2989f8fdb9a262f3a3da9be7ad7d9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\network-client.md": {
+    "mtime": 1780427295.333425,
+    "ast_hash": "229dcd32e99c49875ae5511d013441b1",
+    "semantic_hash": "229dcd32e99c49875ae5511d013441b1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\client\\ui.md": {
+    "mtime": 1780427349.3704057,
+    "ast_hash": "d043c57eb2e46aa4b16c334e7b35a174",
+    "semantic_hash": "d043c57eb2e46aa4b16c334e7b35a174"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\README.md": {
+    "mtime": 1780427295.3344326,
+    "ast_hash": "7d47635d32fc5c1b185fc842fba3e573",
+    "semantic_hash": "7d47635d32fc5c1b185fc842fba3e573"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\asset-management-review.md": {
+    "mtime": 1780427295.3354375,
+    "ast_hash": "408c2df346895173573cfd65950581b4",
+    "semantic_hash": "408c2df346895173573cfd65950581b4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\graphics-core-review.md": {
+    "mtime": 1780427295.3354375,
+    "ast_hash": "d66c73f30e189c388c0b9cc13864dd1c",
+    "semantic_hash": "d66c73f30e189c388c0b9cc13864dd1c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\graphics-raylib-review.md": {
+    "mtime": 1780427295.3369458,
+    "ast_hash": "368d7b35afa55139eef8294ac985e2ce",
+    "semantic_hash": "368d7b35afa55139eef8294ac985e2ce"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\input-review.md": {
+    "mtime": 1780427295.337456,
+    "ast_hash": "a1346ce443e992ebb2e836b5f1cbf159",
+    "semantic_hash": "a1346ce443e992ebb2e836b5f1cbf159"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\logger-review.md": {
+    "mtime": 1780427295.3379707,
+    "ast_hash": "adfb4330fb3d8b377c0969c3b208cd17",
+    "semantic_hash": "adfb4330fb3d8b377c0969c3b208cd17"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\modding-review.md": {
+    "mtime": 1780427295.3379707,
+    "ast_hash": "9bfd4d14c56f78b2e1c3a56c31b2ead9",
+    "semantic_hash": "9bfd4d14c56f78b2e1c3a56c31b2ead9"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\network-client-review.md": {
+    "mtime": 1780427295.339285,
+    "ast_hash": "59de6f756bdd0d901c14f62d73be378b",
+    "semantic_hash": "59de6f756bdd0d901c14f62d73be378b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\network-server-review.md": {
+    "mtime": 1780427295.340294,
+    "ast_hash": "b678f94e9505188299262896ac269ace",
+    "semantic_hash": "b678f94e9505188299262896ac269ace"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\network-shared-litenetlib-review.md": {
+    "mtime": 1780427295.340294,
+    "ast_hash": "1999aba1db5155932b623d54baeadff3",
+    "semantic_hash": "1999aba1db5155932b623d54baeadff3"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\network-shared-review.md": {
+    "mtime": 1780427295.341302,
+    "ast_hash": "67bf19a0ea5bf16bf2273a531257929d",
+    "semantic_hash": "67bf19a0ea5bf16bf2273a531257929d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\stat-and-abilities-review.md": {
+    "mtime": 1780427295.3423202,
+    "ast_hash": "f8c7819220d8c0be6de7da193cb1f3c8",
+    "semantic_hash": "f8c7819220d8c0be6de7da193cb1f3c8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\review\\tween-review.md": {
+    "mtime": 1780427295.3423202,
+    "ast_hash": "5fa2d6cb66ea91dfac51a0e975be43cb",
+    "semantic_hash": "5fa2d6cb66ea91dfac51a0e975be43cb"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\server\\network-server.md": {
+    "mtime": 1780427295.3433247,
+    "ast_hash": "f9fb09f0de46cfbf3552d5fcdc5bcf23",
+    "semantic_hash": "f9fb09f0de46cfbf3552d5fcdc5bcf23"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\asset-management.md": {
+    "mtime": 1780427295.3443303,
+    "ast_hash": "d1e2c355ca6b4b4381f16f377239f277",
+    "semantic_hash": "d1e2c355ca6b4b4381f16f377239f277"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\ecs.md": {
+    "mtime": 1780427349.3714056,
+    "ast_hash": "c6193743a6905475b04bc7e130630b99",
+    "semantic_hash": "c6193743a6905475b04bc7e130630b99"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\logger.md": {
+    "mtime": 1780427295.345583,
+    "ast_hash": "f0b1b29132abc3138e790fed63c86785",
+    "semantic_hash": "f0b1b29132abc3138e790fed63c86785"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\modding.md": {
+    "mtime": 1780427295.347649,
+    "ast_hash": "0dbfce4d952125eec0eba2d5280c2086",
+    "semantic_hash": "0dbfce4d952125eec0eba2d5280c2086"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\network-shared.md": {
+    "mtime": 1780427295.3481684,
+    "ast_hash": "7068ca0dacde7aeefc9ad29c8ca3ee68",
+    "semantic_hash": "7068ca0dacde7aeefc9ad29c8ca3ee68"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\physics-2d.md": {
+    "mtime": 1780427349.3725057,
+    "ast_hash": "d0ced2a4b93173cc258910f6188437ed",
+    "semantic_hash": "d0ced2a4b93173cc258910f6188437ed"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\stat-and-abilities.md": {
+    "mtime": 1780427295.3481684,
+    "ast_hash": "23e66e8e5c5a76294e65a97a77c07ca4",
+    "semantic_hash": "23e66e8e5c5a76294e65a97a77c07ca4"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\docs\\modules\\shared\\tween.md": {
+    "mtime": 1780427295.3491719,
+    "ast_hash": "1642ce34852883a1548796ced763eb56",
+    "semantic_hash": "1642ce34852883a1548796ced763eb56"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\first-parties\\Karpik.Jobs\\README.md": {
+    "mtime": 1780854294.3566852,
+    "ast_hash": "e657f719d4352b077f322eb93b00845f",
+    "semantic_hash": "e657f719d4352b077f322eb93b00845f"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\PLANS.md": {
+    "mtime": 1780427349.3740141,
+    "ast_hash": "60d52ee4ccfc2268fe843fd4784fe69e",
+    "semantic_hash": "60d52ee4ccfc2268fe843fd4784fe69e"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\client-threading-render-pipeline-execplan.md": {
+    "mtime": 1780433111.273244,
+    "ast_hash": "8e1626e4768e68f1cb7a65ff888a7de1",
+    "semantic_hash": "8e1626e4768e68f1cb7a65ff888a7de1"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\core-breach-network-sample-execplan.md": {
+    "mtime": 1780864366.81408,
+    "ast_hash": "2e50992396e6e89dedc1b7f0d4b1b9ba",
+    "semantic_hash": "2e50992396e6e89dedc1b7f0d4b1b9ba"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\ecs-update-scheduler-execplan.md": {
+    "mtime": 1780753608.7983098,
+    "ast_hash": "d0ebed97d623e3a9832412061fa126aa",
+    "semantic_hash": "d0ebed97d623e3a9832412061fa126aa"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\imgui-integration-execplan.md": {
+    "mtime": 1780427349.3740141,
+    "ast_hash": "4b6fa89945e4d13737a0fd71993888d6",
+    "semantic_hash": "4b6fa89945e4d13737a0fd71993888d6"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\jobs-runtime-execplan.md": {
+    "mtime": 1780589889.37012,
+    "ast_hash": "65827e3e7b47f1d40da195222a743c3a",
+    "semantic_hash": "65827e3e7b47f1d40da195222a743c3a"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\module-graph-execplan.md": {
+    "mtime": 1780427349.3750198,
+    "ast_hash": "bcd179a2999ca1ee9e3cabde0e4b755d",
+    "semantic_hash": "bcd179a2999ca1ee9e3cabde0e4b755d"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\native-memory-foundation-execplan.md": {
+    "mtime": 1780510670.7218654,
+    "ast_hash": "40742826d779a4bd1d47ceabfba56123",
+    "semantic_hash": "40742826d779a4bd1d47ceabfba56123"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\physics-engine-architecture.md": {
+    "mtime": 1780427295.352202,
+    "ast_hash": "d7bb62cffe5730b08ab5925d5aa4c7c5",
+    "semantic_hash": "d7bb62cffe5730b08ab5925d5aa4c7c5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\platformer_design.md": {
+    "mtime": 1780427349.3760405,
+    "ast_hash": "c7d172ed97d9ea18a6efdcb74eabc0f8",
+    "semantic_hash": "c7d172ed97d9ea18a6efdcb74eabc0f8"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\process-isolation-architecture.md": {
+    "mtime": 1780427295.3532152,
+    "ast_hash": "8431786a9dc6e56de385c40d99e9cdd5",
+    "semantic_hash": "8431786a9dc6e56de385c40d99e9cdd5"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\restart-worker-hot-reload-execplan.md": {
+    "mtime": 1780427349.3760405,
+    "ast_hash": "c20546ef620ba5da741dd357620a0874",
+    "semantic_hash": "c20546ef620ba5da741dd357620a0874"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\scheduler-jobs-memory-execplan.md": {
+    "mtime": 1780686700.8372707,
+    "ast_hash": "8e1ba69e1e1ccd838b2be56c60f58387",
+    "semantic_hash": "8e1ba69e1e1ccd838b2be56c60f58387"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\plans\\window-graphics-2d-rendering-execplan.md": {
+    "mtime": 1780427349.377548,
+    "ast_hash": "10b6364002a9bc16b77c70c2be759ee7",
+    "semantic_hash": "10b6364002a9bc16b77c70c2be759ee7"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\templates\\MODULE_AGENT_TEMPLATE.md": {
+    "mtime": 1780427349.377548,
+    "ast_hash": "28a01f49eabf7ba6fd1fa62ff4c9d09b",
+    "semantic_hash": "28a01f49eabf7ba6fd1fa62ff4c9d09b"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Content\\PressStart.png": {
+    "mtime": 1780427349.2981067,
+    "ast_hash": "51ccc1b6c9a0d4fe4277b011420474c0",
+    "semantic_hash": "51ccc1b6c9a0d4fe4277b011420474c0"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Content\\Sprites\\Player.png": {
+    "mtime": 1780427295.3002436,
+    "ast_hash": "73062521488d9c33fcb1cbeb5233092c",
+    "semantic_hash": "73062521488d9c33fcb1cbeb5233092c"
+  },
+  "C:\\Users\\artem\\RiderProjects\\KarpikEngine\\MyGame\\MyGameResources\\Content\\Sprites\\default.jpg": {
+    "mtime": 1780427295.3013074,
+    "ast_hash": "87b18a3909e98c1a8af8b505062844ba",
+    "semantic_hash": "87b18a3909e98c1a8af8b505062844ba"
+  }
+}
