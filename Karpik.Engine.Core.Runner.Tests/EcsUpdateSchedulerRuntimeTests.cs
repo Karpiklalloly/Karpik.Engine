@@ -99,15 +99,32 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         Assert.Equal(2, system.Count);
     }
 
+    [Fact]
+    public void ParallelMode_SequentialSystem_RunsOnCallingThread()
+    {
+        int callingThreadId = Environment.CurrentManagedThreadId;
+        var system = new ThreadRecordingSystem();
+        using var scheduler = new EcsUpdateScheduler();
+        scheduler.Initialize(
+            [system],
+            [Descriptor<ThreadRecordingSystem>(isSequential: true)],
+            workerCount: 1);
+
+        scheduler.Update();
+
+        Assert.Equal(callingThreadId, system.ThreadId);
+    }
+
     private static EcsUpdateSystemDescriptor Descriptor<TSystem>(
         EcsComponentAccessDescriptor access = default,
-        EcsSystemOrderDescriptor order = default)
+        EcsSystemOrderDescriptor order = default,
+        bool isSequential = false)
     {
         EcsComponentAccessDescriptor[] accesses = access.ComponentType is null ? [] : [access];
         EcsSystemOrderDescriptor[] orders = order.TargetSystemType is null ? [] : [order];
         return new EcsUpdateSystemDescriptor(
             typeof(TSystem),
-            IsSequential: false,
+            IsSequential: isSequential,
             accesses,
             orders);
     }
@@ -240,6 +257,16 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         public void Update()
         {
             Count++;
+        }
+    }
+
+    internal sealed class ThreadRecordingSystem : ISystemUpdate
+    {
+        public int ThreadId;
+
+        public void Update()
+        {
+            ThreadId = Environment.CurrentManagedThreadId;
         }
     }
 
