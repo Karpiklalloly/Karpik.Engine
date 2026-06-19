@@ -52,7 +52,8 @@ Accepted for the `ISystemUpdate` 0.5 scheduler slice:
 - generated registry providers are discovered at startup from assemblies that contain registered `ISystemUpdate` systems;
 - startup reflection and allocation are allowed; frame execution uses dense graph arrays, preallocated dependency buffers, and `JobScheduler` value jobs;
 - production mode is parallel by default, deterministic mode executes the graph sequentially in stable topological order, and single-thread mode preserves registration order;
-- `[SequentialSystem]` is the explicit opt-out for opaque, thread-affine, or side-effect-heavy update systems;
+- `[SequentialSystem]` is the explicit opt-out for opaque, thread-affine, or side-effect-heavy update systems; in parallel mode it forms a barrier, waits for the current worker batch, executes on the scheduler calling thread, and completes before the next worker batch is published;
+- `Karpik.Engine.Core.Codegen` runs as an analyzer in every `Modules` and `MyGame` project so each assembly containing `ISystemUpdate` implementations owns its generated registry provider;
 - fixed update remains sequential in 0.5.
 
 The runner keeps Dragon `UpdateSystem` wrappers in the pipeline only to preserve existing `layer/order` sorting and DI behavior. `EngineRunner.Run` no longer calls `_updateRunner.Update()`; it calls `EcsUpdateScheduler.Update()` after fixed update. The old `IEcsRunParallel` prototype remains as ECS.Core compatibility/baseline code and is blocked for user assemblies by the lifecycle analyzer.
