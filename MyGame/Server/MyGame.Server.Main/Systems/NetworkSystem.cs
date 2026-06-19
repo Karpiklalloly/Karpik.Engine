@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Server.Extensions;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.Log;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
@@ -11,6 +12,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Server.Main.Systems;
 
+[SequentialSystem]
 internal class NetworkSystem : ISystemInit, ISystemUpdate, ISystemDestroy
 {
     private const float DisconnectedPlayerTtlSeconds = 60.0f;

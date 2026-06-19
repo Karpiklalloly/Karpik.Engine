@@ -1,0 +1,35 @@
+# Graphify should map engine source and docs, not IDE/build/generated noise.
+.git/
+.idea/
+.vs/
+.vscode/
+.obsidian/
+
+graphify-out/
+
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+BenchmarkDotNet.Artifacts/
+TestResults/
+
+Generated/
+**/*.g.cs
+**/*.generated.cs
+**/*.Designer.cs
+**/*.AssemblyInfo.cs
+
+# Vendored rendering dependencies are useful when editing them directly, but too
+# noisy for the default KarpikEngine architecture graph.
+first-parties/Kveldrid/
+first-parties/Kveldrid-spirv/
+
+*.user
+*.DotSettings.user
+*.suo
+*.log
+*.binlog
+*.trx
+*.nupkg
+*.snupkg

@@ -57,6 +57,8 @@ public class UpdateSystem(ISystemUpdate system) : IUpdateSystem, IOnInjectedDI
 {
     [DI] private IServiceContainer _container = null!;
 
+    public ISystemUpdate System => system;
+
     public void Update()
     {
         system.Update();

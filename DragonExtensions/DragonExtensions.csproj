@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Dragon\Dragon.csproj" />
+      <ProjectReference Include="..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 

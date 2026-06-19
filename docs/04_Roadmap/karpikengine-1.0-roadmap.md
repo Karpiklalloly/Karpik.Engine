@@ -156,6 +156,20 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ## 0.5 Scheduler / Jobs / Memory
 
+> Source of truth for the accepted `0.5` architecture and implementation order:
+> [`plans/scheduler-jobs-memory-execplan.md`](../../plans/scheduler-jobs-memory-execplan.md).
+>
+> The release is implemented through four ordered child ExecPlans:
+> [`native-memory-foundation-execplan.md`](../../plans/native-memory-foundation-execplan.md),
+> [`jobs-runtime-execplan.md`](../../plans/jobs-runtime-execplan.md),
+> [`ecs-update-scheduler-execplan.md`](../../plans/ecs-update-scheduler-execplan.md), and
+> [`client-threading-render-pipeline-execplan.md`](../../plans/client-threading-render-pipeline-execplan.md).
+>
+> Accepted scope clarification: worker scheduling in `0.5` applies to `ISystemUpdate` and read-only
+> `ISystemRenderPrepare`. `ISystemFixedUpdate` remains sequential. Client rendering reuses the existing
+> Graphics.Core `DrawCommand` / `ThreadBuffer` / `MergeThread` pipeline and extends it with sort keys and
+> triple-buffer ownership.
+
 Цель: сделать безопасную основу для parallel ECS systems и no-GC job execution.
 
 ### ECS Access Metadata

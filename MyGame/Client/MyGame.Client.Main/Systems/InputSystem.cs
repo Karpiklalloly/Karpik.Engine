@@ -5,6 +5,7 @@ using Karpik.Engine.Client.InputModule;
 using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Shared.Main;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.Extensions;
 using Karpik.Engine.Shared.Network.Core;
 using Karpik.Engine.Shared.Physics.Core;
@@ -12,6 +13,7 @@ using Veldrid;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
+[SequentialSystem]
 public class InputSystem : ISystemUpdate
 {
     class Aspect : EcsAspect
