@@ -6,7 +6,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 Release `0.5` as the real-time execution foundation for KarpikEngine.
 
-The release is complete only when unmanaged memory primitives, standalone no-GC jobs, parallel-by-default `ISystemUpdate` execution, and the threaded client/render pipeline work together without managed allocations after warm-up. The server uses the same update scheduler without adopting the client-specific render and input pipeline.
+The release is complete only when unmanaged memory primitives, standalone no-GC jobs, parallel-by-default `ISystemUpdate` execution, a headless/manual gameplay loop for tests, and the threaded client/render pipeline work together without managed allocations after warm-up. The server uses the same update scheduler without adopting the client-specific render and input pipeline.
 
 This master plan records the cross-cutting contract and release gates. Implementation proceeds through four self-contained child ExecPlans in strict order:
 
@@ -74,6 +74,10 @@ Do not begin a later child against temporary APIs from unfinished earlier childr
   Rationale: Platform and backend work remain on the OS thread while gameplay execution can scale independently. Fixed ticks stay sequential and are never silently dropped.
   Date/Author: 2026-06-03 / developer and agent
 
+- Decision: The client threading/render child must first expose a headless/manual gameplay loop that tests can drive without graphics or platform dependencies; the dedicated simulation thread is a production client runtime mode over that boundary.
+  Rationale: Gameplay integration tests need deterministic fixed/update stepping without a window, swapchain, ImGui, Graphics.Core backend, GPU, VSync, or wall-clock coupling.
+  Date/Author: 2026-07-02 / developer and agent
+
 - Decision: Add read-only parallel `ISystemRenderPrepare`; forbid graphics command writes from `ISystemUpdate`.
   Rationale: Simulation and presentation preparation have different cadence. Catch-up fixed ticks and collapsed update requests must not build frames that cannot be shown.
   Date/Author: 2026-06-03 / developer and agent
@@ -101,7 +105,8 @@ The `0.4` lifecycle foundation is documented in `docs/04_Roadmap/0.4-system-life
 Terms:
 
 - Orchestration thread: the thread allowed to build dependency batches, call `Schedule`, and wait for completion.
-- Simulation thread: the client orchestration thread for fixed ticks, variable update, and render preparation.
+- Headless/manual gameplay driver: a test-facing runner that advances fixed ticks and scheduled updates without client graphics/platform resources.
+- Simulation thread: the client production orchestration thread that owns the gameplay driver for fixed ticks, variable update, and render preparation.
 - Sequential barrier: an update node intentionally excluded from workers through `[SequentialSystem]`.
 - Opaque access: code whose ECS pool behavior cannot be proven from available source and explicit helper summaries.
 - Render command set: all thread-local `Graphics.Core` buffers belonging to one prepared frame.
@@ -115,6 +120,7 @@ The steady-state managed allocation budget is `0 B/frame` after warm-up for:
 - memory container usage;
 - no-GC job scheduling, dependency tracking, completion, and work stealing;
 - ECS update graph traversal;
+- headless/manual gameplay stepping after setup;
 - input snapshot publication and event-ring processing;
 - render command recording, sort, merge, submit, and repeated submission of the last completed frame.
 
@@ -127,6 +133,12 @@ Client / Server / Shared boundaries remain strict. Graphics and input types stay
 Client:
 
 ```text
+headless/manual test driver
+  test controls fixed tick count, dt, update requests, and scheduler mode
+  run bounded sequential fixed ticks
+  run shared parallel or deterministic ISystemUpdate graph
+  no window, swapchain, ImGui, Graphics.Core backend, GPU, or wall-clock dependency
+
 OS/main thread
   collect platform events
   publish latest held/axes input snapshot
@@ -222,6 +234,7 @@ Complete `plans/client-threading-render-pipeline-execplan.md`.
 
 Gate:
 
+- headless/manual gameplay runner tests can step gameplay without graphics/platform dependencies;
 - main-thread input/render ownership and simulation-thread fixed/update/render-prepare ownership are enforced;
 - input snapshot/ring overflow recovery works;
 - Graphics.Core uses read-only parallel `ISystemRenderPrepare`, no-GC sort keys, `MergeThread`, and triple buffering;
@@ -279,6 +292,7 @@ Run launcher builds sequentially. This workspace has previously observed output 
 
 Manual gate:
 
+- run a headless gameplay integration test or harness scenario and verify it advances fixed/update state without loading graphics modules;
 - start the client launcher and verify input, fixed simulation, parallel update, render preparation, merge, submit, present, and shutdown;
 - force simulation delay and verify the renderer repeats the last completed frame without waiting;
 - overflow a test input ring and verify `Overflow` resynchronization;
