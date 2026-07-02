@@ -25,6 +25,8 @@ public class EngineRunner : IEngineRunner
     private EcsFixedRunner _fixedRunner = null!;
     private EcsUpdateRunner _updateRunner = null!;
     private EcsUpdateScheduler _ecsUpdateScheduler = new();
+    private EcsRenderPrepareRunner _renderPrepareRunner = null!;
+    private EcsRenderPrepareScheduler _ecsRenderPrepareScheduler = new();
     private EcsLateRunner _lateRunner = null!;
     private EcsRenderRunner _renderRunner = null!;
     private FixedRunTicker _fixedRunTicker = null!;
@@ -91,6 +93,8 @@ public class EngineRunner : IEngineRunner
             _updateRunner = _pipeline.GetRunner<EcsUpdateRunner>();
             ConfigureEcsUpdateScheduler(_updateRunner);
             _lateRunner = _pipeline.GetRunner<EcsLateRunner>();
+            _renderPrepareRunner = _pipeline.GetRunner<EcsRenderPrepareRunner>();
+            ConfigureEcsRenderPrepareScheduler(_renderPrepareRunner);
             _renderRunner = _pipeline.GetRunner<EcsRenderRunner>();
             _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application);
 
@@ -106,6 +110,7 @@ public class EngineRunner : IEngineRunner
         _fixedRunTicker.FixedRun();
         _ecsUpdateScheduler.Update();
         _lateRunner.LateRun();
+        _ecsRenderPrepareScheduler.RenderPrepare();
         _renderRunner.Render();
         
     }
@@ -114,6 +119,7 @@ public class EngineRunner : IEngineRunner
     {
         Destroy(GetModules());
         _ecsUpdateScheduler.Dispose();
+        _ecsRenderPrepareScheduler.Dispose();
         _pipeline.Destroy();
         _pipeline = null;
         _modules.Clear();
@@ -123,6 +129,7 @@ public class EngineRunner : IEngineRunner
         _nextRegistrationRank = 0;
         _fixedRunTicker.Destroy();
         _ecsUpdateScheduler = new EcsUpdateScheduler();
+        _ecsRenderPrepareScheduler = new EcsRenderPrepareScheduler();
     }
 
     public Dictionary<string, byte[]> GetHotReloadData()
@@ -323,6 +330,7 @@ public class EngineRunner : IEngineRunner
         newBuilder.AddRunner<EcsFixedRunner>();
         newBuilder.AddRunner<EcsUpdateRunner>();
         newBuilder.AddRunner<EcsLateRunner>();
+        newBuilder.AddRunner<EcsRenderPrepareRunner>();
         newBuilder.AddRunner<EcsRenderRunner>();
         var newPipeline = newBuilder.Build(newServiceProvider);
         newServiceProvider.Register(newPipeline.Injector);
@@ -369,6 +377,31 @@ public class EngineRunner : IEngineRunner
         return systems;
     }
 
+    private void ConfigureEcsRenderPrepareScheduler(EcsRenderPrepareRunner renderPrepareRunner)
+    {
+        ISystemRenderPrepare[] systems = ExtractRenderPrepareSystems(renderPrepareRunner);
+        EcsUpdateSystemDescriptor[] descriptors = CollectRenderPrepareDescriptors(systems);
+        _ecsRenderPrepareScheduler.Initialize(systems, descriptors, UpdateSchedulerMode);
+    }
+
+    private static ISystemRenderPrepare[] ExtractRenderPrepareSystems(EcsRenderPrepareRunner renderPrepareRunner)
+    {
+        var systems = new ISystemRenderPrepare[renderPrepareRunner.Process.Length];
+        for (int i = 0; i < renderPrepareRunner.Process.Length; i++)
+        {
+            if (renderPrepareRunner.Process[i] is not RenderPrepareSystem renderPrepareSystem)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported render-prepare process '{renderPrepareRunner.Process[i].GetType().FullName}'. " +
+                    $"Register Karpik {nameof(ISystemRenderPrepare)} systems through {nameof(Builder)}.");
+            }
+
+            systems[i] = renderPrepareSystem.System;
+        }
+
+        return systems;
+    }
+
     private static EcsUpdateSystemDescriptor[] CollectEcsUpdateDescriptors(ReadOnlySpan<ISystemUpdate> systems)
     {
         if (systems.Length == 0)
@@ -386,6 +419,49 @@ public class EngineRunner : IEngineRunner
         foreach (Assembly assembly in assemblies)
         {
             AddProviderDescriptors(assembly, descriptors);
+        }
+
+        return descriptors.ToArray();
+    }
+
+    private static EcsUpdateSystemDescriptor[] CollectRenderPrepareDescriptors(
+        ReadOnlySpan<ISystemRenderPrepare> systems)
+    {
+        if (systems.Length == 0)
+        {
+            return [];
+        }
+
+        var assemblies = new HashSet<Assembly>();
+        for (int i = 0; i < systems.Length; i++)
+        {
+            assemblies.Add(systems[i].GetType().Assembly);
+        }
+
+        var descriptors = new List<EcsUpdateSystemDescriptor>();
+        foreach (Assembly assembly in assemblies)
+        {
+            Type providerInterface = typeof(IEcsRenderPrepareRegistryProvider);
+            foreach (Type type in assembly.GetTypes())
+            {
+                if (type.IsAbstract || !providerInterface.IsAssignableFrom(type))
+                {
+                    continue;
+                }
+
+                var provider = (IEcsRenderPrepareRegistryProvider?)Activator.CreateInstance(type, nonPublic: true);
+                if (provider is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Unable to create ECS render-prepare registry provider '{type.FullName}'.");
+                }
+
+                ReadOnlySpan<EcsUpdateSystemDescriptor> providerDescriptors = provider.GetRenderPrepareSystems();
+                for (int i = 0; i < providerDescriptors.Length; i++)
+                {
+                    descriptors.Add(providerDescriptors[i]);
+                }
+            }
         }
 
         return descriptors.ToArray();

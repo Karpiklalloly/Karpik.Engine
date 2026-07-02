@@ -3,6 +3,7 @@ using System.Numerics;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
+[Karpik.Engine.Shared.ECS.Scheduling.RenderPrepareCommand]
 public static class CommandBufferDrawExtensions
 {
     public static void AddRect(

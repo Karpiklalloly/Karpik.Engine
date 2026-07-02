@@ -13,3 +13,5 @@ K005 | ECS | Error | EcsInvalidOrderCycle
 K006 | ECS | Error | EcsMainThreadOnlyUpdateAccess
 K007 | ECS | Error | EcsUnsupportedManagedComponentSummary
 K008 | ECS | Error | EcsGeneratedRegistryMissingSystem
+K009 | ECS | Error | EcsRenderPrepareWriteAccess
+K010 | ECS | Error | EcsUpdateRenderCommandAccess

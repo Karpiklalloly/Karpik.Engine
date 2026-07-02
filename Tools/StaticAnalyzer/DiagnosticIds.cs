@@ -10,4 +10,6 @@ public class DiagnosticIds
     public const string EcsMainThreadOnlyUpdateAccess = "K006";
     public const string EcsUnsupportedManagedComponentSummary = "K007";
     public const string EcsGeneratedRegistryMissingSystem = "K008";
+    public const string EcsRenderPrepareWriteAccess = "K009";
+    public const string EcsUpdateRenderCommandAccess = "K010";
 }

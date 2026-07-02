@@ -9,7 +9,7 @@ public sealed class EcsUpdateScheduler : IDisposable
 {
     private const int JobPayloadByteLength = 64;
 
-    private ISystemUpdate[] _systems = [];
+    private object[] _systems = [];
     private EcsUpdateGraph _graph = EcsUpdateGraph.Empty;
     private JobScheduler? _jobScheduler;
     private ValueJobHandle[] _handles = [];
@@ -19,6 +19,7 @@ public sealed class EcsUpdateScheduler : IDisposable
     private GCHandle _systemsHandle;
     private IntPtr _systemsHandlePointer;
     private EcsUpdateSchedulerMode _mode;
+    private bool _isRenderPreparePhase;
     private int _nextWorkerIndex;
     private bool _isInitialized;
     private bool _isDisposed;
@@ -31,11 +32,31 @@ public sealed class EcsUpdateScheduler : IDisposable
         EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Parallel,
         int workerCount = -1)
     {
+        InitializeCore(systems.ToArray(), descriptors, mode, workerCount, isRenderPreparePhase: false);
+    }
+
+    internal void InitializeRenderPrepare(
+        ReadOnlySpan<ISystemRenderPrepare> systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Parallel,
+        int workerCount = -1)
+    {
+        InitializeCore(systems.ToArray(), descriptors, mode, workerCount, isRenderPreparePhase: true);
+    }
+
+    private void InitializeCore(
+        object[] systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        EcsUpdateSchedulerMode mode,
+        int workerCount,
+        bool isRenderPreparePhase)
+    {
         ThrowIfDisposed();
         DisposeSchedulerState();
 
         _mode = mode;
-        _systems = systems.ToArray();
+        _isRenderPreparePhase = isRenderPreparePhase;
+        _systems = systems;
         Type[] systemTypes = new Type[_systems.Length];
         for (int i = 0; i < _systems.Length; i++)
         {
@@ -123,7 +144,7 @@ public sealed class EcsUpdateScheduler : IDisposable
     {
         for (int i = 0; i < _systems.Length; i++)
         {
-            _systems[i].Update();
+            ExecuteSystem(i);
         }
     }
 
@@ -132,7 +153,7 @@ public sealed class EcsUpdateScheduler : IDisposable
         ReadOnlySpan<int> executionOrder = _graph.ExecutionOrder.Span;
         for (int i = 0; i < executionOrder.Length; i++)
         {
-            _systems[executionOrder[i]].Update();
+            ExecuteSystem(executionOrder[i]);
         }
     }
 
@@ -152,7 +173,7 @@ public sealed class EcsUpdateScheduler : IDisposable
             if (node.IsSequential)
             {
                 WaitForScheduledJobs(scheduler);
-                _systems[systemId].Update();
+                ExecuteSystem(systemId);
                 continue;
             }
 
@@ -171,7 +192,7 @@ public sealed class EcsUpdateScheduler : IDisposable
                 }
             }
 
-            var job = new EcsUpdateSystemJob(_systemsHandlePointer, systemId);
+            var job = new EcsUpdateSystemJob(_systemsHandlePointer, systemId, _isRenderPreparePhase);
             ValueJobHandle handle = scheduler.Schedule(in job, dependencies[..scheduledDependencyCount]);
             _handles[systemId] = handle;
 
@@ -241,6 +262,7 @@ public sealed class EcsUpdateScheduler : IDisposable
         _dependencyOffsets = [];
         _isInitialized = false;
         _nextWorkerIndex = 0;
+        _isRenderPreparePhase = false;
     }
 
     private void ThrowIfDisposed()
@@ -262,21 +284,40 @@ public sealed class EcsUpdateScheduler : IDisposable
         return result;
     }
 
+    private void ExecuteSystem(int systemId)
+    {
+        ExecuteSystem(_systems[systemId], _isRenderPreparePhase);
+    }
+
+    private static void ExecuteSystem(object system, bool isRenderPreparePhase)
+    {
+        if (isRenderPreparePhase)
+        {
+            ((ISystemRenderPrepare)system).RenderPrepare();
+        }
+        else
+        {
+            ((ISystemUpdate)system).Update();
+        }
+    }
+
     private readonly struct EcsUpdateSystemJob : IJob
     {
         private readonly IntPtr _systemsHandlePointer;
         private readonly int _systemId;
+        private readonly bool _isRenderPreparePhase;
 
-        public EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId)
+        public EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId, bool isRenderPreparePhase)
         {
             _systemsHandlePointer = systemsHandlePointer;
             _systemId = systemId;
+            _isRenderPreparePhase = isRenderPreparePhase;
         }
 
         public void Execute()
         {
-            var systems = (ISystemUpdate[])GCHandle.FromIntPtr(_systemsHandlePointer).Target!;
-            systems[_systemId].Update();
+            var systems = (object[])GCHandle.FromIntPtr(_systemsHandlePointer).Target!;
+            ExecuteSystem(systems[_systemId], _isRenderPreparePhase);
         }
     }
 }

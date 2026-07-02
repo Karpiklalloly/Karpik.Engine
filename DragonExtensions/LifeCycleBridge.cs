@@ -106,6 +106,25 @@ public class RenderSystem(ISystemRender system) : IRenderSystem, IOnInjectedDI
     }
 }
 
+public class RenderPrepareSystem(ISystemRenderPrepare system) : IRenderPrepareSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public ISystemRenderPrepare System => system;
+
+    public void RenderPrepare()
+    {
+        system.RenderPrepare();
+    }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
 public class DestroySystem(ISystemDestroy system) : IEcsDestroy, IOnInjectedDI
 {
     [DI] private IServiceContainer _container = null!;

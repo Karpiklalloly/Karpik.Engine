@@ -24,7 +24,7 @@ Do not begin a later child against temporary APIs from unfinished earlier childr
 - [x] (2026-06-03 00:33 +04:00) Split the broad draft into one master ExecPlan and four ordered child ExecPlans.
 - [x] (2026-06-05 23:07 +04:00) Completed `plans/native-memory-foundation-execplan.md`; `Karpik.Memory` ownership primitives, containers, allocation-budget tests, benchmarks, jobs compatibility migration, and ADR are in place.
 - [x] (2026-06-05 23:07 +04:00) Completed `plans/jobs-runtime-execplan.md`; standalone value jobs runtime, bounded work stealing, worker loops, compatibility boundary, diagnostics, benchmarks, and ADR are in place.
-- [ ] Complete `plans/ecs-update-scheduler-execplan.md`.
+- [x] (2026-06-19 21:40 +04:00) Completed `plans/ecs-update-scheduler-execplan.md`; generated access metadata, fail-closed analyzer validation, compact graph execution, caller-thread sequential barriers, launcher builds, and manual client interaction validation are in place.
 - [ ] Complete `plans/client-threading-render-pipeline-execplan.md`.
 - [ ] Run the `0.5` release gate and update the roadmap and ADRs.
 

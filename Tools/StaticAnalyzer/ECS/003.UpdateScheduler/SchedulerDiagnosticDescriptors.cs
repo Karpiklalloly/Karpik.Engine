@@ -51,4 +51,20 @@ public static class SchedulerDiagnosticDescriptors
         category: "ECS",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RenderPrepareWriteAccess = new(
+        id: DiagnosticIds.EcsRenderPrepareWriteAccess,
+        title: "Mutable ECS access in render preparation",
+        messageFormat: "Render-prepare system '{0}' writes ECS component state",
+        category: "ECS",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UpdateRenderCommandAccess = new(
+        id: DiagnosticIds.EcsUpdateRenderCommandAccess,
+        title: "Render command emitted from update",
+        messageFormat: "Update system '{0}' emits render commands outside render preparation",
+        category: "ECS",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

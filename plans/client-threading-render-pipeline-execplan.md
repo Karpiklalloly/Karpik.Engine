@@ -11,8 +11,8 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 ## Progress
 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 4 of `plans/scheduler-jobs-memory-execplan.md`.
-- [ ] Record current client input, graphics, loop, merge, and reload behavior.
-- [ ] Add lifecycle contract and analyzer rules for `ISystemRenderPrepare`.
+- [x] (2026-06-19 21:40 +04:00) Recorded the current baseline: `EngineRunner.Run` executes begin, fixed, scheduled update, late, and render serially on its caller; Input mutates concurrent dictionaries and per-frame lists from `ISystemBegin`; Graphics.Core swaps global write/pending lists under locks, `BeginMerge` waits for an unfinished prior merge, and scene submit waits for merge completion; restart-worker reload destroys and reconstructs the runner/pipeline around ECS-only persisted module state.
+- [x] (2026-06-19 22:00 +04:00) Completed Milestone 1: added `ISystemRenderPrepare`, a dedicated generated registry and scheduler graph, Builder/Runner lifecycle integration, read-only analyzer enforcement (`K009`), and a neutral `[RenderPrepareCommand]` contract that rejects command emission from `ISystemUpdate` (`K010`). Static analyzer tests passed 43/43, runner tests passed 12/12, Graphics.Core built, and both launcher builds passed; existing package/nullability warnings remain.
 - [ ] Replace input internals with snapshot plus bounded SPSC event ring.
 - [ ] Split client main-thread and simulation-thread loops.
 - [ ] Extend Graphics.Core with sorted triple-buffer command-set ownership.
@@ -32,6 +32,18 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 
 - Observation: Current input service uses managed dictionaries, lists, LINQ, events, and direct source reads. It is not a snapshot boundary and is not steady-state no-GC.
   Evidence: `Modules/Client/Input/Input.cs`.
+
+- Observation: The current client lifecycle has no ownership boundary between platform, simulation, and presentation phases; `EngineRunner.Run` invokes all phases synchronously on one caller.
+  Evidence: `Karpik.Engine.Core.Runner/Runner.cs` calls begin, pipeline, fixed, scheduled update, late, and render in one method.
+
+- Observation: Ordinary scene submit blocks on merge completion, and starting a new merge also blocks if the previous merge is unfinished.
+  Evidence: `GraphicsCoreSubmitSceneSystem.Render()` and `MergeThread.BeginMerge()` call `WaitForCompletion()`.
+
+- Observation: The scheduler analyzer cannot reference Graphics.Core without violating the Core/Client dependency boundary.
+  Evidence: scheduler contracts and analyzers depend on Core metadata, while `GraphicsContext` is defined under `Modules/Client/Graphics`.
+
+- Observation: Attribute-based command emission contracts must support interfaces because render systems write through `ICommandBuffer`, not a concrete Graphics.Core buffer type.
+  Evidence: the first Graphics.Core validation failed with `CS0592` until `RenderPrepareCommandAttribute` included `AttributeTargets.Interface`; the regression test now locks this contract.
 
 ## Decision Log
 
@@ -54,6 +66,10 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - Decision: On input-ring overflow, drop new events, preserve the correct prefix, emit `Overflow`, and resynchronize from the latest snapshot.
   Rationale: Overwriting old events can produce impossible edge sequences. Main thread must never block on input publication.
   Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Represent render-prepare-safe command emission with a neutral Core metadata attribute applied by Graphics.Core, rather than adding a Core or analyzer dependency on the Client graphics module.
+  Rationale: The analyzer can recognize the contract by metadata name while Client-only graphics types remain outside Shared/Core dependencies.
+  Date/Author: 2026-06-19 / agent
 
 ## Outcomes & Retrospective
 

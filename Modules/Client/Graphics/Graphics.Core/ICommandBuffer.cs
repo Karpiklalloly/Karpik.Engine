@@ -1,5 +1,6 @@
 ﻿namespace Karpik.Engine.Client.Graphics.Core;
 
+[Karpik.Engine.Shared.ECS.Scheduling.RenderPrepareCommand]
 public interface ICommandBuffer
 {
     public int FrameId { get; }

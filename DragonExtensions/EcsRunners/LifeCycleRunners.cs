@@ -76,3 +76,19 @@ public class EcsRenderRunner : EcsRunner<IRenderSystem>, IRenderSystem
         }
     }
 }
+
+public interface IRenderPrepareSystem : IEcsProcess
+{
+    void RenderPrepare();
+}
+
+public class EcsRenderPrepareRunner : EcsRunner<IRenderPrepareSystem>, IRenderPrepareSystem
+{
+    public void RenderPrepare()
+    {
+        foreach (var run in Process)
+        {
+            run.RenderPrepare();
+        }
+    }
+}
