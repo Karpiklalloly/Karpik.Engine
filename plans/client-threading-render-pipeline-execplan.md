@@ -15,7 +15,7 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - [x] (2026-06-03 00:33 +04:00) Design agreed as child plan 4 of `plans/scheduler-jobs-memory-execplan.md`.
 - [x] (2026-06-19 21:40 +04:00) Recorded the current baseline: `EngineRunner.Run` executes begin, fixed, scheduled update, late, and render serially on its caller; Input mutates concurrent dictionaries and per-frame lists from `ISystemBegin`; Graphics.Core swaps global write/pending lists under locks, `BeginMerge` waits for an unfinished prior merge, and scene submit waits for merge completion; restart-worker reload destroys and reconstructs the runner/pipeline around ECS-only persisted module state.
 - [x] (2026-06-19 22:00 +04:00) Completed Milestone 1: added `ISystemRenderPrepare`, a dedicated generated registry and scheduler graph, Builder/Runner lifecycle integration, read-only analyzer enforcement (`K009`), and a neutral `[RenderPrepareCommand]` contract that rejects command emission from `ISystemUpdate` (`K010`). Static analyzer tests passed 43/43, runner tests passed 12/12, Graphics.Core built, and both launcher builds passed; existing package/nullability warnings remain.
-- [ ] Replace input internals with snapshot plus bounded SPSC event ring.
+- [x] (2026-07-06 00:00 +04:00) Replaced `Input` internals with enum-indexed key/mouse state, transient edge arrays, a bounded SPSC `InputEvent` ring, consume-phase `KeyPressed`/`KeyReleased`/`TextInput` callbacks, legacy event compatibility, and request-based cursor locking. Added focused `Modules/Client/Input.Tests`; input tests passed 6/6, Input built, and ClientLauncher built. Existing NuGet feed/nullability warnings remain.
 - [ ] Add a headless/manual gameplay loop driver for tests.
 - [ ] Split client platform/render loop from gameplay loop and add the threaded client runtime mode.
 - [ ] Extend Graphics.Core with sorted triple-buffer command-set ownership.
@@ -51,6 +51,9 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - Observation: Attribute-based command emission contracts must support interfaces because render systems write through `ICommandBuffer`, not a concrete Graphics.Core buffer type.
   Evidence: the first Graphics.Core validation failed with `CS0592` until `RenderPrepareCommandAttribute` included `AttributeTargets.Interface`; the regression test now locks this contract.
 
+- Observation: `IInputSource` does not expose a dense "all keys currently held" list; held keyboard state is reconstructed from key press/release edges inside `Input`.
+  Evidence: `IInputSource` exposes `PressedKeys`, `UnPressedKeys`, and repeat lists, while `Input` now owns `_publishedKeyDown` and `_keyDown`.
+
 ## Decision Log
 
 - Decision: Main thread owns platform events, input publication, backend submit, ImGui, and present. Simulation thread owns fixed ticks, parallel update, and render preparation.
@@ -76,6 +79,14 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - Decision: On input-ring overflow, drop new events, preserve the correct prefix, emit `Overflow`, and resynchronize from the latest snapshot.
   Rationale: Overwriting old events can produce impossible edge sequences. Main thread must never block on input publication.
   Date/Author: 2026-06-03 / developer and agent
+
+- Decision: Keep `Input` as the gameplay-facing DI service while changing its internals to publish/consume state.
+  Rationale: Existing client gameplay systems can keep using `[DI] Input`, while public getters stop reading `IInputSource` directly and become safe to separate from platform ownership later.
+  Date/Author: 2026-07-06 / developer and agent
+
+- Decision: Official input callbacks are `KeyPressed`, `KeyReleased`, and `TextInput`, invoked from the consume phase after draining the bounded event ring.
+  Rationale: Subscription remains supported, but callbacks observe the same frame state as polling APIs instead of firing directly from platform event publication.
+  Date/Author: 2026-07-06 / developer and agent
 
 - Decision: Represent render-prepare-safe command emission with a neutral Core metadata attribute applied by Graphics.Core, rather than adding a Core or analyzer dependency on the Client graphics module.
   Rationale: The analyzer can recognize the contract by metadata name while Client-only graphics types remain outside Shared/Core dependencies.
