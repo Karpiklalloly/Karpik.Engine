@@ -1,18 +1,20 @@
 using System.Drawing;
 using System.Numerics;
 using System.Runtime.ExceptionServices;
+using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
 using Veldrid;
 using Pipeline = Veldrid.Pipeline;
 
-namespace Karpik.Engine.Client.Graphics.Core;
+namespace Karpik.Engine.Client.Graphics.OpenGL;
 
 public class MergeThread : IMergeThread, IOnInjectedDI
 {
     private const int MaxQuads = 16000;
     private const int MaxVertices = MaxQuads * 4;
     private const int MaxIndices = MaxQuads * 6;
+    private const int MergeContextCount = 3;
 
     public bool IsRunning => !_completed.IsSet;
 
@@ -31,7 +33,10 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     private MergeContext _mergeContextA;
     private MergeContext _mergeContextB;
+    private MergeContext _mergeContextC;
     private MergeContext _buildContext;
+    private int _buildContextIndex;
+    private int _completedContextIndex = -1;
     private List<ICommandBuffer> _buildBuffers = null!;
     private Framebuffer _buildFramebuffer = null!;
     private Camera2D _buildCamera;
@@ -39,7 +44,6 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private float _buildFramebufferHeight;
 
     private bool _isUsingA = true;
-    private MergeContext _currentContext => _isUsingA ? _mergeContextA : _mergeContextB;
 
     public MergeThread()
     {
@@ -78,7 +82,8 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
             TextGlyphs = new TextGlyphQuad[MaxQuads],
-            CommandList = factory.CreateCommandList()
+            CommandList = factory.CreateCommandList(),
+            SubmitFence = factory.CreateFence(signaled: true)
         };
 
         _mergeContextB = new MergeContext()
@@ -87,7 +92,18 @@ public class MergeThread : IMergeThread, IOnInjectedDI
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
             TextGlyphs = new TextGlyphQuad[MaxQuads],
-            CommandList = factory.CreateCommandList()
+            CommandList = factory.CreateCommandList(),
+            SubmitFence = factory.CreateFence(signaled: true)
+        };
+
+        _mergeContextC = new MergeContext()
+        {
+            VertexBuffer = factory.CreateBuffer(new BufferDescription(
+                MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
+            Vertices = new Vertex2D[MaxVertices],
+            TextGlyphs = new TextGlyphQuad[MaxQuads],
+            CommandList = factory.CreateCommandList(),
+            SubmitFence = factory.CreateFence(signaled: true)
         };
     }
 
@@ -100,7 +116,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
         var buffers = GraphicsContext.CollectBuffers();
         _isUsingA = !_isUsingA; // Переключаем буферы
-        _buildContext = _currentContext;
+        _buildContextIndex = SelectBuildContextIndex();
+        if (_buildContextIndex < 0)
+        {
+            return;
+        }
+
+        _buildContext = GetContext(_buildContextIndex);
         _buildBuffers = buffers;
         _buildFramebuffer = _device.MainSwapchain.Framebuffer;
         _buildFramebufferWidth = _buildFramebuffer.Width;
@@ -112,16 +134,75 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         _workAvailable.Set();
     }
 
+    public bool TryBeginMerge()
+    {
+        if (!_completed.IsSet)
+        {
+            return false;
+        }
+
+        ThrowWorkerExceptionIfCompleted();
+
+        var buffers = GraphicsContext.CollectBuffers();
+        _buildContextIndex = SelectBuildContextIndex();
+        if (_buildContextIndex < 0)
+        {
+            return false;
+        }
+
+        _buildContext = GetContext(_buildContextIndex);
+        _buildBuffers = buffers;
+        _buildFramebuffer = _device.MainSwapchain.Framebuffer;
+        _buildFramebufferWidth = _buildFramebuffer.Width;
+        _buildFramebufferHeight = _buildFramebuffer.Height;
+        _cameraState.CaptureForFrame(_buildFramebufferWidth, _buildFramebufferHeight);
+        _buildCamera = _cameraState.FrameCamera;
+        Volatile.Write(ref _workerException, null);
+        _completed.Reset();
+        _workAvailable.Set();
+        return true;
+    }
+
     public void WaitForCompletion()
     {
         _completed.Wait();
-        if (_workerException != null)
-        {
-            ExceptionDispatchInfo.Capture(_workerException).Throw();
-        }
+        ThrowWorkerExceptionIfCompleted();
     }
 
-    public CommandList GetCommandList() => _currentContext.CommandList;
+    public bool TryGetCompletedCommandList(out CommandList? commandList, out Fence? submitFence)
+    {
+        ThrowWorkerExceptionIfCompleted();
+
+        int completedContextIndex = Volatile.Read(ref _completedContextIndex);
+        if (completedContextIndex < 0)
+        {
+            commandList = null;
+            submitFence = null;
+            return false;
+        }
+
+        MergeContext context = GetContext(completedContextIndex);
+        if (!context.SubmitFence.Signaled)
+        {
+            commandList = null;
+            submitFence = null;
+            return false;
+        }
+
+        commandList = context.CommandList;
+        submitFence = context.SubmitFence;
+        return true;
+    }
+
+    public CommandList GetCommandList()
+    {
+        if (!TryGetCompletedCommandList(out CommandList? commandList, out _))
+        {
+            throw new InvalidOperationException("No completed graphics command list is available.");
+        }
+
+        return commandList!;
+    }
 
     public void Dispose()
     {
@@ -145,15 +226,60 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             try
             {
                 BuildCommandList();
+                Volatile.Write(ref _completedContextIndex, _buildContextIndex);
             }
             catch (Exception ex)
             {
-                _workerException = ex;
+                Volatile.Write(ref _workerException, ex);
             }
             finally
             {
                 _completed.Set();
             }
+        }
+    }
+
+    private int SelectBuildContextIndex()
+    {
+        int completedContextIndex = Volatile.Read(ref _completedContextIndex);
+        for (int i = 0; i < MergeContextCount; i++)
+        {
+            if (i == completedContextIndex)
+            {
+                continue;
+            }
+
+            if (GetContext(i).SubmitFence.Signaled)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private MergeContext GetContext(int index)
+    {
+        return index switch
+        {
+            0 => _mergeContextA,
+            1 => _mergeContextB,
+            2 => _mergeContextC,
+            _ => throw new ArgumentOutOfRangeException(nameof(index), index, null)
+        };
+    }
+
+    private void ThrowWorkerExceptionIfCompleted()
+    {
+        if (!_completed.IsSet)
+        {
+            return;
+        }
+
+        Exception? workerException = Volatile.Read(ref _workerException);
+        if (workerException != null)
+        {
+            ExceptionDispatchInfo.Capture(workerException).Throw();
         }
     }
 

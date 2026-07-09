@@ -16,10 +16,19 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - [x] (2026-06-19 21:40 +04:00) Recorded the current baseline: `EngineRunner.Run` executes begin, fixed, scheduled update, late, and render serially on its caller; Input mutates concurrent dictionaries and per-frame lists from `ISystemBegin`; Graphics.Core swaps global write/pending lists under locks, `BeginMerge` waits for an unfinished prior merge, and scene submit waits for merge completion; restart-worker reload destroys and reconstructs the runner/pipeline around ECS-only persisted module state.
 - [x] (2026-06-19 22:00 +04:00) Completed Milestone 1: added `ISystemRenderPrepare`, a dedicated generated registry and scheduler graph, Builder/Runner lifecycle integration, read-only analyzer enforcement (`K009`), and a neutral `[RenderPrepareCommand]` contract that rejects command emission from `ISystemUpdate` (`K010`). Static analyzer tests passed 43/43, runner tests passed 12/12, Graphics.Core built, and both launcher builds passed; existing package/nullability warnings remain.
 - [x] (2026-07-06 00:00 +04:00) Replaced `Input` internals with enum-indexed key/mouse state, transient edge arrays, a bounded SPSC `InputEvent` ring, consume-phase `KeyPressed`/`KeyReleased`/`TextInput` callbacks, legacy event compatibility, and request-based cursor locking. Added focused `Modules/Client/Input.Tests`; input tests passed 6/6, Input built, and ClientLauncher built. Existing NuGet feed/nullability warnings remain.
-- [ ] Add a headless/manual gameplay loop driver for tests.
+- [x] (2026-07-07 00:00 +04:00) Added `GameplayLoopDriver` and `EngineRunner.CreateGameplayLoopDriver()` for manual/headless gameplay stepping through existing Runner setup. The driver can step all non-render runtime cycles: begin, ordinary ECS run, fixed update, scheduled update, and late update; `RenderPrepare` and `Render` remain excluded. Added runner tests for fixed tick count, individual begin/run/update steps, full non-render frame order, render/render-prepare exclusion, and negative tick rejection. Runner tests passed 18/18, ClientLauncher built, and ServerLauncher built. Existing package/nullability warnings remain.
+- [x] (2026-07-08 00:00 +04:00) Added `Window.Headless` as a peer implementation next to `Window.Sdl2`. It registers `IWindow`, `IInputSource`, and `HeadlessInputController` for deterministic no-window input tests without changing `InputInstaller` or ordinary ClientLauncher module staging. Added an integration test that drives `Input` through `WindowCoreInstaller + WindowHeadlessInstaller + InputInstaller`; Input tests passed 7/7 and Window.Headless built. Restore/build emitted existing offline NuGet vulnerability-feed warnings.
+- [x] (2026-07-09 00:00 +04:00) Introduced the first Graphics backend boundary: `Graphics.Core` lifecycle systems now depend on backend-neutral `IGraphicsBackend`, and `Graphics.OpenGL` registers `OpenGLGraphicsBackend` to own Veldrid frame begin, merge, scene submit, ImGui render, and swap buffers. Added a contract test that prevents Veldrid types from leaking through `IGraphicsBackend`; Graphics.Core tests passed 29/29, Graphics.Core built, and Graphics.OpenGL built. Existing package vulnerability/pruning warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Added `Graphics.Headless` as a peer backend module. It registers a no-op `IGraphicsBackend`, begins a `GraphicsContext` frame without GPU objects, reports no ImGui input capture, and does not submit/present. Moved ImGui update/capture behind `IGraphicsBackend` so headless graphics does not need `ImGuiRenderContext`. Graphics.Core tests passed 29/29, Graphics.Headless built, and ClientLauncher built with the ordinary OpenGL staging path unchanged. Existing offline NuGet vulnerability-feed warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Migrated sample sprite command generation from render to render-prepare: `DrawSpriteSystem` now implements `ISystemRenderPrepare`, `FlushDrawersSystem` flushes `Drawer` during render-prepare, and `Drawer` is explicitly marked as a render-prepare command writer. Removed the per-sprite debug position text because it allocated formatted strings in the frame path. ClientLauncher built successfully; existing nullability/NuGet warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Added sort keys to Graphics.Core command recording. `DrawRectCmd`, `DrawTextureCmd`, and `DrawTextCmd` now carry `SortKey`; `ThreadBuffer` stores command descriptors with stable sequence numbers and returns them ordered by `(SortKey, Sequence)` without moving payload arrays. Added `DrawSortKey` helpers and switched sample `Drawer` layer ordering to command sort keys instead of a separate action-array sort. Graphics.Core tests passed 34/34, Graphics.Core built, Graphics.OpenGL built, and ClientLauncher built. Existing warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Replaced implicit double-buffer `GraphicsContext` ownership with explicit three command-set slots and three thread-local command buffers while preserving the current synchronous merge/submit API. Added command-set ownership tests; Graphics.Core tests passed 36/36, Graphics.Core built, Graphics.OpenGL built, and ClientLauncher built. Existing warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Split `MergeThread` start and completed-frame consumption into non-blocking APIs. `OpenGLGraphicsBackend.BeginMerge()` now skips starting a new merge while the worker is busy, and `SubmitScene()` submits the last completed command list if one exists instead of waiting for the current merge. Graphics.Core tests passed 36/36, Graphics.Core built, Graphics.OpenGL built, and ClientLauncher built. Existing warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Added GPU-fence-aware merge context reuse. `MergeThread` now owns three Veldrid merge contexts, each with a submit fence, and only builds into a context whose fence is signaled and is not the current completed frame. `OpenGLGraphicsBackend` submits completed command lists with their fence and skips submit while the previous submission of that context is still in flight. Graphics.Core tests passed 36/36, Graphics.Core built, Graphics.OpenGL built, and ClientLauncher built. Existing warnings remain.
+- [x] (2026-07-09 00:00 +04:00) Moved the Veldrid merge-thread contract and implementation (`IMergeThread`, `MergeThread`, `MergeContext`) from `Graphics.Core` into `Graphics.OpenGL`. The OpenGL backend now owns the complete command-list/fence lifetime boundary; shared Core retains only backend-neutral lifecycle and command data plus the currently shared vertex layout. Used a friend-assembly boundary for Core-private command representation rather than publishing it. Graphics.Core tests passed 36/36; Graphics.Core, Graphics.OpenGL, and ClientLauncher built successfully. Existing NuGet/nullability warnings remain.
 - [ ] Split client platform/render loop from gameplay loop and add the threaded client runtime mode.
 - [ ] Extend Graphics.Core with sorted triple-buffer command-set ownership.
-- [ ] Migrate client drawing systems from `ISystemRender` to `ISystemRenderPrepare`.
+- [x] Migrate client drawing systems from `ISystemRender` to `ISystemRenderPrepare`.
 - [ ] Run allocation, overload, shutdown, and repeated-reload gates.
 
 ## Surprises & Discoveries
@@ -54,6 +63,33 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - Observation: `IInputSource` does not expose a dense "all keys currently held" list; held keyboard state is reconstructed from key press/release edges inside `Input`.
   Evidence: `IInputSource` exposes `PressedKeys`, `UnPressedKeys`, and repeat lists, while `Input` now owns `_publishedKeyDown` and `_keyDown`.
 
+- Observation: Launcher builds should be run sequentially in this workspace. Running ClientLauncher and ServerLauncher builds at the same time can lock generated assemblies.
+  Evidence: a parallel validation attempt failed ClientLauncher with `CS2012` on `Network.Codegen.dll`; rerunning ClientLauncher sequentially passed.
+
+- Observation: Headless window/input should not be added to ordinary `PluginReference` staging while `Window.Sdl2` remains the default client backend.
+  Evidence: both implementations register `IWindow` and `IInputSource`; staging both for ClientLauncher would make backend selection depend on service registration order.
+
+- Observation: `Graphics.Core` still contains Veldrid-dependent resource and merge implementation types after the first backend boundary.
+  Evidence: `MergeThread`, `TextureLoader`, `Preset2DPipeline`, `ImGuiRenderContext`, and `Graphics.Core.csproj` still reference Veldrid packages. True `Graphics.Headless` requires moving or abstracting these pieces behind backend-specific contracts.
+
+- Observation: ImGui frame update now goes through `IGraphicsBackend`, but debug panel drawing still lives in Graphics.Core and uses ImGuiNET directly.
+  Evidence: `ImGuiBeginSystem` calls `IGraphicsBackend.UpdateImGui`, while `ImGuiDebugPanelSystem` still uses `ImGui.Begin/Text/InputText/End`.
+
+- Observation: `Graphics.Headless` can now run the Graphics.Core lifecycle without GPU resources, but Graphics.Core itself is not yet dependency-clean.
+  Evidence: `Graphics.Headless` builds and registers a no-op `IGraphicsBackend`, while `Graphics.Core.csproj` still references Veldrid packages because command/resource implementation types remain there.
+
+- Observation: `Drawer` cannot use `Array.Resize`, `Span.Sort`, or interpolated debug text inside render preparation.
+  Evidence: the scheduler analyzer reported opaque helper calls after migrating `FlushDrawersSystem` to `ISystemRenderPrepare`; the code now uses fixed capacity, insertion sort, and no per-sprite debug string formatting.
+
+- Observation: Sorting command descriptors is enough for the current merge path; rect/texture/text payload arrays do not need to move.
+  Evidence: `DrawCommand` stores command type plus payload index, and `MergeThread` resolves payloads through `rects[command.Index]`, `textures[command.Index]`, or `texts[command.Index]`.
+
+- Observation: OpenGL scene submit is now non-blocking with respect to the current CPU merge, but explicit waits remain available for shutdown/reload-style barriers.
+  Evidence: `OpenGLGraphicsBackend.SubmitScene()` uses `TryGetCompletedCommandList()`, while `MergeThread.WaitForCompletion()` remains on `IMergeThread`.
+
+- Observation: Backend command-list lifetime is now protected by Veldrid fences, but the fence contract still leaks through `IMergeThread`.
+  Evidence: `MergeContext` stores `SubmitFence`, `TryGetCompletedCommandList` returns a `Fence`, and `OpenGLGraphicsBackend.SubmitScene()` submits with that fence.
+
 ## Decision Log
 
 - Decision: Main thread owns platform events, input publication, backend submit, ImGui, and present. Simulation thread owns fixed ticks, parallel update, and render preparation.
@@ -87,6 +123,50 @@ The renderer repeats the last completed frame when simulation or merge is late. 
 - Decision: Official input callbacks are `KeyPressed`, `KeyReleased`, and `TextInput`, invoked from the consume phase after draining the bounded event ring.
   Rationale: Subscription remains supported, but callbacks observe the same frame state as polling APIs instead of firing directly from platform event publication.
   Date/Author: 2026-07-06 / developer and agent
+
+- Decision: The manual gameplay driver is created from an already set up `EngineRunner` and reuses the existing `Time`, fixed runner, scheduled update runner, and late runner.
+  Rationale: Tests exercise the same Builder/Runner lifecycle as production without duplicating module setup or leaking Client graphics/platform dependencies into Core.
+  Date/Author: 2026-07-07 / agent
+
+- Decision: `GameplayLoopDriver` steps fixed, scheduled update, and late phases only; begin/platform collection and render/presentation stay outside this headless gameplay boundary.
+  Rationale: The driver must be usable by tests without a window, swapchain, ImGui context, Graphics.Core backend, or platform input source. Client threading can later compose platform begin/render around this gameplay driver.
+  Date/Author: 2026-07-07 / agent
+
+- Decision: `GameplayLoopDriver.StepFrame` follows `EngineRunner.Run` ordering for every non-render cycle: time update, begin, ordinary ECS run, fixed update backlog, scheduled update, and late update. `RenderPrepare` and `Render` are deliberately not reachable through the gameplay driver.
+  Rationale: Headless tests need the same gameplay-side ordering as production while keeping render preparation and presentation outside the manual gameplay boundary.
+  Date/Author: 2026-07-07 / developer and agent
+
+- Decision: Add `Window.Headless` as a full peer module implementation of `Window.Core` contracts, not as a test-only fake inside `Input.Tests`.
+  Rationale: Integration tests can exercise real DI/module wiring through `IWindow` and `IInputSource` without SDL, OS windows, swapchains, or ClientLauncher backend changes.
+  Date/Author: 2026-07-08 / developer and agent
+
+- Decision: `Graphics.Core` owns a backend-neutral lifecycle contract, while backend modules own concrete graphics device, swapchain, command-list submit, ImGui render, and present behavior.
+  Rationale: Headless graphics should not fake Veldrid concrete objects. The current OpenGL backend keeps the existing Veldrid path intact while creating a seam where a future `Graphics.Headless` module can register no-op/frame-recording behavior.
+  Date/Author: 2026-07-09 / developer and agent
+
+- Decision: Add `Graphics.Headless` as a peer backend module and keep it out of ordinary ClientLauncher plugin staging while `Graphics.OpenGL` is the default client backend.
+  Rationale: Tests and headless scenarios can opt into no-GPU graphics explicitly without making production backend selection depend on service registration order.
+  Date/Author: 2026-07-09 / agent
+
+- Decision: Mark `Drawer` as a render-prepare command writer and keep sprite command generation out of `ISystemRender`.
+  Rationale: `Drawer` is part of the graphics command publication path, not gameplay simulation. Marking it with the command contract makes accidental `Update` usage fail analyzer validation while allowing render-prepare systems to publish draw commands.
+  Date/Author: 2026-07-09 / agent
+
+- Decision: Store sort order on command descriptors, not by rearranging command payload arrays.
+  Rationale: Payload arrays remain dense and type-specific for merge locality; the ordered descriptor stream can be sorted independently and still reference the original payload index.
+  Date/Author: 2026-07-09 / agent
+
+- Decision: Introduce explicit triple command-set slots before removing merge waits.
+  Rationale: Separating writing/pending/reusable ownership first keeps the behavioral change small and gives tests a stable boundary before changing `MergeThread` publication and main-thread submit semantics.
+  Date/Author: 2026-07-09 / agent
+
+- Decision: Make ordinary OpenGL submit opportunistic: submit the last completed command list when available and skip scene submit before the first merge completes.
+  Rationale: The main render path must not wait for CPU merge. Repeating the last completed frame is acceptable; first-frame no-op is preferable to blocking.
+  Date/Author: 2026-07-09 / agent
+
+- Decision: Use three Veldrid merge contexts with per-context submit fences before broader backend extraction.
+  Rationale: This prevents CPU merge from rebuilding a command list context that may still be in GPU use, while keeping the current Veldrid implementation path intact for a small, verifiable change.
+  Date/Author: 2026-07-09 / agent
 
 - Decision: Represent render-prepare-safe command emission with a neutral Core metadata attribute applied by Graphics.Core, rather than adding a Core or analyzer dependency on the Client graphics module.
   Rationale: The analyzer can recognize the contract by metadata name while Client-only graphics types remain outside Shared/Core dependencies.

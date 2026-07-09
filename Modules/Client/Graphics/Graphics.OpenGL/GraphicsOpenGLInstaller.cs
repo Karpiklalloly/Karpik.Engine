@@ -3,6 +3,7 @@ using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
+using Karpik.Engine.Modules.Window.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using Veldrid;
@@ -44,7 +45,16 @@ public class GraphicsOpenGLInstaller : IInstaller, IInstallerConfiguratable, IIn
         _mergeThread = new MergeThread();
         container.Register(_graphicsDevice);
         container.Register(_mergeThread);
-        container.Register(new Preset2DPipeline());
+        var pipeline = new Preset2DPipeline();
+        container.Register(pipeline);
+        container.Register<IGraphicsBackend>(new OpenGLGraphicsBackend(
+            _graphicsDevice,
+            _mergeThread,
+            pipeline,
+            services.Get<ImGuiRenderContext>()!,
+            services.Get<IWindow>()!,
+            services.Get<IInputSource>()!,
+            services.Get<Time>()!));
         module = null;
     }
 

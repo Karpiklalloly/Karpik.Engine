@@ -22,7 +22,7 @@ public class Preset2DPipeline
     private TextureResources _textureResources = new();
     private ResourceLayout _textureLayout = null!;
 
-    internal void Init()
+    public void Init()
     {
         RectPipeline = CreateRectPipeline();
         TexturePipeline = CreateTexturePipeline("Shaders/2D.frag");

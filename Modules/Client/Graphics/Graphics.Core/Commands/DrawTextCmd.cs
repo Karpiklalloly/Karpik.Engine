@@ -14,4 +14,5 @@ public struct DrawTextCmd
     public float RotationRadians;
     public Color Color;
     public DrawSpace Space;
+    public ulong SortKey;
 }

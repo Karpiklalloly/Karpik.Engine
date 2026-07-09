@@ -9,9 +9,8 @@ namespace Karpik.Engine.Client.Graphics.Core;
 public sealed class ImGuiBeginSystem : ISystemBegin
 {
     [DI] private IInputSource _inputSource = null!;
-    [DI] private Time _time = null!;
     [DI] private ImGuiOverlayState _overlay = null!;
-    [DI] private ImGuiRenderContext _imgui = null!;
+    [DI] private IGraphicsBackend _backend = null!;
     [DI] private InputCaptureState _inputCapture = null!;
 
     public void Begin()
@@ -34,12 +33,7 @@ public sealed class ImGuiBeginSystem : ISystemBegin
             return;
         }
 
-        _imgui.Update((float)_time.DeltaTime, _inputSource.Snapshot);
-
-        ImGuiIOPtr io = ImGui.GetIO();
-        bool wantsMouse = io.WantCaptureMouse;
-        bool wantsKeyboard = io.WantCaptureKeyboard;
-        bool wantsText = io.WantTextInput || wantsKeyboard;
+        _backend.UpdateImGui(out bool wantsMouse, out bool wantsKeyboard, out bool wantsText);
         _overlay.SetCapture(wantsMouse, wantsKeyboard, wantsText);
         _inputCapture.Set(wantsMouse, wantsKeyboard, wantsText);
     }

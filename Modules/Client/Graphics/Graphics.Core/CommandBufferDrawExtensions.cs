@@ -12,7 +12,8 @@ public static class CommandBufferDrawExtensions
         Color color,
         Vector2 origin = default,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         DrawRectCmd cmd = new DrawRectCmd
         {
@@ -20,7 +21,8 @@ public static class CommandBufferDrawExtensions
             Color = color,
             Origin = origin,
             RotationRadians = rotationRadians,
-            Space = space
+            Space = space,
+            SortKey = sortKey
         };
 
         buffer.Add(in cmd);
@@ -32,7 +34,8 @@ public static class CommandBufferDrawExtensions
         Vector2 size,
         Color color,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         Vector2 position = center - size * 0.5f;
         DrawRectCmd cmd = new DrawRectCmd
@@ -41,7 +44,8 @@ public static class CommandBufferDrawExtensions
             Color = color,
             Origin = size * 0.5f,
             RotationRadians = rotationRadians,
-            Space = space
+            Space = space,
+            SortKey = sortKey
         };
 
         buffer.Add(in cmd);
@@ -56,7 +60,8 @@ public static class CommandBufferDrawExtensions
         Vector2 origin = default,
         float rotationRadians = 0f,
         DrawSpace space = DrawSpace.Screen,
-        Vector4 sourceUv = default)
+        Vector4 sourceUv = default,
+        ulong sortKey = 0)
     {
         DrawTextureCmd cmd = new DrawTextureCmd
         {
@@ -67,7 +72,8 @@ public static class CommandBufferDrawExtensions
             Origin = origin,
             SourceUv = sourceUv,
             RotationRadians = rotationRadians,
-            Space = space
+            Space = space,
+            SortKey = sortKey
         };
 
         buffer.Add(in cmd);
@@ -81,7 +87,8 @@ public static class CommandBufferDrawExtensions
         Color color,
         float rotationRadians = 0f,
         DrawSpace space = DrawSpace.Screen,
-        Vector4 sourceUv = default)
+        Vector4 sourceUv = default,
+        ulong sortKey = 0)
     {
         Vector2 position = center - size * 0.5f;
         DrawTextureCmd cmd = new DrawTextureCmd
@@ -93,7 +100,8 @@ public static class CommandBufferDrawExtensions
             Origin = size * 0.5f,
             SourceUv = sourceUv,
             RotationRadians = rotationRadians,
-            Space = space
+            Space = space,
+            SortKey = sortKey
         };
 
         buffer.Add(in cmd);
@@ -109,9 +117,10 @@ public static class CommandBufferDrawExtensions
         Vector2 origin = default,
         TextAnchor anchor = TextAnchor.TopLeft,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
-        buffer.AddText(font, text.AsMemory(), position, size, color, origin, anchor, rotationRadians, space);
+        buffer.AddText(font, text.AsMemory(), position, size, color, origin, anchor, rotationRadians, space, sortKey);
     }
 
     public static void AddText(
@@ -124,7 +133,8 @@ public static class CommandBufferDrawExtensions
         Vector2 origin = default,
         TextAnchor anchor = TextAnchor.TopLeft,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         DrawTextCmd cmd = new DrawTextCmd
         {
@@ -136,7 +146,8 @@ public static class CommandBufferDrawExtensions
             Size = size,
             RotationRadians = rotationRadians,
             Color = color,
-            Space = space
+            Space = space,
+            SortKey = sortKey
         };
 
         buffer.Add(in cmd);
@@ -152,7 +163,8 @@ public static class CommandBufferDrawExtensions
         Vector2 origin = default,
         TextAnchor anchor = TextAnchor.TopLeft,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         if (buffer is not ThreadBuffer threadBuffer)
         {
@@ -168,7 +180,8 @@ public static class CommandBufferDrawExtensions
             origin,
             anchor,
             rotationRadians,
-            space);
+            space,
+            sortKey);
     }
     
     public static void AddTextCentered(
@@ -179,7 +192,8 @@ public static class CommandBufferDrawExtensions
         float size,
         Color color,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         buffer.AddText(
             font,
@@ -190,7 +204,8 @@ public static class CommandBufferDrawExtensions
             origin: default,
             anchor: TextAnchor.Center,
             rotationRadians: rotationRadians,
-            space: space);
+            space: space,
+            sortKey: sortKey);
     }
 
     public static void AddTextCenteredCopy(
@@ -201,7 +216,8 @@ public static class CommandBufferDrawExtensions
         float size,
         Color color,
         float rotationRadians = 0f,
-        DrawSpace space = DrawSpace.Screen)
+        DrawSpace space = DrawSpace.Screen,
+        ulong sortKey = 0)
     {
         buffer.AddTextCopy(
             font,
@@ -212,7 +228,8 @@ public static class CommandBufferDrawExtensions
             origin: default,
             anchor: TextAnchor.Center,
             rotationRadians: rotationRadians,
-            space: space);
+            space: space,
+            sortKey: sortKey);
     }
 
 }

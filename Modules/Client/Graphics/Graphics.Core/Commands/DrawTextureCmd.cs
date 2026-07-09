@@ -13,4 +13,5 @@ public struct DrawTextureCmd
     public Vector4 SourceUv;
     public float RotationRadians;
     public DrawSpace Space;
+    public ulong SortKey;
 }

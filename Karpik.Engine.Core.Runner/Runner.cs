@@ -115,6 +115,22 @@ public class EngineRunner : IEngineRunner
         
     }
 
+    public GameplayLoopDriver CreateGameplayLoopDriver()
+    {
+        if (_pipeline is null)
+        {
+            throw new InvalidOperationException("Runner must be set up before creating a gameplay loop driver.");
+        }
+
+        return new GameplayLoopDriver(
+            _time,
+            _pipeline,
+            _beginRunner,
+            _fixedRunner,
+            _ecsUpdateScheduler,
+            _lateRunner);
+    }
+
     public void Destroy()
     {
         Destroy(GetModules());

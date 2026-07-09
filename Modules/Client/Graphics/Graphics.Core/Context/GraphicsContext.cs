@@ -2,11 +2,20 @@
 
 public static class GraphicsContext
 {
+    private const int CommandSetCount = 3;
+
     private static int _currentFrameId;
     private static readonly Lock Lock = new();
 
-    private static List<ICommandBuffer> _writeBuffers = new();
-    private static List<ICommandBuffer> _pendingBuffers = new();
+    private static readonly CommandSet[] CommandSets =
+    [
+        new CommandSet(),
+        new CommandSet(),
+        new CommandSet()
+    ];
+
+    private static int _writeSetIndex;
+    private static int _pendingSetIndex;
     [ThreadStatic] private static ThreadBuffer[]? _cachedBuffers;
     [ThreadStatic] private static bool _threadBufferResizeDisabled;
 
@@ -15,15 +24,10 @@ public static class GraphicsContext
     {
         get
         {
-            var cachedBuffers = _cachedBuffers;
-            if (cachedBuffers == null)
-            {
-                cachedBuffers = new ThreadBuffer[2];
-                _cachedBuffers = cachedBuffers;
-            }
+            ThreadBuffer[] cachedBuffers = GetOrCreateCachedBuffers();
 
             int frameId = _currentFrameId;
-            int bufferIndex = frameId & 1;
+            int bufferIndex = GetSetIndex(frameId);
             var buffer = cachedBuffers[bufferIndex];
             if (buffer != null && buffer.FrameId == frameId)
             {
@@ -40,7 +44,7 @@ public static class GraphicsContext
             buffer.BeginFrame(frameId);
             lock (Lock)
             {
-                _writeBuffers.Add(buffer);
+                CommandSets[_writeSetIndex].Buffers.Add(buffer);
             }
             return buffer;
         }
@@ -59,12 +63,7 @@ public static class GraphicsContext
         ArgumentOutOfRangeException.ThrowIfNegative(textChars);
 
         int commands = checked(rects + textures + texts);
-        var cachedBuffers = _cachedBuffers;
-        if (cachedBuffers == null)
-        {
-            cachedBuffers = new ThreadBuffer[2];
-            _cachedBuffers = cachedBuffers;
-        }
+        ThreadBuffer[] cachedBuffers = GetOrCreateCachedBuffers();
 
         for (int i = 0; i < cachedBuffers.Length; i++)
         {
@@ -99,18 +98,49 @@ public static class GraphicsContext
         }
     }
 
-    internal static void BeginFrame()
+    public static void BeginFrame()
     {
         lock (Lock)
         {
+            int previousWriteSetIndex = _writeSetIndex;
             _currentFrameId++;
-            (_pendingBuffers, _writeBuffers) = (_writeBuffers, _pendingBuffers);
-            _writeBuffers.Clear();
+            _pendingSetIndex = previousWriteSetIndex;
+            _writeSetIndex = GetSetIndex(_currentFrameId);
+            CommandSets[_writeSetIndex].Clear(_currentFrameId);
         }
     }
 
     internal static List<ICommandBuffer> CollectBuffers()
     {
-        lock (Lock) return _pendingBuffers;
+        lock (Lock) return CommandSets[_pendingSetIndex].Buffers;
+    }
+
+    private static ThreadBuffer[] GetOrCreateCachedBuffers()
+    {
+        var cachedBuffers = _cachedBuffers;
+        if (cachedBuffers == null || cachedBuffers.Length != CommandSetCount)
+        {
+            cachedBuffers = new ThreadBuffer[CommandSetCount];
+            _cachedBuffers = cachedBuffers;
+        }
+
+        return cachedBuffers;
+    }
+
+    private static int GetSetIndex(int frameId)
+    {
+        return frameId % CommandSetCount;
+    }
+
+    private sealed class CommandSet
+    {
+        public readonly List<ICommandBuffer> Buffers = new();
+        public int FrameId { get; private set; } = -1;
+
+        public void Clear(int frameId)
+        {
+            FrameId = frameId;
+            Buffers.Clear();
+        }
     }
 }
