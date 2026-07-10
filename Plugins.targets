@@ -7,6 +7,7 @@
             <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$(OS)' == 'Windows_NT'">win-x64</_KarpikNativeRuntime>
             <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">linux-x64</_KarpikNativeRuntime>
             <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">osx-x64</_KarpikNativeRuntime>
+            <_ModuleVersionDirectory>$(OutputPath)modules.version.$([System.Guid]::NewGuid().ToString('N'))</_ModuleVersionDirectory>
         </PropertyGroup>
 
         <MSBuild
@@ -16,21 +17,19 @@
             <Output TaskParameter="TargetOutputs" ItemName="_ModuleOutputs" />
         </MSBuild>
 
-        <RemoveDir Directories="$(OutputPath)modules" />
-
         <ItemGroup>
             <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\" />
             <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\" Condition="'$(RuntimeIdentifier)' != ''" />
             <_FilesToCopy Include="%(_PluginOutputRoots.Identity)**\*.*" />
             <_NativeFilesToCopy Include="%(_PluginOutputRoots.Identity)native\$(_KarpikNativeRuntime)\**\*.*" Condition="'$(_KarpikNativeRuntime)' != ''" />
             <_NativeFilesToCopy Include="%(_PluginOutputRoots.Identity)runtimes\$(_KarpikNativeRuntime)\native\**\*.*" Condition="'$(_KarpikNativeRuntime)' != ''" />
-            <_RequiredModuleDll Include="@(PluginReference->'$(OutputPath)modules\%(Filename).dll')" />
+            <_RequiredModuleDll Include="@(PluginReference->'$(_ModuleVersionDirectory)\%(Filename).dll')" />
             <_RequiredNativeDll Include="@(_NativeFilesToCopy->'$(OutputPath)%(Filename)%(Extension)')" />
         </ItemGroup>
 
         <Copy
                 SourceFiles="@(_FilesToCopy)"
-                DestinationFolder="$(OutputPath)modules\%(RecursiveDir)"
+                DestinationFolder="$(_ModuleVersionDirectory)\%(RecursiveDir)"
                 SkipUnchangedFiles="false"
                 Condition="'%(_FilesToCopy.Filename)' != 'Karpik.Engine.Core' AND '%(_FilesToCopy.Filename)' != 'Karpik.Jobs'"
         />
@@ -49,5 +48,10 @@
         <Error
                 Condition="'@(_NativeFilesToCopy)' != '' And !Exists('%(_RequiredNativeDll.Identity)')"
                 Text="Required native module dependency was not staged beside the executable: %(_RequiredNativeDll.Identity). Check the selected runtime identifier '$(_KarpikNativeRuntime)'." />
+
+        <WriteLinesToFile
+                File="$(_ModuleVersionDirectory)\.complete"
+                Lines="$([System.DateTime]::UtcNow.Ticks)"
+                Overwrite="true" />
     </Target>
 </Project>
