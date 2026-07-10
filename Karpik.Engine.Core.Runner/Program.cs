@@ -293,13 +293,12 @@ public class Program
     private static void ClientLoop(MainThreadScheduler mainThreadScheduler)
     {
         var stopwatch = Stopwatch.StartNew();
-        double lastTime = 0;
+        double lastSimulationRequestTime = 0;
+        using var simulationWorker = new ClientSimulationWorker(_bootstrap);
         
         while (_isRunning.Value)
         {
             double currentTime = stopwatch.Elapsed.TotalSeconds;
-            double deltaTime = currentTime - lastTime;
-            if (deltaTime > 0.1) deltaTime = 0.1;
             
             mainThreadScheduler.Execute();
             
@@ -307,10 +306,33 @@ public class Program
             {
                 break;
             }
-            
-            _bootstrap.Loop(deltaTime);
-            
-            lastTime = currentTime;
+
+            simulationWorker.ThrowIfFaulted();
+            _bootstrap.RunMainThreadBegin();
+
+            if (!simulationWorker.IsSimulationRunning)
+            {
+                _isRunning.Value = false;
+                break;
+            }
+
+            if (simulationWorker.TryReserveFrame())
+            {
+                try
+                {
+                    _bootstrap.RunMainThreadFrameBegin();
+                    double deltaTime = Math.Min(currentTime - lastSimulationRequestTime, 0.1);
+                    simulationWorker.StartReservedFrame(deltaTime);
+                    lastSimulationRequestTime = currentTime;
+                }
+                catch
+                {
+                    simulationWorker.CancelReservedFrame();
+                    throw;
+                }
+            }
+
+            _bootstrap.RunRender();
         }
     }
 }
