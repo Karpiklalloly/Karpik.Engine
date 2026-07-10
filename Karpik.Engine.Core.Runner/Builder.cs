@@ -15,6 +15,16 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
             Add(init, layer, order);
             added = true;
         }
+        if (system is ISystemMainThreadBegin mainThreadBegin)
+        {
+            Add(mainThreadBegin, layer, order);
+            added = true;
+        }
+        if (system is ISystemMainThreadFrameBegin mainThreadFrameBegin)
+        {
+            Add(mainThreadFrameBegin, layer, order);
+            added = true;
+        }
         if (system is ISystemBegin begin)
         {
             Add(begin, layer, order);
@@ -90,6 +100,20 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
     {
         builder.Add(new UpdateSystem(update), layer, order);
         
+        return this;
+    }
+
+    public IBuilder Add(ISystemMainThreadBegin begin, string layer = "BASIC_LAYER", int order = 0)
+    {
+        builder.Add(new MainThreadBeginSystem(begin), layer, order);
+
+        return this;
+    }
+
+    public IBuilder Add(ISystemMainThreadFrameBegin begin, string layer = "BASIC_LAYER", int order = 0)
+    {
+        builder.Add(new MainThreadFrameBeginSystem(begin), layer, order);
+
         return this;
     }
 

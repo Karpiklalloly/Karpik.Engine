@@ -16,6 +16,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly IWindow _window;
     private readonly IInputSource _inputSource;
     private readonly Time _time;
+    private bool _sceneSubmittedForPresent;
 
     public OpenGLGraphicsBackend(
         GraphicsDevice device,
@@ -62,10 +63,12 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 
     public void SubmitScene()
     {
-        if (_mergeThread.TryGetCompletedCommandList(out CommandList? commandList, out Fence? submitFence))
+        _sceneSubmittedForPresent = false;
+        if (_mergeThread.TryTakeCompletedCommandList(out CommandList? commandList, out Fence? submitFence))
         {
             _device.ResetFence(submitFence);
             _device.SubmitCommands(commandList, submitFence);
+            _sceneSubmittedForPresent = true;
         }
     }
 
@@ -81,12 +84,23 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 
     public void RenderImGui()
     {
+        if (!_sceneSubmittedForPresent)
+        {
+            return;
+        }
+
         _imgui.Render();
     }
 
     public void SwapBuffers()
     {
+        if (!_sceneSubmittedForPresent)
+        {
+            return;
+        }
+
         _device.SwapBuffers();
+        _sceneSubmittedForPresent = false;
     }
 
     public void Dispose()

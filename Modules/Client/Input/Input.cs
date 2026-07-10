@@ -23,8 +23,8 @@ public class Input
     public event Action<char>? CharUnPressed;
     public event Action<char>? CharPressing;
 
-    private readonly bool[] _publishedKeyDown = new bool[KeyCount];
-    private readonly bool[] _publishedMouseDown = new bool[MouseButtonCount];
+    private readonly int[] _publishedKeyDown = new int[KeyCount];
+    private readonly int[] _publishedMouseDown = new int[MouseButtonCount];
 
     private readonly bool[] _keyDown = new bool[KeyCount];
     private readonly bool[] _keyPressed = new bool[KeyCount];
@@ -38,12 +38,16 @@ public class Input
     private readonly List<char> _chars = new(32);
     private readonly InputEventRing _events = new(DefaultEventCapacity);
 
-    private Vector2 _publishedMousePosition = Vector2.Zero;
-    private Vector2 _publishedMouseDelta = Vector2.Zero;
+    private int _publishedMousePositionXBits;
+    private int _publishedMousePositionYBits;
+    private int _publishedMouseDeltaXBits;
+    private int _publishedMouseDeltaYBits;
+    private int _publishedMouseCaptured;
     private Vector2 _mousePosition = Vector2.Zero;
     private Vector2 _mouseDelta = Vector2.Zero;
+    private bool _mouseCaptured;
     private bool _isMouseLocked;
-    private CursorRequest _cursorRequest = CursorRequest.None;
+    private int _cursorRequest;
 
     private IInputSource _source = null!;
     private InputCaptureState _captureState = null!;
@@ -106,13 +110,13 @@ public class Input
     public void LockCursor()
     {
         _isMouseLocked = true;
-        _cursorRequest = CursorRequest.Locked;
+        Volatile.Write(ref _cursorRequest, (int)CursorRequest.Locked);
     }
 
     public void UnlockCursor()
     {
         _isMouseLocked = false;
-        _cursorRequest = CursorRequest.Unlocked;
+        Volatile.Write(ref _cursorRequest, (int)CursorRequest.Unlocked);
     }
 
     internal void Init(IInputSource source, InputCaptureState captureState)
@@ -141,13 +145,26 @@ public class Input
 
     internal void Update()
     {
+        PublishPlatformFrame();
+        ConsumeSimulationFrame();
+    }
+
+    internal void PublishPlatformFrame()
+    {
         ApplyCursorRequest();
         PublishFromSource();
+    }
+
+    internal void ConsumeSimulationFrame()
+    {
         BeginSimulationFrame();
     }
 
     private void PublishFromSource()
     {
+        bool mouseCaptured = _captureState.Mouse;
+        Volatile.Write(ref _publishedMouseCaptured, mouseCaptured ? 1 : 0);
+
         if (!_captureState.Keyboard)
         {
             PublishPressedKeys(_source.PressedKeys);
@@ -163,15 +180,15 @@ public class Input
             }
         }
 
-        if (_captureState.Mouse)
+        if (mouseCaptured)
         {
-            _publishedMouseDelta = Vector2.Zero;
+            Volatile.Write(ref _publishedMouseDeltaXBits, 0);
+            Volatile.Write(ref _publishedMouseDeltaYBits, 0);
         }
         else
         {
             PublishMouseState();
-            _publishedMousePosition = _source.MousePosition;
-            _publishedMouseDelta = _source.MouseDelta;
+            PublishMouseSnapshot(_source.MousePosition, _source.MouseDelta);
         }
     }
 
@@ -186,7 +203,7 @@ public class Input
                 continue;
             }
 
-            _publishedKeyDown[index] = true;
+            Volatile.Write(ref _publishedKeyDown[index], 1);
             _events.TryEnqueue(InputEvent.KeyPressed(key));
         }
     }
@@ -202,7 +219,7 @@ public class Input
                 continue;
             }
 
-            _publishedKeyDown[index] = false;
+            Volatile.Write(ref _publishedKeyDown[index], 0);
             _events.TryEnqueue(InputEvent.KeyReleased(key));
         }
     }
@@ -218,9 +235,9 @@ public class Input
                 continue;
             }
 
-            bool wasDown = _publishedMouseDown[index];
+            bool wasDown = Volatile.Read(ref _publishedMouseDown[index]) != 0;
             bool isDown = _source.IsMouseButtonDown(button);
-            _publishedMouseDown[index] = isDown;
+            Volatile.Write(ref _publishedMouseDown[index], isDown ? 1 : 0);
 
             if (isDown && !wasDown)
             {
@@ -243,8 +260,9 @@ public class Input
         _chars.Clear();
         OverflowedLastFrame = false;
 
-        _mousePosition = _publishedMousePosition;
-        _mouseDelta = _publishedMouseDelta;
+        _mouseCaptured = Volatile.Read(ref _publishedMouseCaptured) != 0;
+        _mousePosition = ReadPublishedVector(ref _publishedMousePositionXBits, ref _publishedMousePositionYBits);
+        _mouseDelta = ReadPublishedVector(ref _publishedMouseDeltaXBits, ref _publishedMouseDeltaYBits);
 
         while (_events.TryDequeue(out InputEvent inputEvent))
         {
@@ -340,13 +358,20 @@ public class Input
         Array.Clear(_mousePressed);
         Array.Clear(_mouseReleased);
         _pressedKeys.Clear();
-        Array.Copy(_publishedKeyDown, _keyDown, _publishedKeyDown.Length);
-        Array.Copy(_publishedMouseDown, _mouseDown, _publishedMouseDown.Length);
+        for (int i = 0; i < _publishedKeyDown.Length; i++)
+        {
+            _keyDown[i] = Volatile.Read(ref _publishedKeyDown[i]) != 0;
+        }
+
+        for (int i = 0; i < _publishedMouseDown.Length; i++)
+        {
+            _mouseDown[i] = Volatile.Read(ref _publishedMouseDown[i]) != 0;
+        }
     }
 
     private void ApplyCursorRequest()
     {
-        switch (_cursorRequest)
+        switch ((CursorRequest)Interlocked.Exchange(ref _cursorRequest, (int)CursorRequest.None))
         {
             case CursorRequest.Locked:
                 _source.DisableCursor();
@@ -356,25 +381,24 @@ public class Input
                 break;
         }
 
-        _cursorRequest = CursorRequest.None;
     }
 
     private bool IsMouseButtonPressed(MouseButton button)
     {
         int index = MouseButtonIndex(button);
-        return !_captureState.Mouse && index >= 0 && _mousePressed[index];
+        return !_mouseCaptured && index >= 0 && _mousePressed[index];
     }
 
     private bool IsMouseButtonReleased(MouseButton button)
     {
         int index = MouseButtonIndex(button);
-        return !_captureState.Mouse && index >= 0 && _mouseReleased[index];
+        return !_mouseCaptured && index >= 0 && _mouseReleased[index];
     }
 
     private bool IsMouseButtonDown(MouseButton button)
     {
         int index = MouseButtonIndex(button);
-        return !_captureState.Mouse && index >= 0 && _mouseDown[index];
+        return !_mouseCaptured && index >= 0 && _mouseDown[index];
     }
 
     private void ClearAllState()
@@ -389,13 +413,32 @@ public class Input
         Array.Clear(_mouseReleased);
         _pressedKeys.Clear();
         _chars.Clear();
-        _publishedMousePosition = Vector2.Zero;
-        _publishedMouseDelta = Vector2.Zero;
+        _publishedMousePositionXBits = 0;
+        _publishedMousePositionYBits = 0;
+        _publishedMouseDeltaXBits = 0;
+        _publishedMouseDeltaYBits = 0;
+        _publishedMouseCaptured = 0;
         _mousePosition = Vector2.Zero;
         _mouseDelta = Vector2.Zero;
+        _mouseCaptured = false;
         _isMouseLocked = false;
-        _cursorRequest = CursorRequest.None;
+        _cursorRequest = (int)CursorRequest.None;
         OverflowedLastFrame = false;
+    }
+
+    private void PublishMouseSnapshot(in Vector2 position, in Vector2 delta)
+    {
+        Volatile.Write(ref _publishedMousePositionXBits, BitConverter.SingleToInt32Bits(position.X));
+        Volatile.Write(ref _publishedMousePositionYBits, BitConverter.SingleToInt32Bits(position.Y));
+        Volatile.Write(ref _publishedMouseDeltaXBits, BitConverter.SingleToInt32Bits(delta.X));
+        Volatile.Write(ref _publishedMouseDeltaYBits, BitConverter.SingleToInt32Bits(delta.Y));
+    }
+
+    private static Vector2 ReadPublishedVector(ref int xBits, ref int yBits)
+    {
+        return new Vector2(
+            BitConverter.Int32BitsToSingle(Volatile.Read(ref xBits)),
+            BitConverter.Int32BitsToSingle(Volatile.Read(ref yBits)));
     }
 
     private static int KeyIndex(Key key)
@@ -477,19 +520,22 @@ internal readonly struct InputEvent
 internal sealed class InputEventRing
 {
     private readonly InputEvent[] _events;
-    private int _head;
-    private int _tail;
-    private int _count;
+    private readonly uint _capacity;
+    private readonly uint _mask;
+    private uint _readPosition;
+    private uint _writePosition;
     private bool _overflowPending;
 
     public InputEventRing(int capacity)
     {
-        if (capacity <= 0)
+        if (capacity <= 0 || (capacity & (capacity - 1)) != 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(capacity));
+            throw new ArgumentException("Input event ring capacity must be a positive power of two.", nameof(capacity));
         }
 
         _events = new InputEvent[capacity];
+        _capacity = (uint)capacity;
+        _mask = _capacity - 1;
     }
 
     public bool TryEnqueue(InputEvent inputEvent)
@@ -515,46 +561,36 @@ internal sealed class InputEventRing
 
     public bool TryDequeue(out InputEvent inputEvent)
     {
-        if (_count == 0)
+        uint readPosition = _readPosition;
+        if (readPosition == Volatile.Read(ref _writePosition))
         {
             inputEvent = default;
             return false;
         }
 
-        inputEvent = _events[_head];
-        _head++;
-        if (_head == _events.Length)
-        {
-            _head = 0;
-        }
-
-        _count--;
+        inputEvent = _events[readPosition & _mask];
+        Volatile.Write(ref _readPosition, readPosition + 1);
         return true;
     }
 
     public void Clear()
     {
-        _head = 0;
-        _tail = 0;
-        _count = 0;
+        Volatile.Write(ref _readPosition, 0);
+        Volatile.Write(ref _writePosition, 0);
         _overflowPending = false;
     }
 
     private bool TryEnqueueCore(InputEvent inputEvent)
     {
-        if (_count == _events.Length)
+        uint writePosition = _writePosition;
+        uint readPosition = Volatile.Read(ref _readPosition);
+        if (writePosition - readPosition >= _capacity)
         {
             return false;
         }
 
-        _events[_tail] = inputEvent;
-        _tail++;
-        if (_tail == _events.Length)
-        {
-            _tail = 0;
-        }
-
-        _count++;
+        _events[writePosition & _mask] = inputEvent;
+        Volatile.Write(ref _writePosition, writePosition + 1);
         return true;
     }
 }

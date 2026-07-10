@@ -5,40 +5,35 @@ using Xunit;
 public sealed class GraphicsContextCommandSetTests
 {
     [Fact]
-    public void Buffer_UsesThreeDistinctThreadBuffersBeforeReusingSlot()
-    {
-        GraphicsContext.BeginFrame();
-        ICommandBuffer first = GraphicsContext.Buffer;
-        first.Add(new DrawRectCmd { Color = Color.Red });
-
-        GraphicsContext.BeginFrame();
-        ICommandBuffer second = GraphicsContext.Buffer;
-        second.Add(new DrawRectCmd { Color = Color.Green });
-
-        GraphicsContext.BeginFrame();
-        ICommandBuffer third = GraphicsContext.Buffer;
-        third.Add(new DrawRectCmd { Color = Color.Blue });
-
-        Assert.NotSame(first, second);
-        Assert.NotSame(second, third);
-        Assert.NotSame(first, third);
-
-        GraphicsContext.BeginFrame();
-        ICommandBuffer fourth = GraphicsContext.Buffer;
-
-        Assert.Same(first, fourth);
-    }
-
-    [Fact]
-    public void CollectBuffers_ReturnsPreviousWriteSet()
+    public void Buffer_DoesNotReuseCommandSetWhileMergeWorkerOwnsIt()
     {
         GraphicsContext.BeginFrame();
         ICommandBuffer written = GraphicsContext.Buffer;
         written.Add(new DrawRectCmd { Color = Color.Red });
 
         GraphicsContext.BeginFrame();
-        List<ICommandBuffer> pending = GraphicsContext.CollectBuffers();
+        Assert.True(GraphicsContext.TryAcquireMergeBuffers(out int commandSetIndex, out List<ICommandBuffer>? pending));
+        Assert.Contains(written, pending!);
 
-        Assert.Contains(written, pending);
+        GraphicsContext.BeginFrame();
+        ICommandBuffer next = GraphicsContext.Buffer;
+
+        Assert.NotSame(written, next);
+
+        GraphicsContext.ReleaseMergeBuffers(commandSetIndex);
+    }
+
+    [Fact]
+    public void TryAcquireMergeBuffers_ReturnsPreviousWriteSet()
+    {
+        GraphicsContext.BeginFrame();
+        ICommandBuffer written = GraphicsContext.Buffer;
+        written.Add(new DrawRectCmd { Color = Color.Red });
+
+        GraphicsContext.BeginFrame();
+        Assert.True(GraphicsContext.TryAcquireMergeBuffers(out int commandSetIndex, out List<ICommandBuffer>? pending));
+
+        Assert.Contains(written, pending!);
+        GraphicsContext.ReleaseMergeBuffers(commandSetIndex);
     }
 }

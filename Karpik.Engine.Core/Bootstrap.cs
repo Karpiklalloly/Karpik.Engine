@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Core;
 
-internal class Bootstrap
+internal class Bootstrap : IClientSimulationLoop
 {
     private MainThreadScheduler _mainThreadScheduler = null!;
     private Ref<bool> _isRunning = null!;
@@ -61,6 +61,28 @@ internal class Bootstrap
         _runner.Run(dt);
         _isRunning.Value = _application.IsRunning;
     }
+
+    public void RunMainThreadBegin()
+    {
+        _runner.RunMainThreadBegin();
+    }
+
+    public void RunMainThreadFrameBegin()
+    {
+        _runner.RunMainThreadFrameBegin();
+    }
+
+    public void RunGameplayFrame(double dt)
+    {
+        _runner.RunGameplayFrame(dt);
+    }
+
+    public void RunRender()
+    {
+        _runner.RunRender();
+    }
+
+    public bool IsApplicationRunning => _runner.IsApplicationRunning;
     
     public void Shutdown()
     {

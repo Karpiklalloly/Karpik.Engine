@@ -36,6 +36,40 @@ public class BeginSystem(ISystemBegin system) : IBeginRunSystem, IOnInjectedDI
     }
 }
 
+public class MainThreadBeginSystem(ISystemMainThreadBegin system) : IMainThreadBeginRunSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public void MainThreadBegin()
+    {
+        system.MainThreadBegin();
+    }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
+public class MainThreadFrameBeginSystem(ISystemMainThreadFrameBegin system) : IMainThreadFrameBeginRunSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public void MainThreadFrameBegin()
+    {
+        system.MainThreadFrameBegin();
+    }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
 public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun, IOnInjectedDI
 {
     [DI] private IServiceContainer _container = null!;

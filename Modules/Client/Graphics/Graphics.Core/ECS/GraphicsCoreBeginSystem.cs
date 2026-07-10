@@ -15,13 +15,13 @@ public class GraphicsCoreInitSystem : ISystemInit
 }
 
 // TODO: не инжектится после рефаторинга
-public class GraphicsCoreBeginSystem : ISystemBegin
+public class GraphicsCoreBeginSystem : ISystemMainThreadFrameBegin
 {
     [DI] private IGraphicsBackend _backend = null!;
     [DI] private ImGuiOverlayState _imguiOverlay = null!;
     [DI] private InputCaptureState _inputCapture = null!;
 
-    public void Begin()
+    public void MainThreadFrameBegin()
     {
         _backend.BeginFrame();
 
@@ -33,11 +33,11 @@ public class GraphicsCoreBeginSystem : ISystemBegin
     }
 }
 
-public class GraphicsCoreMergeSystem : ISystemBegin
+public class GraphicsCoreMergeSystem : ISystemMainThreadFrameBegin
 {
     [DI] private IGraphicsBackend _backend = null!;
 
-    public void Begin()
+    public void MainThreadFrameBegin()
     {
         _backend.BeginMerge();
     }

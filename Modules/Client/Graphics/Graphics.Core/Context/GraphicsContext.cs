@@ -15,9 +15,14 @@ public static class GraphicsContext
     ];
 
     private static int _writeSetIndex;
-    private static int _pendingSetIndex;
+    private static int _readySetIndex = -1;
     [ThreadStatic] private static ThreadBuffer[]? _cachedBuffers;
     [ThreadStatic] private static bool _threadBufferResizeDisabled;
+
+    static GraphicsContext()
+    {
+        CommandSets[_writeSetIndex].BeginWrite(_currentFrameId);
+    }
 
     
     public static ICommandBuffer Buffer
@@ -26,8 +31,12 @@ public static class GraphicsContext
         {
             ThreadBuffer[] cachedBuffers = GetOrCreateCachedBuffers();
 
-            int frameId = _currentFrameId;
-            int bufferIndex = GetSetIndex(frameId);
+            int frameId = Volatile.Read(ref _currentFrameId);
+            int bufferIndex = Volatile.Read(ref _writeSetIndex);
+            if (bufferIndex < 0)
+            {
+                throw new InvalidOperationException("No writable graphics command set is available for this frame.");
+            }
             var buffer = cachedBuffers[bufferIndex];
             if (buffer != null && buffer.FrameId == frameId)
             {
@@ -102,17 +111,68 @@ public static class GraphicsContext
     {
         lock (Lock)
         {
-            int previousWriteSetIndex = _writeSetIndex;
+            if (_writeSetIndex >= 0)
+            {
+                if (_readySetIndex >= 0)
+                {
+                    CommandSets[_readySetIndex].Release();
+                }
+
+                CommandSets[_writeSetIndex].Publish();
+                _readySetIndex = _writeSetIndex;
+            }
+
+            int nextWriteSetIndex = FindFreeSetIndex();
+            if (nextWriteSetIndex < 0)
+            {
+                _writeSetIndex = -1;
+                return;
+            }
+
             _currentFrameId++;
-            _pendingSetIndex = previousWriteSetIndex;
-            _writeSetIndex = GetSetIndex(_currentFrameId);
-            CommandSets[_writeSetIndex].Clear(_currentFrameId);
+            _writeSetIndex = nextWriteSetIndex;
+            CommandSets[_writeSetIndex].BeginWrite(_currentFrameId);
         }
     }
 
-    internal static List<ICommandBuffer> CollectBuffers()
+    internal static bool TryAcquireMergeBuffers(out int commandSetIndex, out List<ICommandBuffer>? buffers)
     {
-        lock (Lock) return CommandSets[_pendingSetIndex].Buffers;
+        lock (Lock)
+        {
+            if (_readySetIndex < 0)
+            {
+                commandSetIndex = -1;
+                buffers = null;
+                return false;
+            }
+
+            commandSetIndex = _readySetIndex;
+            _readySetIndex = -1;
+            CommandSets[commandSetIndex].AcquireForMerge();
+            buffers = CommandSets[commandSetIndex].Buffers;
+            return true;
+        }
+    }
+
+    internal static void ReleaseMergeBuffers(int commandSetIndex)
+    {
+        lock (Lock)
+        {
+            CommandSets[commandSetIndex].Release();
+        }
+    }
+
+    private static int FindFreeSetIndex()
+    {
+        for (int i = 0; i < CommandSetCount; i++)
+        {
+            if (CommandSets[i].State == CommandSetState.Free)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static ThreadBuffer[] GetOrCreateCachedBuffers()
@@ -127,20 +187,40 @@ public static class GraphicsContext
         return cachedBuffers;
     }
 
-    private static int GetSetIndex(int frameId)
-    {
-        return frameId % CommandSetCount;
-    }
-
     private sealed class CommandSet
     {
         public readonly List<ICommandBuffer> Buffers = new();
         public int FrameId { get; private set; } = -1;
+        public CommandSetState State { get; private set; } = CommandSetState.Free;
 
-        public void Clear(int frameId)
+        public void BeginWrite(int frameId)
         {
             FrameId = frameId;
             Buffers.Clear();
+            State = CommandSetState.Writing;
         }
+
+        public void Publish()
+        {
+            State = CommandSetState.Ready;
+        }
+
+        public void AcquireForMerge()
+        {
+            State = CommandSetState.Merging;
+        }
+
+        public void Release()
+        {
+            State = CommandSetState.Free;
+        }
+    }
+
+    private enum CommandSetState : byte
+    {
+        Free,
+        Writing,
+        Ready,
+        Merging
     }
 }

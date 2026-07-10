@@ -11,7 +11,7 @@ namespace Karpik.Engine.Client.InputModule.Tests;
 public sealed class HeadlessWindowInputIntegrationTests
 {
     [Fact]
-    public void StepBegin_PublishesHeadlessKeyboardEdgesThroughInputService()
+    public void MainThreadBeginThenStepBegin_PublishesHeadlessKeyboardEdgesThroughInputService()
     {
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         var runner = new EngineRunner
@@ -30,17 +30,20 @@ public sealed class HeadlessWindowInputIntegrationTests
         GameplayLoopDriver driver = runner.CreateGameplayLoopDriver();
 
         headlessWindow.Controller.PressKey(Key.A);
+        runner.RunMainThreadBegin();
         driver.StepBegin();
 
         Assert.True(CaptureInputSystem.Input!.IsPressed(Key.A));
         Assert.True(CaptureInputSystem.Input.IsDown(Key.A));
 
+        runner.RunMainThreadBegin();
         driver.StepBegin();
 
         Assert.False(CaptureInputSystem.Input.IsPressed(Key.A));
         Assert.True(CaptureInputSystem.Input.IsDown(Key.A));
 
         headlessWindow.Controller.ReleaseKey(Key.A);
+        runner.RunMainThreadBegin();
         driver.StepBegin();
 
         Assert.True(CaptureInputSystem.Input.IsUnPressed(Key.A));

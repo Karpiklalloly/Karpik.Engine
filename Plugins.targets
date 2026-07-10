@@ -1,6 +1,14 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
     <Target Name="DeployAllModules" AfterTargets="Build" Condition="'@(PluginReference)' != ''">
+        <PropertyGroup>
+            <_KarpikNativeRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_KarpikNativeRuntime>
+            <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$(OS)' == 'Windows_NT' And ('$(PlatformTarget)' == 'x86' Or '$(Prefer32Bit)' == 'true')">win-x86</_KarpikNativeRuntime>
+            <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$(OS)' == 'Windows_NT'">win-x64</_KarpikNativeRuntime>
+            <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">linux-x64</_KarpikNativeRuntime>
+            <_KarpikNativeRuntime Condition="'$(_KarpikNativeRuntime)' == '' And '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">osx-x64</_KarpikNativeRuntime>
+        </PropertyGroup>
+
         <MSBuild
                 Projects="@(PluginReference)"
                 Targets="Build"
@@ -14,7 +22,10 @@
             <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\" />
             <_PluginOutputRoots Include="%(PluginReference.RootDir)%(PluginReference.Directory)bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\" Condition="'$(RuntimeIdentifier)' != ''" />
             <_FilesToCopy Include="%(_PluginOutputRoots.Identity)**\*.*" />
+            <_NativeFilesToCopy Include="%(_PluginOutputRoots.Identity)native\$(_KarpikNativeRuntime)\**\*.*" Condition="'$(_KarpikNativeRuntime)' != ''" />
+            <_NativeFilesToCopy Include="%(_PluginOutputRoots.Identity)runtimes\$(_KarpikNativeRuntime)\native\**\*.*" Condition="'$(_KarpikNativeRuntime)' != ''" />
             <_RequiredModuleDll Include="@(PluginReference->'$(OutputPath)modules\%(Filename).dll')" />
+            <_RequiredNativeDll Include="@(_NativeFilesToCopy->'$(OutputPath)%(Filename)%(Extension)')" />
         </ItemGroup>
 
         <Copy
@@ -24,8 +35,19 @@
                 Condition="'%(_FilesToCopy.Filename)' != 'Karpik.Engine.Core' AND '%(_FilesToCopy.Filename)' != 'Karpik.Jobs'"
         />
 
+        <Copy
+                SourceFiles="@(_NativeFilesToCopy)"
+                DestinationFiles="@(_NativeFilesToCopy->'$(OutputPath)%(Filename)%(Extension)')"
+                SkipUnchangedFiles="false"
+                Condition="'@(_NativeFilesToCopy)' != ''"
+        />
+
         <Error
                 Condition="!Exists('%(_RequiredModuleDll.Identity)')"
                 Text="Required module DLL was not staged: %(_RequiredModuleDll.Identity). Build the matching launcher project and check PluginReference output paths." />
+
+        <Error
+                Condition="'@(_NativeFilesToCopy)' != '' And !Exists('%(_RequiredNativeDll.Identity)')"
+                Text="Required native module dependency was not staged beside the executable: %(_RequiredNativeDll.Identity). Check the selected runtime identifier '$(_KarpikNativeRuntime)'." />
     </Target>
 </Project>

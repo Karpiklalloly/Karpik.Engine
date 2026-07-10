@@ -6,14 +6,14 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public sealed class ImGuiBeginSystem : ISystemBegin
+public sealed class ImGuiBeginSystem : ISystemMainThreadBegin
 {
     [DI] private IInputSource _inputSource = null!;
     [DI] private ImGuiOverlayState _overlay = null!;
     [DI] private IGraphicsBackend _backend = null!;
     [DI] private InputCaptureState _inputCapture = null!;
 
-    public void Begin()
+    public void MainThreadBegin()
     {
         IReadOnlyList<KeyEvent> keyEvents = _inputSource.KeyEvents;
         for (int i = 0; i < keyEvents.Count; i++)
@@ -57,6 +57,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Begin("Karpik Debug");
         ImGui.TextUnformatted("ImGui overlay is running.");
         ImGui.Text($"Frame dt: {_time.DeltaTime * 1000.0:0.00} ms");
+        ImGui.Text($"FPS: {1 / _time.DeltaTime}");
         ImGui.Text($"Mouse: {_inputSource.MousePosition.X:0}, {_inputSource.MousePosition.Y:0}");
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();

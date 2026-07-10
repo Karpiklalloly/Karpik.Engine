@@ -36,6 +36,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private MergeContext _mergeContextC;
     private MergeContext _buildContext;
     private int _buildContextIndex;
+    private int _buildCommandSetIndex = -1;
     private int _completedContextIndex = -1;
     private List<ICommandBuffer> _buildBuffers = null!;
     private Framebuffer _buildFramebuffer = null!;
@@ -114,7 +115,6 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             WaitForCompletion();
         }
 
-        var buffers = GraphicsContext.CollectBuffers();
         _isUsingA = !_isUsingA; // Переключаем буферы
         _buildContextIndex = SelectBuildContextIndex();
         if (_buildContextIndex < 0)
@@ -122,8 +122,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             return;
         }
 
+        if (!GraphicsContext.TryAcquireMergeBuffers(out _buildCommandSetIndex, out List<ICommandBuffer>? buffers))
+        {
+            return;
+        }
+
         _buildContext = GetContext(_buildContextIndex);
-        _buildBuffers = buffers;
+        _buildBuffers = buffers!;
         _buildFramebuffer = _device.MainSwapchain.Framebuffer;
         _buildFramebufferWidth = _buildFramebuffer.Width;
         _buildFramebufferHeight = _buildFramebuffer.Height;
@@ -143,15 +148,19 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
         ThrowWorkerExceptionIfCompleted();
 
-        var buffers = GraphicsContext.CollectBuffers();
         _buildContextIndex = SelectBuildContextIndex();
         if (_buildContextIndex < 0)
         {
             return false;
         }
 
+        if (!GraphicsContext.TryAcquireMergeBuffers(out _buildCommandSetIndex, out List<ICommandBuffer>? buffers))
+        {
+            return false;
+        }
+
         _buildContext = GetContext(_buildContextIndex);
-        _buildBuffers = buffers;
+        _buildBuffers = buffers!;
         _buildFramebuffer = _device.MainSwapchain.Framebuffer;
         _buildFramebufferWidth = _buildFramebuffer.Width;
         _buildFramebufferHeight = _buildFramebuffer.Height;
@@ -169,7 +178,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         ThrowWorkerExceptionIfCompleted();
     }
 
-    public bool TryGetCompletedCommandList(out CommandList? commandList, out Fence? submitFence)
+    public bool TryTakeCompletedCommandList(out CommandList? commandList, out Fence? submitFence)
     {
         ThrowWorkerExceptionIfCompleted();
 
@@ -189,6 +198,15 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             return false;
         }
 
+        // OpenGL consumes a command list when it executes it. Claim the slot before
+        // returning it so a later present cannot submit the same list a second time.
+        if (Interlocked.CompareExchange(ref _completedContextIndex, -1, completedContextIndex) != completedContextIndex)
+        {
+            commandList = null;
+            submitFence = null;
+            return false;
+        }
+
         commandList = context.CommandList;
         submitFence = context.SubmitFence;
         return true;
@@ -196,7 +214,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     public CommandList GetCommandList()
     {
-        if (!TryGetCompletedCommandList(out CommandList? commandList, out _))
+        if (!TryTakeCompletedCommandList(out CommandList? commandList, out _))
         {
             throw new InvalidOperationException("No completed graphics command list is available.");
         }
@@ -234,6 +252,8 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             }
             finally
             {
+                GraphicsContext.ReleaseMergeBuffers(_buildCommandSetIndex);
+                _buildCommandSetIndex = -1;
                 _completed.Set();
             }
         }

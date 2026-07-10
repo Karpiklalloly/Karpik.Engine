@@ -21,6 +21,8 @@ public class EngineRunner : IEngineRunner
     private Application _application;
     
     // Runners
+    private EcsMainThreadBeginRunner _mainThreadBeginRunner = null!;
+    private EcsMainThreadFrameBeginRunner _mainThreadFrameBeginRunner = null!;
     private EcsBeginRunner _beginRunner = null!;
     private EcsFixedRunner _fixedRunner = null!;
     private EcsUpdateRunner _updateRunner = null!;
@@ -32,6 +34,8 @@ public class EngineRunner : IEngineRunner
     private FixedRunTicker _fixedRunTicker = null!;
 
     public EcsUpdateSchedulerMode UpdateSchedulerMode { get; set; } = EcsUpdateSchedulerMode.Parallel;
+
+    public bool IsApplicationRunning => _application.IsRunning;
 
     public void RegisterTypes(Type[] types)
     {
@@ -88,6 +92,8 @@ public class EngineRunner : IEngineRunner
             _pipeline = newPipeline;
             InjectIntoSystems(newPipeline, _serviceProvider);
             _pipeline.Init();
+            _mainThreadBeginRunner = _pipeline.GetRunner<EcsMainThreadBeginRunner>();
+            _mainThreadFrameBeginRunner = _pipeline.GetRunner<EcsMainThreadFrameBeginRunner>();
             _beginRunner = _pipeline.GetRunner<EcsBeginRunner>();
             _fixedRunner = _pipeline.GetRunner<EcsFixedRunner>();
             _updateRunner = _pipeline.GetRunner<EcsUpdateRunner>();
@@ -104,6 +110,24 @@ public class EngineRunner : IEngineRunner
 
     public void Run(double dt)
     {
+        RunMainThreadBegin();
+        RunMainThreadFrameBegin();
+        RunGameplayFrame(dt);
+        RunRender();
+    }
+
+    public void RunMainThreadBegin()
+    {
+        _mainThreadBeginRunner.MainThreadBegin();
+    }
+
+    public void RunMainThreadFrameBegin()
+    {
+        _mainThreadFrameBeginRunner.MainThreadFrameBegin();
+    }
+
+    public void RunGameplayFrame(double dt)
+    {
         _time.Update(dt);
         _beginRunner.BeginRun();
         _pipeline.Run();
@@ -111,8 +135,11 @@ public class EngineRunner : IEngineRunner
         _ecsUpdateScheduler.Update();
         _lateRunner.LateRun();
         _ecsRenderPrepareScheduler.RenderPrepare();
+    }
+
+    public void RunRender()
+    {
         _renderRunner.Render();
-        
     }
 
     public GameplayLoopDriver CreateGameplayLoopDriver()
@@ -342,6 +369,8 @@ public class EngineRunner : IEngineRunner
 
     private EcsPipeline BuildPipeline(EcsPipeline.Builder newBuilder, EcsServiceProvider newServiceProvider)
     {
+        newBuilder.AddRunner<EcsMainThreadBeginRunner>();
+        newBuilder.AddRunner<EcsMainThreadFrameBeginRunner>();
         newBuilder.AddRunner<EcsBeginRunner>();
         newBuilder.AddRunner<EcsFixedRunner>();
         newBuilder.AddRunner<EcsUpdateRunner>();

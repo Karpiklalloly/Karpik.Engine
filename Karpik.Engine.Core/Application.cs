@@ -4,6 +4,7 @@
 [assembly: InternalsVisibleTo("Karpik.Engine.Server.Publish")]
 [assembly: InternalsVisibleTo("DebugModule")]
 [assembly: InternalsVisibleTo("Karpik.Engine.Core.Runner")]
+[assembly: InternalsVisibleTo("Karpik.Engine.Core.Runner.Tests")]
 namespace Karpik.Engine.Core;
 
 public class Application

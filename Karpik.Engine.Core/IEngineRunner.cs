@@ -9,6 +9,16 @@ internal interface IEngineRunner
 
     public void Run(double dt);
 
+    public void RunMainThreadBegin();
+
+    public void RunMainThreadFrameBegin();
+
+    public void RunGameplayFrame(double dt);
+
+    public void RunRender();
+
+    public bool IsApplicationRunning { get; }
+
     public void Destroy();
 
     public Dictionary<string, byte[]> GetHotReloadData();
