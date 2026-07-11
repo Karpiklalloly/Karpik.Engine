@@ -19,6 +19,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly Time _time;
     private readonly ClientFrameMetrics _clientFrameMetrics;
     private bool _sceneSubmittedForPresent;
+    private int _lastGpuTimestampSequence;
 
     public OpenGLGraphicsBackend(
         GraphicsDevice device,
@@ -111,10 +112,24 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         long startedAt = Stopwatch.GetTimestamp();
         _device.SwapBuffers();
         _clientFrameMetrics.PublishPresent(Stopwatch.GetTimestamp() - startedAt);
+        PublishGpuTimestampIfAvailable();
         _sceneSubmittedForPresent = false;
     }
 
     public void Dispose()
     {
+    }
+
+    private void PublishGpuTimestampIfAvailable()
+    {
+        if (_device is not IGpuTimestampProvider provider
+            || !provider.TryGetLatestGpuTimestamp(out GpuTimestampSample sample)
+            || sample.Sequence == _lastGpuTimestampSequence)
+        {
+            return;
+        }
+
+        _lastGpuTimestampSequence = sample.Sequence;
+        _clientFrameMetrics.PublishGpuCommandNanoseconds(sample.Nanoseconds);
     }
 }

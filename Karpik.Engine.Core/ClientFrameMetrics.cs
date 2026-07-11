@@ -31,6 +31,7 @@ public readonly struct ClientFrameTimingSnapshot
     public readonly TimingSummary MergeBuild;
     public readonly TimingSummary PresentCpu;
     public readonly TimingSummary PresentInterval;
+    public readonly TimingSummary GpuCommand;
     public readonly MergeAvailabilitySummary MergeAvailability;
 
     internal ClientFrameTimingSnapshot(
@@ -43,6 +44,7 @@ public readonly struct ClientFrameTimingSnapshot
         TimingSummary mergeBuild,
         TimingSummary presentCpu,
         TimingSummary presentInterval,
+        TimingSummary gpuCommand,
         MergeAvailabilitySummary mergeAvailability)
     {
         MainThreadFrame = mainThreadFrame;
@@ -54,6 +56,7 @@ public readonly struct ClientFrameTimingSnapshot
         MergeBuild = mergeBuild;
         PresentCpu = presentCpu;
         PresentInterval = presentInterval;
+        GpuCommand = gpuCommand;
         MergeAvailability = mergeAvailability;
     }
 }
@@ -218,6 +221,7 @@ public sealed class ClientFrameMetrics
     private readonly FrameTimingWindow _mergeBuild = new();
     private readonly FrameTimingWindow _presentCpu = new();
     private readonly FrameTimingWindow _presentInterval = new();
+    private readonly FrameTimingWindow _gpuCommand = new();
     private readonly FrameCounterWindow _mergeAvailability = new();
     private long _lastPresentTimestamp = -1;
 
@@ -247,6 +251,11 @@ public sealed class ClientFrameMetrics
         }
     }
 
+    public void PublishGpuCommandNanoseconds(long nanoseconds)
+    {
+        _gpuCommand.Publish(NanosecondsToStopwatchTicks(nanoseconds), Stopwatch.GetTimestamp());
+    }
+
     public ClientFrameTimingSnapshot GetSnapshot() => new(
         _mainThreadFrame.GetSummary(),
         _mainThreadBegin.GetSummary(),
@@ -257,7 +266,13 @@ public sealed class ClientFrameMetrics
         _mergeBuild.GetSummary(),
         _presentCpu.GetSummary(),
         _presentInterval.GetSummary(),
+        _gpuCommand.GetSummary(),
         _mergeAvailability.GetSummary());
 
     public static double ToMilliseconds(long ticks) => ticks * (1000.0 / Stopwatch.Frequency);
+
+    public static long NanosecondsToStopwatchTicks(long nanoseconds)
+    {
+        return (long)(nanoseconds * (double)Stopwatch.Frequency / 1_000_000_000d);
+    }
 }

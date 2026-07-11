@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Karpik.Engine.Core;
 using Xunit;
 
@@ -61,6 +62,12 @@ public sealed class ClientFrameMetricsTests
         Assert.Equal(20, summary.P95Ticks);
         Assert.Equal(20, summary.P99Ticks);
         Assert.Equal(20, summary.MaxTicks);
+    }
+
+    [Fact]
+    public void NanosecondsToStopwatchTicks_ConvertsOneMillisecond()
+    {
+        Assert.Equal(Stopwatch.Frequency / 1000, ClientFrameMetrics.NanosecondsToStopwatchTicks(1_000_000));
     }
 
 }

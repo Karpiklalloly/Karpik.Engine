@@ -74,6 +74,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         DrawTimingSummary("Merge build", timings.MergeBuild);
         DrawTimingSummary("Present CPU", timings.PresentCpu);
         DrawTimingSummary("Present interval", timings.PresentInterval);
+        DrawTimingSummary("GPU command", timings.GpuCommand);
         ImGui.Text($"Present 1% low: {ToFramesPerSecond(timings.PresentInterval.P99Ticks):0} FPS");
         ImGui.Text($"Merge command list unavailable: {timings.MergeAvailability.UnavailableCount} / {timings.MergeAvailability.PollCount} ({GetPercent(timings.MergeAvailability):0.0}%)");
         if (ImGui.Button("Copy timings"))

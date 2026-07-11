@@ -20,6 +20,7 @@ public static class FrameTimingClipboardFormatter
         AppendTiming(builder, "Merge build", timings.MergeBuild);
         AppendTiming(builder, "Present CPU", timings.PresentCpu);
         AppendTiming(builder, "Present interval", timings.PresentInterval);
+        AppendTiming(builder, "GPU command", timings.GpuCommand);
         double onePercentLowFps = timings.PresentInterval.P99Ticks == 0 ? 0d : Stopwatch.Frequency / (double)timings.PresentInterval.P99Ticks;
         builder.Append("Present 1% low: ").Append(onePercentLowFps.ToString("0")).AppendLine(" FPS");
         MergeAvailabilitySummary availability = timings.MergeAvailability;
