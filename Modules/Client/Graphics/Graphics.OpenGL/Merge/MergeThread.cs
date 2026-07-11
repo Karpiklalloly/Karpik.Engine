@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
@@ -27,6 +28,7 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     [DI] private GraphicsDevice _device = null!;
     [DI] private Preset2DPipeline _2dPipeline = null!;
     [DI] private GraphicsCameraState _cameraState = null!;
+    [DI] private ClientFrameMetrics _clientFrameMetrics = null!;
 
     // TODO: Сделать возможность переключиться на ushort
     private DeviceBuffer _indexBuffer = null!;
@@ -243,7 +245,9 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
             try
             {
+                long startedAt = Stopwatch.GetTimestamp();
                 BuildCommandList();
+                _clientFrameMetrics.PublishMergeBuild(Stopwatch.GetTimestamp() - startedAt);
                 Volatile.Write(ref _completedContextIndex, _buildContextIndex);
             }
             catch (Exception ex)

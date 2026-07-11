@@ -54,7 +54,8 @@ public class GraphicsOpenGLInstaller : IInstaller, IInstallerConfiguratable, IIn
             services.Get<ImGuiRenderContext>()!,
             services.Get<IWindow>()!,
             services.Get<IInputSource>()!,
-            services.Get<Time>()!));
+            services.Get<Time>()!,
+            services.Get<ClientFrameMetrics>()!));
         module = null;
     }
 

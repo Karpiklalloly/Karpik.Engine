@@ -44,6 +44,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
     [DI] private ImGuiOverlayState _overlay = null!;
     [DI] private IInputSource _inputSource = null!;
     [DI] private Time _time = null!;
+    [DI] private ClientFrameMetrics _clientFrameMetrics = null!;
 
     private string _text = string.Empty;
 
@@ -57,8 +58,18 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Begin("Karpik Debug");
         ImGui.TextUnformatted("ImGui overlay is running.");
         ImGui.Text($"Frame dt: {_time.DeltaTime * 1000.0:0.00} ms");
-        ImGui.Text($"FPS: {1 / _time.DeltaTime}");
+        ImGui.Text($"FPS: {1 / _time.DeltaTime:0}");
         ImGui.Text($"Mouse: {_inputSource.MousePosition.X:0}, {_inputSource.MousePosition.Y:0}");
+        ClientFrameTimingSnapshot timings = _clientFrameMetrics.GetSnapshot();
+        ImGui.SeparatorText("Threaded frame timings");
+        ImGui.Text($"Main frame: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadFrameTicks):0.00} ms");
+        ImGui.Text($"Main begin: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadBeginTicks):0.00} ms");
+        ImGui.Text($"Frame begin: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadFrameBeginTicks):0.00} ms");
+        ImGui.Text($"Render: {ClientFrameMetrics.ToMilliseconds(timings.RenderTicks):0.00} ms");
+        ImGui.Text($"Simulation queue: {ClientFrameMetrics.ToMilliseconds(timings.SimulationQueueTicks):0.00} ms");
+        ImGui.Text($"Simulation: {ClientFrameMetrics.ToMilliseconds(timings.SimulationTicks):0.00} ms");
+        ImGui.Text($"Merge build: {ClientFrameMetrics.ToMilliseconds(timings.MergeBuildTicks):0.00} ms");
+        ImGui.TextUnformatted(timings.HasCompletedMerge ? "Merge command list: ready" : "Merge command list: unavailable");
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();
     }

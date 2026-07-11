@@ -2,7 +2,7 @@
 
 internal interface IEngineRunner
 {
-    public void Setup(Application application, MainThreadScheduler scheduler,
+    public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null);
 
     public void RegisterTypes(Type[] types);

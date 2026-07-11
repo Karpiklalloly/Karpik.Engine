@@ -190,10 +190,12 @@ public class CoreRunner
     {
         var stopwatch = Stopwatch.StartNew();
         double lastSimulationRequestTime = 0;
-        using var simulationWorker = new ClientSimulationWorker(_bootstrap);
+        var metrics = _bootstrap.ClientFrameMetrics;
+        using var simulationWorker = new ClientSimulationWorker(_bootstrap, metrics);
         
         while (_isRunning.Value)
         {
+            long frameStartedAt = Stopwatch.GetTimestamp();
             double currentTime = stopwatch.Elapsed.TotalSeconds;
             
             mainThreadScheduler.Execute();
@@ -229,6 +231,7 @@ public class CoreRunner
             }
 
             _bootstrap.RunRender();
+            metrics.PublishMainThreadFrame(Stopwatch.GetTimestamp() - frameStartedAt);
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 
 namespace Karpik.Engine.Core;
@@ -11,17 +12,20 @@ internal interface IClientSimulationLoop
 internal sealed class ClientSimulationWorker : IDisposable
 {
     private readonly IClientSimulationLoop _loop;
+    private readonly ClientFrameMetrics? _metrics;
     private readonly AutoResetEvent _workAvailable = new(false);
     private readonly Thread _thread;
     private int _frameReserved;
     private int _stopRequested;
     private int _simulationRunning = 1;
     private long _requestedDeltaBits;
+    private long _requestedAtTimestamp;
     private Exception? _workerException;
 
-    public ClientSimulationWorker(IClientSimulationLoop loop)
+    public ClientSimulationWorker(IClientSimulationLoop loop, ClientFrameMetrics? metrics = null)
     {
         _loop = loop;
+        _metrics = metrics;
         _thread = new Thread(WorkerLoop)
         {
             IsBackground = true,
@@ -46,6 +50,7 @@ internal sealed class ClientSimulationWorker : IDisposable
         }
 
         Volatile.Write(ref _requestedDeltaBits, BitConverter.DoubleToInt64Bits(deltaTime));
+        Volatile.Write(ref _requestedAtTimestamp, Stopwatch.GetTimestamp());
         _workAvailable.Set();
     }
 
@@ -84,8 +89,10 @@ internal sealed class ClientSimulationWorker : IDisposable
 
             try
             {
+                long startedAt = Stopwatch.GetTimestamp();
                 double deltaTime = BitConverter.Int64BitsToDouble(Volatile.Read(ref _requestedDeltaBits));
                 _loop.RunGameplayFrame(deltaTime);
+                _metrics?.PublishSimulation(startedAt - Volatile.Read(ref _requestedAtTimestamp), Stopwatch.GetTimestamp() - startedAt);
                 Volatile.Write(ref _simulationRunning, _loop.IsApplicationRunning ? 1 : 0);
             }
             catch (Exception exception)

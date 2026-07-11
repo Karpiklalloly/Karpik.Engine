@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Diagnostics;
 using DCFApixels.DragonECS;
 using DragonExtensions;
 using Karpik.Engine.Core.Runner;
@@ -17,6 +18,7 @@ public class EngineRunner : IEngineRunner
     private int _nextRegistrationRank;
     private EcsPipeline _pipeline = null!;
     private Time _time = new();
+    private ClientFrameMetrics _clientFrameMetrics = new();
     private EcsServiceProvider _serviceProvider = null!;
     private Application _application;
     
@@ -56,7 +58,13 @@ public class EngineRunner : IEngineRunner
 
     public void Setup(Application application, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
     {
+        Setup(application, scheduler, new ClientFrameMetrics(), hotReloadData);
+    }
+
+    public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics, Dictionary<string, byte[]>? hotReloadData = null)
+    {
         _application = application;
+        _clientFrameMetrics = clientFrameMetrics;
         _serviceProvider = new EcsServiceProvider(new ServiceProvider());
         _serviceProvider.Register(scheduler);
         _serviceProvider.Register(_application);
@@ -68,6 +76,7 @@ public class EngineRunner : IEngineRunner
             .Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
             .Layers.Add(CustomLayers.END_PROGRAM_LAYER).After(EcsConsts.POST_END_LAYER);
         _serviceProvider.Register(_time);
+        _serviceProvider.Register(_clientFrameMetrics);
         
         newBuilder.Inject<IServiceContainer>(_serviceProvider);
         newBuilder.Inject<IServiceRegister>(_serviceProvider);
@@ -118,12 +127,16 @@ public class EngineRunner : IEngineRunner
 
     public void RunMainThreadBegin()
     {
+        long start = Stopwatch.GetTimestamp();
         _mainThreadBeginRunner.MainThreadBegin();
+        _clientFrameMetrics.PublishMainThreadBegin(Stopwatch.GetTimestamp() - start);
     }
 
     public void RunMainThreadFrameBegin()
     {
+        long start = Stopwatch.GetTimestamp();
         _mainThreadFrameBeginRunner.MainThreadFrameBegin();
+        _clientFrameMetrics.PublishMainThreadFrameBegin(Stopwatch.GetTimestamp() - start);
     }
 
     public void RunGameplayFrame(double dt)
@@ -139,7 +152,9 @@ public class EngineRunner : IEngineRunner
 
     public void RunRender()
     {
+        long start = Stopwatch.GetTimestamp();
         _renderRunner.Render();
+        _clientFrameMetrics.PublishRender(Stopwatch.GetTimestamp() - start);
     }
 
     public GameplayLoopDriver CreateGameplayLoopDriver()

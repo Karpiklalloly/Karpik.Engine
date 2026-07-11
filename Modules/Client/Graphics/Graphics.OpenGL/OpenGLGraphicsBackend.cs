@@ -16,6 +16,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly IWindow _window;
     private readonly IInputSource _inputSource;
     private readonly Time _time;
+    private readonly ClientFrameMetrics _clientFrameMetrics;
     private bool _sceneSubmittedForPresent;
 
     public OpenGLGraphicsBackend(
@@ -25,7 +26,8 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         ImGuiRenderContext imgui,
         IWindow window,
         IInputSource inputSource,
-        Time time)
+        Time time,
+        ClientFrameMetrics clientFrameMetrics)
     {
         _device = device;
         _mergeThread = mergeThread;
@@ -34,6 +36,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         _window = window;
         _inputSource = inputSource;
         _time = time;
+        _clientFrameMetrics = clientFrameMetrics;
     }
 
     public bool IsHeadless => false;
@@ -66,9 +69,14 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         _sceneSubmittedForPresent = false;
         if (_mergeThread.TryTakeCompletedCommandList(out CommandList? commandList, out Fence? submitFence))
         {
+            _clientFrameMetrics.PublishMergeAvailability(isReady: true);
             _device.ResetFence(submitFence);
             _device.SubmitCommands(commandList, submitFence);
             _sceneSubmittedForPresent = true;
+        }
+        else
+        {
+            _clientFrameMetrics.PublishMergeAvailability(isReady: false);
         }
     }
 
