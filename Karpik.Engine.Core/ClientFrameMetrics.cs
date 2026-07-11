@@ -27,7 +27,7 @@ public readonly struct ClientFrameTimingSnapshot
     public readonly TimingSummary SimulationQueue;
     public readonly TimingSummary Simulation;
     public readonly TimingSummary MergeBuild;
-    public readonly int MergeUnavailableCount;
+    public readonly MergeAvailabilitySummary MergeAvailability;
 
     internal ClientFrameTimingSnapshot(
         TimingSummary mainThreadFrame,
@@ -37,7 +37,7 @@ public readonly struct ClientFrameTimingSnapshot
         TimingSummary simulationQueue,
         TimingSummary simulation,
         TimingSummary mergeBuild,
-        int mergeUnavailableCount)
+        MergeAvailabilitySummary mergeAvailability)
     {
         MainThreadFrame = mainThreadFrame;
         MainThreadBegin = mainThreadBegin;
@@ -46,7 +46,19 @@ public readonly struct ClientFrameTimingSnapshot
         SimulationQueue = simulationQueue;
         Simulation = simulation;
         MergeBuild = mergeBuild;
-        MergeUnavailableCount = mergeUnavailableCount;
+        MergeAvailability = mergeAvailability;
+    }
+}
+
+public readonly struct MergeAvailabilitySummary
+{
+    public readonly int UnavailableCount;
+    public readonly int PollCount;
+
+    internal MergeAvailabilitySummary(int unavailableCount, int pollCount)
+    {
+        UnavailableCount = unavailableCount;
+        PollCount = pollCount;
     }
 }
 
@@ -61,6 +73,7 @@ internal sealed class FrameTimingWindow
     private long _sum;
     private long _max;
     private int _sampleCount;
+    private int _totalSampleCount;
     private int _sampleWriteIndex;
     private long _averageTicks;
     private long _p95Ticks;
@@ -100,6 +113,7 @@ internal sealed class FrameTimingWindow
         {
             _sampleCount++;
         }
+        _totalSampleCount++;
     }
 
     public TimingSummary GetSummary() => new(
@@ -118,10 +132,10 @@ internal sealed class FrameTimingWindow
         Array.Copy(_samples, _sortedSamples, _sampleCount);
         Array.Sort(_sortedSamples, 0, _sampleCount);
         int p95Index = ((_sampleCount * 95 + 99) / 100) - 1;
-        Volatile.Write(ref _averageTicks, _sum / _sampleCount);
+        Volatile.Write(ref _averageTicks, _sum / _totalSampleCount);
         Volatile.Write(ref _p95Ticks, _sortedSamples[p95Index]);
         Volatile.Write(ref _maxTicks, _max);
-        Volatile.Write(ref _publishedSampleCount, _sampleCount);
+        Volatile.Write(ref _publishedSampleCount, _totalSampleCount);
     }
 
     private void Reset(long timestamp)
@@ -130,6 +144,7 @@ internal sealed class FrameTimingWindow
         _sum = 0;
         _max = 0;
         _sampleCount = 0;
+        _totalSampleCount = 0;
         _sampleWriteIndex = 0;
     }
 }
@@ -139,7 +154,9 @@ internal sealed class FrameCounterWindow
     private readonly long _windowDurationTicks;
     private long _windowStartedAt = -1;
     private int _unavailableCount;
+    private int _pollCount;
     private int _publishedUnavailableCount;
+    private int _publishedPollCount;
 
     public FrameCounterWindow() : this(Stopwatch.Frequency)
     {
@@ -150,7 +167,9 @@ internal sealed class FrameCounterWindow
         _windowDurationTicks = windowDurationTicks;
     }
 
-    public int UnavailableCount => Volatile.Read(ref _publishedUnavailableCount);
+    public MergeAvailabilitySummary GetSummary() => new(
+        Volatile.Read(ref _publishedUnavailableCount),
+        Volatile.Read(ref _publishedPollCount));
 
     public void Publish(bool isAvailable, long timestamp)
     {
@@ -161,9 +180,13 @@ internal sealed class FrameCounterWindow
         else if (timestamp - _windowStartedAt >= _windowDurationTicks)
         {
             Volatile.Write(ref _publishedUnavailableCount, _unavailableCount);
+            Volatile.Write(ref _publishedPollCount, _pollCount);
             _windowStartedAt = timestamp;
             _unavailableCount = 0;
+            _pollCount = 0;
         }
+
+        _pollCount++;
 
         if (!isAvailable)
         {
@@ -206,7 +229,7 @@ public sealed class ClientFrameMetrics
         _simulationQueue.GetSummary(),
         _simulation.GetSummary(),
         _mergeBuild.GetSummary(),
-        _mergeAvailability.UnavailableCount);
+        _mergeAvailability.GetSummary());
 
     public static double ToMilliseconds(long ticks) => ticks * (1000.0 / Stopwatch.Frequency);
 }

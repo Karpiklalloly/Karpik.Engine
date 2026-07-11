@@ -71,7 +71,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         DrawTimingSummary("Simulation queue", timings.SimulationQueue);
         DrawTimingSummary("Simulation", timings.Simulation);
         DrawTimingSummary("Merge build", timings.MergeBuild);
-        ImGui.Text($"Merge command list unavailable: {timings.MergeUnavailableCount}");
+        ImGui.Text($"Merge command list unavailable: {timings.MergeAvailability.UnavailableCount} / {timings.MergeAvailability.PollCount} ({GetPercent(timings.MergeAvailability):0.0}%)");
         if (ImGui.Button("Copy timings"))
         {
             ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, _graphicsLoadTestSettings.QuadCount));
@@ -95,5 +95,10 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
     private static void DrawTimingSummary(string name, TimingSummary summary)
     {
         ImGui.Text($"{name}: {ClientFrameMetrics.ToMilliseconds(summary.AverageTicks):0.00} / {ClientFrameMetrics.ToMilliseconds(summary.P95Ticks):0.00} / {ClientFrameMetrics.ToMilliseconds(summary.MaxTicks):0.00} ms ({summary.SampleCount})");
+    }
+
+    private static double GetPercent(MergeAvailabilitySummary summary)
+    {
+        return summary.PollCount == 0 ? 0d : summary.UnavailableCount * 100d / summary.PollCount;
     }
 }

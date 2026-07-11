@@ -31,7 +31,34 @@ public sealed class ClientFrameMetricsTests
         window.Publish(isAvailable: false, timestamp: 20);
         window.Publish(isAvailable: true, timestamp: 100);
 
-        Assert.Equal(2, window.UnavailableCount);
+        MergeAvailabilitySummary summary = window.GetSummary();
+        Assert.Equal(2, summary.UnavailableCount);
+        Assert.Equal(3, summary.PollCount);
+    }
+
+    [Fact]
+    public void FrameTimingWindow_WithMoreSamplesThanPercentileRing_UsesAllSamplesForAverage()
+    {
+        var window = new FrameTimingWindow(windowDurationTicks: 10_000);
+
+        for (int i = 0; i < 1024; i++)
+        {
+            window.Publish(10, timestamp: i);
+        }
+
+        for (int i = 1024; i < 2048; i++)
+        {
+            window.Publish(20, timestamp: i);
+        }
+
+        window.Publish(0, timestamp: 10_000);
+
+        TimingSummary summary = window.GetSummary();
+
+        Assert.Equal(2048, summary.SampleCount);
+        Assert.Equal(15, summary.AverageTicks);
+        Assert.Equal(20, summary.P95Ticks);
+        Assert.Equal(20, summary.MaxTicks);
     }
 
 }

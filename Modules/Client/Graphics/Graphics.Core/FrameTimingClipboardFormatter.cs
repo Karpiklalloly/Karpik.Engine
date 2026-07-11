@@ -17,7 +17,11 @@ public static class FrameTimingClipboardFormatter
         AppendTiming(builder, "Simulation queue", timings.SimulationQueue);
         AppendTiming(builder, "Simulation", timings.Simulation);
         AppendTiming(builder, "Merge build", timings.MergeBuild);
-        builder.Append("Merge command list unavailable: ").AppendLine(timings.MergeUnavailableCount.ToString());
+        MergeAvailabilitySummary availability = timings.MergeAvailability;
+        double unavailablePercent = availability.PollCount == 0 ? 0d : availability.UnavailableCount * 100d / availability.PollCount;
+        builder.Append("Merge command list unavailable: ")
+            .Append(availability.UnavailableCount).Append(" / ").Append(availability.PollCount)
+            .Append(" (").Append(unavailablePercent.ToString("0.0")).AppendLine("%)");
         builder.Append("Stress quads: ").Append(stressQuadCount);
         return builder.ToString();
     }
