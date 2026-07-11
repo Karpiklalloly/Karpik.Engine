@@ -37,7 +37,7 @@
         <Copy
                 SourceFiles="@(_NativeFilesToCopy)"
                 DestinationFiles="@(_NativeFilesToCopy->'$(OutputPath)%(Filename)%(Extension)')"
-                SkipUnchangedFiles="false"
+                SkipUnchangedFiles="true"
                 Condition="'@(_NativeFilesToCopy)' != ''"
         />
 

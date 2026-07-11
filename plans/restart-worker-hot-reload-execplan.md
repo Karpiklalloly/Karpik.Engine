@@ -129,6 +129,8 @@ Module staging now uses immutable version directories: every launcher build copi
 
 After `WorkerReady`, the worker reports the module version it actually selected. The watcher validates that path belongs to its output directory, retains that version, and removes only other completed version directories. Incomplete staging directories remain for diagnostics and cannot be deleted by this cleanup path.
 
+Native dependencies required beside the worker executable, including `SDL2.dll`, are copied with MSBuild's unchanged-file check. A running worker can therefore coexist with an ordinary module rebuild; changing the native binary itself still requires stopping that worker before the file can be replaced on Windows.
+
 ## Context and Orientation
 
 `ClientLauncher` and `ServerLauncher` call `CoreRunner.Start(...)`. `CoreRunner` currently has a `SUPER_HOT_RELOAD` compile-time path for process isolation and a direct in-process path otherwise.
