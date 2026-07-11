@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
@@ -107,7 +108,9 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
             return;
         }
 
+        long startedAt = Stopwatch.GetTimestamp();
         _device.SwapBuffers();
+        _clientFrameMetrics.PublishPresent(Stopwatch.GetTimestamp() - startedAt);
         _sceneSubmittedForPresent = false;
     }
 

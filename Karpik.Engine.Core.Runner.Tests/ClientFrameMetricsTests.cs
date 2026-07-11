@@ -18,6 +18,7 @@ public sealed class ClientFrameMetricsTests
         Assert.Equal(3, summary.SampleCount);
         Assert.Equal(20, summary.AverageTicks);
         Assert.Equal(30, summary.P95Ticks);
+        Assert.Equal(30, summary.P99Ticks);
         Assert.Equal(30, summary.MaxTicks);
     }
 
@@ -58,6 +59,7 @@ public sealed class ClientFrameMetricsTests
         Assert.Equal(2048, summary.SampleCount);
         Assert.Equal(15, summary.AverageTicks);
         Assert.Equal(20, summary.P95Ticks);
+        Assert.Equal(20, summary.P99Ticks);
         Assert.Equal(20, summary.MaxTicks);
     }
 

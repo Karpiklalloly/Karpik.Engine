@@ -6,13 +6,15 @@ public readonly struct TimingSummary
 {
     public readonly long AverageTicks;
     public readonly long P95Ticks;
+    public readonly long P99Ticks;
     public readonly long MaxTicks;
     public readonly int SampleCount;
 
-    internal TimingSummary(long averageTicks, long p95Ticks, long maxTicks, int sampleCount)
+    internal TimingSummary(long averageTicks, long p95Ticks, long p99Ticks, long maxTicks, int sampleCount)
     {
         AverageTicks = averageTicks;
         P95Ticks = p95Ticks;
+        P99Ticks = p99Ticks;
         MaxTicks = maxTicks;
         SampleCount = sampleCount;
     }
@@ -27,6 +29,8 @@ public readonly struct ClientFrameTimingSnapshot
     public readonly TimingSummary SimulationQueue;
     public readonly TimingSummary Simulation;
     public readonly TimingSummary MergeBuild;
+    public readonly TimingSummary PresentCpu;
+    public readonly TimingSummary PresentInterval;
     public readonly MergeAvailabilitySummary MergeAvailability;
 
     internal ClientFrameTimingSnapshot(
@@ -37,6 +41,8 @@ public readonly struct ClientFrameTimingSnapshot
         TimingSummary simulationQueue,
         TimingSummary simulation,
         TimingSummary mergeBuild,
+        TimingSummary presentCpu,
+        TimingSummary presentInterval,
         MergeAvailabilitySummary mergeAvailability)
     {
         MainThreadFrame = mainThreadFrame;
@@ -46,6 +52,8 @@ public readonly struct ClientFrameTimingSnapshot
         SimulationQueue = simulationQueue;
         Simulation = simulation;
         MergeBuild = mergeBuild;
+        PresentCpu = presentCpu;
+        PresentInterval = presentInterval;
         MergeAvailability = mergeAvailability;
     }
 }
@@ -77,6 +85,7 @@ internal sealed class FrameTimingWindow
     private int _sampleWriteIndex;
     private long _averageTicks;
     private long _p95Ticks;
+    private long _p99Ticks;
     private long _maxTicks;
     private int _publishedSampleCount;
 
@@ -119,6 +128,7 @@ internal sealed class FrameTimingWindow
     public TimingSummary GetSummary() => new(
         Volatile.Read(ref _averageTicks),
         Volatile.Read(ref _p95Ticks),
+        Volatile.Read(ref _p99Ticks),
         Volatile.Read(ref _maxTicks),
         Volatile.Read(ref _publishedSampleCount));
 
@@ -132,8 +142,10 @@ internal sealed class FrameTimingWindow
         Array.Copy(_samples, _sortedSamples, _sampleCount);
         Array.Sort(_sortedSamples, 0, _sampleCount);
         int p95Index = ((_sampleCount * 95 + 99) / 100) - 1;
+        int p99Index = ((_sampleCount * 99 + 99) / 100) - 1;
         Volatile.Write(ref _averageTicks, _sum / _totalSampleCount);
         Volatile.Write(ref _p95Ticks, _sortedSamples[p95Index]);
+        Volatile.Write(ref _p99Ticks, _sortedSamples[p99Index]);
         Volatile.Write(ref _maxTicks, _max);
         Volatile.Write(ref _publishedSampleCount, _totalSampleCount);
     }
@@ -204,7 +216,10 @@ public sealed class ClientFrameMetrics
     private readonly FrameTimingWindow _simulationQueue = new();
     private readonly FrameTimingWindow _simulation = new();
     private readonly FrameTimingWindow _mergeBuild = new();
+    private readonly FrameTimingWindow _presentCpu = new();
+    private readonly FrameTimingWindow _presentInterval = new();
     private readonly FrameCounterWindow _mergeAvailability = new();
+    private long _lastPresentTimestamp = -1;
 
     public void PublishMainThreadFrame(long ticks) => _mainThreadFrame.Publish(ticks, Stopwatch.GetTimestamp());
     public void PublishMainThreadBegin(long ticks) => _mainThreadBegin.Publish(ticks, Stopwatch.GetTimestamp());
@@ -221,6 +236,17 @@ public sealed class ClientFrameMetrics
     public void PublishMergeBuild(long ticks) => _mergeBuild.Publish(ticks, Stopwatch.GetTimestamp());
     public void PublishMergeAvailability(bool isReady) => _mergeAvailability.Publish(isReady, Stopwatch.GetTimestamp());
 
+    public void PublishPresent(long cpuTicks)
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        _presentCpu.Publish(cpuTicks, timestamp);
+        long previousTimestamp = Interlocked.Exchange(ref _lastPresentTimestamp, timestamp);
+        if (previousTimestamp >= 0)
+        {
+            _presentInterval.Publish(timestamp - previousTimestamp, timestamp);
+        }
+    }
+
     public ClientFrameTimingSnapshot GetSnapshot() => new(
         _mainThreadFrame.GetSummary(),
         _mainThreadBegin.GetSummary(),
@@ -229,6 +255,8 @@ public sealed class ClientFrameMetrics
         _simulationQueue.GetSummary(),
         _simulation.GetSummary(),
         _mergeBuild.GetSummary(),
+        _presentCpu.GetSummary(),
+        _presentInterval.GetSummary(),
         _mergeAvailability.GetSummary());
 
     public static double ToMilliseconds(long ticks) => ticks * (1000.0 / Stopwatch.Frequency);
