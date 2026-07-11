@@ -171,6 +171,7 @@ internal class ProcessManager : IDisposable
             {
                 Console.WriteLine("[ProcessManager] Worker is ready");
                 IsWorkerReady = true;
+                CleanupCompletedModuleVersions(msg.Payload);
                 _readyTcs?.TrySetResult(true);
                 OnWorkerReady?.Invoke();
             }
@@ -380,6 +381,30 @@ internal class ProcessManager : IDisposable
                 Console.WriteLine($"[ProcessManager] Failed to remove worker shadow directory '{directory}': {ex.Message}");
             }
         }
+    }
+
+    private static void CleanupCompletedModuleVersions(byte[] payload)
+    {
+        if (payload.Length == 0)
+        {
+            return;
+        }
+
+        string activeDirectory = System.Text.Encoding.UTF8.GetString(payload);
+        string baseDirectory = AppContext.BaseDirectory;
+        string baseDirectoryPath = Path.GetFullPath(baseDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        string activeDirectoryPath = Path.GetFullPath(activeDirectory);
+
+        if (!activeDirectoryPath.StartsWith(baseDirectoryPath, StringComparison.OrdinalIgnoreCase)
+            || !Path.GetFileName(activeDirectoryPath).StartsWith("modules.version.", StringComparison.Ordinal))
+        {
+            Console.WriteLine($"[ProcessManager] Ignoring invalid worker module staging directory: {activeDirectory}");
+            return;
+        }
+
+        ModuleStagingCleanup.CleanupCompletedVersions(baseDirectory, activeDirectoryPath);
     }
     
     public void Dispose()

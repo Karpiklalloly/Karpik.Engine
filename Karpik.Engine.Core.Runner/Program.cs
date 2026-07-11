@@ -143,7 +143,7 @@ public class Program
         
         _ipcClient?.SetScheduler(mainThreadScheduler);
         
-        _ipcClient?.SendReadyAsync().Wait();
+        _ipcClient?.SendReadyAsync(loader.ModuleDirectory).Wait();
 
         switch (side)
         {

@@ -127,6 +127,8 @@ Physics runtime handles are also outside the reload boundary. `PhysicsBodyRef` s
 
 Module staging now uses immutable version directories: every launcher build copies its complete module set to `modules.version.<guid>` and writes a `.complete` marker only after the required module and native dependency checks pass. The generated loader selects the newest completed version and retains the legacy `modules` directory only as a fallback. This prevents a worker started during a build from shadow-copying a partially overwritten module set. Old version directories are intentionally retained for now; safe cleanup requires coordination with running workers.
 
+After `WorkerReady`, the worker reports the module version it actually selected. The watcher validates that path belongs to its output directory, retains that version, and removes only other completed version directories. Incomplete staging directories remain for diagnostics and cannot be deleted by this cleanup path.
+
 ## Context and Orientation
 
 `ClientLauncher` and `ServerLauncher` call `CoreRunner.Start(...)`. `CoreRunner` currently has a `SUPER_HOT_RELOAD` compile-time path for process isolation and a direct in-process path otherwise.

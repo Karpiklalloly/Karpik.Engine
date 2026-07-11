@@ -9,6 +9,8 @@ using System.Reflection;
 
 public sealed class ModuleLoader
 {
+    public string ModuleDirectory { get; private set; } = string.Empty;
+
     public readonly record struct PluginDescriptor(string AssemblyName, string Side);
     public Assembly[] LoadedAssemblies = [];
     private PluginLoadContext? _loadContext;
@@ -108,6 +110,7 @@ public sealed class ModuleLoader
     public void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
         var sourceDirectory = ResolveModuleDirectory();
+        ModuleDirectory = sourceDirectory;
         if (!Directory.Exists(sourceDirectory))
             throw new DirectoryNotFoundException($"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.");
         var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");

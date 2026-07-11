@@ -108,6 +108,8 @@ public static class ArtifactGenerator
         sb.AppendLine();
         sb.AppendLine("public sealed class ModuleLoader");
         sb.AppendLine("{");
+        sb.AppendLine("    public string ModuleDirectory { get; private set; } = string.Empty;");
+        sb.AppendLine();
         sb.AppendLine("    public readonly record struct PluginDescriptor(string AssemblyName, string Side);");
         sb.AppendLine("    public Assembly[] LoadedAssemblies = [];");
         sb.AppendLine("    private PluginLoadContext? _loadContext;");
@@ -125,6 +127,7 @@ public static class ArtifactGenerator
         sb.AppendLine("    public void LoadPluginCollection(IEnumerable<string> assemblyNames)");
         sb.AppendLine("    {");
         sb.AppendLine("        var sourceDirectory = ResolveModuleDirectory();");
+        sb.AppendLine("        ModuleDirectory = sourceDirectory;");
         sb.AppendLine("        if (!Directory.Exists(sourceDirectory))");
         sb.AppendLine("            throw new DirectoryNotFoundException($\"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.\");");
         sb.AppendLine("        var shadowRoot = Path.Combine(AppContext.BaseDirectory, \"reload\", \"shadow\");");
