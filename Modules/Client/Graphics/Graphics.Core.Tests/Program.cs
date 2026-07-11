@@ -20,6 +20,15 @@ public sealed class GraphicsCoreTests
     }
 
     [Fact]
+    public void FrameTimingClipboardFormatter_IncludesWindowHeaderAndStressCount()
+    {
+        string text = FrameTimingClipboardFormatter.Format(default, stressQuadCount: 1024);
+
+        Assert.Contains("Last completed 1-second window", text);
+        Assert.Contains("Stress quads: 1024", text);
+    }
+
+    [Fact]
     public void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);

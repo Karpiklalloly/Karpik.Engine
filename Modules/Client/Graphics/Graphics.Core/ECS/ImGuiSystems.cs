@@ -72,6 +72,10 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         DrawTimingSummary("Simulation", timings.Simulation);
         DrawTimingSummary("Merge build", timings.MergeBuild);
         ImGui.Text($"Merge command list unavailable: {timings.MergeUnavailableCount}");
+        if (ImGui.Button("Copy timings"))
+        {
+            ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, _graphicsLoadTestSettings.QuadCount));
+        }
         int stressQuadCount = _graphicsLoadTestSettings.QuadCount;
         if (ImGui.SliderInt("Stress quads", ref stressQuadCount, 0, GraphicsLoadTestSettings.MaxQuadCount))
         {
