@@ -63,14 +63,15 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Text($"Mouse: {_inputSource.MousePosition.X:0}, {_inputSource.MousePosition.Y:0}");
         ClientFrameTimingSnapshot timings = _clientFrameMetrics.GetSnapshot();
         ImGui.SeparatorText("Threaded frame timings");
-        ImGui.Text($"Main frame: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadFrameTicks):0.00} ms");
-        ImGui.Text($"Main begin: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadBeginTicks):0.00} ms");
-        ImGui.Text($"Frame begin: {ClientFrameMetrics.ToMilliseconds(timings.MainThreadFrameBeginTicks):0.00} ms");
-        ImGui.Text($"Render: {ClientFrameMetrics.ToMilliseconds(timings.RenderTicks):0.00} ms");
-        ImGui.Text($"Simulation queue: {ClientFrameMetrics.ToMilliseconds(timings.SimulationQueueTicks):0.00} ms");
-        ImGui.Text($"Simulation: {ClientFrameMetrics.ToMilliseconds(timings.SimulationTicks):0.00} ms");
-        ImGui.Text($"Merge build: {ClientFrameMetrics.ToMilliseconds(timings.MergeBuildTicks):0.00} ms");
-        ImGui.TextUnformatted(timings.HasCompletedMerge ? "Merge command list: ready" : "Merge command list: unavailable");
+        ImGui.TextUnformatted("Last completed 1-second window: avg / p95 / max");
+        DrawTimingSummary("Main frame", timings.MainThreadFrame);
+        DrawTimingSummary("Main begin", timings.MainThreadBegin);
+        DrawTimingSummary("Frame begin", timings.MainThreadFrameBegin);
+        DrawTimingSummary("Render", timings.Render);
+        DrawTimingSummary("Simulation queue", timings.SimulationQueue);
+        DrawTimingSummary("Simulation", timings.Simulation);
+        DrawTimingSummary("Merge build", timings.MergeBuild);
+        ImGui.Text($"Merge command list unavailable: {timings.MergeUnavailableCount}");
         int stressQuadCount = _graphicsLoadTestSettings.QuadCount;
         if (ImGui.SliderInt("Stress quads", ref stressQuadCount, 0, GraphicsLoadTestSettings.MaxQuadCount))
         {
@@ -85,5 +86,10 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         if (ImGui.Button("Clear stress")) _graphicsLoadTestSettings.QuadCount = 0;
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();
+    }
+
+    private static void DrawTimingSummary(string name, TimingSummary summary)
+    {
+        ImGui.Text($"{name}: {ClientFrameMetrics.ToMilliseconds(summary.AverageTicks):0.00} / {ClientFrameMetrics.ToMilliseconds(summary.P95Ticks):0.00} / {ClientFrameMetrics.ToMilliseconds(summary.MaxTicks):0.00} ms ({summary.SampleCount})");
     }
 }

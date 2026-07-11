@@ -4,27 +4,34 @@ using Xunit;
 public sealed class ClientFrameMetricsTests
 {
     [Fact]
-    public void Snapshot_ReturnsLastPublishedDurationsAndMergeAvailability()
+    public void FrameTimingWindow_AtIntervalBoundary_PublishesAverageP95AndMaximum()
     {
-        var metrics = new ClientFrameMetrics();
+        var window = new FrameTimingWindow(windowDurationTicks: 100);
 
-        metrics.PublishMainThreadFrame(11);
-        metrics.PublishMainThreadBegin(12);
-        metrics.PublishMainThreadFrameBegin(13);
-        metrics.PublishRender(14);
-        metrics.PublishSimulation(15, 16);
-        metrics.PublishMergeBuild(17);
-        metrics.PublishMergeAvailability(isReady: false);
+        window.Publish(10, timestamp: 0);
+        window.Publish(30, timestamp: 10);
+        window.Publish(20, timestamp: 20);
+        window.Publish(5, timestamp: 100);
 
-        ClientFrameTimingSnapshot snapshot = metrics.GetSnapshot();
+        TimingSummary summary = window.GetSummary();
 
-        Assert.Equal(11, snapshot.MainThreadFrameTicks);
-        Assert.Equal(12, snapshot.MainThreadBeginTicks);
-        Assert.Equal(13, snapshot.MainThreadFrameBeginTicks);
-        Assert.Equal(14, snapshot.RenderTicks);
-        Assert.Equal(15, snapshot.SimulationQueueTicks);
-        Assert.Equal(16, snapshot.SimulationTicks);
-        Assert.Equal(17, snapshot.MergeBuildTicks);
-        Assert.False(snapshot.HasCompletedMerge);
+        Assert.Equal(3, summary.SampleCount);
+        Assert.Equal(20, summary.AverageTicks);
+        Assert.Equal(30, summary.P95Ticks);
+        Assert.Equal(30, summary.MaxTicks);
     }
+
+    [Fact]
+    public void FrameCounterWindow_AtIntervalBoundary_PublishesUnavailableCount()
+    {
+        var window = new FrameCounterWindow(windowDurationTicks: 100);
+
+        window.Publish(isAvailable: false, timestamp: 0);
+        window.Publish(isAvailable: true, timestamp: 10);
+        window.Publish(isAvailable: false, timestamp: 20);
+        window.Publish(isAvailable: true, timestamp: 100);
+
+        Assert.Equal(2, window.UnavailableCount);
+    }
+
 }
