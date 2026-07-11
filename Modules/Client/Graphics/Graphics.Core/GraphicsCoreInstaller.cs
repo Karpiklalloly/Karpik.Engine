@@ -19,6 +19,7 @@ public class GraphicsCoreInstaller : IInstaller, IInstallerConfiguratable, IInst
         }
 
         services.Register(new GraphicsCameraState());
+        services.Register(new GraphicsLoadTestSettings());
         services.Register(overlayState);
         services.Register(_imguiRenderContext);
     }

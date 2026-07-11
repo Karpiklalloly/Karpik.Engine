@@ -45,6 +45,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
     [DI] private IInputSource _inputSource = null!;
     [DI] private Time _time = null!;
     [DI] private ClientFrameMetrics _clientFrameMetrics = null!;
+    [DI] private GraphicsLoadTestSettings _graphicsLoadTestSettings = null!;
 
     private string _text = string.Empty;
 
@@ -70,6 +71,18 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Text($"Simulation: {ClientFrameMetrics.ToMilliseconds(timings.SimulationTicks):0.00} ms");
         ImGui.Text($"Merge build: {ClientFrameMetrics.ToMilliseconds(timings.MergeBuildTicks):0.00} ms");
         ImGui.TextUnformatted(timings.HasCompletedMerge ? "Merge command list: ready" : "Merge command list: unavailable");
+        int stressQuadCount = _graphicsLoadTestSettings.QuadCount;
+        if (ImGui.SliderInt("Stress quads", ref stressQuadCount, 0, GraphicsLoadTestSettings.MaxQuadCount))
+        {
+            _graphicsLoadTestSettings.QuadCount = stressQuadCount;
+        }
+        if (ImGui.Button("Stress 1k")) _graphicsLoadTestSettings.QuadCount = 1024;
+        ImGui.SameLine();
+        if (ImGui.Button("Stress 4k")) _graphicsLoadTestSettings.QuadCount = 4096;
+        ImGui.SameLine();
+        if (ImGui.Button("Stress 8k")) _graphicsLoadTestSettings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount;
+        ImGui.SameLine();
+        if (ImGui.Button("Clear stress")) _graphicsLoadTestSettings.QuadCount = 0;
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();
     }

@@ -8,6 +8,18 @@ using Xunit;
 public sealed class GraphicsCoreTests
 {
     [Fact]
+    public void GraphicsLoadTestSettings_ClampsRequestedQuadCountToSafeCapacity()
+    {
+        var settings = new GraphicsLoadTestSettings();
+
+        settings.QuadCount = -1;
+        Assert.Equal(0, settings.QuadCount);
+
+        settings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount + 1;
+        Assert.Equal(GraphicsLoadTestSettings.MaxQuadCount, settings.QuadCount);
+    }
+
+    [Fact]
     public void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);
