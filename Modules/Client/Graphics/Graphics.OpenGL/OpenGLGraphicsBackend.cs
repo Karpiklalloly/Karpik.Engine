@@ -73,6 +73,10 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         {
             _clientFrameMetrics.PublishMergeAvailability(isReady: true);
             _device.ResetFence(submitFence);
+            if (_device is IGpuTimestampProvider provider)
+            {
+                provider.TryRequestGpuTimestamp(commandList);
+            }
             _device.SubmitCommands(commandList, submitFence);
             _sceneSubmittedForPresent = true;
         }

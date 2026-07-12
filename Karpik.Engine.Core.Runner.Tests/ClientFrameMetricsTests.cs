@@ -39,18 +39,18 @@ public sealed class ClientFrameMetricsTests
     }
 
     [Fact]
-    public void FrameTimingWindow_WithMoreSamplesThanPercentileRing_UsesAllSamplesForAverage()
+    public void FrameTimingWindow_WithMoreSamplesThanPreviousRing_UsesAllSamplesForPercentiles()
     {
         var window = new FrameTimingWindow(windowDurationTicks: 10_000);
 
         for (int i = 0; i < 1024; i++)
         {
-            window.Publish(10, timestamp: i);
+            window.Publish(100, timestamp: i);
         }
 
         for (int i = 1024; i < 2048; i++)
         {
-            window.Publish(20, timestamp: i);
+            window.Publish(10, timestamp: i);
         }
 
         window.Publish(0, timestamp: 10_000);
@@ -58,10 +58,10 @@ public sealed class ClientFrameMetricsTests
         TimingSummary summary = window.GetSummary();
 
         Assert.Equal(2048, summary.SampleCount);
-        Assert.Equal(15, summary.AverageTicks);
-        Assert.Equal(20, summary.P95Ticks);
-        Assert.Equal(20, summary.P99Ticks);
-        Assert.Equal(20, summary.MaxTicks);
+        Assert.Equal(55, summary.AverageTicks);
+        Assert.InRange(summary.P95Ticks, 100, 101);
+        Assert.InRange(summary.P99Ticks, 100, 101);
+        Assert.Equal(100, summary.MaxTicks);
     }
 
     [Fact]

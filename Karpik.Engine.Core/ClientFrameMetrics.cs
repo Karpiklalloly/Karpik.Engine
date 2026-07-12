@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 
 namespace Karpik.Engine.Core;
 
@@ -75,17 +76,18 @@ public readonly struct MergeAvailabilitySummary
 
 internal sealed class FrameTimingWindow
 {
-    private const int MaxSamples = 1024;
+    // 64 buckets per power-of-two interval gives percentile precision better than 1.6%
+    // while keeping the hot path allocation-free and bounded.
+    private const int BucketsPerPowerOfTwo = 64;
+    private const int ZeroBucket = 0;
+    private const int HistogramBucketCount = sizeof(long) * 8 * BucketsPerPowerOfTwo + 1;
 
     private readonly long _windowDurationTicks;
-    private readonly long[] _samples = new long[MaxSamples];
-    private readonly long[] _sortedSamples = new long[MaxSamples];
+    private readonly int[] _histogram = new int[HistogramBucketCount];
     private long _windowStartedAt = -1;
     private long _sum;
     private long _max;
-    private int _sampleCount;
     private int _totalSampleCount;
-    private int _sampleWriteIndex;
     private long _averageTicks;
     private long _p95Ticks;
     private long _p99Ticks;
@@ -119,12 +121,7 @@ internal sealed class FrameTimingWindow
             _max = ticks;
         }
 
-        _samples[_sampleWriteIndex] = ticks;
-        _sampleWriteIndex = (_sampleWriteIndex + 1) % MaxSamples;
-        if (_sampleCount < MaxSamples)
-        {
-            _sampleCount++;
-        }
+        _histogram[GetHistogramBucket(ticks)]++;
         _totalSampleCount++;
     }
 
@@ -137,18 +134,14 @@ internal sealed class FrameTimingWindow
 
     private void PublishWindow()
     {
-        if (_sampleCount == 0)
+        if (_totalSampleCount == 0)
         {
             return;
         }
 
-        Array.Copy(_samples, _sortedSamples, _sampleCount);
-        Array.Sort(_sortedSamples, 0, _sampleCount);
-        int p95Index = ((_sampleCount * 95 + 99) / 100) - 1;
-        int p99Index = ((_sampleCount * 99 + 99) / 100) - 1;
         Volatile.Write(ref _averageTicks, _sum / _totalSampleCount);
-        Volatile.Write(ref _p95Ticks, _sortedSamples[p95Index]);
-        Volatile.Write(ref _p99Ticks, _sortedSamples[p99Index]);
+        Volatile.Write(ref _p95Ticks, GetPercentileTicks(95));
+        Volatile.Write(ref _p99Ticks, GetPercentileTicks(99));
         Volatile.Write(ref _maxTicks, _max);
         Volatile.Write(ref _publishedSampleCount, _totalSampleCount);
     }
@@ -158,9 +151,53 @@ internal sealed class FrameTimingWindow
         _windowStartedAt = timestamp;
         _sum = 0;
         _max = 0;
-        _sampleCount = 0;
         _totalSampleCount = 0;
-        _sampleWriteIndex = 0;
+        Array.Clear(_histogram);
+    }
+
+    private static int GetHistogramBucket(long ticks)
+    {
+        if (ticks <= 0)
+        {
+            return ZeroBucket;
+        }
+
+        ulong value = (ulong)ticks;
+        int exponent = BitOperations.Log2(value);
+        ulong baseValue = 1UL << exponent;
+        int subdivision = (int)(((value - baseValue) * BucketsPerPowerOfTwo) / baseValue);
+        return Math.Min(1 + exponent * BucketsPerPowerOfTwo + subdivision, HistogramBucketCount - 1);
+    }
+
+    private long GetPercentileTicks(int percentile)
+    {
+        int targetSampleCount = (_totalSampleCount * percentile + 99) / 100;
+        int accumulatedSampleCount = 0;
+        for (int bucket = 0; bucket < HistogramBucketCount; bucket++)
+        {
+            accumulatedSampleCount += _histogram[bucket];
+            if (accumulatedSampleCount >= targetSampleCount)
+            {
+                return GetBucketUpperBound(bucket);
+            }
+        }
+
+        return _max;
+    }
+
+    private static long GetBucketUpperBound(int bucket)
+    {
+        if (bucket == ZeroBucket)
+        {
+            return 0;
+        }
+
+        int adjustedBucket = bucket - 1;
+        int exponent = adjustedBucket / BucketsPerPowerOfTwo;
+        int subdivision = adjustedBucket % BucketsPerPowerOfTwo;
+        ulong baseValue = 1UL << exponent;
+        ulong upperBound = baseValue + ((baseValue * (uint)(subdivision + 1)) / BucketsPerPowerOfTwo);
+        return upperBound > long.MaxValue ? long.MaxValue : (long)upperBound;
     }
 }
 
