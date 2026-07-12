@@ -1,4 +1,4 @@
-﻿# v0.5
+# v0.5
 
 ## Key Changes
 * **Native Memory Foundation:** Added `Karpik.Memory` with explicit unmanaged ownership, borrowed views, caller-owned result handles, fixed-capacity pools, linear allocation, and debug diagnostics for stale or invalid access.
@@ -6,6 +6,7 @@
 * **ECS Update Scheduler:** Replaced the planned `v0.4` sequential `ISystemUpdate` path with a generated, graph-based scheduler. `ISystemUpdate` is now parallel-by-default when component access is known and non-conflicting.
 * **Scheduler Analyzer and Codegen:** Added static scheduler metadata, Roslyn validation, and a generated per-assembly update registry so unsafe or opaque update systems fail closed instead of running in parallel by accident.
 * **Runner Integration:** Integrated the update scheduler into `EngineRunner` while preserving existing Dragon wrapper ordering and DI behavior. Production mode uses `JobScheduler` value jobs; deterministic and single-thread modes remain selectable.
+* **Threaded Client Pipeline:** Added a headless/manual gameplay driver, main-thread/platform ownership, a dedicated simulation worker, bounded input publication, `ISystemRenderPrepare`, triple-buffered graphics command ownership, and non-blocking merge/submit.
 * **Server Fixed Tick Backlog:** Updated server overload handling so bounded catch-up diagnostics remain, but pending fixed-tick backlog is preserved instead of being silently discarded.
 
 ## Native Memory
@@ -73,4 +74,4 @@
 * Do not use legacy delegate `JobSystem` APIs in new hot paths. Use `JobScheduler` value jobs and caller-owned native storage.
 * Do not use `NativeArena` as a steady-state frame allocator. Use preallocated `NativeArray<T>`, `NativeSlice<T>`, `NativeResult<T>`, `NativeLinearAllocator`, or `NativePool<T>` where appropriate.
 * `ISystemFixedUpdate` remains sequential in this release. Physics and fixed-step gameplay should still use fixed dt and must not assume parallel fixed execution.
-* The threaded client simulation/render pipeline is not part of the completed foundation slice yet. `ISystemRenderPrepare`, input snapshot/ring, and Graphics.Core triple-buffer ownership remain planned separately.
+* The threaded client simulation/render pipeline is part of the completed `v0.5` foundation. Main-thread platform/render work and simulation-thread gameplay/render preparation have explicit ownership boundaries.
