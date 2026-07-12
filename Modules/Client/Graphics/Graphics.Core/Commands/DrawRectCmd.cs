@@ -10,4 +10,5 @@ public struct DrawRectCmd
     public Vector2 Origin;
     public float RotationRadians;
     public DrawSpace Space;
+    public ulong SortKey;
 }

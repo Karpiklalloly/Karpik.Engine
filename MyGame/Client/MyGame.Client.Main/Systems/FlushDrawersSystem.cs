@@ -1,24 +1,16 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class FlushDrawersSystem : ISystemInit, ISystemRender
+[SequentialSystem]
+public class FlushDrawersSystem : ISystemRenderPrepare
 {
     [DI] private Drawer _drawer;
-    [DI] private IAssetsManager _assetsManager = null!;
-    private AssetHandle<FontAsset> _fontAsset;
-    
-    public void Render()
+
+    public void RenderPrepare()
     {
         _drawer.Draw();
-    }
-
-    public void Init()
-    {
-        _fontAsset = _fontAsset = _assetsManager.LoadAssetAsync<FontAsset>("PressStart.font-json").GetAwaiter().GetResult();
-        _drawer.SetFont(_fontAsset.Asset.Font);
     }
 }

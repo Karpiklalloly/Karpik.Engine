@@ -42,6 +42,9 @@
     <KarpikModuleDependency Update="Graphics.Core.Tests">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core.Tests\Graphics.Core.Tests.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Graphics.Headless">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Headless\Graphics.Headless.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
     <KarpikModuleDependency Update="Graphics.OpenGL">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.OpenGL\Graphics.OpenGL.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
@@ -209,6 +212,9 @@
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Core\Window.Core.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Window.Headless">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Headless\Window.Headless.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window.Sdl2">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Sdl2\Window.Sdl2.csproj</ResolvedProjectPath>

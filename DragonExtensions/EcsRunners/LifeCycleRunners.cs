@@ -6,6 +6,39 @@ public interface IBeginRunSystem : IEcsProcess
 {
     public void BeginRun();
 }
+
+public interface IMainThreadBeginRunSystem : IEcsProcess
+{
+    void MainThreadBegin();
+}
+
+public class EcsMainThreadBeginRunner : EcsRunner<IMainThreadBeginRunSystem>, IMainThreadBeginRunSystem
+{
+    public void MainThreadBegin()
+    {
+        foreach (var run in Process)
+        {
+            run.MainThreadBegin();
+        }
+    }
+}
+
+public interface IMainThreadFrameBeginRunSystem : IEcsProcess
+{
+    void MainThreadFrameBegin();
+}
+
+public class EcsMainThreadFrameBeginRunner : EcsRunner<IMainThreadFrameBeginRunSystem>, IMainThreadFrameBeginRunSystem
+{
+    public void MainThreadFrameBegin()
+    {
+        foreach (var run in Process)
+        {
+            run.MainThreadFrameBegin();
+        }
+    }
+}
+
 public class EcsBeginRunner : EcsRunner<IBeginRunSystem>, IBeginRunSystem
 {
     public void BeginRun()
@@ -73,6 +106,22 @@ public class EcsRenderRunner : EcsRunner<IRenderSystem>, IRenderSystem
         foreach (var run in Process)
         {
             run.Render();
+        }
+    }
+}
+
+public interface IRenderPrepareSystem : IEcsProcess
+{
+    void RenderPrepare();
+}
+
+public class EcsRenderPrepareRunner : EcsRunner<IRenderPrepareSystem>, IRenderPrepareSystem
+{
+    public void RenderPrepare()
+    {
+        foreach (var run in Process)
+        {
+            run.RenderPrepare();
         }
     }
 }

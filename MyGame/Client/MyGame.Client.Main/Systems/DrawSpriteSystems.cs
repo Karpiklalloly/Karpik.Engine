@@ -8,7 +8,7 @@ using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main.Systems;
 
-public class DrawSpriteSystem : ISystemRender
+public class DrawSpriteSystem : ISystemRenderPrepare
 {
     public class Aspect : EcsAspect
     {
@@ -19,7 +19,7 @@ public class DrawSpriteSystem : ISystemRender
     [DI] private DefaultWorld _world;
     [DI] private Drawer _drawer;
     
-    public void Render()
+    public void RenderPrepare()
     {
         var span = _world.Where(out Aspect a);
         foreach (var e in span)

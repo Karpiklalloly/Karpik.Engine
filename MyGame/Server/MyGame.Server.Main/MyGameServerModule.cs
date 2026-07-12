@@ -27,5 +27,6 @@ internal class MyGameServerModule : IModule
         
         // Respawn - handle player death and respawn
         b.AddCaller<PlatformerInputCommand>();
+        b.AddCaller<JumpCommand>();
     }
 }

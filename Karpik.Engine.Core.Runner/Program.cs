@@ -143,7 +143,7 @@ public class Program
         
         _ipcClient?.SetScheduler(mainThreadScheduler);
         
-        _ipcClient?.SendReadyAsync().Wait();
+        _ipcClient?.SendReadyAsync(loader.ModuleDirectory).Wait();
 
         switch (side)
         {
@@ -293,13 +293,14 @@ public class Program
     private static void ClientLoop(MainThreadScheduler mainThreadScheduler)
     {
         var stopwatch = Stopwatch.StartNew();
-        double lastTime = 0;
+        double lastSimulationRequestTime = 0;
+        var metrics = _bootstrap.ClientFrameMetrics;
+        using var simulationWorker = new ClientSimulationWorker(_bootstrap, metrics);
         
         while (_isRunning.Value)
         {
+            long frameStartedAt = Stopwatch.GetTimestamp();
             double currentTime = stopwatch.Elapsed.TotalSeconds;
-            double deltaTime = currentTime - lastTime;
-            if (deltaTime > 0.1) deltaTime = 0.1;
             
             mainThreadScheduler.Execute();
             
@@ -307,10 +308,34 @@ public class Program
             {
                 break;
             }
-            
-            _bootstrap.Loop(deltaTime);
-            
-            lastTime = currentTime;
+
+            simulationWorker.ThrowIfFaulted();
+            _bootstrap.RunMainThreadBegin();
+
+            if (!simulationWorker.IsSimulationRunning)
+            {
+                _isRunning.Value = false;
+                break;
+            }
+
+            if (simulationWorker.TryReserveFrame())
+            {
+                try
+                {
+                    _bootstrap.RunMainThreadFrameBegin();
+                    double deltaTime = Math.Min(currentTime - lastSimulationRequestTime, 0.1);
+                    simulationWorker.StartReservedFrame(deltaTime);
+                    lastSimulationRequestTime = currentTime;
+                }
+                catch
+                {
+                    simulationWorker.CancelReservedFrame();
+                    throw;
+                }
+            }
+
+            _bootstrap.RunRender();
+            metrics.PublishMainThreadFrame(Stopwatch.GetTimestamp() - frameStartedAt);
         }
     }
 }

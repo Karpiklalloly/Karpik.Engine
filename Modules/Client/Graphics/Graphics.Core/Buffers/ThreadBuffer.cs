@@ -10,7 +10,11 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     public ReadOnlySpan<DrawRectCmd> GetRectCommands() => _rects.AsSpan(0, _rectCount);
     public ReadOnlySpan<DrawTextureCmd> GetTextureCommands() => _textures.AsSpan(0, _textureCount);
     public ReadOnlySpan<DrawTextCmd> GetTextCommands() => _texts.AsSpan(0, _textCount);
-    ReadOnlySpan<DrawCommand> IOrderedCommandBuffer.GetCommands() => _commands.AsSpan(0, _commandCount);
+    ReadOnlySpan<DrawCommand> IOrderedCommandBuffer.GetCommands()
+    {
+        SortCommandsIfNeeded();
+        return _commands.AsSpan(0, _commandCount);
+    }
 
     private DrawRectCmd[] _rects = new DrawRectCmd[256];
     private int _rectCount;
@@ -25,7 +29,10 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     private int _textCharCount;
 
     private DrawCommand[] _commands = new DrawCommand[512];
+    private DrawCommand[] _sortScratch = new DrawCommand[512];
+    private readonly int[] _radixCounts = new int[256];
     private int _commandCount;
+    private bool _commandsSorted = true;
 
     internal void EnsureCapacity(int rects, int textures, int texts, int commands)
     {
@@ -44,6 +51,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
         EnsureCapacity(ref _textures, textures);
         EnsureCapacity(ref _texts, texts);
         EnsureCapacity(ref _commands, commands);
+        EnsureCapacity(ref _sortScratch, commands);
         EnsureCapacity(ref _textChars, textChars);
     }
     
@@ -51,8 +59,8 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     public void Add(in DrawRectCmd cmd)
     {
         if (_rectCount >= _rects.Length) ResizeOrThrow(ref _rects);
-        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
-        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Rect, _rectCount);
+        EnsureCommandCapacity();
+        AddCommand(DrawCommandType.Rect, _rectCount, cmd.SortKey);
         _rects[_rectCount++] = cmd;
     }
 
@@ -60,8 +68,8 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     public void Add(in DrawTextureCmd cmd)
     {
         if (_textureCount >= _textures.Length) ResizeOrThrow(ref _textures);
-        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
-        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Texture, _textureCount);
+        EnsureCommandCapacity();
+        AddCommand(DrawCommandType.Texture, _textureCount, cmd.SortKey);
         _textures[_textureCount++] = cmd;
     }
 
@@ -69,8 +77,8 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     public void Add(in DrawTextCmd cmd)
     {
         if (_textCount >= _texts.Length) ResizeOrThrow(ref _texts);
-        if (_commandCount >= _commands.Length) ResizeOrThrow(ref _commands);
-        _commands[_commandCount++] = new DrawCommand(DrawCommandType.Text, _textCount);
+        EnsureCommandCapacity();
+        AddCommand(DrawCommandType.Text, _textCount, cmd.SortKey);
         _texts[_textCount++] = cmd;
     }
 
@@ -101,6 +109,68 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
         _textCount = 0;
         _textCharCount = 0;
         _commandCount = 0;
+        _commandsSorted = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void AddCommand(DrawCommandType type, int index, ulong sortKey)
+    {
+        if (_commandCount > 0 && sortKey < _commands[_commandCount - 1].SortKey)
+        {
+            _commandsSorted = false;
+        }
+
+        _commands[_commandCount] = new DrawCommand(type, index, sortKey, _commandCount);
+        _commandCount++;
+    }
+
+    private void SortCommandsIfNeeded()
+    {
+        if (_commandsSorted)
+        {
+            return;
+        }
+
+        DrawCommand[] source = _commands;
+        DrawCommand[] destination = _sortScratch;
+        for (int shift = 0; shift < 64; shift += 8)
+        {
+            Array.Clear(_radixCounts);
+            for (int i = 0; i < _commandCount; i++)
+            {
+                _radixCounts[(byte)(source[i].SortKey >> shift)]++;
+            }
+
+            int offset = 0;
+            for (int i = 0; i < _radixCounts.Length; i++)
+            {
+                int count = _radixCounts[i];
+                _radixCounts[i] = offset;
+                offset += count;
+            }
+
+            for (int i = 0; i < _commandCount; i++)
+            {
+                DrawCommand command = source[i];
+                destination[_radixCounts[(byte)(command.SortKey >> shift)]++] = command;
+            }
+
+            (source, destination) = (destination, source);
+        }
+
+        _commandsSorted = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void EnsureCommandCapacity()
+    {
+        if (_commandCount < _commands.Length)
+        {
+            return;
+        }
+
+        ResizeOrThrow(ref _commands);
+        ResizeOrThrow(ref _sortScratch);
     }
     
     [MethodImpl(MethodImplOptions.NoInlining)]

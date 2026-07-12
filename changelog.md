@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixed
+* ECS update registry generation now runs in `Modules` and `MyGame` assemblies, preventing runtime startup failures for registered systems whose descriptors were previously missing.
+* `[SequentialSystem]` updates now execute on the scheduler's calling thread between completed parallel batches, keeping input, ImGui, networking, and other thread-affine compatibility systems off worker threads.
+
 # v0.5
 
 ## Key Changes

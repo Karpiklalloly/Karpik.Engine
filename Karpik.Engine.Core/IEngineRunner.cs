@@ -2,12 +2,22 @@
 
 internal interface IEngineRunner
 {
-    public void Setup(Application application, MainThreadScheduler scheduler,
+    public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null);
 
     public void RegisterTypes(Type[] types);
 
     public void Run(double dt);
+
+    public void RunMainThreadBegin();
+
+    public void RunMainThreadFrameBegin();
+
+    public void RunGameplayFrame(double dt);
+
+    public void RunRender();
+
+    public bool IsApplicationRunning { get; }
 
     public void Destroy();
 

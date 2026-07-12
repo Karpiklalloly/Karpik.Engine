@@ -9,6 +9,8 @@ using System.Reflection;
 
 public sealed class ModuleLoader
 {
+    public string ModuleDirectory { get; private set; } = string.Empty;
+
     public readonly record struct PluginDescriptor(string AssemblyName, string Side);
     public Assembly[] LoadedAssemblies = [];
     private PluginLoadContext? _loadContext;
@@ -107,9 +109,10 @@ public sealed class ModuleLoader
 
     public void LoadPluginCollection(IEnumerable<string> assemblyNames)
     {
-        var sourceDirectory = Path.Combine(AppContext.BaseDirectory, "modules");
+        var sourceDirectory = ResolveModuleDirectory();
+        ModuleDirectory = sourceDirectory;
         if (!Directory.Exists(sourceDirectory))
-            throw new DirectoryNotFoundException($"Module staging directory was not found: {sourceDirectory}. Build the launcher project before starting the worker.");
+            throw new DirectoryNotFoundException($"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.");
         var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");
         _shadowCopyDirectory = Path.Combine(shadowRoot, $"{Environment.ProcessId}_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_shadowCopyDirectory);
@@ -123,6 +126,17 @@ public sealed class ModuleLoader
         foreach (var name in requiredAssemblies)
             loaded.Add(_loadContext.LoadFromAssemblyPath(Path.Combine(_shadowCopyDirectory, name + ".dll")));
         LoadedAssemblies = loaded.ToArray();
+    }
+
+    private static string ResolveModuleDirectory()
+    {
+        string baseDirectory = AppContext.BaseDirectory;
+        string? latestCompleteDirectory = Directory
+            .GetDirectories(baseDirectory, "modules.version.*", SearchOption.TopDirectoryOnly)
+            .Where(directory => File.Exists(Path.Combine(directory, ".complete")))
+            .OrderByDescending(directory => File.GetLastWriteTimeUtc(Path.Combine(directory, ".complete")))
+            .FirstOrDefault();
+        return latestCompleteDirectory ?? Path.Combine(baseDirectory, "modules");
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)

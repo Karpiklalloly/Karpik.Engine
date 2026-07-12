@@ -344,6 +344,17 @@ System dependency graph для публичных `ISystem*` перенесён 
 - [ ] Text glyph count.
 - [ ] Debug overlay through ImGui.
 
+### Build-time Sprite Atlases
+
+- [ ] Add a build-time atlas pipeline for 2D sprites when the game has a real multi-texture workload.
+- [ ] Keep strict painter order as the default rendering rule; atlas usage must reduce texture switches without reordering transparent commands.
+- [ ] Store atlas manifests with source content; generate atlas images and UV metadata under build intermediates rather than modifying source assets.
+- [ ] Make Debug and Release consume the same generated atlas output, replacing the Debug-only direct Content junction where required.
+- [ ] Expose atlas regions through the existing texture/sprite API as a texture plus source UV rectangle.
+- [ ] Handle padding, bleeding protection, maximum atlas size, multiple atlas pages, and deterministic packing.
+- [ ] Add build validation and a sample that proves multiple sprites from one atlas render in strict draw order with one resource set.
+- [ ] Do not start this work until content contains enough distinct sprites/textures for texture switches to be a measured bottleneck; current texture-thrash diagnostics are intentionally synthetic.
+
 ### Camera2D
 
 - [ ] Position.

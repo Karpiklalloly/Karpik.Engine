@@ -1,30 +1,21 @@
 ﻿using System.Drawing;
 using System.Numerics;
 using Karpik.Engine.Client.Graphics.Core;
-using Karpik.Engine.Core;
 using Karpik.Engine.MyGame.Client.Main.Systems;
 using Karpik.Engine.Shared.Physics.Core;
 
 namespace Karpik.Engine.MyGame.Client.Main;
 
+[Karpik.Engine.Shared.ECS.Scheduling.RenderPrepareCommand]
 public class Drawer
 {
     private SpriteAction[] _actions = new SpriteAction[128];
     private int _actionsCount = 0;
     // [DI] private IRenderer2D _renderer = null!;
     // [DI] private ICamera2D _camera2D = null!;
-    [DI] private Application _application = null!;
-
-    private IFont _font = null!;
-    
-    internal void SetFont(IFont font)
-    {
-        _font = font;
-    }
-
     public void Sprite(SpriteRenderer spriteRenderer, Transform2D transform)
     {
-        ResizeIfNeed();
+        EnsureCapacity();
         _actions[_actionsCount++] = new SpriteAction()
         {
             Texture = spriteRenderer.Texture,
@@ -38,19 +29,18 @@ public class Drawer
 
     internal void Draw()
     {
-        var span = _actions.AsSpan(0, _actionsCount);
-        span.Sort(static (a, b) => a.Layer.CompareTo(b.Layer));
         while (_actionsCount > 0)
         {
-            span[--_actionsCount].Draw(_font);
+            _actions[--_actionsCount].Draw();
         }
     }
 
-    private void ResizeIfNeed()
+    private void EnsureCapacity()
     {
         if (_actionsCount >= _actions.Length)
         {
-            Array.Resize(ref _actions, _actions.Length * 2);
+            throw new InvalidOperationException(
+                $"Drawer sprite action capacity exceeded. Current capacity: {_actions.Length}. Increase warm-up capacity before render preparation.");
         }
     }
 
@@ -63,19 +53,18 @@ public class Drawer
         public double Rotation;
         public int Layer;
         
-        public void Draw(IFont font)
+        public void Draw()
         {
             if (Texture is not null)
             {
-                Vector2 origin = new Vector2(Size.X / 2f, Size.Y / 2f);
                 GraphicsContext.Buffer.AddTextureCentered(
                     Texture,
                     Position,
                     Size,
                     Color,
                     (float)Rotation,
-                    DrawSpace.World);
-                GraphicsContext.Buffer.AddText(font, $"{Position}", Position, 1, Color.Red, origin, TextAnchor.CenterLeft, (float)Rotation, DrawSpace.World);
+                    DrawSpace.World,
+                    sortKey: DrawSortKey.FromLayerDescending(Layer));
             }
         }
     }

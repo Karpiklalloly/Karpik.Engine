@@ -9,15 +9,17 @@ public sealed class EcsUpdateScheduler : IDisposable
 {
     private const int JobPayloadByteLength = 64;
 
-    private ISystemUpdate[] _systems = [];
+    private object[] _systems = [];
     private EcsUpdateGraph _graph = EcsUpdateGraph.Empty;
     private JobScheduler? _jobScheduler;
     private ValueJobHandle[] _handles = [];
+    private bool[] _scheduledInBatch = [];
     private ValueJobHandle[] _dependencyBuffer = [];
     private int[] _dependencyOffsets = [];
     private GCHandle _systemsHandle;
     private IntPtr _systemsHandlePointer;
     private EcsUpdateSchedulerMode _mode;
+    private bool _isRenderPreparePhase;
     private int _nextWorkerIndex;
     private bool _isInitialized;
     private bool _isDisposed;
@@ -30,11 +32,31 @@ public sealed class EcsUpdateScheduler : IDisposable
         EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Parallel,
         int workerCount = -1)
     {
+        InitializeCore(systems.ToArray(), descriptors, mode, workerCount, isRenderPreparePhase: false);
+    }
+
+    internal void InitializeRenderPrepare(
+        ReadOnlySpan<ISystemRenderPrepare> systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Parallel,
+        int workerCount = -1)
+    {
+        InitializeCore(systems.ToArray(), descriptors, mode, workerCount, isRenderPreparePhase: true);
+    }
+
+    private void InitializeCore(
+        object[] systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        EcsUpdateSchedulerMode mode,
+        int workerCount,
+        bool isRenderPreparePhase)
+    {
         ThrowIfDisposed();
         DisposeSchedulerState();
 
         _mode = mode;
-        _systems = systems.ToArray();
+        _isRenderPreparePhase = isRenderPreparePhase;
+        _systems = systems;
         Type[] systemTypes = new Type[_systems.Length];
         for (int i = 0; i < _systems.Length; i++)
         {
@@ -43,6 +65,7 @@ public sealed class EcsUpdateScheduler : IDisposable
 
         _graph = EcsUpdateGraphBuilder.Build(systemTypes, descriptors);
         _handles = new ValueJobHandle[_systems.Length];
+        _scheduledInBatch = new bool[_systems.Length];
         _dependencyOffsets = new int[_systems.Length];
 
         int maxDependencyCount = 0;
@@ -121,7 +144,7 @@ public sealed class EcsUpdateScheduler : IDisposable
     {
         for (int i = 0; i < _systems.Length; i++)
         {
-            _systems[i].Update();
+            ExecuteSystem(i);
         }
     }
 
@@ -130,7 +153,7 @@ public sealed class EcsUpdateScheduler : IDisposable
         ReadOnlySpan<int> executionOrder = _graph.ExecutionOrder.Span;
         for (int i = 0; i < executionOrder.Length; i++)
         {
-            _systems[executionOrder[i]].Update();
+            ExecuteSystem(executionOrder[i]);
         }
     }
 
@@ -140,23 +163,37 @@ public sealed class EcsUpdateScheduler : IDisposable
                                  throw new InvalidOperationException("ECS update scheduler is not initialized.");
         ReadOnlySpan<EcsUpdateGraphNode> nodes = _graph.Nodes.Span;
         ReadOnlySpan<int> executionOrder = _graph.ExecutionOrder.Span;
+        Array.Clear(_scheduledInBatch);
 
         for (int orderIndex = 0; orderIndex < executionOrder.Length; orderIndex++)
         {
             int systemId = executionOrder[orderIndex];
             EcsUpdateGraphNode node = nodes[systemId];
+
+            if (node.IsSequential)
+            {
+                WaitForScheduledJobs(scheduler);
+                ExecuteSystem(systemId);
+                continue;
+            }
+
             ReadOnlySpan<int> dependencySystemIds = node.DependencySystemIds.Span;
             Span<ValueJobHandle> dependencies = _dependencyBuffer.AsSpan(
                 _dependencyOffsets[systemId],
                 dependencySystemIds.Length);
 
+            int scheduledDependencyCount = 0;
             for (int dependencyIndex = 0; dependencyIndex < dependencySystemIds.Length; dependencyIndex++)
             {
-                dependencies[dependencyIndex] = _handles[dependencySystemIds[dependencyIndex]];
+                int dependencySystemId = dependencySystemIds[dependencyIndex];
+                if (_scheduledInBatch[dependencySystemId])
+                {
+                    dependencies[scheduledDependencyCount++] = _handles[dependencySystemId];
+                }
             }
 
-            var job = new EcsUpdateSystemJob(_systemsHandlePointer, systemId);
-            ValueJobHandle handle = scheduler.Schedule(in job, dependencies);
+            var job = new EcsUpdateSystemJob(_systemsHandlePointer, systemId, _isRenderPreparePhase);
+            ValueJobHandle handle = scheduler.Schedule(in job, dependencies[..scheduledDependencyCount]);
             _handles[systemId] = handle;
 
             int workerIndex = _nextWorkerIndex;
@@ -165,6 +202,8 @@ public sealed class EcsUpdateScheduler : IDisposable
             {
                 throw new InvalidOperationException("Unable to publish ECS update job to worker queue.");
             }
+
+            _scheduledInBatch[systemId] = true;
         }
 
         WaitForScheduledJobs(scheduler);
@@ -180,6 +219,11 @@ public sealed class EcsUpdateScheduler : IDisposable
 
         for (int i = 0; i < _handles.Length; i++)
         {
+            if (!_scheduledInBatch[i])
+            {
+                continue;
+            }
+
             ValueJobHandle handle = _handles[i];
             if (!handle.IsValid || !scheduler.HasException(handle))
             {
@@ -195,6 +239,8 @@ public sealed class EcsUpdateScheduler : IDisposable
             throw new InvalidOperationException(
                 $"ECS update system '{_systems[i].GetType().FullName}' failed without an exception payload.");
         }
+
+        Array.Clear(_scheduledInBatch);
     }
 
     private void DisposeSchedulerState()
@@ -211,10 +257,12 @@ public sealed class EcsUpdateScheduler : IDisposable
         _systems = [];
         _graph = EcsUpdateGraph.Empty;
         _handles = [];
+        _scheduledInBatch = [];
         _dependencyBuffer = [];
         _dependencyOffsets = [];
         _isInitialized = false;
         _nextWorkerIndex = 0;
+        _isRenderPreparePhase = false;
     }
 
     private void ThrowIfDisposed()
@@ -236,21 +284,40 @@ public sealed class EcsUpdateScheduler : IDisposable
         return result;
     }
 
+    private void ExecuteSystem(int systemId)
+    {
+        ExecuteSystem(_systems[systemId], _isRenderPreparePhase);
+    }
+
+    private static void ExecuteSystem(object system, bool isRenderPreparePhase)
+    {
+        if (isRenderPreparePhase)
+        {
+            ((ISystemRenderPrepare)system).RenderPrepare();
+        }
+        else
+        {
+            ((ISystemUpdate)system).Update();
+        }
+    }
+
     private readonly struct EcsUpdateSystemJob : IJob
     {
         private readonly IntPtr _systemsHandlePointer;
         private readonly int _systemId;
+        private readonly bool _isRenderPreparePhase;
 
-        public EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId)
+        public EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId, bool isRenderPreparePhase)
         {
             _systemsHandlePointer = systemsHandlePointer;
             _systemId = systemId;
+            _isRenderPreparePhase = isRenderPreparePhase;
         }
 
         public void Execute()
         {
-            var systems = (ISystemUpdate[])GCHandle.FromIntPtr(_systemsHandlePointer).Target!;
-            systems[_systemId].Update();
+            var systems = (object[])GCHandle.FromIntPtr(_systemsHandlePointer).Target!;
+            ExecuteSystem(systems[_systemId], _isRenderPreparePhase);
         }
     }
 }

@@ -36,6 +36,40 @@ public class BeginSystem(ISystemBegin system) : IBeginRunSystem, IOnInjectedDI
     }
 }
 
+public class MainThreadBeginSystem(ISystemMainThreadBegin system) : IMainThreadBeginRunSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public void MainThreadBegin()
+    {
+        system.MainThreadBegin();
+    }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
+public class MainThreadFrameBeginSystem(ISystemMainThreadFrameBegin system) : IMainThreadFrameBeginRunSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public void MainThreadFrameBegin()
+    {
+        system.MainThreadFrameBegin();
+    }
+
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
 public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun, IOnInjectedDI
 {
     [DI] private IServiceContainer _container = null!;
@@ -98,6 +132,25 @@ public class RenderSystem(ISystemRender system) : IRenderSystem, IOnInjectedDI
         system.Render();
     }
     
+    public void OnInjected()
+    {
+        Injector injector = _container.Get<Injector>()!;
+        _container.Inject(system);
+        injector.Inject(system);
+    }
+}
+
+public class RenderPrepareSystem(ISystemRenderPrepare system) : IRenderPrepareSystem, IOnInjectedDI
+{
+    [DI] private IServiceContainer _container = null!;
+
+    public ISystemRenderPrepare System => system;
+
+    public void RenderPrepare()
+    {
+        system.RenderPrepare();
+    }
+
     public void OnInjected()
     {
         Injector injector = _container.Get<Injector>()!;

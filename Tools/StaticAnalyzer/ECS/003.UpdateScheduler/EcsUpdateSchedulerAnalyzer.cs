@@ -21,7 +21,9 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         SchedulerDiagnosticDescriptors.InvalidOrderCycle,
         SchedulerDiagnosticDescriptors.MainThreadOnlyUpdateAccess,
         SchedulerDiagnosticDescriptors.UnsupportedManagedComponentSummary,
-        SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem);
+        SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem,
+        SchedulerDiagnosticDescriptors.RenderPrepareWriteAccess,
+        SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -34,7 +36,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeNamedType(SymbolAnalysisContext context)
     {
-        if (context.Symbol is not INamedTypeSymbol type || !ImplementsSystemUpdate(type))
+        if (context.Symbol is not INamedTypeSymbol type || !ImplementsScheduledSystem(type))
             return;
 
         ReportUnsupportedManagedSummaries(context, type);
@@ -48,11 +50,16 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeOperationBlock(OperationBlockAnalysisContext context)
     {
-        if (context.OwningSymbol is not IMethodSymbol method ||
-            method.Name != "Update" ||
-            method.Parameters.Length != 0 ||
-            !ImplementsSystemUpdate(method.ContainingType) ||
-            HasAttribute(method.ContainingType, "SequentialSystemAttribute"))
+        if (context.OwningSymbol is not IMethodSymbol method || method.Parameters.Length != 0)
+        {
+            return;
+        }
+
+
+        bool isUpdate = method.Name == "Update" && ImplementsSystemUpdate(method.ContainingType);
+        bool isRenderPrepare = method.Name == "RenderPrepare" && ImplementsSystemRenderPrepare(method.ContainingType);
+        if ((!isUpdate && !isRenderPrepare) ||
+            (isUpdate && HasAttribute(method.ContainingType, "SequentialSystemAttribute")))
         {
             return;
         }
@@ -68,6 +75,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             result,
             visitedMethods,
             new Dictionary<ITypeSymbol, ITypeSymbol>(SymbolEqualityComparer.Default),
+            isRenderPrepare,
             context.CancellationToken,
             diagnostic => context.ReportDiagnostic(diagnostic));
 
@@ -93,6 +101,15 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
                     return;
                 }
             }
+        }
+
+
+        if (isRenderPrepare && result.Inferred.Any(static access => access.Mode == SchedulerAccessMode.Write))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                SchedulerDiagnosticDescriptors.RenderPrepareWriteAccess,
+                method.Locations[0],
+                method.ContainingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
         }
     }
 
@@ -172,6 +189,22 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         }
 
         return false;
+    }
+
+    private static bool ImplementsSystemRenderPrepare(INamedTypeSymbol type)
+    {
+        foreach (INamedTypeSymbol iface in type.AllInterfaces)
+        {
+            if (iface.Name == "ISystemRenderPrepare")
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ImplementsScheduledSystem(INamedTypeSymbol type)
+    {
+        return ImplementsSystemUpdate(type) || ImplementsSystemRenderPrepare(type);
     }
 
     private static bool TryGetPoolAccess(ITypeSymbol? type, out SchedulerAccess access)
@@ -332,6 +365,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         private readonly AccessAnalysisResult _result;
         private readonly HashSet<ISymbol> _visitedMethods;
         private readonly IReadOnlyDictionary<ITypeSymbol, ITypeSymbol> _typeSubstitutions;
+        private readonly bool _isRenderPrepare;
         private readonly CancellationToken _cancellationToken;
         private readonly Action<Diagnostic> _reportDiagnostic;
 
@@ -341,6 +375,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             AccessAnalysisResult result,
             HashSet<ISymbol> visitedMethods,
             IReadOnlyDictionary<ITypeSymbol, ITypeSymbol> typeSubstitutions,
+            bool isRenderPrepare,
             CancellationToken cancellationToken,
             Action<Diagnostic> reportDiagnostic)
         {
@@ -349,12 +384,28 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
             _result = result;
             _visitedMethods = visitedMethods;
             _typeSubstitutions = typeSubstitutions;
+            _isRenderPrepare = isRenderPrepare;
             _cancellationToken = cancellationToken;
             _reportDiagnostic = reportDiagnostic;
         }
 
         public override void VisitInvocation(IInvocationOperation operation)
         {
+            if (HasAttribute(operation.TargetMethod, "RenderPrepareCommandAttribute") ||
+                HasAttribute(operation.TargetMethod.ContainingType, "RenderPrepareCommandAttribute"))
+            {
+                if (!_isRenderPrepare)
+                {
+                    _reportDiagnostic(Diagnostic.Create(
+                        SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess,
+                        operation.Syntax.GetLocation(),
+                        _systemType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+                }
+
+                base.VisitInvocation(operation);
+                return;
+            }
+
             if (IsMainThreadOnly(operation.TargetMethod))
             {
                 _reportDiagnostic(Diagnostic.Create(
@@ -623,6 +674,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
                 _result,
                 _visitedMethods,
                 CreateTypeSubstitutions(method),
+                _isRenderPrepare,
                 _cancellationToken,
                 _reportDiagnostic);
 

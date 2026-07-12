@@ -957,6 +957,128 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
         Assert.Equal(DiagnosticIds.EcsUnsupportedManagedComponentSummary, diagnostic.Id);
     }
 
+    [Fact]
+    public async Task RenderPrepare_ReadonlyPoolAccess_IsAccepted()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+
+            public sealed class DrawSystem : ISystemRenderPrepare
+            {
+                private EcsReadonlyPool<Position> _positions;
+
+                public void RenderPrepare()
+                {
+                    _ = _positions.Get(1).X;
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task RenderPrepare_MutablePoolAccess_IsRejected()
+    {
+        var diagnostics = await AnalyzeAsync(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+
+            public sealed class DrawSystem : ISystemRenderPrepare
+            {
+                private EcsPool<Position> _positions;
+
+                public void RenderPrepare()
+                {
+                    _positions.Get(1).X++;
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsRenderPrepareWriteAccess, diagnostic.Id);
+    }
+
+    [Fact]
+    public async Task RenderPrepare_CommandEmissionContract_IsAccepted()
+    {
+        const string graphicsApi =
+            """
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            public static class GraphicsApi
+            {
+                [RenderPrepareCommand]
+                public static void Draw()
+                {
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzeAsync(
+            """
+            using Karpik.Engine.Core;
+
+            public sealed class DrawSystem : ISystemRenderPrepare
+            {
+                public void RenderPrepare()
+                {
+                    GraphicsApi.Draw();
+                }
+            }
+            """,
+            graphicsApi);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task Update_CommandEmissionContract_IsRejected()
+    {
+        const string graphicsApi =
+            """
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            public static class GraphicsApi
+            {
+                [RenderPrepareCommand]
+                public static void Draw()
+                {
+                }
+            }
+            """;
+
+        var diagnostics = await AnalyzeAsync(
+            """
+            using Karpik.Engine.Core;
+
+            public sealed class UpdateSystem : ISystemUpdate
+            {
+                public void Update()
+                {
+                    GraphicsApi.Draw();
+                }
+            }
+            """,
+            graphicsApi);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(DiagnosticIds.EcsUpdateRenderCommandAccess, diagnostic.Id);
+    }
+
     private static Task<IReadOnlyList<Microsoft.CodeAnalysis.Diagnostic>> AnalyzeAsync(
         string source,
         params string[] metadataReferenceSources)

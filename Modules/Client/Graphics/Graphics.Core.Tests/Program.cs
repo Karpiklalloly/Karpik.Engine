@@ -8,6 +8,34 @@ using Xunit;
 public sealed class GraphicsCoreTests
 {
     [Fact]
+    public void GraphicsLoadTestSettings_ClampsRequestedQuadCountToSafeCapacity()
+    {
+        var settings = new GraphicsLoadTestSettings();
+
+        settings.QuadCount = -1;
+        Assert.Equal(0, settings.QuadCount);
+
+        settings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount + 1;
+        Assert.Equal(GraphicsLoadTestSettings.MaxQuadCount, settings.QuadCount);
+
+        settings.Scenario = (GraphicsLoadTestScenario)(-1);
+        Assert.Equal(GraphicsLoadTestScenario.SortedRects, settings.Scenario);
+
+        settings.Scenario = (GraphicsLoadTestScenario)99;
+        Assert.Equal(GraphicsLoadTestScenario.TextureThrash, settings.Scenario);
+    }
+
+    [Fact]
+    public void FrameTimingClipboardFormatter_IncludesWindowHeaderAndStressCount()
+    {
+        string text = FrameTimingClipboardFormatter.Format(default, stressQuadCount: 1024, GraphicsLoadTestScenario.TextureBatches);
+
+        Assert.Contains("Last completed 1-second window", text);
+        Assert.Contains("Stress quads: 1024", text);
+        Assert.Contains("Stress scenario: Texture batches", text);
+    }
+
+    [Fact]
     public void Camera_WorldToScreen_MapsCameraPositionToViewportCenter()
 {
     Camera2D camera = Camera2D.CreateDefault(800f, 600f);

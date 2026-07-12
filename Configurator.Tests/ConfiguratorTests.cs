@@ -159,6 +159,8 @@ public sealed class ConfiguratorTests
         Assert.Contains("MyGame.Client.Main", loader);
         Assert.Contains("MyGame.Server.Main", loader);
         Assert.Contains("MyGameResources", loader);
+        Assert.Contains("modules.version.*", loader);
+        Assert.Contains(".complete", loader);
     }
 }
 

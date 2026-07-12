@@ -33,6 +33,7 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 - [x] (2026-06-06 17:45 +04:00) Migrated current MyGame `ISystemUpdate` implementations by marking opaque ImGui/input/network/physics/lifecycle-facade systems `[SequentialSystem]`; the Dragon `IEcsRunParallel` prototype remains quarantined by `DoNotUseDragonLifecycleAnalyzer` outside `ECS.Core`.
 - [x] (2026-06-06 17:45 +04:00) Updated server fixed-loop overload handling: bounded catch-up diagnostics remain, but pending fixed tick backlog is preserved instead of resetting `nextTickTime`.
 - [x] (2026-06-06 17:45 +04:00) Ran scheduler acceptance gate: `dotnet test ECS.Core.Tests\ECS.Core.Tests.csproj -m:1 -nr:false --no-restore` passed 34/34; `dotnet test Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false --no-restore` passed 8/8 including parallel overlap, dependency serialization, deterministic order, and 0 B calling-thread allocation after warm-up; `dotnet test Tools\StaticAnalyzer.Tests\StaticAnalyzer.Tests.csproj -m:1 -nr:false --no-restore` passed 36/36 with existing `NU1900`; `dotnet build ServerLauncher\ServerLauncher.csproj -m:1 -nr:false --no-restore` passed; `dotnet build ClientLauncher\ClientLauncher.csproj -m:1 -nr:false --no-restore` passed.
+- [x] (2026-06-19 21:00 +04:00) Closed scheduler deployment and thread-affinity regressions: deployed `Karpik.Engine.Core.Codegen` to `Modules` and `MyGame`, verified a generated sequential descriptor for `NetworkSystem`, and changed parallel runtime execution so `[SequentialSystem]` runs on the scheduler calling thread between completed worker batches. Runtime scheduler tests passed 9/9, static analyzer tests passed 37/37, both launcher builds passed, and manual client input/window interaction succeeded.
 
 ## Surprises & Discoveries
 
@@ -104,6 +105,12 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 
 - Observation: The current MyGame update systems are deliberately opaque and unsuitable for default parallel execution.
   Evidence: client systems use ImGui, input, asset handles, graphics camera state, reflection, lifecycle facade calls, and RPC; server systems use physics collision buffers, network managers, lists, dictionaries, queues, and RPC senders.
+
+- Observation: Building a source generator project does not deploy it into downstream game/module compilations; the registry generator was referenced by composition roots but generated no providers inside referenced `MyGame` assemblies.
+  Evidence: `MyGame.Server.Main` built successfully without `EcsUpdateRegistry.g.cs`, then failed at runtime with a missing descriptor for `NetworkSystem` until `Karpik.Engine.Core.Codegen` was added as an analyzer dependency for `Modules` and `MyGame`.
+
+- Observation: Treating `[SequentialSystem]` only as graph dependency metadata still publishes thread-affine systems to worker queues.
+  Evidence: the regression test `ParallelMode_SequentialSystem_RunsOnCallingThread` recorded a worker thread before the runtime fix; client input and ImGui interaction recovered after sequential nodes became calling-thread barriers.
 
 ## Decision Log
 
@@ -207,6 +214,14 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
   Rationale: Their external side effects are thread-affine or unanalyzable today; sequential quarantine is the safe 0.5 migration until those APIs receive explicit scheduler contracts.
   Date/Author: 2026-06-06 / agent
 
+- Decision: In parallel mode, `[SequentialSystem]` is a calling-thread barrier rather than a serialized worker job.
+  Rationale: Serialization alone does not preserve thread affinity. Waiting for the current batch, executing the sequential node on the orchestration thread, and then publishing the next batch preserves stable graph order without moving input, ImGui, networking, or compatibility APIs onto workers.
+  Date/Author: 2026-06-19 / developer and agent
+
+- Decision: Every project under `Modules` and `MyGame` receives `Karpik.Engine.Core.Codegen` as an analyzer dependency.
+  Rationale: Generated providers must live in the same assembly as internal `ISystemUpdate` implementations; a composition-root generator cannot emit accessible descriptors for referenced internal system types.
+  Date/Author: 2026-06-19 / developer and agent
+
 ## Future Versions / Backlog
 
 - Future version: Replace most per-method analyzer allowlists and manual access summaries with a generated cross-assembly ECS access manifest.
@@ -216,7 +231,7 @@ Replace the isolated Dragon `IEcsRunParallel` prototype with a public Karpik sch
 
 ## Outcomes & Retrospective
 
-`ISystemUpdate` now has a generated scheduler path for 0.5. Startup may allocate and use reflection to find generated providers, but frame execution uses generated descriptors, dense graph arrays, preallocated `ValueJobHandle` buffers, and `JobScheduler` value jobs. Fixed update remains sequential. Existing opaque game systems are quarantined with `[SequentialSystem]`, and the old Dragon `IEcsRunParallel` prototype is retained only as compatibility/baseline coverage behind analyzer restrictions.
+`ISystemUpdate` now has a generated scheduler path for 0.5. Startup may allocate and use reflection to find per-assembly generated providers, but frame execution uses generated descriptors, dense graph arrays, preallocated `ValueJobHandle` buffers, and `JobScheduler` value jobs. Fixed update remains sequential. Existing opaque game systems are quarantined with `[SequentialSystem]`; parallel mode executes them on the scheduler calling thread as barriers between worker batches. The old Dragon `IEcsRunParallel` prototype is retained only as compatibility/baseline coverage behind analyzer restrictions.
 
 ## Context And Orientation
 

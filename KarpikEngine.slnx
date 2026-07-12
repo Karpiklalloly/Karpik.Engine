@@ -28,6 +28,7 @@
   <Folder Name="/Modules/Client/Graphics/">
     <Project Path="Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" />
     <Project Path="Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj" />
+    <Project Path="Modules/Client/Graphics/Graphics.Headless/Graphics.Headless.csproj" />
     <Project Path="Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" />
   </Folder>
   <Folder Name="/Modules/Client/Network.Client/">
@@ -36,6 +37,7 @@
   </Folder>
   <Folder Name="/Modules/Client/Window/">
     <Project Path="Modules/Client/Window/Window.Core/Window.Core.csproj" />
+    <Project Path="Modules/Client/Window/Window.Headless/Window.Headless.csproj" />
     <Project Path="Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" />
   </Folder>
   <Folder Name="/Modules/Server/" />

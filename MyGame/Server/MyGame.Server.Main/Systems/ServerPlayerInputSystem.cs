@@ -6,7 +6,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.MyGame.Server.Main;
 
-internal class InputSystem : IEcsRunOnEvent<PlatformerInputCommand>
+internal class InputSystem : IEcsRunOnEvent<PlatformerInputCommand>, IEcsRunOnEvent<JumpCommand>
 {
     class NetworkIdAspect : EcsAspect
     {
@@ -27,6 +27,15 @@ internal class InputSystem : IEcsRunOnEvent<PlatformerInputCommand>
             MoveX = evt.MoveX,
             Jump = evt.Jump
         };
+    }
+
+    public void RunOnEvent(ref JumpCommand evt)
+    {
+        var entity = FindByNetworkId(evt.Target, _world.Base);
+        if (!entity.IsAlive) return;
+
+        ref WannaMove move = ref _world.Base.GetPool<WannaMove>().TryAddOrGet(entity.ID);
+        move.Jump = true;
     }
     
     protected entlong FindByNetworkId(int networkId, EcsWorld world)

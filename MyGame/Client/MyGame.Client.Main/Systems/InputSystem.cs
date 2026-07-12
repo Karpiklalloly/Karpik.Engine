@@ -48,7 +48,7 @@ public class InputSystem : ISystemUpdate
 
         // Platformer input - send to server
         float moveX = 0;
-        bool jump = false;
+        bool jump = _input.IsPressed(Key.Space) || _input.IsPressed(Key.W) || _input.IsPressed(Key.Up);
         
         if (_input.IsDown(Key.A) || _input.IsDown(Key.Left))
         {
@@ -60,23 +60,27 @@ public class InputSystem : ISystemUpdate
             moveX += 1;
         }
 
-        if (_input.IsPressed(Key.Space) || _input.IsPressed(Key.W) || _input.IsPressed(Key.Up))
+        var span = _world.Where(out Aspect a);
+        if (moveX != 0)
         {
-            jump = true;
-        }
-
-        if (jump || moveX != 0)
-        {
-            // Send platformer input command to server
-            var span = _world.Where(out Aspect a);
             foreach (var e in span)
             {
-                _rpc.PlatformerInput(new PlatformerInputCommand()
+                _rpc.PlatformerInput(new PlatformerInputCommand
                 {
                     MoveX = moveX,
-                    Jump = jump,
                     Target = a.networkId.Get(e).Id
-                });
+                }, DeliveryMethod.Sequenced);
+            }
+        }
+
+        if (jump)
+        {
+            foreach (var e in span)
+            {
+                _rpc.Jump(new JumpCommand
+                {
+                    Target = a.networkId.Get(e).Id
+                }, DeliveryMethod.ReliableOrdered);
             }
         }
         

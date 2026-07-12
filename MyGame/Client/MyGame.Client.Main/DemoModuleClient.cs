@@ -31,7 +31,7 @@ internal class DemoModuleClient : IModule
 {
     public void Import(IBuilder b)
     {
-        b.Add((object)new MySystem());
+        b.Add(new PauseInputSystem());
         b.Add(new SetLocalPlayerSystem());
         b.Add((object)new ApplySpriteSystem());
         b.Add((object)new DisplaySystem());

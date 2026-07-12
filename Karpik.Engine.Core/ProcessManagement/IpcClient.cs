@@ -51,9 +51,10 @@ internal class IpcClient : IDisposable
         await _pipe.FlushAsync(cancellationToken);
     }
     
-    public async Task SendReadyAsync(CancellationToken cancellationToken = default)
+    public async Task SendReadyAsync(string moduleDirectory, CancellationToken cancellationToken = default)
     {
-        await SendAsync(new IpcMessage(IpcMessageType.WorkerReady), cancellationToken);
+        var payload = System.Text.Encoding.UTF8.GetBytes(moduleDirectory);
+        await SendAsync(new IpcMessage(IpcMessageType.WorkerReady, payload), cancellationToken);
         Console.WriteLine("[IpcClient] Sent WorkerReady signal");
     }
     

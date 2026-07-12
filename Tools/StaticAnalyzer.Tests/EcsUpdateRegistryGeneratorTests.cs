@@ -61,7 +61,39 @@ public sealed class EcsUpdateRegistryGeneratorTests
         Assert.Contains("IsSequential: true", generatedSource);
     }
 
-    private static string RunGenerator(string source)
+    [Fact]
+    public void GeneratesSeparateRegistryProviderForRenderPrepareSystems()
+    {
+        string generatedSource = RunGenerator(
+            """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+
+            [Reads<Position>]
+            public sealed class DrawSystem : ISystemRenderPrepare
+            {
+                public void RenderPrepare()
+                {
+                }
+            }
+
+            public struct Position : IEcsComponent
+            {
+                public int X;
+            }
+            """,
+            "GeneratedEcsRenderPrepareRegistryProvider");
+
+        Assert.Contains("global::Karpik.Engine.Shared.ECS.Scheduling.IEcsRenderPrepareRegistryProvider", generatedSource);
+        Assert.Contains("typeof(global::DrawSystem)", generatedSource);
+        Assert.Contains("typeof(global::Position)", generatedSource);
+        Assert.Contains("GetRenderPrepareSystems", generatedSource);
+    }
+
+    private static string RunGenerator(
+        string source,
+        string providerName = "GeneratedEcsUpdateRegistryProvider")
     {
         string[] trustedPlatformAssemblies = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
             .Split(Path.PathSeparator);
@@ -97,7 +129,7 @@ public sealed class EcsUpdateRegistryGeneratorTests
 
         GeneratedSourceResult generated = Assert.Single(
             generatedSources,
-            result => result.Source.Contains("GeneratedEcsUpdateRegistryProvider"));
+            result => result.Source.Contains(providerName));
 
         return generated.Source;
     }

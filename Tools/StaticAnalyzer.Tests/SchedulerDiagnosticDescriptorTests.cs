@@ -8,6 +8,17 @@ namespace StaticAnalyzer.Tests;
 public sealed class SchedulerDiagnosticDescriptorTests
 {
     [Fact]
+    public void RenderPrepareCommandAttribute_AllowsInterfaceContracts()
+    {
+        var usage = Assert.Single(
+            typeof(Karpik.Engine.Shared.ECS.Scheduling.RenderPrepareCommandAttribute)
+                .GetCustomAttributes(typeof(AttributeUsageAttribute), inherit: false)
+                .Cast<AttributeUsageAttribute>());
+
+        Assert.True((usage.ValidOn & AttributeTargets.Interface) != 0);
+    }
+
+    [Fact]
     public void SchedulerDiagnosticIds_AreStableAndUnique()
     {
         string[] ids =
@@ -17,10 +28,12 @@ public sealed class SchedulerDiagnosticDescriptorTests
             DiagnosticIds.EcsInvalidOrderCycle,
             DiagnosticIds.EcsMainThreadOnlyUpdateAccess,
             DiagnosticIds.EcsUnsupportedManagedComponentSummary,
-            DiagnosticIds.EcsGeneratedRegistryMissingSystem
+            DiagnosticIds.EcsGeneratedRegistryMissingSystem,
+            DiagnosticIds.EcsRenderPrepareWriteAccess,
+            DiagnosticIds.EcsUpdateRenderCommandAccess
         ];
 
-        Assert.Equal(["K003", "K004", "K005", "K006", "K007", "K008"], ids);
+        Assert.Equal(["K003", "K004", "K005", "K006", "K007", "K008", "K009", "K010"], ids);
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
     }
 
@@ -34,7 +47,9 @@ public sealed class SchedulerDiagnosticDescriptorTests
             SchedulerDiagnosticDescriptors.InvalidOrderCycle,
             SchedulerDiagnosticDescriptors.MainThreadOnlyUpdateAccess,
             SchedulerDiagnosticDescriptors.UnsupportedManagedComponentSummary,
-            SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem
+            SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem,
+            SchedulerDiagnosticDescriptors.RenderPrepareWriteAccess,
+            SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess
         ];
 
         foreach (DiagnosticDescriptor descriptor in descriptors)
