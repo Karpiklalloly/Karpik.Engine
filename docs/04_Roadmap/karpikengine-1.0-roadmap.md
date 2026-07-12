@@ -132,25 +132,25 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Module Metadata
 
-- [ ] Выводить side, plugin id, logical module id и implementation из структуры каталогов и имен `.csproj`.
-- [ ] Хранить enabled/disabled и выбранную implementation в структурированных `KarpikModuleSelection`.
-- [ ] Использовать `KarpikModuleDependency` как единственный source-level project dependency item в `Modules` и `MyGame`.
-- [ ] Статически преобразовывать `KarpikModuleDependency` в MSBuild `ProjectReference`, чтобы IDE сразу видела типы.
-- [ ] Поддержать required/optional runtime dependencies.
-- [ ] Добавить configuration schema для build-time validation без runtime binding.
+- [x] Выводить side, plugin id, logical module id и implementation из структуры каталогов и имен `.csproj`.
+- [x] Хранить enabled/disabled и выбранную implementation в структурированных `KarpikModuleSelection`.
+- [x] Использовать `KarpikModuleDependency` как единственный source-level project dependency item в `Modules` и `MyGame`.
+- [x] Статически преобразовывать `KarpikModuleDependency` в MSBuild `ProjectReference`, чтобы IDE сразу видела типы.
+- [x] Поддержать required/optional runtime dependencies.
+- [x] Добавить configuration schema для build-time validation без runtime binding.
 
 ### Module Validation
 
-- [ ] Валидировать module graph:
-  - [ ] missing dependencies;
-  - [ ] required/disabled conflicts;
-  - [ ] circular dependencies.
-- [ ] Валидировать conventions и запрещать прямой source-level `ProjectReference` в `Modules` и `MyGame`.
-- [ ] Строить deterministic topo-order загрузки DLL для Client и Server.
-- [ ] Оставить `[Module(priority)]` для installer lifecycle, добавить deterministic tie-break и reverse destroy order.
-- [ ] Выдавать clear errors before runtime.
-- [ ] Хранить generated manifest внутри `Generated/ModuleLoader.cs`.
-- [ ] Покрыть module graph тестами.
+- [x] Валидировать module graph:
+  - [x] missing dependencies;
+  - [x] required/disabled conflicts;
+  - [x] circular dependencies.
+- [x] Валидировать conventions и запрещать прямой source-level `ProjectReference` в `Modules` и `MyGame`.
+- [x] Строить deterministic topo-order загрузки DLL для Client и Server.
+- [x] Оставить `[Module(priority)]` для installer lifecycle, добавить deterministic tie-break и reverse destroy order.
+- [x] Выдавать clear errors before runtime.
+- [x] Хранить generated manifest внутри `Generated/ModuleLoader.cs`.
+- [x] Покрыть module graph тестами.
 
 Подробный план: [`plans/module-graph-execplan.md`](../../plans/module-graph-execplan.md).
 
@@ -176,76 +176,75 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 Для 1.0 нужна практичная система, не "магический идеальный analyzer".
 
-- [ ] Поддержать явные атрибуты:
-  - [ ] `[Reads<T>]`
-  - [ ] `[Writes<T>]`
-  - [ ] `[Reads(typeof(T))]`
-  - [ ] `[Writes(typeof(T))]`
-  - [ ] `[RunsAfter<TSystem>]`
-  - [ ] `[RunsBefore<TSystem>]`
-- [ ] Analyzer-lite должен проверять простые случаи:
-  - [ ] system получает `EcsPool<T>` -> write;
-  - [ ] system получает `EcsReadonlyPool<T>` -> read;
-  - [ ] aspect fields;
-  - [ ] known helper wrappers.
+- [x] Поддержать явные атрибуты:
+  - [x] `[Reads<T>]`
+  - [x] `[Writes<T>]`
+  - [x] `[Reads(typeof(T))]`
+  - [x] `[Writes(typeof(T))]`
+  - [x] `[RunsAfter<TSystem>]`
+  - [x] `[RunsBefore<TSystem>]`
+- [x] Analyzer-lite должен проверять простые случаи:
+  - [x] system получает `EcsPool<T>` -> write;
+  - [x] system получает `EcsReadonlyPool<T>` -> read;
+  - [x] aspect fields;
+  - [x] known helper wrappers.
 - [ ] Analyzer не обязан идеально понимать для 1.0:
   - [ ] сложный control flow;
   - [ ] reflection;
   - [ ] indirect calls;
   - [ ] runtime-generated access;
   - [ ] aliasing через generic abstractions.
-- [ ] Добавить conservative fallback:
-  - [ ] unresolved access = conflict;
-  - [ ] explicit override attributes;
-  - [ ] diagnostics;
-  - [ ] ability to disable parallelization for system.
+- [x] Добавить conservative fallback:
+  - [x] unresolved access = conflict;
+  - [x] explicit override attributes;
+  - [x] diagnostics;
+  - [x] ability to disable parallelization for system.
 - [ ] Control-flow-aware analysis оставить как stretch внутри 0.5 или перенести post-1.0, если начнет блокировать релиз.
 
 ### Scheduler
 
-- [ ] Интегрировать изолированный прототип `IEcsRunParallel` в scheduler backend для `ISystemUpdate`.
-- [ ] Определить client runtime threading model:
-  - [ ] вызывать `MainThreadScheduler.Execute()` на OS/main thread;
-  - [ ] выполнять simulation phases на выделенном simulation thread;
-  - [ ] оставить platform/input часть `Begin` и submit/present часть `Render` на main thread;
-  - [ ] передавать immutable input snapshots и double-buffered render commands через границу потоков;
-  - [ ] добавить явные barriers для shutdown и hot reload.
+- [x] Заменить изолированный прототип `IEcsRunParallel` scheduler backend-ом для `ISystemUpdate`.
+- [x] Определить client runtime threading model:
+  - [x] вызывать main-thread phases на OS/main thread;
+  - [x] выполнять simulation phases на выделенном simulation thread;
+  - [x] оставить platform/input часть `Begin` и submit/present часть `Render` на main thread;
+  - [x] передавать input через bounded SPSC ring/latest-state boundary и render commands через triple-buffered command sets;
+  - [x] добавить явные barriers для shutdown и hot reload.
 - [ ] Добавить explicit thread-affinity metadata:
   - [ ] main-thread-only escape hatch для scheduled `ISystemUpdate` / `ISystemFixedUpdate`;
   - [ ] scheduler-owned dispatch через `MainThreadScheduler`;
   - [ ] диагностику попыток выполнить main-thread-only system на worker thread;
   - [ ] тесты, доказывающие, что main-thread-only systems не попадают в worker queue.
-- [ ] Использовать generated/manual read-write metadata.
-- [ ] Строить safe parallel groups.
-- [ ] Валидировать read/write conflicts.
-- [ ] Учитывать `RunAfter` / `RunBefore`.
-- [ ] Поддержать cycle detection для explicit ordering.
-- [ ] Добавить diagnostics for invalid order.
-- [ ] Добавить visualization/debug dump of execution order.
+- [x] Использовать generated/manual read-write metadata.
+- [x] Строить safe parallel groups.
+- [x] Валидировать read/write conflicts.
+- [x] Учитывать `RunAfter` / `RunBefore`.
+- [x] Поддержать cycle detection для explicit ordering.
+- [x] Добавить diagnostics for invalid order.
 - [ ] Поддержать fixed phase groups.
-- [ ] Поддержать update phase groups.
-- [ ] Поддержать render submit phase groups.
-- [ ] Добавить single-thread fallback mode.
-- [ ] Добавить deterministic scheduling option.
+- [x] Поддержать update phase groups.
+- [x] Поддержать render-prepare phase groups.
+- [x] Добавить single-thread fallback mode.
+- [x] Добавить deterministic scheduling option.
 
 ### Karpik.Jobs
 
-- [ ] Стабилизировать как отдельный submodule/product:
-  - [ ] public API;
-  - [ ] standalone tests;
-  - [ ] benchmarks;
-  - [ ] docs;
-  - [ ] standalone usage examples.
+- [x] Стабилизировать как отдельный submodule/product:
+  - [x] public API;
+  - [x] standalone tests;
+  - [x] benchmarks;
+  - [x] docs;
+  - [x] standalone usage examples.
 - [ ] Обязательные features к 1.0:
-  - [ ] job handles;
-  - [ ] dependencies;
-  - [ ] worker pool;
-  - [ ] clean shutdown;
-  - [ ] no-GC scheduling after warm-up;
-  - [ ] simple work stealing or equivalent balancing;
+  - [x] job handles;
+  - [x] dependencies;
+  - [x] worker pool;
+  - [x] clean shutdown;
+  - [x] no-GC scheduling after warm-up;
+  - [x] simple work stealing or equivalent balancing;
   - [ ] optimized cancellation path;
-  - [ ] exception handling/reporting;
-  - [ ] profiler hooks.
+  - [x] exception handling/reporting;
+  - [x] profiler hooks.
 - [ ] Необязательно к 1.0:
   - [ ] сложные scheduling heuristics;
   - [ ] fiber-like execution;
@@ -253,15 +252,15 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Memory
 
-- [ ] Добавить unmanaged allocators:
-  - [ ] arena allocator;
-  - [ ] linear allocator;
-  - [ ] pool allocator;
-  - [ ] explicit lifetime/dispose;
-  - [ ] `Span<T>` / ref-friendly wrappers;
-  - [ ] leak diagnostics;
-  - [ ] double-dispose checks where practical;
-  - [ ] debug mode validation.
+- [x] Добавить unmanaged allocators:
+  - [x] arena allocator;
+  - [x] linear allocator;
+  - [x] pool allocator;
+  - [x] explicit lifetime/dispose;
+  - [x] `Span<T>` / ref-friendly wrappers;
+  - [x] leak diagnostics;
+  - [x] double-dispose checks where practical;
+  - [x] debug mode validation.
 
 ### Allocation Tests
 
@@ -274,12 +273,12 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Done Criteria
 
-- [ ] Есть safe parallel ECS execution.
-- [ ] Можно отключить parallel execution.
-- [ ] No-GC scheduling после warm-up.
-- [ ] Есть diagnostics конфликтов.
-- [ ] Jobs можно использовать отдельно.
-- [ ] Есть базовые benchmarks.
+- [x] Есть safe parallel ECS execution.
+- [x] Можно отключить parallel execution.
+- [x] No-GC scheduling после warm-up.
+- [x] Есть diagnostics конфликтов.
+- [x] Jobs можно использовать отдельно.
+- [x] Есть базовые benchmarks.
 
 ## 0.6 2D Runtime Core
 
@@ -357,12 +356,12 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Camera2D
 
-- [ ] Position.
-- [ ] Zoom.
-- [ ] Rotation.
-- [ ] Viewport.
-- [ ] Screen-to-world.
-- [ ] World-to-screen.
+- [x] Position.
+- [x] Zoom.
+- [x] Rotation.
+- [x] Viewport.
+- [x] Screen-to-world.
+- [x] World-to-screen.
 - [ ] Camera-relative rendering.
 - [ ] Multiple cameras where practical.
 
@@ -394,20 +393,20 @@ System dependency graph для публичных `ISystem*` перенесён 
 
 ### Input
 
-- [ ] Перевести input module на no-GC snapshot API.
+- [x] Перевести input module на no-GC snapshot API.
 - [ ] Поддержать:
-  - [ ] keyboard held/pressed/released;
-  - [ ] mouse position;
-  - [ ] mouse delta;
-  - [ ] mouse wheel;
-  - [ ] mouse buttons;
-  - [ ] text input separately from key input;
+  - [x] keyboard held/pressed/released;
+  - [x] mouse position;
+  - [x] mouse delta;
+  - [x] mouse wheel;
+  - [x] mouse buttons;
+  - [x] text input separately from key input;
   - [ ] gamepad buttons;
   - [ ] gamepad sticks;
   - [ ] gamepad triggers;
   - [ ] gamepad connection/disconnection;
   - [ ] optional touch abstraction;
-  - [ ] input capture integration for UI/debug overlay.
+  - [x] input capture integration for UI/debug overlay.
 
 ### Input Action / Remapping
 
@@ -764,6 +763,7 @@ System dependency graph для публичных `ISystem*` перенесён 
 - [ ] Component viewer.
 - [ ] System execution timeline.
 - [ ] Scheduler conflict view.
+- [ ] System execution-order report / visualization.
 - [ ] Job stats.
 - [ ] Renderer stats.
 - [ ] Asset hot reload log.
