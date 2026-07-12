@@ -10,7 +10,7 @@ public enum GraphicsLoadTestScenario
 
 public sealed class GraphicsLoadTestSettings
 {
-    public const int MaxQuadCount = 8192;
+    public const int MaxQuadCount = 8192 * 2;
 
     private int _quadCount;
     private int _scenario;
