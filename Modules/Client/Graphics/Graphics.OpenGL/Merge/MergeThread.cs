@@ -45,6 +45,9 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private Camera2D _buildCamera;
     private float _buildFramebufferWidth;
     private float _buildFramebufferHeight;
+    private long _currentMergeSortTicks;
+    private long _currentMergeBufferUpdateTicks;
+    private long _currentMergeDrawEncodeTicks;
 
     private bool _isUsingA = true;
 
@@ -245,9 +248,19 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
             try
             {
+                long allocatedBytesBefore = GC.GetAllocatedBytesForCurrentThread();
+                int gen0CollectionsBefore = GC.CollectionCount(0);
                 long startedAt = Stopwatch.GetTimestamp();
                 BuildCommandList();
-                _clientFrameMetrics.PublishMergeBuild(Stopwatch.GetTimestamp() - startedAt);
+                long totalTicks = Stopwatch.GetTimestamp() - startedAt;
+                _clientFrameMetrics.PublishMergeBuild(totalTicks);
+                _clientFrameMetrics.PublishMergeBreakdown(
+                    _currentMergeSortTicks,
+                    Math.Max(0, totalTicks - _currentMergeSortTicks - _currentMergeBufferUpdateTicks - _currentMergeDrawEncodeTicks),
+                    _currentMergeBufferUpdateTicks,
+                    _currentMergeDrawEncodeTicks,
+                    GC.GetAllocatedBytesForCurrentThread() - allocatedBytesBefore,
+                    GC.CollectionCount(0) - gen0CollectionsBefore);
                 Volatile.Write(ref _completedContextIndex, _buildContextIndex);
             }
             catch (Exception ex)
@@ -309,6 +322,10 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     private void BuildCommandList()
     {
+        _currentMergeSortTicks = 0;
+        _currentMergeBufferUpdateTicks = 0;
+        _currentMergeDrawEncodeTicks = 0;
+
         var context = _buildContext;
 
         float sw = _buildFramebufferWidth;
@@ -332,7 +349,9 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             var rects = buffer.GetRectCommands();
             var textures = buffer.GetTextureCommands();
             var texts = buffer.GetTextCommands();
+            long sortStartedAt = Stopwatch.GetTimestamp();
             var commands = ((IOrderedCommandBuffer)buffer).GetCommands();
+            _currentMergeSortTicks += Stopwatch.GetTimestamp() - sortStartedAt;
 
             foreach (ref readonly var command in commands)
             {
@@ -561,8 +580,12 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         if (quadCount == 0 || rs == null) return;
 
         uint sizeInBytes = (uint)(quadCount * 4 * Vertex2D.SizeInBytes);
+        long updateStartedAt = Stopwatch.GetTimestamp();
         context.CommandList.UpdateBuffer(context.VertexBuffer, 0, ref context.Vertices[0], sizeInBytes);
+        _currentMergeBufferUpdateTicks += Stopwatch.GetTimestamp() - updateStartedAt;
+        long drawStartedAt = Stopwatch.GetTimestamp();
         context.CommandList.DrawIndexed((uint)(quadCount * 6));
+        _currentMergeDrawEncodeTicks += Stopwatch.GetTimestamp() - drawStartedAt;
 
         quadCount = 0;
     }

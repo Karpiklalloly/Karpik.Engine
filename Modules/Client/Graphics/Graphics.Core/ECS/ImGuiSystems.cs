@@ -64,7 +64,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Text($"Mouse: {_inputSource.MousePosition.X:0}, {_inputSource.MousePosition.Y:0}");
         ClientFrameTimingSnapshot timings = _clientFrameMetrics.GetSnapshot();
         ImGui.SeparatorText("Threaded frame timings");
-        ImGui.TextUnformatted("Last completed 1-second window: avg / p95 / max");
+        ImGui.TextUnformatted("Last completed 1-second window: avg / p95 / p99 / max");
         DrawTimingSummary("Main frame", timings.MainThreadFrame);
         DrawTimingSummary("Main begin", timings.MainThreadBegin);
         DrawTimingSummary("Frame begin", timings.MainThreadFrameBegin);
@@ -72,6 +72,11 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         DrawTimingSummary("Simulation queue", timings.SimulationQueue);
         DrawTimingSummary("Simulation", timings.Simulation);
         DrawTimingSummary("Merge build", timings.MergeBuild);
+        DrawTimingSummary("Merge sort", timings.MergeSort);
+        DrawTimingSummary("Merge vertices", timings.MergeVertices);
+        DrawTimingSummary("Merge buffer update", timings.MergeBufferUpdate);
+        DrawTimingSummary("Merge draw encode", timings.MergeDrawEncode);
+        DrawAllocationSummary("Merge allocations", timings.MergeAllocations);
         DrawTimingSummary("Present CPU", timings.PresentCpu);
         DrawTimingSummary("Present interval", timings.PresentInterval);
         DrawTimingSummary("GPU command", timings.GpuCommand);
@@ -79,7 +84,7 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.Text($"Merge command list unavailable: {timings.MergeAvailability.UnavailableCount} / {timings.MergeAvailability.PollCount} ({GetPercent(timings.MergeAvailability):0.0}%)");
         if (ImGui.Button("Copy timings"))
         {
-            ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, _graphicsLoadTestSettings.QuadCount));
+            ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, _graphicsLoadTestSettings.QuadCount, _graphicsLoadTestSettings.Scenario));
         }
         int stressQuadCount = _graphicsLoadTestSettings.QuadCount;
         if (ImGui.SliderInt("Stress quads", ref stressQuadCount, 0, GraphicsLoadTestSettings.MaxQuadCount))
@@ -90,9 +95,17 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         ImGui.SameLine();
         if (ImGui.Button("Stress 4k")) _graphicsLoadTestSettings.QuadCount = 4096;
         ImGui.SameLine();
-        if (ImGui.Button("Stress 8k")) _graphicsLoadTestSettings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount;
+        if (ImGui.Button("Stress max")) _graphicsLoadTestSettings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount;
         ImGui.SameLine();
         if (ImGui.Button("Clear stress")) _graphicsLoadTestSettings.QuadCount = 0;
+        ImGui.Text($"Stress scenario: {GraphicsLoadTestSettings.GetScenarioName(_graphicsLoadTestSettings.Scenario)}");
+        if (ImGui.Button("Sorted rects")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.SortedRects;
+        ImGui.SameLine();
+        if (ImGui.Button("Unsorted rects")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.UnsortedRects;
+        ImGui.SameLine();
+        if (ImGui.Button("Texture batches")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureBatches;
+        ImGui.SameLine();
+        if (ImGui.Button("Texture thrash")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureThrash;
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();
     }
@@ -105,6 +118,11 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
     private static double GetPercent(MergeAvailabilitySummary summary)
     {
         return summary.PollCount == 0 ? 0d : summary.UnavailableCount * 100d / summary.PollCount;
+    }
+
+    private static void DrawAllocationSummary(string name, AllocationSummary summary)
+    {
+        ImGui.Text($"{name}: {summary.TotalBytes} B total / {summary.MaxBytes} B max, Gen0: {summary.Gen0CollectionCount} ({summary.SampleCount})");
     }
 
     private static double ToFramesPerSecond(long frameIntervalTicks)

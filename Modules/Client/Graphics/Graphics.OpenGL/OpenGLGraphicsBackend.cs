@@ -13,6 +13,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly GraphicsDevice _device;
     private readonly IMergeThread _mergeThread;
     private readonly Preset2DPipeline _pipeline;
+    private readonly GraphicsLoadTestResources _graphicsLoadTestResources;
     private readonly ImGuiRenderContext _imgui;
     private readonly IWindow _window;
     private readonly IInputSource _inputSource;
@@ -25,6 +26,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         GraphicsDevice device,
         IMergeThread mergeThread,
         Preset2DPipeline pipeline,
+        GraphicsLoadTestResources graphicsLoadTestResources,
         ImGuiRenderContext imgui,
         IWindow window,
         IInputSource inputSource,
@@ -34,6 +36,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         _device = device;
         _mergeThread = mergeThread;
         _pipeline = pipeline;
+        _graphicsLoadTestResources = graphicsLoadTestResources;
         _imgui = imgui;
         _window = window;
         _inputSource = inputSource;
@@ -46,6 +49,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     public void Initialize()
     {
         _pipeline.Init();
+        _graphicsLoadTestResources.Initialize(_device, _pipeline.TextureLayout);
         _imgui.Init(_device, _window);
     }
 
@@ -122,6 +126,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 
     public void Dispose()
     {
+        _graphicsLoadTestResources.Dispose();
     }
 
     private void PublishGpuTimestampIfAvailable()

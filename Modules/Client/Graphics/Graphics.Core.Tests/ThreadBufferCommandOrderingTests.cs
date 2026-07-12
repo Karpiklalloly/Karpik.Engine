@@ -23,6 +23,30 @@ public sealed class ThreadBufferCommandOrderingTests
         Assert.Equal(2, commands[2].Index);
     }
 
+    [Fact]
+    public void GetCommands_ReverseOrderedStress_IsStableAndAllocationFree()
+    {
+        const int commandCount = 16_384;
+        ThreadBuffer buffer = new();
+        buffer.EnsureCapacity(rects: commandCount, textures: 0, texts: 0, commands: commandCount);
+
+        for (int i = 0; i < commandCount; i++)
+        {
+            buffer.Add(new DrawRectCmd { Color = Color.Red, SortKey = (ulong)(commandCount - i) });
+        }
+
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        ReadOnlySpan<DrawCommand> commands = ((IOrderedCommandBuffer)buffer).GetCommands();
+        long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+
+        Assert.Equal(0, allocatedBytes);
+        for (int i = 0; i < commandCount; i++)
+        {
+            Assert.Equal((ulong)(i + 1), commands[i].SortKey);
+            Assert.Equal(commandCount - i - 1, commands[i].Index);
+        }
+    }
+
     [Theory]
     [InlineData(int.MinValue, 0UL)]
     [InlineData(0, 2147483648UL)]

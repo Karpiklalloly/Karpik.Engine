@@ -39,6 +39,23 @@ public sealed class ClientFrameMetricsTests
     }
 
     [Fact]
+    public void FrameAllocationWindow_AtIntervalBoundary_PublishesAllocationTotals()
+    {
+        var window = new FrameAllocationWindow(windowDurationTicks: 100);
+
+        window.Publish(bytes: 16, gen0CollectionCount: 0, timestamp: 0);
+        window.Publish(bytes: 32, gen0CollectionCount: 1, timestamp: 10);
+        window.Publish(bytes: 8, gen0CollectionCount: 0, timestamp: 100);
+
+        AllocationSummary summary = window.GetSummary();
+
+        Assert.Equal(48, summary.TotalBytes);
+        Assert.Equal(32, summary.MaxBytes);
+        Assert.Equal(1, summary.Gen0CollectionCount);
+        Assert.Equal(2, summary.SampleCount);
+    }
+
+    [Fact]
     public void FrameTimingWindow_WithMoreSamplesThanPreviousRing_UsesAllSamplesForPercentiles()
     {
         var window = new FrameTimingWindow(windowDurationTicks: 10_000);
@@ -59,8 +76,8 @@ public sealed class ClientFrameMetricsTests
 
         Assert.Equal(2048, summary.SampleCount);
         Assert.Equal(55, summary.AverageTicks);
-        Assert.InRange(summary.P95Ticks, 100, 101);
-        Assert.InRange(summary.P99Ticks, 100, 101);
+        Assert.Equal(100, summary.P95Ticks);
+        Assert.Equal(100, summary.P99Ticks);
         Assert.Equal(100, summary.MaxTicks);
     }
 

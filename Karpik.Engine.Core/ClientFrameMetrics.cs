@@ -30,6 +30,11 @@ public readonly struct ClientFrameTimingSnapshot
     public readonly TimingSummary SimulationQueue;
     public readonly TimingSummary Simulation;
     public readonly TimingSummary MergeBuild;
+    public readonly TimingSummary MergeSort;
+    public readonly TimingSummary MergeVertices;
+    public readonly TimingSummary MergeBufferUpdate;
+    public readonly TimingSummary MergeDrawEncode;
+    public readonly AllocationSummary MergeAllocations;
     public readonly TimingSummary PresentCpu;
     public readonly TimingSummary PresentInterval;
     public readonly TimingSummary GpuCommand;
@@ -43,6 +48,11 @@ public readonly struct ClientFrameTimingSnapshot
         TimingSummary simulationQueue,
         TimingSummary simulation,
         TimingSummary mergeBuild,
+        TimingSummary mergeSort,
+        TimingSummary mergeVertices,
+        TimingSummary mergeBufferUpdate,
+        TimingSummary mergeDrawEncode,
+        AllocationSummary mergeAllocations,
         TimingSummary presentCpu,
         TimingSummary presentInterval,
         TimingSummary gpuCommand,
@@ -55,6 +65,11 @@ public readonly struct ClientFrameTimingSnapshot
         SimulationQueue = simulationQueue;
         Simulation = simulation;
         MergeBuild = mergeBuild;
+        MergeSort = mergeSort;
+        MergeVertices = mergeVertices;
+        MergeBufferUpdate = mergeBufferUpdate;
+        MergeDrawEncode = mergeDrawEncode;
+        MergeAllocations = mergeAllocations;
         PresentCpu = presentCpu;
         PresentInterval = presentInterval;
         GpuCommand = gpuCommand;
@@ -71,6 +86,22 @@ public readonly struct MergeAvailabilitySummary
     {
         UnavailableCount = unavailableCount;
         PollCount = pollCount;
+    }
+}
+
+public readonly struct AllocationSummary
+{
+    public readonly long TotalBytes;
+    public readonly long MaxBytes;
+    public readonly int Gen0CollectionCount;
+    public readonly int SampleCount;
+
+    internal AllocationSummary(long totalBytes, long maxBytes, int gen0CollectionCount, int sampleCount)
+    {
+        TotalBytes = totalBytes;
+        MaxBytes = maxBytes;
+        Gen0CollectionCount = gen0CollectionCount;
+        SampleCount = sampleCount;
     }
 }
 
@@ -140,8 +171,8 @@ internal sealed class FrameTimingWindow
         }
 
         Volatile.Write(ref _averageTicks, _sum / _totalSampleCount);
-        Volatile.Write(ref _p95Ticks, GetPercentileTicks(95));
-        Volatile.Write(ref _p99Ticks, GetPercentileTicks(99));
+        Volatile.Write(ref _p95Ticks, Math.Min(_max, GetPercentileTicks(95)));
+        Volatile.Write(ref _p99Ticks, Math.Min(_max, GetPercentileTicks(99)));
         Volatile.Write(ref _maxTicks, _max);
         Volatile.Write(ref _publishedSampleCount, _totalSampleCount);
     }
@@ -247,6 +278,64 @@ internal sealed class FrameCounterWindow
     }
 }
 
+internal sealed class FrameAllocationWindow
+{
+    private readonly long _windowDurationTicks;
+    private long _windowStartedAt = -1;
+    private long _totalBytes;
+    private long _maxBytes;
+    private int _gen0CollectionCount;
+    private int _sampleCount;
+    private long _publishedTotalBytes;
+    private long _publishedMaxBytes;
+    private int _publishedGen0CollectionCount;
+    private int _publishedSampleCount;
+
+    public FrameAllocationWindow() : this(Stopwatch.Frequency)
+    {
+    }
+
+    public FrameAllocationWindow(long windowDurationTicks)
+    {
+        _windowDurationTicks = windowDurationTicks;
+    }
+
+    public void Publish(long bytes, int gen0CollectionCount, long timestamp)
+    {
+        if (_windowStartedAt < 0)
+        {
+            _windowStartedAt = timestamp;
+        }
+        else if (timestamp - _windowStartedAt >= _windowDurationTicks)
+        {
+            Volatile.Write(ref _publishedTotalBytes, _totalBytes);
+            Volatile.Write(ref _publishedMaxBytes, _maxBytes);
+            Volatile.Write(ref _publishedGen0CollectionCount, _gen0CollectionCount);
+            Volatile.Write(ref _publishedSampleCount, _sampleCount);
+            _windowStartedAt = timestamp;
+            _totalBytes = 0;
+            _maxBytes = 0;
+            _gen0CollectionCount = 0;
+            _sampleCount = 0;
+        }
+
+        _totalBytes += bytes;
+        if (bytes > _maxBytes)
+        {
+            _maxBytes = bytes;
+        }
+
+        _gen0CollectionCount += gen0CollectionCount;
+        _sampleCount++;
+    }
+
+    public AllocationSummary GetSummary() => new(
+        Volatile.Read(ref _publishedTotalBytes),
+        Volatile.Read(ref _publishedMaxBytes),
+        Volatile.Read(ref _publishedGen0CollectionCount),
+        Volatile.Read(ref _publishedSampleCount));
+}
+
 public sealed class ClientFrameMetrics
 {
     private readonly FrameTimingWindow _mainThreadFrame = new();
@@ -256,6 +345,11 @@ public sealed class ClientFrameMetrics
     private readonly FrameTimingWindow _simulationQueue = new();
     private readonly FrameTimingWindow _simulation = new();
     private readonly FrameTimingWindow _mergeBuild = new();
+    private readonly FrameTimingWindow _mergeSort = new();
+    private readonly FrameTimingWindow _mergeVertices = new();
+    private readonly FrameTimingWindow _mergeBufferUpdate = new();
+    private readonly FrameTimingWindow _mergeDrawEncode = new();
+    private readonly FrameAllocationWindow _mergeAllocations = new();
     private readonly FrameTimingWindow _presentCpu = new();
     private readonly FrameTimingWindow _presentInterval = new();
     private readonly FrameTimingWindow _gpuCommand = new();
@@ -275,6 +369,15 @@ public sealed class ClientFrameMetrics
     }
 
     public void PublishMergeBuild(long ticks) => _mergeBuild.Publish(ticks, Stopwatch.GetTimestamp());
+    public void PublishMergeBreakdown(long sortTicks, long vertexTicks, long bufferUpdateTicks, long drawEncodeTicks, long allocatedBytes, int gen0Collections)
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        _mergeSort.Publish(sortTicks, timestamp);
+        _mergeVertices.Publish(vertexTicks, timestamp);
+        _mergeBufferUpdate.Publish(bufferUpdateTicks, timestamp);
+        _mergeDrawEncode.Publish(drawEncodeTicks, timestamp);
+        _mergeAllocations.Publish(allocatedBytes, gen0Collections, timestamp);
+    }
     public void PublishMergeAvailability(bool isReady) => _mergeAvailability.Publish(isReady, Stopwatch.GetTimestamp());
 
     public void PublishPresent(long cpuTicks)
@@ -301,6 +404,11 @@ public sealed class ClientFrameMetrics
         _simulationQueue.GetSummary(),
         _simulation.GetSummary(),
         _mergeBuild.GetSummary(),
+        _mergeSort.GetSummary(),
+        _mergeVertices.GetSummary(),
+        _mergeBufferUpdate.GetSummary(),
+        _mergeDrawEncode.GetSummary(),
+        _mergeAllocations.GetSummary(),
         _presentCpu.GetSummary(),
         _presentInterval.GetSummary(),
         _gpuCommand.GetSummary(),

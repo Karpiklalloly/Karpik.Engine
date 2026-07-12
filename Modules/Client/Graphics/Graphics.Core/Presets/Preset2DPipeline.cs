@@ -14,6 +14,7 @@ public class Preset2DPipeline
     public Pipeline RectPipeline { get; private set; } = null!;
     public Pipeline TexturePipeline { get; private set; } = null!;
     public Pipeline TextPipeline { get; private set; } = null!;
+    public ResourceLayout TextureLayout => _textureLayout;
     
     public ResourceSet WhiteRectResourceSet => _textureResources.WhiteRectResourceSet;
 

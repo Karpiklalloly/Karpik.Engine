@@ -6,7 +6,7 @@ namespace Karpik.Engine.Client.Graphics.Core;
 
 public static class FrameTimingClipboardFormatter
 {
-    public static string Format(in ClientFrameTimingSnapshot timings, int stressQuadCount)
+    public static string Format(in ClientFrameTimingSnapshot timings, int stressQuadCount, GraphicsLoadTestScenario stressScenario)
     {
         var builder = new StringBuilder(512);
         builder.AppendLine("Karpik threaded frame timings");
@@ -18,6 +18,11 @@ public static class FrameTimingClipboardFormatter
         AppendTiming(builder, "Simulation queue", timings.SimulationQueue);
         AppendTiming(builder, "Simulation", timings.Simulation);
         AppendTiming(builder, "Merge build", timings.MergeBuild);
+        AppendTiming(builder, "Merge sort", timings.MergeSort);
+        AppendTiming(builder, "Merge vertices", timings.MergeVertices);
+        AppendTiming(builder, "Merge buffer update", timings.MergeBufferUpdate);
+        AppendTiming(builder, "Merge draw encode", timings.MergeDrawEncode);
+        AppendAllocation(builder, "Merge allocations", timings.MergeAllocations);
         AppendTiming(builder, "Present CPU", timings.PresentCpu);
         AppendTiming(builder, "Present interval", timings.PresentInterval);
         AppendTiming(builder, "GPU command", timings.GpuCommand);
@@ -28,7 +33,8 @@ public static class FrameTimingClipboardFormatter
         builder.Append("Merge command list unavailable: ")
             .Append(availability.UnavailableCount).Append(" / ").Append(availability.PollCount)
             .Append(" (").Append(unavailablePercent.ToString("0.0")).AppendLine("%)");
-        builder.Append("Stress quads: ").Append(stressQuadCount);
+        builder.Append("Stress quads: ").AppendLine(stressQuadCount.ToString());
+        builder.Append("Stress scenario: ").Append(GraphicsLoadTestSettings.GetScenarioName(stressScenario));
         return builder.ToString();
     }
 
@@ -40,5 +46,13 @@ public static class FrameTimingClipboardFormatter
             .Append(ClientFrameMetrics.ToMilliseconds(summary.P99Ticks).ToString("0.00")).Append(" / ")
             .Append(ClientFrameMetrics.ToMilliseconds(summary.MaxTicks).ToString("0.00"))
             .Append(" ms (").Append(summary.SampleCount).AppendLine(")");
+    }
+
+    private static void AppendAllocation(StringBuilder builder, string name, AllocationSummary summary)
+    {
+        builder.Append(name).Append(": ")
+            .Append(summary.TotalBytes).Append(" B total / ")
+            .Append(summary.MaxBytes).Append(" B max, Gen0: ")
+            .Append(summary.Gen0CollectionCount).Append(" (").Append(summary.SampleCount).AppendLine(")");
     }
 }

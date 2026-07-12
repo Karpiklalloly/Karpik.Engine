@@ -51,6 +51,7 @@ public class GraphicsOpenGLInstaller : IInstaller, IInstallerConfiguratable, IIn
             _graphicsDevice,
             _mergeThread,
             pipeline,
+            services.Get<GraphicsLoadTestResources>()!,
             services.Get<ImGuiRenderContext>()!,
             services.Get<IWindow>()!,
             services.Get<IInputSource>()!,
