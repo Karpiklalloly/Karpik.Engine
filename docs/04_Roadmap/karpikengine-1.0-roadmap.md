@@ -188,18 +188,14 @@ System dependency graph для публичных `ISystem*` перенесён 
   - [x] system получает `EcsReadonlyPool<T>` -> read;
   - [x] aspect fields;
   - [x] known helper wrappers.
-- [ ] Analyzer не обязан идеально понимать для 1.0:
-  - [ ] сложный control flow;
-  - [ ] reflection;
-  - [ ] indirect calls;
-  - [ ] runtime-generated access;
-  - [ ] aliasing через generic abstractions.
+Analyzer в 1.0 fail-closed для сложного control flow, reflection, indirect calls,
+runtime-generated access и aliasing через generic abstractions.
 - [x] Добавить conservative fallback:
   - [x] unresolved access = conflict;
   - [x] explicit override attributes;
   - [x] diagnostics;
   - [x] ability to disable parallelization for system.
-- [ ] Control-flow-aware analysis оставить как stretch внутри 0.5 или перенести post-1.0, если начнет блокировать релиз.
+Control-flow-aware analysis — post-1.0.
 
 ### Scheduler
 
@@ -210,18 +206,15 @@ System dependency graph для публичных `ISystem*` перенесён 
   - [x] оставить platform/input часть `Begin` и submit/present часть `Render` на main thread;
   - [x] передавать input через bounded SPSC ring/latest-state boundary и render commands через triple-buffered command sets;
   - [x] добавить явные barriers для shutdown и hot reload.
-- [ ] Добавить explicit thread-affinity metadata:
-  - [ ] main-thread-only escape hatch для scheduled `ISystemUpdate` / `ISystemFixedUpdate`;
-  - [ ] scheduler-owned dispatch через `MainThreadScheduler`;
-  - [ ] диагностику попыток выполнить main-thread-only system на worker thread;
-  - [ ] тесты, доказывающие, что main-thread-only systems не попадают в worker queue.
+Platform, ImGui и render остаются в dedicated main-thread lifecycle phases; они не dispatch-ятся обратно
+из `ISystemUpdate`. `ISystemUpdate` выполняется на simulation worker и проверяется analyzer-ом.
 - [x] Использовать generated/manual read-write metadata.
 - [x] Строить safe parallel groups.
 - [x] Валидировать read/write conflicts.
 - [x] Учитывать `RunAfter` / `RunBefore`.
 - [x] Поддержать cycle detection для explicit ordering.
 - [x] Добавить diagnostics for invalid order.
-- [ ] Поддержать fixed phase groups.
+- [x] `ISystemFixedUpdate` остаётся последовательным и deterministic; parallel fixed groups — post-1.0.
 - [x] Поддержать update phase groups.
 - [x] Поддержать render-prepare phase groups.
 - [x] Добавить single-thread fallback mode.
@@ -235,17 +228,17 @@ System dependency graph для публичных `ISystem*` перенесён 
   - [x] benchmarks;
   - [x] docs;
   - [x] standalone usage examples.
-- [ ] Обязательные features к 1.0:
+- [x] Обязательные features к 1.0:
   - [x] job handles;
   - [x] dependencies;
   - [x] worker pool;
   - [x] clean shutdown;
   - [x] no-GC scheduling after warm-up;
   - [x] simple work stealing or equivalent balancing;
-  - [ ] optimized cancellation path;
   - [x] exception handling/reporting;
   - [x] profiler hooks.
 - [ ] Необязательно к 1.0:
+  - [ ] optimized cancellation path for standalone value jobs;
   - [ ] сложные scheduling heuristics;
   - [ ] fiber-like execution;
   - [ ] custom task graph editor.
@@ -262,14 +255,7 @@ System dependency graph для публичных `ISystem*` перенесён 
   - [x] double-dispose checks where practical;
   - [x] debug mode validation.
 
-### Allocation Tests
-
-- [ ] Job scheduling.
-- [ ] ECS scheduler.
-- [ ] System metadata lookup.
-- [ ] Fixed update frame.
-- [ ] Render submit path.
-- [ ] Common allocator usage.
+Allocation gates для runtime subsystems ведутся в их собственных release sections; они не блокируют 0.5.
 
 ### Done Criteria
 
