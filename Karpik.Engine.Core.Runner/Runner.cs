@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Diagnostics;
+using System.Text;
 using DCFApixels.DragonECS;
 using DragonExtensions;
 using Karpik.Engine.Core.Runner;
@@ -171,6 +172,149 @@ public class EngineRunner : IEngineRunner
             _fixedRunner,
             _ecsUpdateScheduler,
             _lateRunner);
+    }
+
+    public EditorRuntimeSnapshot CaptureEditorSnapshot()
+    {
+        var world = _serviceProvider.Get<EcsDefaultWorld>();
+        if (world is null || world.IsDestroyed)
+        {
+            return new EditorRuntimeSnapshot
+            {
+                CapturedAtUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+        }
+
+        var entities = new List<EditorEntitySnapshot>(Math.Min(world.Count, EditorSnapshotLimits.MaxEntities));
+        var totalComponents = 0;
+        var isTruncated = world.Count > EditorSnapshotLimits.MaxEntities;
+        foreach (var entityId in world.Entities)
+        {
+            if (entities.Count == EditorSnapshotLimits.MaxEntities)
+            {
+                break;
+            }
+
+            var components = world.GetComponentsFor(entityId);
+            int componentCount = Math.Min(
+                components.Length,
+                Math.Min(
+                    EditorSnapshotLimits.MaxComponentsPerEntity,
+                    EditorSnapshotLimits.MaxComponents - totalComponents));
+            if (componentCount < components.Length)
+            {
+                isTruncated = true;
+            }
+
+            var componentSnapshots = new EditorComponentSnapshot[componentCount];
+            for (var componentIndex = 0; componentIndex < componentCount; componentIndex++)
+            {
+                var component = components[componentIndex];
+                string displayValue = FormatComponent(component);
+                if (displayValue.Length > EditorSnapshotLimits.MaxDisplayValueLength)
+                {
+                    displayValue = displayValue[..EditorSnapshotLimits.MaxDisplayValueLength];
+                    isTruncated = true;
+                }
+
+                componentSnapshots[componentIndex] = new EditorComponentSnapshot
+                {
+                    TypeName = component.GetType().FullName ?? component.GetType().Name,
+                    DisplayValue = displayValue
+                };
+            }
+            totalComponents += componentCount;
+
+            entities.Add(new EditorEntitySnapshot
+            {
+                EntityId = entityId,
+                Components = componentSnapshots
+            });
+        }
+
+        return new EditorRuntimeSnapshot
+        {
+            CapturedAtUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            TotalEntityCount = world.Count,
+            IsTruncated = isTruncated,
+            Entities = entities.ToArray()
+        };
+    }
+
+    private static string FormatComponent(object component)
+    {
+        var type = component.GetType();
+        var builder = new StringBuilder();
+        var hasValue = false;
+
+        foreach (var field in type.GetFields(BindingFlags.Instance | BindingFlags.Public))
+        {
+            try
+            {
+                AppendMember(builder, field.Name, field.GetValue(component), ref hasValue);
+            }
+            catch (Exception ex)
+            {
+                AppendMember(builder, field.Name, FormatMemberError(ex), ref hasValue);
+            }
+        }
+
+        foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            if (property.GetIndexParameters().Length == 0 && property.GetMethod is not null)
+            {
+                try
+                {
+                    AppendMember(builder, property.Name, property.GetValue(component), ref hasValue);
+                }
+                catch (Exception ex)
+                {
+                    AppendMember(builder, property.Name, FormatMemberError(ex), ref hasValue);
+                }
+            }
+        }
+
+        if (hasValue)
+        {
+            return builder.ToString();
+        }
+
+        try
+        {
+            return component.ToString() ?? type.Name;
+        }
+        catch (Exception ex)
+        {
+            return FormatMemberError(ex);
+        }
+    }
+
+    private static void AppendMember(StringBuilder builder, string name, object? value, ref bool hasValue)
+    {
+        if (hasValue)
+        {
+            builder.Append(", ");
+        }
+
+        builder.Append(name);
+        builder.Append(" = ");
+        try
+        {
+            builder.Append(value?.ToString() ?? "null");
+        }
+        catch (Exception ex)
+        {
+            builder.Append(FormatMemberError(ex));
+        }
+        hasValue = true;
+    }
+
+    private static string FormatMemberError(Exception exception)
+    {
+        Exception error = exception is TargetInvocationException { InnerException: { } inner }
+            ? inner
+            : exception;
+        return $"<error: {error.GetType().Name}: {error.Message}>";
     }
 
     public void Destroy()

@@ -51,6 +51,12 @@
     <KarpikModuleDependency Update="Input">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Input\Input.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Editor">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Editor\Karpik.Editor.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Editor.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Editor.Tests\Karpik.Editor.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
     <KarpikModuleDependency Update="Karpik.Engine.Client.Publish">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Client.Publish\Karpik.Engine.Client.Publish.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>

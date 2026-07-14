@@ -22,4 +22,6 @@ internal interface IEngineRunner
     public void Destroy();
 
     public Dictionary<string, byte[]> GetHotReloadData();
+
+    public EditorRuntimeSnapshot CaptureEditorSnapshot();
 }

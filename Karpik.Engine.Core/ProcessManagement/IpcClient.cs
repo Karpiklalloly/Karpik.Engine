@@ -14,6 +14,7 @@ internal class IpcClient : IDisposable
     public bool IsConnected => _pipe?.IsConnected ?? false;
     
     public Func<HotReloadState?>? OnStateRequest { get; set; }
+    public Func<EditorRuntimeSnapshot?>? OnEditorSnapshotRequest { get; set; }
     public Action? OnShutdownRequest { get; set; }
     
     public IpcClient(string pipeName)
@@ -174,6 +175,39 @@ internal class IpcClient : IDisposable
                 
             case IpcMessageType.PingRequest:
                 await SendAsync(new IpcMessage(IpcMessageType.PingResponse), cancellationToken);
+                break;
+
+            case IpcMessageType.EditorSnapshotRequest:
+                byte[] snapshotPayload;
+                try
+                {
+                    EditorRuntimeSnapshot? snapshot;
+                    if (OnEditorSnapshotRequest is null)
+                    {
+                        snapshot = null;
+                    }
+                    else if (_scheduler is not null)
+                    {
+                        snapshot = _scheduler.InvokeAsync(OnEditorSnapshotRequest).GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        snapshot = OnEditorSnapshotRequest();
+                    }
+
+                    snapshotPayload = snapshot?.Serialize() ?? Array.Empty<byte>();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[IpcClient] Editor snapshot failed: {ex.Message}");
+                    snapshotPayload = Array.Empty<byte>();
+                }
+
+                await SendAsync(
+                    new IpcMessage(
+                        IpcMessageType.EditorSnapshotResponse,
+                        snapshotPayload),
+                    cancellationToken);
                 break;
         }
     }

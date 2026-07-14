@@ -1,0 +1,124 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+        xmlns:local="clr-namespace:Karpik.Editor"
+        x:Class="Karpik.Editor.MainWindow"
+        x:DataType="local:EditorShellViewModel"
+        Title="Karpik Editor 0.6"
+        MinWidth="960"
+        MinHeight="640">
+  <Window.DataTemplates>
+    <local:DockContextDataTemplate />
+    <DataTemplate DataType="local:ProjectViewModel">
+      <StackPanel Margin="12" Spacing="8">
+        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Path, FallbackValue=Выберите папку проекта через меню «Файл».}" TextWrapping="Wrap" Opacity="0.75" />
+        <Border Background="#252A33" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+          <TextBlock Text="Панель ассетов и импорт появятся после внедрения asset pipeline." TextWrapping="Wrap" Opacity="0.65" />
+        </Border>
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="local:HierarchyViewModel">
+      <Grid RowDefinitions="Auto,*" Margin="8">
+        <TextBlock Text="Сущности ECS" FontWeight="SemiBold" Margin="4,2,4,8" />
+        <ListBox Grid.Row="1" ItemsSource="{Binding Entities}" SelectedItem="{Binding SelectedEntity}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Title}" Margin="4" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="local:SessionsViewModel">
+      <Grid RowDefinitions="Auto,*" Margin="8">
+        <TextBlock Text="Сервер и клиенты" FontWeight="SemiBold" Margin="4,2,4,8" />
+        <ListBox Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="#3F4652" BorderThickness="0,0,0,1" Padding="4,6">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                  <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" Spacing="4">
+                    <Button Content="↻" ToolTip.Tip="Перезапустить" Command="{Binding RestartCommand}" IsEnabled="{Binding CanRestart}" />
+                    <Button Content="■" ToolTip.Tip="Остановить" Command="{Binding StopCommand}" IsEnabled="{Binding CanStop}" />
+                  </StackPanel>
+                  <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding StateText}" Opacity="0.75" />
+                    <TextBlock Text="{Binding ProcessIdText}" Opacity="0.55" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="local:InspectorViewModel">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Components}" Margin="8">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="#3F4652" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="{Binding TypeName}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding DisplayValue}" TextWrapping="Wrap" Opacity="0.8" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </DataTemplate>
+    <DataTemplate DataType="local:ConsoleViewModel">
+      <Grid RowDefinitions="Auto,*" Margin="6">
+        <Button Content="Очистить" Command="{Binding ClearCommand}" HorizontalAlignment="Right" Margin="0,0,0,6" />
+        <ListBox Grid.Row="1" ItemsSource="{Binding Entries}" FontFamily="Consolas" FontSize="12" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="local:PreviewViewModel">
+      <Grid Background="#171A20">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+          <TextBlock Text="Каждый клиент работает в отдельном окне SDL2/Veldrid" FontSize="18" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Message}" HorizontalAlignment="Center" Opacity="0.7" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <Menu>
+      <MenuItem Header="_Файл">
+        <MenuItem Header="Открыть проект…" Click="OpenProject_OnClick" />
+        <Separator />
+        <MenuItem Header="Выход" Click="Exit_OnClick" />
+      </MenuItem>
+      <MenuItem Header="_Запуск">
+        <MenuItem Header="Запустить сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
+        <MenuItem Header="Добавить клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
+        <Separator />
+        <MenuItem Header="Остановить все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+      </MenuItem>
+    </Menu>
+
+    <Border Grid.Row="1" Background="#252A33" Padding="8,6">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+        <Button Content="▶ Сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
+        <Button Grid.Column="1" Content="＋ Клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
+        <Button Grid.Column="2" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <TextBlock Grid.Column="3" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="4" Text="{Binding Status}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <dock:DockControl x:Name="DockHost"
+                      Grid.Row="2"
+                      InitializeFactory="False"
+                      InitializeLayout="False"
+                      AutoCreateDataTemplates="True" />
+
+    <Border Grid.Row="3" Background="#252A33" Padding="8,4">
+      <TextBlock Text="{Binding Status}" />
+    </Border>
+  </Grid>
+</Window>

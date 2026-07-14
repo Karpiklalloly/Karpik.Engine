@@ -43,14 +43,23 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     public int GetFreePort()
     {
-        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
         return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
     public void Start(int port)
     {
-        Manager.Start(port);
+        bool started = port == 0
+            ? Manager.Start()
+            : Manager.Start(port);
+        if (!started)
+        {
+            throw new InvalidOperationException(
+                port == 0
+                    ? "LiteNetLib failed to bind an available UDP port."
+                    : $"LiteNetLib failed to bind UDP port {port}.");
+        }
     }
 
     public void Connect(string address, int port, string key)

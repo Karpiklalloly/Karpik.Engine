@@ -95,4 +95,9 @@ internal class Bootstrap : IClientSimulationLoop
     {
         return _runner.GetHotReloadData();
     }
+
+    public EditorRuntimeSnapshot CaptureEditorSnapshot()
+    {
+        return _runner.CaptureEditorSnapshot();
+    }
 }

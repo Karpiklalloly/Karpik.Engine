@@ -7,6 +7,7 @@ public class IpcServer : IDisposable
     private NamedPipeServerStream? _pipe;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _editorSnapshotGate = new(1, 1);
     private Task? _listenTask;
     
     public event Action<IpcMessage>? OnMessageReceived;
@@ -89,6 +90,42 @@ public class IpcServer : IDisposable
             OnMessageReceived -= Handler;
             Console.WriteLine("[IpcServer] Timeout waiting for StateResponse");
             return (false, null);
+        }
+    }
+
+    public async Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        await _editorSnapshotGate.WaitAsync(cancellationToken);
+        var tcs = new TaskCompletionSource<EditorRuntimeSnapshot?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void Handler(IpcMessage message)
+        {
+            if (message.Type != IpcMessageType.EditorSnapshotResponse)
+            {
+                return;
+            }
+
+            OnMessageReceived -= Handler;
+            tcs.TrySetResult(
+                message.Payload.Length == 0
+                    ? null
+                    : EditorRuntimeSnapshot.Deserialize(message.Payload));
+        }
+
+        OnMessageReceived += Handler;
+        try
+        {
+            await SendAsync(new IpcMessage(IpcMessageType.EditorSnapshotRequest), cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(timeout);
+            return await tcs.Task.WaitAsync(cts.Token);
+        }
+        finally
+        {
+            OnMessageReceived -= Handler;
+            _editorSnapshotGate.Release();
         }
     }
     

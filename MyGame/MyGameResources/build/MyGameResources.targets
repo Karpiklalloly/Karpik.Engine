@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-    <Target Name="PrepareGameAssets" AfterTargets="Build">
+    <Target Name="PrepareGameAssets" AfterTargets="Build" Condition="'$(SkipPrepareGameAssets)' != 'true'">
 
         <PropertyGroup>
             <GameProjectRoot>$(MSBuildThisFileDirectory)..\</GameProjectRoot>

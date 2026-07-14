@@ -26,6 +26,10 @@ public enum IpcMessageType : byte
     
     // Worker ready signal
     WorkerReady = 0x40,
+
+    // Editor inspection
+    EditorSnapshotRequest = 0x50,
+    EditorSnapshotResponse = 0x51,
 }
 
 /// <summary>

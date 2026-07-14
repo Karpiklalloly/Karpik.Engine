@@ -1,0 +1,148 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <UsingTask TaskName="AtomicReplaceDirectory"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <SourceDirectory ParameterType="System.String" Required="true" />
+      <DestinationDirectory ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string source = System.IO.Path.GetFullPath(SourceDirectory);
+        string destination = System.IO.Path.GetFullPath(DestinationDirectory);
+        string backup = destination.TrimEnd(
+            System.IO.Path.DirectorySeparatorChar,
+            System.IO.Path.AltDirectorySeparatorChar) + ".previous";
+
+        if (!System.IO.Directory.Exists(source))
+        {
+            throw new System.IO.DirectoryNotFoundException(source);
+        }
+
+        if (System.IO.Directory.Exists(backup))
+        {
+            if (!System.IO.Directory.Exists(destination))
+            {
+                System.IO.Directory.Move(backup, destination);
+            }
+            else
+            {
+                System.IO.Directory.Delete(backup, recursive: true);
+            }
+        }
+
+        if (System.IO.Directory.Exists(destination))
+        {
+            System.IO.Directory.Move(destination, backup);
+        }
+
+        try
+        {
+            System.IO.Directory.Move(source, destination);
+        }
+        catch
+        {
+            if (!System.IO.Directory.Exists(destination)
+                && System.IO.Directory.Exists(backup))
+            {
+                System.IO.Directory.Move(backup, destination);
+            }
+
+            throw;
+        }
+
+        if (System.IO.Directory.Exists(backup))
+        {
+            try
+            {
+                System.IO.Directory.Delete(backup, recursive: true);
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogWarning($"Published '{destination}', but could not remove backup '{backup}': {ex.Message}");
+            }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="BuildEditorRuntimeBundles"
+          AfterTargets="Build"
+          Condition="'$(SkipEditorRuntimeBundles)' != 'true'">
+    <PropertyGroup>
+      <_EditorRuntimeRoot>$(TargetDir)runtimes\</_EditorRuntimeRoot>
+      <_EditorClientBundle>$(_EditorRuntimeRoot)client\</_EditorClientBundle>
+      <_EditorServerBundle>$(_EditorRuntimeRoot)server\</_EditorServerBundle>
+      <_EditorRuntimeStagingRoot>$(TargetDir)runtimes.staging\</_EditorRuntimeStagingRoot>
+      <_EditorClientStaging>$(_EditorRuntimeStagingRoot)client\</_EditorClientStaging>
+      <_EditorServerStaging>$(_EditorRuntimeStagingRoot)server\</_EditorServerStaging>
+      <_LauncherOutputSuffix>bin\$(Configuration)\$(TargetFramework)\</_LauncherOutputSuffix>
+      <_LauncherOutputSuffix Condition="'$(RuntimeIdentifier)' != ''">$(_LauncherOutputSuffix)$(RuntimeIdentifier)\</_LauncherOutputSuffix>
+      <_ClientLauncherOutput>$(MSBuildThisFileDirectory)..\ClientLauncher\$(_LauncherOutputSuffix)</_ClientLauncherOutput>
+      <_ServerLauncherOutput>$(MSBuildThisFileDirectory)..\ServerLauncher\$(_LauncherOutputSuffix)</_ServerLauncherOutput>
+      <_GameResourcesRoot>$(MSBuildThisFileDirectory)..\MyGame\MyGameResources\</_GameResourcesRoot>
+      <_EditorWorkerFileName>Karpik.Engine.Core.Runner</_EditorWorkerFileName>
+      <_EditorWorkerFileName Condition="$([MSBuild]::IsOSPlatform('Windows'))">Karpik.Engine.Core.Runner.exe</_EditorWorkerFileName>
+    </PropertyGroup>
+
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\ClientLauncher\ClientLauncher.csproj"
+             Targets="Build"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SkipPrepareGameAssets=true" />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\ServerLauncher\ServerLauncher.csproj"
+             Targets="Build"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SkipPrepareGameAssets=true" />
+
+    <RemoveDir Directories="$(_EditorRuntimeStagingRoot)" />
+    <MakeDir Directories="$(_EditorClientStaging);$(_EditorServerStaging)" />
+
+    <ItemGroup>
+      <_ClientRuntimeFile Include="$(_ClientLauncherOutput)**\*"
+                          Exclude="$(_ClientLauncherOutput)Mods\**\*;$(_ClientLauncherOutput)Content\**\*;$(_ClientLauncherOutput)Network.Server.*;$(_ClientLauncherOutput)MyGame.Server.*" />
+      <_ServerRuntimeFile Include="$(_ServerLauncherOutput)**\*"
+                          Exclude="$(_ServerLauncherOutput)Mods\**\*;$(_ServerLauncherOutput)Content\**\*;$(_ServerLauncherOutput)Graphics.*;$(_ServerLauncherOutput)Input.*;$(_ServerLauncherOutput)Network.Client.*;$(_ServerLauncherOutput)Window.*;$(_ServerLauncherOutput)MyGame.Client.*;$(_ServerLauncherOutput)Veldrid*;$(_ServerLauncherOutput)SDL2*" />
+      <_GameModsFile Include="$(_GameResourcesRoot)Mods\**\*" />
+      <_GameContentFile Include="$(_GameResourcesRoot)Content\**\*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_ClientRuntimeFile)"
+          DestinationFiles="@(_ClientRuntimeFile->'$(_EditorClientStaging)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_ServerRuntimeFile)"
+          DestinationFiles="@(_ServerRuntimeFile->'$(_EditorServerStaging)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_GameModsFile)"
+          DestinationFiles="@(_GameModsFile->'$(_EditorClientStaging)Mods\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_GameModsFile)"
+          DestinationFiles="@(_GameModsFile->'$(_EditorServerStaging)Mods\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_GameContentFile)"
+          DestinationFiles="@(_GameContentFile->'$(_EditorClientStaging)Content\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_GameContentFile)"
+          DestinationFiles="@(_GameContentFile->'$(_EditorServerStaging)Content\%(RecursiveDir)%(Filename)%(Extension)')" />
+
+    <WriteLinesToFile File="$(_EditorClientStaging)runtime-bundle.json"
+                      Lines='{&quot;Side&quot;:&quot;Client&quot;}'
+                      Overwrite="true" />
+    <WriteLinesToFile File="$(_EditorServerStaging)runtime-bundle.json"
+                      Lines='{&quot;Side&quot;:&quot;Server&quot;}'
+                      Overwrite="true" />
+
+    <ItemGroup>
+      <_ClientCompletedModuleMarker Include="$(_EditorClientStaging)modules.version.*\.complete" />
+      <_ServerCompletedModuleMarker Include="$(_EditorServerStaging)modules.version.*\.complete" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(_EditorClientStaging)$(_EditorWorkerFileName)')"
+           Text="Client runtime staging is missing $(_EditorWorkerFileName)." />
+    <Error Condition="!Exists('$(_EditorServerStaging)$(_EditorWorkerFileName)')"
+           Text="Server runtime staging is missing $(_EditorWorkerFileName)." />
+    <Error Condition="'@(_ClientCompletedModuleMarker)' == ''"
+           Text="Client runtime staging has no completed module version." />
+    <Error Condition="'@(_ServerCompletedModuleMarker)' == ''"
+           Text="Server runtime staging has no completed module version." />
+
+    <AtomicReplaceDirectory SourceDirectory="$(_EditorClientStaging)"
+                            DestinationDirectory="$(_EditorClientBundle)" />
+    <AtomicReplaceDirectory SourceDirectory="$(_EditorServerStaging)"
+                            DestinationDirectory="$(_EditorServerBundle)" />
+    <RemoveDir Directories="$(_EditorRuntimeStagingRoot)" />
+  </Target>
+</Project>

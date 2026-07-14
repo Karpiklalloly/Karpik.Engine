@@ -20,6 +20,7 @@ internal class ProcessManager : IDisposable
     public event Action<int>? OnWorkerExited;
     public event Action? OnWorkerReady;
     public event Action<HotReloadState?>? OnHotReloadRequested;
+    public event Action<string>? OnWorkerOutput;
     
     public bool IsWorkerRunning
     {
@@ -109,9 +110,9 @@ internal class ProcessManager : IDisposable
         {
             FileName = _workerExePath,
             UseShellExecute = false,
-            CreateNoWindow = false,
-            RedirectStandardOutput = false,
-            RedirectStandardError = false,
+            CreateNoWindow = _options.CaptureWorkerOutput,
+            RedirectStandardOutput = _options.CaptureWorkerOutput,
+            RedirectStandardError = _options.CaptureWorkerOutput,
             WorkingDirectory = Path.GetDirectoryName(_workerExePath) ?? AppContext.BaseDirectory
         };
 
@@ -127,6 +128,12 @@ internal class ProcessManager : IDisposable
         };
         
         var capturedProcess = _workerProcess;
+        if (_options.CaptureWorkerOutput)
+        {
+            capturedProcess.OutputDataReceived += (_, args) => PublishWorkerOutput(args.Data, isError: false);
+            capturedProcess.ErrorDataReceived += (_, args) => PublishWorkerOutput(args.Data, isError: true);
+        }
+
         capturedProcess.Exited += (sender, e) =>
         {
             var exitCode = capturedProcess.ExitCode;
@@ -140,6 +147,12 @@ internal class ProcessManager : IDisposable
         if (!_workerProcess.Start())
         {
             throw new InvalidOperationException($"Failed to start worker process: {_workerExePath}");
+        }
+
+        if (_options.CaptureWorkerOutput)
+        {
+            _workerProcess.BeginOutputReadLine();
+            _workerProcess.BeginErrorReadLine();
         }
         
         Console.WriteLine($"[ProcessManager] Worker started with PID: {_workerProcess.Id}");
@@ -281,6 +294,18 @@ internal class ProcessManager : IDisposable
         _workerProcess?.Dispose();
         _workerProcess = null;
     }
+
+    public Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        if (_ipcServer is null || !IsWorkerReady)
+        {
+            return Task.FromResult<EditorRuntimeSnapshot?>(null);
+        }
+
+        return _ipcServer.RequestEditorSnapshotAsync(timeout, cancellationToken);
+    }
     
     public async Task<bool> WaitForExitAsync(TimeSpan timeout)
     {
@@ -405,6 +430,16 @@ internal class ProcessManager : IDisposable
         }
 
         ModuleStagingCleanup.CleanupCompletedVersions(baseDirectory, activeDirectoryPath);
+    }
+
+    private void PublishWorkerOutput(string? line, bool isError)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return;
+        }
+
+        OnWorkerOutput?.Invoke(isError ? $"[stderr] {line}" : line);
     }
     
     public void Dispose()

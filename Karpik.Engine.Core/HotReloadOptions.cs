@@ -15,6 +15,7 @@ public sealed class HotReloadOptions
     public TimeSpan WorkerConnectionTimeout { get; init; } = TimeSpan.FromSeconds(30);
     public bool WaitForDebuggerOnInitialWorkerStart { get; init; }
     public bool WaitForDebuggerOnReloadWorkerStart { get; init; }
+    public bool CaptureWorkerOutput { get; init; }
 
     public static HotReloadOptions Default => CreateDefault();
 

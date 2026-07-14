@@ -270,6 +270,15 @@ Allocation gates для runtime subsystems ведутся в их собстве
 
 Цель: сделать удобное и стабильное 2D ядро: renderer, camera, input, content pipeline.
 
+### Basic Editor Foundation
+
+- [ ] Отдельное editor-приложение поверх client tooling, не влияющее на runtime hot paths.
+- [x] Выбран desktop stack: Avalonia 12 + Dock 12 + ReactiveUI; ImGui остаётся runtime/debug overlay. См. [ADR](../02_ADR/editor-desktop-stack.md).
+- [ ] Первый срез до content pipeline: открыть существующий проект, восстановить dock layout, запустить/остановить preview, просмотреть Console/log, Hierarchy/entities и read-only ECS Inspector.
+- [ ] Первый срез передаёт bounded runtime snapshots и не читает live ECS storage; он не включает Asset Browser, импорт ассетов, scene authoring или изменение компонентов.
+- [ ] После content pipeline: Project/Asset Browser работает со stable asset IDs и manifest.
+- [ ] Dockable Scene view и Game view развиваются после готовности первого среза; редактирование компонентов и scene authoring остаются задачами 0.7/1.1.
+
 ### 2D Math
 
 - [ ] Провести investigation текущей Physics2D backend/libraries на поддержку `double`.
@@ -436,6 +445,7 @@ Allocation gates для runtime subsystems ведутся в их собстве
 - [ ] Есть renderer diagnostics.
 - [ ] Есть save/config foundation.
 - [ ] Есть примеры renderer/camera/text/input.
+- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state.
 
 ## 0.7 Authoring Content
 
@@ -882,4 +892,3 @@ KarpikEngine 1.0 считается готовым, если:
 | Tools/Templates | CLI, templates, samples, quickstart, troubleshooting |
 | 3D | Not planned for 1.0 |
 | MonoGame API compatibility | Not planned for core; possible post-1.0 compatibility layer |
-

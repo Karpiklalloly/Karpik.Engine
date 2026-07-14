@@ -11,7 +11,7 @@ internal class InitNetworkClientSystem : ISystemInit
     
     public void Init()
     {
-        _manager.Start(_manager.GetFreePort());
+        _manager.Start(0);
         _manager.Connect(_config.Address, _config.Port, _config.Key);
         _manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
         _manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;

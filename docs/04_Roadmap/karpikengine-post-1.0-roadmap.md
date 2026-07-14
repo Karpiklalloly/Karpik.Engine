@@ -14,9 +14,9 @@ Post-1.0 цель - развивать KarpikEngine из сильного 2D run
 - ecosystem;
 - optional MonoGame/FNA compatibility layer.
 
-## 1.1 Editor Foundation
+## 1.1 Editor Expansion
 
-Цель: сделать базовый редактор, который ускоряет разработку игр, но не пытается сразу конкурировать с Unity/Godot.
+Цель: расширить базовый editor foundation из 0.6 до инструмента авторинга, не пытаясь сразу конкурировать с Unity/Godot.
 
 ### Editor App
 

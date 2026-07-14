@@ -10,6 +10,7 @@ public class Program
     private static Ref<bool> _isRunning = new(true);
     private static HotReloadState? _initialState;
     private static volatile bool _stateCollected = false;
+    private static ClientSimulationWorker? _clientSimulationWorker;
     
     public static void Main(string[] args)
     {
@@ -74,6 +75,7 @@ public class Program
             _ipcClient = new IpcClient(pipeName);
             
             _ipcClient.OnStateRequest = GetHotReloadState;
+            _ipcClient.OnEditorSnapshotRequest = GetEditorSnapshot;
             _ipcClient.OnShutdownRequest = () =>
             {
                 Console.WriteLine("[Worker] Shutdown requested");
@@ -140,17 +142,31 @@ public class Program
         
         Console.WriteLine(Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
+        mainThreadScheduler.Execute();
         
         _ipcClient?.SetScheduler(mainThreadScheduler);
         
-        _ipcClient?.SendReadyAsync(loader.ModuleDirectory).Wait();
-
         switch (side)
         {
             case Side.Client:
-                ClientLoop(mainThreadScheduler);
+                using (var simulationWorker = new ClientSimulationWorker(
+                           _bootstrap,
+                           _bootstrap.ClientFrameMetrics))
+                {
+                    Volatile.Write(ref _clientSimulationWorker, simulationWorker);
+                    try
+                    {
+                        _ipcClient?.SendReadyAsync(loader.ModuleDirectory).Wait();
+                        ClientLoop(mainThreadScheduler, simulationWorker);
+                    }
+                    finally
+                    {
+                        Volatile.Write(ref _clientSimulationWorker, null);
+                    }
+                }
                 break;
             case Side.Server:
+                _ipcClient?.SendReadyAsync(loader.ModuleDirectory).Wait();
                 ServerLoop(mainThreadScheduler);
                 break;
             default:
@@ -195,6 +211,17 @@ public class Program
             return null;
         }
     }
+
+    private static EditorRuntimeSnapshot? GetEditorSnapshot()
+    {
+        ClientSimulationWorker? simulationWorker = Volatile.Read(ref _clientSimulationWorker);
+        return simulationWorker is null
+            ? CaptureEditorSnapshotOnCurrentThread()
+            : simulationWorker.InvokeAsync(CaptureEditorSnapshotOnCurrentThread).GetAwaiter().GetResult();
+    }
+
+    private static EditorRuntimeSnapshot? CaptureEditorSnapshotOnCurrentThread() =>
+        _bootstrap?.CaptureEditorSnapshot();
 
     public static void RequestHotReload()
     {
@@ -290,12 +317,13 @@ public class Program
         }
     }
 
-    private static void ClientLoop(MainThreadScheduler mainThreadScheduler)
+    private static void ClientLoop(
+        MainThreadScheduler mainThreadScheduler,
+        ClientSimulationWorker simulationWorker)
     {
         var stopwatch = Stopwatch.StartNew();
         double lastSimulationRequestTime = 0;
         var metrics = _bootstrap.ClientFrameMetrics;
-        using var simulationWorker = new ClientSimulationWorker(_bootstrap, metrics);
         
         while (_isRunning.Value)
         {
