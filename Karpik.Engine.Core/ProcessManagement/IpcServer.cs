@@ -11,6 +11,7 @@ public class IpcServer : IDisposable
     private readonly SemaphoreSlim _stateRequestGate = new(1, 1);
     private readonly SemaphoreSlim _editorSnapshotGate = new(1, 1);
     private readonly SemaphoreSlim _shutdownRequestGate = new(1, 1);
+    private int _disposeRequested;
     private Task? _listenTask;
     
     public event Action<IpcMessage>? OnMessageReceived;
@@ -89,7 +90,16 @@ public class IpcServer : IDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await SendAsync(new IpcMessage(IpcMessageType.StateRequest), CancellationToken.None);
+            try
+            {
+                await SendAsync(new IpcMessage(IpcMessageType.StateRequest), CancellationToken.None);
+            }
+            catch (Exception exception) when (
+                Volatile.Read(ref _disposeRequested) != 0
+                && exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                return (false, null);
+            }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
             cts.CancelAfter(timeout);
             try
@@ -253,6 +263,11 @@ public class IpcServer : IDisposable
     
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeRequested, 1) != 0)
+        {
+            return;
+        }
+
         _cts.Cancel();
 
         try

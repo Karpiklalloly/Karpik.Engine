@@ -88,6 +88,11 @@ kanban-plugin: board
 	  - IPC subscriptions precede sends and are always removed; reload ownership is atomic; killed workers confirm exit before disposal or replacement.
 	  - Bundle publication validates existing ancestors before mutation, accepts a proven old primary name during replacement, exposes an evaluated overrideable bundle path, and aligns case-insensitive identity with runtime validation.
 	  - Failed pre-load shadow copies are removed; IPC frames are serialized and in-flight requests drain safely; SDK 38/38, Runner 75/75, Configurator 9/9, and three external runtime runs are green.
+- [x] **Serialize worker lifecycle transitions**
+	  - One transition gate covers start, worker/public reload, stop, and dispose without recursive entry.
+	  - Counted stop/dispose intent is atomic with the final process-launch commit, preventing queued starts or in-flight reloads from launching after teardown begins.
+	  - Per-worker exit disposition begins before state request, suppresses a proven planned old exit, and restores publication on abort; the production-ordering fixture exits immediately after state response.
+	  - Real IPC, callback-reentrancy, launch-intent, and planned-exit races pass 8/8 with Runner 81/81, a fresh external RuntimeBundle restart pass, and a Ready independent re-review; Milestone 6 editor switching is unchanged.
 
 %% kanban:settings
 ```

@@ -13,6 +13,11 @@ internal class ProcessManager : IDisposable
     private readonly HotReloadOptions _options;
     private bool _hasStartedWorker;
     private int _reloadInProgress;
+    private int _stopRequestCount;
+    private int _disposeRequested;
+    private WorkerExitNotification? _workerExitNotification;
+    private readonly SemaphoreSlim _transitionGate = new(1, 1);
+    private readonly object _transitionIntentGate = new();
     
     private readonly CancellationTokenSource _cts = new();
     private Task? _monitorTask;
@@ -46,6 +51,11 @@ internal class ProcessManager : IDisposable
     public bool IsWorkerReady { get; private set; }
 
     public bool IsReloadInProgress => Volatile.Read(ref _reloadInProgress) != 0;
+
+    private bool IsDisposeRequested => Volatile.Read(ref _disposeRequested) != 0;
+
+    private bool ShouldStopTransition =>
+        IsDisposeRequested || Volatile.Read(ref _stopRequestCount) != 0;
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
@@ -73,6 +83,28 @@ internal class ProcessManager : IDisposable
     
     public async Task StartWorkerAsync(HotReloadState? initialState = null, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(IsDisposeRequested, this);
+        await _transitionGate.WaitAsync(cancellationToken);
+        try
+        {
+            ObjectDisposedException.ThrowIf(IsDisposeRequested, this);
+            await StartWorkerCoreAsync(initialState, cancellationToken);
+        }
+        finally
+        {
+            _transitionGate.Release();
+        }
+    }
+
+    private async Task StartWorkerCoreAsync(
+        HotReloadState? initialState,
+        CancellationToken cancellationToken)
+    {
+        if (ShouldStopTransition)
+        {
+            return;
+        }
+
         if (IsWorkerRunning)
         {
             Console.WriteLine("[ProcessManager] Worker is already running");
@@ -91,11 +123,11 @@ internal class ProcessManager : IDisposable
 
         _ipcServer?.Dispose();
         
-        _ipcServer = new IpcServer(_pipeName);
-        _ipcServer.OnMessageReceived += HandleWorkerMessage;
-        using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var ipcServer = new IpcServer(_pipeName);
+        _ipcServer = ipcServer;
+        ipcServer.OnMessageReceived += HandleWorkerMessage;
+        using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
-        var ipcTask = _ipcServer.WaitForConnectionAsync(connectionCts.Token);
         
         string? stateFile = null;
         if (initialState != null)
@@ -118,6 +150,20 @@ internal class ProcessManager : IDisposable
             shouldWaitForDebugger,
             _options.CaptureWorkerOutput);
 
+        if (ShouldStopTransition)
+        {
+            ipcServer.OnMessageReceived -= HandleWorkerMessage;
+            ipcServer.Dispose();
+            if (ReferenceEquals(_ipcServer, ipcServer))
+            {
+                _ipcServer = null;
+            }
+            TryDeleteStateFile(stateFile);
+            return;
+        }
+
+        var ipcTask = ipcServer.WaitForConnectionAsync(connectionCts.Token);
+
         Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
         Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", startInfo.ArgumentList)}");
 
@@ -128,6 +174,8 @@ internal class ProcessManager : IDisposable
         };
         
         var capturedProcess = _workerProcess;
+        var exitNotification = new WorkerExitNotification();
+        _workerExitNotification = exitNotification;
         if (_options.CaptureWorkerOutput)
         {
             capturedProcess.OutputDataReceived += (_, args) => PublishWorkerOutput(args.Data, isError: false);
@@ -141,11 +189,35 @@ internal class ProcessManager : IDisposable
             IsWorkerReady = false;
             _readyTcs?.TrySetCanceled();
             CleanupWorkerShadowCopies(capturedProcess.Id);
-            OnWorkerExited?.Invoke(exitCode);
+            Action<int>? exited = OnWorkerExited;
+            if (!exitNotification.TryHandleExit(exitCode) && exited is not null)
+            {
+                QueueLifecycleCallback(() => exited(exitCode));
+            }
         };
         
-        if (!_workerProcess.Start())
+        if (!TryCommitWorkerStart(_workerProcess, out bool startAttempted))
         {
+            if (!startAttempted)
+            {
+                ipcServer.OnMessageReceived -= HandleWorkerMessage;
+                ipcServer.Dispose();
+                capturedProcess.Dispose();
+                if (ReferenceEquals(_workerProcess, capturedProcess))
+                {
+                    _workerProcess = null;
+                }
+                if (ReferenceEquals(_workerExitNotification, exitNotification))
+                {
+                    _workerExitNotification = null;
+                }
+                if (ReferenceEquals(_ipcServer, ipcServer))
+                {
+                    _ipcServer = null;
+                }
+                TryDeleteStateFile(stateFile);
+                return;
+            }
             throw new InvalidOperationException($"Failed to start worker process: {_workerExePath}");
         }
 
@@ -169,31 +241,61 @@ internal class ProcessManager : IDisposable
                 await KillAndConfirmExitAsync(failedProcess);
             }
 
-            _ipcServer.Dispose();
-            _ipcServer = null;
+            ipcServer.OnMessageReceived -= HandleWorkerMessage;
+            ipcServer.Dispose();
+            if (ReferenceEquals(_ipcServer, ipcServer))
+            {
+                _ipcServer = null;
+            }
             failedProcess?.Dispose();
-            _workerProcess = null;
+            if (ReferenceEquals(_workerProcess, failedProcess))
+            {
+                _workerProcess = null;
+            }
+            if (ReferenceEquals(_workerExitNotification, exitNotification))
+            {
+                _workerExitNotification = null;
+            }
+            TryDeleteStateFile(stateFile);
             throw;
         }
 
         _hasStartedWorker = true;
         _monitorTask = MonitorLoop(_cts.Token);
+    }
 
-        void HandleWorkerMessage(IpcMessage msg)
+    private void HandleWorkerMessage(IpcMessage msg)
+    {
+        if (msg.Type == IpcMessageType.WorkerReady)
         {
-            if (msg.Type == IpcMessageType.WorkerReady)
+            Console.WriteLine("[ProcessManager] Worker is ready");
+            IsWorkerReady = true;
+            CleanupCompletedModuleVersions(msg.Payload);
+            _readyTcs?.TrySetResult(true);
+            Action? ready = OnWorkerReady;
+            if (ready is not null)
             {
-                Console.WriteLine("[ProcessManager] Worker is ready");
-                IsWorkerReady = true;
-                CleanupCompletedModuleVersions(msg.Payload);
-                _readyTcs?.TrySetResult(true);
-                OnWorkerReady?.Invoke();
+                QueueLifecycleCallback(ready);
             }
-            else if (msg.Type == IpcMessageType.HotReloadRequest)
-            {
-                Console.WriteLine("[ProcessManager] Worker requested hot reload");
-                _ = HotReloadAsync(cancellationToken);
-            }
+        }
+        else if (msg.Type == IpcMessageType.HotReloadRequest)
+        {
+            Console.WriteLine("[ProcessManager] Worker requested hot reload");
+            _ = HandleWorkerReloadRequestAsync();
+        }
+    }
+
+    private async Task HandleWorkerReloadRequestAsync()
+    {
+        try
+        {
+            await HotReloadAsync(_cts.Token);
+        }
+        catch (OperationCanceledException) when (IsDisposeRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (IsDisposeRequested)
+        {
         }
     }
     
@@ -224,17 +326,36 @@ internal class ProcessManager : IDisposable
             return;
         }
 
+        bool gateEntered = false;
+        HotReloadState? notificationState = null;
+        WorkerExitNotification? exitNotification = null;
+        bool exitNotificationResolved = false;
         try
         {
+            await _transitionGate.WaitAsync(cancellationToken);
+            gateEntered = true;
+            if (ShouldStopTransition)
+            {
+                return;
+            }
+
             IpcServer? ipcServer = _ipcServer;
             Process? workerProcess = _workerProcess;
-            if (ipcServer is null || workerProcess is null || !IsProcessRunning(workerProcess))
+            exitNotification = _workerExitNotification;
+            if (ipcServer is null
+                || workerProcess is null
+                || exitNotification is null
+                || !IsProcessRunning(workerProcess))
             {
                 Console.WriteLine("[ProcessManager] Cannot hot reload: worker not running");
                 return;
             }
 
             Console.WriteLine("[ProcessManager] Starting hot reload...");
+
+            // The runner exits immediately after sending its state. Defer exit publication
+            // before requesting that state so the process cannot outrun the planned-exit marker.
+            exitNotification.BeginDeferral();
 
             var (receivedState, state) = await ipcServer.TryRequestStateAsync(
                 _options.StateRequestTimeout,
@@ -246,7 +367,14 @@ internal class ProcessManager : IDisposable
                 return;
             }
 
-            OnHotReloadRequested?.Invoke(state);
+            exitNotification.CommitSuppression();
+            exitNotificationResolved = true;
+            notificationState = state;
+
+            if (ShouldStopTransition)
+            {
+                return;
+            }
 
             bool exited = await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout);
             if (!exited)
@@ -278,6 +406,7 @@ internal class ProcessManager : IDisposable
                 await KillAndConfirmExitAsync(workerProcess);
             }
 
+            ipcServer.OnMessageReceived -= HandleWorkerMessage;
             ipcServer.Dispose();
             if (ReferenceEquals(_ipcServer, ipcServer))
             {
@@ -288,18 +417,68 @@ internal class ProcessManager : IDisposable
             {
                 _workerProcess = null;
             }
+            if (ReferenceEquals(_workerExitNotification, exitNotification))
+            {
+                _workerExitNotification = null;
+            }
 
-            await StartWorkerAsync(state, CancellationToken.None);
+            if (ShouldStopTransition)
+            {
+                return;
+            }
 
-            Console.WriteLine("[ProcessManager] Hot reload complete!");
+            await StartWorkerCoreAsync(state, CancellationToken.None);
+
+            if (!ShouldStopTransition && IsWorkerRunning)
+            {
+                Console.WriteLine("[ProcessManager] Hot reload complete!");
+            }
         }
         finally
         {
-            EndReload();
+            if (exitNotification is not null && !exitNotificationResolved)
+            {
+                PublishDeferredWorkerExit(exitNotification);
+            }
+            if (gateEntered)
+            {
+                _transitionGate.Release();
+            }
+            try
+            {
+                if (notificationState is not null)
+                {
+                    OnHotReloadRequested?.Invoke(notificationState);
+                }
+            }
+            finally
+            {
+                EndReload();
+            }
         }
     }
 
     public async Task StopWorkerAsync(CancellationToken cancellationToken = default)
+    {
+        BeginStopRequest();
+        bool gateEntered = false;
+        try
+        {
+            await _transitionGate.WaitAsync(cancellationToken);
+            gateEntered = true;
+            await StopWorkerCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            EndStopRequest();
+            if (gateEntered)
+            {
+                _transitionGate.Release();
+            }
+        }
+    }
+
+    private async Task StopWorkerCoreAsync(CancellationToken cancellationToken)
     {
         Process? workerProcess = _workerProcess;
         if (workerProcess is null || !IsProcessRunning(workerProcess))
@@ -331,7 +510,11 @@ internal class ProcessManager : IDisposable
         }
         
         int workerProcessId = workerProcess.Id;
-        ipcServer?.Dispose();
+        if (ipcServer is not null)
+        {
+            ipcServer.OnMessageReceived -= HandleWorkerMessage;
+            ipcServer.Dispose();
+        }
         if (ReferenceEquals(_ipcServer, ipcServer))
         {
             _ipcServer = null;
@@ -342,6 +525,7 @@ internal class ProcessManager : IDisposable
         {
             _workerProcess = null;
         }
+        _workerExitNotification = null;
     }
 
     public Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
@@ -401,6 +585,51 @@ internal class ProcessManager : IDisposable
     private bool TryBeginReload() => Interlocked.CompareExchange(ref _reloadInProgress, 1, 0) == 0;
 
     private void EndReload() => Volatile.Write(ref _reloadInProgress, 0);
+
+    private void BeginStopRequest()
+    {
+        lock (_transitionIntentGate)
+        {
+            Volatile.Write(ref _stopRequestCount, _stopRequestCount + 1);
+        }
+    }
+
+    private void EndStopRequest()
+    {
+        lock (_transitionIntentGate)
+        {
+            Volatile.Write(ref _stopRequestCount, _stopRequestCount - 1);
+        }
+    }
+
+    private bool TryCommitWorkerStart(Process process, out bool startAttempted)
+    {
+        lock (_transitionIntentGate)
+        {
+            if (IsDisposeRequested || _stopRequestCount != 0)
+            {
+                startAttempted = false;
+                return false;
+            }
+
+            startAttempted = true;
+            return process.Start();
+        }
+    }
+
+    private void PublishDeferredWorkerExit(WorkerExitNotification exitNotification)
+    {
+        if (!exitNotification.CancelDeferral(out int exitCode))
+        {
+            return;
+        }
+
+        Action<int>? exited = OnWorkerExited;
+        if (exited is not null)
+        {
+            QueueLifecycleCallback(() => exited(exitCode));
+        }
+    }
 
     private async Task KillAndConfirmExitAsync(Process process)
     {
@@ -477,6 +706,25 @@ internal class ProcessManager : IDisposable
         Console.WriteLine($"[ProcessManager] Worker not found in any search location. Expected at: {fallbackPath}");
         Console.WriteLine("[ProcessManager] Make sure Karpik.Engine.Core.Runner is built and copied to the output directory.");
         return fallbackPath;
+    }
+
+    private static void TryDeleteStateFile(string? stateFile)
+    {
+        if (stateFile is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(stateFile);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private string WriteStateFile(HotReloadState state)
@@ -617,43 +865,163 @@ internal class ProcessManager : IDisposable
 
         OnWorkerOutput?.Invoke(isError ? $"[stderr] {line}" : line);
     }
+
+    private static void QueueLifecycleCallback(Action callback)
+    {
+        ThreadPool.QueueUserWorkItem(
+            static action =>
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine($"[ProcessManager] Lifecycle callback failed: {exception.Message}");
+                }
+            },
+            callback,
+            preferLocal: false);
+    }
     
     public void Dispose()
     {
+        lock (_transitionIntentGate)
+        {
+            if (IsDisposeRequested)
+            {
+                return;
+            }
+            Volatile.Write(ref _disposeRequested, 1);
+        }
+
         _cts.Cancel();
-        Process? workerProcess = _workerProcess;
-        bool canDisposeWorker = true;
+        _transitionGate.Wait();
         try
         {
-            if (workerProcess is not null && IsProcessRunning(workerProcess))
+            Process? workerProcess = _workerProcess;
+            bool canDisposeWorker = true;
+            try
             {
-                int processId = workerProcess.Id;
-                workerProcess.Kill(entireProcessTree: true);
-                int timeoutMilliseconds = (int)Math.Clamp(
-                    _options.GracefulShutdownTimeout.TotalMilliseconds,
-                    1,
-                    int.MaxValue);
-                canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
-                if (canDisposeWorker)
+                if (workerProcess is not null && IsProcessRunning(workerProcess))
                 {
-                    CleanupWorkerShadowCopies(processId);
-                }
-                else
-                {
-                    Console.WriteLine($"[ProcessManager] Worker process {processId} did not confirm exit during disposal.");
+                    int processId = workerProcess.Id;
+                    workerProcess.Kill(entireProcessTree: true);
+                    int timeoutMilliseconds = (int)Math.Clamp(
+                        _options.GracefulShutdownTimeout.TotalMilliseconds,
+                        1,
+                        int.MaxValue);
+                    canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
+                    if (canDisposeWorker)
+                    {
+                        CleanupWorkerShadowCopies(processId);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ProcessManager] Worker process {processId} did not confirm exit during disposal.");
+                    }
                 }
             }
+            catch
+            {
+                canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
+            }
+
+            IpcServer? ipcServer = _ipcServer;
+            _ipcServer = null;
+            if (ipcServer is not null)
+            {
+                ipcServer.OnMessageReceived -= HandleWorkerMessage;
+                ipcServer.Dispose();
+            }
+            if (ReferenceEquals(_workerProcess, workerProcess))
+            {
+                _workerProcess = null;
+            }
+            _workerExitNotification = null;
+            if (canDisposeWorker)
+            {
+                workerProcess?.Dispose();
+            }
         }
-        catch
+        finally
         {
-            canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
+            _transitionGate.Release();
+            _cts.Dispose();
         }
-        
-        _ipcServer?.Dispose();
-        if (canDisposeWorker)
+    }
+
+    private sealed class WorkerExitNotification
+    {
+        private readonly object _gate = new();
+        private ExitDisposition _disposition;
+        private bool _deferredExitPending;
+        private int _deferredExitCode;
+
+        public void BeginDeferral()
         {
-            workerProcess?.Dispose();
+            lock (_gate)
+            {
+                _disposition = ExitDisposition.Deferred;
+                _deferredExitPending = false;
+            }
         }
-        _cts.Dispose();
+
+        public bool TryHandleExit(int exitCode)
+        {
+            lock (_gate)
+            {
+                if (_disposition == ExitDisposition.Publish)
+                {
+                    return false;
+                }
+
+                if (_disposition == ExitDisposition.Deferred)
+                {
+                    _deferredExitCode = exitCode;
+                    _deferredExitPending = true;
+                }
+
+                _disposition = ExitDisposition.Consumed;
+                return true;
+            }
+        }
+
+        public void CommitSuppression()
+        {
+            lock (_gate)
+            {
+                _deferredExitPending = false;
+                _disposition = ExitDisposition.Suppress;
+            }
+        }
+
+        public bool CancelDeferral(out int exitCode)
+        {
+            lock (_gate)
+            {
+                exitCode = _deferredExitCode;
+                if (_deferredExitPending)
+                {
+                    _deferredExitPending = false;
+                    _disposition = ExitDisposition.Consumed;
+                    return true;
+                }
+
+                if (_disposition == ExitDisposition.Deferred)
+                {
+                    _disposition = ExitDisposition.Publish;
+                }
+                return false;
+            }
+        }
+
+        private enum ExitDisposition : byte
+        {
+            Publish,
+            Deferred,
+            Suppress,
+            Consumed
+        }
     }
 }
