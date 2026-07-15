@@ -83,10 +83,16 @@ public sealed class KarpikSolutionReader
             .FirstOrDefault(attribute => attribute.Name.LocalName == "Sdk")?.Value;
         AddSdkDeclarations(names, rootSdk);
 
-        foreach (var sdk in document.Descendants().Where(element => element.Name.LocalName == "Sdk"))
+        foreach (var sdk in TopLevelElements(document, "Sdk"))
         {
             var name = sdk.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;
             AddSdkDeclarations(names, name);
+        }
+
+        foreach (var import in TopLevelElements(document, "Import"))
+        {
+            var sdk = import.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Sdk")?.Value;
+            AddSdkDeclarations(names, sdk);
         }
 
         return names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
@@ -113,8 +119,8 @@ public sealed class KarpikSolutionReader
     private static TEnum ReadEnumProperty<TEnum>(XDocument document, string propertyName)
         where TEnum : struct, Enum
     {
-        var values = document.Descendants()
-            .Where(element => element.Name.LocalName == propertyName)
+        var values = TopLevelElements(document, "PropertyGroup")
+            .SelectMany(group => group.Elements().Where(element => element.Name.LocalName == propertyName))
             .Select(element => element.Value.Trim())
             .Where(value => value.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -132,7 +138,7 @@ public sealed class KarpikSolutionReader
     {
         var projectDirectory = Path.GetDirectoryName(projectPath)!;
         var references = new List<string>();
-        foreach (var reference in document.Descendants().Where(element => element.Name.LocalName == "ProjectReference"))
+        foreach (var reference in TopLevelItemElements(document, "ProjectReference"))
         {
             var include = reference.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
             if (!string.IsNullOrWhiteSpace(include))
@@ -146,7 +152,10 @@ public sealed class KarpikSolutionReader
     private static IReadOnlyList<KarpikModuleReference> ReadModules(XDocument document)
     {
         var modules = new List<KarpikModuleReference>();
-        foreach (var dependency in document.Descendants().Where(element => element.Name.LocalName == "KarpikModuleDependency"))
+        foreach (var dependency in TopLevelItemElements(
+                     document,
+                     "KarpikModuleDependency",
+                     "KarpikModuleReference"))
         {
             var id = ReadMetadata(dependency, "Include");
             if (string.IsNullOrWhiteSpace(id))
@@ -165,6 +174,18 @@ public sealed class KarpikSolutionReader
     {
         return element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == name)?.Value.Trim()
                ?? element.Elements().FirstOrDefault(child => child.Name.LocalName == name)?.Value.Trim();
+    }
+
+    private static IEnumerable<XElement> TopLevelElements(XDocument document, string name)
+    {
+        return document.Root?.Elements().Where(element => element.Name.LocalName == name) ?? [];
+    }
+
+    private static IEnumerable<XElement> TopLevelItemElements(XDocument document, params string[] names)
+    {
+        return TopLevelElements(document, "ItemGroup")
+            .SelectMany(group => group.Elements()
+                .Where(element => names.Contains(element.Name.LocalName, StringComparer.Ordinal)));
     }
 
     private static string ReadSdkVersion(string solutionRoot)

@@ -146,42 +146,87 @@ public sealed class KarpikSolutionValidator
         ICollection<KarpikDiagnostic> diagnostics,
         string solutionPath)
     {
-        var incoming = projectsByPath.Keys.ToDictionary(path => path, _ => 0, KarpikPathPolicy.Comparer);
         var outgoing = projectsByPath.Keys.ToDictionary(path => path, _ => new List<string>(), KarpikPathPolicy.Comparer);
         foreach (var project in projectsByPath.Values)
         {
             foreach (var referencePath in project.ProjectReferences.Where(projectsByPath.ContainsKey))
             {
                 outgoing[project.ProjectPath].Add(referencePath);
-                incoming[referencePath]++;
             }
         }
 
-        var ready = new Queue<string>(incoming.Where(pair => pair.Value == 0).Select(pair => pair.Key));
-        var visited = 0;
-        while (ready.Count > 0)
+        var cycleProjects = FindCyclicProjects(outgoing);
+        if (cycleProjects.Count > 0)
         {
-            var path = ready.Dequeue();
-            visited++;
-            foreach (var referencedPath in outgoing[path])
-            {
-                incoming[referencedPath]--;
-                if (incoming[referencedPath] == 0)
-                {
-                    ready.Enqueue(referencedPath);
-                }
-            }
-        }
-
-        if (visited != projectsByPath.Count)
-        {
-            var cycleProjects = incoming.Where(pair => pair.Value > 0)
-                .Select(pair => pair.Key)
-                .OrderBy(path => path, KarpikPathPolicy.Comparer);
             diagnostics.Add(new KarpikDiagnostic(
                 KarpikDiagnosticCodes.ProjectReferenceCycle,
                 solutionPath,
                 $"Project-reference graph contains a cycle: {string.Join(", ", cycleProjects)}."));
+        }
+    }
+
+    private static IReadOnlyList<string> FindCyclicProjects(IReadOnlyDictionary<string, List<string>> outgoing)
+    {
+        var nextIndex = 0;
+        var indexes = new Dictionary<string, int>(KarpikPathPolicy.Comparer);
+        var lowLinks = new Dictionary<string, int>(KarpikPathPolicy.Comparer);
+        var stack = new Stack<string>();
+        var onStack = new HashSet<string>(KarpikPathPolicy.Comparer);
+        var cyclicProjects = new HashSet<string>(KarpikPathPolicy.Comparer);
+
+        foreach (var path in outgoing.Keys.OrderBy(path => path, KarpikPathPolicy.Comparer))
+        {
+            if (!indexes.ContainsKey(path))
+            {
+                Visit(path);
+            }
+        }
+
+        return cyclicProjects.OrderBy(path => path, KarpikPathPolicy.Comparer).ToList();
+
+        void Visit(string path)
+        {
+            indexes[path] = nextIndex;
+            lowLinks[path] = nextIndex;
+            nextIndex++;
+            stack.Push(path);
+            onStack.Add(path);
+
+            foreach (var referencedPath in outgoing[path]
+                         .Distinct(KarpikPathPolicy.Comparer)
+                         .OrderBy(reference => reference, KarpikPathPolicy.Comparer))
+            {
+                if (!indexes.ContainsKey(referencedPath))
+                {
+                    Visit(referencedPath);
+                    lowLinks[path] = Math.Min(lowLinks[path], lowLinks[referencedPath]);
+                }
+                else if (onStack.Contains(referencedPath))
+                {
+                    lowLinks[path] = Math.Min(lowLinks[path], indexes[referencedPath]);
+                }
+            }
+
+            if (lowLinks[path] != indexes[path])
+            {
+                return;
+            }
+
+            var component = new List<string>();
+            string member;
+            do
+            {
+                member = stack.Pop();
+                onStack.Remove(member);
+                component.Add(member);
+            } while (!KarpikPathPolicy.Comparer.Equals(member, path));
+
+            var isSelfLoop = component.Count == 1 &&
+                             outgoing[component[0]].Contains(component[0], KarpikPathPolicy.Comparer);
+            if (component.Count > 1 || isSelfLoop)
+            {
+                cyclicProjects.UnionWith(component);
+            }
         }
     }
 }

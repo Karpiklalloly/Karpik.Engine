@@ -171,8 +171,7 @@ public sealed class GameSolutionValidationTests
     {
         WithSolution(solution =>
         {
-            solution.AddProject("Shared/A/A.csproj", side: "Shared", references: ["Shared/B/B.csproj"]);
-            solution.AddProject("Shared/B/B.csproj", side: "Shared", references: ["Shared/A/A.csproj"]);
+            solution.AddProject("Shared/A/A.csproj", side: "Shared", references: ["Shared/A/A.csproj"]);
 
             AssertCodes(solution, KarpikDiagnosticCodes.ProjectReferenceCycle);
         });
@@ -247,6 +246,118 @@ public sealed class GameSolutionValidationTests
             Assert.Equal(
                 [new KarpikModuleReference("Graphics", "OpenGL", false), new KarpikModuleReference("LoggerModule", null, true)],
                 project.Modules);
+        });
+    }
+
+    [Fact]
+    public void ReaderIgnoresDeclarationsNestedInTarget()
+    {
+        WithSolution(solution =>
+        {
+            var project = solution.AddProject(
+                "Client/Client.csproj",
+                sdk: "Microsoft.NET.Sdk",
+                kind: null,
+                side: null);
+            solution.EditProject(project, root => root.Add(
+                new XElement("Target", new XAttribute("Name", "InjectDeclarations"),
+                    new XElement("Sdk", new XAttribute("Name", "Karpik.Engine.Sdk")),
+                    new XElement("PropertyGroup",
+                        new XElement("KarpikProjectKind", "Runtime"),
+                        new XElement("KarpikSide", "Client")))));
+
+            AssertCodes(
+                solution,
+                KarpikDiagnosticCodes.MissingSdk,
+                KarpikDiagnosticCodes.InvalidProjectKind,
+                KarpikDiagnosticCodes.InvalidProjectSide);
+        });
+    }
+
+    [Fact]
+    public void ReaderIgnoresReferencesAndPropertyLikeValuesNestedInTargetsOrMetadata()
+    {
+        WithSolution(solution =>
+        {
+            var server = solution.AddProject("Server/Server.csproj", side: "Server");
+            var client = solution.AddProject("Client/Client.csproj", side: "Client");
+            var reference = Path.GetRelativePath(Path.GetDirectoryName(client)!, server);
+            solution.EditProject(client, root =>
+            {
+                root.Add(new XElement("ItemGroup",
+                    new XElement("CustomItem", new XAttribute("Include", "metadata"),
+                        new XElement("KarpikProjectKind", "Unknown"),
+                        new XElement("KarpikSide", "Server"),
+                        new XElement("ProjectReference", new XAttribute("Include", reference)),
+                        new XElement("KarpikModuleDependency", new XAttribute("Include", "MetadataModule")))));
+                root.Add(new XElement("Target", new XAttribute("Name", "InjectReference"),
+                    new XElement("ItemGroup",
+                        new XElement("ProjectReference", new XAttribute("Include", reference)),
+                        new XElement("KarpikModuleDependency", new XAttribute("Include", "TargetModule")))));
+            });
+
+            var model = new KarpikSolutionReader().Read(solution.WriteSolution());
+            var diagnostics = new KarpikSolutionValidator().Validate(model);
+            var clientDescriptor = model.Projects.Single(descriptor => descriptor.ProjectPath.EndsWith(
+                Path.Combine("Client", "Client.csproj"),
+                StringComparison.OrdinalIgnoreCase));
+
+            Assert.Empty(diagnostics);
+            Assert.Empty(clientDescriptor.Modules);
+        });
+    }
+
+    [Fact]
+    public void ReaderRecognizesTopLevelImportSdkAndModuleReference()
+    {
+        WithSolution(solution =>
+        {
+            var project = solution.AddProject(
+                "Tool/Tool.csproj",
+                sdk: "Microsoft.NET.Sdk",
+                kind: "Tool",
+                side: "None");
+            solution.EditProject(project, root =>
+            {
+                root.AddFirst(new XElement("Import", new XAttribute("Sdk", "Karpik.Engine.Sdk/0.6.0-local")));
+                root.Add(new XElement("ItemGroup",
+                    new XElement("KarpikModuleReference",
+                        new XAttribute("Include", "LoggerModule"),
+                        new XAttribute("Optional", "true"))));
+            });
+
+            var model = new KarpikSolutionReader().Read(solution.WriteSolution());
+            var diagnostics = new KarpikSolutionValidator().Validate(model);
+            var descriptor = Assert.Single(model.Projects);
+
+            Assert.Empty(diagnostics);
+            Assert.Contains("Karpik.Engine.Sdk", descriptor.SdkNames);
+            Assert.Equal([new KarpikModuleReference("LoggerModule", null, true)], descriptor.Modules);
+        });
+    }
+
+    [Fact]
+    public void CycleDiagnosticNamesOnlyStronglyConnectedCycleMembers()
+    {
+        WithSolution(solution =>
+        {
+            var a = solution.AddProject(
+                "Shared/A/A.csproj",
+                side: "Shared",
+                references: ["Shared/B/B.csproj"]);
+            var b = solution.AddProject(
+                "Shared/B/B.csproj",
+                side: "Shared",
+                references: ["Shared/A/A.csproj", "Shared/C/C.csproj"]);
+            var c = solution.AddProject("Shared/C/C.csproj", side: "Shared");
+
+            var diagnostic = Assert.Single(
+                ReadAndValidate(solution),
+                item => item.Code == KarpikDiagnosticCodes.ProjectReferenceCycle);
+
+            Assert.Contains(Path.GetFullPath(Path.Combine(solution.RootPath, a)), diagnostic.Message);
+            Assert.Contains(Path.GetFullPath(Path.Combine(solution.RootPath, b)), diagnostic.Message);
+            Assert.DoesNotContain(Path.GetFullPath(Path.Combine(solution.RootPath, c)), diagnostic.Message);
         });
     }
 
@@ -372,6 +483,14 @@ public sealed class GameSolutionValidationTests
         public void AddSolutionEntry(string relativePath)
         {
             _solutionEntries.Add(relativePath);
+        }
+
+        public void EditProject(string relativePath, Action<XElement> edit)
+        {
+            var path = Path.GetFullPath(Path.Combine(RootPath, relativePath));
+            var document = XDocument.Load(path);
+            edit(document.Root!);
+            document.Save(path);
         }
 
         public string WriteSolution()
