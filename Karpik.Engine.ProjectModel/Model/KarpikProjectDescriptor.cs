@@ -9,4 +9,5 @@ public sealed record KarpikProjectDescriptor(
     IReadOnlyList<KarpikModuleReference> Modules)
 {
     internal KarpikProjectReadStatus ReadStatus { get; init; }
+    internal bool ProjectReferencesAreStatic { get; init; }
 }

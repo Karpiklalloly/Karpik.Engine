@@ -16,6 +16,7 @@ public sealed class KarpikValidationTaskTests
         var validationTask = Assert.Single(directTarget.Elements("ValidateKarpikProjectReferencesTask"));
 
         Assert.Equal("ValidateKarpikProjectReferences", (string?)directTarget.Attribute("Name"));
+        Assert.Equal("_GenerateRestoreProjectPathWalk;PrepareForBuild", (string?)directTarget.Attribute("BeforeTargets"));
         Assert.DoesNotContain("SolutionPath", (string?)directTarget.Attribute("Condition"));
         Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)validationTask.Attribute("ProjectReferences"));
     }
@@ -82,11 +83,11 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
-    public void DirectBuildTaskValidatesEvaluatedReferencesAbsentFromRawProject()
+    public void DirectBuildTaskRejectsEvaluatedReferencesAbsentFromRawProject()
     {
         WithProjectTree(tree =>
         {
-            var server = tree.AddProject("Server/Server.csproj", side: "Server");
+            var server = tree.AddProject("Shared/Shared.csproj", side: "Shared");
             var client = tree.AddProject("Client/Client.csproj", side: "Client");
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
@@ -97,7 +98,76 @@ public sealed class KarpikValidationTaskTests
             };
 
             Assert.False(task.Execute());
-            Assert.Equal([KarpikDiagnosticCodes.ForbiddenSideDependency], engine.Errors.Select(error => error.Code));
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, Assert.Single(engine.Errors).Code);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskRejectsRawReferencesAbsentFromEvaluatedProject()
+    {
+        WithProjectTree(tree =>
+        {
+            var shared = tree.AddProject("Shared/Shared.csproj", side: "Shared");
+            var client = tree.AddProject(
+                "Client/Client.csproj",
+                side: "Client",
+                references: [shared],
+                referenceCondition: "'$(IncludeShared)' == 'true'");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = []
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, Assert.Single(engine.Errors).Code);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskRejectsConditionalReferenceEvenWhenEvaluated()
+    {
+        WithProjectTree(tree =>
+        {
+            var shared = tree.AddProject("Shared/Shared.csproj", side: "Shared");
+            var client = tree.AddProject(
+                "Client/Client.csproj",
+                side: "Client",
+                references: [shared],
+                referenceCondition: "'true' == 'true'");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, shared))]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, Assert.Single(engine.Errors).Code);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskReportsLiteralRawCycle()
+    {
+        WithProjectTree(tree =>
+        {
+            const string client = "Client/Client.csproj";
+            var shared = tree.AddProject("Shared/Shared.csproj", side: "Shared", references: [client]);
+            tree.AddProject(client, side: "Shared", references: [shared]);
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, shared))]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.ProjectReferenceCycle, Assert.Single(engine.Errors).Code);
         });
     }
 
@@ -128,7 +198,7 @@ public sealed class KarpikValidationTaskTests
         {
             var server = tree.AddProject("Server/Server.csproj", side: "Server");
             var serverPath = Path.Combine(tree.RootPath, server);
-            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: [server]);
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
             {
@@ -147,7 +217,7 @@ public sealed class KarpikValidationTaskTests
     {
         WithProjectTree(tree =>
         {
-            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: ["Missing/Missing.csproj"]);
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
             {
@@ -167,7 +237,7 @@ public sealed class KarpikValidationTaskTests
         WithProjectTree(tree =>
         {
             var foreign = tree.AddProject("Foreign/Foreign.csproj", sdk: "Microsoft.NET.Sdk", kind: null, side: null);
-            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: [foreign]);
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
             {
@@ -190,7 +260,7 @@ public sealed class KarpikValidationTaskTests
         {
             tree.WriteGlobalJson();
             var outside = tree.AddProject("../Outside/Outside.csproj", side: "Server");
-            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: [outside]);
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
             {
@@ -263,7 +333,8 @@ public sealed class KarpikValidationTaskTests
             string? sdk = "Karpik.Engine.Sdk",
             string? kind = "Runtime",
             string? side = "Shared",
-            IReadOnlyList<string>? references = null)
+            IReadOnlyList<string>? references = null,
+            string? referenceCondition = null)
         {
             var project = new XElement("Project");
             if (sdk != null)
@@ -285,9 +356,16 @@ public sealed class KarpikValidationTaskTests
             if (references is { Count: > 0 })
             {
                 project.Add(new XElement("ItemGroup", references.Select(reference =>
-                    new XElement("ProjectReference", new XAttribute(
+                {
+                    var projectReference = new XElement("ProjectReference", new XAttribute(
                         "Include",
-                        Path.GetRelativePath(Path.GetDirectoryName(relativePath)!, reference))))));
+                        Path.GetRelativePath(Path.GetDirectoryName(relativePath)!, reference)));
+                    if (referenceCondition != null)
+                    {
+                        projectReference.Add(new XAttribute("Condition", referenceCondition));
+                    }
+                    return projectReference;
+                })));
             }
 
             var fullPath = Path.Combine(RootPath, relativePath);

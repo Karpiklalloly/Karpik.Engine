@@ -14,13 +14,44 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
     {
         try
         {
-            var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(ProjectPath))!;
-            var references = ProjectReferences
+            var normalizedProjectPath = Path.GetFullPath(ProjectPath);
+            var projectDirectory = Path.GetDirectoryName(normalizedProjectPath)!;
+            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            var evaluatedReferences = ProjectReferences
                 .Select(reference => Path.GetFullPath(reference.ItemSpec, projectDirectory))
-                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                .Distinct(comparer)
                 .ToList();
-            var model = new KarpikSolutionReader().ReadProjectReferences(ProjectPath, references);
-            var diagnostics = new KarpikSolutionValidator().Validate(model).Distinct().ToList();
+            var model = new KarpikSolutionReader().ReadProjectGraph(normalizedProjectPath);
+            var rootProject = model.Projects.Single(project => comparer.Equals(project.ProjectPath, normalizedProjectPath));
+            var rawReferences = rootProject.ProjectReferences.Distinct(comparer).ToList();
+            var rawOnly = rawReferences.Except(evaluatedReferences, comparer).OrderBy(path => path, comparer).ToList();
+            var evaluatedOnly = evaluatedReferences.Except(rawReferences, comparer).OrderBy(path => path, comparer).ToList();
+
+            if (rawOnly.Count > 0 || evaluatedOnly.Count > 0)
+            {
+                Log.LogError(
+                    subcategory: null,
+                    errorCode: KarpikDiagnosticCodes.InvalidSolutionProject,
+                    helpKeyword: null,
+                    file: normalizedProjectPath,
+                    lineNumber: 0,
+                    columnNumber: 0,
+                    endLineNumber: 0,
+                    endColumnNumber: 0,
+                    message: "Evaluated ProjectReference items must exactly match static top-level ProjectReference Include entries. " +
+                             $"Raw-only: {FormatPaths(rawOnly)}; evaluated-only: {FormatPaths(evaluatedOnly)}.");
+                return false;
+            }
+
+            var diagnostics = new KarpikSolutionValidator().Validate(model)
+                .Where(diagnostic =>
+                    diagnostic.Code != KarpikDiagnosticCodes.InvalidSolutionProject ||
+                    comparer.Equals(diagnostic.ProjectPath, normalizedProjectPath) ||
+                    !diagnostic.Message.StartsWith(
+                        "Solution project is missing, unreadable, or outside the solution root:",
+                        StringComparison.Ordinal))
+                .Distinct()
+                .ToList();
             foreach (var diagnostic in diagnostics)
             {
                 Log.LogError(
@@ -52,4 +83,7 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
             return false;
         }
     }
+
+    private static string FormatPaths(IReadOnlyList<string> paths) =>
+        paths.Count == 0 ? "none" : string.Join(", ", paths);
 }

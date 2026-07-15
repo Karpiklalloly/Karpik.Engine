@@ -7,7 +7,7 @@
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
   <Target Name="ValidateKarpikProjectReferences"
-          BeforeTargets="PrepareForBuild"
+          BeforeTargets="_GenerateRestoreProjectPathWalk;PrepareForBuild"
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
                                          ProjectReferences="@(ProjectReference->'%(FullPath)')" />

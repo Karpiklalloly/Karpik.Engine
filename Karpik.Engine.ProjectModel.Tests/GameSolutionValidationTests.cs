@@ -178,6 +178,20 @@ public sealed class GameSolutionValidationTests
     }
 
     [Fact]
+    public void ConditionalProjectReferenceSyntaxIsRejectedEvenWhenItsEdgeIsPresent()
+    {
+        WithSolution(solution =>
+        {
+            var shared = solution.AddProject("Shared/Shared.csproj", side: "Shared");
+            var client = solution.AddProject("Client/Client.csproj", side: "Client", references: [shared]);
+            solution.EditProject(client, root =>
+                root.Descendants("ProjectReference").Single().Add(new XAttribute("Condition", "'true' == 'true'")));
+
+            AssertCodes(solution, KarpikDiagnosticCodes.InvalidSolutionProject);
+        });
+    }
+
+    [Fact]
     public void TestProjectWithExplicitSideIsValid()
     {
         WithSolution(solution =>

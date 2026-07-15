@@ -59,44 +59,6 @@ public sealed class KarpikSolutionReader
             projects);
     }
 
-    public KarpikSolutionModel ReadProjectReferences(
-        string projectPath,
-        IReadOnlyList<string> evaluatedProjectReferences)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
-        ArgumentNullException.ThrowIfNull(evaluatedProjectReferences);
-
-        var normalizedProjectPath = KarpikPathPolicy.Normalize(projectPath);
-        var projectDirectory = Path.GetDirectoryName(normalizedProjectPath)!;
-        var normalizedReferences = evaluatedProjectReferences
-            .Select(reference => KarpikPathPolicy.Normalize(reference, projectDirectory))
-            .Distinct(KarpikPathPolicy.Comparer)
-            .ToList();
-        var rootProject = ReadProjectFile(normalizedProjectPath) with
-        {
-            ProjectReferences = normalizedReferences
-        };
-        var candidates = normalizedReferences
-            .Where(reference => !KarpikPathPolicy.Comparer.Equals(reference, normalizedProjectPath))
-            .Select(ReadProjectFile)
-            .Prepend(rootProject)
-            .ToList();
-        var graphRoot = FindGraphRoot(normalizedProjectPath, candidates);
-        var projects = candidates
-            .Where(project => KarpikPathPolicy.Comparer.Equals(project.ProjectPath, normalizedProjectPath) ||
-                              project.ReadStatus == KarpikProjectReadStatus.Success &&
-                              KarpikPathPolicy.IsWithinRoot(project.ProjectPath, graphRoot))
-            .Select(project => KarpikPathPolicy.Comparer.Equals(project.ProjectPath, normalizedProjectPath)
-                ? project
-                : project with { ProjectReferences = [] })
-            .ToList();
-
-        return new KarpikSolutionModel(
-            Path.Combine(graphRoot, ".karpik-direct-build.slnx"),
-            ReadSdkVersion(graphRoot),
-            projects);
-    }
-
     private static KarpikProjectDescriptor ReadProject(string solutionRoot, string declaredPath)
     {
         string projectPath;
@@ -127,13 +89,17 @@ public sealed class KarpikSolutionReader
         try
         {
             var document = LoadXml(projectPath);
+            var projectReferenceElements = TopLevelItemElements(document, "ProjectReference").ToList();
             return new KarpikProjectDescriptor(
                 projectPath,
                 ReadSdkNames(document),
                 ReadEnumProperty<KarpikProjectKind>(document, "KarpikProjectKind"),
                 ReadEnumProperty<KarpikProjectSide>(document, "KarpikSide"),
-                ReadProjectReferences(document, projectPath),
-                ReadModules(document));
+                ReadProjectReferences(projectReferenceElements, projectPath),
+                ReadModules(document))
+            {
+                ProjectReferencesAreStatic = projectReferenceElements.All(IsStaticProjectReference)
+            };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or XmlException)
         {
@@ -240,11 +206,13 @@ public sealed class KarpikSolutionReader
         return (TEnum)Enum.ToObject(typeof(TEnum), InvalidEnumValue);
     }
 
-    private static IReadOnlyList<string> ReadProjectReferences(XDocument document, string projectPath)
+    private static IReadOnlyList<string> ReadProjectReferences(
+        IEnumerable<XElement> projectReferenceElements,
+        string projectPath)
     {
         var projectDirectory = Path.GetDirectoryName(projectPath)!;
         var references = new List<string>();
-        foreach (var reference in TopLevelItemElements(document, "ProjectReference"))
+        foreach (var reference in projectReferenceElements)
         {
             var include = reference.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
             if (!string.IsNullOrWhiteSpace(include))
@@ -253,6 +221,19 @@ public sealed class KarpikSolutionReader
             }
         }
         return references;
+    }
+
+    private static bool IsStaticProjectReference(XElement reference)
+    {
+        var include = reference.Attributes()
+            .FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
+        return !string.IsNullOrWhiteSpace(include) &&
+               reference.Attributes().All(attribute => attribute.Name.LocalName != "Condition") &&
+               reference.Parent!.Attributes().All(attribute => attribute.Name.LocalName != "Condition") &&
+               !include.Contains("$(", StringComparison.Ordinal) &&
+               !include.Contains("@(", StringComparison.Ordinal) &&
+               !include.Contains("%(", StringComparison.Ordinal) &&
+               include.IndexOfAny(['*', '?', ';']) < 0;
     }
 
     private static IReadOnlyList<KarpikModuleReference> ReadModules(XDocument document)

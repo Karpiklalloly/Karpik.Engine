@@ -15,7 +15,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-15) Architecture agreed and accepted ADR committed as `b68f055`.
 - [x] (2026-07-15) Initial ExecPlan and kanban board created.
 - [x] (2026-07-15) Milestone 1: reusable game-solution model and validator complete (`5765d51`, `cdc613f`; review clean; ProjectModel 30/30, Configurator 9/9, module validation passed).
-- [x] (2026-07-15) Milestone 2: `Karpik.Engine.Sdk` packs and resolves through standard MSBuild SDK resolution; solution-scope and evaluated-reference gates pass external smokes.
+- [x] (2026-07-15) Milestone 2: `Karpik.Engine.Sdk` packs and resolves through standard MSBuild SDK resolution; solution-scope and static-graph consistency gates pass external smokes.
 - [ ] Milestone 3: transactional engine payload packager and resolver complete.
 - [ ] Milestone 4: an external fixture game builds with ordinary `dotnet` commands.
 - [ ] Milestone 5: project-owned client/server bundles run through engine-owned runners.
@@ -70,13 +70,13 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
   Rationale: The generated `.slnx` metaproject must reject independent foreign projects before it launches any child project. The SDK import stays pinned by the same `global.json` mapping and does not introduce a custom manifest or game-local validation implementation.
   Date/Author: 2026-07-15 / developer and Codex
 
-- Decision: Validate evaluated direct `@(ProjectReference)` items in every Karpik SDK project before `PrepareForBuild`, while preserving raw, non-evaluating metadata parsing in `Karpik.Engine.ProjectModel`.
-  Rationale: References can originate in `Directory.Build.props` or other imports and therefore cannot be discovered reliably from the root project XML. MSBuild supplies normalized evaluated items; applying the same gate to every referenced Karpik project covers every graph level without shelling out, loading game assemblies, or duplicating full-solution diagnostics.
+- Decision: Require every game graph edge to be an unconditional literal top-level `<ProjectReference Include="..." />` in the referencing `.csproj`, and require the normalized evaluated direct-reference set to match that raw set exactly.
+  Rationale: The editor and CLI need one deterministic graph that can be inspected safely without evaluating child projects or loading game assemblies. Imported, conditional, expression-based, globbed, and target-mutated edges can diverge from the raw model, bypass solution membership, or hide cycles. Every Karpik project therefore checks equality before NuGet's recursive restore walk and before `PrepareForBuild`, then validates the complete raw transitive graph.
   Date/Author: 2026-07-15 / developer and Codex
 
 ## Outcomes & Retrospective
 
-Milestone 2 produced a NuGet-resolved `Karpik.Engine.Sdk` with package-owned project and solution hooks. The task suite passes 13/13 and ProjectModel remains 30/30. Package inspection found each required SDK, solution-hook, template, task, and ProjectModel assembly exactly once. External plain-`dotnet build` smokes proved that an independent foreign project fails with `KARPIK001` before compilation in both solution project orders, an imported Client-to-Server reference fails with `KARPIK005` before compilation, and the corresponding valid solution builds normally. Configurator validation also remains green. `graphify update .` was attempted but the local Windows graph rebuild failed with access denied; its partial cache edit was restored and excluded from the milestone commits.
+Milestone 2 produced a NuGet-resolved `Karpik.Engine.Sdk` with package-owned project, restore-walk, and solution hooks. The task suite passes 16/16 and ProjectModel passes 31/31. Package inspection found each required SDK, solution-hook, template, task, and ProjectModel assembly exactly once. External plain-`dotnet build` smokes prove that an independent foreign project fails with `KARPIK001` before compilation in both solution project orders; imported same-side edges fail with `KARPIK004` whether their target is present in or omitted from `.slnx`; a conditionally omitted raw edge fails with `KARPIK004`; and a cold direct literal cycle fails during restore with `KARPIK006` before NuGet's `MSB4006` or compiler diagnostics. The corresponding valid solution builds normally, and Configurator validation remains green. `graphify update .` was attempted but the local Windows graph rebuild failed with access denied; its partial cache edit was restored and excluded from the milestone commits.
 
 ## Context and Orientation
 
@@ -237,7 +237,7 @@ Commit boundary: `feat: add reusable Karpik game project validation`.
 - Add `artifacts/nuget/` to `.gitignore` if the existing ignore rules do not already cover it.
 - Add the projects to `KarpikEngine.slnx`.
 
-`Sdk/Sdk.props` imports `Microsoft.NET.Sdk/Sdk/Sdk.props`, defines no implicit side, and requires consumers to set both `KarpikProjectKind` and `KarpikSide`. `Sdk/Sdk.targets` imports `Microsoft.NET.Sdk/Sdk/Sdk.targets`, registers the compiled task assembly, and validates each project's normalized evaluated direct `@(ProjectReference)` items before `PrepareForBuild`. Because every Karpik SDK project runs the same target, every evaluated graph level is checked during direct and solution builds. The target must not shell out to Configurator or load game assemblies.
+`Sdk/Sdk.props` imports `Microsoft.NET.Sdk/Sdk/Sdk.props`, defines no implicit side, and requires consumers to set both `KarpikProjectKind` and `KarpikSide`. `Sdk/Sdk.targets` imports `Microsoft.NET.Sdk/Sdk/Sdk.targets`, registers the compiled task assembly, and validates before `_GenerateRestoreProjectPathWalk` and `PrepareForBuild`. The task compares normalized evaluated direct `@(ProjectReference)` items with unconditional literal top-level declarations, rejects any mismatch with `KARPIK004`, and validates the complete raw transitive graph. The target must not shell out to Configurator, evaluate child projects, or load game assemblies.
 
 The external game template also commits the standard `Directory.Solution.targets` file at its solution root. That file imports package-owned `Sdk/Solution.targets` through `Sdk="Karpik.Engine.Sdk"`; the package target validates the raw `.slnx` on the solution metaproject before its `Build` target launches any child project. This solution-scope gate rejects an independent foreign project before its compiler can run and remains version-pinned through the same `global.json` `msbuild-sdks` mapping. Future Milestone 4 project creation copies the packaged template verbatim; no `.karpik` manifest or `Directory.Build.*` contract is introduced.
 
@@ -250,7 +250,7 @@ Pack the local development package as `Karpik.Engine.Sdk` version `0.6.0-local` 
 }
 ```
 
-Use a temporary `NuGet.Config` that adds only the local feed plus the normal configured sources; do not modify the user's global NuGet configuration in tests. Verify a project containing `<Project Sdk="Karpik.Engine.Sdk">` restores and builds, verify an independent foreign project in the `.slnx` fails with `KARPIK001` before compilation in both project-order permutations without artificial `ProjectReference` ordering, and verify a Client-to-Server reference introduced only through imported props fails with `KARPIK005` before compiler diagnostics.
+Use a temporary `NuGet.Config` that adds only the local feed plus the normal configured sources; do not modify the user's global NuGet configuration in tests. Verify a project containing `<Project Sdk="Karpik.Engine.Sdk">` restores and builds; verify an independent foreign project in the `.slnx` fails with `KARPIK001` before compilation in both project-order permutations without artificial `ProjectReference` ordering; verify imported and conditional graph mismatches fail with `KARPIK004`; and verify a cold direct literal cycle fails with `KARPIK006` before NuGet restore graph traversal or compiler diagnostics.
 
 Validation:
 

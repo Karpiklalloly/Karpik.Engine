@@ -38,6 +38,13 @@ public sealed class KarpikSolutionValidator
                 KarpikPathPolicy.IsWithinRoot(project.ProjectPath, solutionRoot) &&
                 File.Exists(project.ProjectPath))
             {
+                if (!project.ProjectReferencesAreStatic && invalidProjects.Add(project.ProjectPath))
+                {
+                    diagnostics.Add(new KarpikDiagnostic(
+                        KarpikDiagnosticCodes.InvalidSolutionProject,
+                        project.ProjectPath,
+                        "ProjectReference items must use literal, unconditional Include paths as direct children of top-level ItemGroup elements."));
+                }
                 continue;
             }
 
