@@ -28,10 +28,10 @@ kanban-plugin: board
 - [x] **Сделать транзакционный packager движка**
 	  - Layout: `editor`, `sdk`, `runners`, изолированные `modules/<module-id>`, `native`, manifest и `.complete`.
 	  - Результат: incomplete/hash-invalid installation никогда не выбирается resolver-ом.
-- [ ] **Добавить шаблон отдельной игры**
+- [x] **Добавить шаблон отдельной игры**
 	  - Создать Client/Server/Shared/Test проекты, `.slnx` и `global.json` без `.karpik` и обязательных Directory.Build файлов.
 	  - Результат: игра создаётся в любом каталоге и не содержит относительных ссылок на KarpikEngine.
-- [ ] **Доказать обычный CLI workflow вне репозитория**
+- [x] **Доказать обычный CLI workflow вне репозитория**
 	  - Запускать `restore`, `build`, `test`, `publish` в уникальном каталоге `%TEMP%`.
 	  - Результат: editor и launcher не нужны для сборки.
 - [ ] **Перенести runtime bundles во владение игры**

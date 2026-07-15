@@ -100,6 +100,7 @@
   <Project Path="Karpik.Engine.Packager/Karpik.Engine.Packager.csproj" />
   <Project Path="Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj" />
   <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
+  <Project Path="Karpik.Engine.Sdk.IntegrationTests/Karpik.Engine.Sdk.IntegrationTests.csproj" />
   <Project Path="Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj" />
   <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
   <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
