@@ -96,11 +96,15 @@
   <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
   <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
   <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
+  <Project Path="Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj" />
+  <Project Path="Karpik.Engine.Packager/Karpik.Engine.Packager.csproj" />
   <Project Path="Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj" />
   <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
   <Project Path="Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj" />
   <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
   <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
+  <Project Path="Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj" />
+  <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
   <Project Path="Karpik.Editor/Karpik.Editor.csproj" />
   <Project Path="Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />

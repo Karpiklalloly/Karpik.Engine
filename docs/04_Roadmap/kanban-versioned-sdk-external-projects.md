@@ -25,8 +25,8 @@ kanban-plugin: board
 
 ## Engine payload и внешняя игра
 
-- [ ] **Сделать транзакционный packager движка**
-	  - Layout: `editor`, `sdk`, `runners`, `modules`, `native`, manifest и `.complete`.
+- [x] **Сделать транзакционный packager движка**
+	  - Layout: `editor`, `sdk`, `runners`, изолированные `modules/<module-id>`, `native`, manifest и `.complete`.
 	  - Результат: incomplete/hash-invalid installation никогда не выбирается resolver-ом.
 - [ ] **Добавить шаблон отдельной игры**
 	  - Создать Client/Server/Shared/Test проекты, `.slnx` и `global.json` без `.karpik` и обязательных Directory.Build файлов.

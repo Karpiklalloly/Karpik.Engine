@@ -10,6 +10,7 @@
         <Authors>KarpikEngine</Authors>
         <Description>MSBuild SDK for validated external KarpikEngine game projects.</Description>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <KarpikSdkTasksOutputPath Condition="'$(KarpikSdkTasksOutputPath)' == ''">..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\</KarpikSdkTasksOutputPath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,10 +25,10 @@
         <None Include="Sdk\Solution.targets" Pack="true" PackagePath="Sdk/" />
         <None Include="Templates\Directory.Solution.targets" Pack="true" PackagePath="templates/" />
         <None Include="README.md" Pack="true" PackagePath="/" />
-        <None Include="..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\Karpik.Engine.Sdk.Tasks.dll"
+        <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.Sdk.Tasks.dll"
               Pack="true"
               PackagePath="tools/net10.0/" />
-        <None Include="..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\Karpik.Engine.ProjectModel.dll"
+        <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.ProjectModel.dll"
               Pack="true"
               PackagePath="tools/net10.0/" />
     </ItemGroup>

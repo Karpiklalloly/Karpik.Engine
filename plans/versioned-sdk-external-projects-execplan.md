@@ -16,7 +16,9 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-15) Initial ExecPlan and kanban board created.
 - [x] (2026-07-15) Milestone 1: reusable game-solution model and validator complete (`5765d51`, `cdc613f`; review clean; ProjectModel 30/30, Configurator 9/9, module validation passed).
 - [x] (2026-07-15) Milestone 2: `Karpik.Engine.Sdk` packs and resolves through standard MSBuild SDK resolution; solution-scope and static-graph consistency gates pass external smokes.
-- [ ] Milestone 3: transactional engine payload packager and resolver complete.
+- [x] (2026-07-15) Milestone 3: transactional engine payload packager and resolver complete.
+- [x] (2026-07-15) Milestone 3 implementation and automated validation complete: Tooling 32/32, Packager 12/12, the relevant Release project build and Configurator validation passed, and the synthetic repository-mode build proved identical hash/file count plus installation reuse across two clean builds while packing owned SDK task assemblies.
+- [x] (2026-07-15) Milestone 3 final acceptance complete: two full-repository runs published and then reused `0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185`; an independent framed SHA-256 audit reproduced the manifest hash across 526 hashed files, verified the strict six-field manifest, 22 isolated module roots with primary assemblies, and no staging/replacement residue.
 - [ ] Milestone 4: an external fixture game builds with ordinary `dotnet` commands.
 - [ ] Milestone 5: project-owned client/server bundles run through engine-owned runners.
 - [ ] Milestone 6: the editor opens, closes, and switches one active external project safely.
@@ -39,6 +41,24 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 
 - Observation: Raw XML safety requires location-aware parsing even without MSBuild evaluation; scanning arbitrary descendants can mistake target-time content for static declarations.
   Evidence: Milestone 1 review and regression tests in `Karpik.Engine.ProjectModel.Tests/GameSolutionValidationTests.cs`.
+
+- Observation: Repository `bin/` directories are not a trustworthy payload input because they retain stale and configuration-dependent files, so two otherwise identical packaging runs can produce different payload hashes.
+  Evidence: The initial real repository smoke changed from 393 to 401 files on rerun; the repository-mode stale-output regression failed until every selected project was restored and built below a transaction-owned `ArtifactsPath`.
+
+- Observation: Deterministic managed compilation does not by itself make `dotnet pack` byte-reproducible; NuGet emits a random core-properties part name and ZIP metadata.
+  Evidence: The two-build regression narrowed the last delta to `_rels/.rels` and the generated core-properties path after all DLL/PDB deltas were removed.
+
+- Observation: `ArtifactsPivots` is not safe to capture into an early global property used by NuGet pack items.
+  Evidence: The synthetic repository built SDK tasks below `artifacts/bin/Karpik.Engine.Sdk.Tasks/release`, while the late property expanded to an empty pivot and `NU5019` searched one directory too high.
+
+- Observation: `Kill(entireProcessTree: true)` requests termination but does not prove it completed, and immediately deleting the owned build workspace can race a still-live child.
+  Evidence: The injectable never-exiting process regression reaches the execution timeout, records one tree-kill request, times out a second bounded exit wait, and keeps its marked staging directory across recovery.
+
+- Observation: Flattening complete module outputs into one `modules/` directory is invalid because unrelated modules can carry different assemblies with the same filename.
+  Evidence: The first post-refactor complete-repository run failed on a real `modules/Newtonsoft.Json.dll` collision. A synthetic two-module regression then reproduced the issue with byte-distinct `SharedDependency.dll` files and passes only when each module owns an isolated `modules/<module-id>/` subtree.
+
+- Observation: The final isolated-module complete-repository payload is deterministic and reusable.
+  Evidence: Two complete-repository packager runs produced and then reused `0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185`; an independent implementation reproduced the same framed SHA-256 over 526 files and found no staging or replacement residue.
 
 ## Decision Log
 
@@ -74,9 +94,39 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
   Rationale: The editor and CLI need one deterministic graph that can be inspected safely without evaluating child projects or loading game assemblies. Imported, conditional, expression-based, globbed, and target-mutated edges can diverge from the raw model, bypass solution membership, or hide cycles. Every Karpik project therefore uses distinct task invocations before NuGet's recursive restore walk and at the final point before `AssignProjectConfiguration`, then validates the complete raw transitive graph. Both targets are declared after the Microsoft SDK targets import so earlier consumer/`Directory.Build.targets` restore mutations are visible; the late target remains last so consumer/imported build mutations are visible before reference resolution.
   Date/Author: 2026-07-15 / developer and Codex
 
+- Decision: Build repository-mode payload inputs only into a transaction-owned artifacts root and copy only explicit editor, runner, selected-module, SDK-package, and native-runtime outputs.
+  Rationale: Clean owned outputs prevent stale source-tree binaries, old module-version directories, and unrelated launch artifacts from entering an installation. The same generic engine runner output is used for both client and server until later milestones introduce game-owned bundles.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Canonicalize the SDK `.nupkg` after `dotnet pack` by sorting entries, fixing ZIP timestamps, and normalizing the NuGet core-properties part and relationship identifiers.
+  Rationale: The engine payload hash covers package bytes. NuGet's random OPC part name would otherwise force an atomic replacement on every identical build even though every package entry payload is semantically unchanged.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Frame the payload content hash with a format tag, file count, normalized UTF-8 path lengths, content lengths, and bytes while excluding only the root manifest and completion marker.
+  Rationale: Explicit framing prevents ambiguous concatenations and makes the independently reproducible hash contract stable without a self-referential manifest hash.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Engine installations are immutable after validation; publish a candidate with one rename to a previously absent destination and never move a valid destination away.
+  Rationale: A two-rename replacement creates a Windows interval in which a known-good installation name is absent. Stable-version differing content is an immutable-version conflict. Development versions use `<engine-version>-<full-content-hash>`, so differing valid payloads coexist and exact-SDK resolution reports sorted ambiguity candidates.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Build SDK tasks first and pass the exact transaction-owned `KarpikSdkTasksOutputPath` to `dotnet pack`.
+  Rationale: The pack item needs a fully evaluated directory. Capturing the late `ArtifactsPivots` property in an earlier global property silently produced the wrong path.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: A timed-out packager subprocess must be killed, awaited again with a separate bound, and have redirected output drained only after exit is confirmed.
+  Rationale: If termination cannot be confirmed, a typed error preserves and marks the owned staging directory; ordinary recovery skips that marker rather than deleting files beneath a potentially live child.
+  Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Store each selected module's clean build output below `modules/<module-id>/` and require `modules/<module-id>/<module-id>.dll` as its primary assembly.
+  Rationale: Module dependencies can legitimately share filenames while containing different bytes. Isolated subtrees preserve each module's dependency closure without collision; the later hot-reload loader must enumerate these roots recursively rather than assume a flat module directory.
+  Date/Author: 2026-07-15 / developer and Codex
+
 ## Outcomes & Retrospective
 
 Milestone 2 produced a NuGet-resolved `Karpik.Engine.Sdk` with package-owned project, restore-walk, late-build, and solution hooks. The task suite passes 16/16 and ProjectModel passes 31/31. Structural diagnostics carry typed reasons, so task-level duplicate suppression uses reason and path rather than localized message text. Package inspection found each required SDK, solution-hook, template, task, and ProjectModel assembly exactly once. External plain-`dotnet build` smokes prove that an independent foreign project fails with `KARPIK001` before compilation in both solution project orders; imported same-side edges fail with `KARPIK004` whether their target is present in or omitted from `.slnx`; a conditionally omitted raw edge fails with `KARPIK004`; a cold direct literal cycle fails during restore with `KARPIK006` before NuGet's `MSB4006`; a `Directory.Build.targets` restore-walk mutation fails with `KARPIK004` before NuGet graph traversal; and inline/imported target-time mutations fail with `KARPIK004` before `AssignProjectConfiguration`, reference resolution, or compiler diagnostics. The corresponding valid solution builds normally, and Configurator validation remains green. `graphify update .` was attempted but the local Windows graph rebuild failed with access denied; its partial cache edit was restored and excluded from the milestone commits.
+
+Milestone 3 adds strict six-field installation manifests, exact-SDK resolution from `global.json`, platform-local installation lookup with explicit-root precedence, deterministic framed content hashing, symlink/reparse-safe traversal, validation diagnostics, immutable installation publication, and owned staging/legacy-recovery handling. Stable versions reject any differing generally valid content without moving it, even when the requested SDK differs; development payloads use full-hash-qualified names and coexist. Production legacy recovery validates both candidate and backup, restores only a proven backup, never exposes an invalid/exceptional/unproven absent-destination backup, and retains evidence when neither side is proven. The packager accepts either a prepared payload or the repository, produces the exact editor/SDK/runner/isolated-module/native layout, and reuses a byte-identical installation. Tooling passes 32/32 tests and Packager passes 12/12; the relevant Release build has zero warnings/errors and Configurator validation passes. A synthetic repository invoking real `dotnet restore`, `build`, and `pack` twice proves byte-identical output and reuse, verifies the SDK package contains owned task and ProjectModel assemblies, ignores arbitrary stale source `bin/` and module-version directories, and preserves byte-distinct same-named dependencies in isolated module subtrees. Bounded process tests prove unconfirmed termination preserves marked staging across recovery. Two final complete-repository runs published and then reused `0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185`; an independent framed SHA-256 audit reproduced that hash over 526 files, verified 22 valid module roots, and found no staging or replacement residue. Milestone 3 is complete.
 
 ## Context and Orientation
 
@@ -280,11 +330,14 @@ The payload layout is:
     runners/client/
     runners/server/
     modules/
+      <module-id>/
+        <module-id>.dll
+        <module-owned dependencies...>
     native/
     engine-installation.json
     .complete
 
-Tests cover wrong manifest version, a missing runner, a missing completion marker, hash mismatch, interrupted replacement, an existing good destination, explicit `KarpikEngineRoot`, and default resolution below `%LocalAppData%/Karpik/Engines` (or the platform-equivalent local application-data root).
+Tests cover wrong manifest version, a missing runner, a missing completion marker, hash mismatch, interrupted legacy recovery, immutable stable-version conflicts, hash-qualified development payloads, an existing identical destination, bounded subprocess termination, explicit `KarpikEngineRoot`, and default resolution below `%LocalAppData%/Karpik/Engines` (or the platform-equivalent local application-data root).
 
 Validation:
 
@@ -292,7 +345,7 @@ Validation:
     dotnet test Karpik.Engine.Packager.Tests\Karpik.Engine.Packager.Tests.csproj -m:1 -nr:false
     dotnet run --project Karpik.Engine.Packager\Karpik.Engine.Packager.csproj -- --source . --output artifacts\karpik-home --engine-version 0.6.0-dev --sdk-version 0.6.0-local
 
-Expected observation: only a complete, hash-valid payload appears below `artifacts/karpik-home/Engines`; rerunning the command either reuses the identical content-addressed result or replaces it atomically without a partially visible installation.
+Expected observation: only complete, hash-valid payloads appear below `artifacts/karpik-home/Engines`; rerunning identical content reuses the same installation, differing development content publishes beside it under a full-hash-qualified name, a valid stable-version destination is never moved or replaced, and each module retains its complete clean build output in an isolated subtree.
 
 Commit boundary: `feat: add transactional engine SDK payload packaging`.
 
@@ -483,7 +536,7 @@ Real-time acceptance requires code inspection and tests to confirm that all new 
 
 ## Idempotence and Recovery
 
-SDK packing, payload publication, bundle publication, template materialization, project open, project teardown, and launcher handoff must be safe to retry. Staging directories include unique names and become visible only after validation and a completion marker. On replacement failure, restore the last complete destination and retain a diagnostic path to the failed staging directory only in test or verbose mode.
+SDK packing, payload publication, bundle publication, template materialization, project open, project teardown, and launcher handoff must be safe to retry. Staging directories include unique names and become visible only after validation and a completion marker. Engine payloads are immutable: valid stable-version collisions fail without moving the destination, while differing development content uses a hash-qualified name. Later mutable bundle publication may use replacement recovery, but it must restore the last complete destination on failure. A packager subprocess whose exit cannot be confirmed leaves marked owned staging for inspection and recovery must not delete it.
 
 Tests use unique temporary directories and kill owned process trees in `finally` blocks. They never modify global NuGet sources or the real `%LocalAppData%/Karpik/Engines` store. A failed editor switch disposes the candidate and leaves no active project. A failed cross-version handoff does not restart indefinitely; the launcher shows the error and returns to project selection.
 
