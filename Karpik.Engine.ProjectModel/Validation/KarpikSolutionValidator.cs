@@ -43,7 +43,8 @@ public sealed class KarpikSolutionValidator
                     diagnostics.Add(new KarpikDiagnostic(
                         KarpikDiagnosticCodes.InvalidSolutionProject,
                         project.ProjectPath,
-                        "ProjectReference items must use literal, unconditional Include paths as direct children of top-level ItemGroup elements."));
+                        "ProjectReference items must use literal, unconditional Include paths as direct children of top-level ItemGroup elements.",
+                        KarpikDiagnosticReason.UnsupportedProjectReferenceSyntax));
                 }
                 continue;
             }
@@ -53,7 +54,8 @@ public sealed class KarpikSolutionValidator
                 diagnostics.Add(new KarpikDiagnostic(
                     KarpikDiagnosticCodes.InvalidSolutionProject,
                     project.ProjectPath,
-                    $"Solution project is missing, unreadable, or outside the solution root: {project.ProjectPath}"));
+                    $"Solution project is missing, unreadable, or outside the solution root: {project.ProjectPath}",
+                    KarpikDiagnosticReason.InvalidProjectEntry));
             }
         }
 
@@ -65,7 +67,8 @@ public sealed class KarpikSolutionValidator
             diagnostics.Add(new KarpikDiagnostic(
                 KarpikDiagnosticCodes.InvalidSolutionProject,
                 duplicate.Key,
-                $"Solution project is duplicated: {duplicate.Key}"));
+                $"Solution project is duplicated: {duplicate.Key}",
+                KarpikDiagnosticReason.DuplicateProjectEntry));
         }
         return invalidProjects;
     }
@@ -119,7 +122,8 @@ public sealed class KarpikSolutionValidator
                     diagnostics.Add(new KarpikDiagnostic(
                         KarpikDiagnosticCodes.InvalidSolutionProject,
                         project.ProjectPath,
-                        $"Project reference does not identify a readable project in the solution: {referencePath}"));
+                        $"Project reference does not identify a readable project in the solution: {referencePath}",
+                        KarpikDiagnosticReason.InvalidProjectReference));
                     continue;
                 }
 

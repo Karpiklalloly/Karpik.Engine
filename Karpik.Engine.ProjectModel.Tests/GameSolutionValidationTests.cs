@@ -99,7 +99,9 @@ public sealed class GameSolutionValidationTests
         {
             solution.AddSolutionEntry("Missing/Missing.csproj");
 
-            AssertCodes(solution, KarpikDiagnosticCodes.InvalidSolutionProject);
+            var diagnostic = Assert.Single(ReadAndValidate(solution));
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, diagnostic.Code);
+            Assert.Equal(KarpikDiagnosticReason.InvalidProjectEntry, diagnostic.Reason);
         });
     }
 
@@ -146,7 +148,9 @@ public sealed class GameSolutionValidationTests
             var omitted = solution.AddProject("Omitted/Omitted.csproj", side: "Shared", includeInSolution: false);
             solution.AddProject("Shared/Shared.csproj", side: "Shared", references: [omitted]);
 
-            AssertCodes(solution, KarpikDiagnosticCodes.InvalidSolutionProject);
+            var diagnostic = Assert.Single(ReadAndValidate(solution));
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, diagnostic.Code);
+            Assert.Equal(KarpikDiagnosticReason.InvalidProjectReference, diagnostic.Reason);
         });
     }
 
@@ -187,7 +191,9 @@ public sealed class GameSolutionValidationTests
             solution.EditProject(client, root =>
                 root.Descendants("ProjectReference").Single().Add(new XAttribute("Condition", "'true' == 'true'")));
 
-            AssertCodes(solution, KarpikDiagnosticCodes.InvalidSolutionProject);
+            var diagnostic = Assert.Single(ReadAndValidate(solution));
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, diagnostic.Code);
+            Assert.Equal(KarpikDiagnosticReason.UnsupportedProjectReferenceSyntax, diagnostic.Reason);
         });
     }
 

@@ -21,7 +21,7 @@ kanban-plugin: board
 	  - Результат: `<Project Sdk="Karpik.Engine.Sdk">` восстанавливается через стандартный SDK resolver; пакет содержит project- и solution-level hooks.
 - [x] **Требовать SDK во всех проектах игры**
 	  - Проверять raw `.slnx`, kind/side, циклы и границы Client/Server/Shared; разрешены только literal unconditional top-level `ProjectReference`, а evaluated-набор обязан точно совпадать с raw-набором.
-	  - Результат: foreign `.csproj`, imported/conditional graph edge и raw cycle падают до restore walk/компиляции с точной диагностикой.
+	  - Результат: foreign `.csproj`, imported/conditional/target-time graph edge и raw cycle падают до restore walk/reference resolution/компиляции с точной диагностикой.
 
 ## Engine payload и внешняя игра
 

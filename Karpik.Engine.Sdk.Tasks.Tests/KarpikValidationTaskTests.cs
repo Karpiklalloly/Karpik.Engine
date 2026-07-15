@@ -9,16 +9,26 @@ using Xunit;
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
-    public void SdkTargetsPassEvaluatedReferencesForEveryProjectBuild()
+    public void SdkTargetsUseDistinctRestoreAndLateBuildGates()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
-        var directTarget = Assert.Single(targets.Root!.Elements("Target"));
-        var validationTask = Assert.Single(directTarget.Elements("ValidateKarpikProjectReferencesTask"));
+        var restoreTarget = targets.Root!.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "ValidateKarpikProjectReferencesBeforeRestore");
+        var lateBuildTarget = targets.Root.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "ValidateKarpikProjectReferencesBeforeBuild");
+        var restoreTask = Assert.Single(restoreTarget.Elements("ValidateKarpikProjectReferencesTask"));
+        var lateBuildTask = Assert.Single(lateBuildTarget.Elements("ValidateKarpikProjectReferencesTask"));
 
-        Assert.Equal("ValidateKarpikProjectReferences", (string?)directTarget.Attribute("Name"));
-        Assert.Equal("_GenerateRestoreProjectPathWalk;PrepareForBuild", (string?)directTarget.Attribute("BeforeTargets"));
-        Assert.DoesNotContain("SolutionPath", (string?)directTarget.Attribute("Condition"));
-        Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)validationTask.Attribute("ProjectReferences"));
+        Assert.Equal("_GenerateRestoreProjectPathWalk", (string?)restoreTarget.Attribute("BeforeTargets"));
+        Assert.Equal("AssignProjectConfiguration", (string?)lateBuildTarget.Attribute("BeforeTargets"));
+        Assert.DoesNotContain(";", (string?)restoreTarget.Attribute("BeforeTargets"));
+        Assert.DoesNotContain(";", (string?)lateBuildTarget.Attribute("BeforeTargets"));
+        Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)restoreTask.Attribute("ProjectReferences"));
+        Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)lateBuildTask.Attribute("ProjectReferences"));
+        Assert.Same(lateBuildTarget, targets.Root.Elements().Last());
+        Assert.True(
+            targets.Root.Elements().ToList().IndexOf(targets.Root.Element("Import")!) <
+            targets.Root.Elements().ToList().IndexOf(lateBuildTarget));
     }
 
     [Fact]

@@ -6,12 +6,19 @@
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
-  <Target Name="ValidateKarpikProjectReferences"
-          BeforeTargets="_GenerateRestoreProjectPathWalk;PrepareForBuild"
+  <Target Name="ValidateKarpikProjectReferencesBeforeRestore"
+          BeforeTargets="_GenerateRestoreProjectPathWalk"
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
                                          ProjectReferences="@(ProjectReference->'%(FullPath)')" />
   </Target>
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Target Name="ValidateKarpikProjectReferencesBeforeBuild"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
+                                         ProjectReferences="@(ProjectReference->'%(FullPath)')" />
+  </Target>
 </Project>

@@ -45,11 +45,8 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
 
             var diagnostics = new KarpikSolutionValidator().Validate(model)
                 .Where(diagnostic =>
-                    diagnostic.Code != KarpikDiagnosticCodes.InvalidSolutionProject ||
-                    comparer.Equals(diagnostic.ProjectPath, normalizedProjectPath) ||
-                    !diagnostic.Message.StartsWith(
-                        "Solution project is missing, unreadable, or outside the solution root:",
-                        StringComparison.Ordinal))
+                    diagnostic.Reason != KarpikDiagnosticReason.InvalidProjectEntry ||
+                    comparer.Equals(diagnostic.ProjectPath, normalizedProjectPath))
                 .Distinct()
                 .ToList();
             foreach (var diagnostic in diagnostics)
