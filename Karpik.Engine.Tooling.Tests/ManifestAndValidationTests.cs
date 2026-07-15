@@ -74,6 +74,68 @@ public sealed class ManifestAndValidationTests
         Assert.Equal(EngineInstallationValidationCode.Valid, result.Code);
     }
 
+    [Fact]
+    public void ModuleLayoutPolicyUsesPortableSafeIdsAndCaseInsensitiveUniqueness()
+    {
+        Assert.True(ModuleLayoutPolicy.IsSafeModuleId("Network.Client.Core"));
+        Assert.False(ModuleLayoutPolicy.IsSafeModuleId("Unsafe Module"));
+        Assert.False(ModuleLayoutPolicy.IsSafeModuleId("../escape"));
+        Assert.True(ModuleLayoutPolicy.ModuleIdComparer.Equals("Module", "module"));
+    }
+
+    [Fact]
+    public void ValidatorRejectsALegacyFlatModuleFileEvenWhenAValidModuleRootExists()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath);
+        File.WriteAllText(Path.Combine(root, "modules", "LegacyModule.dll"), "legacy");
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingModules, result.Code);
+    }
+
+    [Fact]
+    public void ValidatorRejectsAnUnsafeModuleDirectoryWithAMatchingPrimaryAssembly()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath);
+        string unsafeModule = Path.Combine(root, "modules", "Unsafe Module");
+        Directory.CreateDirectory(unsafeModule);
+        File.WriteAllText(Path.Combine(unsafeModule, "Unsafe Module.dll"), "unsafe");
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingModules, result.Code);
+    }
+
+    [Fact]
+    public void ValidatorRejectsCaseCollidingModuleIdsWhenTheFileSystemCanRepresentThem()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath);
+        string modulesRoot = Path.Combine(root, "modules");
+        string collidingModule = Path.Combine(modulesRoot, "module");
+        Directory.CreateDirectory(collidingModule);
+        string[] moduleDirectories = Directory.EnumerateDirectories(modulesRoot).ToArray();
+        if (moduleDirectories.Length < 2)
+        {
+            Assert.True(ModuleLayoutPolicy.ModuleIdComparer.Equals("Module", "module"));
+            return;
+        }
+        File.WriteAllText(Path.Combine(collidingModule, "module.dll"), "collision");
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingModules, result.Code);
+    }
+
     [Theory]
     [InlineData("layout", EngineInstallationValidationCode.WrongLayoutVersion)]
     [InlineData("runtime", EngineInstallationValidationCode.WrongRuntimeProtocolVersion)]

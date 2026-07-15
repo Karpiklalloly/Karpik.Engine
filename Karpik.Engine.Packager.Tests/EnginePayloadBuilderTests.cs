@@ -31,6 +31,61 @@ public sealed class EnginePayloadBuilderTests
     }
 
     [Fact]
+    public void BuilderRejectsPreparedPayloadWithALegacyFlatModuleFile()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string output = Path.Combine(temporary.RootPath, "output");
+        File.WriteAllText(Path.Combine(source, "modules", "LegacyModule.dll"), "legacy");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => new EnginePayloadBuilder().Build(source, output, "0.6.0", "sdk"));
+
+        Assert.Contains("module", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(output, "Engines", "0.6.0")));
+    }
+
+    [Fact]
+    public void BuilderRejectsPreparedPayloadWithAnUnsafeModuleDirectory()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string output = Path.Combine(temporary.RootPath, "output");
+        string unsafeModule = Path.Combine(source, "modules", "Unsafe Module");
+        Directory.CreateDirectory(unsafeModule);
+        File.WriteAllText(Path.Combine(unsafeModule, "Unsafe Module.dll"), "unsafe");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => new EnginePayloadBuilder().Build(source, output, "0.6.0", "sdk"));
+
+        Assert.Contains("module", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(output, "Engines", "0.6.0")));
+    }
+
+    [Fact]
+    public void BuilderRejectsPreparedPayloadWithCaseCollidingModuleIdsWhenRepresentable()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string modulesRoot = Path.Combine(source, "modules");
+        string collidingModule = Path.Combine(modulesRoot, "module");
+        Directory.CreateDirectory(collidingModule);
+        if (Directory.EnumerateDirectories(modulesRoot).Count() < 2)
+        {
+            Assert.True(ModuleLayoutPolicy.ModuleIdComparer.Equals("Module", "module"));
+            return;
+        }
+        File.WriteAllText(Path.Combine(collidingModule, "module.dll"), "collision");
+        string output = Path.Combine(temporary.RootPath, "output");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => new EnginePayloadBuilder().Build(source, output, "0.6.0", "sdk"));
+
+        Assert.Contains("module", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(output, "Engines", "0.6.0")));
+    }
+
+    [Fact]
     public void IdenticalRerunReusesExistingInstallationWithoutRewritingManifest()
     {
         using var temporary = new PackagerTemporaryDirectory();

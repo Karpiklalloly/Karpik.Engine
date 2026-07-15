@@ -146,17 +146,45 @@ public sealed class EngineInstallationValidator
             return Failure(EngineInstallationValidationCode.MissingSdkPackage, "The SDK payload directory contains no .nupkg file.", manifest);
         }
         string modulesRoot = Path.Combine(root, "modules");
-        string[] moduleDirectories = Directory.EnumerateDirectories(modulesRoot, "*", SearchOption.TopDirectoryOnly)
+        string[] moduleEntries = Directory.EnumerateFileSystemEntries(modulesRoot, "*", SearchOption.TopDirectoryOnly)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        if (moduleDirectories.Length == 0 ||
-            moduleDirectories.Any(directory =>
-                !File.Exists(Path.Combine(directory, Path.GetFileName(directory) + ".dll"))))
+        if (moduleEntries.Length == 0)
         {
-            return Failure(
-                EngineInstallationValidationCode.MissingModules,
-                "Each module payload must be isolated below modules/<module-id>/ with its primary assembly at modules/<module-id>/<module-id>.dll.",
-                manifest);
+            return InvalidModuleLayout(manifest);
+        }
+
+        var moduleIds = new HashSet<string>(ModuleLayoutPolicy.ModuleIdComparer);
+        foreach (string entry in moduleEntries)
+        {
+            if (!PathSafety.IsContained(modulesRoot, entry))
+            {
+                return Failure(EngineInstallationValidationCode.InvalidPath, $"Module payload entry escapes the modules root: {entry}", manifest);
+            }
+            if (PathSafety.IsReparsePoint(entry))
+            {
+                return Failure(EngineInstallationValidationCode.ReparsePoint, $"Module payload entry is a link or reparse point: {entry}", manifest);
+            }
+            if (!Directory.Exists(entry))
+            {
+                return InvalidModuleLayout(manifest, $"Unexpected entry directly below modules/: {entry}");
+            }
+
+            string moduleId = Path.GetFileName(entry);
+            if (!ModuleLayoutPolicy.IsSafeModuleId(moduleId) || !moduleIds.Add(moduleId))
+            {
+                return InvalidModuleLayout(manifest, $"Module ID is unsafe or not unique: {moduleId}");
+            }
+
+            string primaryAssembly = Path.Combine(entry, ModuleLayoutPolicy.GetPrimaryAssemblyFileName(moduleId));
+            if (!PathSafety.IsContained(entry, primaryAssembly) || !File.Exists(primaryAssembly))
+            {
+                return InvalidModuleLayout(manifest, $"Missing primary module assembly: {primaryAssembly}");
+            }
+            if (PathSafety.IsReparsePoint(primaryAssembly))
+            {
+                return Failure(EngineInstallationValidationCode.ReparsePoint, $"Primary module assembly is a link or reparse point: {primaryAssembly}", manifest);
+            }
         }
 
         string contentHash;
@@ -191,6 +219,14 @@ public sealed class EngineInstallationValidator
         EngineInstallationValidationCode code,
         string message,
         EngineInstallationManifest? manifest = null) => new(false, code, message, manifest);
+
+    private static EngineInstallationValidationResult InvalidModuleLayout(
+        EngineInstallationManifest manifest,
+        string? detail = null) => Failure(
+            EngineInstallationValidationCode.MissingModules,
+            "Each module payload must be a safe unique directory below modules/<module-id>/ with its primary assembly at modules/<module-id>/<module-id>.dll." +
+            (detail is null ? string.Empty : " " + detail),
+            manifest);
 }
 
 public static class EngineContentHash
