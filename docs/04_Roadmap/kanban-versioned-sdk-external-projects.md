@@ -16,12 +16,12 @@ kanban-plugin: board
 - [x] **Выделить модель игровой solution**
 	  - Создать `Karpik.Engine.ProjectModel` и тесты временных `.slnx`/`.csproj`.
 	  - Результат: единые `KarpikProjectKind`, `KarpikProjectSide` и диагностики `KARPIK001`–`KARPIK008`.
-- [ ] **Упаковать `Karpik.Engine.Sdk` как custom MSBuild SDK**
+- [x] **Упаковать `Karpik.Engine.Sdk` как custom MSBuild SDK**
 	  - Добавить `Sdk.props`, `Sdk.targets` и task assembly.
-	  - Результат: `<Project Sdk="Karpik.Engine.Sdk">` восстанавливается через стандартный SDK resolver.
-- [ ] **Требовать SDK во всех проектах игры**
-	  - Проверять каждый проект из `.slnx`, kind/side, транзитивные `ProjectReference`, циклы и границы Client/Server/Shared.
-	  - Результат: foreign `.csproj` падает до компиляции с точной диагностикой.
+	  - Результат: `<Project Sdk="Karpik.Engine.Sdk">` восстанавливается через стандартный SDK resolver; пакет содержит project- и solution-level hooks.
+- [x] **Требовать SDK во всех проектах игры**
+	  - Проверять raw `.slnx`, kind/side, циклы и границы Client/Server/Shared; каждый SDK-проект проверяет фактически вычисленные прямые `ProjectReference`, включая imports.
+	  - Результат: foreign `.csproj` и запрещённая imported Client → Server ссылка падают до компиляции с точной диагностикой.
 
 ## Engine payload и внешняя игра
 

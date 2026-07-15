@@ -8,12 +8,19 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
     [Required]
     public string ProjectPath { get; set; } = string.Empty;
 
+    public ITaskItem[] ProjectReferences { get; set; } = [];
+
     public override bool Execute()
     {
         try
         {
-            var model = new KarpikSolutionReader().ReadProjectGraph(ProjectPath);
-            var diagnostics = new KarpikSolutionValidator().Validate(model);
+            var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(ProjectPath))!;
+            var references = ProjectReferences
+                .Select(reference => Path.GetFullPath(reference.ItemSpec, projectDirectory))
+                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                .ToList();
+            var model = new KarpikSolutionReader().ReadProjectReferences(ProjectPath, references);
+            var diagnostics = new KarpikSolutionValidator().Validate(model).Distinct().ToList();
             foreach (var diagnostic in diagnostics)
             {
                 Log.LogError(

@@ -40,4 +40,4 @@ This solution-scope import resolves the same version pinned by `global.json` and
 
 Supported project kinds are `Runtime`, `Test`, `Tool`, `Generator`, and `Assets`. Supported sides are `Client`, `Server`, `Shared`, and `None`; runtime and test projects require a runtime side rather than `None`.
 
-Solution builds validate every project in the `.slnx` through `Directory.Solution.targets`. Direct project builds validate the transitive `ProjectReference` graph. Invalid projects fail before compilation with stable `KARPIK...` diagnostics.
+Solution builds validate every project declared in the raw `.slnx` through `Directory.Solution.targets`. Every Karpik SDK project also validates its actual evaluated direct `@(ProjectReference)` items before `PrepareForBuild`, including references introduced by imported props. Because MSBuild builds every referenced Karpik project through the same target, all levels of the evaluated graph are checked without loading game assemblies. Invalid projects fail before compilation with stable `KARPIK...` diagnostics.

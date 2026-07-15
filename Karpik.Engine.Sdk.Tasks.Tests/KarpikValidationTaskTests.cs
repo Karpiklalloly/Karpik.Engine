@@ -3,21 +3,21 @@ using System.Xml.Linq;
 using Karpik.Engine.ProjectModel;
 using Karpik.Engine.Sdk.Tasks;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
 using Xunit;
 
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
-    public void SdkTargetsTreatUndefinedSolutionPathAsADirectBuild()
+    public void SdkTargetsPassEvaluatedReferencesForEveryProjectBuild()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
-        var solutionTarget = targets.Root!.Elements("Target")
-            .Single(target => (string?)target.Attribute("Name") == "ValidateKarpikSolution");
-        var directTarget = targets.Root.Elements("Target")
-            .Single(target => (string?)target.Attribute("Name") == "ValidateKarpikProjectReferences");
+        var directTarget = Assert.Single(targets.Root!.Elements("Target"));
+        var validationTask = Assert.Single(directTarget.Elements("ValidateKarpikProjectReferencesTask"));
 
-        Assert.Contains("'$(SolutionPath)' != '*Undefined*'", (string?)solutionTarget.Attribute("Condition"));
-        Assert.Contains("'$(SolutionPath)' == '*Undefined*'", (string?)directTarget.Attribute("Condition"));
+        Assert.Equal("ValidateKarpikProjectReferences", (string?)directTarget.Attribute("Name"));
+        Assert.DoesNotContain("SolutionPath", (string?)directTarget.Attribute("Condition"));
+        Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)validationTask.Attribute("ProjectReferences"));
     }
 
     [Fact]
@@ -82,17 +82,18 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
-    public void DirectBuildTaskValidatesTheTransitiveProjectReferenceGraph()
+    public void DirectBuildTaskValidatesEvaluatedReferencesAbsentFromRawProject()
     {
         WithProjectTree(tree =>
         {
             var server = tree.AddProject("Server/Server.csproj", side: "Server");
-            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: [server]);
+            var client = tree.AddProject("Client/Client.csproj", side: "Client");
             var engine = new FakeBuildEngine();
             var task = new ValidateKarpikProjectReferencesTask
             {
                 BuildEngine = engine,
-                ProjectPath = Path.Combine(tree.RootPath, client)
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine("..", server))]
             };
 
             Assert.False(task.Execute());
@@ -101,7 +102,7 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
-    public void DirectBuildTaskAcceptsAValidTransitiveProjectReferenceGraph()
+    public void DirectBuildTaskAcceptsValidEvaluatedReferences()
     {
         WithProjectTree(tree =>
         {
@@ -111,11 +112,95 @@ public sealed class KarpikValidationTaskTests
             var task = new ValidateKarpikProjectReferencesTask
             {
                 BuildEngine = engine,
-                ProjectPath = Path.Combine(tree.RootPath, client)
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, shared))]
             };
 
             Assert.True(task.Execute());
             Assert.Empty(engine.Errors);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskDeduplicatesEvaluatedReferences()
+    {
+        WithProjectTree(tree =>
+        {
+            var server = tree.AddProject("Server/Server.csproj", side: "Server");
+            var serverPath = Path.Combine(tree.RootPath, server);
+            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(serverPath), new TaskItem(serverPath)]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.ForbiddenSideDependency, Assert.Single(engine.Errors).Code);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskReportsMissingEvaluatedReferenceOnce()
+    {
+        WithProjectTree(tree =>
+        {
+            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem("../Missing/Missing.csproj")]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, Assert.Single(engine.Errors).Code);
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskReportsForeignEvaluatedReferenceDiagnosticsOnceEach()
+    {
+        WithProjectTree(tree =>
+        {
+            var foreign = tree.AddProject("Foreign/Foreign.csproj", sdk: "Microsoft.NET.Sdk", kind: null, side: null);
+            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, foreign))]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(
+                [KarpikDiagnosticCodes.MissingSdk, KarpikDiagnosticCodes.InvalidProjectKind, KarpikDiagnosticCodes.InvalidProjectSide],
+                engine.Errors.Select(error => error.Code));
+        });
+    }
+
+    [Fact]
+    public void DirectBuildTaskReportsOutsideRootEvaluatedReferenceOnce()
+    {
+        WithProjectTree(tree =>
+        {
+            tree.WriteGlobalJson();
+            var outside = tree.AddProject("../Outside/Outside.csproj", side: "Server");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client");
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = Path.Combine(tree.RootPath, client),
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, outside))]
+            };
+
+            Assert.False(task.Execute());
+            Assert.Equal(KarpikDiagnosticCodes.InvalidSolutionProject, Assert.Single(engine.Errors).Code);
         });
     }
 
@@ -154,7 +239,8 @@ public sealed class KarpikValidationTaskTests
 
     private static void WithProjectTree(Action<TestProjectTree> test)
     {
-        var root = Path.Combine(Path.GetTempPath(), "KarpikSdkTaskTests", Guid.NewGuid().ToString("N"));
+        var container = Path.Combine(Path.GetTempPath(), "KarpikSdkTaskTests", Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(container, "Game");
         Directory.CreateDirectory(root);
         try
         {
@@ -162,7 +248,7 @@ public sealed class KarpikValidationTaskTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            Directory.Delete(container, recursive: true);
         }
     }
 
@@ -217,6 +303,11 @@ public sealed class KarpikValidationTaskTests
             new XDocument(new XElement("Solution", _solutionProjects.Select(project =>
                 new XElement("Project", new XAttribute("Path", project))))).Save(path);
             return path;
+        }
+
+        public void WriteGlobalJson()
+        {
+            File.WriteAllText(Path.Combine(RootPath, "global.json"), "{}");
         }
     }
 

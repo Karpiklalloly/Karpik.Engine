@@ -36,13 +36,6 @@ try {
 </configuration>
 "@
 
-    Set-Content -LiteralPath (Join-Path $root "Game.slnx") -Encoding utf8 -Value @"
-<Solution>
-  <Project Path="Karpik/Karpik.csproj" />
-  <Project Path="Foreign/Foreign.csproj" />
-</Solution>
-"@
-
     Set-Content -LiteralPath (Join-Path $root "Karpik\Karpik.csproj") -Encoding utf8 -Value @"
 <Project Sdk="Karpik.Engine.Sdk">
   <PropertyGroup>
@@ -66,29 +59,45 @@ try {
 public sealed class CompilerMarker;
 "@
 
-    Push-Location $root
-    try {
-        $buildOutput = & dotnet build Game.slnx -m:1 -nr:false -p:RestoreDisableParallel=true -p:NuGetAudit=false --tl:off -v:minimal 2>&1
-        $buildExitCode = $LASTEXITCODE
-    }
-    finally {
-        Pop-Location
-    }
-    $buildText = $buildOutput -join "`n"
-    $buildOutput | Write-Output
+    $projectOrders = @(
+        @("Foreign/Foreign.csproj", "Karpik/Karpik.csproj"),
+        @("Karpik/Karpik.csproj", "Foreign/Foreign.csproj")
+    )
 
-    if ($buildExitCode -eq 0) {
-        throw "Invalid solution unexpectedly built successfully."
-    }
-    if ($buildText.IndexOf("KARPIK001", [StringComparison]::Ordinal) -lt 0) {
-        throw "Invalid solution did not emit KARPIK001."
-    }
-    if ($buildText.IndexOf("error CS", [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-        $buildText.IndexOf("KARPIK_FOREIGN_COMPILER_MARKER_MUST_NOT_RUN", [StringComparison]::Ordinal) -ge 0) {
-        throw "Foreign compilation started before solution validation completed."
-    }
+    foreach ($projectOrder in $projectOrders) {
+        $firstProject = $projectOrder[0]
+        $secondProject = $projectOrder[1]
+        Set-Content -LiteralPath (Join-Path $root "Game.slnx") -Encoding utf8 -Value @"
+<Solution>
+  <Project Path="$firstProject" />
+  <Project Path="$secondProject" />
+</Solution>
+"@
 
-    Write-Output "Solution-scope validation smoke passed: KARPIK001 occurred before foreign compilation."
+        Push-Location $root
+        try {
+            $buildOutput = & dotnet build Game.slnx -m:1 -nr:false -p:RestoreDisableParallel=true -p:NuGetAudit=false --tl:off -v:minimal 2>&1
+            $buildExitCode = $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
+        $buildText = $buildOutput -join "`n"
+        $buildOutput | Write-Output
+
+        if ($buildExitCode -eq 0) {
+            throw "Invalid solution unexpectedly built successfully for order '$firstProject, $secondProject'."
+        }
+        if ($buildText.IndexOf("KARPIK001", [StringComparison]::Ordinal) -lt 0) {
+            throw "Invalid solution did not emit KARPIK001 for order '$firstProject, $secondProject'."
+        }
+        if ($buildText.IndexOf("error CS", [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+            $buildText.IndexOf("KARPIK_FOREIGN_COMPILER_MARKER_MUST_NOT_RUN", [StringComparison]::Ordinal) -ge 0) {
+            throw "Foreign compilation started before solution validation completed for order '$firstProject, $secondProject'."
+        }
+
+        Write-Output "Solution-scope validation passed for order '$firstProject, $secondProject': KARPIK001 occurred before compilation."
+    }
 
     Set-Content -LiteralPath (Join-Path $root "Foreign\Foreign.csproj") -Encoding utf8 -Value @"
 <Project Sdk="Karpik.Engine.Sdk">

@@ -59,6 +59,44 @@ public sealed class KarpikSolutionReader
             projects);
     }
 
+    public KarpikSolutionModel ReadProjectReferences(
+        string projectPath,
+        IReadOnlyList<string> evaluatedProjectReferences)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
+        ArgumentNullException.ThrowIfNull(evaluatedProjectReferences);
+
+        var normalizedProjectPath = KarpikPathPolicy.Normalize(projectPath);
+        var projectDirectory = Path.GetDirectoryName(normalizedProjectPath)!;
+        var normalizedReferences = evaluatedProjectReferences
+            .Select(reference => KarpikPathPolicy.Normalize(reference, projectDirectory))
+            .Distinct(KarpikPathPolicy.Comparer)
+            .ToList();
+        var rootProject = ReadProjectFile(normalizedProjectPath) with
+        {
+            ProjectReferences = normalizedReferences
+        };
+        var candidates = normalizedReferences
+            .Where(reference => !KarpikPathPolicy.Comparer.Equals(reference, normalizedProjectPath))
+            .Select(ReadProjectFile)
+            .Prepend(rootProject)
+            .ToList();
+        var graphRoot = FindGraphRoot(normalizedProjectPath, candidates);
+        var projects = candidates
+            .Where(project => KarpikPathPolicy.Comparer.Equals(project.ProjectPath, normalizedProjectPath) ||
+                              project.ReadStatus == KarpikProjectReadStatus.Success &&
+                              KarpikPathPolicy.IsWithinRoot(project.ProjectPath, graphRoot))
+            .Select(project => KarpikPathPolicy.Comparer.Equals(project.ProjectPath, normalizedProjectPath)
+                ? project
+                : project with { ProjectReferences = [] })
+            .ToList();
+
+        return new KarpikSolutionModel(
+            Path.Combine(graphRoot, ".karpik-direct-build.slnx"),
+            ReadSdkVersion(graphRoot),
+            projects);
+    }
+
     private static KarpikProjectDescriptor ReadProject(string solutionRoot, string declaredPath)
     {
         string projectPath;
@@ -121,8 +159,12 @@ public sealed class KarpikSolutionReader
         {
             while (!KarpikPathPolicy.IsWithinRoot(project.ProjectPath, graphRoot))
             {
-                graphRoot = Directory.GetParent(graphRoot)?.FullName
-                            ?? Path.GetPathRoot(graphRoot)!;
+                var parent = Directory.GetParent(graphRoot)?.FullName;
+                if (parent == null)
+                {
+                    break;
+                }
+                graphRoot = parent;
             }
         }
         return graphRoot;
