@@ -26,9 +26,10 @@ public sealed class KarpikValidationTaskTests
         Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)restoreTask.Attribute("ProjectReferences"));
         Assert.Equal("@(ProjectReference->'%(FullPath)')", (string?)lateBuildTask.Attribute("ProjectReferences"));
         Assert.Same(lateBuildTarget, targets.Root.Elements().Last());
-        Assert.True(
-            targets.Root.Elements().ToList().IndexOf(targets.Root.Element("Import")!) <
-            targets.Root.Elements().ToList().IndexOf(lateBuildTarget));
+        var elements = targets.Root.Elements().ToList();
+        var importIndex = elements.IndexOf(targets.Root.Element("Import")!);
+        Assert.True(importIndex < elements.IndexOf(restoreTarget));
+        Assert.True(importIndex < elements.IndexOf(lateBuildTarget));
     }
 
     [Fact]
