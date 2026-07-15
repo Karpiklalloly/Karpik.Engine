@@ -1,0 +1,3 @@
+<Project>
+  <Import Project="Solution.targets" Sdk="Karpik.Engine.Sdk" />
+</Project>

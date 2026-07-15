@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        <PackageId>Karpik.Engine.Sdk</PackageId>
+        <PackageVersion Condition="'$(PackageVersion)' == ''">0.6.0-local</PackageVersion>
+        <Authors>KarpikEngine</Authors>
+        <Description>MSBuild SDK for validated external KarpikEngine game projects.</Description>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="Sdk\Sdk.props" Pack="true" PackagePath="Sdk/" />
+        <None Include="Sdk\Sdk.targets" Pack="true" PackagePath="Sdk/" />
+        <None Include="Sdk\Solution.targets" Pack="true" PackagePath="Sdk/" />
+        <None Include="Templates\Directory.Solution.targets" Pack="true" PackagePath="templates/" />
+        <None Include="README.md" Pack="true" PackagePath="/" />
+        <None Include="..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\Karpik.Engine.Sdk.Tasks.dll"
+              Pack="true"
+              PackagePath="tools/net10.0/" />
+        <None Include="..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\Karpik.Engine.ProjectModel.dll"
+              Pack="true"
+              PackagePath="tools/net10.0/" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <KarpikModuleDependency Remove="Network.Codegen;StatAndAbilities.Codegen" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikSolutionTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+
+  <Target Name="ValidateKarpikSolutionBeforeBuild"
+          BeforeTargets="Build"
+          Condition="'$(SolutionPath)' != '' and '$(SolutionPath)' != '*Undefined*'">
+    <ValidateKarpikSolutionTask SolutionPath="$(SolutionPath)" />
+  </Target>
+</Project>

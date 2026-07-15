@@ -26,6 +26,39 @@ public sealed class KarpikSolutionReader
         return new KarpikSolutionModel(normalizedSolutionPath, ReadSdkVersion(solutionRoot), projects);
     }
 
+    public KarpikSolutionModel ReadProjectGraph(string projectPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
+
+        var normalizedProjectPath = KarpikPathPolicy.Normalize(projectPath);
+        var projects = new List<KarpikProjectDescriptor>();
+        var pending = new Queue<string>();
+        var visited = new HashSet<string>(KarpikPathPolicy.Comparer);
+        pending.Enqueue(normalizedProjectPath);
+
+        while (pending.Count > 0)
+        {
+            var currentPath = pending.Dequeue();
+            if (!visited.Add(currentPath))
+            {
+                continue;
+            }
+
+            var project = ReadProjectFile(currentPath);
+            projects.Add(project);
+            foreach (var reference in project.ProjectReferences)
+            {
+                pending.Enqueue(reference);
+            }
+        }
+
+        var graphRoot = FindGraphRoot(normalizedProjectPath, projects);
+        return new KarpikSolutionModel(
+            Path.Combine(graphRoot, ".karpik-direct-build.slnx"),
+            ReadSdkVersion(graphRoot),
+            projects);
+    }
+
     private static KarpikProjectDescriptor ReadProject(string solutionRoot, string declaredPath)
     {
         string projectPath;
@@ -42,6 +75,12 @@ public sealed class KarpikSolutionReader
         {
             return InvalidDescriptor(projectPath, KarpikProjectReadStatus.OutsideSolutionRoot);
         }
+
+        return ReadProjectFile(projectPath);
+    }
+
+    private static KarpikProjectDescriptor ReadProjectFile(string projectPath)
+    {
         if (!File.Exists(projectPath))
         {
             return InvalidDescriptor(projectPath, KarpikProjectReadStatus.Missing);
@@ -62,6 +101,31 @@ public sealed class KarpikSolutionReader
         {
             return InvalidDescriptor(projectPath, KarpikProjectReadStatus.Unreadable);
         }
+    }
+
+    private static string FindGraphRoot(
+        string rootProjectPath,
+        IReadOnlyList<KarpikProjectDescriptor> projects)
+    {
+        var rootProjectDirectory = Path.GetDirectoryName(rootProjectPath)!;
+        for (var directory = new DirectoryInfo(rootProjectDirectory); directory != null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "global.json")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        var graphRoot = rootProjectDirectory;
+        foreach (var project in projects)
+        {
+            while (!KarpikPathPolicy.IsWithinRoot(project.ProjectPath, graphRoot))
+            {
+                graphRoot = Directory.GetParent(graphRoot)?.FullName
+                            ?? Path.GetPathRoot(graphRoot)!;
+            }
+        }
+        return graphRoot;
     }
 
     private static XDocument LoadXml(string path)

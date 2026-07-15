@@ -225,11 +225,13 @@ Commit boundary: `feat: add reusable Karpik game project validation`.
 
 - Create `Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj` with `ValidateKarpikSolutionTask.cs` and `ValidateKarpikProjectReferencesTask.cs`.
 - Create `Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj` with fake-build-engine tests.
-- Create `Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj`, `Sdk/Sdk.props`, `Sdk/Sdk.targets`, and `README.md`.
+- Create `Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj`, `Sdk/Sdk.props`, `Sdk/Sdk.targets`, `Sdk/Solution.targets`, `Templates/Directory.Solution.targets`, and `README.md`.
 - Add `artifacts/nuget/` to `.gitignore` if the existing ignore rules do not already cover it.
 - Add the projects to `KarpikEngine.slnx`.
 
 `Sdk/Sdk.props` imports `Microsoft.NET.Sdk/Sdk/Sdk.props`, defines no implicit side, and requires consumers to set both `KarpikProjectKind` and `KarpikSide`. `Sdk/Sdk.targets` imports `Microsoft.NET.Sdk/Sdk/Sdk.targets`, registers the compiled task assembly, runs solution validation before `PrepareForBuild` when `$(SolutionPath)` is present, and runs transitive project-reference validation for direct project builds. The target must not shell out to Configurator.
+
+The external game template also commits the standard `Directory.Solution.targets` file at its solution root. That file imports package-owned `Sdk/Solution.targets` through `Sdk="Karpik.Engine.Sdk"`; the package target validates the raw `.slnx` on the solution metaproject before its `Build` target launches any child project. This solution-scope gate rejects an independent foreign project before its compiler can run and remains version-pinned through the same `global.json` `msbuild-sdks` mapping. Future Milestone 4 project creation copies the packaged template verbatim; no `.karpik` manifest or `Directory.Build.*` contract is introduced.
 
 Pack the local development package as `Karpik.Engine.Sdk` version `0.6.0-local` into `artifacts/nuget`. Create a temporary smoke solution with this `global.json` fragment:
 
@@ -240,14 +242,14 @@ Pack the local development package as `Karpik.Engine.Sdk` version `0.6.0-local` 
 }
 ```
 
-Use a temporary `NuGet.Config` that adds only the local feed plus the normal configured sources; do not modify the user's global NuGet configuration in tests. Verify a project containing `<Project Sdk="Karpik.Engine.Sdk">` restores and builds, and verify a foreign project in the `.slnx` fails with `KARPIK001` before compilation.
+Use a temporary `NuGet.Config` that adds only the local feed plus the normal configured sources; do not modify the user's global NuGet configuration in tests. Verify a project containing `<Project Sdk="Karpik.Engine.Sdk">` restores and builds, and verify an independent foreign project in the `.slnx` fails with `KARPIK001` before compilation without artificial `ProjectReference` ordering.
 
 Validation:
 
     dotnet test Karpik.Engine.Sdk.Tasks.Tests\Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false
     dotnet pack Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj -m:1 -nr:false -p:PackageVersion=0.6.0-local -o artifacts\nuget
 
-Expected observation: the `.nupkg` contains `Sdk/Sdk.props`, `Sdk/Sdk.targets`, and the task/runtime dependency assemblies exactly once; the smoke project builds with plain `dotnet build`.
+Expected observation: the `.nupkg` contains `Sdk/Sdk.props`, `Sdk/Sdk.targets`, `Sdk/Solution.targets`, `templates/Directory.Solution.targets`, and the task/runtime dependency assemblies exactly once; the smoke project builds with plain `dotnet build`.
 
 Commit boundary: `feat: package Karpik custom MSBuild SDK`.
 

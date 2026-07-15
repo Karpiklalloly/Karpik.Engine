@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikSolutionTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+
+  <Target Name="ValidateKarpikSolution"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SolutionPath)' != '' and '$(SolutionPath)' != '*Undefined*'">
+    <ValidateKarpikSolutionTask SolutionPath="$(SolutionPath)" />
+  </Target>
+
+  <Target Name="ValidateKarpikProjectReferences"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and ('$(SolutionPath)' == '' or '$(SolutionPath)' == '*Undefined*')">
+    <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)" />
+  </Target>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>
