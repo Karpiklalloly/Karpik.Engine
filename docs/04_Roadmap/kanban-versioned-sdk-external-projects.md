@@ -13,7 +13,7 @@ kanban-plugin: board
 
 ## SDK и валидация
 
-- [ ] **Выделить модель игровой solution**
+- [x] **Выделить модель игровой solution**
 	  - Создать `Karpik.Engine.ProjectModel` и тесты временных `.slnx`/`.csproj`.
 	  - Результат: единые `KarpikProjectKind`, `KarpikProjectSide` и диагностики `KARPIK001`–`KARPIK008`.
 - [ ] **Упаковать `Karpik.Engine.Sdk` как custom MSBuild SDK**
