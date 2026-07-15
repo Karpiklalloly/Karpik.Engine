@@ -1,8 +1,131 @@
 using Karpik.Engine.Core;
+using System.Reflection;
 using Xunit;
 
 public sealed class EditorIpcTests
 {
+    [Fact]
+    public async Task TryRequestStateAsync_ImmediateResponsesAreNotLost()
+    {
+        var pipeName = $"KarpikStateTests_{Guid.NewGuid():N}";
+        using var server = new IpcServer(pipeName);
+        using var client = new IpcClient(pipeName)
+        {
+            OnStateRequest = () => new HotReloadState { Timestamp = 42 }
+        };
+        Task waitTask = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await waitTask;
+
+        for (int index = 0; index < 32; index++)
+        {
+            (bool received, HotReloadState? state) = await server.TryRequestStateAsync(TimeSpan.FromSeconds(1));
+            Assert.True(received);
+            Assert.Equal(42, state!.Timestamp);
+        }
+    }
+
+    [Fact]
+    public async Task TryRequestStateAsync_CancellationAfterSendFinishesDestructiveRequestAndRemovesHandler()
+    {
+        var pipeName = $"KarpikStateCancellationTests_{Guid.NewGuid():N}";
+        using var server = new IpcServer(pipeName);
+        using var requestStarted = new ManualResetEventSlim();
+        using var releaseRequest = new ManualResetEventSlim();
+        using var client = new IpcClient(pipeName)
+        {
+            OnStateRequest = () =>
+            {
+                requestStarted.Set();
+                releaseRequest.Wait(TimeSpan.FromSeconds(5));
+                return new HotReloadState();
+            }
+        };
+        Task waitTask = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await waitTask;
+        int baseline = SubscriberCount(server);
+        using var cancellation = new CancellationTokenSource();
+
+        Task request = server.TryRequestStateAsync(TimeSpan.FromSeconds(5), cancellation.Token);
+        Assert.True(requestStarted.Wait(TimeSpan.FromSeconds(2)));
+        cancellation.Cancel();
+        releaseRequest.Set();
+        await request;
+
+        Assert.Equal(baseline, SubscriberCount(server));
+    }
+
+    [Fact]
+    public async Task Dispose_WithStateRequestInFlight_DoesNotReleaseDisposedGate()
+    {
+        var pipeName = $"KarpikStateDisposeTests_{Guid.NewGuid():N}";
+        var server = new IpcServer(pipeName);
+        using var requestStarted = new ManualResetEventSlim();
+        using var releaseRequest = new ManualResetEventSlim();
+        using var client = new IpcClient(pipeName)
+        {
+            OnStateRequest = () =>
+            {
+                requestStarted.Set();
+                releaseRequest.Wait(TimeSpan.FromSeconds(5));
+                return new HotReloadState();
+            }
+        };
+        Task waitTask = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await waitTask;
+        Task<(bool Received, HotReloadState? State)> request =
+            server.TryRequestStateAsync(TimeSpan.FromSeconds(5));
+        Assert.True(requestStarted.Wait(TimeSpan.FromSeconds(2)));
+
+        server.Dispose();
+        releaseRequest.Set();
+        (bool received, _) = await request;
+
+        Assert.False(received);
+    }
+
+    [Fact]
+    public async Task SendAsync_SerializesConcurrentFrames()
+    {
+        var pipeName = $"KarpikConcurrentSendTests_{Guid.NewGuid():N}";
+        using var server = new IpcServer(pipeName);
+        using var client = new IpcClient(pipeName);
+        int received = 0;
+        var allReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.OnMessageReceived += message =>
+        {
+            if (message.Type == IpcMessageType.WorkerReady
+                && Interlocked.Increment(ref received) == 64)
+            {
+                allReceived.TrySetResult();
+            }
+        };
+        Task waitTask = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await waitTask;
+        byte[] payload = new byte[32 * 1024];
+
+        await Task.WhenAll(Enumerable.Range(0, 64)
+            .Select(_ => server.SendAsync(new IpcMessage(IpcMessageType.WorkerReady, payload))));
+        await allReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(64, received);
+    }
+
+    [Fact]
+    public async Task SendShutdownRequestAsync_SendFailureRemovesAckHandler()
+    {
+        using var server = new IpcServer($"KarpikShutdownFailureTests_{Guid.NewGuid():N}");
+        int baseline = SubscriberCount(server);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            server.SendShutdownRequestAsync(TimeSpan.FromMilliseconds(10)));
+
+        Assert.Equal(baseline, SubscriberCount(server));
+    }
+
     [Fact]
     public async Task RequestEditorSnapshotAsync_RoundTripsSnapshotWithoutStoppingClient()
     {
@@ -91,5 +214,13 @@ public sealed class EditorIpcTests
         Assert.Null(failedSnapshot);
         Assert.Equal(42, nextSnapshot!.CapturedAtUnixMilliseconds);
         Assert.True(client.IsConnected);
+    }
+
+    private static int SubscriberCount(IpcServer server)
+    {
+        var handlers = (MulticastDelegate?)typeof(IpcServer)
+            .GetField("OnMessageReceived", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(server);
+        return handlers?.GetInvocationList().Length ?? 0;
     }
 }

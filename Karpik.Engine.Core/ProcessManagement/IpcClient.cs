@@ -7,6 +7,7 @@ internal class IpcClient : IDisposable
     private NamedPipeClientStream? _pipe;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
     private Task? _listenTask;
     private MainThreadScheduler? _scheduler;
     
@@ -44,12 +45,20 @@ internal class IpcClient : IDisposable
     
     public async Task SendAsync(IpcMessage message, CancellationToken cancellationToken = default)
     {
-        if (_pipe == null || !_pipe.IsConnected)
-            throw new InvalidOperationException("Pipe is not connected");
-        
-        var bytes = message.ToBytes();
-        await _pipe.WriteAsync(bytes, cancellationToken);
-        await _pipe.FlushAsync(cancellationToken);
+        await _sendGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_pipe == null || !_pipe.IsConnected)
+                throw new InvalidOperationException("Pipe is not connected");
+
+            var bytes = message.ToBytes();
+            await _pipe.WriteAsync(bytes, cancellationToken);
+            await _pipe.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
     
     public async Task SendReadyAsync(string moduleDirectory, CancellationToken cancellationToken = default)

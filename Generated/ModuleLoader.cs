@@ -135,15 +135,24 @@ public sealed class ModuleLoader : IDisposable
         var shadowRoot = Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, "reload", "shadow");
         _shadowCopyDirectory = Path.Combine(shadowRoot, $"{Environment.ProcessId}_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_shadowCopyDirectory);
-        CopyDirectory(sourceDirectory, _shadowCopyDirectory, manifestFiles);
-        var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll"))).ToArray();
-        if (missing.Length > 0)
-            throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
-        _loadContext = new PluginLoadContext(_shadowCopyDirectory, _bundleRoot, allowAppContextFallback: _bundleRoot is null);
-        var loaded = new List<Assembly>(requiredAssemblies.Length);
-        foreach (var name in requiredAssemblies)
-            loaded.Add(_loadContext.LoadFromAssemblyPath(Path.Combine(_shadowCopyDirectory, name + ".dll")));
-        LoadedAssemblies = loaded.ToArray();
+        try
+        {
+            CopyDirectory(sourceDirectory, _shadowCopyDirectory, manifestFiles);
+            var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll"))).ToArray();
+            if (missing.Length > 0)
+                throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
+            _loadContext = new PluginLoadContext(_shadowCopyDirectory, _bundleRoot, allowAppContextFallback: _bundleRoot is null);
+            var loaded = new List<Assembly>(requiredAssemblies.Length);
+            foreach (var name in requiredAssemblies)
+                loaded.Add(_loadContext.LoadFromAssemblyPath(Path.Combine(_shadowCopyDirectory, name + ".dll")));
+            LoadedAssemblies = loaded.ToArray();
+        }
+        catch
+        {
+            if (_loadContext is null && _bundleRoot is not null)
+                TryDeleteOwnedShadowDirectory(_bundleRoot, _shadowCopyDirectory);
+            throw;
+        }
     }
 
     private string ResolveModuleDirectory()

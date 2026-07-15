@@ -185,6 +185,79 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Fact]
+    public void Execute_RejectsLinkedDestinationAncestorBeforeCreatingOutsideDirectories()
+    {
+        using var tree = new TemporaryTree();
+        string outside = Path.Combine(tree.Root, "outside");
+        string link = Path.Combine(tree.Root, "publish-link");
+        Directory.CreateDirectory(outside);
+        try
+        {
+            Directory.CreateSymbolicLink(link, outside);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = Path.Combine(link, "new-parent", "karpik-bundle"),
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(tree.Write("content.txt", "content"), "content.txt")]
+        };
+
+        Assert.False(task.Execute());
+        Assert.False(Directory.Exists(Path.Combine(outside, "new-parent")));
+    }
+
+    [Fact]
+    public void Execute_ReplacesCompleteBundleAfterPrimaryAssemblyRename()
+    {
+        using var tree = new TemporaryTree();
+        string bundle = CreateCompleteBundle(tree, "old");
+        string renamedPrimary = tree.Write("output/Renamed.Client.dll", "new-game");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = renamedPrimary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(renamedPrimary)],
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")]
+        };
+
+        Assert.True(task.Execute());
+        Assert.Equal("Renamed.Client.dll\n", File.ReadAllText(Path.Combine(bundle, "modules.version.1", "modules.list")));
+        Assert.False(File.Exists(Path.Combine(bundle, "modules.version.1", "Game.Client.dll")));
+    }
+
+    [Fact]
+    public void Execute_RejectsAssemblyNamesThatDifferOnlyByCaseBeforeStaging()
+    {
+        using var tree = new TemporaryTree();
+        string upper = tree.Write("one/Game.Client.dll", "one");
+        string lower = tree.Write("two/game.client.dll", "two");
+        var engine = new FakeBuildEngine();
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = engine,
+            Side = "Client",
+            PrimaryAssembly = upper,
+            BundlePath = Path.Combine(tree.Root, "bundle"),
+            Assemblies = [new TaskItem(lower)],
+            Content = [ContentItem(tree.Write("content.txt", "content"), "content.txt")]
+        };
+
+        Assert.False(task.Execute());
+        Assert.Contains(engine.Errors, error => error.Message?.Contains("same file name", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [Fact]
     public void Execute_RefusesToReplaceUnprovenUserDirectory()
     {
         using var tree = new TemporaryTree();

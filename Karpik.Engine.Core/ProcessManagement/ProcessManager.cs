@@ -12,7 +12,7 @@ internal class ProcessManager : IDisposable
     private readonly Side _side;
     private readonly HotReloadOptions _options;
     private bool _hasStartedWorker;
-    private bool _reloadInProgress;
+    private int _reloadInProgress;
     
     private readonly CancellationTokenSource _cts = new();
     private Task? _monitorTask;
@@ -45,7 +45,7 @@ internal class ProcessManager : IDisposable
     
     public bool IsWorkerReady { get; private set; }
 
-    public bool IsReloadInProgress => _reloadInProgress;
+    public bool IsReloadInProgress => Volatile.Read(ref _reloadInProgress) != 0;
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
@@ -163,14 +163,15 @@ internal class ProcessManager : IDisposable
         }
         catch
         {
-            if (IsWorkerRunning)
+            Process? failedProcess = _workerProcess;
+            if (failedProcess is not null && IsProcessRunning(failedProcess))
             {
-                _workerProcess?.Kill(entireProcessTree: true);
+                await KillAndConfirmExitAsync(failedProcess);
             }
 
             _ipcServer.Dispose();
             _ipcServer = null;
-            _workerProcess?.Dispose();
+            failedProcess?.Dispose();
             _workerProcess = null;
             throw;
         }
@@ -217,24 +218,25 @@ internal class ProcessManager : IDisposable
 
     public async Task HotReloadAsync(CancellationToken cancellationToken = default)
     {
-        if (_reloadInProgress)
+        if (!TryBeginReload())
         {
             Console.WriteLine("[ProcessManager] Hot reload is already in progress");
             return;
         }
 
-        if (_ipcServer == null || !IsWorkerRunning)
-        {
-            Console.WriteLine("[ProcessManager] Cannot hot reload: worker not running");
-            return;
-        }
-
-        _reloadInProgress = true;
         try
         {
+            IpcServer? ipcServer = _ipcServer;
+            Process? workerProcess = _workerProcess;
+            if (ipcServer is null || workerProcess is null || !IsProcessRunning(workerProcess))
+            {
+                Console.WriteLine("[ProcessManager] Cannot hot reload: worker not running");
+                return;
+            }
+
             Console.WriteLine("[ProcessManager] Starting hot reload...");
 
-            var (receivedState, state) = await _ipcServer.TryRequestStateAsync(
+            var (receivedState, state) = await ipcServer.TryRequestStateAsync(
                 _options.StateRequestTimeout,
                 cancellationToken);
 
@@ -246,79 +248,100 @@ internal class ProcessManager : IDisposable
 
             OnHotReloadRequested?.Invoke(state);
 
-            bool exited = await WaitForExitAsync(_options.GracefulShutdownTimeout);
+            bool exited = await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout);
             if (!exited)
             {
                 try
                 {
-                    await _ipcServer.SendShutdownRequestAsync(
+                    await ipcServer.SendShutdownRequestAsync(
                         _options.GracefulShutdownTimeout,
-                        cancellationToken);
+                        CancellationToken.None);
                 }
                 catch (IOException)
                 {
-                    if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
+                    if (!await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout))
                     {
                         throw;
                     }
                     exited = true;
                 }
 
-                if (!exited && !await WaitForExitAsync(_options.GracefulShutdownTimeout))
+                if (!exited)
                 {
-                    Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
-                    _workerProcess?.Kill(entireProcessTree: true);
+                    exited = await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout);
                 }
             }
 
-            _ipcServer.Dispose();
-            _ipcServer = null;
-            _workerProcess?.Dispose();
-            _workerProcess = null;
+            if (!exited)
+            {
+                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+                await KillAndConfirmExitAsync(workerProcess);
+            }
 
-            await StartWorkerAsync(state, cancellationToken);
+            ipcServer.Dispose();
+            if (ReferenceEquals(_ipcServer, ipcServer))
+            {
+                _ipcServer = null;
+            }
+            workerProcess.Dispose();
+            if (ReferenceEquals(_workerProcess, workerProcess))
+            {
+                _workerProcess = null;
+            }
+
+            await StartWorkerAsync(state, CancellationToken.None);
 
             Console.WriteLine("[ProcessManager] Hot reload complete!");
         }
         finally
         {
-            _reloadInProgress = false;
+            EndReload();
         }
     }
 
     public async Task StopWorkerAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsWorkerRunning)
+        Process? workerProcess = _workerProcess;
+        if (workerProcess is null || !IsProcessRunning(workerProcess))
         {
             return;
         }
         
         Console.WriteLine("[ProcessManager] Stopping worker...");
         
-        if (_ipcServer != null && _ipcServer.IsConnected)
+        IpcServer? ipcServer = _ipcServer;
+        bool exited = false;
+        if (ipcServer != null && ipcServer.IsConnected)
         {
-            await _ipcServer.SendShutdownRequestAsync(_options.GracefulShutdownTimeout, cancellationToken);
-            
-            if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
+            try
             {
-                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
-                _workerProcess?.Kill(entireProcessTree: true);
+                await ipcServer.SendShutdownRequestAsync(_options.GracefulShutdownTimeout, cancellationToken);
             }
+            catch (IOException)
+            {
+                // A broken pipe can mean the worker exited before acknowledging.
+            }
+            exited = await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout);
         }
-        else
+
+        if (!exited)
         {
-            _workerProcess?.Kill(entireProcessTree: true);
+            Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+            await KillAndConfirmExitAsync(workerProcess);
         }
         
-        var workerProcessId = _workerProcess?.Id;
-        _ipcServer?.Dispose();
-        _ipcServer = null;
-        if (workerProcessId.HasValue)
+        int workerProcessId = workerProcess.Id;
+        ipcServer?.Dispose();
+        if (ReferenceEquals(_ipcServer, ipcServer))
         {
-            CleanupWorkerShadowCopies(workerProcessId.Value);
+            _ipcServer = null;
         }
-        _workerProcess?.Dispose();
-        _workerProcess = null;
+        CleanupWorkerShadowCopies(workerProcessId);
+        workerProcess.Dispose();
+        if (ReferenceEquals(_workerProcess, workerProcess))
+        {
+            _workerProcess = null;
+        }
     }
 
     public Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
@@ -333,30 +356,84 @@ internal class ProcessManager : IDisposable
         return _ipcServer.RequestEditorSnapshotAsync(timeout, cancellationToken);
     }
     
-    public async Task<bool> WaitForExitAsync(TimeSpan timeout)
+    public Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        if (_workerProcess == null) return true;
-        
-        var tcs = new TaskCompletionSource<bool>();
-        
+        Process? workerProcess = _workerProcess;
+        return workerProcess is null
+            ? Task.FromResult(true)
+            : WaitForExitAsync(workerProcess, timeout, cancellationToken);
+    }
+
+    internal static async Task<bool> WaitForExitAsync(
+        Process process,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         void Handler(object? sender, EventArgs e)
         {
-            _workerProcess.Exited -= Handler;
-            tcs.SetResult(true);
+            tcs.TrySetResult(true);
         }
-        
-        _workerProcess.Exited += Handler;
-        
-        if (_workerProcess.HasExited)
+
+        process.Exited += Handler;
+        try
         {
-            _workerProcess.Exited -= Handler;
-            return true;
+            if (process.HasExited)
+            {
+                return true;
+            }
+
+            Task timeoutTask = Task.Delay(timeout, cancellationToken);
+            Task completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+            if (completedTask == tcs.Task)
+            {
+                return true;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return process.HasExited;
         }
-        
-        var timeoutTask = Task.Delay(timeout);
-        var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
-        
-        return completedTask == tcs.Task;
+        finally
+        {
+            process.Exited -= Handler;
+        }
+    }
+
+    private bool TryBeginReload() => Interlocked.CompareExchange(ref _reloadInProgress, 1, 0) == 0;
+
+    private void EndReload() => Volatile.Write(ref _reloadInProgress, 0);
+
+    private async Task KillAndConfirmExitAsync(Process process)
+    {
+        if (!IsProcessRunning(process))
+        {
+            return;
+        }
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException) when (!IsProcessRunning(process))
+        {
+            return;
+        }
+        if (!await WaitForExitAsync(process, _options.GracefulShutdownTimeout))
+        {
+            throw new TimeoutException(
+                $"Worker process {process.Id} did not exit after it was forcefully terminated.");
+        }
+    }
+
+    private static bool IsProcessRunning(Process process)
+    {
+        try
+        {
+            return !process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
     
     private async Task MonitorLoop(CancellationToken cancellationToken)
@@ -544,23 +621,39 @@ internal class ProcessManager : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        
+        Process? workerProcess = _workerProcess;
+        bool canDisposeWorker = true;
         try
         {
-            if (IsWorkerRunning)
+            if (workerProcess is not null && IsProcessRunning(workerProcess))
             {
-                var processId = _workerProcess?.Id;
-                _workerProcess?.Kill(entireProcessTree: true);
-                if (processId.HasValue)
+                int processId = workerProcess.Id;
+                workerProcess.Kill(entireProcessTree: true);
+                int timeoutMilliseconds = (int)Math.Clamp(
+                    _options.GracefulShutdownTimeout.TotalMilliseconds,
+                    1,
+                    int.MaxValue);
+                canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
+                if (canDisposeWorker)
                 {
-                    CleanupWorkerShadowCopies(processId.Value);
+                    CleanupWorkerShadowCopies(processId);
+                }
+                else
+                {
+                    Console.WriteLine($"[ProcessManager] Worker process {processId} did not confirm exit during disposal.");
                 }
             }
         }
-        catch { }
+        catch
+        {
+            canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
+        }
         
         _ipcServer?.Dispose();
-        _workerProcess?.Dispose();
+        if (canDisposeWorker)
+        {
+            workerProcess?.Dispose();
+        }
         _cts.Dispose();
     }
 }

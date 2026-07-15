@@ -10,6 +10,10 @@
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
+  <PropertyGroup>
+    <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
+  </PropertyGroup>
+
   <Target Name="ValidateKarpikProjectReferencesBeforeRestore"
           BeforeTargets="_GenerateRestoreProjectPathWalk"
           Condition="'$(DesignTimeBuild)' != 'true'">
@@ -20,9 +24,6 @@
   <Target Name="BuildKarpikRuntimeBundle"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
-    <PropertyGroup>
-      <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
-    </PropertyGroup>
     <ItemGroup>
       <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
                              Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />

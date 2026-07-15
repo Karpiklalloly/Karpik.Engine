@@ -28,6 +28,16 @@ public sealed class KarpikValidationTaskTests
         XElement contentItem = Assert.Single(bundleTarget.Descendants("_KarpikBundleContent"));
         Assert.StartsWith("$(TargetDir)Content", (string?)contentItem.Attribute("Include"));
         Assert.DoesNotContain("$(MSBuildProjectDirectory)", (string?)contentItem.Attribute("Include"));
+
+        XElement bundlePath = targets.Root.Elements("PropertyGroup")
+            .SelectMany(group => group.Elements("KarpikRuntimeBundlePath"))
+            .Single();
+        Assert.Equal("'$(KarpikRuntimeBundlePath)' == ''", (string?)bundlePath.Attribute("Condition"));
+        Assert.Contains("$(TargetDir)", bundlePath.Value);
+        Assert.Empty(bundleTarget.Descendants("KarpikRuntimeBundlePath"));
+        var evaluatedElements = targets.Root.Elements().ToList();
+        Assert.True(evaluatedElements.IndexOf(targets.Root.Element("Import")!)
+                    < evaluatedElements.IndexOf(bundlePath.Parent!));
     }
 
     [Fact]

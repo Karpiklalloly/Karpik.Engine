@@ -91,6 +91,38 @@ public sealed class ModuleLoaderExplicitBundleTests
         }
     }
 
+    [Fact]
+    public void ExplicitLoader_CopyFailureRemovesNewShadowDirectory()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string root = Path.Combine(Path.GetTempPath(), "KarpikModuleLoaderCopyFailure", Guid.NewGuid().ToString("N"));
+        string modules = Path.Combine(root, "modules.version.1");
+        Directory.CreateDirectory(modules);
+        try
+        {
+            string name = "Locked.Client.dll";
+            string assembly = Path.Combine(modules, name);
+            File.WriteAllText(assembly, "locked");
+            File.WriteAllText(Path.Combine(modules, "modules.list"), name + "\n");
+            File.WriteAllText(Path.Combine(modules, ".complete"), RuntimeBundleLayout.ModuleCompletionMarker);
+            using var locked = File.Open(assembly, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            using var loader = new ModuleLoader(root);
+
+            Assert.Throws<IOException>(() => loader.LoadPluginCollection(["Locked.Client"]));
+
+            Assert.NotEmpty(loader.ShadowCopyDirectory);
+            Assert.False(Directory.Exists(loader.ShadowCopyDirectory));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static (string Shadow, WeakReference Lifetime) LoadAndDispose(string root, string expectedModules)
     {

@@ -85,13 +85,14 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             throw new ArgumentException("The runtime bundle destination must have a parent directory.");
         }
+        EnsureExistingAncestorsNotReparse(parent);
         Directory.CreateDirectory(parent);
         EnsureNotReparse(parent);
 
         string backup = destination + ".previous";
         RecoverBackup(destination, backup);
         RecoverOwnedStaging(parent, Path.GetFileName(destination));
-        if (Directory.Exists(destination) && !IsCompleteBundle(destination, Side, allowOwnershipMarker: false))
+        if (Directory.Exists(destination) && !IsCompleteBundle(destination, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
         {
             throw new InvalidDataException($"Refusing to replace unproven directory '{destination}'.");
         }
@@ -102,7 +103,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         try
         {
             Materialize(staging);
-            if (!IsCompleteBundle(staging, Side, allowOwnershipMarker: true))
+            if (!IsCompleteBundle(staging, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly))
             {
                 throw new InvalidDataException("The staged runtime bundle did not pass completion validation.");
             }
@@ -120,14 +121,14 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             catch
             {
                 DeleteOwnedPublishedBundle(destination);
-                if (!Directory.Exists(destination) && Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false))
+                if (!Directory.Exists(destination) && Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
                 {
                     _fileSystem.MoveDirectory(backup, destination);
                 }
                 throw;
             }
 
-            if (Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false))
+            if (Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
             {
                 Directory.Delete(backup, recursive: true);
             }
@@ -149,10 +150,11 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} content items.");
         }
         var sources = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        AddAssembly(sources, PrimaryAssembly);
+        var assemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AddAssembly(sources, assemblyNames, PrimaryAssembly);
         foreach (ITaskItem item in Assemblies)
         {
-            AddAssembly(sources, item.ItemSpec);
+            AddAssembly(sources, assemblyNames, item.ItemSpec);
         }
 
         string manifestText = string.Join('\n', sources.Keys) + '\n';
@@ -179,8 +181,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
         string modules = Path.Combine(staging, "modules.version.1");
         string contentRoot = Path.Combine(staging, "Content");
-        var contentTargets = new HashSet<string>(PathComparer);
-        var contentDirectories = new HashSet<string>(PathComparer) { contentRoot };
+        var contentTargets = new HashSet<string>(BundleIdentityComparer);
+        var contentDirectories = new HashSet<string>(BundleIdentityComparer) { contentRoot };
         var contentSources = new List<(string Source, string Destination)>();
         foreach (ITaskItem item in Content.OrderBy(item => item.GetMetadata("TargetPath"), StringComparer.Ordinal))
         {
@@ -218,7 +220,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                  directory = Path.GetDirectoryName(directory))
             {
                 contentDirectories.Add(directory);
-                if (PathComparer.Equals(directory, contentRoot))
+                if (BundleIdentityComparer.Equals(directory, contentRoot))
                 {
                     break;
                 }
@@ -256,7 +258,10 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
     }
 
-    private static void AddAssembly(IDictionary<string, string> sources, string path)
+    private static void AddAssembly(
+        IDictionary<string, string> sources,
+        ISet<string> assemblyNames,
+        string path)
     {
         if (!Path.IsPathFullyQualified(path) || !File.Exists(path) || IsReparsePoint(path))
         {
@@ -273,7 +278,15 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
         string fullPath = Path.GetFullPath(path);
         EnsureNotReparse(Path.GetDirectoryName(fullPath)!);
-        if (sources.TryGetValue(fileName, out string? existing) && !PathComparer.Equals(existing, fullPath))
+        if (sources.TryGetValue(fileName, out string? existing))
+        {
+            if (!PathComparer.Equals(existing, fullPath))
+            {
+                throw new InvalidDataException($"Two runtime assemblies have the same file name: {fileName}");
+            }
+            return;
+        }
+        if (!assemblyNames.Add(fileName))
         {
             throw new InvalidDataException($"Two runtime assemblies have the same file name: {fileName}");
         }
@@ -286,7 +299,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             return;
         }
-        if (IsReparsePoint(backup) || !IsCompleteBundle(backup, Side, allowOwnershipMarker: false))
+        if (IsReparsePoint(backup) || !IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
         {
             throw new InvalidDataException($"Refusing to move or delete unproven interrupted backup '{backup}'.");
         }
@@ -295,7 +308,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             _fileSystem.MoveDirectory(backup, destination);
             return;
         }
-        if (!IsCompleteBundle(destination, Side, allowOwnershipMarker: false))
+        if (!IsCompleteBundle(destination, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
         {
             throw new InvalidDataException($"Interrupted bundle state contains an invalid destination '{destination}'.");
         }
@@ -335,14 +348,18 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             return;
         }
         string marker = Path.Combine(path, ".karpik-owned-staging");
-        if (IsCompleteBundle(path, Side, allowOwnershipMarker: true)
+        if (IsCompleteBundle(path, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly)
             && HasExactUtf8File(marker, OwnedStagingMarker))
         {
             Directory.Delete(path, recursive: true);
         }
     }
 
-    private bool IsCompleteBundle(string root, string side, bool allowOwnershipMarker)
+    private static bool IsCompleteBundle(
+        string root,
+        string side,
+        bool allowOwnershipMarker,
+        string? requiredPrimaryAssembly)
     {
         try
         {
@@ -358,7 +375,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                 || !Directory.Exists(modules)
                 || !HasExactUtf8File(Path.Combine(modules, ".complete"), ModuleCompletionMarker)
                 || !TryReadCanonicalManifest(Path.Combine(modules, "modules.list"), out string[] names)
-                || !names.Contains(Path.GetFileName(PrimaryAssembly), StringComparer.OrdinalIgnoreCase))
+                || (requiredPrimaryAssembly is not null
+                    && !names.Contains(Path.GetFileName(requiredPrimaryAssembly), StringComparer.OrdinalIgnoreCase)))
             {
                 return false;
             }
@@ -396,8 +414,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                 return false;
             }
 
-            var listed = new HashSet<string>(names, PathComparer);
-            var actual = new HashSet<string>(PathComparer);
+            var listed = new HashSet<string>(names, BundleIdentityComparer);
+            var actual = new HashSet<string>(BundleIdentityComparer);
             foreach (string entry in Directory.EnumerateFileSystemEntries(modules, "*", SearchOption.TopDirectoryOnly))
             {
                 if (Directory.Exists(entry))
@@ -475,7 +493,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             return false;
         }
-        var unique = new HashSet<string>(PathComparer);
+        var unique = new HashSet<string>(BundleIdentityComparer);
         foreach (string name in names)
         {
             if (name.Length == 0
@@ -595,6 +613,20 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    private static void EnsureExistingAncestorsNotReparse(string path)
+    {
+        DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(path));
+        while (current is not null && !current.Exists)
+        {
+            current = current.Parent;
+        }
+        if (current is null)
+        {
+            throw new InvalidDataException($"Runtime bundle path has no existing ancestor: {path}");
+        }
+        EnsureNotReparse(current.FullName);
+    }
+
     private static bool IsContained(string root, string candidate)
     {
         string prefix = TrimRoot(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
@@ -611,4 +643,5 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
     private static StringComparison PathComparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
     private static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static StringComparer BundleIdentityComparer => StringComparer.OrdinalIgnoreCase;
 }

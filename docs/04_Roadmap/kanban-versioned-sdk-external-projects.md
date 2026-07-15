@@ -84,6 +84,10 @@ kanban-plugin: board
 	  - Canonical bounded SDK/runtime proof; post-build Shared content; exact ready cleanup; full ancestor link rejection.
 	  - Runner restore/build uses transaction-owned artifacts and leaves repository `bin/obj` unchanged.
 	  - Two final external runs passed real empty-state restart hot reload with a new PID, consumed state, shadow cleanup, and clean stop.
+- [x] **Close Milestone 5 lifecycle and replacement races**
+	  - IPC subscriptions precede sends and are always removed; reload ownership is atomic; killed workers confirm exit before disposal or replacement.
+	  - Bundle publication validates existing ancestors before mutation, accepts a proven old primary name during replacement, exposes an evaluated overrideable bundle path, and aligns case-insensitive identity with runtime validation.
+	  - Failed pre-load shadow copies are removed; IPC frames are serialized and in-flight requests drain safely; SDK 38/38, Runner 75/75, Configurator 9/9, and three external runtime runs are green.
 
 %% kanban:settings
 ```
