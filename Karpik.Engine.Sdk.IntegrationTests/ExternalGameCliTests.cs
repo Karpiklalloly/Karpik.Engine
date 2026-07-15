@@ -13,6 +13,7 @@ public sealed class ExternalGameCliTests
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan TerminationTimeout = TimeSpan.FromSeconds(15);
     private readonly ITestOutputHelper _output;
+    private readonly List<StartedProcess> _startedProcesses = [];
 
     public ExternalGameCliTests(ITestOutputHelper output) => _output = output;
 
@@ -121,6 +122,8 @@ public sealed class ExternalGameCliTests
             Environment.GetEnvironmentVariable("KARPIK_RUN_EXTERNAL_SDK_INTEGRATION") == "1",
             "Set KARPIK_RUN_EXTERNAL_SDK_INTEGRATION=1 to run the external SDK subprocess suite.");
 
+        _startedProcesses.Clear();
+
         string repositoryRoot = GetRepositoryRoot();
         string templateRoot = GetTemplateRoot();
         string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikExternalSdk_{Guid.NewGuid():N}");
@@ -131,21 +134,17 @@ public sealed class ExternalGameCliTests
 
         try
         {
+            string engineRoot = ResolveValidatedEngineRoot(repositoryRoot);
             string packageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
             Directory.CreateDirectory(packageFeed);
-            ProcessResult pack = await RunAsync(
-                repositoryRoot,
-                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-m:1", "-nr:false",
-                    $"-p:PackageVersion={PackageVersion}", "-o", packageFeed],
-                environment: null);
-            AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
-            Assert.True(File.Exists(Path.Combine(packageFeed, $"Karpik.Engine.Sdk.{PackageVersion}.nupkg")));
-
-            string engineRoot = ResolveValidatedEngineRoot(repositoryRoot);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
             SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
             string hive = Path.Combine(temporaryRoot, "template-hive");
             string dotnetHome = Path.Combine(temporaryRoot, "dotnet-home");
+            string nugetPackages = Path.Combine(temporaryRoot, "nuget-packages");
+            string nugetHttpCache = Path.Combine(temporaryRoot, "nuget-http-cache");
+            string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
+            WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
             var commonEnvironment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
                 ["DOTNET_CLI_HOME"] = dotnetHome,
@@ -153,10 +152,20 @@ public sealed class ExternalGameCliTests
                 ["DOTNET_NOLOGO"] = "1",
                 ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
                 ["MSBUILDDISABLENODEREUSE"] = "1",
+                ["NUGET_PACKAGES"] = nugetPackages,
+                ["NUGET_HTTP_CACHE_PATH"] = nugetHttpCache,
                 ["NuGetAudit"] = "false",
                 ["RestoreDisableParallel"] = "true",
                 ["KarpikEngineRoot"] = engineRoot
             };
+
+            ProcessResult pack = await RunAsync(
+                repositoryRoot,
+                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-m:1", "-nr:false",
+                    $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
+                commonEnvironment);
+            AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
+            Assert.True(File.Exists(Path.Combine(packageFeed, $"Karpik.Engine.Sdk.{PackageVersion}.nupkg")));
 
             ProcessResult install = await RunAsync(
                 temporaryRoot,
@@ -209,6 +218,7 @@ public sealed class ExternalGameCliTests
                 invalidSdkRoot, packageFeed, offlinePackageFeed, commonEnvironment);
             await AssertForbiddenSideFailsBeforeCompilationAsync(
                 invalidSideRoot, packageFeed, offlinePackageFeed, commonEnvironment);
+            AssertAllSubprocessesUseOwnedState(temporaryRoot);
         }
         catch (ExternalProcessTerminationException)
         {
@@ -384,13 +394,23 @@ public sealed class ExternalGameCliTests
 
     private static void SeedOfflinePackageFeed(string repositoryRoot, string destination)
     {
-        string assetsPath = Path.Combine(
-            repositoryRoot,
-            "Karpik.Engine.Sdk.IntegrationTests",
-            "obj",
-            "project.assets.json");
-        Assert.True(File.Exists(assetsPath), $"Integration test assets are missing: {assetsPath}");
         Directory.CreateDirectory(destination);
+        string[] assetsPaths =
+        [
+            Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.IntegrationTests", "obj", "project.assets.json"),
+            Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.Tasks", "obj", "project.assets.json"),
+            Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "obj", "project.assets.json")
+        ];
+        foreach (string assetsPath in assetsPaths)
+        {
+            SeedOfflinePackageFeedFromAssets(assetsPath, destination);
+        }
+        Assert.NotEmpty(Directory.EnumerateFiles(destination, "*.nupkg", SearchOption.TopDirectoryOnly));
+    }
+
+    private static void SeedOfflinePackageFeedFromAssets(string assetsPath, string destination)
+    {
+        Assert.True(File.Exists(assetsPath), $"Project assets are missing: {assetsPath}");
 
         using JsonDocument assets = JsonDocument.Parse(File.ReadAllText(assetsPath));
         string[] packageFolders = assets.RootElement.GetProperty("packageFolders")
@@ -424,9 +444,8 @@ public sealed class ExternalGameCliTests
             Assert.True(package is not null,
                 $"Resolved package {library.Name} has no .nupkg in project.assets.json packageFolders: " +
                 string.Join(", ", packageFolders));
-            File.Copy(package, Path.Combine(destination, Path.GetFileName(package)), overwrite: false);
+            File.Copy(package, Path.Combine(destination, Path.GetFileName(package)), overwrite: true);
         }
-        Assert.NotEmpty(Directory.EnumerateFiles(destination, "*.nupkg", SearchOption.TopDirectoryOnly));
     }
 
     private static void WriteNuGetConfig(string gameRoot, string packageFeed, string offlinePackageFeed)
@@ -461,7 +480,7 @@ public sealed class ExternalGameCliTests
     private async Task<ProcessResult> RunAsync(
         string workingDirectory,
         IReadOnlyList<string> arguments,
-        IReadOnlyDictionary<string, string?>? environment)
+        IReadOnlyDictionary<string, string?> environment)
     {
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -475,13 +494,13 @@ public sealed class ExternalGameCliTests
         {
             startInfo.ArgumentList.Add(argument);
         }
-        if (environment is not null)
+        foreach ((string key, string? value) in environment)
         {
-            foreach ((string key, string? value) in environment)
-            {
-                startInfo.Environment[key] = value;
-            }
+            startInfo.Environment[key] = value;
         }
+        _startedProcesses.Add(new StartedProcess(
+            arguments.ToArray(),
+            new Dictionary<string, string?>(environment, StringComparer.OrdinalIgnoreCase)));
 
         using var process = new Process { StartInfo = startInfo };
         if (!process.Start())
@@ -501,32 +520,30 @@ public sealed class ExternalGameCliTests
         }
         finally
         {
-            if (!process.HasExited)
-            {
-                try
-                {
-                    await TerminateAsync(process);
-                }
-                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
-                {
-                    throw new ExternalProcessTerminationException(
-                        process.Id,
-                        $"Could not confirm termination of dotnet process {process.Id}; temporary integration state was preserved.",
-                        exception);
-                }
-            }
+            await ExternalProcessTermination.EnsureStoppedAsync(
+                new SystemExternalChildProcess(process),
+                TerminationTimeout);
         }
 
         Task allOutput = Task.WhenAll(standardOutput, standardError);
         if (await Task.WhenAny(allOutput, Task.Delay(TerminationTimeout)) != allOutput)
         {
-            throw new ExternalProcessTerminationException(
+            throw ExternalProcessTermination.PreservationFailure(
                 process.Id,
-                $"Output pipes for exited dotnet process {process.Id} did not close within {TerminationTimeout}; " +
-                "temporary integration state was preserved.",
+                $"Output pipes did not close within {TerminationTimeout} after process exit.",
                 new TimeoutException("Redirected output drain did not complete after process exit."));
         }
-        await allOutput;
+        try
+        {
+            await allOutput;
+        }
+        catch (Exception exception) when (!ExternalProcessTermination.IsFatal(exception))
+        {
+            throw ExternalProcessTermination.PreservationFailure(
+                process.Id,
+                "Redirected output drain failed after process exit.",
+                exception);
+        }
         string output = standardOutput.Result;
         string error = standardError.Result;
         var result = new ProcessResult(process.ExitCode, output, error);
@@ -534,25 +551,30 @@ public sealed class ExternalGameCliTests
         return result;
     }
 
-    private static async Task TerminateAsync(Process process)
+    private void AssertAllSubprocessesUseOwnedState(string temporaryRoot)
     {
-        if (!process.HasExited)
+        Assert.NotEmpty(_startedProcesses);
+        StartedProcess pack = Assert.Single(
+            _startedProcesses,
+            process => process.Arguments.FirstOrDefault() == "pack");
+        string restoreConfigArgument = Assert.Single(
+            pack.Arguments,
+            argument => argument.StartsWith("-p:RestoreConfigFile=", StringComparison.OrdinalIgnoreCase));
+        string restoreConfig = restoreConfigArgument[(restoreConfigArgument.IndexOf('=') + 1)..];
+        Assert.True(IsWithinRoot(restoreConfig, temporaryRoot),
+            $"dotnet pack received non-owned RestoreConfigFile: {restoreConfig}");
+        Assert.True(File.Exists(restoreConfig), $"dotnet pack RestoreConfigFile is missing: {restoreConfig}");
+        foreach (StartedProcess process in _startedProcesses)
         {
-            Task kill = Task.Run(() => process.Kill(entireProcessTree: true));
-            if (await Task.WhenAny(kill, Task.Delay(TerminationTimeout)) != kill)
+            foreach (string key in new[] { "DOTNET_CLI_HOME", "NUGET_PACKAGES", "NUGET_HTTP_CACHE_PATH" })
             {
-                throw new TimeoutException(
-                    $"Could not complete process-tree termination for dotnet process {process.Id} within {TerminationTimeout}.");
+                Assert.True(process.Environment.TryGetValue(key, out string? value),
+                    $"dotnet {string.Join(' ', process.Arguments)} did not receive {key}.");
+                Assert.False(string.IsNullOrWhiteSpace(value));
+                Assert.True(IsWithinRoot(value, temporaryRoot),
+                    $"dotnet {string.Join(' ', process.Arguments)} received non-owned {key}: {value}");
             }
-            await kill;
         }
-        Task exit = process.WaitForExitAsync();
-        if (await Task.WhenAny(exit, Task.Delay(TerminationTimeout)) != exit)
-        {
-            throw new TimeoutException(
-                $"Could not confirm exit for dotnet process {process.Id} within {TerminationTimeout} after termination.");
-        }
-        await exit;
     }
 
     private static void AssertSuccess(ProcessResult result, string operation) =>
@@ -613,11 +635,8 @@ public sealed class ExternalGameCliTests
         public string CombinedOutput => StandardOutput + Environment.NewLine + StandardError;
     }
 
-    private sealed class ExternalProcessTerminationException : Exception
-    {
-        public ExternalProcessTerminationException(int processId, string message, Exception innerException)
-            : base(message, innerException) => ProcessId = processId;
+    private sealed record StartedProcess(
+        IReadOnlyList<string> Arguments,
+        IReadOnlyDictionary<string, string?> Environment);
 
-        public int ProcessId { get; }
-    }
 }
