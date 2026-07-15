@@ -72,6 +72,12 @@
     <KarpikModuleDependency Update="Karpik.Engine.Core.Runner.Tests">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.ProjectModel">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.ProjectModel\Karpik.Engine.ProjectModel.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Karpik.Engine.ProjectModel.Tests">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.ProjectModel.Tests\Karpik.Engine.ProjectModel.Tests.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
     <KarpikModuleDependency Update="Karpik.Engine.Server.Publish">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Karpik.Engine.Server.Publish\Karpik.Engine.Server.Publish.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>

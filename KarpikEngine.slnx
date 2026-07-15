@@ -96,6 +96,8 @@
   <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
   <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
   <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
+  <Project Path="Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj" />
+  <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
   <Project Path="Karpik.Editor/Karpik.Editor.csproj" />
   <Project Path="Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
