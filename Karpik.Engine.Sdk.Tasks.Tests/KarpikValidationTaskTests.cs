@@ -25,6 +25,9 @@ public sealed class KarpikValidationTaskTests
         Assert.Equal("$(KarpikRuntimeBundlePath)", (string?)bundleTask.Attribute("BundlePath"));
         Assert.Equal("$(TargetPath)", (string?)bundleTask.Attribute("PrimaryAssembly"));
         Assert.Equal("$(KarpikSide)", (string?)bundleTask.Attribute("Side"));
+        XElement contentItem = Assert.Single(bundleTarget.Descendants("_KarpikBundleContent"));
+        Assert.StartsWith("$(TargetDir)Content", (string?)contentItem.Attribute("Include"));
+        Assert.DoesNotContain("$(MSBuildProjectDirectory)", (string?)contentItem.Attribute("Include"));
     }
 
     [Fact]

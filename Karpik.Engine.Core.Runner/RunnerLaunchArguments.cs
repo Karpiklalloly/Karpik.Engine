@@ -99,10 +99,7 @@ public sealed record RunnerLaunchArguments(
         {
             throw new FileNotFoundException("Runner state file does not exist.", fullPath);
         }
-        if (RuntimeBundleLayout.IsReparsePoint(fullPath))
-        {
-            throw new InvalidDataException($"Runner state file must not be a link or reparse point: {fullPath}");
-        }
+        RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(fullPath);
         return fullPath;
     }
 }

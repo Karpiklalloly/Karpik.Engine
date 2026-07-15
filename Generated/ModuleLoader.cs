@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 public sealed class ModuleLoader : IDisposable
 {
@@ -19,6 +20,8 @@ public sealed class ModuleLoader : IDisposable
     internal WeakReference? LoadContextLifetime { get; private set; }
     private string? _shadowCopyDirectory;
     private readonly string? _bundleRoot;
+    private static readonly object DisposedShadowLock = new();
+    private static readonly List<(WeakReference Lifetime, string BundleRoot, string ShadowDirectory)> DisposedShadows = [];
 
     [Obsolete("Legacy monorepository compatibility only. External runners must provide an explicit bundle root.")]
     public ModuleLoader() { }
@@ -127,11 +130,12 @@ public sealed class ModuleLoader : IDisposable
         ModuleDirectory = sourceDirectory;
         if (!Directory.Exists(sourceDirectory))
             throw new DirectoryNotFoundException($"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.");
+        var manifestFiles = _bundleRoot is null ? null : RuntimeBundleLayout.ReadCanonicalModuleManifest(sourceDirectory);
+        var requiredAssemblies = ResolveAssemblyNames(manifestFiles, assemblyNames);
         var shadowRoot = Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, "reload", "shadow");
         _shadowCopyDirectory = Path.Combine(shadowRoot, $"{Environment.ProcessId}_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_shadowCopyDirectory);
-        CopyDirectory(sourceDirectory, _shadowCopyDirectory);
-        var requiredAssemblies = ResolveAssemblyNames(sourceDirectory, assemblyNames);
+        CopyDirectory(sourceDirectory, _shadowCopyDirectory, manifestFiles);
         var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll"))).ToArray();
         if (missing.Length > 0)
             throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
@@ -155,33 +159,126 @@ public sealed class ModuleLoader : IDisposable
         return latestCompleteDirectory ?? Path.Combine(baseDirectory, "modules");
     }
 
-    private string[] ResolveAssemblyNames(string sourceDirectory, IEnumerable<string> legacyAssemblyNames)
+    private static string[] ResolveAssemblyNames(string[]? manifestFiles, IEnumerable<string> legacyAssemblyNames)
     {
-        if (_bundleRoot is null)
+        if (manifestFiles is null)
             return legacyAssemblyNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        return File.ReadAllLines(Path.Combine(sourceDirectory, "modules.list"))
+        return manifestFiles
             .Select(name => Path.GetFileNameWithoutExtension(name)!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory, string[]? manifestFiles)
     {
-        foreach (var directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, directory)));
-        foreach (var file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        if (manifestFiles is null)
         {
-            var destination = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, overwrite: true);
+            CopyLegacyDirectory(sourceDirectory, destinationDirectory);
+            return;
+        }
+        foreach (var fileName in manifestFiles)
+            File.Copy(Path.Combine(sourceDirectory, fileName), Path.Combine(destinationDirectory, fileName), overwrite: false);
+    }
+
+    private static void CopyLegacyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        var pending = new Stack<(string Source, string Destination, int Depth)>();
+        pending.Push((sourceDirectory, destinationDirectory, 0));
+        var entries = 0;
+        long totalBytes = 0;
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(current.Source))
+            {
+                if (++entries > RuntimeBundleLayout.MaxTreeEntries || (File.GetAttributes(entry) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidDataException("Legacy module shadow copy exceeds entry bounds or contains a link.");
+                var destination = Path.Combine(current.Destination, Path.GetFileName(entry));
+                if (Directory.Exists(entry))
+                {
+                    if (current.Depth + 1 > RuntimeBundleLayout.MaxTreeDepth)
+                        throw new InvalidDataException("Legacy module shadow copy exceeds depth bounds.");
+                    Directory.CreateDirectory(destination);
+                    pending.Push((entry, destination, current.Depth + 1));
+                    continue;
+                }
+                var length = new FileInfo(entry).Length;
+                if (length > RuntimeBundleLayout.MaxIndividualFileBytes || totalBytes > RuntimeBundleLayout.MaxBundleBytes - length)
+                    throw new InvalidDataException("Legacy module shadow copy exceeds byte bounds.");
+                totalBytes += length;
+                File.Copy(entry, destination, overwrite: false);
+            }
         }
     }
 
     public void Dispose()
     {
+        LoadContextLifetime = UnloadContext();
+        if (LoadContextLifetime is not null && _bundleRoot is not null && _shadowCopyDirectory is not null)
+        {
+            lock (DisposedShadowLock)
+            {
+                if (DisposedShadows.Count < 256)
+                    DisposedShadows.Add((LoadContextLifetime, _bundleRoot, _shadowCopyDirectory));
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private WeakReference? UnloadContext()
+    {
         LoadedAssemblies = [];
-        LoadContextLifetime = _loadContext is null ? null : new WeakReference(_loadContext);
-        _loadContext?.Unload();
+        if (_loadContext is null)
+            return null;
+        var lifetime = new WeakReference(_loadContext);
+        _loadContext.Unload();
         _loadContext = null;
+        return lifetime;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void CleanupDisposedShadows()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            lock (DisposedShadowLock)
+                if (DisposedShadows.All(item => !item.Lifetime.IsAlive))
+                    break;
+        }
+        lock (DisposedShadowLock)
+        {
+            for (var index = DisposedShadows.Count - 1; index >= 0; index--)
+            {
+                var item = DisposedShadows[index];
+                if (item.Lifetime.IsAlive)
+                    continue;
+                TryDeleteOwnedShadowDirectory(item.BundleRoot, item.ShadowDirectory);
+                DisposedShadows.RemoveAt(index);
+            }
+        }
+    }
+
+    private static void TryDeleteOwnedShadowDirectory(string bundleRoot, string shadowCopyDirectory)
+    {
+        if (!Directory.Exists(shadowCopyDirectory))
+            return;
+        try
+        {
+            var shadowRoot = Path.GetFullPath(Path.Combine(bundleRoot, "reload", "shadow")).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var owned = Path.GetFullPath(shadowCopyDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!string.Equals(Path.GetDirectoryName(owned), shadowRoot, comparison))
+                return;
+            var entryCount = 0;
+            foreach (var entry in Directory.EnumerateFileSystemEntries(owned, "*", SearchOption.TopDirectoryOnly))
+                if (++entryCount > RuntimeBundleLayout.MaxManifestEntries || Directory.Exists(entry) || (File.GetAttributes(entry) & FileAttributes.ReparsePoint) != 0)
+                    return;
+            Directory.Delete(owned, recursive: true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // ProcessManager performs defense-in-depth cleanup when a worker exits.
+        }
     }
 }

@@ -6,4 +6,7 @@
     <KarpikProjectKind>Runtime</KarpikProjectKind>
     <KarpikSide>Shared</KarpikSide>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

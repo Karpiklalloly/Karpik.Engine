@@ -196,14 +196,23 @@ internal class ProcessManager : IDisposable
         }
     }
     
-    public async Task<bool> WaitForWorkerReadyAsync(TimeSpan timeout)
+    public async Task<bool> WaitForWorkerReadyAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
     {
         if (IsWorkerReady) return true;
         if (_readyTcs == null) return false;
-        
-        var timeoutTask = Task.Delay(timeout);
-        var completedTask = await Task.WhenAny(_readyTcs.Task, timeoutTask);
-        return completedTask == _readyTcs.Task && IsWorkerReady;
+
+        Task readyTask = _readyTcs.Task;
+        Task timeoutTask = Task.Delay(timeout, cancellationToken);
+        Task completedTask = await Task.WhenAny(readyTask, timeoutTask);
+        if (completedTask == timeoutTask)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
+        }
+        await readyTask;
+        return IsWorkerReady;
     }
 
     public async Task HotReloadAsync(CancellationToken cancellationToken = default)
@@ -237,12 +246,29 @@ internal class ProcessManager : IDisposable
 
             OnHotReloadRequested?.Invoke(state);
 
-            await _ipcServer.SendShutdownRequestAsync(_options.GracefulShutdownTimeout, cancellationToken);
-
-            if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
+            bool exited = await WaitForExitAsync(_options.GracefulShutdownTimeout);
+            if (!exited)
             {
-                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
-                _workerProcess?.Kill(entireProcessTree: true);
+                try
+                {
+                    await _ipcServer.SendShutdownRequestAsync(
+                        _options.GracefulShutdownTimeout,
+                        cancellationToken);
+                }
+                catch (IOException)
+                {
+                    if (!await WaitForExitAsync(_options.GracefulShutdownTimeout))
+                    {
+                        throw;
+                    }
+                    exited = true;
+                }
+
+                if (!exited && !await WaitForExitAsync(_options.GracefulShutdownTimeout))
+                {
+                    Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+                    _workerProcess?.Kill(entireProcessTree: true);
+                }
             }
 
             _ipcServer.Dispose();
@@ -394,10 +420,28 @@ internal class ProcessManager : IDisposable
             return;
         }
 
-        foreach (var directory in Directory.GetDirectories(shadowRoot, $"{processId}_*"))
+        int candidates = 0;
+        foreach (string directory in Directory.EnumerateDirectories(
+                     shadowRoot,
+                     $"{processId}_*",
+                     SearchOption.TopDirectoryOnly))
         {
+            if (++candidates > RuntimeBundleLayout.MaxTreeEntries)
+            {
+                Console.WriteLine("[ProcessManager] Worker shadow cleanup exceeded the candidate bound.");
+                return;
+            }
             try
             {
+                string name = Path.GetFileName(directory);
+                string suffix = name[(name.IndexOf('_') + 1)..];
+                if (suffix.Length != 32
+                    || !suffix.All(Uri.IsHexDigit)
+                    || !RuntimeBundleLayout.IsBoundedTreeWithoutReparsePoints(directory))
+                {
+                    Console.WriteLine($"[ProcessManager] Refusing unproven worker shadow directory: {directory}");
+                    continue;
+                }
                 Directory.Delete(directory, recursive: true);
                 Console.WriteLine($"[ProcessManager] Removed worker shadow directory: {directory}");
             }
@@ -410,26 +454,45 @@ internal class ProcessManager : IDisposable
 
     internal void CleanupCompletedModuleVersions(byte[] payload)
     {
-        if (payload.Length == 0)
+        if (payload.Length is 0 or > 32_768)
         {
             return;
         }
 
-        string activeDirectory = System.Text.Encoding.UTF8.GetString(payload);
-        string baseDirectory = _bundlePath;
-        string baseDirectoryPath = Path.GetFullPath(baseDirectory)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        string activeDirectoryPath = Path.GetFullPath(activeDirectory);
-
-        if (!activeDirectoryPath.StartsWith(baseDirectoryPath, StringComparison.OrdinalIgnoreCase)
-            || !Path.GetFileName(activeDirectoryPath).StartsWith("modules.version.", StringComparison.Ordinal))
+        string activeDirectory;
+        string expectedDirectory;
+        try
         {
-            Console.WriteLine($"[ProcessManager] Ignoring invalid worker module staging directory: {activeDirectory}");
+            activeDirectory = new System.Text.UTF8Encoding(false, true).GetString(payload);
+            if (!Path.IsPathFullyQualified(activeDirectory))
+            {
+                return;
+            }
+            activeDirectory = Path.GetFullPath(activeDirectory)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            expectedDirectory = RuntimeBundleLayout.ResolveModuleDirectory(_bundlePath)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch (Exception exception) when (exception is InvalidDataException
+                                          || exception is ArgumentException
+                                          || exception is System.Text.DecoderFallbackException
+                                          || exception is IOException
+                                          || exception is UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[ProcessManager] Ignoring invalid worker module staging directory: {exception.Message}");
             return;
         }
 
-        ModuleStagingCleanup.CleanupCompletedVersions(baseDirectory, activeDirectoryPath);
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!string.Equals(activeDirectory, expectedDirectory, comparison))
+        {
+            Console.WriteLine($"[ProcessManager] Ignoring worker module directory that does not exactly match the resolved bundle directory: {activeDirectory}");
+            return;
+        }
+
+        ModuleStagingCleanup.CleanupCompletedVersions(_bundlePath, activeDirectory);
     }
 
     internal static ProcessStartInfo CreateStartInfo(

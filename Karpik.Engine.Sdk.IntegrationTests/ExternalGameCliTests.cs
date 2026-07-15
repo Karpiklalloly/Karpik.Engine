@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -33,6 +34,7 @@ public sealed class ExternalGameCliTests
             "Source/KarpikGame.Client/KarpikGame.Client.csproj",
             "Source/KarpikGame.Server/KarpikGame.Server.csproj",
             "Source/KarpikGame.Shared/KarpikGame.Shared.csproj",
+            "Source/KarpikGame.Shared/Content/shared-runtime.txt",
             "Tests/KarpikGame.Tests/KarpikGame.Tests.csproj"
         ];
 
@@ -218,8 +220,9 @@ public sealed class ExternalGameCliTests
                 repositoryRoot,
                 engineRoot,
                 temporaryRoot,
+                nugetConfig,
                 commonEnvironment);
-            await AssertRunnerReadyAndCleanShutdownAsync(validRoot, updatedEngineRoot);
+            await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, updatedEngineRoot);
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -419,6 +422,7 @@ public sealed class ExternalGameCliTests
             Assert.DoesNotContain(forbidden, names, StringComparer.OrdinalIgnoreCase);
             Assert.DoesNotContain(names, name => name.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase));
             Assert.True(File.Exists(Path.Combine(bundle, "Content", "runtime.txt")));
+            Assert.True(File.Exists(Path.Combine(bundle, "Content", "shared-runtime.txt")));
         }
     }
 
@@ -426,20 +430,49 @@ public sealed class ExternalGameCliTests
         string repositoryRoot,
         string retainedEngineRoot,
         string temporaryRoot,
+        string nugetConfig,
         IReadOnlyDictionary<string, string?> environment)
     {
+        string runnerProject = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "Karpik.Engine.Core.Runner.csproj");
+        string ownedBuildRoot = Path.Combine(temporaryRoot, "runner-build");
+        string artifacts = Path.Combine(ownedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
+        string extensions = Path.Combine(ownedBuildRoot, "obj") + Path.DirectorySeparatorChar +
+                            "$(MSBuildProjectName)" + Path.DirectorySeparatorChar;
+        Dictionary<string, FileStamp> before = SnapshotFiles(
+            Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin"),
+            Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "obj"));
+        string[] ownedProperties =
+        [
+            $"-p:RestoreConfigFile={nugetConfig}",
+            $"-p:ArtifactsPath={artifacts}",
+            $"-p:MSBuildProjectExtensionsPath={extensions}"
+        ];
+        ProcessResult runnerRestore = await RunAsync(
+            repositoryRoot,
+            ["restore", runnerProject, "-m:1", "-nr:false", .. ownedProperties],
+            environment);
+        AssertSuccess(runnerRestore, "restore the current engine-owned runner into transaction-owned state");
         ProcessResult runnerBuild = await RunAsync(
             repositoryRoot,
-            ["build", "Karpik.Engine.Core.Runner\\Karpik.Engine.Core.Runner.csproj", "-c", "Release", "-m:1", "-nr:false", "--no-restore"],
+            ["build", runnerProject, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
             environment);
         AssertSuccess(runnerBuild, "build the current engine-owned runner");
+        Assert.Equal(before, SnapshotFiles(
+            Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin"),
+            Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "obj")));
 
         string prepared = Path.Combine(temporaryRoot, "prepared-task5-engine");
         foreach (string directory in new[] { "editor", "sdk", "modules", "native" })
         {
             CopyDirectory(Path.Combine(retainedEngineRoot, directory), Path.Combine(prepared, directory));
         }
-        string runnerOutput = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin", "Release", "net10.0");
+        string runnerOutput = Assert.Single(Directory.EnumerateFiles(
+                artifacts,
+                "Karpik.Engine.Core.Runner.runtimeconfig.json",
+                SearchOption.AllDirectories)
+            .Select(Path.GetDirectoryName)
+            .OfType<string>());
+        Assert.True(IsWithinRoot(runnerOutput, ownedBuildRoot));
         Assert.True(File.Exists(Path.Combine(runnerOutput, "Karpik.Engine.Core.Runner.dll")));
         CopyDirectory(runnerOutput, Path.Combine(prepared, "runners", "client"));
         CopyDirectory(runnerOutput, Path.Combine(prepared, "runners", "server"));
@@ -458,7 +491,7 @@ public sealed class ExternalGameCliTests
         return published.DestinationDirectory;
     }
 
-    private static async Task AssertRunnerReadyAndCleanShutdownAsync(string gameRoot, string engineRoot)
+    private static async Task AssertRunnerHotReloadAndCleanShutdownAsync(string gameRoot, string engineRoot)
     {
         string bundle = Path.Combine(
             gameRoot,
@@ -475,6 +508,7 @@ public sealed class ExternalGameCliTests
             OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
         Assert.True(File.Exists(runner), $"Engine installation runner is missing: {runner}");
         Assert.False(IsWithinRoot(runner, bundle));
+        Dictionary<string, FileStamp> engineBefore = SnapshotFiles(engineRoot);
         var output = new ConcurrentQueue<string>();
         using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Server, runner, bundle));
         controller.OutputReceived += output.Enqueue;
@@ -493,13 +527,26 @@ public sealed class ExternalGameCliTests
                 exception);
         }
         Assert.Equal(EditorPreviewState.Running, controller.State);
-        Assert.NotNull(controller.ProcessId);
+        int firstProcessId = Assert.IsType<int>(controller.ProcessId);
+        await controller.HotReloadAsync(timeout.Token);
+        Assert.Equal(EditorPreviewState.Running, controller.State);
+        int secondProcessId = Assert.IsType<int>(controller.ProcessId);
+        Assert.NotEqual(firstProcessId, secondProcessId);
+        string stateRoot = Path.Combine(bundle, "reload", "state");
+        Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
+            "Hot reload state must be consumed by the restarted worker.");
         await controller.StopAsync(timeout.Token);
 
         Assert.Equal(EditorPreviewState.Stopped, controller.State);
         Assert.Null(controller.ProcessId);
-        Assert.Contains(output, line => line.Contains("[Worker] Exited cleanly", StringComparison.Ordinal));
+        Assert.True(output.Count(line => line.Contains("[Worker] Exited cleanly", StringComparison.Ordinal)) >= 2,
+            string.Join(Environment.NewLine, output));
+        Assert.Contains(output, line => line.Contains("Total modules with state: 0", StringComparison.Ordinal));
         Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+        string shadowRoot = Path.Combine(bundle, "reload", "shadow");
+        Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
+            "Clean stop must remove all bundle-owned worker shadow directories.");
+        Assert.Equal(engineBefore, SnapshotFiles(engineRoot));
     }
 
     private static string ResolveValidatedEngineRoot(string repositoryRoot)
@@ -690,6 +737,23 @@ public sealed class ExternalGameCliTests
         Assert.True(IsWithinRoot(restoreConfig, temporaryRoot),
             $"dotnet pack received non-owned RestoreConfigFile: {restoreConfig}");
         Assert.True(File.Exists(restoreConfig), $"dotnet pack RestoreConfigFile is missing: {restoreConfig}");
+        StartedProcess[] runnerBuildProcesses = _startedProcesses
+            .Where(process => process.Arguments.Any(argument =>
+                argument.EndsWith("Karpik.Engine.Core.Runner.csproj", StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+        Assert.Equal(2, runnerBuildProcesses.Length);
+        foreach (StartedProcess process in runnerBuildProcesses)
+        {
+            foreach (string property in new[] { "RestoreConfigFile", "ArtifactsPath", "MSBuildProjectExtensionsPath" })
+            {
+                string prefix = $"-p:{property}=";
+                string argument = Assert.Single(process.Arguments,
+                    value => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                string value = argument[prefix.Length..];
+                Assert.True(IsWithinRoot(value, temporaryRoot),
+                    $"Runner build received non-owned {property}: {value}");
+            }
+        }
         foreach (StartedProcess process in _startedProcesses)
         {
             foreach (string key in new[] { "DOTNET_CLI_HOME", "NUGET_PACKAGES", "NUGET_HTTP_CACHE_PATH" })
@@ -742,6 +806,31 @@ public sealed class ExternalGameCliTests
         }
     }
 
+    private static Dictionary<string, FileStamp> SnapshotFiles(params string[] roots)
+    {
+        var snapshot = new Dictionary<string, FileStamp>(StringComparer.OrdinalIgnoreCase);
+        foreach (string root in roots)
+        {
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+            string rootName = Path.GetFileName(Path.TrimEndingDirectorySeparator(root));
+            foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                         .Order(StringComparer.Ordinal))
+            {
+                var info = new FileInfo(file);
+                using FileStream stream = File.OpenRead(file);
+                string key = Path.Combine(rootName, Path.GetRelativePath(root, file));
+                snapshot.Add(key, new FileStamp(
+                    info.Length,
+                    info.LastWriteTimeUtc.Ticks,
+                    Convert.ToHexString(SHA256.HashData(stream))));
+            }
+        }
+        return snapshot;
+    }
+
     private static void DeleteOwnedTemporaryRoot(string root)
     {
         string fullRoot = Path.GetFullPath(root);
@@ -764,5 +853,7 @@ public sealed class ExternalGameCliTests
     private sealed record StartedProcess(
         IReadOnlyList<string> Arguments,
         IReadOnlyDictionary<string, string?> Environment);
+
+    private sealed record FileStamp(long Length, long LastWriteUtcTicks, string Sha256);
 
 }

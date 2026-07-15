@@ -16,6 +16,7 @@ public sealed class EditorPreviewController : IDisposable
     private readonly object _stateGate = new();
     private EditorPreviewState _state = EditorPreviewState.Stopped;
     private bool _disposed;
+    private int _hotReloadInProgress;
 
     public Side Side { get; }
     public EditorPreviewState State
@@ -87,7 +88,7 @@ public sealed class EditorPreviewController : IDisposable
             try
             {
                 await _processManager.StartWorkerAsync(cancellationToken: cancellationToken);
-                bool ready = await _processManager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(30));
+                bool ready = await _processManager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(30), cancellationToken);
                 if (!ready)
                 {
                     throw new TimeoutException("Preview worker did not report readiness within 30 seconds.");
@@ -147,6 +148,50 @@ public sealed class EditorPreviewController : IDisposable
             : _processManager.RequestEditorSnapshotAsync(timeout, cancellationToken);
     }
 
+    public async Task HotReloadAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (State != EditorPreviewState.Running)
+            {
+                throw new InvalidOperationException("Preview hot reload requires a running worker.");
+            }
+
+            int previousProcessId = _processManager.WorkerProcessId;
+            Volatile.Write(ref _hotReloadInProgress, 1);
+            try
+            {
+                await _processManager.HotReloadAsync(cancellationToken);
+                bool ready = await _processManager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(30), cancellationToken);
+                if (!ready
+                    || !_processManager.IsWorkerRunning
+                    || _processManager.WorkerProcessId == previousProcessId)
+                {
+                    throw new InvalidOperationException(
+                        "Preview hot reload did not replace the worker with a ready process.");
+                }
+            }
+            catch
+            {
+                if (!_processManager.IsWorkerRunning)
+                {
+                    SetState(EditorPreviewState.Faulted);
+                }
+                throw;
+            }
+            finally
+            {
+                Volatile.Write(ref _hotReloadInProgress, 0);
+            }
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
     private void SetState(EditorPreviewState state)
     {
         lock (_stateGate)
@@ -185,6 +230,10 @@ public sealed class EditorPreviewController : IDisposable
 
     private void HandleWorkerExited(int exitCode)
     {
+        if (Volatile.Read(ref _hotReloadInProgress) != 0)
+        {
+            return;
+        }
         OutputReceived?.Invoke($"Preview завершён с кодом {exitCode}.");
         if (State is not EditorPreviewState.Stopping and not EditorPreviewState.Stopped)
         {

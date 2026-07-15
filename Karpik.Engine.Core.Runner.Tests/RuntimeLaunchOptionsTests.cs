@@ -61,23 +61,160 @@ public sealed class RuntimeLaunchOptionsTests
         Assert.Contains(tree.BundlePath, restart.ArgumentList);
         Assert.Contains(stateFile, restart.ArgumentList);
 
-        string staleInside = Path.Combine(tree.BundlePath, "modules.version.2");
-        string sameNameOutside = Path.Combine(tree.Root, "outside", "modules.version.2");
-        CompleteModuleDirectory(staleInside);
-        CompleteModuleDirectory(sameNameOutside);
         using var manager = new ProcessManager(launch, HotReloadOptions.Default);
 
         manager.CleanupCompletedModuleVersions(
             System.Text.Encoding.UTF8.GetBytes(Path.Combine(tree.BundlePath, "modules.version.1")));
 
-        Assert.False(Directory.Exists(staleInside));
-        Assert.True(Directory.Exists(sameNameOutside));
+        Assert.True(Directory.Exists(Path.Combine(tree.BundlePath, "modules.version.1")));
+    }
 
-        static void CompleteModuleDirectory(string directory)
+    [Theory]
+    [InlineData("nested")]
+    [InlineData("forged-top-level")]
+    public void ReadyCleanup_RejectsPayloadThatIsNotTheExactResolvedModuleDirectory(string payloadKind)
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        using var manager = new ProcessManager(launch, HotReloadOptions.Default);
+        string active = Path.Combine(tree.BundlePath, "modules.version.1");
+        string payload = payloadKind == "nested"
+            ? Path.Combine(tree.BundlePath, "nested", "modules.version.1")
+            : Path.Combine(tree.BundlePath, "modules.version.forged");
+
+        manager.CleanupCompletedModuleVersions(System.Text.Encoding.UTF8.GetBytes(payload));
+
+        Assert.True(Directory.Exists(active));
+    }
+
+    [Fact]
+    public void ReadyCleanup_RejectsAmbiguousCompletedModuleLayoutWithoutDeletingEitherVersion()
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        using var manager = new ProcessManager(launch, HotReloadOptions.Default);
+        string active = Path.Combine(tree.BundlePath, "modules.version.1");
+        string ambiguous = Path.Combine(tree.BundlePath, "modules.version.2");
+        CompleteModuleDirectory(ambiguous);
+
+        manager.CleanupCompletedModuleVersions(System.Text.Encoding.UTF8.GetBytes(active));
+
+        Assert.True(Directory.Exists(active));
+        Assert.True(Directory.Exists(ambiguous));
+    }
+
+    [Fact]
+    public void ReadyCleanup_RejectsModuleDirectoryReplacedByLinkAfterLaunchValidation()
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        using var manager = new ProcessManager(launch, HotReloadOptions.Default);
+        string active = Path.Combine(tree.BundlePath, "modules.version.1");
+        string moved = Path.Combine(tree.Root, "moved-modules");
+        Directory.Move(active, moved);
+        try
         {
-            Directory.CreateDirectory(directory);
-            File.WriteAllText(Path.Combine(directory, ".complete"), RuntimeBundleLayout.ModuleCompletionMarker);
+            Directory.CreateSymbolicLink(active, moved);
         }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            Directory.Move(moved, active);
+            return;
+        }
+
+        try
+        {
+            manager.CleanupCompletedModuleVersions(System.Text.Encoding.UTF8.GetBytes(active));
+
+            Assert.True(Directory.Exists(moved));
+        }
+        finally
+        {
+            Directory.Delete(active);
+            Directory.Move(moved, active);
+        }
+    }
+
+    [Theory]
+    [InlineData("crlf-manifest")]
+    [InlineData("unlisted-dll")]
+    [InlineData("unexpected-root-file")]
+    [InlineData("too-deep")]
+    [InlineData("too-many-assemblies")]
+    public void Constructor_RejectsNonCanonicalOrUnboundedBundleLayout(string mutation)
+    {
+        using var tree = new RuntimeTree(Side.Client);
+        string modules = Path.Combine(tree.BundlePath, "modules.version.1");
+        string manifest = Path.Combine(modules, "modules.list");
+        switch (mutation)
+        {
+            case "crlf-manifest":
+                File.WriteAllText(manifest, "Game.dll\r\n", new System.Text.UTF8Encoding(false));
+                break;
+            case "unlisted-dll":
+                File.WriteAllText(Path.Combine(modules, "Unlisted.dll"), "unlisted");
+                break;
+            case "unexpected-root-file":
+                File.WriteAllText(Path.Combine(tree.BundlePath, "user-owned.txt"), "user");
+                break;
+            case "too-deep":
+                string deep = Path.Combine(tree.BundlePath, "Content");
+                for (int index = 0; index <= RuntimeBundleLayout.MaxTreeDepth; index++)
+                {
+                    deep = Path.Combine(deep, "d");
+                }
+                Directory.CreateDirectory(deep);
+                File.WriteAllText(Path.Combine(deep, "deep.txt"), "deep");
+                break;
+            case "too-many-assemblies":
+                var names = new string[RuntimeBundleLayout.MaxManifestEntries + 1];
+                for (int index = 0; index < names.Length; index++)
+                {
+                    names[index] = $"Game{index:D4}.dll";
+                    File.WriteAllText(Path.Combine(modules, names[index]), "game");
+                }
+                File.Delete(Path.Combine(modules, "Game.dll"));
+                File.WriteAllText(manifest, string.Join('\n', names) + '\n', new System.Text.UTF8Encoding(false));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+
+        Assert.Throws<InvalidDataException>(() =>
+            new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath));
+    }
+
+    [Fact]
+    public void Constructor_RejectsRunnerAndBundleBelowLinkedAncestorWhenLinksAreAvailable()
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        string link = tree.Root + "-link";
+        try
+        {
+            Directory.CreateSymbolicLink(link, tree.Root);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        try
+        {
+            string runner = Path.Combine(link, Path.GetRelativePath(tree.Root, tree.RunnerPath));
+            string bundle = Path.Combine(link, Path.GetRelativePath(tree.Root, tree.BundlePath));
+
+            Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Server, runner, bundle));
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
+
+    private static void CompleteModuleDirectory(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, ".complete"), RuntimeBundleLayout.ModuleCompletionMarker);
     }
 
     private sealed class RuntimeTree : IDisposable

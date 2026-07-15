@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text;
 using Karpik.Engine.Sdk.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
@@ -6,6 +7,20 @@ using Xunit;
 
 public sealed class RuntimeBundleTaskTests
 {
+    [Fact]
+    public void SdkAndRuntimeBundleContractsKeepMarkersAndBoundsSynchronized()
+    {
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxTreeEntries, BuildKarpikRuntimeBundleTask.MaxTreeEntries);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxTreeDepth, BuildKarpikRuntimeBundleTask.MaxTreeDepth);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxManifestBytes, BuildKarpikRuntimeBundleTask.MaxManifestBytes);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxManifestEntries, BuildKarpikRuntimeBundleTask.MaxManifestEntries);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxIndividualFileBytes, BuildKarpikRuntimeBundleTask.MaxIndividualFileBytes);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.MaxBundleBytes, BuildKarpikRuntimeBundleTask.MaxBundleBytes);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.BundleCompletionMarker, BuildKarpikRuntimeBundleTask.BundleCompletionMarker);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.ModuleCompletionMarker, BuildKarpikRuntimeBundleTask.ModuleCompletionMarker);
+        Assert.Equal(Karpik.Engine.Core.RuntimeBundleLayout.SideMarkerPrefix, BuildKarpikRuntimeBundleTask.SideMarkerPrefix);
+    }
+
     [Theory]
     [InlineData("Client")]
     [InlineData("Server")]
@@ -98,6 +113,49 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Fact]
+    public void Execute_RejectsOversizeAssemblyBeforeCopyingAndCountsContentRootInDepth()
+    {
+        using var tree = new TemporaryTree();
+        string oversized = tree.Write("output/Oversized.Client.dll", string.Empty);
+        using (FileStream stream = File.OpenWrite(oversized))
+        {
+            stream.SetLength(BuildKarpikRuntimeBundleTask.MaxIndividualFileBytes + 1);
+        }
+        string content = tree.Write("assets/content.txt", "content");
+        string oversizeBundle = Path.Combine(tree.Root, "oversize-bundle");
+        var oversizeTask = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = oversized,
+            BundlePath = oversizeBundle,
+            Assemblies = [new TaskItem(oversized)],
+            Content = [ContentItem(content, "content.txt")]
+        };
+
+        Assert.False(oversizeTask.Execute());
+        Assert.False(Directory.Exists(oversizeBundle));
+        Assert.Empty(Directory.EnumerateDirectories(tree.Root, "oversize-bundle.staging.*"));
+
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        string[] segments = Enumerable.Range(0, BuildKarpikRuntimeBundleTask.MaxTreeDepth - 1)
+            .Select(index => $"d{index}")
+            .Append("content.txt")
+            .ToArray();
+        var deepTask = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = Path.Combine(tree.Root, "deep-bundle"),
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(content, Path.Combine(segments))]
+        };
+
+        Assert.False(deepTask.Execute());
+    }
+
+    [Fact]
     public void Execute_RejectsLinkedAssemblyWhenSymbolicLinksAreAvailable()
     {
         using var tree = new TemporaryTree();
@@ -163,7 +221,7 @@ public sealed class RuntimeBundleTaskTests
         File.WriteAllText(Path.Combine(bundle, "modules.version.1", "Game.Client.dll"), "old-game");
         Directory.CreateDirectory(Path.Combine(bundle, "Content"));
         File.WriteAllText(Path.Combine(bundle, "Content", "content.txt"), "old-content");
-        File.WriteAllText(Path.Combine(bundle, "sentinel.txt"), "old");
+        File.WriteAllText(Path.Combine(bundle, "Content", "sentinel.txt"), "old");
         var engine = new FakeBuildEngine();
         var task = new BuildKarpikRuntimeBundleTask(new FailingPublishFileSystem())
         {
@@ -176,7 +234,7 @@ public sealed class RuntimeBundleTaskTests
         };
 
         Assert.False(task.Execute());
-        Assert.Equal("old", File.ReadAllText(Path.Combine(bundle, "sentinel.txt")));
+        Assert.Equal("old", File.ReadAllText(Path.Combine(bundle, "Content", "sentinel.txt")));
         Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
     }
 
@@ -197,7 +255,7 @@ public sealed class RuntimeBundleTaskTests
         };
 
         Assert.False(task.Execute());
-        Assert.Equal("old", File.ReadAllText(Path.Combine(bundle, "sentinel.txt")));
+        Assert.Equal("old", File.ReadAllText(Path.Combine(bundle, "Content", "sentinel.txt")));
         Assert.False(File.Exists(Path.Combine(bundle, ".karpik-owned-staging")));
     }
 
@@ -233,6 +291,65 @@ public sealed class RuntimeBundleTaskTests
             .ToArray();
     }
 
+    [Theory]
+    [InlineData("crlf-manifest")]
+    [InlineData("bom-manifest")]
+    [InlineData("unsafe-manifest")]
+    [InlineData("missing-listed-dll")]
+    [InlineData("unlisted-dll")]
+    [InlineData("extra-module-directory")]
+    [InlineData("unexpected-root-file")]
+    public void Execute_RefusesMalformedBackupWithoutMovingOrDeletingIt(string mutation)
+    {
+        using var tree = new TemporaryTree();
+        string destination = Path.Combine(tree.Root, "publish", "karpik-bundle");
+        string backup = destination + ".previous";
+        string complete = CreateCompleteBundle(tree, "preserve");
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        Directory.Move(complete, backup);
+        string modules = Path.Combine(backup, "modules.version.1");
+        string manifest = Path.Combine(modules, "modules.list");
+        switch (mutation)
+        {
+            case "crlf-manifest":
+                File.WriteAllText(manifest, "Game.Client.dll\r\n", new UTF8Encoding(false));
+                break;
+            case "bom-manifest":
+                File.WriteAllText(manifest, "Game.Client.dll\n", new UTF8Encoding(true));
+                break;
+            case "unsafe-manifest":
+                File.WriteAllText(manifest, "../Game.Client.dll\n", new UTF8Encoding(false));
+                break;
+            case "missing-listed-dll":
+                File.Delete(Path.Combine(modules, "Game.Client.dll"));
+                break;
+            case "unlisted-dll":
+                File.WriteAllText(Path.Combine(modules, "Unlisted.dll"), "unlisted");
+                break;
+            case "extra-module-directory":
+                Directory.CreateDirectory(Path.Combine(backup, "modules.version.2"));
+                break;
+            case "unexpected-root-file":
+                File.WriteAllText(Path.Combine(backup, "user-owned.txt"), "do-not-delete");
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = tree.Write("output/Game.Client.dll", "new"),
+            BundlePath = destination,
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")]
+        };
+
+        Assert.False(task.Execute());
+        Assert.True(Directory.Exists(backup));
+        Assert.False(Directory.Exists(destination));
+        Assert.Equal("preserve", File.ReadAllText(Path.Combine(backup, "Content", "sentinel.txt")));
+    }
+
     private static string CreateCompleteBundle(TemporaryTree tree, string sentinel)
     {
         string bundle = Path.Combine(tree.Root, "complete-bundle");
@@ -244,7 +361,7 @@ public sealed class RuntimeBundleTaskTests
         File.WriteAllText(Path.Combine(bundle, "modules.version.1", "modules.list"), "Game.Client.dll\n");
         File.WriteAllText(Path.Combine(bundle, "modules.version.1", "Game.Client.dll"), "old-game");
         File.WriteAllText(Path.Combine(bundle, "Content", "content.txt"), "old-content");
-        File.WriteAllText(Path.Combine(bundle, "sentinel.txt"), sentinel);
+        File.WriteAllText(Path.Combine(bundle, "Content", "sentinel.txt"), sentinel);
         return bundle;
     }
 

@@ -36,6 +36,16 @@ public sealed class EditorPreviewControllerTests
         Assert.Equal(EditorPreviewState.Stopped, controller.State);
     }
 
+    [Fact]
+    public async Task HotReloadAsync_WhenStopped_RejectsInvalidLifecycleState()
+    {
+        using var controller = new EditorPreviewController(Side.Server, "unused-worker-path");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => controller.HotReloadAsync());
+
+        Assert.Equal(EditorPreviewState.Stopped, controller.State);
+    }
+
     [Theory]
     [InlineData(EditorPreviewState.Starting, true, true)]
     [InlineData(EditorPreviewState.Starting, false, false)]

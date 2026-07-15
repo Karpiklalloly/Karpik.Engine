@@ -107,6 +107,8 @@ public class Program
         finally
         {
             _ipcClient?.Dispose();
+            _bootstrap = null!;
+            ModuleLoader.CleanupDisposedShadows();
         }
     }
     

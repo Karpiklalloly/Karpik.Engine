@@ -78,6 +78,13 @@ kanban-plugin: board
 - [ ] **Несколько одновременно активных игр в одном editor**
 	  - Один editor владеет одним `ActiveProject`; несколько clients относятся только к этой игре.
 
+## Milestone 5 review hardening
+
+- [x] **Harden external runtime bundle boundaries**
+	  - Canonical bounded SDK/runtime proof; post-build Shared content; exact ready cleanup; full ancestor link rejection.
+	  - Runner restore/build uses transaction-owned artifacts and leaves repository `bin/obj` unchanged.
+	  - Two final external runs passed real empty-state restart hot reload with a new PID, consumed state, shadow cleanup, and clean stop.
+
 %% kanban:settings
 ```
 {"kanban-plugin":"board","list-collapse":[false,false,false,false,false]}
