@@ -420,3 +420,6 @@ FodyWeavers.xsd
 
 # Local isolated feature worktrees
 .worktrees/
+
+# Local subagent-driven development ledger and handoff artifacts
+.superpowers/
