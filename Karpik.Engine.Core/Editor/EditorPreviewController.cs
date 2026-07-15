@@ -40,6 +40,23 @@ public sealed class EditorPreviewController : IDisposable
     public event Action<EditorPreviewState>? StateChanged;
     public event Action<string>? OutputReceived;
 
+    public EditorPreviewController(RuntimeLaunchOptions launchOptions)
+    {
+        ArgumentNullException.ThrowIfNull(launchOptions);
+        Side = launchOptions.Side;
+        _processManager = new ProcessManager(
+            launchOptions,
+            new HotReloadOptions
+            {
+                Mode = HotReloadMode.RestartWorker,
+                WorkerExecutablePath = launchOptions.RunnerExecutablePath,
+                CaptureWorkerOutput = true
+            });
+        _processManager.OnWorkerOutput += HandleWorkerOutput;
+        _processManager.OnWorkerExited += HandleWorkerExited;
+    }
+
+    [Obsolete("Legacy monorepository compatibility only. External previews must provide RuntimeLaunchOptions.")]
     public EditorPreviewController(Side side, string workerExecutablePath)
     {
         Side = side;

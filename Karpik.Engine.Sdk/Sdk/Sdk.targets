@@ -5,6 +5,8 @@
 
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
@@ -13,6 +15,25 @@
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
                                          ProjectReferences="@(ProjectReference->'%(FullPath)')" />
+  </Target>
+
+  <Target Name="BuildKarpikRuntimeBundle"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
+    <PropertyGroup>
+      <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
+    </PropertyGroup>
+    <ItemGroup>
+      <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
+                             Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+      <_KarpikBundleContent Include="$(MSBuildProjectDirectory)\Content\**\*"
+                            TargetPath="%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+    <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
+                                  PrimaryAssembly="$(TargetPath)"
+                                  BundlePath="$(KarpikRuntimeBundlePath)"
+                                  Assemblies="@(_KarpikBundleAssembly)"
+                                  Content="@(_KarpikBundleContent)" />
   </Target>
 
   <Target Name="ValidateKarpikProjectReferencesBeforeBuild"

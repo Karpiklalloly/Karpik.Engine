@@ -7,6 +7,8 @@ namespace Karpik.Engine.Core.ModuleManagement;
 public class PluginLoadContext : AssemblyLoadContext
 {
     private readonly string _shadowCopyDirectory;
+    private readonly string? _bundleRoot;
+    private readonly bool _allowAppContextFallback;
     
     private static readonly HashSet<string> SharedAssemblyNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -16,9 +18,14 @@ public class PluginLoadContext : AssemblyLoadContext
         "Karpik.Jobs",
     };
 
-    public PluginLoadContext(string shadowCopyDirectory) : base(isCollectible: false)
+    public PluginLoadContext(
+        string shadowCopyDirectory,
+        string? bundleRoot = null,
+        bool allowAppContextFallback = true) : base(isCollectible: bundleRoot is not null)
     {
         _shadowCopyDirectory = shadowCopyDirectory;
+        _bundleRoot = bundleRoot;
+        _allowAppContextFallback = allowAppContextFallback;
     }
 
     protected override Assembly? Load(AssemblyName assemblyName)
@@ -29,11 +36,7 @@ public class PluginLoadContext : AssemblyLoadContext
         }
         
         string libraryName = assemblyName.Name + ".dll";
-        var searchPaths = new[]
-        {
-            Path.Combine(_shadowCopyDirectory, libraryName),
-            Path.Combine(AppContext.BaseDirectory, libraryName)
-        };
+        var searchPaths = CandidatePaths(libraryName, native: false);
         
         foreach (var path in searchPaths)
         {
@@ -52,14 +55,7 @@ public class PluginLoadContext : AssemblyLoadContext
         if (!libraryName.EndsWith(".dll") && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             libraryName += ".dll";
 
-        var searchPaths = new[]
-        {
-            Path.Combine(_shadowCopyDirectory, libraryName),
-            Path.Combine(_shadowCopyDirectory, "runtimes", "win-x64", "native", libraryName),
-            Path.Combine(AppContext.BaseDirectory, libraryName),
-            Path.Combine(AppContext.BaseDirectory, "modules", "runtimes", "win-x64", "native", libraryName),
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", libraryName)
-        };
+        var searchPaths = CandidatePaths(libraryName, native: true);
 
         foreach (var path in searchPaths)
         {
@@ -71,5 +67,32 @@ public class PluginLoadContext : AssemblyLoadContext
         }
 
         return IntPtr.Zero;
+    }
+
+    private IEnumerable<string> CandidatePaths(string libraryName, bool native)
+    {
+        yield return Path.Combine(_shadowCopyDirectory, libraryName);
+        if (native)
+        {
+            yield return Path.Combine(_shadowCopyDirectory, "runtimes", "win-x64", "native", libraryName);
+        }
+        if (_bundleRoot is not null)
+        {
+            yield return Path.Combine(_bundleRoot, libraryName);
+            if (native)
+            {
+                yield return Path.Combine(_bundleRoot, "runtimes", "win-x64", "native", libraryName);
+            }
+        }
+        if (!_allowAppContextFallback)
+        {
+            yield break;
+        }
+        yield return Path.Combine(AppContext.BaseDirectory, libraryName);
+        if (native)
+        {
+            yield return Path.Combine(AppContext.BaseDirectory, "modules", "runtimes", "win-x64", "native", libraryName);
+            yield return Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native", libraryName);
+        }
     }
 }

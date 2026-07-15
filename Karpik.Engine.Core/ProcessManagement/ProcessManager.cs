@@ -7,6 +7,7 @@ internal class ProcessManager : IDisposable
     private Process? _workerProcess;
     private IpcServer? _ipcServer;
     private readonly string _workerExePath;
+    private readonly string _bundlePath;
     private readonly string _pipeName;
     private readonly Side _side;
     private readonly HotReloadOptions _options;
@@ -48,10 +49,22 @@ internal class ProcessManager : IDisposable
     
     public int WorkerProcessId => _workerProcess?.Id ?? -1;
     
+    public ProcessManager(RuntimeLaunchOptions launchOptions, HotReloadOptions options, string? pipeName = null)
+    {
+        ArgumentNullException.ThrowIfNull(launchOptions);
+        _options = options;
+        _workerExePath = launchOptions.RunnerExecutablePath;
+        _bundlePath = launchOptions.BundlePath;
+        _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
+        _side = launchOptions.Side;
+    }
+
+    [Obsolete("Legacy monorepository compatibility only. External runtimes must provide RuntimeLaunchOptions.")]
     public ProcessManager(Side side, HotReloadOptions options, string? pipeName = null)
     {
         _options = options;
         _workerExePath = options.WorkerExecutablePath ?? GetDefaultWorkerPath();
+        _bundlePath = AppContext.BaseDirectory;
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
         _side = side;
     }
@@ -84,15 +97,10 @@ internal class ProcessManager : IDisposable
         connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
         var ipcTask = _ipcServer.WaitForConnectionAsync(connectionCts.Token);
         
-        var arguments = new List<string>
-        {
-            $"--pipe-name={_pipeName}",
-            $"--side={_side}"
-        };
-
+        string? stateFile = null;
         if (initialState != null)
         {
-            arguments.Add($"--state-file={WriteStateFile(initialState)}");
+            stateFile = WriteStateFile(initialState);
         }
         var shouldWaitForDebugger = _hasStartedWorker
             ? _options.WaitForDebuggerOnReloadWorkerStart
@@ -100,26 +108,18 @@ internal class ProcessManager : IDisposable
 
         if (shouldWaitForDebugger)
         {
-            arguments.Add("--wait-for-debugger");
+            // Added by CreateStartInfo below.
         }
-        
-        Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
-        Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", arguments)}");
-        
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _workerExePath,
-            UseShellExecute = false,
-            CreateNoWindow = _options.CaptureWorkerOutput,
-            RedirectStandardOutput = _options.CaptureWorkerOutput,
-            RedirectStandardError = _options.CaptureWorkerOutput,
-            WorkingDirectory = Path.GetDirectoryName(_workerExePath) ?? AppContext.BaseDirectory
-        };
 
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
+        var startInfo = CreateStartInfo(
+            new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath),
+            _pipeName,
+            stateFile,
+            shouldWaitForDebugger,
+            _options.CaptureWorkerOutput);
+
+        Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
+        Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", startInfo.ArgumentList)}");
 
         _workerProcess = new Process
         {
@@ -376,9 +376,9 @@ internal class ProcessManager : IDisposable
         return fallbackPath;
     }
 
-    private static string WriteStateFile(HotReloadState state)
+    private string WriteStateFile(HotReloadState state)
     {
-        var directory = Path.Combine(AppContext.BaseDirectory, "reload", "state");
+        var directory = Path.Combine(_bundlePath, "reload", "state");
         Directory.CreateDirectory(directory);
 
         var path = Path.Combine(directory, $"{Guid.NewGuid():N}.bin");
@@ -386,9 +386,9 @@ internal class ProcessManager : IDisposable
         return path;
     }
 
-    private static void CleanupWorkerShadowCopies(int processId)
+    private void CleanupWorkerShadowCopies(int processId)
     {
-        var shadowRoot = Path.Combine(AppContext.BaseDirectory, "reload", "shadow");
+        var shadowRoot = Path.Combine(_bundlePath, "reload", "shadow");
         if (!Directory.Exists(shadowRoot))
         {
             return;
@@ -408,7 +408,7 @@ internal class ProcessManager : IDisposable
         }
     }
 
-    private static void CleanupCompletedModuleVersions(byte[] payload)
+    internal void CleanupCompletedModuleVersions(byte[] payload)
     {
         if (payload.Length == 0)
         {
@@ -416,7 +416,7 @@ internal class ProcessManager : IDisposable
         }
 
         string activeDirectory = System.Text.Encoding.UTF8.GetString(payload);
-        string baseDirectory = AppContext.BaseDirectory;
+        string baseDirectory = _bundlePath;
         string baseDirectoryPath = Path.GetFullPath(baseDirectory)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
@@ -430,6 +430,42 @@ internal class ProcessManager : IDisposable
         }
 
         ModuleStagingCleanup.CleanupCompletedVersions(baseDirectory, activeDirectoryPath);
+    }
+
+    internal static ProcessStartInfo CreateStartInfo(
+        RuntimeLaunchOptions launchOptions,
+        string pipeName,
+        string? stateFile,
+        bool waitForDebugger,
+        bool captureOutput)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = launchOptions.RunnerExecutablePath,
+            UseShellExecute = false,
+            CreateNoWindow = captureOutput,
+            RedirectStandardOutput = captureOutput,
+            RedirectStandardError = captureOutput,
+            WorkingDirectory = launchOptions.BundlePath
+        };
+        Add("--pipe-name", pipeName);
+        Add("--side", launchOptions.Side.ToString());
+        Add("--bundle", launchOptions.BundlePath);
+        if (!string.IsNullOrEmpty(stateFile))
+        {
+            Add("--state-file", stateFile);
+        }
+        if (waitForDebugger)
+        {
+            startInfo.ArgumentList.Add("--wait-for-debugger");
+        }
+        return startInfo;
+
+        void Add(string name, string value)
+        {
+            startInfo.ArgumentList.Add(name);
+            startInfo.ArgumentList.Add(value);
+        }
     }
 
     private void PublishWorkerOutput(string? line, bool isError)

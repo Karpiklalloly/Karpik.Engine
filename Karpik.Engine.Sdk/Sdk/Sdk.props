@@ -1,3 +1,6 @@
 <Project>
+  <PropertyGroup>
+    <KarpikRuntimeBundleDirectoryName>karpik-bundle</KarpikRuntimeBundleDirectoryName>
+  </PropertyGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 </Project>

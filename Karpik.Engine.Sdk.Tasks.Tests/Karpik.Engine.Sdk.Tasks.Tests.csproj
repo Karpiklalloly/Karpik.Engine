@@ -27,6 +27,9 @@
         <None Include="..\Karpik.Engine.Sdk\Sdk\Sdk.targets"
               Link="Sdk.targets"
               CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Sdk\Sdk.props"
+              Link="Sdk.props"
+              CopyToOutputDirectory="PreserveNewest" />
         <None Include="..\Karpik.Engine.Sdk\Sdk\Solution.targets"
               Link="Solution.targets"
               CopyToOutputDirectory="PreserveNewest" />

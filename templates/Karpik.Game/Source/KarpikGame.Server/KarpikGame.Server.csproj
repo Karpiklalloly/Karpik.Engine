@@ -11,4 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="..\KarpikGame.Shared\KarpikGame.Shared.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Content\runtime.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -1,7 +1,10 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
+using Karpik.Engine.Core;
+using Karpik.Engine.Packager;
 using Karpik.Engine.Tooling;
 using Xunit;
 
@@ -116,7 +119,7 @@ public sealed class ExternalGameCliTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task External_template_supports_ordinary_cli_workflow_and_validation_precedence()
+    public async Task RuntimeBundle_external_template_supports_ordinary_cli_workflow_and_validation_precedence()
     {
         Assert.SkipUnless(
             Environment.GetEnvironmentVariable("KARPIK_RUN_EXTERNAL_SDK_INTEGRATION") == "1",
@@ -158,11 +161,19 @@ public sealed class ExternalGameCliTests
                 ["RestoreDisableParallel"] = "true",
                 ["KarpikEngineRoot"] = engineRoot
             };
+            Assert.True(File.Exists(Path.Combine(
+                repositoryRoot,
+                "Karpik.Engine.Sdk.Tasks",
+                "bin",
+                "Debug",
+                "net10.0",
+                "Karpik.Engine.Sdk.Tasks.dll")),
+                "The integration project build must prepare SDK task outputs before isolated packing.");
 
             ProcessResult pack = await RunAsync(
                 repositoryRoot,
-                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-m:1", "-nr:false",
-                    $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
+                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-c", "Debug", "-m:1", "-nr:false",
+                    "--no-restore", "--no-build", $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
                 commonEnvironment);
             AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
             Assert.True(File.Exists(Path.Combine(packageFeed, $"Karpik.Engine.Sdk.{PackageVersion}.nupkg")));
@@ -202,6 +213,13 @@ public sealed class ExternalGameCliTests
                 ["build", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-restore"],
                 commonEnvironment);
             AssertSuccess(build, "build the generated solution");
+            AssertRuntimeBundles(validRoot, engineRoot);
+            string updatedEngineRoot = await CreateUpdatedEngineInstallationAsync(
+                repositoryRoot,
+                engineRoot,
+                temporaryRoot,
+                commonEnvironment);
+            await AssertRunnerReadyAndCleanShutdownAsync(validRoot, updatedEngineRoot);
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -374,6 +392,114 @@ public sealed class ExternalGameCliTests
         {
             Assert.DoesNotContain(repositoryRoot, File.ReadAllText(dependencyFile), PathComparison);
         }
+    }
+
+    private static void AssertRuntimeBundles(string gameRoot, string engineRoot)
+    {
+        string output = Path.Combine("bin", "Debug", "net10.0", "karpik-bundle");
+        string client = Path.Combine(gameRoot, "Source", "KarpikGame.Client", output);
+        string server = Path.Combine(gameRoot, "Source", "KarpikGame.Server", output);
+        string shared = Path.Combine(gameRoot, "Source", "KarpikGame.Shared", output);
+        Assert.True(Directory.Exists(client), $"Client bundle is missing: {client}");
+        Assert.True(Directory.Exists(server), $"Server bundle is missing: {server}");
+        Assert.False(Directory.Exists(shared), $"Shared project must not create a runtime bundle: {shared}");
+        Assert.False(IsWithinRoot(client, engineRoot));
+        Assert.False(IsWithinRoot(server, engineRoot));
+        AssertBundle(client, "Client", "KarpikGame.Client.dll", "KarpikGame.Server.dll");
+        AssertBundle(server, "Server", "KarpikGame.Server.dll", "KarpikGame.Client.dll");
+
+        static void AssertBundle(string bundle, string side, string primary, string forbidden)
+        {
+            Assert.Equal($"karpik-runtime-side-v1:{side}\n", File.ReadAllText(Path.Combine(bundle, "runtime-bundle.side")));
+            Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
+            string modules = Assert.Single(Directory.GetDirectories(bundle, "modules.version.*", SearchOption.TopDirectoryOnly));
+            Assert.Equal("karpik-module-staging-v1\n", File.ReadAllText(Path.Combine(modules, ".complete")));
+            string[] names = File.ReadAllLines(Path.Combine(modules, "modules.list"));
+            Assert.Equal(new[] { primary, "KarpikGame.Shared.dll" }.Order(StringComparer.Ordinal), names);
+            Assert.DoesNotContain(forbidden, names, StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain(names, name => name.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase));
+            Assert.True(File.Exists(Path.Combine(bundle, "Content", "runtime.txt")));
+        }
+    }
+
+    private async Task<string> CreateUpdatedEngineInstallationAsync(
+        string repositoryRoot,
+        string retainedEngineRoot,
+        string temporaryRoot,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        ProcessResult runnerBuild = await RunAsync(
+            repositoryRoot,
+            ["build", "Karpik.Engine.Core.Runner\\Karpik.Engine.Core.Runner.csproj", "-c", "Release", "-m:1", "-nr:false", "--no-restore"],
+            environment);
+        AssertSuccess(runnerBuild, "build the current engine-owned runner");
+
+        string prepared = Path.Combine(temporaryRoot, "prepared-task5-engine");
+        foreach (string directory in new[] { "editor", "sdk", "modules", "native" })
+        {
+            CopyDirectory(Path.Combine(retainedEngineRoot, directory), Path.Combine(prepared, directory));
+        }
+        string runnerOutput = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin", "Release", "net10.0");
+        Assert.True(File.Exists(Path.Combine(runnerOutput, "Karpik.Engine.Core.Runner.dll")));
+        CopyDirectory(runnerOutput, Path.Combine(prepared, "runners", "client"));
+        CopyDirectory(runnerOutput, Path.Combine(prepared, "runners", "server"));
+
+        EnginePayloadBuildResult published = new EnginePayloadBuilder().Build(
+            prepared,
+            Path.Combine(temporaryRoot, "task5-engine-home"),
+            "0.6.0-dev-task5",
+            PackageVersion);
+        EngineInstallationValidationResult validation = new EngineInstallationValidator().Validate(
+            published.DestinationDirectory,
+            PackageVersion,
+            "0.6.0-dev-task5");
+        Assert.True(validation.IsValid, validation.Message);
+        Assert.False(IsWithinRoot(published.DestinationDirectory, retainedEngineRoot));
+        return published.DestinationDirectory;
+    }
+
+    private static async Task AssertRunnerReadyAndCleanShutdownAsync(string gameRoot, string engineRoot)
+    {
+        string bundle = Path.Combine(
+            gameRoot,
+            "Source",
+            "KarpikGame.Server",
+            "bin",
+            "Debug",
+            "net10.0",
+            "karpik-bundle");
+        string runner = Path.Combine(
+            engineRoot,
+            "runners",
+            "server",
+            OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
+        Assert.True(File.Exists(runner), $"Engine installation runner is missing: {runner}");
+        Assert.False(IsWithinRoot(runner, bundle));
+        var output = new ConcurrentQueue<string>();
+        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Server, runner, bundle));
+        controller.OutputReceived += output.Enqueue;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+
+        try
+        {
+            await controller.StartAsync(timeout.Token);
+        }
+        catch (Exception exception)
+        {
+            await Task.Delay(100);
+            throw new InvalidOperationException(
+                $"Engine-installed runner did not reach worker-ready.{Environment.NewLine}" +
+                string.Join(Environment.NewLine, output),
+                exception);
+        }
+        Assert.Equal(EditorPreviewState.Running, controller.State);
+        Assert.NotNull(controller.ProcessId);
+        await controller.StopAsync(timeout.Token);
+
+        Assert.Equal(EditorPreviewState.Stopped, controller.State);
+        Assert.Null(controller.ProcessId);
+        Assert.Contains(output, line => line.Contains("[Worker] Exited cleanly", StringComparison.Ordinal));
+        Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ResolveValidatedEngineRoot(string repositoryRoot)

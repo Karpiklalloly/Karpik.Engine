@@ -15,19 +15,16 @@ public class Program
     public static void Main(string[] args)
     {
         Console.WriteLine("[Worker] Starting...");
-        
-        var pipeName = ParseArg(args, "--pipe-name");
-        var stateBase64 = ParseArg(args, "--state");
-        var stateFile = ParseArg(args, "--state-file");
-        var waitForDebugger = HasArg(args, "--wait-for-debugger");
-        var side = ParseArg(args, "--side");
+        var launch = RunnerLaunchArguments.Parse(args);
+        var pipeName = launch.PipeName;
+        var stateBase64 = launch.State;
+        var stateFile = launch.StateFile;
+        var waitForDebugger = launch.WaitForDebugger;
 
         if (!string.IsNullOrWhiteSpace(pipeName))
         {
             AppContext.SetData("Karpik.HotReload.PipeName", pipeName);
         }
-        
-        Enum.TryParse(side, out Side s);
         
         if (waitForDebugger)
         {
@@ -100,7 +97,7 @@ public class Program
         
         try
         {
-            RunEngine(s);
+            RunEngine(launch.Side, launch.BundlePath);
         }
         catch (Exception ex)
         {
@@ -113,12 +110,12 @@ public class Program
         }
     }
     
-    private static void RunEngine(Side side)
+    private static void RunEngine(Side side, string bundleRoot)
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
         
-        _bootstrap = new Bootstrap(side);
-        var loader = new ModuleLoader();
+        _bootstrap = new Bootstrap(side, new EngineRunner());
+        using var loader = new ModuleLoader(bundleRoot);
         switch (side)
         {
             case Side.Client:
@@ -242,23 +239,6 @@ public class Program
             .ToArray();
     }
     
-    private static string? ParseArg(string[] args, string name)
-    {
-        for (int i = 0; i < args.Length; i++)
-        {
-            if (args[i].StartsWith($"{name}="))
-            {
-                return args[i].Substring(name.Length + 1);
-            }
-        }
-        return null;
-    }
-    
-    private static bool HasArg(string[] args, string name)
-    {
-        return args.Any(arg => arg == name || arg.StartsWith($"{name}="));
-    }
-
     private static void TryDeleteStateFile(string path)
     {
         try

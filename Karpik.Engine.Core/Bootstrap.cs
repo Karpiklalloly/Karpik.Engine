@@ -9,20 +9,16 @@ internal class Bootstrap : IClientSimulationLoop
     private Application _application;
     private readonly ClientFrameMetrics _clientFrameMetrics = new();
     private IEngineRunner _runner = null!;
-    private AssemblyLoadContext _context;
-
+    [Obsolete("Legacy in-process compatibility only. Runtime hosts must inject an IEngineRunner.")]
     public Bootstrap(Side side)
     {
         _application = new Application(side);
+    }
 
-        _context = new AssemblyLoadContext("CORE");
-        string s = Directory.GetCurrentDirectory();
-        _context.LoadFromAssemblyPath(Path.Combine(s, "Karpik.Engine.Core.Runner.dll"));
-        var type = _context.Assemblies
-            .SelectMany(x => x.GetTypes())
-            .First(x => x.IsAssignableTo(typeof(IEngineRunner))
-            || x.IsAssignableFrom(typeof(IEngineRunner)));
-        _runner = (IEngineRunner)Activator.CreateInstance(type)!;
+    public Bootstrap(Side side, IEngineRunner runner)
+    {
+        _application = new Application(side);
+        _runner = runner ?? throw new ArgumentNullException(nameof(runner));
     }
         
     public MainThreadScheduler Initialize(int mainThreadId, Ref<bool> isRunning, Dictionary<string, byte[]>? initialHotReloadState = null)
@@ -43,8 +39,7 @@ internal class Bootstrap : IClientSimulationLoop
     {
         if (_runner is null)
         {
-            var type = types.First(x => x.IsAssignableTo(typeof(IEngineRunner))
-                                       || x.IsAssignableFrom(typeof(IEngineRunner)));
+            var type = types.First(x => !x.IsAbstract && typeof(IEngineRunner).IsAssignableFrom(x));
             _runner = (IEngineRunner)Activator.CreateInstance(type)!;
         }
         _runner.RegisterTypes(types);

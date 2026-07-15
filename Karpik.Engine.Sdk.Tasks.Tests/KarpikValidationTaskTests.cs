@@ -9,6 +9,25 @@ using Xunit;
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
+    public void SdkWiresRuntimeBundleOnlyForClientAndServerRuntimeProjects()
+    {
+        var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+        var bundleTarget = targets.Root!.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "BuildKarpikRuntimeBundle");
+        var bundleTask = Assert.Single(bundleTarget.Elements("BuildKarpikRuntimeBundleTask"));
+
+        Assert.Contains(props.Descendants("KarpikRuntimeBundleDirectoryName"), element => element.Value == "karpik-bundle");
+        Assert.Equal("Build", (string?)bundleTarget.Attribute("AfterTargets"));
+        string condition = Assert.IsType<XAttribute>(bundleTarget.Attribute("Condition")).Value;
+        Assert.Contains("'$(KarpikProjectKind)' == 'Runtime'", condition);
+        Assert.Contains("'$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server'", condition);
+        Assert.Equal("$(KarpikRuntimeBundlePath)", (string?)bundleTask.Attribute("BundlePath"));
+        Assert.Equal("$(TargetPath)", (string?)bundleTask.Attribute("PrimaryAssembly"));
+        Assert.Equal("$(KarpikSide)", (string?)bundleTask.Attribute("Side"));
+    }
+
+    [Fact]
     public void SdkTargetsUseDistinctRestoreAndLateBuildGates()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));

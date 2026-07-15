@@ -34,7 +34,7 @@ kanban-plugin: board
 - [x] **Доказать обычный CLI workflow вне репозитория**
 	  - Запускать `restore`, `build`, `test`, `publish` в уникальном каталоге `%TEMP%`.
 	  - Результат: editor и launcher не нужны для сборки.
-- [ ] **Перенести runtime bundles во владение игры**
+- [x] **Перенести runtime bundles во владение игры**
 	  - Runner берётся из Engine SDK, Client/Server bundles — из game build output.
 	  - Результат: side-pure bundles запускаются через явный `--bundle`, без fallback на `AppContext.BaseDirectory`.
 

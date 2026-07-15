@@ -15,6 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Packager\Karpik.Engine.Packager.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
   </ItemGroup>
 
