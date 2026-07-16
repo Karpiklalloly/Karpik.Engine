@@ -254,6 +254,77 @@ public sealed class ProcessManagerLifecycleTests
     }
 
     [Fact]
+    public async Task ReservedOldOutputCallback_CannotCommitAfterReplacementPublished()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
+        using var callbackReserved = new ManualResetEventSlim();
+        using var resumeCallback = new ManualResetEventSlim();
+        int output = 0;
+        manager.OnWorkerOutput += _ => Interlocked.Increment(ref output);
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        Process oldProcess = GetPrivateField<Process>(manager, "_workerProcess");
+        EventHandler oldExitHandler = GetProcessHandler<EventHandler>(oldProcess, "Exited");
+        DataReceivedEventHandler oldOutputHandler =
+            GetProcessHandler<DataReceivedEventHandler>(oldProcess, "OutputDataReceived");
+        manager.SetLifecycleCallbackCommitHook(
+            () =>
+            {
+                callbackReserved.Set();
+                Assert.True(resumeCallback.Wait(TimeSpan.FromSeconds(10)));
+            });
+
+        try
+        {
+            oldOutputHandler(oldProcess, CreateDataReceivedEventArgs("reserved old output"));
+            Assert.True(callbackReserved.Wait(TimeSpan.FromSeconds(10)));
+
+            oldProcess.Exited -= oldExitHandler;
+            oldProcess.Kill(entireProcessTree: true);
+            Assert.True(await ProcessManager.WaitForExitAsync(
+                oldProcess,
+                TimeSpan.FromSeconds(10)));
+            await manager.StartWorkerAsync();
+            Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+            manager.SetLifecycleCallbackCommitHook(null);
+            resumeCallback.Set();
+            await Task.Delay(200);
+
+            Assert.Equal(0, Volatile.Read(ref output));
+            Assert.True(manager.IsWorkerReady);
+        }
+        finally
+        {
+            manager.SetLifecycleCallbackCommitHook(null);
+            resumeCallback.Set();
+        }
+    }
+
+    [Fact]
+    public async Task WorkerOutputCallback_CanDisposeWithoutGenerationDrainDeadlock()
+    {
+        using var runtime = new LifecycleRuntime();
+        var manager = runtime.CreateManager(captureWorkerOutput: true);
+        manager.OnWorkerOutput += _ => manager.Dispose();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        Process process = GetPrivateField<Process>(manager, "_workerProcess");
+        DataReceivedEventHandler outputHandler =
+            GetProcessHandler<DataReceivedEventHandler>(process, "OutputDataReceived");
+
+        outputHandler(process, CreateDataReceivedEventArgs("dispose"));
+
+        await WaitUntilAsync(
+            () => GetPrivateField<object?>(manager, "_workerGeneration") is null
+                  && !manager.IsWorkerRunning);
+        Assert.False(manager.IsWorkerRunning);
+        manager.Dispose();
+    }
+
+    [Fact]
     public async Task StaleWorkerReloadRequest_DoesNotClaimReloadBeforeGenerationValidation()
     {
         using var runtime = new LifecycleRuntime();

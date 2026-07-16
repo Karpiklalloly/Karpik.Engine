@@ -4,6 +4,7 @@ namespace Karpik.Engine.Core;
 
 internal class ProcessManager : IDisposable
 {
+    private static readonly AsyncLocal<ProcessManager?> s_lifecycleCallbackOwner = new();
     private Process? _workerProcess;
     private IpcServer? _ipcServer;
     private readonly string _workerExePath;
@@ -24,6 +25,7 @@ internal class ProcessManager : IDisposable
     private WorkerReadiness? _workerReadiness;
     private Action<IpcMessage>? _workerMessageHandler;
     private WorkerGeneration? _workerGeneration;
+    private Action? _beforeLifecycleCallbackCommit;
     
     public event Action<int>? OnWorkerExited;
     public event Action? OnWorkerReady;
@@ -81,6 +83,11 @@ internal class ProcessManager : IDisposable
     }
     
     public string GetPipeName() => _pipeName;
+
+    internal void SetLifecycleCallbackCommitHook(Action? callback)
+    {
+        Volatile.Write(ref _beforeLifecycleCallbackCommit, callback);
+    }
     
     public async Task StartWorkerAsync(HotReloadState? initialState = null, CancellationToken cancellationToken = default)
     {
@@ -122,7 +129,7 @@ internal class ProcessManager : IDisposable
         WorkerGeneration? abandonedGeneration = Volatile.Read(ref _workerGeneration);
         if (abandonedGeneration is not null)
         {
-            ReleaseWorkerGeneration(
+            await ReleaseWorkerGeneration(
                 abandonedGeneration,
                 disposeProcess: true,
                 cleanupShadowCopies: true);
@@ -209,7 +216,7 @@ internal class ProcessManager : IDisposable
             {
                 if (!startAttempted)
                 {
-                    ReleaseWorkerGeneration(
+                    await ReleaseWorkerGeneration(
                         generation,
                         disposeProcess: true,
                         cleanupShadowCopies: false);
@@ -240,7 +247,7 @@ internal class ProcessManager : IDisposable
             }
             finally
             {
-                ReleaseWorkerGeneration(
+                await ReleaseWorkerGeneration(
                     generation,
                     disposeProcess: true,
                     cleanupShadowCopies: true);
@@ -362,7 +369,12 @@ internal class ProcessManager : IDisposable
     {
         WorkerReadiness? readiness = Volatile.Read(ref _workerReadiness);
         if (readiness is null) return false;
-        if (readiness.IsReady) return true;
+        if (readiness.IsReady)
+        {
+            return ReferenceEquals(
+                Volatile.Read(ref _workerReadiness),
+                readiness);
+        }
 
         Task readyTask = readiness.Completion;
         Task timeoutTask = Task.Delay(timeout, cancellationToken);
@@ -494,7 +506,7 @@ internal class ProcessManager : IDisposable
                 await KillAndConfirmExitAsync(workerProcess);
             }
 
-            ReleaseWorkerGeneration(
+            await ReleaseWorkerGeneration(
                 workerGeneration,
                 disposeProcess: true,
                 cleanupShadowCopies: true);
@@ -588,7 +600,7 @@ internal class ProcessManager : IDisposable
             }
         }
 
-        ReleaseWorkerGeneration(
+        await ReleaseWorkerGeneration(
             generation,
             disposeProcess: true,
             cleanupShadowCopies: true);
@@ -705,13 +717,13 @@ internal class ProcessManager : IDisposable
         return ReferenceEquals(Volatile.Read(ref _workerGeneration), generation);
     }
 
-    private void ReleaseWorkerGeneration(
+    private Task ReleaseWorkerGeneration(
         WorkerGeneration generation,
         bool disposeProcess,
         bool cleanupShadowCopies)
     {
+        Task callbacksDrained = generation.Deactivate();
         Interlocked.CompareExchange(ref _workerGeneration, null, generation);
-        generation.Deactivate();
 
         Process? process = generation.Process;
         IpcServer ipcServer = generation.IpcServer;
@@ -785,6 +797,7 @@ internal class ProcessManager : IDisposable
                 null,
                 generation.Readiness);
         }
+        return callbacksDrained;
     }
 
     private static void TryLifecycleCleanup(Action cleanup, string resource)
@@ -1037,21 +1050,39 @@ internal class ProcessManager : IDisposable
     {
         QueueLifecycleCallback(() =>
         {
-            if (!generation.TryClaimCallback())
+            if (!generation.TryReserveCallback(
+                    () => IsCurrentGeneration(generation)))
             {
                 return;
             }
+            bool reservationOutstanding = true;
             try
             {
-                if (!IsCurrentGeneration(generation))
+                Volatile.Read(ref _beforeLifecycleCallbackCommit)?.Invoke();
+                if (!generation.TryCommitCallback())
                 {
+                    reservationOutstanding = false;
                     return;
                 }
-                callback();
+                reservationOutstanding = false;
+                ProcessManager? previousOwner = s_lifecycleCallbackOwner.Value;
+                s_lifecycleCallbackOwner.Value = this;
+                try
+                {
+                    callback();
+                }
+                finally
+                {
+                    s_lifecycleCallbackOwner.Value = previousOwner;
+                    generation.CompleteCommittedCallback();
+                }
             }
             finally
             {
-                generation.ReleaseCallback();
+                if (reservationOutstanding)
+                {
+                    generation.CancelReservedCallback();
+                }
             }
         });
     }
@@ -1086,6 +1117,16 @@ internal class ProcessManager : IDisposable
         }
 
         _cts.Cancel();
+        if (ReferenceEquals(s_lifecycleCallbackOwner.Value, this))
+        {
+            QueueLifecycleCallback(DisposeCore);
+            return;
+        }
+        DisposeCore();
+    }
+
+    private void DisposeCore()
+    {
         _transitionGate.Wait();
         try
         {
@@ -1094,9 +1135,11 @@ internal class ProcessManager : IDisposable
             if (generation is not null)
             {
                 ReleaseWorkerGeneration(
-                    generation,
-                    disposeProcess: false,
-                    cleanupShadowCopies: false);
+                        generation,
+                        disposeProcess: false,
+                        cleanupShadowCopies: false)
+                    .GetAwaiter()
+                    .GetResult();
             }
 
             bool canDisposeWorker = true;
@@ -1216,7 +1259,9 @@ internal class ProcessManager : IDisposable
     {
         private readonly object _gate = new();
         private bool _active = true;
-        private int _claimedCallbacks;
+        private int _reservedCallbacks;
+        private int _committedCallbacks;
+        private TaskCompletionSource<bool>? _drained;
 
         public WorkerGeneration(WorkerReadiness readiness, IpcServer ipcServer)
         {
@@ -1258,37 +1303,73 @@ internal class ProcessManager : IDisposable
             }
         }
 
-        public bool TryClaimCallback()
+        public bool TryReserveCallback(Func<bool> isCurrent)
         {
             lock (_gate)
             {
-                if (!_active)
+                if (!_active || !isCurrent())
                 {
                     return false;
                 }
-                _claimedCallbacks++;
+                _reservedCallbacks++;
                 return true;
             }
         }
 
-        public void ReleaseCallback()
+        public bool TryCommitCallback()
         {
             lock (_gate)
             {
-                _claimedCallbacks--;
+                _reservedCallbacks--;
+                if (!_active)
+                {
+                    return false;
+                }
+                _committedCallbacks++;
+                return true;
             }
         }
 
-        public void Deactivate()
+        public void CancelReservedCallback()
+        {
+            lock (_gate)
+            {
+                _reservedCallbacks--;
+            }
+        }
+
+        public void CompleteCommittedCallback()
+        {
+            TaskCompletionSource<bool>? drained = null;
+            lock (_gate)
+            {
+                _committedCallbacks--;
+                if (!_active && _committedCallbacks == 0)
+                {
+                    drained = _drained;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
+        public Task Deactivate()
         {
             lock (_gate)
             {
                 if (!_active)
                 {
-                    return;
+                    return _drained?.Task ?? Task.CompletedTask;
                 }
+
                 _active = false;
                 Readiness.Stop();
+                if (_committedCallbacks == 0)
+                {
+                    return Task.CompletedTask;
+                }
+                _drained = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                return _drained.Task;
             }
         }
     }
