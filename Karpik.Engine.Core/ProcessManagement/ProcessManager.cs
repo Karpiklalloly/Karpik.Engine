@@ -23,6 +23,7 @@ internal class ProcessManager : IDisposable
     private Task? _monitorTask;
     private WorkerReadiness? _workerReadiness;
     private Action<IpcMessage>? _workerMessageHandler;
+    private WorkerGeneration? _workerGeneration;
     
     public event Action<int>? OnWorkerExited;
     public event Action? OnWorkerReady;
@@ -42,8 +43,7 @@ internal class ProcessManager : IDisposable
             }
             catch (InvalidOperationException)
             {
-                // Process has been disposed or is no longer valid
-                _workerProcess = null;
+                // Ownership cleanup still needs the exact Process instance.
                 return false;
             }
         }
@@ -58,7 +58,7 @@ internal class ProcessManager : IDisposable
     private bool ShouldStopTransition =>
         IsDisposeRequested || Volatile.Read(ref _stopRequestCount) != 0;
     
-    public int WorkerProcessId => _workerProcess?.Id ?? -1;
+    public int WorkerProcessId => Volatile.Read(ref _workerGeneration)?.ProcessId ?? -1;
     
     public ProcessManager(RuntimeLaunchOptions launchOptions, HotReloadOptions options, string? pipeName = null)
     {
@@ -119,29 +119,15 @@ internal class ProcessManager : IDisposable
                 _workerExePath);
         }
 
-        var readiness = new WorkerReadiness();
-        Volatile.Write(ref _workerReadiness, readiness);
-
-        IpcServer? previousIpcServer = _ipcServer;
-        Action<IpcMessage>? previousMessageHandler = _workerMessageHandler;
-        if (previousIpcServer is not null)
+        WorkerGeneration? abandonedGeneration = Volatile.Read(ref _workerGeneration);
+        if (abandonedGeneration is not null)
         {
-            if (previousMessageHandler is not null)
-            {
-                previousIpcServer.OnMessageReceived -= previousMessageHandler;
-            }
-            previousIpcServer.Dispose();
+            ReleaseWorkerGeneration(
+                abandonedGeneration,
+                disposeProcess: true,
+                cleanupShadowCopies: true);
         }
-        
-        var ipcServer = new IpcServer(_pipeName);
-        _ipcServer = ipcServer;
-        Action<IpcMessage> messageHandler =
-            message => HandleWorkerMessage(ipcServer, readiness, message);
-        _workerMessageHandler = messageHandler;
-        ipcServer.OnMessageReceived += messageHandler;
-        using var connectionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
-        connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
-        
+
         string? stateFile = null;
         if (initialState != null)
         {
@@ -165,182 +151,202 @@ internal class ProcessManager : IDisposable
 
         if (ShouldStopTransition)
         {
-            ipcServer.OnMessageReceived -= messageHandler;
-            ipcServer.Dispose();
-            if (ReferenceEquals(_ipcServer, ipcServer))
-            {
-                _ipcServer = null;
-            }
-            if (ReferenceEquals(_workerMessageHandler, messageHandler))
-            {
-                _workerMessageHandler = null;
-            }
-            if (ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
-            {
-                Interlocked.CompareExchange(ref _workerReadiness, null, readiness);
-            }
             TryDeleteStateFile(stateFile);
             return;
         }
 
-        var ipcTask = ipcServer.WaitForConnectionAsync(connectionCts.Token);
+        using var connectionCts =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
+        var readiness = new WorkerReadiness();
+        var ipcServer = new IpcServer(_pipeName);
+        var generation = new WorkerGeneration(readiness, ipcServer);
+        Volatile.Write(ref _workerGeneration, generation);
+        Volatile.Write(ref _workerReadiness, readiness);
+        _ipcServer = ipcServer;
+        Action<IpcMessage> messageHandler =
+            message => HandleWorkerMessage(generation, message);
+        generation.MessageHandler = messageHandler;
+        _workerMessageHandler = messageHandler;
+        ipcServer.OnMessageReceived += messageHandler;
 
-        Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
-        Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", startInfo.ArgumentList)}");
-
-        _workerProcess = new Process
-        {
-            StartInfo = startInfo,
-            EnableRaisingEvents = true
-        };
-        
-        var capturedProcess = _workerProcess;
-        var exitNotification = new WorkerExitNotification();
-        _workerExitNotification = exitNotification;
-        if (_options.CaptureWorkerOutput)
-        {
-            capturedProcess.OutputDataReceived += (_, args) => PublishWorkerOutput(args.Data, isError: false);
-            capturedProcess.ErrorDataReceived += (_, args) => PublishWorkerOutput(args.Data, isError: true);
-        }
-
-        capturedProcess.Exited += (sender, e) =>
-        {
-            var exitCode = capturedProcess.ExitCode;
-            Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
-            readiness.Stop();
-            CleanupWorkerShadowCopies(capturedProcess.Id);
-            Action<int>? exited = OnWorkerExited;
-            if (!exitNotification.TryHandleExit(exitCode) && exited is not null)
-            {
-                QueueLifecycleCallback(() => exited(exitCode));
-            }
-        };
-        
-        if (!TryCommitWorkerStart(_workerProcess, out bool startAttempted))
-        {
-            if (!startAttempted)
-            {
-                ipcServer.OnMessageReceived -= messageHandler;
-                ipcServer.Dispose();
-                capturedProcess.Dispose();
-                if (ReferenceEquals(_workerProcess, capturedProcess))
-                {
-                    _workerProcess = null;
-                }
-                if (ReferenceEquals(_workerExitNotification, exitNotification))
-                {
-                    _workerExitNotification = null;
-                }
-                if (ReferenceEquals(_ipcServer, ipcServer))
-                {
-                    _ipcServer = null;
-                }
-                if (ReferenceEquals(_workerMessageHandler, messageHandler))
-                {
-                    _workerMessageHandler = null;
-                }
-                if (ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
-                {
-                    Interlocked.CompareExchange(ref _workerReadiness, null, readiness);
-                }
-                TryDeleteStateFile(stateFile);
-                return;
-            }
-            throw new InvalidOperationException($"Failed to start worker process: {_workerExePath}");
-        }
-
-        if (_options.CaptureWorkerOutput)
-        {
-            _workerProcess.BeginOutputReadLine();
-            _workerProcess.BeginErrorReadLine();
-        }
-        
-        Console.WriteLine($"[ProcessManager] Worker started with PID: {_workerProcess.Id}");
-        
+        Process? workerProcess = null;
         try
         {
+            Task ipcTask = ipcServer.WaitForConnectionAsync(connectionCts.Token);
+
+            Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
+            Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", startInfo.ArgumentList)}");
+
+            workerProcess = new Process
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+            generation.Process = workerProcess;
+            _workerProcess = workerProcess;
+
+            var exitNotification = new WorkerExitNotification();
+            generation.ExitNotification = exitNotification;
+            _workerExitNotification = exitNotification;
+            if (_options.CaptureWorkerOutput)
+            {
+                DataReceivedEventHandler outputHandler =
+                    (_, args) => HandleWorkerOutput(generation, args.Data, isError: false);
+                DataReceivedEventHandler errorHandler =
+                    (_, args) => HandleWorkerOutput(generation, args.Data, isError: true);
+                generation.OutputHandler = outputHandler;
+                generation.ErrorHandler = errorHandler;
+                workerProcess.OutputDataReceived += outputHandler;
+                workerProcess.ErrorDataReceived += errorHandler;
+            }
+
+            EventHandler exitedHandler = (_, _) => HandleWorkerExited(generation);
+            generation.ExitedHandler = exitedHandler;
+            workerProcess.Exited += exitedHandler;
+
+            if (!TryCommitWorkerStart(workerProcess, out bool startAttempted))
+            {
+                if (!startAttempted)
+                {
+                    ReleaseWorkerGeneration(
+                        generation,
+                        disposeProcess: true,
+                        cleanupShadowCopies: false);
+                    TryDeleteStateFile(stateFile);
+                    return;
+                }
+                throw new InvalidOperationException($"Failed to start worker process: {_workerExePath}");
+            }
+
+            generation.ProcessId = workerProcess.Id;
+            if (_options.CaptureWorkerOutput)
+            {
+                workerProcess.BeginOutputReadLine();
+                workerProcess.BeginErrorReadLine();
+            }
+
+            Console.WriteLine($"[ProcessManager] Worker started with PID: {generation.ProcessId}");
             await ipcTask;
         }
         catch
         {
-            Process? failedProcess = _workerProcess;
-            if (failedProcess is not null && IsProcessRunning(failedProcess))
+            try
             {
-                await KillAndConfirmExitAsync(failedProcess);
+                if (workerProcess is not null && IsProcessRunning(workerProcess))
+                {
+                    await KillAndConfirmExitAsync(workerProcess);
+                }
             }
-
-            ipcServer.OnMessageReceived -= messageHandler;
-            ipcServer.Dispose();
-            if (ReferenceEquals(_ipcServer, ipcServer))
+            finally
             {
-                _ipcServer = null;
+                ReleaseWorkerGeneration(
+                    generation,
+                    disposeProcess: true,
+                    cleanupShadowCopies: true);
+                TryDeleteStateFile(stateFile);
             }
-            if (ReferenceEquals(_workerMessageHandler, messageHandler))
-            {
-                _workerMessageHandler = null;
-            }
-            failedProcess?.Dispose();
-            if (ReferenceEquals(_workerProcess, failedProcess))
-            {
-                _workerProcess = null;
-            }
-            if (ReferenceEquals(_workerExitNotification, exitNotification))
-            {
-                _workerExitNotification = null;
-            }
-            if (ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
-            {
-                Interlocked.CompareExchange(ref _workerReadiness, null, readiness);
-            }
-            TryDeleteStateFile(stateFile);
             throw;
         }
 
         _hasStartedWorker = true;
-        _monitorTask = MonitorLoop(_cts.Token);
+        _monitorTask = MonitorLoop(generation, _cts.Token);
     }
 
-    private void HandleWorkerMessage(
-        IpcServer ipcServer,
-        WorkerReadiness readiness,
-        IpcMessage msg)
+    private void HandleWorkerMessage(WorkerGeneration generation, IpcMessage msg)
     {
-        if (!ReferenceEquals(Volatile.Read(ref _ipcServer), ipcServer)
-            || !ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
+        bool reloadRequested = false;
+        generation.TryRun(() =>
+        {
+            if (!IsCurrentGeneration(generation))
+            {
+                return;
+            }
+
+            if (msg.Type == IpcMessageType.WorkerReady)
+            {
+                Console.WriteLine("[ProcessManager] Worker is ready");
+                CleanupCompletedModuleVersions(msg.Payload);
+                generation.Readiness.MarkReady();
+                Action? ready = OnWorkerReady;
+                if (ready is not null)
+                {
+                    QueueGenerationCallback(generation, ready);
+                }
+            }
+            else if (msg.Type == IpcMessageType.HotReloadRequest)
+            {
+                Console.WriteLine("[ProcessManager] Worker requested hot reload");
+                reloadRequested = true;
+            }
+        });
+
+        if (reloadRequested)
+        {
+            _ = HandleWorkerReloadRequestAsync(generation);
+        }
+    }
+
+    private void HandleWorkerOutput(
+        WorkerGeneration generation,
+        string? line,
+        bool isError)
+    {
+        if (string.IsNullOrEmpty(line))
         {
             return;
         }
 
-        if (msg.Type == IpcMessageType.WorkerReady)
+        generation.TryRun(() =>
         {
-            Console.WriteLine("[ProcessManager] Worker is ready");
-            CleanupCompletedModuleVersions(msg.Payload);
-            readiness.MarkReady();
-            Action? ready = OnWorkerReady;
-            if (ready is not null)
-            {
-                QueueLifecycleCallback(ready);
-            }
-        }
-        else if (msg.Type == IpcMessageType.HotReloadRequest)
-        {
-            Console.WriteLine("[ProcessManager] Worker requested hot reload");
-            _ = HandleWorkerReloadRequestAsync(ipcServer, readiness);
-        }
-    }
-
-    private async Task HandleWorkerReloadRequestAsync(
-        IpcServer ipcServer,
-        WorkerReadiness readiness)
-    {
-        try
-        {
-            if (!ReferenceEquals(Volatile.Read(ref _ipcServer), ipcServer)
-                || !ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
+            if (!IsCurrentGeneration(generation))
             {
                 return;
             }
-            await HotReloadAsync(ipcServer, readiness, _cts.Token);
+
+            string output = isError ? $"[stderr] {line}" : line;
+            QueueGenerationCallback(
+                generation,
+                () => OnWorkerOutput?.Invoke(output));
+        });
+    }
+
+    private void HandleWorkerExited(WorkerGeneration generation)
+    {
+        generation.TryRun(() =>
+        {
+            if (!IsCurrentGeneration(generation) || generation.Process is not { } process)
+            {
+                return;
+            }
+
+            int exitCode = process.ExitCode;
+            int processId = generation.ProcessId >= 0
+                ? generation.ProcessId
+                : process.Id;
+            Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
+            generation.Readiness.Stop();
+            CleanupWorkerShadowCopies(processId);
+            Action<int>? exited = OnWorkerExited;
+            WorkerExitNotification? exitNotification = generation.ExitNotification;
+            if (exitNotification is not null
+                && !exitNotification.TryHandleExit(exitCode)
+                && exited is not null)
+            {
+                QueueGenerationCallback(generation, () => exited(exitCode));
+            }
+        });
+    }
+
+    private async Task HandleWorkerReloadRequestAsync(WorkerGeneration generation)
+    {
+        try
+        {
+            if (!IsCurrentGeneration(generation) || !generation.IsActive)
+            {
+                return;
+            }
+            await HotReloadAsync(generation, _cts.Token);
         }
         catch (OperationCanceledException) when (IsDisposeRequested)
         {
@@ -373,21 +379,22 @@ internal class ProcessManager : IDisposable
 
     public Task HotReloadAsync(CancellationToken cancellationToken = default)
     {
-        return HotReloadAsync(
-            expectedIpcServer: null,
-            expectedReadiness: null,
-            cancellationToken);
+        return HotReloadAsync(expectedGeneration: null, cancellationToken);
     }
 
     private async Task HotReloadAsync(
-        IpcServer? expectedIpcServer,
-        WorkerReadiness? expectedReadiness,
+        WorkerGeneration? expectedGeneration,
         CancellationToken cancellationToken)
     {
-        if (!TryBeginReload())
+        bool reloadOwned = false;
+        if (expectedGeneration is null)
         {
-            Console.WriteLine("[ProcessManager] Hot reload is already in progress");
-            return;
+            if (!TryBeginReload())
+            {
+                Console.WriteLine("[ProcessManager] Hot reload is already in progress");
+                return;
+            }
+            reloadOwned = true;
         }
 
         bool gateEntered = false;
@@ -402,24 +409,29 @@ internal class ProcessManager : IDisposable
             {
                 return;
             }
-            if (expectedIpcServer is not null
-                && (!ReferenceEquals(Volatile.Read(ref _ipcServer), expectedIpcServer)
-                    || !ReferenceEquals(
-                        Volatile.Read(ref _workerReadiness),
-                        expectedReadiness)))
+            if (expectedGeneration is not null
+                && (!IsCurrentGeneration(expectedGeneration)
+                    || !expectedGeneration.IsActive))
             {
                 return;
             }
+            if (!reloadOwned)
+            {
+                if (!TryBeginReload())
+                {
+                    Console.WriteLine("[ProcessManager] Hot reload is already in progress");
+                    return;
+                }
+                reloadOwned = true;
+            }
 
-            IpcServer? ipcServer = _ipcServer;
-            Process? workerProcess = _workerProcess;
-            WorkerReadiness? workerReadiness = Volatile.Read(ref _workerReadiness);
-            Action<IpcMessage>? workerMessageHandler = _workerMessageHandler;
-            exitNotification = _workerExitNotification;
-            if (ipcServer is null
+            WorkerGeneration? workerGeneration = Volatile.Read(ref _workerGeneration);
+            IpcServer? ipcServer = workerGeneration?.IpcServer;
+            Process? workerProcess = workerGeneration?.Process;
+            exitNotification = workerGeneration?.ExitNotification;
+            if (workerGeneration is null
+                || ipcServer is null
                 || workerProcess is null
-                || workerReadiness is null
-                || workerMessageHandler is null
                 || exitNotification is null
                 || !IsProcessRunning(workerProcess))
             {
@@ -482,29 +494,10 @@ internal class ProcessManager : IDisposable
                 await KillAndConfirmExitAsync(workerProcess);
             }
 
-            ipcServer.OnMessageReceived -= workerMessageHandler;
-            ipcServer.Dispose();
-            if (ReferenceEquals(_ipcServer, ipcServer))
-            {
-                _ipcServer = null;
-            }
-            if (ReferenceEquals(_workerMessageHandler, workerMessageHandler))
-            {
-                _workerMessageHandler = null;
-            }
-            workerProcess.Dispose();
-            if (ReferenceEquals(_workerProcess, workerProcess))
-            {
-                _workerProcess = null;
-            }
-            if (ReferenceEquals(_workerExitNotification, exitNotification))
-            {
-                _workerExitNotification = null;
-            }
-            if (ReferenceEquals(Volatile.Read(ref _workerReadiness), workerReadiness))
-            {
-                Interlocked.CompareExchange(ref _workerReadiness, null, workerReadiness);
-            }
+            ReleaseWorkerGeneration(
+                workerGeneration,
+                disposeProcess: true,
+                cleanupShadowCopies: true);
 
             if (ShouldStopTransition)
             {
@@ -524,20 +517,18 @@ internal class ProcessManager : IDisposable
             {
                 PublishDeferredWorkerExit(exitNotification);
             }
+            if (reloadOwned)
+            {
+                EndReload();
+                reloadOwned = false;
+            }
             if (gateEntered)
             {
                 _transitionGate.Release();
             }
-            try
+            if (notificationState is not null)
             {
-                if (notificationState is not null)
-                {
-                    OnHotReloadRequested?.Invoke(notificationState);
-                }
-            }
-            finally
-            {
-                EndReload();
+                OnHotReloadRequested?.Invoke(notificationState);
             }
         }
     }
@@ -564,17 +555,15 @@ internal class ProcessManager : IDisposable
 
     private async Task StopWorkerCoreAsync(CancellationToken cancellationToken)
     {
-        Process? workerProcess = _workerProcess;
-        if (workerProcess is null)
+        WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
+        if (generation is null)
         {
             return;
         }
 
-        IpcServer? ipcServer = _ipcServer;
-        WorkerExitNotification? exitNotification = _workerExitNotification;
-        WorkerReadiness? readiness = Volatile.Read(ref _workerReadiness);
-        Action<IpcMessage>? messageHandler = _workerMessageHandler;
-        if (IsProcessRunning(workerProcess))
+        Process? workerProcess = generation.Process;
+        IpcServer? ipcServer = generation.IpcServer;
+        if (workerProcess is not null && IsProcessRunning(workerProcess))
         {
             Console.WriteLine("[ProcessManager] Stopping worker...");
 
@@ -598,39 +587,11 @@ internal class ProcessManager : IDisposable
                 await KillAndConfirmExitAsync(workerProcess);
             }
         }
-        
-        int workerProcessId = workerProcess.Id;
-        if (ipcServer is not null)
-        {
-            if (messageHandler is not null)
-            {
-                ipcServer.OnMessageReceived -= messageHandler;
-            }
-            ipcServer.Dispose();
-        }
-        if (ReferenceEquals(_ipcServer, ipcServer))
-        {
-            _ipcServer = null;
-        }
-        if (ReferenceEquals(_workerMessageHandler, messageHandler))
-        {
-            _workerMessageHandler = null;
-        }
-        CleanupWorkerShadowCopies(workerProcessId);
-        workerProcess.Dispose();
-        if (ReferenceEquals(_workerProcess, workerProcess))
-        {
-            _workerProcess = null;
-        }
-        readiness?.Stop();
-        if (ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
-        {
-            Interlocked.CompareExchange(ref _workerReadiness, null, readiness);
-        }
-        if (ReferenceEquals(_workerExitNotification, exitNotification))
-        {
-            _workerExitNotification = null;
-        }
+
+        ReleaseWorkerGeneration(
+            generation,
+            disposeProcess: true,
+            cleanupShadowCopies: true);
     }
 
     public Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
@@ -729,10 +690,113 @@ internal class ProcessManager : IDisposable
             return;
         }
 
+        WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
         Action<int>? exited = OnWorkerExited;
-        if (exited is not null)
+        if (generation is not null
+            && ReferenceEquals(generation.ExitNotification, exitNotification)
+            && exited is not null)
         {
-            QueueLifecycleCallback(() => exited(exitCode));
+            QueueGenerationCallback(generation, () => exited(exitCode));
+        }
+    }
+
+    private bool IsCurrentGeneration(WorkerGeneration generation)
+    {
+        return ReferenceEquals(Volatile.Read(ref _workerGeneration), generation);
+    }
+
+    private void ReleaseWorkerGeneration(
+        WorkerGeneration generation,
+        bool disposeProcess,
+        bool cleanupShadowCopies)
+    {
+        Interlocked.CompareExchange(ref _workerGeneration, null, generation);
+        generation.Deactivate();
+
+        Process? process = generation.Process;
+        IpcServer ipcServer = generation.IpcServer;
+        Action<IpcMessage>? messageHandler = generation.MessageHandler;
+        EventHandler? exitedHandler = generation.ExitedHandler;
+        DataReceivedEventHandler? outputHandler = generation.OutputHandler;
+        DataReceivedEventHandler? errorHandler = generation.ErrorHandler;
+
+        if (messageHandler is not null)
+        {
+            TryLifecycleCleanup(
+                () => ipcServer.OnMessageReceived -= messageHandler,
+                "IPC message handler");
+        }
+        if (process is not null)
+        {
+            if (exitedHandler is not null)
+            {
+                TryLifecycleCleanup(
+                    () => process.Exited -= exitedHandler,
+                    "process exit handler");
+            }
+            if (outputHandler is not null)
+            {
+                TryLifecycleCleanup(
+                    () => process.OutputDataReceived -= outputHandler,
+                    "process output handler");
+            }
+            if (errorHandler is not null)
+            {
+                TryLifecycleCleanup(
+                    () => process.ErrorDataReceived -= errorHandler,
+                    "process error handler");
+            }
+        }
+
+        TryLifecycleCleanup(ipcServer.Dispose, "IPC server");
+        if (cleanupShadowCopies && generation.ProcessId >= 0)
+        {
+            TryLifecycleCleanup(
+                () => CleanupWorkerShadowCopies(generation.ProcessId),
+                "worker shadow copies");
+        }
+        if (disposeProcess)
+        {
+            TryLifecycleCleanup(
+                () => process?.Dispose(),
+                "worker process");
+        }
+
+        if (ReferenceEquals(_ipcServer, ipcServer))
+        {
+            _ipcServer = null;
+        }
+        if (ReferenceEquals(_workerProcess, process))
+        {
+            _workerProcess = null;
+        }
+        if (ReferenceEquals(_workerExitNotification, generation.ExitNotification))
+        {
+            _workerExitNotification = null;
+        }
+        if (ReferenceEquals(_workerMessageHandler, messageHandler))
+        {
+            _workerMessageHandler = null;
+        }
+        if (ReferenceEquals(Volatile.Read(ref _workerReadiness), generation.Readiness))
+        {
+            Interlocked.CompareExchange(
+                ref _workerReadiness,
+                null,
+                generation.Readiness);
+        }
+    }
+
+    private static void TryLifecycleCleanup(Action cleanup, string resource)
+    {
+        try
+        {
+            cleanup();
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine(
+                $"[ProcessManager] Failed to release {resource}: {exception.Message}");
         }
     }
 
@@ -770,11 +834,17 @@ internal class ProcessManager : IDisposable
         }
     }
     
-    private async Task MonitorLoop(CancellationToken cancellationToken)
+    private async Task MonitorLoop(
+        WorkerGeneration generation,
+        CancellationToken cancellationToken)
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested && IsWorkerRunning)
+            while (!cancellationToken.IsCancellationRequested
+                   && IsCurrentGeneration(generation)
+                   && generation.IsActive
+                   && generation.Process is { } process
+                   && IsProcessRunning(process))
             {
                 await Task.Delay(1000, cancellationToken);
             }
@@ -961,14 +1031,29 @@ internal class ProcessManager : IDisposable
         }
     }
 
-    private void PublishWorkerOutput(string? line, bool isError)
+    private void QueueGenerationCallback(
+        WorkerGeneration generation,
+        Action callback)
     {
-        if (string.IsNullOrEmpty(line))
+        QueueLifecycleCallback(() =>
         {
-            return;
-        }
-
-        OnWorkerOutput?.Invoke(isError ? $"[stderr] {line}" : line);
+            if (!generation.TryClaimCallback())
+            {
+                return;
+            }
+            try
+            {
+                if (!IsCurrentGeneration(generation))
+                {
+                    return;
+                }
+                callback();
+            }
+            finally
+            {
+                generation.ReleaseCallback();
+            }
+        });
     }
 
     private static void QueueLifecycleCallback(Action callback)
@@ -1004,7 +1089,16 @@ internal class ProcessManager : IDisposable
         _transitionGate.Wait();
         try
         {
-            Process? workerProcess = _workerProcess;
+            WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
+            Process? workerProcess = generation?.Process;
+            if (generation is not null)
+            {
+                ReleaseWorkerGeneration(
+                    generation,
+                    disposeProcess: false,
+                    cleanupShadowCopies: false);
+            }
+
             bool canDisposeWorker = true;
             try
             {
@@ -1032,29 +1126,6 @@ internal class ProcessManager : IDisposable
                 canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
             }
 
-            IpcServer? ipcServer = _ipcServer;
-            Action<IpcMessage>? messageHandler = _workerMessageHandler;
-            _ipcServer = null;
-            _workerMessageHandler = null;
-            if (ipcServer is not null)
-            {
-                if (messageHandler is not null)
-                {
-                    ipcServer.OnMessageReceived -= messageHandler;
-                }
-                ipcServer.Dispose();
-            }
-            if (ReferenceEquals(_workerProcess, workerProcess))
-            {
-                _workerProcess = null;
-            }
-            WorkerReadiness? readiness = Volatile.Read(ref _workerReadiness);
-            readiness?.Stop();
-            if (ReferenceEquals(Volatile.Read(ref _workerReadiness), readiness))
-            {
-                Interlocked.CompareExchange(ref _workerReadiness, null, readiness);
-            }
-            _workerExitNotification = null;
             if (canDisposeWorker)
             {
                 workerProcess?.Dispose();
@@ -1138,6 +1209,87 @@ internal class ProcessManager : IDisposable
             Deferred,
             Suppress,
             Consumed
+        }
+    }
+
+    private sealed class WorkerGeneration
+    {
+        private readonly object _gate = new();
+        private bool _active = true;
+        private int _claimedCallbacks;
+
+        public WorkerGeneration(WorkerReadiness readiness, IpcServer ipcServer)
+        {
+            Readiness = readiness;
+            IpcServer = ipcServer;
+        }
+
+        public WorkerReadiness Readiness { get; }
+        public IpcServer IpcServer { get; }
+        public Process? Process { get; set; }
+        public int ProcessId { get; set; } = -1;
+        public WorkerExitNotification? ExitNotification { get; set; }
+        public Action<IpcMessage>? MessageHandler { get; set; }
+        public EventHandler? ExitedHandler { get; set; }
+        public DataReceivedEventHandler? OutputHandler { get; set; }
+        public DataReceivedEventHandler? ErrorHandler { get; set; }
+
+        public bool IsActive
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _active;
+                }
+            }
+        }
+
+        public bool TryRun(Action action)
+        {
+            lock (_gate)
+            {
+                if (!_active)
+                {
+                    return false;
+                }
+                action();
+                return true;
+            }
+        }
+
+        public bool TryClaimCallback()
+        {
+            lock (_gate)
+            {
+                if (!_active)
+                {
+                    return false;
+                }
+                _claimedCallbacks++;
+                return true;
+            }
+        }
+
+        public void ReleaseCallback()
+        {
+            lock (_gate)
+            {
+                _claimedCallbacks--;
+            }
+        }
+
+        public void Deactivate()
+        {
+            lock (_gate)
+            {
+                if (!_active)
+                {
+                    return;
+                }
+                _active = false;
+                Readiness.Stop();
+            }
         }
     }
 

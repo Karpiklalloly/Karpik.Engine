@@ -14,10 +14,13 @@ public sealed class ProcessManagerLifecycleTests
         using var manager = runtime.CreateManager();
         await manager.StartWorkerAsync();
         Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        runtime.PauseNextStateResponse();
         runtime.RequestReload();
-        await runtime.WaitForAsync("state-response-sent");
+        await runtime.WaitForAsync("state-response-ready");
 
-        await manager.StopWorkerAsync();
+        Task stop = manager.StopWorkerAsync();
+        runtime.ReleaseStateResponse();
+        await stop;
         await WaitUntilAsync(() => !manager.IsReloadInProgress);
 
         Assert.False(manager.IsWorkerRunning);
@@ -117,7 +120,7 @@ public sealed class ProcessManagerLifecycleTests
     public async Task SuccessfulReload_DoesNotPublishPlannedOldWorkerExitAfterReplacementReady()
     {
         using var runtime = new LifecycleRuntime();
-        using var manager = runtime.CreateManager();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
         int exits = 0;
         int ready = 0;
         manager.OnWorkerExited += _ => Interlocked.Increment(ref exits);
@@ -125,6 +128,8 @@ public sealed class ProcessManagerLifecycleTests
         await manager.StartWorkerAsync();
         Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
         await WaitUntilAsync(() => Volatile.Read(ref ready) == 1);
+        Process oldProcess = GetPrivateField<Process>(manager, "_workerProcess");
+        Task oldMonitor = GetPrivateField<Task>(manager, "_monitorTask");
 
         Task reload = manager.HotReloadAsync();
         await runtime.WaitForAsync("state-requested");
@@ -135,6 +140,11 @@ public sealed class ProcessManagerLifecycleTests
         await Task.Delay(100);
 
         Assert.Equal(0, Volatile.Read(ref exits));
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "Exited"));
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "OutputDataReceived"));
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "ErrorDataReceived"));
+        Assert.True(IsProcessHandleClosed(oldProcess));
+        await oldMonitor.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [Fact]
@@ -180,23 +190,74 @@ public sealed class ProcessManagerLifecycleTests
         IpcServer oldIpcServer = GetPrivateField<IpcServer>(manager, "_ipcServer");
         Action<IpcMessage> oldMessageHandler = GetMessageHandler(oldIpcServer);
         object replacementReadiness = CreateWorkerReadiness();
-        SetPrivateField(manager, "_workerReadiness", replacementReadiness);
+        object oldGeneration = GetPrivateField<object>(manager, "_workerGeneration");
+        object oldReadiness = GetPrivateField<object>(manager, "_workerReadiness");
+        try
+        {
+            SetPrivateField<object?>(manager, "_workerGeneration", null);
+            SetPrivateField(manager, "_workerReadiness", replacementReadiness);
 
-        oldMessageHandler(
-            new IpcMessage(
-                IpcMessageType.WorkerReady,
-                System.Text.Encoding.UTF8.GetBytes(
-                    Path.Combine(runtime.BundlePath, "modules.version.1"))));
+            oldMessageHandler(
+                new IpcMessage(
+                    IpcMessageType.WorkerReady,
+                    System.Text.Encoding.UTF8.GetBytes(
+                        Path.Combine(runtime.BundlePath, "modules.version.1"))));
+            await Task.Delay(100);
 
-        Assert.False(manager.IsWorkerReady);
-        Assert.Equal(1, Volatile.Read(ref readyNotifications));
+            Assert.False(manager.IsWorkerReady);
+            Assert.Equal(1, Volatile.Read(ref readyNotifications));
+        }
+        finally
+        {
+            SetPrivateField(manager, "_workerGeneration", oldGeneration);
+            SetPrivateField(manager, "_workerReadiness", oldReadiness);
+        }
     }
 
     [Fact]
-    public async Task OldWorkerReloadRequest_WaitingForTransitionGate_DoesNotReloadReplacement()
+    public async Task CrashThenPublicRestart_ReleasesOldOwnershipAndDropsDelayedCallbacks()
     {
         using var runtime = new LifecycleRuntime();
-        using var manager = runtime.CreateManager();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
+        int exits = 0;
+        int output = 0;
+        manager.OnWorkerExited += _ => Interlocked.Increment(ref exits);
+        manager.OnWorkerOutput += _ => Interlocked.Increment(ref output);
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        Process oldProcess = GetPrivateField<Process>(manager, "_workerProcess");
+        EventHandler oldExitHandler = GetProcessHandler<EventHandler>(oldProcess, "Exited");
+        DataReceivedEventHandler oldOutputHandler =
+            GetProcessHandler<DataReceivedEventHandler>(oldProcess, "OutputDataReceived");
+        DataReceivedEventHandler oldErrorHandler =
+            GetProcessHandler<DataReceivedEventHandler>(oldProcess, "ErrorDataReceived");
+        oldProcess.Exited -= oldExitHandler;
+        oldProcess.Kill(entireProcessTree: true);
+        Assert.True(await ProcessManager.WaitForExitAsync(oldProcess, TimeSpan.FromSeconds(10)));
+
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "Exited"));
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "OutputDataReceived"));
+        Assert.Equal(0, ProcessSubscriberCount(oldProcess, "ErrorDataReceived"));
+        Assert.True(IsProcessHandleClosed(oldProcess));
+
+        oldExitHandler(oldProcess, EventArgs.Empty);
+        oldOutputHandler(oldProcess, CreateDataReceivedEventArgs("late stdout"));
+        oldErrorHandler(oldProcess, CreateDataReceivedEventArgs("late stderr"));
+        await Task.Delay(200);
+
+        Assert.Equal(0, Volatile.Read(ref exits));
+        Assert.Equal(0, Volatile.Read(ref output));
+    }
+
+    [Fact]
+    public async Task StaleWorkerReloadRequest_DoesNotClaimReloadBeforeGenerationValidation()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
         await manager.StartWorkerAsync();
         Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
 
@@ -207,20 +268,18 @@ public sealed class ProcessManagerLifecycleTests
         try
         {
             oldMessageHandler(new IpcMessage(IpcMessageType.HotReloadRequest));
+            await Task.Delay(100);
+            Assert.False(manager.IsReloadInProgress);
+
+            Task currentReload = manager.HotReloadAsync();
             await WaitUntilAsync(() => manager.IsReloadInProgress);
-            SetPrivateField(manager, "_workerReadiness", CreateWorkerReadiness());
-
             transitionGate.Release();
-            bool stateRequested = await runtime.TryWaitForAsync(
-                "state-requested",
-                TimeSpan.FromSeconds(2));
-            if (stateRequested)
-            {
-                runtime.ReleaseState();
-            }
-            await WaitUntilAsync(() => !manager.IsReloadInProgress);
 
-            Assert.False(stateRequested);
+            Assert.True(await runtime.TryWaitForAsync(
+                "state-requested",
+                TimeSpan.FromSeconds(2)));
+            runtime.ReleaseState();
+            await currentReload;
         }
         catch
         {
@@ -234,10 +293,71 @@ public sealed class ProcessManagerLifecycleTests
     }
 
     [Fact]
-    public async Task StopAfterWorkerAlreadyExited_ReleasesOwnedLifecycleResources()
+    public async Task ReplacementWorkerReloadRequest_QueuedDuringReloadRunsAfterTransition()
     {
         using var runtime = new LifecycleRuntime();
         using var manager = runtime.CreateManager();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        runtime.RequestNextWorkerReloadOnStart();
+
+        Task firstReload = manager.HotReloadAsync();
+        await runtime.WaitForAsync("state-requested");
+        runtime.ReleaseState();
+        await firstReload;
+
+        await WaitUntilAsync(() => runtime.StartCount == 3);
+        await WaitUntilAsync(() => !manager.IsReloadInProgress);
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+    }
+
+    [Fact]
+    public async Task ConnectionFailure_StopsAbandonedReadinessAndReleasesDelegates()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(
+            captureWorkerOutput: true,
+            workerConnectionTimeout: TimeSpan.FromMilliseconds(250));
+        runtime.ExitNextWorkerBeforeConnect();
+
+        Task start = manager.StartWorkerAsync();
+        await WaitUntilAsync(() => GetPrivateField<object?>(manager, "_workerReadiness") is not null);
+        Process failedProcess = GetPrivateField<Process>(manager, "_workerProcess");
+        Task<bool> readiness = manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(30));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => start);
+        Exception? readinessFailure = await Record.ExceptionAsync(
+            async () => await readiness.WaitAsync(TimeSpan.FromSeconds(2)));
+
+        Assert.IsAssignableFrom<OperationCanceledException>(readinessFailure);
+        Assert.Equal(0, ProcessSubscriberCount(failedProcess, "Exited"));
+        Assert.Equal(0, ProcessSubscriberCount(failedProcess, "OutputDataReceived"));
+        Assert.Equal(0, ProcessSubscriberCount(failedProcess, "ErrorDataReceived"));
+        Assert.True(IsProcessHandleClosed(failedProcess));
+    }
+
+    [Fact]
+    public async Task InvalidWorkerConnectionTimeout_DoesNotPublishAbandonedGeneration()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(
+            workerConnectionTimeout: TimeSpan.FromMilliseconds(-2));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => manager.StartWorkerAsync());
+
+        Assert.Null(GetPrivateField<object?>(manager, "_workerGeneration"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerReadiness"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerProcess"));
+        Assert.Null(GetPrivateField<object?>(manager, "_ipcServer"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerMessageHandler"));
+    }
+
+    [Fact]
+    public async Task StopAfterWorkerAlreadyExited_ReleasesOwnedLifecycleResources()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
         await manager.StartWorkerAsync();
         Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
         Process workerProcess = GetPrivateField<Process>(manager, "_workerProcess");
@@ -251,6 +371,11 @@ public sealed class ProcessManagerLifecycleTests
         Assert.Null(GetPrivateField<object?>(manager, "_workerExitNotification"));
         Assert.Null(GetPrivateField<object?>(manager, "_workerReadiness"));
         Assert.Null(GetPrivateField<object?>(manager, "_workerMessageHandler"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerGeneration"));
+        Assert.Equal(0, ProcessSubscriberCount(workerProcess, "Exited"));
+        Assert.Equal(0, ProcessSubscriberCount(workerProcess, "OutputDataReceived"));
+        Assert.Equal(0, ProcessSubscriberCount(workerProcess, "ErrorDataReceived"));
+        Assert.True(IsProcessHandleClosed(workerProcess));
     }
 
     [Fact]
@@ -300,20 +425,59 @@ public sealed class ProcessManagerLifecycleTests
 
     private static int ExitedSubscriberCount(Process process)
     {
-        FieldInfo field = typeof(Process).GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(candidate =>
-                typeof(MulticastDelegate).IsAssignableFrom(candidate.FieldType)
-                && candidate.Name.Contains("Exited", StringComparison.OrdinalIgnoreCase));
-        return ((MulticastDelegate?)field.GetValue(process))?.GetInvocationList().Length ?? 0;
+        return ProcessSubscriberCount(process, "Exited");
     }
 
     private static EventHandler GetExitHandler(Process process)
     {
-        FieldInfo field = typeof(Process).GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+        return GetProcessHandler<EventHandler>(process, "Exited");
+    }
+
+    private static T GetProcessHandler<T>(Process process, string fieldName)
+        where T : Delegate
+    {
+        FieldInfo field = GetProcessDelegateField<T>(fieldName);
+        return Assert.IsType<T>(field.GetValue(process));
+    }
+
+    private static int ProcessSubscriberCount(Process process, string fieldName)
+    {
+        FieldInfo field = typeof(Process)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
             .Single(candidate =>
                 typeof(MulticastDelegate).IsAssignableFrom(candidate.FieldType)
-                && candidate.Name.Contains("Exited", StringComparison.OrdinalIgnoreCase));
-        return Assert.IsType<EventHandler>(field.GetValue(process));
+                && candidate.Name.Contains(fieldName, StringComparison.OrdinalIgnoreCase));
+        return ((MulticastDelegate?)field.GetValue(process))?.GetInvocationList().Length ?? 0;
+    }
+
+    private static FieldInfo GetProcessDelegateField<T>(string fieldName)
+        where T : Delegate
+    {
+        return typeof(Process)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate =>
+                typeof(T).IsAssignableFrom(candidate.FieldType)
+                && candidate.Name.Contains(fieldName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsProcessHandleClosed(Process process)
+    {
+        FieldInfo field = typeof(Process)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate =>
+                candidate.FieldType == typeof(Microsoft.Win32.SafeHandles.SafeProcessHandle));
+        var handle = (Microsoft.Win32.SafeHandles.SafeProcessHandle?)field.GetValue(process);
+        return handle is null || handle.IsClosed;
+    }
+
+    private static DataReceivedEventArgs CreateDataReceivedEventArgs(string data)
+    {
+        return (DataReceivedEventArgs)Activator.CreateInstance(
+            typeof(DataReceivedEventArgs),
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: [data],
+            culture: null)!;
     }
 
     private static Action<IpcMessage> GetMessageHandler(IpcServer ipcServer)
@@ -366,9 +530,30 @@ public sealed class ProcessManagerLifecycleTests
         public string BundlePath { get; }
         public string RunnerPath { get; }
 
-        public int StartCount => File.Exists(Path.Combine(_controlPath, "starts.log"))
-            ? File.ReadAllLines(Path.Combine(_controlPath, "starts.log")).Length
-            : 0;
+        public int StartCount
+        {
+            get
+            {
+                string path = Path.Combine(_controlPath, "starts.log");
+                if (!File.Exists(path))
+                {
+                    return 0;
+                }
+
+                using var stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                int count = 0;
+                while (reader.ReadLine() is not null)
+                {
+                    count++;
+                }
+                return count;
+            }
+        }
 
         public LifecycleRuntime()
         {
@@ -389,7 +574,9 @@ public sealed class ProcessManagerLifecycleTests
             File.WriteAllText(Path.Combine(modules, "Game.dll"), "game");
         }
 
-        public ProcessManager CreateManager()
+        public ProcessManager CreateManager(
+            bool captureWorkerOutput = false,
+            TimeSpan? workerConnectionTimeout = null)
         {
             var launch = new RuntimeLaunchOptions(Side.Server, RunnerPath, BundlePath);
             return new ProcessManager(
@@ -397,10 +584,42 @@ public sealed class ProcessManagerLifecycleTests
                 new HotReloadOptions
                 {
                     Mode = HotReloadMode.RestartWorker,
-                    WorkerConnectionTimeout = TimeSpan.FromSeconds(10),
+                    WorkerConnectionTimeout =
+                        workerConnectionTimeout ?? TimeSpan.FromSeconds(10),
                     StateRequestTimeout = TimeSpan.FromSeconds(10),
-                    GracefulShutdownTimeout = TimeSpan.FromMilliseconds(250)
+                    GracefulShutdownTimeout = TimeSpan.FromMilliseconds(250),
+                    CaptureWorkerOutput = captureWorkerOutput
                 });
+        }
+
+        public void ExitNextWorkerBeforeConnect()
+        {
+            Directory.CreateDirectory(_controlPath);
+            File.WriteAllText(Path.Combine(_controlPath, "exit-before-connect"), "exit");
+        }
+
+        public void RequestNextWorkerReloadOnStart()
+        {
+            Directory.CreateDirectory(_controlPath);
+            File.WriteAllText(
+                Path.Combine(_controlPath, "request-reload-on-start"),
+                "reload");
+        }
+
+        public void PauseNextStateResponse()
+        {
+            Directory.CreateDirectory(_controlPath);
+            File.WriteAllText(
+                Path.Combine(_controlPath, "pause-before-state-response"),
+                "pause");
+        }
+
+        public void ReleaseStateResponse()
+        {
+            Directory.CreateDirectory(_controlPath);
+            File.WriteAllText(
+                Path.Combine(_controlPath, "release-state-response"),
+                "release");
         }
 
         public void RequestReload()

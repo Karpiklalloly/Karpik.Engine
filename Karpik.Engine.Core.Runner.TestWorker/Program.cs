@@ -22,6 +22,12 @@ internal static class Program
         string controlPath = Path.Combine(bundlePath, "reload", "state", "lifecycle-tests");
         Directory.CreateDirectory(controlPath);
         await File.AppendAllTextAsync(Path.Combine(controlPath, "starts.log"), $"{Environment.ProcessId}\n");
+        string exitBeforeConnect = Path.Combine(controlPath, "exit-before-connect");
+        if (File.Exists(exitBeforeConnect))
+        {
+            File.Delete(exitBeforeConnect);
+            return;
+        }
 
         using var pipe = new NamedPipeClientStream(
             ".",
@@ -39,6 +45,12 @@ internal static class Program
             WorkerReady,
             System.Text.Encoding.UTF8.GetBytes(Path.Combine(bundlePath, "modules.version.1")),
             CancellationToken.None);
+        string reloadOnStart = Path.Combine(controlPath, "request-reload-on-start");
+        if (File.Exists(reloadOnStart))
+        {
+            File.Delete(reloadOnStart);
+            await SendAsync(pipe, sendGate, HotReloadRequest, [], CancellationToken.None);
+        }
 
         try
         {
@@ -54,6 +66,23 @@ internal static class Program
                         while (!File.Exists(release))
                         {
                             await Task.Delay(5, stopped.Token);
+                        }
+                        string pauseResponse = Path.Combine(
+                            controlPath,
+                            "pause-before-state-response");
+                        if (File.Exists(pauseResponse))
+                        {
+                            await File.WriteAllTextAsync(
+                                Path.Combine(controlPath, "state-response-ready"),
+                                "ready",
+                                stopped.Token);
+                            string releaseResponse = Path.Combine(
+                                controlPath,
+                                "release-state-response");
+                            while (!File.Exists(releaseResponse))
+                            {
+                                await Task.Delay(5, stopped.Token);
+                            }
                         }
                         byte[] state = new byte[sizeof(long) + sizeof(int)];
                         await SendAsync(pipe, sendGate, StateResponse, state, stopped.Token);
