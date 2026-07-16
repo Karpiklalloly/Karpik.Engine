@@ -138,6 +138,122 @@ public sealed class ProcessManagerLifecycleTests
     }
 
     [Fact]
+    public async Task DelayedOldWorkerExitCallback_DoesNotCancelReplacementReadiness()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        Process oldProcess = GetPrivateField<Process>(manager, "_workerProcess");
+        EventHandler oldExitHandler = GetExitHandler(oldProcess);
+        oldProcess.Exited -= oldExitHandler;
+        oldProcess.Kill(entireProcessTree: true);
+        Assert.True(await ProcessManager.WaitForExitAsync(oldProcess, TimeSpan.FromSeconds(10)));
+
+        IpcServer oldIpcServer = GetPrivateField<IpcServer>(manager, "_ipcServer");
+        oldIpcServer.Dispose();
+        SetPrivateField<object?>(manager, "_workerProcess", null);
+        SetPrivateField<object?>(manager, "_ipcServer", null);
+        SetPrivateField<object?>(manager, "_workerExitNotification", null);
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        oldExitHandler(oldProcess, EventArgs.Empty);
+        oldProcess.Dispose();
+
+        Assert.True(manager.IsWorkerReady);
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromMilliseconds(100)));
+    }
+
+    [Fact]
+    public async Task DelayedOldWorkerReadyMessage_DoesNotMarkReplacementReadiness()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        int readyNotifications = 0;
+        manager.OnWorkerReady += () => Interlocked.Increment(ref readyNotifications);
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        await WaitUntilAsync(() => Volatile.Read(ref readyNotifications) == 1);
+
+        IpcServer oldIpcServer = GetPrivateField<IpcServer>(manager, "_ipcServer");
+        Action<IpcMessage> oldMessageHandler = GetMessageHandler(oldIpcServer);
+        object replacementReadiness = CreateWorkerReadiness();
+        SetPrivateField(manager, "_workerReadiness", replacementReadiness);
+
+        oldMessageHandler(
+            new IpcMessage(
+                IpcMessageType.WorkerReady,
+                System.Text.Encoding.UTF8.GetBytes(
+                    Path.Combine(runtime.BundlePath, "modules.version.1"))));
+
+        Assert.False(manager.IsWorkerReady);
+        Assert.Equal(1, Volatile.Read(ref readyNotifications));
+    }
+
+    [Fact]
+    public async Task OldWorkerReloadRequest_WaitingForTransitionGate_DoesNotReloadReplacement()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+
+        IpcServer oldIpcServer = GetPrivateField<IpcServer>(manager, "_ipcServer");
+        Action<IpcMessage> oldMessageHandler = GetMessageHandler(oldIpcServer);
+        var transitionGate = GetPrivateField<SemaphoreSlim>(manager, "_transitionGate");
+        await transitionGate.WaitAsync();
+        try
+        {
+            oldMessageHandler(new IpcMessage(IpcMessageType.HotReloadRequest));
+            await WaitUntilAsync(() => manager.IsReloadInProgress);
+            SetPrivateField(manager, "_workerReadiness", CreateWorkerReadiness());
+
+            transitionGate.Release();
+            bool stateRequested = await runtime.TryWaitForAsync(
+                "state-requested",
+                TimeSpan.FromSeconds(2));
+            if (stateRequested)
+            {
+                runtime.ReleaseState();
+            }
+            await WaitUntilAsync(() => !manager.IsReloadInProgress);
+
+            Assert.False(stateRequested);
+        }
+        catch
+        {
+            if (transitionGate.CurrentCount == 0)
+            {
+                transitionGate.Release();
+            }
+            runtime.ReleaseState();
+            throw;
+        }
+    }
+
+    [Fact]
+    public async Task StopAfterWorkerAlreadyExited_ReleasesOwnedLifecycleResources()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        Process workerProcess = GetPrivateField<Process>(manager, "_workerProcess");
+
+        workerProcess.Kill(entireProcessTree: true);
+        Assert.True(await ProcessManager.WaitForExitAsync(workerProcess, TimeSpan.FromSeconds(10)));
+        await manager.StopWorkerAsync();
+
+        Assert.Null(GetPrivateField<object?>(manager, "_workerProcess"));
+        Assert.Null(GetPrivateField<object?>(manager, "_ipcServer"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerExitNotification"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerReadiness"));
+        Assert.Null(GetPrivateField<object?>(manager, "_workerMessageHandler"));
+    }
+
+    [Fact]
     public void ReloadGate_AllowsExactlyOneConcurrentOwner()
     {
         var manager = (ProcessManager)RuntimeHelpers.GetUninitializedObject(typeof(ProcessManager));
@@ -189,6 +305,45 @@ public sealed class ProcessManagerLifecycleTests
                 typeof(MulticastDelegate).IsAssignableFrom(candidate.FieldType)
                 && candidate.Name.Contains("Exited", StringComparison.OrdinalIgnoreCase));
         return ((MulticastDelegate?)field.GetValue(process))?.GetInvocationList().Length ?? 0;
+    }
+
+    private static EventHandler GetExitHandler(Process process)
+    {
+        FieldInfo field = typeof(Process).GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(candidate =>
+                typeof(MulticastDelegate).IsAssignableFrom(candidate.FieldType)
+                && candidate.Name.Contains("Exited", StringComparison.OrdinalIgnoreCase));
+        return Assert.IsType<EventHandler>(field.GetValue(process));
+    }
+
+    private static Action<IpcMessage> GetMessageHandler(IpcServer ipcServer)
+    {
+        FieldInfo field = typeof(IpcServer).GetField(
+            "OnMessageReceived",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        return Assert.IsType<Action<IpcMessage>>(field.GetValue(ipcServer));
+    }
+
+    private static object CreateWorkerReadiness()
+    {
+        Type readinessType = typeof(ProcessManager).GetNestedType(
+            "WorkerReadiness",
+            BindingFlags.NonPublic)!;
+        return Activator.CreateInstance(readinessType, nonPublic: true)!;
+    }
+
+    private static T GetPrivateField<T>(ProcessManager manager, string name)
+    {
+        return (T)typeof(ProcessManager).GetField(
+            name,
+            BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(manager)!;
+    }
+
+    private static void SetPrivateField<T>(ProcessManager manager, string name, T value)
+    {
+        typeof(ProcessManager).GetField(
+            name,
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(manager, value);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)
@@ -278,6 +433,24 @@ public sealed class ProcessManagerLifecycleTests
             while (!File.Exists(path))
             {
                 await Task.Delay(10, timeout.Token);
+            }
+        }
+
+        public async Task<bool> TryWaitForAsync(string name, TimeSpan timeout)
+        {
+            string path = Path.Combine(_controlPath, name);
+            using var timeoutSource = new CancellationTokenSource(timeout);
+            try
+            {
+                while (!File.Exists(path))
+                {
+                    await Task.Delay(10, timeoutSource.Token);
+                }
+                return true;
+            }
+            catch (OperationCanceledException) when (timeoutSource.IsCancellationRequested)
+            {
+                return false;
             }
         }
 
