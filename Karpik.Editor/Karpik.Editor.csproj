@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.ProjectModel\Karpik.Engine.ProjectModel.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
     <ProjectReference Include="..\Tools\StaticAnalyzer\StaticAnalyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

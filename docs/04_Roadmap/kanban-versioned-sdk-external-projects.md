@@ -94,6 +94,15 @@ kanban-plugin: board
 	  - Per-worker exit disposition begins before state request, suppresses a proven planned old exit, and restores publication on abort; the production-ordering fixture exits immediately after state response.
 	  - Real IPC, callback-reentrancy, launch-intent, and planned-exit races pass 8/8 with Runner 81/81, a fresh external RuntimeBundle restart pass, and a Ready independent re-review; Milestone 6 editor switching is unchanged.
 
+## Milestone 6 foundation
+
+- [x] **Add transactional editor project contexts**
+	  - Raw safe `.slnx` validation runs before bounded child-process MSBuild evaluation of exact kind, side, bundle, engine-root, target, and project-reference values.
+	  - Candidate contexts remain inactive until publication and carry normalized absolute identity plus a generation token for stale command/output rejection.
+	  - Switching blocks commands and concurrent switches, then enforces cancel build → clients → server → services → workspace → context disposal → candidate open → publication.
+- [ ] **Wire contexts into editor runtime and desktop UI**
+	  - Replace editor-local bundle resolution, connect sessions/watchers/workspace lifetime, add asynchronous `.slnx` open/switch, and prove the external two-game process smoke.
+
 %% kanban:settings
 ```
 {"kanban-plugin":"board","list-collapse":[false,false,false,false,false]}
