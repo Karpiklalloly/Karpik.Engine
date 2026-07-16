@@ -319,7 +319,8 @@ public sealed class ProcessManagerLifecycleTests
 
         await WaitUntilAsync(
             () => GetPrivateField<object?>(manager, "_workerGeneration") is null
-                  && !manager.IsWorkerRunning);
+                  && !manager.IsWorkerRunning
+                  && IsProcessHandleClosed(process));
         Assert.False(manager.IsWorkerRunning);
         manager.Dispose();
     }
