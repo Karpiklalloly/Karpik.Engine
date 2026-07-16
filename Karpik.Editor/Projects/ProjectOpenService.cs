@@ -149,7 +149,11 @@ public sealed class ProjectOpenService : IProjectOpenService
         {
             KarpikSolutionModel evaluationSolution = stableLease.CreateEvaluationSolution(solution);
             IReadOnlyList<MsBuildProjectEvaluation> rawEvaluations =
-                await _inspector.InspectAsync(evaluationSolution, engineRoot, cancellationToken);
+                await _inspector.InspectAsync(
+                    evaluationSolution,
+                    engineRoot,
+                    cancellationToken,
+                    stableLease);
             evaluations = stableLease.RemapEvaluations(rawEvaluations);
         }
         catch (OperationCanceledException)

@@ -22,7 +22,8 @@ public interface IMsBuildProjectInspector
     Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
         KarpikSolutionModel solution,
         string engineRoot,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        ProjectInputLease? inputLease = null);
 }
 
 public interface IMsBuildProcessFactory
@@ -51,6 +52,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
     private readonly TimeSpan _evaluationTimeout;
     private readonly TimeSpan _terminationTimeout;
     private readonly string _dotNetExecutable;
+    private readonly RetainedProcessReaper _reaper;
 
     public MsBuildProjectInspector(
         TimeSpan? evaluationTimeout = null,
@@ -60,7 +62,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             new SystemMsBuildProcessFactory(),
             evaluationTimeout ?? TimeSpan.FromSeconds(30),
             terminationTimeout ?? TimeSpan.FromSeconds(5),
-            dotNetExecutable)
+            dotNetExecutable,
+            maximumRetainedProcesses: 8)
     {
     }
 
@@ -68,7 +71,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         IMsBuildProcessFactory processFactory,
         TimeSpan evaluationTimeout,
         TimeSpan terminationTimeout,
-        string dotNetExecutable = "dotnet")
+        string dotNetExecutable = "dotnet",
+        int maximumRetainedProcesses = 8)
     {
         ArgumentNullException.ThrowIfNull(processFactory);
         ArgumentException.ThrowIfNullOrWhiteSpace(dotNetExecutable);
@@ -80,17 +84,30 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         {
             throw new ArgumentOutOfRangeException(nameof(terminationTimeout));
         }
+        if (maximumRetainedProcesses <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumRetainedProcesses));
+        }
 
         _processFactory = processFactory;
         _evaluationTimeout = evaluationTimeout;
         _terminationTimeout = terminationTimeout;
         _dotNetExecutable = dotNetExecutable;
+        _reaper = new RetainedProcessReaper(
+            maximumRetainedProcesses,
+            terminationTimeout);
     }
+
+    public int RetainedProcessCount => _reaper.ActiveCount;
+
+    public Task DrainRetainedProcessesAsync(CancellationToken cancellationToken = default) =>
+        _reaper.DrainAsync(cancellationToken);
 
     public async Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
         KarpikSolutionModel solution,
         string engineRoot,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ProjectInputLease? inputLease = null)
     {
         ArgumentNullException.ThrowIfNull(solution);
         if (string.IsNullOrWhiteSpace(engineRoot) || !Path.IsPathFullyQualified(engineRoot))
@@ -110,7 +127,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
                 project.ProjectPath,
                 Path.GetFullPath(engineRoot),
                 solutionRoot,
-                cancellationToken));
+                cancellationToken,
+                inputLease));
         }
         return results;
     }
@@ -119,7 +137,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         string projectPath,
         string engineRoot,
         string solutionRoot,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ProjectInputLease? inputLease)
     {
         string resultPath = Path.Combine(
             Path.GetTempPath(),
@@ -165,15 +184,20 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         startInfo.ArgumentList.Add("-getItem:ProjectReference");
         startInfo.ArgumentList.Add(ResultArgumentPrefix + resultPath);
 
-        await using IMsBuildProcess process = _processFactory.Start(startInfo);
-        Task<string> standardOutput = process.ReadStandardOutputAsync(
-            MaximumOutputCharacters,
-            CancellationToken.None);
-        Task<string> standardError = process.ReadStandardErrorAsync(
-            MaximumOutputCharacters,
-            CancellationToken.None);
+        RetainedProcessAdmission admission = _reaper.Admit();
+        IMsBuildProcess? process = null;
+        IDisposable? inputRetention = null;
+        bool ownershipTransferred = false;
         try
         {
+            inputRetention = inputLease?.Retain();
+            process = _processFactory.Start(startInfo);
+            Task<string> standardOutput = process.ReadStandardOutputAsync(
+                MaximumOutputCharacters,
+                CancellationToken.None);
+            Task<string> standardError = process.ReadStandardErrorAsync(
+                MaximumOutputCharacters,
+                CancellationToken.None);
             using var timeout = new CancellationTokenSource(_evaluationTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
@@ -184,7 +208,28 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             }
             catch (OperationCanceledException)
             {
-                await TerminateAsync(process);
+                TerminationAttempt termination = await TryTerminateAsync(process);
+                if (!termination.ExitConfirmed)
+                {
+                    _reaper.Retain(
+                        admission,
+                        process,
+                        termination.KillTask,
+                        standardOutput,
+                        standardError,
+                        resultPath,
+                        inputRetention);
+                    ownershipTransferred = true;
+                    inputRetention = null;
+                    string diagnostic =
+                        $"MSBuild process exit is unconfirmed; background cleanup continues " +
+                        $"({_reaper.ActiveCount}/{_reaper.Capacity} retained processes).";
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(diagnostic, cancellationToken);
+                    }
+                    throw new TimeoutException(diagnostic);
+                }
                 await DrainAfterTerminationAsync(standardOutput, standardError);
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -206,7 +251,28 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         }
         finally
         {
-            TryDeleteResultDirectoryEntry(resultPath);
+            if (!ownershipTransferred)
+            {
+                try
+                {
+                    if (process is not null)
+                    {
+                        await process.DisposeAsync();
+                    }
+                }
+                finally
+                {
+                    TryDeleteResultDirectoryEntry(resultPath);
+                    try
+                    {
+                        inputRetention?.Dispose();
+                    }
+                    finally
+                    {
+                        admission.Dispose();
+                    }
+                }
+            }
         }
     }
 
@@ -293,36 +359,215 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         }
     }
 
-    private async Task TerminateAsync(IMsBuildProcess process)
+    private async Task<TerminationAttempt> TryTerminateAsync(IMsBuildProcess process)
     {
-        Task kill = Task.Run(() =>
-        {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException)
-            {
-                // The process exited between timeout/cancellation and termination.
-            }
-        });
+        Task kill = StartKillAsync(process);
         if (await Task.WhenAny(kill, Task.Delay(_terminationTimeout)) != kill)
         {
-            throw new TimeoutException(
-                $"MSBuild process-tree termination did not complete within {_terminationTimeout}.");
+            return new TerminationAttempt(false, kill);
         }
         await kill;
 
-        using var confirmation = new CancellationTokenSource(_terminationTimeout);
+        bool confirmed = await WaitForExitWithinAsync(process, _terminationTimeout);
+        return new TerminationAttempt(confirmed, kill);
+    }
+
+    private static Task StartKillAsync(IMsBuildProcess process) => Task.Run(() =>
+    {
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException
+                                         or IOException
+                                         or UnauthorizedAccessException
+                                         or NotSupportedException
+                                         or System.ComponentModel.Win32Exception)
+        {
+            // The reaper confirms exit independently and retries boundedly.
+        }
+    });
+
+    private static async Task<bool> WaitForExitWithinAsync(
+        IMsBuildProcess process,
+        TimeSpan timeout)
+    {
+        using var confirmation = new CancellationTokenSource(timeout);
         try
         {
             await process.WaitForExitAsync(confirmation.Token);
+            return true;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (confirmation.IsCancellationRequested)
         {
-            throw new TimeoutException(
-                $"MSBuild process exit was not confirmed within {_terminationTimeout} after termination.");
+            return false;
         }
+    }
+
+    private sealed record TerminationAttempt(bool ExitConfirmed, Task KillTask);
+
+    private sealed class RetainedProcessReaper
+    {
+        private readonly object _tasksGate = new();
+        private readonly HashSet<Task> _tasks = [];
+        private readonly SemaphoreSlim _capacity;
+        private readonly TimeSpan _retryInterval;
+        private int _activeCount;
+
+        public RetainedProcessReaper(int capacity, TimeSpan retryInterval)
+        {
+            Capacity = capacity;
+            _capacity = new SemaphoreSlim(capacity, capacity);
+            _retryInterval = retryInterval;
+        }
+
+        public int ActiveCount => Volatile.Read(ref _activeCount);
+        public int Capacity { get; }
+
+        public RetainedProcessAdmission Admit()
+        {
+            if (!_capacity.Wait(0))
+            {
+                throw new InvalidOperationException(
+                    $"MSBuild evaluation capacity is exhausted by retained processes " +
+                    $"({ActiveCount}/{Capacity}); wait for background cleanup to finish.");
+            }
+            return new RetainedProcessAdmission(_capacity);
+        }
+
+        public void Retain(
+            RetainedProcessAdmission admission,
+            IMsBuildProcess process,
+            Task initialKillTask,
+            Task<string> standardOutput,
+            Task<string> standardError,
+            string resultPath,
+            IDisposable? inputRetention)
+        {
+            Interlocked.Increment(ref _activeCount);
+            Task task = Task.Run(() => ReapAsync(
+                admission,
+                process,
+                initialKillTask,
+                standardOutput,
+                standardError,
+                resultPath,
+                inputRetention));
+            lock (_tasksGate)
+            {
+                _tasks.Add(task);
+            }
+            _ = task.ContinueWith(
+                completed =>
+                {
+                    lock (_tasksGate)
+                    {
+                        _tasks.Remove(completed);
+                    }
+                    Interlocked.Decrement(ref _activeCount);
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        public async Task DrainAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                Task[] tasks;
+                lock (_tasksGate)
+                {
+                    tasks = _tasks.ToArray();
+                }
+                if (tasks.Length == 0)
+                {
+                    return;
+                }
+                await Task.WhenAll(tasks).WaitAsync(cancellationToken);
+            }
+        }
+
+        private async Task ReapAsync(
+            RetainedProcessAdmission admission,
+            IMsBuildProcess process,
+            Task killTask,
+            Task<string> standardOutput,
+            Task<string> standardError,
+            string resultPath,
+            IDisposable? inputRetention)
+        {
+            try
+            {
+                bool exitConfirmed = false;
+                while (!exitConfirmed)
+                {
+                    try
+                    {
+                        exitConfirmed = await WaitForExitWithinAsync(
+                            process,
+                            _retryInterval);
+                    }
+                    catch (Exception exception) when (exception is InvalidOperationException
+                                                     or IOException
+                                                     or UnauthorizedAccessException
+                                                     or NotSupportedException
+                                                     or ObjectDisposedException)
+                    {
+                        await Task.Delay(_retryInterval);
+                    }
+                    if (exitConfirmed)
+                    {
+                        break;
+                    }
+                    if (killTask.IsCompleted)
+                    {
+                        await ObserveKillAsync(killTask);
+                        killTask = StartKillAsync(process);
+                    }
+                }
+
+                await ObserveKillAsync(killTask);
+                await DrainAfterTerminationAsync(standardOutput, standardError);
+            }
+            finally
+            {
+                try
+                {
+                    await process.DisposeAsync();
+                }
+                finally
+                {
+                    TryDeleteResultDirectoryEntry(resultPath);
+                    inputRetention?.Dispose();
+                    admission.Dispose();
+                }
+            }
+        }
+
+        private static async Task ObserveKillAsync(Task killTask)
+        {
+            try
+            {
+                await killTask;
+            }
+            catch (Exception exception) when (exception is InvalidOperationException
+                                             or IOException
+                                             or UnauthorizedAccessException
+                                             or NotSupportedException
+                                             or System.ComponentModel.Win32Exception)
+            {
+                // Exit confirmation, not Kill success, decides when ownership may be released.
+            }
+        }
+    }
+
+    private sealed class RetainedProcessAdmission(SemaphoreSlim capacity) : IDisposable
+    {
+        private SemaphoreSlim? _capacity = capacity;
+
+        public void Dispose() =>
+            Interlocked.Exchange(ref _capacity, null)?.Release();
     }
 
     private static MsBuildProjectEvaluation ReadResult(string resultPath, string expectedProjectPath)

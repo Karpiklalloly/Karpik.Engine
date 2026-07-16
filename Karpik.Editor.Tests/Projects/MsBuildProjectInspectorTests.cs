@@ -190,6 +190,137 @@ public sealed class MsBuildProjectInspectorTests
     }
 
     [Fact]
+    public async Task InspectAsync_WhenTerminationIsUnconfirmed_RetainsProcessLeaseAndResultUntilReaperConfirmsExit()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "KarpikEditorMsBuildReaperTests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string? evaluationRoot = null;
+        string? resultPath = null;
+        try
+        {
+            string project = Path.Combine(root, "Client.csproj");
+            string solutionPath = Path.Combine(root, "Game.slnx");
+            File.WriteAllText(project, """<Project Sdk="Karpik.Engine.Sdk" />""");
+            File.WriteAllText(solutionPath, """
+                <Solution>
+                  <Project Path="Client.csproj" />
+                </Solution>
+                """);
+            File.WriteAllText(Path.Combine(root, "global.json"), """
+                { "msbuild-sdks": { "Karpik.Engine.Sdk": "0.6.0-test" } }
+                """);
+            var process = new FakeProcess
+            {
+                WaitUntilKilled = true,
+                BlockKillUntilExit = true,
+                CreateResultImmediately = true
+            };
+            var inspector = new MsBuildProjectInspector(
+                new FakeProcessFactory(process),
+                TimeSpan.FromMilliseconds(20),
+                TimeSpan.FromMilliseconds(20),
+                maximumRetainedProcesses: 1);
+            var model = new KarpikSolutionModel(
+                solutionPath,
+                "0.6.0-test",
+                [new KarpikProjectDescriptor(
+                    project,
+                    ["Karpik.Engine.Sdk"],
+                    KarpikProjectKind.Runtime,
+                    KarpikProjectSide.Client,
+                    [],
+                    [])]);
+            ProjectInputLease lease = ProjectInputLease.AcquirePortableMirror(solutionPath);
+            evaluationRoot = Assert.IsType<string>(lease.EvaluationRoot);
+            KarpikSolutionModel evaluation = lease.CreateEvaluationSolution(model);
+
+            TimeoutException exception = await Assert.ThrowsAsync<TimeoutException>(
+                () => inspector.InspectAsync(
+                    evaluation,
+                    root,
+                    TestContext.Current.CancellationToken,
+                    lease));
+            resultPath = Assert.IsType<string>(process.ResultPath);
+            lease.Dispose();
+
+            Assert.Contains("background cleanup", exception.Message);
+            Assert.Equal(1, inspector.RetainedProcessCount);
+            Assert.False(process.Disposed);
+            Assert.True(Directory.Exists(evaluationRoot));
+            Assert.True(File.Exists(resultPath));
+
+            process.ConfirmExit();
+            using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await inspector.DrainRetainedProcessesAsync(drainTimeout.Token);
+
+            Assert.Equal(0, inspector.RetainedProcessCount);
+            Assert.True(process.Disposed);
+            Assert.False(Directory.Exists(evaluationRoot));
+            Assert.False(File.Exists(resultPath));
+        }
+        finally
+        {
+            if (resultPath is not null && File.Exists(resultPath))
+            {
+                File.Delete(resultPath);
+            }
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InspectAsync_WhenRetainedProcessCapacityIsFull_RejectsBeforeStartingAnotherProcess()
+    {
+        string project = Path.GetFullPath("Client.csproj");
+        var process = new FakeProcess
+        {
+            WaitUntilKilled = true,
+            BlockKillUntilExit = true
+        };
+        var factory = new FakeProcessFactory(process);
+        var inspector = new MsBuildProjectInspector(
+            factory,
+            TimeSpan.FromMilliseconds(20),
+            TimeSpan.FromMilliseconds(20),
+            maximumRetainedProcesses: 1);
+        var solution = new KarpikSolutionModel(
+            Path.GetFullPath("Game.slnx"),
+            "0.6.0-test",
+            [new KarpikProjectDescriptor(
+                project,
+                ["Karpik.Engine.Sdk"],
+                KarpikProjectKind.Runtime,
+                KarpikProjectSide.Client,
+                [],
+                [])]);
+
+        await Assert.ThrowsAsync<TimeoutException>(
+            () => inspector.InspectAsync(
+                solution,
+                Path.GetFullPath("engine"),
+                TestContext.Current.CancellationToken));
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => inspector.InspectAsync(
+                solution,
+                Path.GetFullPath("engine"),
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("capacity", exception.Message);
+        Assert.Equal(1, factory.CallCount);
+        Assert.Equal(1, inspector.RetainedProcessCount);
+
+        process.ConfirmExit();
+        using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await inspector.DrainRetainedProcessesAsync(drainTimeout.Token);
+    }
+
+    [Fact]
     public async Task InspectAsync_RejectsOversizedResultWithoutUnboundedRead()
     {
         string project = Path.GetFullPath("Client.csproj");
@@ -359,12 +490,19 @@ public sealed class MsBuildProjectInspectorTests
 
     private sealed class FakeProcessFactory(FakeProcess process) : IMsBuildProcessFactory
     {
+        public int CallCount { get; private set; }
+
         public IMsBuildProcess Start(ProcessStartInfo startInfo)
         {
+            CallCount++;
             process.StartInfo = startInfo;
             process.ResultPath = startInfo.ArgumentList
                 .Single(argument => argument.StartsWith("-getResultOutputFile:", StringComparison.Ordinal))
                 ["-getResultOutputFile:".Length..];
+            if (process.CreateResultImmediately)
+            {
+                File.WriteAllText(process.ResultPath, process.ResultJson);
+            }
             return process;
         }
     }
@@ -379,8 +517,11 @@ public sealed class MsBuildProjectInspectorTests
         public string ResultJson { get; init; } = "{}";
         public string? ResultLinkTarget { get; init; }
         public bool WaitUntilKilled { get; init; }
+        public bool BlockKillUntilExit { get; init; }
+        public bool CreateResultImmediately { get; init; }
         public bool KillEntireTree { get; private set; }
         public bool ExitConfirmedAfterKill { get; private set; }
+        public bool Disposed { get; private set; }
         public int ExitCode => ExitCodeValue;
         public int ExitCodeValue { get; init; }
         public bool CreateResultDirectory { get; init; }
@@ -416,9 +557,20 @@ public sealed class MsBuildProjectInspectorTests
         public void Kill(bool entireProcessTree)
         {
             KillEntireTree = entireProcessTree;
+            if (BlockKillUntilExit)
+            {
+                _killed.Task.GetAwaiter().GetResult();
+                return;
+            }
             _killed.TrySetResult();
         }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public void ConfirmExit() => _killed.TrySetResult();
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
     }
 }

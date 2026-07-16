@@ -531,7 +531,8 @@ public sealed class ProjectOpenServiceTests
         public Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
             KarpikSolutionModel solution,
             string engineRoot,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ProjectInputLease? inputLease = null)
         {
             CallCount++;
             return Task.FromResult(evaluations);

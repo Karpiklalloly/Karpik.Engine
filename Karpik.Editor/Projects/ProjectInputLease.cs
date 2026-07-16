@@ -29,7 +29,10 @@ public sealed class ProjectInputLease : IKarpikProjectInputProvider, IDisposable
 
     private readonly Dictionary<string, LeasedFile> _files = new(PathComparer);
     private readonly Dictionary<string, SafeFileHandle?> _directories = new(PathComparer);
+    private readonly object _lifetimeGate = new();
     private string? _mirrorOwnerRoot;
+    private int _retentionCount;
+    private bool _ownerReleased;
     private bool _disposed;
 
     private ProjectInputLease(string solutionPath)
@@ -177,7 +180,7 @@ public sealed class ProjectInputLease : IKarpikProjectInputProvider, IDisposable
 
     public Stream OpenRead(string absolutePath)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
         string normalized = Path.GetFullPath(absolutePath);
         if (!_files.TryGetValue(normalized, out LeasedFile? file))
         {
@@ -190,8 +193,18 @@ public sealed class ProjectInputLease : IKarpikProjectInputProvider, IDisposable
 
     public bool Exists(string absolutePath)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
         return _files.ContainsKey(Path.GetFullPath(absolutePath));
+    }
+
+    public IDisposable Retain()
+    {
+        lock (_lifetimeGate)
+        {
+            ObjectDisposedException.ThrowIf(_ownerReleased || _disposed, this);
+            _retentionCount++;
+            return new Retention(this);
+        }
     }
 
     private void AcquireDirectoryAncestors(string directoryPath)
@@ -523,11 +536,50 @@ public sealed class ProjectInputLease : IKarpikProjectInputProvider, IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        bool disposeResources;
+        lock (_lifetimeGate)
         {
-            return;
+            if (_ownerReleased)
+            {
+                return;
+            }
+            _ownerReleased = true;
+            disposeResources = _retentionCount == 0;
         }
-        _disposed = true;
+        if (disposeResources)
+        {
+            DisposeResources();
+        }
+    }
+
+    private void ReleaseRetention()
+    {
+        bool disposeResources;
+        lock (_lifetimeGate)
+        {
+            if (_retentionCount <= 0)
+            {
+                return;
+            }
+            _retentionCount--;
+            disposeResources = _ownerReleased && _retentionCount == 0;
+        }
+        if (disposeResources)
+        {
+            DisposeResources();
+        }
+    }
+
+    private void DisposeResources()
+    {
+        lock (_lifetimeGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+        }
         foreach (LeasedFile file in _files.Values)
         {
             file.Dispose();
@@ -541,6 +593,14 @@ public sealed class ProjectInputLease : IKarpikProjectInputProvider, IDisposable
         TryDeleteOwnedMirror(_mirrorOwnerRoot);
         _mirrorOwnerRoot = null;
         EvaluationRoot = null;
+    }
+
+    private sealed class Retention(ProjectInputLease owner) : IDisposable
+    {
+        private ProjectInputLease? _owner = owner;
+
+        public void Dispose() =>
+            Interlocked.Exchange(ref _owner, null)?.ReleaseRetention();
     }
 
     private static void TryDeleteOwnedMirror(string? ownerRoot)
