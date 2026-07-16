@@ -1,7 +1,10 @@
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Karpik.Engine.ProjectModel;
+using Microsoft.Win32.SafeHandles;
 
 namespace Karpik.Editor;
 
@@ -230,25 +233,26 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
 
     private static MsBuildProjectEvaluation ReadResult(string resultPath, string expectedProjectPath)
     {
-        if (!File.Exists(resultPath))
+        using FileStream stream = OpenNonReparseResultStream(resultPath);
+
+        byte[] buffer = new byte[MaximumResultBytes + 1];
+        int length = 0;
+        while (length < buffer.Length)
         {
-            throw new InvalidDataException($"MSBuild did not produce an evaluation result for '{expectedProjectPath}'.");
+            int read = stream.Read(buffer, length, buffer.Length - length);
+            if (read == 0)
+            {
+                break;
+            }
+            length += read;
         }
-        var info = new FileInfo(resultPath);
-        if (info.Length is <= 0 or > MaximumResultBytes)
+        if (length == 0 || length > MaximumResultBytes)
         {
             throw new InvalidDataException(
                 $"MSBuild evaluation result for '{expectedProjectPath}' is empty or exceeds {MaximumResultBytes} bytes.");
         }
 
-        byte[] bytes = File.ReadAllBytes(resultPath);
-        if (bytes.Length is 0 || bytes.Length > MaximumResultBytes)
-        {
-            throw new InvalidDataException(
-                $"MSBuild evaluation result for '{expectedProjectPath}' changed while reading or exceeded its bound.");
-        }
-
-        using JsonDocument document = JsonDocument.Parse(bytes);
+        using JsonDocument document = JsonDocument.Parse(buffer.AsMemory(0, length));
         JsonElement properties = document.RootElement.GetProperty("Properties");
         string projectPath = NormalizeRequiredProperty(properties, "MSBuildProjectFullPath");
         if (!PathComparer.Equals(projectPath, Path.GetFullPath(expectedProjectPath)))
@@ -280,6 +284,159 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             ReadProperty(properties, "KarpikEngineRoot"),
             ReadProperty(properties, "TargetPath"),
             references);
+    }
+
+    private static FileStream OpenNonReparseResultStream(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            SafeFileHandle handle = NativeResultFile.OpenWithoutFollowingReparsePoint(path);
+            try
+            {
+                if (NativeResultFile.IsReparsePoint(handle))
+                {
+                    throw new InvalidDataException(
+                        $"MSBuild evaluation result must not be a link or reparse point: {path}");
+                }
+                return new FileStream(handle, FileAccess.Read, bufferSize: 16 * 1024, isAsync: false);
+            }
+            catch
+            {
+                handle.Dispose();
+                throw;
+            }
+        }
+
+        EnsureResultPathIsNotReparsePoint(path);
+        SafeFileHandle unixHandle = NativeResultFile.OpenUnixWithoutFollowingSymbolicLink(path);
+        try
+        {
+            return new FileStream(
+                unixHandle,
+                FileAccess.Read,
+                bufferSize: 16 * 1024,
+                isAsync: false);
+        }
+        catch
+        {
+            unixHandle.Dispose();
+            throw;
+        }
+    }
+
+    private static void EnsureResultPathIsNotReparsePoint(string path)
+    {
+        FileAttributes attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.ReparsePoint) != 0
+            || new FileInfo(path).LinkTarget is not null)
+        {
+            throw new InvalidDataException(
+                $"MSBuild evaluation result must not be a link or reparse point: {path}");
+        }
+    }
+
+    private static class NativeResultFile
+    {
+        private const uint GenericRead = 0x80000000;
+        private const uint FileShareRead = 0x00000001;
+        private const uint FileShareDelete = 0x00000004;
+        private const uint OpenExisting = 3;
+        private const uint FileAttributeNormal = 0x00000080;
+        private const uint FileFlagSequentialScan = 0x08000000;
+        private const uint FileFlagOpenReparsePoint = 0x00200000;
+        private const int FileAttributeTagInfo = 9;
+        private const int UnixReadOnly = 0;
+        private const int LinuxNoFollow = 0x20000;
+        private const int LinuxCloseOnExec = 0x80000;
+        private const int MacNoFollow = 0x100;
+        private const int MacCloseOnExec = 0x1000000;
+
+        public static SafeFileHandle OpenWithoutFollowingReparsePoint(string path)
+        {
+            SafeFileHandle handle = CreateFileW(
+                path,
+                GenericRead,
+                FileShareRead | FileShareDelete,
+                IntPtr.Zero,
+                OpenExisting,
+                FileAttributeNormal | FileFlagSequentialScan | FileFlagOpenReparsePoint,
+                IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                int error = Marshal.GetLastWin32Error();
+                handle.Dispose();
+                if (error is 2 or 3)
+                {
+                    throw new FileNotFoundException(
+                        "MSBuild did not produce an evaluation result.",
+                        path);
+                }
+                throw new IOException(
+                    $"Unable to open MSBuild evaluation result '{path}'.",
+                    new Win32Exception(error));
+            }
+            return handle;
+        }
+
+        public static bool IsReparsePoint(SafeFileHandle handle)
+        {
+            if (!GetFileInformationByHandleEx(
+                    handle,
+                    FileAttributeTagInfo,
+                    out FileAttributeTagInformation information,
+                    (uint)Marshal.SizeOf<FileAttributeTagInformation>()))
+            {
+                throw new IOException(
+                    "Unable to inspect the opened MSBuild evaluation result handle.",
+                    new Win32Exception(Marshal.GetLastWin32Error()));
+            }
+            return (information.FileAttributes & (uint)FileAttributes.ReparsePoint) != 0;
+        }
+
+        public static SafeFileHandle OpenUnixWithoutFollowingSymbolicLink(string path)
+        {
+            int flags = UnixReadOnly | (OperatingSystem.IsMacOS()
+                ? MacNoFollow | MacCloseOnExec
+                : LinuxNoFollow | LinuxCloseOnExec);
+            int descriptor = Open(path, flags);
+            if (descriptor < 0)
+            {
+                throw new IOException(
+                    $"Unable to open MSBuild evaluation result '{path}' without following symbolic links.",
+                    new Win32Exception(Marshal.GetLastPInvokeError()));
+            }
+            return new SafeFileHandle(new IntPtr(descriptor), ownsHandle: true);
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern SafeFileHandle CreateFileW(
+            string fileName,
+            uint desiredAccess,
+            uint shareMode,
+            IntPtr securityAttributes,
+            uint creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetFileInformationByHandleEx(
+            SafeFileHandle file,
+            int fileInformationClass,
+            out FileAttributeTagInformation fileInformation,
+            uint bufferSize);
+
+        [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+        private static extern int Open(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            int flags);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileAttributeTagInformation
+        {
+            public uint FileAttributes;
+            public uint ReparseTag;
+        }
     }
 
     private static string NormalizeRequiredProperty(JsonElement properties, string name)

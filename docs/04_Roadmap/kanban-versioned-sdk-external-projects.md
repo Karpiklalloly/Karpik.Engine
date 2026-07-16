@@ -100,6 +100,7 @@ kanban-plugin: board
 	  - Raw safe `.slnx` validation runs before bounded child-process MSBuild evaluation of exact kind, side, bundle, engine-root, target, and project-reference values.
 	  - Candidate contexts remain inactive until publication and carry normalized absolute identity plus a generation token for stale command/output rejection.
 	  - Switching blocks commands and concurrent switches, then enforces cancel build → clients → server → services → workspace → context disposal → candidate open → publication.
+	  - Review hardening applies the same retry-safe order to shutdown, rejects linked/reparse solution and graph paths before MSBuild, and bounds result JSON through a non-reparse file handle.
 - [ ] **Wire contexts into editor runtime and desktop UI**
 	  - Replace editor-local bundle resolution, connect sessions/watchers/workspace lifetime, add asynchronous `.slnx` open/switch, and prove the external two-game process smoke.
 

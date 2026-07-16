@@ -178,6 +178,88 @@ public sealed class MsBuildProjectInspectorTests
         Assert.True(process.ExitConfirmedAfterKill);
     }
 
+    [Fact]
+    public async Task InspectAsync_RejectsOversizedResultWithoutUnboundedRead()
+    {
+        string project = Path.GetFullPath("Client.csproj");
+        var process = new FakeProcess
+        {
+            ResultJson = new string('x', 1024 * 1024 + 1)
+        };
+        var inspector = new MsBuildProjectInspector(
+            new FakeProcessFactory(process),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+        var solution = new KarpikSolutionModel(
+            Path.GetFullPath("Game.slnx"),
+            "0.6.0-test",
+            [new KarpikProjectDescriptor(project, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
+                KarpikProjectSide.Client, [], [])]);
+
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => inspector.InspectAsync(
+                solution,
+                Path.GetFullPath("engine"),
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("exceeds", exception.Message);
+    }
+
+    [Fact]
+    public async Task InspectAsync_RejectsResultFileReplacedBySymbolicLink()
+    {
+        string project = Path.GetFullPath("Client.csproj");
+        string target = Path.Combine(
+            Path.GetTempPath(),
+            $"karpik-msbuild-result-target-{Guid.NewGuid():N}.json");
+        string probe = Path.Combine(
+            Path.GetTempPath(),
+            $"karpik-msbuild-result-probe-{Guid.NewGuid():N}.json");
+        File.WriteAllText(target, "{}");
+        try
+        {
+            try
+            {
+                File.CreateSymbolicLink(probe, target);
+                File.Delete(probe);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException
+                                             or IOException
+                                             or PlatformNotSupportedException)
+            {
+                return;
+            }
+
+            var process = new FakeProcess { ResultLinkTarget = target };
+            var inspector = new MsBuildProjectInspector(
+                new FakeProcessFactory(process),
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1));
+            var solution = new KarpikSolutionModel(
+                Path.GetFullPath("Game.slnx"),
+                "0.6.0-test",
+                [new KarpikProjectDescriptor(project, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
+                    KarpikProjectSide.Client, [], [])]);
+
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => inspector.InspectAsync(
+                    solution,
+                    Path.GetFullPath("engine"),
+                    TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            if (File.Exists(probe))
+            {
+                File.Delete(probe);
+            }
+            if (File.Exists(target))
+            {
+                File.Delete(target);
+            }
+        }
+    }
+
     private static string Escape(string value) => value.Replace("\\", "\\\\");
 
     private sealed class FakeProcessFactory(FakeProcess process) : IMsBuildProcessFactory
@@ -200,6 +282,7 @@ public sealed class MsBuildProjectInspectorTests
         public ProcessStartInfo? StartInfo { get; set; }
         public string? ResultPath { get; set; }
         public string ResultJson { get; init; } = "{}";
+        public string? ResultLinkTarget { get; init; }
         public bool WaitUntilKilled { get; init; }
         public bool KillEntireTree { get; private set; }
         public bool ExitConfirmedAfterKill { get; private set; }
@@ -219,7 +302,14 @@ public sealed class MsBuildProjectInspectorTests
                 ExitConfirmedAfterKill = true;
                 return;
             }
-            File.WriteAllText(ResultPath!, ResultJson);
+            if (ResultLinkTarget is not null)
+            {
+                File.CreateSymbolicLink(ResultPath!, ResultLinkTarget);
+            }
+            else
+            {
+                File.WriteAllText(ResultPath!, ResultJson);
+            }
         }
 
         public void Kill(bool entireProcessTree)

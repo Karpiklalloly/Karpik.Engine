@@ -1,5 +1,7 @@
 using Karpik.Engine.ProjectModel;
 using Karpik.Engine.Tooling;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace Karpik.Editor;
 
@@ -78,12 +80,14 @@ public sealed class ProjectOpenService : IProjectOpenService
         try
         {
             normalizedPath = NormalizeSolutionPath(solutionPath);
+            ValidateRawPathSafety(normalizedPath);
         }
         catch (Exception exception) when (exception is ArgumentException
                                          or NotSupportedException
                                          or PathTooLongException
                                          or IOException
-                                         or UnauthorizedAccessException)
+                                         or UnauthorizedAccessException
+                                         or XmlException)
         {
             return ProjectOpenResult.Failure($"Invalid solution path: {exception.Message}");
         }
@@ -111,6 +115,24 @@ public sealed class ProjectOpenService : IProjectOpenService
         {
             return ProjectOpenResult.Failure(
                 "global.json must pin an exact Karpik.Engine.Sdk version.");
+        }
+
+        try
+        {
+            // Close the validation/evaluation race window as far as path-based .NET APIs
+            // allow: a project tree changed to a link after raw reading is rejected before
+            // the first child process starts.
+            ValidateRawPathSafety(normalizedPath);
+        }
+        catch (Exception exception) when (exception is ArgumentException
+                                         or NotSupportedException
+                                         or PathTooLongException
+                                         or IOException
+                                         or UnauthorizedAccessException
+                                         or XmlException)
+        {
+            return ProjectOpenResult.Failure(
+                $"Project paths changed or are unsafe before MSBuild evaluation: {exception.Message}");
         }
 
         EngineInstallationSelection installation = _installationProvider.Resolve(solution.SdkVersion);
@@ -345,6 +367,143 @@ public sealed class ProjectOpenService : IProjectOpenService
             throw new FileNotFoundException("Solution file was not found.", fullPath);
         }
         return fullPath;
+    }
+
+    private static void ValidateRawPathSafety(string solutionPath)
+    {
+        string root = Path.GetDirectoryName(solutionPath)
+                      ?? throw new InvalidDataException("Solution path has no parent directory.");
+        EnsureAncestorChainHasNoReparsePoints(solutionPath);
+        XDocument solution = LoadSafeXml(solutionPath);
+        foreach (string declaredPath in solution.Descendants()
+                     .Where(element => element.Name.LocalName == "Project")
+                     .Select(element => element.Attributes()
+                         .FirstOrDefault(attribute => attribute.Name.LocalName == "Path")?.Value)
+                     .Where(path => !string.IsNullOrWhiteSpace(path))!)
+        {
+            string projectPath = Path.GetFullPath(declaredPath, root);
+            EnsurePathWithinRootIsSafe(projectPath, root, "solution project");
+            if (!File.Exists(projectPath))
+            {
+                continue;
+            }
+
+            XDocument project = LoadSafeXml(projectPath);
+            string projectDirectory = Path.GetDirectoryName(projectPath)!;
+            foreach (XElement reference in project.Root?.Elements()
+                         .Where(element => element.Name.LocalName == "ItemGroup")
+                         .SelectMany(group => group.Elements()
+                             .Where(element => element.Name.LocalName == "ProjectReference"))
+                     ?? [])
+            {
+                string? include = reference.Attributes()
+                    .FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
+                if (string.IsNullOrWhiteSpace(include))
+                {
+                    continue;
+                }
+                string referencePath = Path.GetFullPath(include, projectDirectory);
+                EnsurePathWithinRootIsSafe(referencePath, root, "raw ProjectReference");
+            }
+        }
+    }
+
+    private static XDocument LoadSafeXml(string path)
+    {
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null
+        };
+        using FileStream stream = new(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+        using XmlReader reader = XmlReader.Create(stream, settings);
+        return XDocument.Load(reader, LoadOptions.None);
+    }
+
+    private static void EnsureAncestorChainHasNoReparsePoints(string path)
+    {
+        FileSystemInfo? current = File.Exists(path)
+            ? new FileInfo(path)
+            : new DirectoryInfo(path);
+        while (current is not null)
+        {
+            EnsureNotReparsePoint(current.FullName);
+            current = current switch
+            {
+                FileInfo file => file.Directory,
+                DirectoryInfo directory => directory.Parent,
+                _ => null
+            };
+        }
+    }
+
+    private static void EnsurePathWithinRootIsSafe(
+        string path,
+        string root,
+        string description)
+    {
+        string normalizedRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedPath = Path.GetFullPath(path);
+        string relative = Path.GetRelativePath(normalizedRoot, normalizedPath);
+        if (Path.IsPathRooted(relative)
+            || relative.Equals("..", StringComparison.Ordinal)
+            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            || relative.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"{description} escapes the solution root: {normalizedPath}");
+        }
+
+        EnsureNotReparsePoint(normalizedRoot);
+        if (relative == ".")
+        {
+            return;
+        }
+        string current = normalizedRoot;
+        foreach (string segment in relative.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            EnsureNotReparsePoint(current);
+        }
+    }
+
+    private static void EnsureNotReparsePoint(string path)
+    {
+        try
+        {
+            if (File.Exists(path) || Directory.Exists(path))
+            {
+                FileAttributes attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException(
+                        $"Project path contains a link or reparse point: {path}");
+                }
+            }
+
+            string? fileTarget = new FileInfo(path).LinkTarget;
+            string? directoryTarget = new DirectoryInfo(path).LinkTarget;
+            if (fileTarget is not null || directoryTarget is not null)
+            {
+                throw new InvalidDataException(
+                    $"Project path contains a link or reparse point: {path}");
+            }
+        }
+        catch (FileNotFoundException)
+        {
+            // Missing paths remain the responsibility of raw structural validation.
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Missing paths remain the responsibility of raw structural validation.
+        }
     }
 
     private static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()

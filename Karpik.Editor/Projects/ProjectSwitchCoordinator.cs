@@ -23,10 +23,12 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
     private readonly IActiveProjectPublisher _publisher;
     private readonly object _stateGate = new();
     private readonly SemaphoreSlim _commandGate = new(1, 1);
+    private readonly SemaphoreSlim _disposeGate = new(1, 1);
     private ActiveProjectContext? _ownedContext;
     private ActiveProjectContext? _activeProject;
     private long _nextGeneration;
     private int _switchInProgress;
+    private int _shutdownRequested;
     private int _disposed;
     private bool _commandsEnabled;
 
@@ -61,7 +63,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         {
             lock (_stateGate)
             {
-                return _commandsEnabled;
+                return Volatile.Read(ref _shutdownRequested) == 0 && _commandsEnabled;
             }
         }
     }
@@ -70,7 +72,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         string solutionPath,
         CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ThrowIfShutdownRequested();
         if (Interlocked.CompareExchange(ref _switchInProgress, 1, 0) != 0)
         {
             throw new InvalidOperationException("A project switch is already in progress.");
@@ -82,7 +84,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         {
             await _commandGate.WaitAsync(cancellationToken);
             commandGateAcquired = true;
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            ThrowIfShutdownRequested();
             ActiveProjectContext? previous;
             lock (_stateGate)
             {
@@ -125,6 +127,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
                     "Project candidate identity or generation does not match the switch request.");
             }
             cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShutdownRequested();
             await _publisher.PublishAsync(candidate, cancellationToken);
 
             lock (_stateGate)
@@ -175,7 +178,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ThrowIfShutdownRequested();
         if (Volatile.Read(ref _switchInProgress) != 0)
         {
             throw new InvalidOperationException("Project commands are blocked during a switch.");
@@ -184,6 +187,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         await _commandGate.WaitAsync(cancellationToken);
         try
         {
+            ThrowIfShutdownRequested();
             ActiveProjectContext context;
             lock (_stateGate)
             {
@@ -219,32 +223,64 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (Volatile.Read(ref _disposed) != 0)
         {
             return;
         }
 
-        await _commandGate.WaitAsync();
+        Volatile.Write(ref _shutdownRequested, 1);
+        lock (_stateGate)
+        {
+            _commandsEnabled = false;
+            _activeProject = null;
+        }
+
+        await _disposeGate.WaitAsync();
         try
         {
-            ActiveProjectContext? context;
-            lock (_stateGate)
+            if (Volatile.Read(ref _disposed) != 0)
             {
-                _commandsEnabled = false;
-                _activeProject = null;
-                context = _ownedContext;
-                _ownedContext = null;
+                return;
             }
-            if (context is not null)
+
+            await _commandGate.WaitAsync();
+            try
             {
-                await context.DisposeAsync();
+                ActiveProjectContext? context;
+                lock (_stateGate)
+                {
+                    context = _ownedContext;
+                }
+                if (context is not null)
+                {
+                    await TeardownAsync(context, CancellationToken.None);
+                    lock (_stateGate)
+                    {
+                        if (ReferenceEquals(_ownedContext, context))
+                        {
+                            _ownedContext = null;
+                        }
+                    }
+                }
+                Volatile.Write(ref _disposed, 1);
+            }
+            finally
+            {
+                _commandGate.Release();
             }
         }
         finally
         {
-            _commandGate.Release();
-            _commandGate.Dispose();
+            _disposeGate.Release();
         }
+    }
+
+    private void ThrowIfShutdownRequested()
+    {
+        ObjectDisposedException.ThrowIf(
+            Volatile.Read(ref _shutdownRequested) != 0
+            || Volatile.Read(ref _disposed) != 0,
+            this);
     }
 
     private static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()

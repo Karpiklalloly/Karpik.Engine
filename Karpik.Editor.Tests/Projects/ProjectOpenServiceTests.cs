@@ -136,6 +136,184 @@ public sealed class ProjectOpenServiceTests
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Contains("exactly one Runtime Client"));
     }
 
+    [Fact]
+    public async Task OpenAsync_RejectsLinkedSolutionBeforeStartingMsBuild()
+    {
+        using var solution = TestSolution.Create();
+        string linkedSolution = Path.Combine(solution.Root, "Linked.slnx");
+        try
+        {
+            File.CreateSymbolicLink(linkedSolution, solution.SolutionPath);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException
+                                         or IOException
+                                         or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        var inspector = new FakeInspector(solution.CreateEvaluations());
+        var service = new ProjectOpenService(
+            inspector,
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory());
+
+        ProjectOpenResult result = await service.OpenAsync(
+            linkedSolution,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Contains("link", StringComparison.OrdinalIgnoreCase)
+                                                          || diagnostic.Contains("reparse", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(0, inspector.CallCount);
+    }
+
+    [Fact]
+    public async Task OpenAsync_RejectsProjectBelowLinkedDirectoryBeforeReadingOrStartingMsBuild()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "KarpikEditorProjectLinkTests",
+            Guid.NewGuid().ToString("N"));
+        string game = Path.Combine(root, "Game");
+        string outside = Path.Combine(root, "Outside");
+        Directory.CreateDirectory(game);
+        Directory.CreateDirectory(outside);
+        try
+        {
+            string outsideProject = Path.Combine(outside, "Client.csproj");
+            WriteStandaloneProject(outsideProject, "Client");
+            string linkedDirectory = Path.Combine(game, "Client");
+            try
+            {
+                Directory.CreateSymbolicLink(linkedDirectory, outside);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException
+                                             or IOException
+                                             or PlatformNotSupportedException)
+            {
+                return;
+            }
+            string solutionPath = Path.Combine(game, "Game.slnx");
+            File.WriteAllText(solutionPath, """
+                <Solution>
+                  <Project Path="Client/Client.csproj" />
+                </Solution>
+                """);
+            File.WriteAllText(Path.Combine(game, "global.json"), """
+                { "msbuild-sdks": { "Karpik.Engine.Sdk": "0.6.0-test" } }
+                """);
+            var inspector = new FakeInspector([]);
+            var service = new ProjectOpenService(
+                inspector,
+                new FakeInstallationProvider(Path.Combine(root, "engine")),
+                new FakeContextFactory());
+
+            ProjectOpenResult result = await service.OpenAsync(
+                solutionPath,
+                new ProjectGeneration(1),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Contains("link", StringComparison.OrdinalIgnoreCase)
+                                                              || diagnostic.Contains("reparse", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(0, inspector.CallCount);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task OpenAsync_RejectsRawProjectReferenceBelowLinkedDirectoryBeforeMsBuild()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "KarpikEditorReferenceLinkTests",
+            Guid.NewGuid().ToString("N"));
+        string game = Path.Combine(root, "Game");
+        string outside = Path.Combine(root, "Outside");
+        Directory.CreateDirectory(game);
+        Directory.CreateDirectory(outside);
+        try
+        {
+            WriteStandaloneProject(Path.Combine(outside, "Shared.csproj"), "Shared");
+            string linkedDirectory = Path.Combine(game, "LinkedShared");
+            try
+            {
+                Directory.CreateSymbolicLink(linkedDirectory, outside);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException
+                                             or IOException
+                                             or PlatformNotSupportedException)
+            {
+                return;
+            }
+            string client = Path.Combine(game, "Client", "Client.csproj");
+            Directory.CreateDirectory(Path.GetDirectoryName(client)!);
+            File.WriteAllText(client, """
+                <Project Sdk="Karpik.Engine.Sdk">
+                  <PropertyGroup>
+                    <KarpikProjectKind>Runtime</KarpikProjectKind>
+                    <KarpikSide>Client</KarpikSide>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <ProjectReference Include="../../Game/LinkedShared/Shared.csproj" />
+                  </ItemGroup>
+                </Project>
+                """);
+            string solutionPath = Path.Combine(game, "Game.slnx");
+            File.WriteAllText(solutionPath, """
+                <Solution>
+                  <Project Path="Client/Client.csproj" />
+                </Solution>
+                """);
+            File.WriteAllText(Path.Combine(game, "global.json"), """
+                { "msbuild-sdks": { "Karpik.Engine.Sdk": "0.6.0-test" } }
+                """);
+            var inspector = new FakeInspector([]);
+            var service = new ProjectOpenService(
+                inspector,
+                new FakeInstallationProvider(Path.Combine(root, "engine")),
+                new FakeContextFactory());
+
+            ProjectOpenResult result = await service.OpenAsync(
+                solutionPath,
+                new ProjectGeneration(1),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Contains("link", StringComparison.OrdinalIgnoreCase)
+                                                              || diagnostic.Contains("reparse", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(0, inspector.CallCount);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static void WriteStandaloneProject(string path, string side)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, $"""
+            <Project Sdk="Karpik.Engine.Sdk">
+              <PropertyGroup>
+                <KarpikProjectKind>Runtime</KarpikProjectKind>
+                <KarpikSide>{side}</KarpikSide>
+              </PropertyGroup>
+            </Project>
+            """);
+    }
+
     private sealed class FakeInspector(IReadOnlyList<MsBuildProjectEvaluation> evaluations)
         : IMsBuildProjectInspector
     {

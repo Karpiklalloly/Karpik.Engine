@@ -41,7 +41,7 @@ public sealed class ProjectSwitchCoordinatorTests
     public async Task SwitchAsync_WhenTeardownFails_DoesNotOpenCandidateAndLeavesNoActiveProject()
     {
         var events = new List<string>();
-        var lifetime = new RecordingLifetime(events) { FailureStep = "stop-server" };
+        var lifetime = new FailOnceLifetime(events, "stop-server");
         var opener = new FakeProjectOpenService(
             events,
             ProjectOpenResult.Success(CreateContext("New.slnx", new ProjectGeneration(2))));
@@ -111,7 +111,9 @@ public sealed class ProjectSwitchCoordinatorTests
         Task<ProjectOpenResult> first = coordinator.SwitchAsync(
             candidate.SolutionPath,
             TestContext.Current.CancellationToken);
-        await openStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await openStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => coordinator.SwitchAsync("Other.slnx", TestContext.Current.CancellationToken));
@@ -143,7 +145,9 @@ public sealed class ProjectSwitchCoordinatorTests
                 await commandGate.Task.WaitAsync(token);
             },
             TestContext.Current.CancellationToken);
-        await commandStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await commandStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
 
         Task<ProjectOpenResult> switching = coordinator.SwitchAsync(
             candidate.SolutionPath,
@@ -219,6 +223,100 @@ public sealed class ProjectSwitchCoordinatorTests
 
         Assert.True(context.IsDisposed);
         Assert.Equal(2, lifetime.DisposeCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_UsesTheSameExactFullTeardownOrderAsSwitch()
+    {
+        var events = new List<string>();
+        var context = CreateContext(
+            "Shutdown.slnx",
+            new ProjectGeneration(1),
+            new RecordingLifetime(events));
+        var coordinator = new ProjectSwitchCoordinator(
+            new FakeProjectOpenService(events, ProjectOpenResult.Failure("unused")),
+            initialContext: context);
+
+        await coordinator.DisposeAsync();
+
+        Assert.Equal(
+            [
+                "cancel-build",
+                "stop-clients",
+                "stop-server",
+                "dispose-services",
+                "save-workspace",
+                "dispose-context"
+            ],
+            events);
+        Assert.Null(coordinator.ActiveProject);
+        Assert.False(coordinator.CommandsEnabled);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenTeardownFails_RetainsOwnershipAndRetryCompletesCleanup()
+    {
+        var events = new List<string>();
+        var lifetime = new FailOnceLifetime(events, "stop-server");
+        var context = CreateContext("Shutdown.slnx", new ProjectGeneration(1), lifetime);
+        var coordinator = new ProjectSwitchCoordinator(
+            new FakeProjectOpenService(events, ProjectOpenResult.Failure("unused")),
+            initialContext: context);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await coordinator.DisposeAsync());
+        Assert.Null(coordinator.ActiveProject);
+        Assert.False(coordinator.CommandsEnabled);
+
+        await coordinator.DisposeAsync();
+
+        Assert.Equal(
+            [
+                "cancel-build",
+                "stop-clients",
+                "stop-server",
+                "cancel-build",
+                "stop-clients",
+                "stop-server",
+                "dispose-services",
+                "save-workspace",
+                "dispose-context"
+            ],
+            events);
+        Assert.Equal(1, lifetime.DisposeCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ConcurrentCallsSerializeAndTeardownOnlyOnce()
+    {
+        var events = new List<string>();
+        var lifetime = new GatedShutdownLifetime(events);
+        var context = CreateContext("Shutdown.slnx", new ProjectGeneration(1), lifetime);
+        var coordinator = new ProjectSwitchCoordinator(
+            new FakeProjectOpenService(events, ProjectOpenResult.Failure("unused")),
+            initialContext: context);
+
+        Task first = coordinator.DisposeAsync().AsTask();
+        await lifetime.CancelStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        Task second = coordinator.DisposeAsync().AsTask();
+        await Task.Delay(30, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["cancel-build"], events);
+        lifetime.CancelGate.SetResult();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(
+            [
+                "cancel-build",
+                "stop-clients",
+                "stop-server",
+                "dispose-services",
+                "save-workspace",
+                "dispose-context"
+            ],
+            events);
     }
 
     private static ActiveProjectContext CreateContext(
@@ -330,6 +428,67 @@ public sealed class ProjectSwitchCoordinatorTests
             return DisposeCount == 1
                 ? ValueTask.FromException(new InvalidOperationException("first dispose failed"))
                 : ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailOnceLifetime(List<string> events, string failureStep) : IActiveProjectLifetime
+    {
+        private int _failureRemaining = 1;
+        public int DisposeCount { get; private set; }
+
+        public Task CancelActiveBuildAsync(CancellationToken cancellationToken) => Step("cancel-build");
+        public Task StopClientsAsync(CancellationToken cancellationToken) => Step("stop-clients");
+        public Task StopServerAsync(CancellationToken cancellationToken) => Step("stop-server");
+        public Task DisposeProjectServicesAsync(CancellationToken cancellationToken) => Step("dispose-services");
+        public Task SaveWorkspaceAsync(string solutionPath, CancellationToken cancellationToken) => Step("save-workspace");
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            events.Add("dispose-context");
+            return ValueTask.CompletedTask;
+        }
+
+        private Task Step(string name)
+        {
+            events.Add(name);
+            if (name == failureStep && Interlocked.Exchange(ref _failureRemaining, 0) == 1)
+            {
+                return Task.FromException(new InvalidOperationException(name));
+            }
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class GatedShutdownLifetime(List<string> events) : IActiveProjectLifetime
+    {
+        public TaskCompletionSource CancelStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource CancelGate { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task CancelActiveBuildAsync(CancellationToken cancellationToken)
+        {
+            events.Add("cancel-build");
+            CancelStarted.SetResult();
+            await CancelGate.Task.WaitAsync(cancellationToken);
+        }
+
+        public Task StopClientsAsync(CancellationToken cancellationToken) => Step("stop-clients");
+        public Task StopServerAsync(CancellationToken cancellationToken) => Step("stop-server");
+        public Task DisposeProjectServicesAsync(CancellationToken cancellationToken) => Step("dispose-services");
+        public Task SaveWorkspaceAsync(string solutionPath, CancellationToken cancellationToken) => Step("save-workspace");
+
+        public ValueTask DisposeAsync()
+        {
+            events.Add("dispose-context");
+            return ValueTask.CompletedTask;
+        }
+
+        private Task Step(string name)
+        {
+            events.Add(name);
+            return Task.CompletedTask;
         }
     }
 }
