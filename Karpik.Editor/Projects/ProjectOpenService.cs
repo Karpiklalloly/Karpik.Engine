@@ -1,7 +1,5 @@
 using Karpik.Engine.ProjectModel;
 using Karpik.Engine.Tooling;
-using System.Xml;
-using System.Xml.Linq;
 
 namespace Karpik.Editor;
 
@@ -54,15 +52,18 @@ public sealed class ProjectOpenService : IProjectOpenService
     private readonly IMsBuildProjectInspector _inspector;
     private readonly IEngineInstallationProvider _installationProvider;
     private readonly IActiveProjectContextFactory _contextFactory;
+    private readonly IProjectInputLeaseHook? _leaseHook;
 
     public ProjectOpenService(
         IMsBuildProjectInspector? inspector = null,
         IEngineInstallationProvider? installationProvider = null,
-        IActiveProjectContextFactory? contextFactory = null)
+        IActiveProjectContextFactory? contextFactory = null,
+        IProjectInputLeaseHook? leaseHook = null)
     {
         _inspector = inspector ?? new MsBuildProjectInspector();
         _installationProvider = installationProvider ?? new EngineInstallationProvider();
         _contextFactory = contextFactory ?? new ActiveProjectContextFactory();
+        _leaseHook = leaseHook;
     }
 
     public async Task<ProjectOpenResult> OpenAsync(
@@ -80,22 +81,40 @@ public sealed class ProjectOpenService : IProjectOpenService
         try
         {
             normalizedPath = NormalizeSolutionPath(solutionPath);
-            ValidateRawPathSafety(normalizedPath);
         }
         catch (Exception exception) when (exception is ArgumentException
                                          or NotSupportedException
                                          or PathTooLongException
                                          or IOException
-                                         or UnauthorizedAccessException
-                                         or XmlException)
+                                         or UnauthorizedAccessException)
         {
             return ProjectOpenResult.Failure($"Invalid solution path: {exception.Message}");
         }
 
+        ProjectInputLease? inputLease = null;
+        try
+        {
+            inputLease = ProjectInputLease.Acquire(normalizedPath);
+            _leaseHook?.AfterLeaseAcquired(normalizedPath);
+        }
+        catch (Exception exception) when (exception is ArgumentException
+                                         or NotSupportedException
+                                         or PlatformNotSupportedException
+                                         or PathTooLongException
+                                         or InvalidDataException
+                                         or IOException
+                                         or UnauthorizedAccessException
+                                         or System.Xml.XmlException)
+        {
+            inputLease?.Dispose();
+            return ProjectOpenResult.Failure(
+                $"Unable to acquire a stable project input lease: {exception.Message}");
+        }
+        using ProjectInputLease stableLease = inputLease;
         KarpikSolutionModel solution;
         try
         {
-            solution = new KarpikSolutionReader().Read(normalizedPath);
+            solution = new KarpikSolutionReader().Read(normalizedPath, stableLease);
         }
         catch (Exception exception) when (exception is IOException
                                          or UnauthorizedAccessException
@@ -117,24 +136,6 @@ public sealed class ProjectOpenService : IProjectOpenService
                 "global.json must pin an exact Karpik.Engine.Sdk version.");
         }
 
-        try
-        {
-            // Close the validation/evaluation race window as far as path-based .NET APIs
-            // allow: a project tree changed to a link after raw reading is rejected before
-            // the first child process starts.
-            ValidateRawPathSafety(normalizedPath);
-        }
-        catch (Exception exception) when (exception is ArgumentException
-                                         or NotSupportedException
-                                         or PathTooLongException
-                                         or IOException
-                                         or UnauthorizedAccessException
-                                         or XmlException)
-        {
-            return ProjectOpenResult.Failure(
-                $"Project paths changed or are unsafe before MSBuild evaluation: {exception.Message}");
-        }
-
         EngineInstallationSelection installation = _installationProvider.Resolve(solution.SdkVersion);
         if (!installation.IsSuccess || string.IsNullOrWhiteSpace(installation.EngineRoot))
         {
@@ -146,7 +147,10 @@ public sealed class ProjectOpenService : IProjectOpenService
         IReadOnlyList<MsBuildProjectEvaluation> evaluations;
         try
         {
-            evaluations = await _inspector.InspectAsync(solution, engineRoot, cancellationToken);
+            KarpikSolutionModel evaluationSolution = stableLease.CreateEvaluationSolution(solution);
+            IReadOnlyList<MsBuildProjectEvaluation> rawEvaluations =
+                await _inspector.InspectAsync(evaluationSolution, engineRoot, cancellationToken);
+            evaluations = stableLease.RemapEvaluations(rawEvaluations);
         }
         catch (OperationCanceledException)
         {
@@ -367,143 +371,6 @@ public sealed class ProjectOpenService : IProjectOpenService
             throw new FileNotFoundException("Solution file was not found.", fullPath);
         }
         return fullPath;
-    }
-
-    private static void ValidateRawPathSafety(string solutionPath)
-    {
-        string root = Path.GetDirectoryName(solutionPath)
-                      ?? throw new InvalidDataException("Solution path has no parent directory.");
-        EnsureAncestorChainHasNoReparsePoints(solutionPath);
-        XDocument solution = LoadSafeXml(solutionPath);
-        foreach (string declaredPath in solution.Descendants()
-                     .Where(element => element.Name.LocalName == "Project")
-                     .Select(element => element.Attributes()
-                         .FirstOrDefault(attribute => attribute.Name.LocalName == "Path")?.Value)
-                     .Where(path => !string.IsNullOrWhiteSpace(path))!)
-        {
-            string projectPath = Path.GetFullPath(declaredPath, root);
-            EnsurePathWithinRootIsSafe(projectPath, root, "solution project");
-            if (!File.Exists(projectPath))
-            {
-                continue;
-            }
-
-            XDocument project = LoadSafeXml(projectPath);
-            string projectDirectory = Path.GetDirectoryName(projectPath)!;
-            foreach (XElement reference in project.Root?.Elements()
-                         .Where(element => element.Name.LocalName == "ItemGroup")
-                         .SelectMany(group => group.Elements()
-                             .Where(element => element.Name.LocalName == "ProjectReference"))
-                     ?? [])
-            {
-                string? include = reference.Attributes()
-                    .FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
-                if (string.IsNullOrWhiteSpace(include))
-                {
-                    continue;
-                }
-                string referencePath = Path.GetFullPath(include, projectDirectory);
-                EnsurePathWithinRootIsSafe(referencePath, root, "raw ProjectReference");
-            }
-        }
-    }
-
-    private static XDocument LoadSafeXml(string path)
-    {
-        var settings = new XmlReaderSettings
-        {
-            DtdProcessing = DtdProcessing.Prohibit,
-            XmlResolver = null
-        };
-        using FileStream stream = new(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read);
-        using XmlReader reader = XmlReader.Create(stream, settings);
-        return XDocument.Load(reader, LoadOptions.None);
-    }
-
-    private static void EnsureAncestorChainHasNoReparsePoints(string path)
-    {
-        FileSystemInfo? current = File.Exists(path)
-            ? new FileInfo(path)
-            : new DirectoryInfo(path);
-        while (current is not null)
-        {
-            EnsureNotReparsePoint(current.FullName);
-            current = current switch
-            {
-                FileInfo file => file.Directory,
-                DirectoryInfo directory => directory.Parent,
-                _ => null
-            };
-        }
-    }
-
-    private static void EnsurePathWithinRootIsSafe(
-        string path,
-        string root,
-        string description)
-    {
-        string normalizedRoot = Path.GetFullPath(root)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        string normalizedPath = Path.GetFullPath(path);
-        string relative = Path.GetRelativePath(normalizedRoot, normalizedPath);
-        if (Path.IsPathRooted(relative)
-            || relative.Equals("..", StringComparison.Ordinal)
-            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-            || relative.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal))
-        {
-            throw new InvalidDataException(
-                $"{description} escapes the solution root: {normalizedPath}");
-        }
-
-        EnsureNotReparsePoint(normalizedRoot);
-        if (relative == ".")
-        {
-            return;
-        }
-        string current = normalizedRoot;
-        foreach (string segment in relative.Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            current = Path.Combine(current, segment);
-            EnsureNotReparsePoint(current);
-        }
-    }
-
-    private static void EnsureNotReparsePoint(string path)
-    {
-        try
-        {
-            if (File.Exists(path) || Directory.Exists(path))
-            {
-                FileAttributes attributes = File.GetAttributes(path);
-                if ((attributes & FileAttributes.ReparsePoint) != 0)
-                {
-                    throw new InvalidDataException(
-                        $"Project path contains a link or reparse point: {path}");
-                }
-            }
-
-            string? fileTarget = new FileInfo(path).LinkTarget;
-            string? directoryTarget = new DirectoryInfo(path).LinkTarget;
-            if (fileTarget is not null || directoryTarget is not null)
-            {
-                throw new InvalidDataException(
-                    $"Project path contains a link or reparse point: {path}");
-            }
-        }
-        catch (FileNotFoundException)
-        {
-            // Missing paths remain the responsibility of raw structural validation.
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // Missing paths remain the responsibility of raw structural validation.
-        }
     }
 
     private static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()

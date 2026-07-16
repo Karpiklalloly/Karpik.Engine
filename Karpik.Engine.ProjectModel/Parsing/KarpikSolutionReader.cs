@@ -9,21 +9,30 @@ public sealed class KarpikSolutionReader
     private const int InvalidEnumValue = -1;
 
     public KarpikSolutionModel Read(string solutionPath)
+        => Read(solutionPath, FileSystemKarpikProjectInputProvider.Instance);
+
+    public KarpikSolutionModel Read(
+        string solutionPath,
+        IKarpikProjectInputProvider inputProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
+        ArgumentNullException.ThrowIfNull(inputProvider);
 
         var normalizedSolutionPath = KarpikPathPolicy.Normalize(solutionPath);
         var solutionRoot = Path.GetDirectoryName(normalizedSolutionPath)
                            ?? throw new ArgumentException("The solution path must have a parent directory.", nameof(solutionPath));
-        var solution = LoadXml(normalizedSolutionPath);
+        var solution = LoadXml(normalizedSolutionPath, inputProvider);
         var projects = solution.Descendants()
             .Where(element => element.Name.LocalName == "Project")
             .Select(element => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Path")?.Value)
             .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(path => ReadProject(solutionRoot, path!))
+            .Select(path => ReadProject(solutionRoot, path!, inputProvider))
             .ToList();
 
-        return new KarpikSolutionModel(normalizedSolutionPath, ReadSdkVersion(solutionRoot), projects);
+        return new KarpikSolutionModel(
+            normalizedSolutionPath,
+            ReadSdkVersion(solutionRoot, inputProvider),
+            projects);
     }
 
     public KarpikSolutionModel ReadProjectGraph(string projectPath)
@@ -44,7 +53,9 @@ public sealed class KarpikSolutionReader
                 continue;
             }
 
-            var project = ReadProjectFile(currentPath);
+            var project = ReadProjectFile(
+                currentPath,
+                FileSystemKarpikProjectInputProvider.Instance);
             projects.Add(project);
             foreach (var reference in project.ProjectReferences)
             {
@@ -55,11 +66,14 @@ public sealed class KarpikSolutionReader
         var graphRoot = FindGraphRoot(normalizedProjectPath, projects);
         return new KarpikSolutionModel(
             Path.Combine(graphRoot, ".karpik-direct-build.slnx"),
-            ReadSdkVersion(graphRoot),
+            ReadSdkVersion(graphRoot, FileSystemKarpikProjectInputProvider.Instance),
             projects);
     }
 
-    private static KarpikProjectDescriptor ReadProject(string solutionRoot, string declaredPath)
+    private static KarpikProjectDescriptor ReadProject(
+        string solutionRoot,
+        string declaredPath,
+        IKarpikProjectInputProvider inputProvider)
     {
         string projectPath;
         try
@@ -76,19 +90,21 @@ public sealed class KarpikSolutionReader
             return InvalidDescriptor(projectPath, KarpikProjectReadStatus.OutsideSolutionRoot);
         }
 
-        return ReadProjectFile(projectPath);
+        return ReadProjectFile(projectPath, inputProvider);
     }
 
-    private static KarpikProjectDescriptor ReadProjectFile(string projectPath)
+    private static KarpikProjectDescriptor ReadProjectFile(
+        string projectPath,
+        IKarpikProjectInputProvider inputProvider)
     {
-        if (!File.Exists(projectPath))
+        if (!inputProvider.Exists(projectPath))
         {
             return InvalidDescriptor(projectPath, KarpikProjectReadStatus.Missing);
         }
 
         try
         {
-            var document = LoadXml(projectPath);
+            var document = LoadXml(projectPath, inputProvider);
             var projectReferenceElements = TopLevelItemElements(document, "ProjectReference").ToList();
             return new KarpikProjectDescriptor(
                 projectPath,
@@ -136,14 +152,16 @@ public sealed class KarpikSolutionReader
         return graphRoot;
     }
 
-    private static XDocument LoadXml(string path)
+    private static XDocument LoadXml(
+        string path,
+        IKarpikProjectInputProvider inputProvider)
     {
         var settings = new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             XmlResolver = null
         };
-        using var stream = File.OpenRead(path);
+        using var stream = inputProvider.OpenRead(path);
         using var reader = XmlReader.Create(stream, settings);
         return XDocument.Load(reader, LoadOptions.None);
     }
@@ -275,17 +293,19 @@ public sealed class KarpikSolutionReader
                 .Where(element => names.Contains(element.Name.LocalName, StringComparer.Ordinal)));
     }
 
-    private static string ReadSdkVersion(string solutionRoot)
+    private static string ReadSdkVersion(
+        string solutionRoot,
+        IKarpikProjectInputProvider inputProvider)
     {
         var globalJsonPath = Path.Combine(solutionRoot, "global.json");
-        if (!File.Exists(globalJsonPath))
+        if (!inputProvider.Exists(globalJsonPath))
         {
             return string.Empty;
         }
 
         try
         {
-            using var stream = File.OpenRead(globalJsonPath);
+            using var stream = inputProvider.OpenRead(globalJsonPath);
             using var document = JsonDocument.Parse(stream);
             return document.RootElement.TryGetProperty("msbuild-sdks", out var sdkVersions) &&
                    sdkVersions.TryGetProperty("Karpik.Engine.Sdk", out var sdkVersion) &&

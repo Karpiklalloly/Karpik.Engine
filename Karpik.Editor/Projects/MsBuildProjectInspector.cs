@@ -99,12 +99,17 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         }
 
         var results = new List<MsBuildProjectEvaluation>(solution.Projects.Count);
+        string solutionRoot = Path.GetDirectoryName(Path.GetFullPath(solution.SolutionPath))
+                              ?? throw new ArgumentException(
+                                  "Solution path must have a parent directory.",
+                                  nameof(solution));
         foreach (KarpikProjectDescriptor project in solution.Projects)
         {
             cancellationToken.ThrowIfCancellationRequested();
             results.Add(await InspectProjectAsync(
                 project.ProjectPath,
                 Path.GetFullPath(engineRoot),
+                solutionRoot,
                 cancellationToken));
         }
         return results;
@@ -113,6 +118,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
     private async Task<MsBuildProjectEvaluation> InspectProjectAsync(
         string projectPath,
         string engineRoot,
+        string solutionRoot,
         CancellationToken cancellationToken)
     {
         string resultPath = Path.Combine(
@@ -130,9 +136,31 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         startInfo.ArgumentList.Add("msbuild");
         startInfo.ArgumentList.Add(projectPath);
         startInfo.ArgumentList.Add("-nologo");
+        startInfo.ArgumentList.Add("-noAutoResponse");
         startInfo.ArgumentList.Add("-m:1");
         startInfo.ArgumentList.Add("-nr:false");
         startInfo.ArgumentList.Add($"-p:KarpikEngineRoot={engineRoot}");
+        AddScopedImplicitInput(
+            startInfo,
+            projectPath,
+            solutionRoot,
+            "Directory.Build.props",
+            "DirectoryBuildPropsPath",
+            "ImportDirectoryBuildProps");
+        AddScopedImplicitInput(
+            startInfo,
+            projectPath,
+            solutionRoot,
+            "Directory.Build.targets",
+            "DirectoryBuildTargetsPath",
+            "ImportDirectoryBuildTargets");
+        AddScopedImplicitInput(
+            startInfo,
+            projectPath,
+            solutionRoot,
+            "Directory.Packages.props",
+            "DirectoryPackagesPropsPath",
+            "ImportDirectoryPackagesProps");
         startInfo.ArgumentList.Add(PropertyArgument);
         startInfo.ArgumentList.Add("-getItem:ProjectReference");
         startInfo.ArgumentList.Add(ResultArgumentPrefix + resultPath);
@@ -178,10 +206,76 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         }
         finally
         {
-            if (File.Exists(resultPath))
+            TryDeleteResultDirectoryEntry(resultPath);
+        }
+    }
+
+    private static void AddScopedImplicitInput(
+        ProcessStartInfo startInfo,
+        string projectPath,
+        string solutionRoot,
+        string fileName,
+        string pathProperty,
+        string importProperty)
+    {
+        string? path = FindNearestInput(
+            Path.GetDirectoryName(Path.GetFullPath(projectPath))!,
+            Path.GetFullPath(solutionRoot),
+            fileName);
+        startInfo.ArgumentList.Add(path is null
+            ? $"-p:{importProperty}=false"
+            : $"-p:{pathProperty}={path}");
+    }
+
+    private static string? FindNearestInput(
+        string startDirectory,
+        string solutionRoot,
+        string fileName)
+    {
+        for (DirectoryInfo? current = new(Path.GetFullPath(startDirectory));
+             current is not null;
+             current = current.Parent)
+        {
+            if (!IsWithinRoot(current.FullName, solutionRoot))
             {
-                File.Delete(resultPath);
+                return null;
             }
+            string candidate = Path.Combine(current.FullName, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+            if (PathComparer.Equals(current.FullName, solutionRoot))
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static bool IsWithinRoot(string path, string root)
+    {
+        string relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
+        return !Path.IsPathRooted(relative)
+               && !relative.Equals("..", StringComparison.Ordinal)
+               && !relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+               && !relative.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal);
+    }
+
+    private static void TryDeleteResultDirectoryEntry(string path)
+    {
+        try
+        {
+            // File.Delete removes the directory entry itself, including a broken
+            // symbolic link, and does not traverse the link target.
+            File.Delete(path);
+        }
+        catch (Exception exception) when (exception is IOException
+                                         or UnauthorizedAccessException
+                                         or NotSupportedException)
+        {
+            // Cleanup is best-effort and must never replace the primary process,
+            // timeout, validation, or parsing diagnostic.
         }
     }
 

@@ -47,20 +47,31 @@ public sealed class MsBuildProjectInspectorTests
                   </ItemGroup>
                 </Project>
                 """);
+            string solutionPath = Path.Combine(root, "Game.slnx");
+            File.WriteAllText(solutionPath, """
+                <Solution>
+                  <Project Path="Client/Client.csproj" />
+                  <Project Path="Shared/Shared.csproj" />
+                </Solution>
+                """);
+            File.WriteAllText(Path.Combine(root, "global.json"), "{}");
             var model = new KarpikSolutionModel(
-                Path.Combine(root, "Game.slnx"),
+                solutionPath,
                 "test",
                 [new KarpikProjectDescriptor(client, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
                     KarpikProjectSide.Client, [shared], [])]);
             var inspector = new MsBuildProjectInspector(
                 TimeSpan.FromSeconds(20),
                 TimeSpan.FromSeconds(5));
+            using ProjectInputLease lease = ProjectInputLease.Acquire(solutionPath);
+            KarpikSolutionModel evaluation = lease.CreateEvaluationSolution(model);
 
             MsBuildProjectEvaluation result = Assert.Single(
-                await inspector.InspectAsync(
-                    model,
-                    engineRoot,
-                    TestContext.Current.CancellationToken));
+                lease.RemapEvaluations(
+                    await inspector.InspectAsync(
+                        evaluation,
+                        engineRoot,
+                        TestContext.Current.CancellationToken)));
 
             Assert.Equal(Path.GetFullPath(client), result.ProjectPath);
             Assert.Equal(Path.GetFullPath(engineRoot), result.EngineRoot);
@@ -260,6 +271,90 @@ public sealed class MsBuildProjectInspectorTests
         }
     }
 
+    [Fact]
+    public async Task InspectAsync_RemovesBrokenResultSymlinkWithoutFollowingIt()
+    {
+        string project = Path.GetFullPath("Client.csproj");
+        string missingTarget = Path.Combine(
+            Path.GetTempPath(),
+            $"karpik-missing-result-{Guid.NewGuid():N}.json");
+        string probe = Path.Combine(
+            Path.GetTempPath(),
+            $"karpik-broken-result-probe-{Guid.NewGuid():N}.json");
+        try
+        {
+            try
+            {
+                File.CreateSymbolicLink(probe, missingTarget);
+                File.Delete(probe);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException
+                                             or IOException
+                                             or PlatformNotSupportedException)
+            {
+                return;
+            }
+
+            var process = new FakeProcess { ResultLinkTarget = missingTarget };
+            var inspector = new MsBuildProjectInspector(
+                new FakeProcessFactory(process),
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1));
+            var solution = new KarpikSolutionModel(
+                Path.GetFullPath("Game.slnx"),
+                "0.6.0-test",
+                [new KarpikProjectDescriptor(project, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
+                    KarpikProjectSide.Client, [], [])]);
+
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => inspector.InspectAsync(
+                    solution,
+                    Path.GetFullPath("engine"),
+                    TestContext.Current.CancellationToken));
+
+            Assert.Null(new FileInfo(process.ResultPath!).LinkTarget);
+        }
+        finally
+        {
+            if (File.Exists(probe) || new FileInfo(probe).LinkTarget is not null)
+            {
+                File.Delete(probe);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InspectAsync_CleanupFailureDoesNotMaskPrimaryProcessDiagnostic()
+    {
+        string project = Path.GetFullPath("Client.csproj");
+        var process = new FakeProcess
+        {
+            ExitCodeValue = 7,
+            CreateResultDirectory = true
+        };
+        var inspector = new MsBuildProjectInspector(
+            new FakeProcessFactory(process),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+        var solution = new KarpikSolutionModel(
+            Path.GetFullPath("Game.slnx"),
+            "0.6.0-test",
+            [new KarpikProjectDescriptor(project, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
+                KarpikProjectSide.Client, [], [])]);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => inspector.InspectAsync(
+                solution,
+                Path.GetFullPath("engine"),
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("exit code 7", exception.Message);
+        if (Directory.Exists(process.ResultPath))
+        {
+            Directory.Delete(process.ResultPath);
+        }
+    }
+
     private static string Escape(string value) => value.Replace("\\", "\\\\");
 
     private sealed class FakeProcessFactory(FakeProcess process) : IMsBuildProcessFactory
@@ -286,7 +381,9 @@ public sealed class MsBuildProjectInspectorTests
         public bool WaitUntilKilled { get; init; }
         public bool KillEntireTree { get; private set; }
         public bool ExitConfirmedAfterKill { get; private set; }
-        public int ExitCode => 0;
+        public int ExitCode => ExitCodeValue;
+        public int ExitCodeValue { get; init; }
+        public bool CreateResultDirectory { get; init; }
 
         public Task<string> ReadStandardOutputAsync(int maximumCharacters, CancellationToken cancellationToken) =>
             Task.FromResult("");
@@ -302,7 +399,11 @@ public sealed class MsBuildProjectInspectorTests
                 ExitConfirmedAfterKill = true;
                 return;
             }
-            if (ResultLinkTarget is not null)
+            if (CreateResultDirectory)
+            {
+                Directory.CreateDirectory(ResultPath!);
+            }
+            else if (ResultLinkTarget is not null)
             {
                 File.CreateSymbolicLink(ResultPath!, ResultLinkTarget);
             }

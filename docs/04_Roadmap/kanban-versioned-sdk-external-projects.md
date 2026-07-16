@@ -101,6 +101,7 @@ kanban-plugin: board
 	  - Candidate contexts remain inactive until publication and carry normalized absolute identity plus a generation token for stale command/output rejection.
 	  - Switching blocks commands and concurrent switches, then enforces cancel build → clients → server → services → workspace → context disposal → candidate open → publication.
 	  - Review hardening applies the same retry-safe order to shutdown, rejects linked/reparse solution and graph paths before MSBuild, and bounds result JSON through a non-reparse file handle.
+	  - TOCTOU hardening retains Windows metadata handles through evaluation; non-Windows uses a bounded metadata-only mirror and rejects unmappable staging paths or explicit non-SDK imports.
 - [ ] **Wire contexts into editor runtime and desktop UI**
 	  - Replace editor-local bundle resolution, connect sessions/watchers/workspace lifetime, add asynchronous `.slnx` open/switch, and prove the external two-game process smoke.
 

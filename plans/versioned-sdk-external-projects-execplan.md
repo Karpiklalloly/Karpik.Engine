@@ -25,7 +25,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-15) Milestone 5 re-review hardening complete: IPC handlers are registered before send and removed on every exit, reload ownership is atomic, force-killed workers must confirm exit, publication validates ancestors before mutation and permits proven bundle replacement after assembly rename, the evaluated bundle-path property is inspectable before target execution, bundle identities are case-insensitive, and failed pre-load shadow copies are removed.
 - [x] (2026-07-15) Milestone 5 lifecycle serialization complete: one transition owner coordinates start, worker/public reload, stop, and disposal; counted stop/dispose intent prevents replacement after teardown begins, and per-worker deferred exit publication suppresses only a proven planned reload exit.
 - [x] (2026-07-16) Milestone 6A foundation complete: raw `.slnx` validation precedes bounded out-of-process MSBuild evaluation, candidate contexts carry exact evaluated bundle/runner paths and generation identities, and a fail-closed coordinator serializes commands and enforces the complete teardown-before-open order.
-- [x] (2026-07-16) Milestone 6A review hardening complete: shutdown uses the same retry-safe ordered teardown as switching, raw solution/project/reference paths reject symlink/junction/reparse ancestors before any child process, and MSBuild JSON is read through one bounded non-reparse handle (Editor 54/54 including outside-sandbox link checks, ProjectModel 31/31).
+- [x] (2026-07-16) Milestone 6A review hardening complete: shutdown uses the same retry-safe ordered teardown as switching, Windows retains no-follow/no-write/no-delete handles for every raw/evaluated metadata input through child-process exit, non-Windows evaluates a bounded owned metadata-only mirror with canonical path remapping, and MSBuild JSON cleanup/read remains bounded and link-safe (Editor 60/60 including outside-sandbox race/link checks, ProjectModel 31/31).
 - [ ] Milestone 6: the editor opens, closes, and switches one active external project safely.
 - [ ] Milestone 7: the launcher selects a version-compatible editor and handles cross-version handoff.
 - [ ] Milestone 8: monorepository game assumptions are removed and full acceptance passes.
@@ -85,6 +85,9 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 
 - Observation: Current .NET MSBuild can emit bounded machine-readable evaluation results without loading MSBuild into the editor process.
   Evidence: `dotnet msbuild -getProperty:... -getItem:ProjectReference -getResultOutputFile:<path>` returns JSON; the Milestone 6A real-child regression verifies exact properties and `FullPath` item metadata.
+
+- Observation: Path rechecks before MSBuild do not close replacement races between raw validation and evaluation.
+  Evidence: Milestone 6A now parses through retained Windows no-follow handles and keeps file/directory sharing leases until MSBuild exits; the deterministic hook cannot rename, rewrite, or rename the project directory. Platforms without mandatory directory sharing evaluate only an owned bounded mirror of build metadata and remap mirror-root paths back to the original solution.
 
 ## Decision Log
 

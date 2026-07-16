@@ -301,6 +301,215 @@ public sealed class ProjectOpenServiceTests
         }
     }
 
+    [Fact]
+    public async Task OpenAsync_HoldsInputLeaseThroughEvaluationAndBlocksProjectReplacement()
+    {
+        using var solution = TestSolution.Create();
+        var inspector = new FakeInspector(solution.CreateEvaluations());
+        var hook = new ReplacementAttemptHook(solution.ClientProjectPath);
+        var service = new ProjectOpenService(
+            inspector,
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory(),
+            hook);
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.False(result.IsSuccess);
+            Assert.Equal(0, inspector.CallCount);
+            return;
+        }
+
+        Assert.True(hook.ReplacementBlocked);
+        Assert.True(hook.WriteBlocked);
+        Assert.True(hook.DirectoryRenameBlocked);
+        Assert.False(hook.ReplacementSucceeded);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, inspector.CallCount);
+    }
+
+    [Fact]
+    public void ProjectInputLease_PortableMirrorCopiesOnlyBuildMetadataAndRemapsPathResults()
+    {
+        using var solution = TestSolution.Create();
+        string source = Path.Combine(
+            Path.GetDirectoryName(solution.ClientProjectPath)!,
+            "Program.cs");
+        string asset = Path.Combine(solution.Root, "Content", "texture.bin");
+        File.WriteAllText(source, "class Program {}");
+        Directory.CreateDirectory(Path.GetDirectoryName(asset)!);
+        File.WriteAllText(asset, "asset");
+        File.WriteAllText(
+            Path.Combine(solution.Root, "Directory.Solution.targets"),
+            "<Project><Import Project=\"Solution.targets\" Sdk=\"Karpik.Engine.Sdk\" /></Project>");
+        File.WriteAllText(
+            Path.Combine(solution.Root, "Directory.Build.props"),
+            "<Project><PropertyGroup><LangVersion>preview</LangVersion></PropertyGroup></Project>");
+        File.WriteAllText(
+            Path.Combine(solution.Root, "NuGet.Config"),
+            "<configuration />");
+
+        using ProjectInputLease lease = ProjectInputLease.AcquirePortableMirror(
+            solution.SolutionPath);
+        var raw = new KarpikSolutionReader().Read(solution.SolutionPath, lease);
+        KarpikSolutionModel evaluation = lease.CreateEvaluationSolution(raw);
+        string evaluationRoot = Assert.IsType<string>(lease.EvaluationRoot);
+
+        Assert.True(File.Exists(evaluation.SolutionPath));
+        Assert.All(evaluation.Projects, project => Assert.True(File.Exists(project.ProjectPath)));
+        Assert.True(File.Exists(Path.Combine(evaluationRoot, "global.json")));
+        Assert.True(File.Exists(Path.Combine(evaluationRoot, "Directory.Solution.targets")));
+        Assert.True(File.Exists(Path.Combine(evaluationRoot, "Directory.Build.props")));
+        Assert.True(File.Exists(Path.Combine(evaluationRoot, "NuGet.Config")));
+        Assert.False(File.Exists(Path.Combine(
+            evaluationRoot,
+            Path.GetRelativePath(solution.Root, source))));
+        Assert.False(File.Exists(Path.Combine(
+            evaluationRoot,
+            Path.GetRelativePath(solution.Root, asset))));
+
+        KarpikProjectDescriptor client = evaluation.Projects.Single(
+            project => project.Side == KarpikProjectSide.Client);
+        string mirrorBundle = Path.Combine(
+            evaluationRoot,
+            Path.GetRelativePath(solution.Root, solution.ClientBundle));
+        string mirrorTarget = Path.Combine(
+            Path.GetDirectoryName(client.ProjectPath)!,
+            "bin",
+            "Client.dll");
+        IReadOnlyList<MsBuildProjectEvaluation> remapped = lease.RemapEvaluations(
+        [
+            new MsBuildProjectEvaluation(
+                client.ProjectPath,
+                "Runtime",
+                "Client",
+                mirrorBundle,
+                solution.EngineRoot,
+                mirrorTarget,
+                client.ProjectReferences)
+        ]);
+
+        MsBuildProjectEvaluation result = Assert.Single(remapped);
+        Assert.Equal(solution.ClientProjectPath, result.ProjectPath);
+        Assert.Equal(solution.ClientBundle, result.RuntimeBundlePath);
+        Assert.StartsWith(solution.Root, result.TargetPath);
+        Assert.Equal(solution.EngineRoot, result.EngineRoot);
+        Assert.All(
+            result.ProjectReferences,
+            reference => Assert.StartsWith(solution.Root, reference));
+
+        Assert.Throws<InvalidDataException>(() => lease.RemapEvaluations(
+        [
+            new MsBuildProjectEvaluation(
+                client.ProjectPath,
+                "Runtime",
+                "Client",
+                Path.Combine(Path.GetDirectoryName(evaluationRoot)!, "escaped-bundle"),
+                solution.EngineRoot,
+                mirrorTarget,
+                client.ProjectReferences)
+        ]));
+    }
+
+    [Fact]
+    public void ProjectInputLease_PortableMirrorIncludesTransitiveProjectMetadata()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "KarpikEditorPortableLeaseTests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string client = Path.Combine(root, "Client", "Client.csproj");
+            string shared = Path.Combine(root, "Shared", "Shared.csproj");
+            string foundation = Path.Combine(root, "Foundation", "Foundation.csproj");
+            Directory.CreateDirectory(Path.GetDirectoryName(client)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(shared)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(foundation)!);
+            File.WriteAllText(client, """
+                <Project Sdk="Karpik.Engine.Sdk">
+                  <ItemGroup>
+                    <ProjectReference Include="../Shared/Shared.csproj" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(shared, """
+                <Project Sdk="Karpik.Engine.Sdk">
+                  <ItemGroup>
+                    <ProjectReference Include="../Foundation/Foundation.csproj" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(foundation, """<Project Sdk="Karpik.Engine.Sdk" />""");
+            string solutionPath = Path.Combine(root, "Game.slnx");
+            File.WriteAllText(solutionPath, """
+                <Solution>
+                  <Project Path="Client/Client.csproj" />
+                </Solution>
+                """);
+            File.WriteAllText(Path.Combine(root, "global.json"), """
+                { "msbuild-sdks": { "Karpik.Engine.Sdk": "0.6.0-test" } }
+                """);
+
+            using ProjectInputLease lease =
+                ProjectInputLease.AcquirePortableMirror(solutionPath);
+            string evaluationRoot = Assert.IsType<string>(lease.EvaluationRoot);
+
+            Assert.True(File.Exists(Path.Combine(
+                evaluationRoot,
+                Path.GetRelativePath(root, shared))));
+            Assert.True(File.Exists(Path.Combine(
+                evaluationRoot,
+                Path.GetRelativePath(root, foundation))));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task OpenAsync_RejectsExplicitProjectImportBeforeMsBuild()
+    {
+        using var solution = TestSolution.Create();
+        string props = Path.Combine(
+            Path.GetDirectoryName(solution.ClientProjectPath)!,
+            "Custom.props");
+        File.WriteAllText(props, "<Project />");
+        string project = File.ReadAllText(solution.ClientProjectPath);
+        File.WriteAllText(
+            solution.ClientProjectPath,
+            project.Replace(
+                "</Project>",
+                "<Import Project=\"Custom.props\" /></Project>",
+                StringComparison.Ordinal));
+        var inspector = new FakeInspector(solution.CreateEvaluations());
+        var service = new ProjectOpenService(
+            inspector,
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory());
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Contains("Project imports", StringComparison.Ordinal));
+        Assert.Equal(0, inspector.CallCount);
+    }
+
     private static void WriteStandaloneProject(string path, string side)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -364,6 +573,7 @@ public sealed class ProjectOpenServiceTests
         public string ServerBundle => Path.Combine(Root, "Server", "bin", "karpik-bundle");
         public string ClientRunner => Path.Combine(EngineRoot, "runners", "client", RunnerName);
         public string ServerRunner => Path.Combine(EngineRoot, "runners", "server", RunnerName);
+        public string ClientProjectPath => ClientProject;
         private string SharedProject => Path.Combine(Root, "Shared", "Shared.csproj");
         private string ClientProject => Path.Combine(Root, "Client", "Client.csproj");
         private string ServerProject => Path.Combine(Root, "Server", "Server.csproj");
@@ -441,6 +651,74 @@ public sealed class ProjectOpenServiceTests
             if (Directory.Exists(Root))
             {
                 Directory.Delete(Root, recursive: true);
+            }
+        }
+    }
+
+    private sealed class ReplacementAttemptHook(string projectPath) : IProjectInputLeaseHook
+    {
+        public bool ReplacementBlocked { get; private set; }
+        public bool ReplacementSucceeded { get; private set; }
+        public bool WriteBlocked { get; private set; }
+        public bool DirectoryRenameBlocked { get; private set; }
+
+        public void AfterLeaseAcquired(string solutionPath)
+        {
+            string moved = projectPath + ".moved";
+            try
+            {
+                File.Move(projectPath, moved);
+                ReplacementSucceeded = true;
+                File.WriteAllText(projectPath, """
+                    <Project Sdk="Microsoft.NET.Sdk">
+                      <PropertyGroup>
+                        <KarpikProjectKind>Runtime</KarpikProjectKind>
+                        <KarpikSide>Server</KarpikSide>
+                      </PropertyGroup>
+                    </Project>
+                    """);
+            }
+            catch (IOException)
+            {
+                ReplacementBlocked = true;
+            }
+            finally
+            {
+                if (File.Exists(moved))
+                {
+                    if (File.Exists(projectPath))
+                    {
+                        File.Delete(projectPath);
+                    }
+                    File.Move(moved, projectPath);
+                }
+            }
+
+            try
+            {
+                File.WriteAllText(projectPath, "<Project />");
+            }
+            catch (IOException)
+            {
+                WriteBlocked = true;
+            }
+
+            string directory = Path.GetDirectoryName(projectPath)!;
+            string movedDirectory = directory + ".moved";
+            try
+            {
+                Directory.Move(directory, movedDirectory);
+            }
+            catch (IOException)
+            {
+                DirectoryRenameBlocked = true;
+            }
+            finally
+            {
+                if (Directory.Exists(movedDirectory))
+                {
+                    Directory.Move(movedDirectory, directory);
+                }
             }
         }
     }
