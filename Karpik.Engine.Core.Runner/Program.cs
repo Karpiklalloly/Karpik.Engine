@@ -97,7 +97,7 @@ public class Program
         
         try
         {
-            RunEngine(launch.Side, launch.BundlePath);
+            RunEngine(launch.Side, launch.BundlePath, launch.EngineRoot);
         }
         catch (Exception ex)
         {
@@ -112,12 +112,15 @@ public class Program
         }
     }
     
-    private static void RunEngine(Side side, string bundleRoot)
+    private static void RunEngine(Side side, string bundleRoot, string engineRoot)
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
         
         _bootstrap = new Bootstrap(side, new EngineRunner());
-        using var loader = new ModuleLoader(bundleRoot);
+        using var loader = new ModuleLoader(
+            bundleRoot,
+            RuntimeModuleComposition.Resolve(engineRoot, side),
+            Path.Combine(engineRoot, "native"));
         switch (side)
         {
             case Side.Client:
@@ -130,6 +133,7 @@ public class Program
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
         var types = GetTypes(loader);
+        RuntimeModuleComposition.ValidateRequiredInstallers(types);
         _bootstrap.RegisterTypes(types);
         
         Dictionary<string, byte[]>? initialHotReloadData = null;

@@ -108,7 +108,7 @@ public static class ArtifactGenerator
         sb.AppendLine("using System.Reflection;");
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine();
-        sb.AppendLine("public sealed class ModuleLoader : IDisposable");
+        sb.AppendLine("public sealed partial class ModuleLoader : IDisposable");
         sb.AppendLine("{");
         sb.AppendLine("    public string ModuleDirectory { get; private set; } = string.Empty;");
         sb.AppendLine("    public string ShadowCopyDirectory => _shadowCopyDirectory ?? string.Empty;");
@@ -158,11 +158,8 @@ public static class ArtifactGenerator
         sb.AppendLine("            var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + \".dll\"))).ToArray();");
         sb.AppendLine("            if (missing.Length > 0)");
         sb.AppendLine("                throw new FileNotFoundException($\"Required module assemblies are missing from {sourceDirectory}: {string.Join(\", \", missing)}. Build the matching ClientLauncher or ServerLauncher project.\");");
-        sb.AppendLine("            _loadContext = new PluginLoadContext(_shadowCopyDirectory, _bundleRoot, allowAppContextFallback: _bundleRoot is null);");
-        sb.AppendLine("            var loaded = new List<Assembly>(requiredAssemblies.Length);");
-        sb.AppendLine("            foreach (var name in requiredAssemblies)");
-        sb.AppendLine("                loaded.Add(_loadContext.LoadFromAssemblyPath(Path.Combine(_shadowCopyDirectory, name + \".dll\")));");
-        sb.AppendLine("            LoadedAssemblies = loaded.ToArray();");
+        sb.AppendLine("            _loadContext = CreateLoadContext(_shadowCopyDirectory);");
+        sb.AppendLine("            LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies);");
         sb.AppendLine("        }");
         sb.AppendLine("        catch");
         sb.AppendLine("        {");

@@ -112,6 +112,11 @@ public static class PayloadLayout
             string moduleDestination = Path.Combine(modulesDestination, moduleProject.ModuleId);
             CopyDirectory(GetArtifactOutput(artifacts, moduleProject.ProjectPath), moduleDestination);
         }
+        File.WriteAllText(
+            Path.Combine(modulesDestination, EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize(moduleProjects.Select(project =>
+                new EngineModuleCatalogEntry(project.ModuleId, project.Side))),
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         string nativeDestination = Path.Combine(stagingRoot, NativeDirectory);
         Directory.CreateDirectory(nativeDestination);
@@ -231,9 +236,25 @@ public static class PayloadLayout
             {
                 throw new InvalidDataException($"Selected module id '{moduleId}' is not unique for this platform.");
             }
-            projects.Add(new SelectedModuleProject(projectPath, moduleId));
+            projects.Add(new SelectedModuleProject(projectPath, moduleId, GetModuleSide(projectPath)));
         }
         return projects;
+    }
+
+    private static EngineModuleSide GetModuleSide(string projectPath)
+    {
+        string[] segments = projectPath.Split('/');
+        if (segments.Length < 3 || !string.Equals(segments[0], "Modules", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"Selected module is outside the canonical Modules/<side>/ layout: {projectPath}");
+        }
+        return segments[1] switch
+        {
+            "Shared" => EngineModuleSide.Shared,
+            "Client" => EngineModuleSide.Client,
+            "Server" => EngineModuleSide.Server,
+            _ => throw new InvalidDataException($"Selected module has an unsupported runtime side: {projectPath}")
+        };
     }
 
     private static string GetArtifactOutput(string artifactsRoot, string projectPath)
@@ -372,5 +393,5 @@ public static class PayloadLayout
         return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }
 
-    private sealed record SelectedModuleProject(string ProjectPath, string ModuleId);
+    private sealed record SelectedModuleProject(string ProjectPath, string ModuleId, EngineModuleSide Side);
 }

@@ -650,7 +650,7 @@ public sealed class ProcessManagerLifecycleTests
             bool captureWorkerOutput = false,
             TimeSpan? workerConnectionTimeout = null)
         {
-            var launch = new RuntimeLaunchOptions(Side.Server, RunnerPath, BundlePath);
+            var launch = new RuntimeLaunchOptions(Side.Server, RunnerPath, BundlePath, _root);
             return new ProcessManager(
                 launch,
                 new HotReloadOptions

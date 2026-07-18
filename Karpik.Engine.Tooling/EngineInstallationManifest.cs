@@ -5,7 +5,7 @@ namespace Karpik.Engine.Tooling;
 
 public sealed class EngineInstallationManifest
 {
-    public const int CurrentLayoutVersion = 1;
+    public const int CurrentLayoutVersion = 2;
     public const int CurrentRuntimeProtocolVersion = 1;
 
     public required string EngineVersion { get; init; }

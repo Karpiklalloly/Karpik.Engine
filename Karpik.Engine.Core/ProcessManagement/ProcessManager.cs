@@ -9,6 +9,7 @@ internal class ProcessManager : IDisposable
     private IpcServer? _ipcServer;
     private readonly string _workerExePath;
     private readonly string _bundlePath;
+    private readonly string _engineRoot;
     private readonly string _pipeName;
     private readonly Side _side;
     private readonly HotReloadOptions _options;
@@ -68,6 +69,7 @@ internal class ProcessManager : IDisposable
         _options = options;
         _workerExePath = launchOptions.RunnerExecutablePath;
         _bundlePath = launchOptions.BundlePath;
+        _engineRoot = launchOptions.EngineRoot;
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
         _side = launchOptions.Side;
     }
@@ -78,6 +80,7 @@ internal class ProcessManager : IDisposable
         _options = options;
         _workerExePath = options.WorkerExecutablePath ?? GetDefaultWorkerPath();
         _bundlePath = AppContext.BaseDirectory;
+        _engineRoot = AppContext.BaseDirectory;
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
         _side = side;
     }
@@ -150,7 +153,7 @@ internal class ProcessManager : IDisposable
         }
 
         var startInfo = CreateStartInfo(
-            new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath),
+            new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath, _engineRoot),
             _pipeName,
             stateFile,
             shouldWaitForDebugger,
@@ -1027,6 +1030,7 @@ internal class ProcessManager : IDisposable
         Add("--pipe-name", pipeName);
         Add("--side", launchOptions.Side.ToString());
         Add("--bundle", launchOptions.BundlePath);
+        Add("--engine-root", launchOptions.EngineRoot);
         if (!string.IsNullOrEmpty(stateFile))
         {
             Add("--state-file", stateFile);

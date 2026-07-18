@@ -10,11 +10,12 @@ public sealed class RuntimeLaunchOptionsTests
     {
         using var tree = new RuntimeTree(side);
 
-        var options = new RuntimeLaunchOptions(side, tree.RunnerPath, tree.BundlePath);
+        var options = new RuntimeLaunchOptions(side, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
 
         Assert.Equal(side, options.Side);
         Assert.Equal(tree.RunnerPath, options.RunnerExecutablePath);
         Assert.Equal(tree.BundlePath, options.BundlePath);
+        Assert.Equal(tree.EngineRoot, options.EngineRoot);
     }
 
     [Fact]
@@ -22,17 +23,17 @@ public sealed class RuntimeLaunchOptionsTests
     {
         using var tree = new RuntimeTree(Side.Server);
 
-        Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath));
+        Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
         File.Delete(Path.Combine(tree.BundlePath, ".complete"));
-        Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath));
-        Assert.Throws<ArgumentException>(() => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, "relative"));
+        Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
+        Assert.Throws<ArgumentException>(() => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, "relative", tree.EngineRoot));
     }
 
     [Fact]
     public void ProcessStartInfo_UsesEngineRunnerBundleWorkingDirectoryAndArgumentList()
     {
         using var tree = new RuntimeTree(Side.Client);
-        var launch = new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath);
+        var launch = new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
 
         var startInfo = ProcessManager.CreateStartInfo(launch, "pipe", stateFile: null, waitForDebugger: false, captureOutput: true);
 
@@ -42,13 +43,15 @@ public sealed class RuntimeLaunchOptionsTests
         Assert.Contains(tree.BundlePath, startInfo.ArgumentList);
         Assert.Contains("--side", startInfo.ArgumentList);
         Assert.Contains("Client", startInfo.ArgumentList);
+        Assert.Contains("--engine-root", startInfo.ArgumentList);
+        Assert.Contains(tree.EngineRoot, startInfo.ArgumentList);
     }
 
     [Fact]
     public void RepeatedLaunchRetainsBundleAndCleanupCannotEscapeIt()
     {
         using var tree = new RuntimeTree(Side.Server);
-        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
         string stateFile = Path.Combine(tree.BundlePath, "reload", "state", "state.bin");
         Directory.CreateDirectory(Path.GetDirectoryName(stateFile)!);
         File.WriteAllText(stateFile, "state");
@@ -75,7 +78,7 @@ public sealed class RuntimeLaunchOptionsTests
     public void ReadyCleanup_RejectsPayloadThatIsNotTheExactResolvedModuleDirectory(string payloadKind)
     {
         using var tree = new RuntimeTree(Side.Server);
-        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
         using var manager = new ProcessManager(launch, HotReloadOptions.Default);
         string active = Path.Combine(tree.BundlePath, "modules.version.1");
         string payload = payloadKind == "nested"
@@ -91,7 +94,7 @@ public sealed class RuntimeLaunchOptionsTests
     public void ReadyCleanup_RejectsAmbiguousCompletedModuleLayoutWithoutDeletingEitherVersion()
     {
         using var tree = new RuntimeTree(Side.Server);
-        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
         using var manager = new ProcessManager(launch, HotReloadOptions.Default);
         string active = Path.Combine(tree.BundlePath, "modules.version.1");
         string ambiguous = Path.Combine(tree.BundlePath, "modules.version.2");
@@ -107,7 +110,7 @@ public sealed class RuntimeLaunchOptionsTests
     public void ReadyCleanup_RejectsModuleDirectoryReplacedByLinkAfterLaunchValidation()
     {
         using var tree = new RuntimeTree(Side.Server);
-        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath);
+        var launch = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
         using var manager = new ProcessManager(launch, HotReloadOptions.Default);
         string active = Path.Combine(tree.BundlePath, "modules.version.1");
         string moved = Path.Combine(tree.Root, "moved-modules");
@@ -181,7 +184,7 @@ public sealed class RuntimeLaunchOptionsTests
         }
 
         Assert.Throws<InvalidDataException>(() =>
-            new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath));
+            new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
     }
 
     [Fact]
@@ -203,7 +206,7 @@ public sealed class RuntimeLaunchOptionsTests
             string runner = Path.Combine(link, Path.GetRelativePath(tree.Root, tree.RunnerPath));
             string bundle = Path.Combine(link, Path.GetRelativePath(tree.Root, tree.BundlePath));
 
-            Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Server, runner, bundle));
+            Assert.Throws<InvalidDataException>(() => new RuntimeLaunchOptions(Side.Server, runner, bundle, tree.EngineRoot));
         }
         finally
         {
@@ -222,10 +225,12 @@ public sealed class RuntimeLaunchOptionsTests
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "KarpikLaunchTests", Guid.NewGuid().ToString("N"));
         public string RunnerPath { get; }
         public string BundlePath { get; }
+        public string EngineRoot { get; }
 
         public RuntimeTree(Side side)
         {
-            RunnerPath = Path.Combine(Root, "engine", OperatingSystem.IsWindows() ? "runner.exe" : "runner");
+            EngineRoot = Path.Combine(Root, "engine");
+            RunnerPath = Path.Combine(EngineRoot, OperatingSystem.IsWindows() ? "runner.exe" : "runner");
             BundlePath = Path.Combine(Root, "game", "karpik-bundle");
             Directory.CreateDirectory(Path.GetDirectoryName(RunnerPath)!);
             File.WriteAllText(RunnerPath, "runner");

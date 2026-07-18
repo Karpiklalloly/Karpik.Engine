@@ -164,7 +164,9 @@ public sealed class ConfiguratorTests
         Assert.Contains("public ModuleLoader(string bundleRoot)", loader);
         Assert.Contains("RuntimeBundleLayout.ResolveModuleDirectory(_bundleRoot)", loader);
         Assert.Contains("Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, \"reload\", \"shadow\")", loader);
-        Assert.Contains("allowAppContextFallback: _bundleRoot is null", loader);
+        Assert.Contains("public sealed partial class ModuleLoader", loader);
+        Assert.Contains("_loadContext = CreateLoadContext(_shadowCopyDirectory)", loader);
+        Assert.Contains("LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies)", loader);
     }
 }
 

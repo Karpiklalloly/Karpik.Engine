@@ -18,10 +18,12 @@ public sealed class ProjectRuntimeResolver
         {
             Side.Client => new EditorRuntimeDescriptor(
                 side,
+                _runtime.EngineRoot,
                 _runtime.ClientBundlePath,
                 _runtime.ClientRunnerPath),
             Side.Server => new EditorRuntimeDescriptor(
                 side,
+                _runtime.EngineRoot,
                 _runtime.ServerBundlePath,
                 _runtime.ServerRunnerPath),
             _ => throw new ArgumentOutOfRangeException(nameof(side), side, "Only Client and Server sides are supported.")
@@ -30,6 +32,7 @@ public sealed class ProjectRuntimeResolver
 
     public sealed record EditorRuntimeDescriptor(
         Side Side,
+        string EngineRoot,
         string BundlePath,
         string RunnerPath);
 }

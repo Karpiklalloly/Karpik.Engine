@@ -15,7 +15,7 @@ public sealed class ManifestAndValidationTests
             MsBuildSdkVersion = "0.6.0-sdk",
             EditorVersion = "0.6.0",
             RuntimeProtocolVersion = 1,
-            LayoutVersion = 1,
+            LayoutVersion = EngineInstallationManifest.CurrentLayoutVersion,
             ContentHash = new string('a', 64)
         };
 
@@ -72,6 +72,23 @@ public sealed class ManifestAndValidationTests
 
         Assert.True(result.IsValid, result.Message);
         Assert.Equal(EngineInstallationValidationCode.Valid, result.Code);
+    }
+
+    [Fact]
+    public void ModuleCatalog_IsCanonicalSideAwareAndRejectsMissingEntries()
+    {
+        EngineModuleCatalogEntry[] entries =
+        [
+            new("Network.Server.Core", EngineModuleSide.Server),
+            new("ECS.Core", EngineModuleSide.Shared)
+        ];
+
+        string text = EngineModuleCatalog.Serialize(entries);
+        EngineModuleCatalogEntry[] parsed = EngineModuleCatalog.Parse(System.Text.Encoding.UTF8.GetBytes(text));
+
+        Assert.Equal("Shared\tECS.Core\nServer\tNetwork.Server.Core\n", text);
+        Assert.Equal(entries.Select(entry => entry.ModuleId).Order(StringComparer.Ordinal), parsed.Select(entry => entry.ModuleId));
+        Assert.Throws<InvalidDataException>(() => EngineModuleCatalog.Parse(System.Text.Encoding.UTF8.GetBytes("Server\tNetwork.Server.Core\nServer\tNetwork.Server.Core\n")));
     }
 
     [Fact]
@@ -148,7 +165,7 @@ public sealed class ManifestAndValidationTests
         string root = TestInstallation.Create(temporary.RootPath);
         switch (mutation)
         {
-            case "layout": TestInstallation.RewriteManifest(root, layoutVersion: 2); break;
+            case "layout": TestInstallation.RewriteManifest(root, layoutVersion: 999); break;
             case "runtime": TestInstallation.RewriteManifest(root, runtimeProtocolVersion: 2); break;
             case "engine": TestInstallation.RewriteManifest(root, engineVersion: "9.0.0"); break;
             case "sdk": TestInstallation.RewriteManifest(root, sdkVersion: "9.0.0"); break;

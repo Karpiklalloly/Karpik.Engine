@@ -24,6 +24,7 @@ public enum EngineInstallationValidationCode
     MissingEditor,
     MissingSdkPackage,
     MissingModules,
+    ConflictingManagedAssemblyIdentity,
     MissingCompletionMarker,
     HashMismatch
 }
@@ -157,9 +158,30 @@ public sealed class EngineInstallationValidator
             return Failure(EngineInstallationValidationCode.MissingSdkPackage, "The SDK payload directory contains no .nupkg file.", manifest);
         }
         string modulesRoot = Path.Combine(root, "modules");
-        string[] moduleEntries = Directory.EnumerateFileSystemEntries(modulesRoot, "*", SearchOption.TopDirectoryOnly)
+        EngineModuleCatalogEntry[] catalog;
+        try
+        {
+            catalog = EngineModuleCatalog.Read(modulesRoot);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            return InvalidModuleLayout(manifest, exception.Message);
+        }
+        string[] allModuleEntries = Directory.EnumerateFileSystemEntries(modulesRoot, "*", SearchOption.TopDirectoryOnly)
             .Order(StringComparer.Ordinal)
             .ToArray();
+        foreach (string entry in allModuleEntries)
+        {
+            if (File.Exists(entry) && string.Equals(Path.GetFileName(entry), EngineModuleCatalog.FileName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            if (!Directory.Exists(entry))
+            {
+                return InvalidModuleLayout(manifest, $"Unexpected entry directly below modules/: {entry}");
+            }
+        }
+        string[] moduleEntries = allModuleEntries.Where(Directory.Exists).ToArray();
         if (moduleEntries.Length == 0)
         {
             return InvalidModuleLayout(manifest);
@@ -197,6 +219,15 @@ public sealed class EngineInstallationValidator
                 return Failure(EngineInstallationValidationCode.ReparsePoint, $"Primary module assembly is a link or reparse point: {primaryAssembly}", manifest);
             }
         }
+        if (!moduleIds.SetEquals(catalog.Select(entry => entry.ModuleId)))
+        {
+            return InvalidModuleLayout(manifest, "The module catalog and modules/<module-id>/ directories do not match exactly.");
+        }
+        EngineInstallationValidationResult? identityConflict = ValidateManagedAssemblyIdentities(moduleEntries, manifest);
+        if (identityConflict is not null)
+        {
+            return identityConflict;
+        }
 
         string contentHash;
         try
@@ -225,6 +256,52 @@ public sealed class EngineInstallationValidator
         value is not "." and not ".." &&
         value.IndexOfAny(['/', '\\']) < 0 &&
         value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+
+    private static EngineInstallationValidationResult? ValidateManagedAssemblyIdentities(
+        IEnumerable<string> moduleDirectories,
+        EngineInstallationManifest manifest)
+    {
+        var identities = new Dictionary<string, (string FullName, string Hash, string Path)>(StringComparer.OrdinalIgnoreCase);
+        foreach (string directory in moduleDirectories.Order(StringComparer.Ordinal))
+        {
+            foreach (string path in Directory.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal))
+            {
+                System.Reflection.AssemblyName identity;
+                try
+                {
+                    identity = System.Reflection.AssemblyName.GetAssemblyName(path);
+                }
+                catch (BadImageFormatException)
+                {
+                    continue;
+                }
+                string fullName = identity.FullName ?? identity.Name ?? Path.GetFileNameWithoutExtension(path);
+                using FileStream stream = File.OpenRead(path);
+                string hash = Convert.ToHexString(SHA256.HashData(stream));
+                string simpleName = identity.Name ?? Path.GetFileNameWithoutExtension(path);
+                if (identities.TryGetValue(simpleName, out (string FullName, string Hash, string Path) existing))
+                {
+                    if (!string.Equals(existing.FullName, fullName, StringComparison.Ordinal))
+                    {
+                        return Failure(
+                            EngineInstallationValidationCode.ConflictingManagedAssemblyIdentity,
+                            $"Module payload contains assemblies with the same simple name '{simpleName}' but different identities: '{existing.FullName}' at '{existing.Path}' and '{fullName}' at '{path}'.",
+                            manifest);
+                    }
+                    if (!string.Equals(existing.Hash, hash, StringComparison.Ordinal))
+                    {
+                        return Failure(
+                            EngineInstallationValidationCode.ConflictingManagedAssemblyIdentity,
+                            $"Module payload contains byte-distinct assemblies with the same identity '{fullName}': '{existing.Path}' and '{path}'.",
+                            manifest);
+                    }
+                    continue;
+                }
+                identities.Add(simpleName, (fullName, hash, path));
+            }
+        }
+        return null;
+    }
 
     private static EngineInstallationValidationResult Failure(
         EngineInstallationValidationCode code,

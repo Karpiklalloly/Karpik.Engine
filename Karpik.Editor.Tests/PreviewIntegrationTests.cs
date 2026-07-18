@@ -28,7 +28,7 @@ public sealed class PreviewIntegrationTests
             "runtimes",
             "client",
             workerName);
-        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Client, workerPath, Path.GetTempPath()));
+        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Client, workerPath, Path.GetTempPath(), repositoryRoot));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
 
         try

@@ -243,9 +243,12 @@ public sealed class EnginePayloadBuilderTests
         string moduleB = Path.Combine(first.DestinationDirectory, "modules", "TestModuleB");
         Assert.True(File.Exists(Path.Combine(moduleA, "TestModuleA.dll")));
         Assert.True(File.Exists(Path.Combine(moduleB, "TestModuleB.dll")));
+        Assert.Equal(
+            "Shared\tTestModuleA\nShared\tTestModuleB\n",
+            File.ReadAllText(Path.Combine(first.DestinationDirectory, "modules", EngineModuleCatalog.FileName)));
         Assert.True(File.Exists(Path.Combine(moduleA, "SharedDependency.dll")));
         Assert.True(File.Exists(Path.Combine(moduleB, "SharedDependency.dll")));
-        Assert.False(
+        Assert.True(
             File.ReadAllBytes(Path.Combine(moduleA, "SharedDependency.dll"))
                 .AsSpan()
                 .SequenceEqual(File.ReadAllBytes(Path.Combine(moduleB, "SharedDependency.dll"))));
@@ -255,6 +258,34 @@ public sealed class EnginePayloadBuilderTests
             $"Changed payload files: {string.Join(", ", differences)}; changed package entries: {string.Join(", ", packageDifferences)}");
         Assert.Equal(first.ContentHash, second.ContentHash);
         Assert.Equal(payloadPaths.Length, secondPayloadPaths.Length);
+    }
+
+    [Fact]
+    public void RepositoryModeRejectsByteDistinctAssembliesWithTheSameIdentity()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string repository = FakeRepository.Create(
+            Path.Combine(temporary.RootPath, "repository"),
+            conflictingDependencies: true);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new EnginePayloadBuilder().Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
+
+        Assert.Contains("same identity", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RepositoryModeRejectsDifferentVersionsWithTheSameAssemblyName()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string repository = FakeRepository.Create(
+            Path.Combine(temporary.RootPath, "repository"),
+            versionedDependencies: true);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            new EnginePayloadBuilder().Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
+
+        Assert.Contains("same simple name", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyDictionary<string, string> SnapshotFiles(string root) =>
@@ -302,6 +333,11 @@ internal static class PreparedPayload
         File.WriteAllText(Path.Combine(root, "runners", "client", PayloadLayout.RunnerAssemblyFileName), "client");
         File.WriteAllText(Path.Combine(root, "runners", "server", PayloadLayout.RunnerAssemblyFileName), "server");
         File.WriteAllText(Path.Combine(root, "modules", "Module", "Module.dll"), "module");
+        File.WriteAllText(
+            Path.Combine(root, "modules", EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize([
+                new EngineModuleCatalogEntry("Module", EngineModuleSide.Shared)
+            ]));
         return root;
     }
 }
@@ -336,7 +372,10 @@ internal sealed class PackagerTemporaryDirectory : IDisposable
 
 internal static class FakeRepository
 {
-    public static string Create(string root)
+    public static string Create(
+        string root,
+        bool conflictingDependencies = false,
+        bool versionedDependencies = false)
     {
         Directory.CreateDirectory(root);
         WriteProject(root, "Karpik.Editor/Karpik.Editor.csproj", "Karpik.Editor");
@@ -347,8 +386,20 @@ internal static class FakeRepository
             "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj",
             "Karpik.Engine.Sdk.Tasks",
             "../Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj");
-        WriteProject(root, "Dependencies/A/SharedDependencyA.csproj", "SharedDependency", markerSource: "internal static class DependencyMarker { internal const int Value = 1; }");
-        WriteProject(root, "Dependencies/B/SharedDependencyB.csproj", "SharedDependency", markerSource: "internal static class DependencyMarker { internal const int Value = 2; }");
+        WriteProject(
+            root,
+            "Dependencies/A/SharedDependencyA.csproj",
+            "SharedDependency",
+            markerSource: "internal static class DependencyMarker { internal const int Value = 1; }",
+            assemblyVersion: versionedDependencies ? "1.0.0.0" : null);
+        WriteProject(
+            root,
+            "Dependencies/B/SharedDependencyB.csproj",
+            "SharedDependency",
+            markerSource: conflictingDependencies
+                ? "internal static class DependencyMarker { internal const int Value = 2; }"
+                : "internal static class DependencyMarker { internal const int Value = 1; }",
+            assemblyVersion: versionedDependencies ? "2.0.0.0" : null);
         WriteProject(root, "Modules/Shared/TestModuleA/TestModuleA.csproj", "TestModuleA", "../../../Dependencies/A/SharedDependencyA.csproj");
         WriteProject(root, "Modules/Shared/TestModuleB/TestModuleB.csproj", "TestModuleB", "../../../Dependencies/B/SharedDependencyB.csproj");
         WriteProject(root, "ClientLauncher/ClientLauncher.csproj", "ClientLauncher", "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
@@ -413,18 +464,23 @@ internal static class FakeRepository
         string relativePath,
         string assemblyName,
         string? projectReference = null,
-        string? markerSource = null)
+        string? markerSource = null,
+        string? assemblyVersion = null)
     {
         string path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string reference = projectReference is null
             ? string.Empty
             : $"<ItemGroup><ProjectReference Include=\"{projectReference}\" /></ItemGroup>";
+        string version = assemblyVersion is null
+            ? string.Empty
+            : $"<AssemblyVersion>{assemblyVersion}</AssemblyVersion>";
         File.WriteAllText(path, $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <TargetFramework>net10.0</TargetFramework>
                 <AssemblyName>{{assemblyName}}</AssemblyName>
+                {{version}}
               </PropertyGroup>
               {{reference}}
             </Project>

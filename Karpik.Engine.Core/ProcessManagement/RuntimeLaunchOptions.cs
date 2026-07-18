@@ -7,8 +7,9 @@ public sealed record RuntimeLaunchOptions
     public Side Side { get; }
     public string RunnerExecutablePath { get; }
     public string BundlePath { get; }
+    public string EngineRoot { get; }
 
-    public RuntimeLaunchOptions(Side side, string runnerExecutablePath, string bundlePath)
+    public RuntimeLaunchOptions(Side side, string runnerExecutablePath, string bundlePath, string engineRoot)
     {
         if (side is not (Side.Client or Side.Server))
         {
@@ -16,6 +17,7 @@ public sealed record RuntimeLaunchOptions
         }
         RunnerExecutablePath = ValidateExistingAbsoluteFile(runnerExecutablePath, nameof(runnerExecutablePath));
         BundlePath = RuntimeBundleLayout.Validate(bundlePath, side);
+        EngineRoot = ValidateExistingAbsoluteDirectory(engineRoot, nameof(engineRoot));
         Side = side;
     }
 
@@ -29,6 +31,21 @@ public sealed record RuntimeLaunchOptions
         if (!File.Exists(fullPath))
         {
             throw new FileNotFoundException("Runner executable was not found.", fullPath);
+        }
+        RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(fullPath);
+        return fullPath;
+    }
+
+    private static string ValidateExistingAbsoluteDirectory(string path, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
+        {
+            throw new ArgumentException("Engine root path must be absolute.", parameterName);
+        }
+        string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException($"Engine root was not found: {fullPath}");
         }
         RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(fullPath);
         return fullPath;

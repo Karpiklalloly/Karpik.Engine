@@ -1,5 +1,6 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
+using Karpik.Engine.Tooling;
 using Xunit;
 
 public sealed class RunnerArgumentsTests
@@ -24,14 +25,29 @@ public sealed class RunnerArgumentsTests
     {
         using var tree = new BundleTree(Side.Server);
 
-        var separated = RunnerLaunchArguments.Parse(["--side", "Server", "--bundle", tree.BundlePath, "--pipe-name", "p"]);
-        var nameValue = RunnerLaunchArguments.Parse([$"--side=Server", $"--bundle={tree.BundlePath}", "--pipe-name=p"]);
+        var separated = ParseFromInstalledRunner(tree, ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--pipe-name", "p"]);
+        var nameValue = ParseFromInstalledRunner(tree, [$"--side=Server", $"--bundle={tree.BundlePath}", $"--engine-root={tree.EngineRoot}", "--pipe-name=p"]);
 
         Assert.Equal(Side.Server, separated.Side);
         Assert.Equal(tree.BundlePath, separated.BundlePath);
+        Assert.Equal(tree.EngineRoot, separated.EngineRoot);
         Assert.Equal("p", separated.PipeName);
         Assert.Equal(separated, nameValue);
         Assert.Throws<ArgumentException>(() => RunnerLaunchArguments.Parse(["--side", "Server", $"--bundle={tree.BundlePath}", "--bundle", tree.BundlePath]));
+    }
+
+    [Fact]
+    public void Parse_RejectsRunnerThatDoesNotBelongToSelectedEngineInstallation()
+    {
+        using var tree = new BundleTree(Side.Server);
+        string foreignRunnerDirectory = Path.Combine(tree.Root, "foreign-engine", "runners", "server");
+        Directory.CreateDirectory(foreignRunnerDirectory);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() => RunnerLaunchArguments.Parse(
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot],
+            foreignRunnerDirectory));
+
+        Assert.Contains("selected engine installation", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -45,25 +61,31 @@ public sealed class RunnerArgumentsTests
         string outsideState = Path.Combine(tree.Root, "outside.bin");
         File.WriteAllText(outsideState, "outside");
 
-        var parsed = RunnerLaunchArguments.Parse(
-            ["--side", "Server", "--bundle", tree.BundlePath, "--state-file", stateFile]);
+        var parsed = ParseFromInstalledRunner(tree,
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--state-file", stateFile]);
 
         Assert.Equal(stateFile, parsed.StateFile);
-        Assert.Throws<InvalidDataException>(() => RunnerLaunchArguments.Parse(
-            ["--side", "Server", "--bundle", tree.BundlePath, "--state-file", outsideState]));
-        Assert.Throws<ArgumentException>(() => RunnerLaunchArguments.Parse(
-            ["--side", "Server", "--bundle", tree.BundlePath, "--state-file", "relative.bin"]));
-        Assert.Throws<ArgumentException>(() => RunnerLaunchArguments.Parse(
-            ["--side", "Server", "--bundle", tree.BundlePath, "--state", "inline", "--state-file", stateFile]));
+        Assert.Throws<InvalidDataException>(() => ParseFromInstalledRunner(tree,
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--state-file", outsideState]));
+        Assert.Throws<ArgumentException>(() => ParseFromInstalledRunner(tree,
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--state-file", "relative.bin"]));
+        Assert.Throws<ArgumentException>(() => ParseFromInstalledRunner(tree,
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--state", "inline", "--state-file", stateFile]));
     }
+
+    private static RunnerLaunchArguments ParseFromInstalledRunner(BundleTree tree, string[] args) =>
+        RunnerLaunchArguments.Parse(args, Path.Combine(tree.EngineRoot, "runners", "server"));
 
     private sealed class BundleTree : IDisposable
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "KarpikRunnerArgs", Guid.NewGuid().ToString("N"));
         public string BundlePath { get; }
+        public string EngineRoot { get; }
 
         public BundleTree(Side side)
         {
+            EngineRoot = Path.Combine(Root, "engine");
+            CreateEngineInstallation(EngineRoot);
             BundlePath = Path.Combine(Root, "bundle");
             string modules = Path.Combine(BundlePath, "modules.version.1");
             Directory.CreateDirectory(modules);
@@ -77,5 +99,34 @@ public sealed class RunnerArgumentsTests
         }
 
         public void Dispose() => Directory.Delete(Root, recursive: true);
+
+        private static void CreateEngineInstallation(string root)
+        {
+            Directory.CreateDirectory(Path.Combine(root, "editor"));
+            Directory.CreateDirectory(Path.Combine(root, "sdk"));
+            Directory.CreateDirectory(Path.Combine(root, "runners", "client"));
+            Directory.CreateDirectory(Path.Combine(root, "runners", "server"));
+            Directory.CreateDirectory(Path.Combine(root, "modules", "ECS.Core"));
+            Directory.CreateDirectory(Path.Combine(root, "native"));
+            File.WriteAllText(Path.Combine(root, "editor", "Karpik.Editor.dll"), "editor");
+            File.WriteAllText(Path.Combine(root, "sdk", "Karpik.Engine.Sdk.1.0.0.nupkg"), "sdk");
+            File.WriteAllText(Path.Combine(root, "runners", "client", "Karpik.Engine.Core.Runner.dll"), "client");
+            File.WriteAllText(Path.Combine(root, "runners", "server", "Karpik.Engine.Core.Runner.dll"), "server");
+            File.WriteAllText(Path.Combine(root, "modules", "ECS.Core", "ECS.Core.dll"), "ecs");
+            File.WriteAllText(
+                Path.Combine(root, "modules", EngineModuleCatalog.FileName),
+                EngineModuleCatalog.Serialize([new EngineModuleCatalogEntry("ECS.Core", EngineModuleSide.Shared)]));
+            var manifest = new EngineInstallationManifest
+            {
+                EngineVersion = "1.0.0",
+                MsBuildSdkVersion = "1.0.0",
+                EditorVersion = "1.0.0",
+                LayoutVersion = EngineInstallationManifest.CurrentLayoutVersion,
+                RuntimeProtocolVersion = EngineInstallationManifest.CurrentRuntimeProtocolVersion,
+                ContentHash = EngineContentHash.Compute(root)
+            };
+            File.WriteAllText(Path.Combine(root, "engine-installation.json"), manifest.ToJson());
+            File.WriteAllText(Path.Combine(root, ".complete"), "complete\n");
+        }
     }
 }

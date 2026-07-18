@@ -56,10 +56,11 @@ kanban-plugin: board
 
 ## Миграция и приёмка
 
-- [ ] **Milestone 8A — собрать runtime из installed engine modules и game bundle**
+- [x] **Milestone 8A — собрать runtime из installed engine modules и game bundle**
 	  - Runner загружает side-compatible engine modules из проверенного versioned payload и Client/Server+Shared assemblies из game-owned bundle.
 	  - Общие runtime assemblies (`Karpik.Engine.Core`, runner, `Dragon`, `Karpik.Jobs`) не дублируются между load contexts.
 	  - Результат: `ECSInstaller` регистрирует `EcsDefaultWorld`, server snapshot работает, client-only module не попадает на Server.
+	  - Проверка: Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 + `--validate`, editor resolver 5/5, внешний smoke на свежем layout-v2 installed Runner 1/1; прежняя ошибка `Not found service ... EcsDefaultWorld` отсутствует.
 - [ ] **Milestone 8B — доказать полноценный внешний runtime**
 	  - Внешняя игра запускает server + два clients, использует ECS и content, отдаёт snapshot и проходит hot reload с непустым state.
 	  - После stop/switch не остаются процессы, IPC, shadow/state files и locked files.

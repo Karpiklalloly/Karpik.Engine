@@ -15,7 +15,7 @@ public sealed class EditorPreviewBackendFactory : IEditorBackendFactory
     {
         ProjectRuntimeResolver.EditorRuntimeDescriptor descriptor = _runtimeResolver.Resolve(side);
         return new EditorPreviewBackend(
-            new EditorPreviewController(new RuntimeLaunchOptions(side, descriptor.RunnerPath, descriptor.BundlePath)));
+            new EditorPreviewController(new RuntimeLaunchOptions(side, descriptor.RunnerPath, descriptor.BundlePath, descriptor.EngineRoot)));
     }
 
     private sealed class EditorPreviewBackend : IEditorBackend

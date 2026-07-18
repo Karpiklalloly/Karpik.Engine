@@ -22,6 +22,43 @@ public sealed class ExternalGameCliTests
     public ExternalGameCliTests(ITestOutputHelper output) => _output = output;
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Installed_runner_composes_engine_and_game_modules_for_editor_snapshot()
+    {
+        string? engineRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_ENGINE_ROOT");
+        string? gameRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_GAME_ROOT");
+        Assert.SkipUnless(
+            !string.IsNullOrWhiteSpace(engineRoot) && !string.IsNullOrWhiteSpace(gameRoot),
+            "Set KARPIK_TEST_ENGINE_ROOT and KARPIK_TEST_GAME_ROOT to run the installed runtime composition test.");
+
+        string bundle = Path.Combine(
+            gameRoot!, "Source", "KarpikEngineGame.Server", "bin", "Debug", "net10.0", "karpik-bundle");
+        string runner = Path.Combine(
+            engineRoot!, "runners", "server",
+            OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
+        var output = new ConcurrentQueue<string>();
+        using var controller = new EditorPreviewController(
+            new RuntimeLaunchOptions(Side.Server, runner, bundle, engineRoot));
+        controller.OutputReceived += output.Enqueue;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+
+        try
+        {
+            await controller.StartAsync(timeout.Token);
+            EditorRuntimeSnapshot? snapshot = await controller.RequestSnapshotAsync(TimeSpan.FromSeconds(5), timeout.Token);
+
+            Assert.NotNull(snapshot);
+            Assert.DoesNotContain(output, line => line.Contains("Not found service DCFApixels.DragonECS.EcsDefaultWorld", StringComparison.Ordinal));
+            Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (controller.State != EditorPreviewState.Stopped)
+                await controller.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public void Template_has_the_standard_external_game_structure()
     {
         string templateRoot = GetTemplateRoot();
@@ -139,7 +176,7 @@ public sealed class ExternalGameCliTests
 
         try
         {
-            string engineRoot = ResolveValidatedEngineRoot(repositoryRoot);
+            string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
             string packageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
@@ -161,8 +198,15 @@ public sealed class ExternalGameCliTests
                 ["NUGET_HTTP_CACHE_PATH"] = nugetHttpCache,
                 ["NuGetAudit"] = "false",
                 ["RestoreDisableParallel"] = "true",
-                ["KarpikEngineRoot"] = engineRoot
+                ["KarpikEngineRoot"] = retainedEngineRoot
             };
+            string engineRoot = await CreateUpdatedEngineInstallationAsync(
+                repositoryRoot,
+                retainedEngineRoot,
+                temporaryRoot,
+                nugetConfig,
+                commonEnvironment);
+            commonEnvironment["KarpikEngineRoot"] = engineRoot;
             Assert.True(File.Exists(Path.Combine(
                 repositoryRoot,
                 "Karpik.Engine.Sdk.Tasks",
@@ -216,13 +260,7 @@ public sealed class ExternalGameCliTests
                 commonEnvironment);
             AssertSuccess(build, "build the generated solution");
             AssertRuntimeBundles(validRoot, engineRoot);
-            string updatedEngineRoot = await CreateUpdatedEngineInstallationAsync(
-                repositoryRoot,
-                engineRoot,
-                temporaryRoot,
-                nugetConfig,
-                commonEnvironment);
-            await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, updatedEngineRoot);
+            await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, engineRoot);
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -466,6 +504,7 @@ public sealed class ExternalGameCliTests
         {
             CopyDirectory(Path.Combine(retainedEngineRoot, directory), Path.Combine(prepared, directory));
         }
+        WriteEngineModuleCatalog(repositoryRoot, Path.Combine(prepared, "modules"));
         string runnerOutput = Assert.Single(Directory.EnumerateFiles(
                 artifacts,
                 "Karpik.Engine.Core.Runner.runtimeconfig.json",
@@ -510,7 +549,7 @@ public sealed class ExternalGameCliTests
         Assert.False(IsWithinRoot(runner, bundle));
         Dictionary<string, FileStamp> engineBefore = SnapshotFiles(engineRoot);
         var output = new ConcurrentQueue<string>();
-        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Server, runner, bundle));
+        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Server, runner, bundle, engineRoot));
         controller.OutputReceived += output.Enqueue;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
 
@@ -549,20 +588,45 @@ public sealed class ExternalGameCliTests
         Assert.Equal(engineBefore, SnapshotFiles(engineRoot));
     }
 
-    private static string ResolveValidatedEngineRoot(string repositoryRoot)
+    private static string ResolveRetainedEngineRoot(string repositoryRoot)
     {
         string enginesRoot = Path.Combine(repositoryRoot, "artifacts", "karpik-home-final", "Engines");
         Assert.True(Directory.Exists(enginesRoot), $"Retained Milestone 3 engine store is missing: {enginesRoot}");
         string[] candidates = Directory.EnumerateDirectories(enginesRoot, "*", SearchOption.TopDirectoryOnly)
             .Where(directory => File.Exists(Path.Combine(directory, ".complete")))
-            .Where(directory =>
-            {
-                var result = new EngineInstallationValidator().Validate(directory, PackageVersion);
-                return result.IsValid;
-            })
             .ToArray();
         string engineRoot = Assert.Single(candidates);
+        EngineInstallationManifest manifest = EngineInstallationManifest.Parse(
+            File.ReadAllText(Path.Combine(engineRoot, "engine-installation.json")));
+        Assert.Equal(PackageVersion, manifest.MsBuildSdkVersion);
         return Path.GetFullPath(engineRoot);
+    }
+
+    private static void WriteEngineModuleCatalog(string repositoryRoot, string modulesRoot)
+    {
+        XDocument targets = XDocument.Load(Path.Combine(repositoryRoot, "AutoGenerated.targets"));
+        var entries = new List<EngineModuleCatalogEntry>();
+        foreach (XElement reference in targets.Descendants().Where(element => element.Name.LocalName == "PluginReference"))
+        {
+            string? include = (string?)reference.Attribute("Include");
+            if (string.IsNullOrWhiteSpace(include))
+                continue;
+            string normalized = include.Replace("\\", "/", StringComparison.Ordinal);
+            EngineModuleSide? side = normalized.Contains("Modules/Shared/", StringComparison.Ordinal) ? EngineModuleSide.Shared
+                : normalized.Contains("Modules/Client/", StringComparison.Ordinal) ? EngineModuleSide.Client
+                : normalized.Contains("Modules/Server/", StringComparison.Ordinal) ? EngineModuleSide.Server
+                : null;
+            string moduleId = Path.GetFileNameWithoutExtension(normalized);
+            if (side is not null && Directory.Exists(Path.Combine(modulesRoot, moduleId)))
+                entries.Add(new EngineModuleCatalogEntry(moduleId, side.Value));
+        }
+        Assert.Equal(
+            Directory.EnumerateDirectories(modulesRoot).Select(Path.GetFileName).Order(StringComparer.Ordinal),
+            entries.Select(entry => entry.ModuleId).Order(StringComparer.Ordinal));
+        File.WriteAllText(
+            Path.Combine(modulesRoot, EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize(entries),
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     private static void SeedOfflinePackageFeed(string repositoryRoot, string destination)

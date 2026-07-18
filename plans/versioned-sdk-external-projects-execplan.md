@@ -31,7 +31,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-18) Milestone 6 desktop polish complete: console rows copy exactly through `Ctrl+C` or a context action, right-click selects the pointed row, clipboard failures are no-ops, and redirected dotnet/MSBuild output is decoded explicitly as UTF-8 so localized diagnostics remain readable.
 - [x] (2026-07-18) Milestone 7 complete: the stable Avalonia launcher selects an exact-SDK installation/editor, persists recent projects outside games, and follows a strict bounded exit-code-20 handoff; Tooling 40/40, Launcher 12/12, Packager 15/15, and Editor 88/88 non-opt-in tests pass, with one external editor smoke skipped by default.
 - [ ] Milestone 8: monorepository game assumptions are removed and full acceptance passes.
-  - [ ] Milestone 8A: installed engine modules and game-owned assemblies are composed by the external runner without duplicate shared assembly identities.
+  - [x] (2026-07-18) Milestone 8A: the editor passes an explicit installed engine root to the runner; payload layout v2 carries a canonical side-aware module catalog; one collectible context composes compatible engine modules with game assemblies while Core/Runner/Dragon/Karpik.Jobs remain identity-shared. Worker startup revalidates the immutable installation hash and confirms that the running side-specific Runner belongs to that installation; byte-distinct duplicate identities and multiple versions of one assembly name are rejected before publication; dependency binding requires an exact identity; and native probing uses the installation-owned root plus the current RID. Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 plus generated-artifact validation, editor runtime resolution 5/5, and the fresh layout-v2 installed-runner external snapshot smoke 1/1 pass without the former missing `EcsDefaultWorld` service error.
   - [ ] Milestone 8B: the external server-plus-two-clients runtime smoke passes with ECS, content, snapshots, and non-empty hot reload state.
   - [ ] Milestone 8C: editor-local runtime packaging is removed after 8B replacement coverage passes.
   - [ ] Milestone 8D: the reusable sample is moved into the external template and repository-local `MyGame`, `ClientLauncher`, and `ServerLauncher` composition roots are removed.
@@ -111,6 +111,9 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Observation: Expected-SDK validation cannot safely classify a cross-version handoff before proving the current installation is generally valid.
   Evidence: A missing `.complete` marker was initially masked by the earlier `WrongSdkVersion` result; validating the installation first and comparing its proven manifest second preserves corrupt-installation failures.
 
+- Observation: isolated module outputs initially contained both `Newtonsoft.Json` 9.0.1 and 13.0.4 because `NativeLibraryLoader` supplied an old transitive dependency.
+  Evidence: a single collectible `AssemblyLoadContext` cannot load both versions deterministically. The Veldrid projects now pin 13.0.4, and validation rejects both byte-distinct copies of one full identity and different identities sharing one simple assembly name before publication.
+
 ## Decision Log
 
 - Decision: Use a thin NuGet-distributed custom MSBuild SDK plus a separate versioned engine payload.
@@ -128,6 +131,10 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Decision: Use a stable launcher with an editor packaged per compatible engine installation.
   Rationale: The current editor directly references engine contracts; version-matched editors avoid immediate compatibility branches across historical APIs.
   Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: payload layout v2 requires `modules/modules.catalog`, with canonical `Shared|Client|Server` ownership for every isolated module root.
+  Rationale: the external runner cannot safely infer side ownership after packaging from module IDs alone, and flattening isolated outputs reintroduces dependency collisions. A hashed installation-owned catalog makes selection deterministic and keeps engine modules out of game-owned bundles.
+  Date/Author: 2026-07-18 / Codex
 
 - Decision: Use a strict one-shot JSON handoff file plus process exit code `20`, with `KarpikEngineRoot` inherited by the selected editor.
   Rationale: The launcher can validate an absolute existing `.slnx`, resolve its exact SDK again, and bound restart loops without sharing mutable in-process state across editor versions. Handoff preflight runs before active-project teardown, but exit `20` is emitted only after teardown completes successfully.
