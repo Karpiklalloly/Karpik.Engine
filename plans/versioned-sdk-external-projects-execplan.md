@@ -31,6 +31,12 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-18) Milestone 6 desktop polish complete: console rows copy exactly through `Ctrl+C` or a context action, right-click selects the pointed row, clipboard failures are no-ops, and redirected dotnet/MSBuild output is decoded explicitly as UTF-8 so localized diagnostics remain readable.
 - [x] (2026-07-18) Milestone 7 complete: the stable Avalonia launcher selects an exact-SDK installation/editor, persists recent projects outside games, and follows a strict bounded exit-code-20 handoff; Tooling 40/40, Launcher 12/12, Packager 15/15, and Editor 88/88 non-opt-in tests pass, with one external editor smoke skipped by default.
 - [ ] Milestone 8: monorepository game assumptions are removed and full acceptance passes.
+  - [ ] Milestone 8A: installed engine modules and game-owned assemblies are composed by the external runner without duplicate shared assembly identities.
+  - [ ] Milestone 8B: the external server-plus-two-clients runtime smoke passes with ECS, content, snapshots, and non-empty hot reload state.
+  - [ ] Milestone 8C: editor-local runtime packaging is removed after 8B replacement coverage passes.
+  - [ ] Milestone 8D: the reusable sample is moved into the external template and repository-local `MyGame`, `ClientLauncher`, and `ServerLauncher` composition roots are removed.
+  - [ ] Milestone 8E: Configurator emits an engine SDK payload module catalog without `MyGame` or repository game-profile assumptions.
+  - [ ] Milestone 8F: complete automated acceptance, two-SDK desktop smoke, documentation, and Graphify refresh pass.
 
 ## Surprises & Discoveries
 
@@ -556,6 +562,55 @@ Manual smoke: install two development payloads with different compatible editor 
 Commit boundary: `feat: add version-aware Karpik project launcher`.
 
 ### Milestone 8: Remove monorepository game assumptions
+
+Milestone 8 is delivered through six ordered stop points. Complete and validate one slice at a time; each slice may be committed independently. Slices 8C through 8E are destructive migration work and must not begin until 8B proves that the external runtime path replaces the legacy composition roots.
+
+#### Milestone 8A: Compose installed engine modules with game bundles
+
+- Extend the explicit runtime composition so a version-matched runner loads the side-compatible engine module set from the validated installed payload and the Client/Server+Shared assemblies from the game-owned bundle.
+- Keep engine runtime infrastructure such as `Karpik.Engine.Core`, `Karpik.Engine.Core.Runner`, `Dragon`, and `Karpik.Jobs` identity-shared. Do not directly load a second copy into the collectible plugin context.
+- Register engine installers and game installers through one deterministic module-registration pass while preserving Client/Server/Shared boundaries.
+- Add focused loader and runtime tests that fail if a shared assembly is duplicated, if `ECSInstaller` is absent, or if a server can reach a client-only module.
+
+Exit criteria: an externally built Server bundle starts through the installed runner, `ECSInstaller` registers `EcsDefaultWorld`, and an editor snapshot request returns normally without `Not found service DCFApixels.DragonECS.EcsDefaultWorld`.
+
+#### Milestone 8B: Prove the complete external runtime replacement
+
+- Extend the external fixture from the current empty-state runtime proof to a real ECS sample with representative shared content.
+- Start one server and two clients outside the engine repository, verify side-pure module composition, request an editor snapshot, and perform hot reload with non-empty ECS/module state.
+- Stop and switch the project, then prove that worker processes, IPC endpoints, shadow copies, state files, and file locks are released.
+
+Exit criteria: the server-plus-two-clients smoke passes using only a local SDK feed, a validated versioned engine payload, and game-owned bundles. Record this evidence in `Progress` before deleting any legacy composition path.
+
+#### Milestone 8C: Remove editor-local runtime packaging
+
+- Remove `Karpik.Editor/EditorRuntimeBundles.targets` and every remaining import or resolver fallback that builds or searches editor-local runtime trees.
+- Keep all editor sessions bound to the selected installation's runner and the active game's evaluated bundle paths.
+
+Exit criteria: editor build, editor tests, and the external project-switch smoke pass without producing or consuming editor-local runtime bundles.
+
+#### Milestone 8D: Remove the repository-local game composition roots
+
+- Move reusable `MyGame` sample behaviour, systems, and content into `templates/Karpik.Game/` where appropriate.
+- Remove `MyGame/`, `ClientLauncher/`, `ServerLauncher/`, their solution entries, and their game/resource references from shared build files and generated artifacts.
+
+Exit criteria: the external template retains equivalent sample behaviour while the engine solution and build graph contain no repository-local game or game launcher.
+
+#### Milestone 8E: Decouple Configurator from the game profile
+
+- Remove `MyGame` roots and root game-profile assumptions from `Configurator/RepositoryParser.cs`, `Models.cs`, `GraphValidator.cs`, and `ArtifactGenerator.cs`.
+- Preserve validation and generation for the engine's first-party module graph and emit the SDK payload module catalog needed by 8A.
+- Regenerate `Generated/KarpikModuleCatalog.props` and `Generated/ModuleLoader.cs` through Configurator, never by hand.
+
+Exit criteria: Configurator generation and validation are deterministic, module boundary tests pass, and no generated artifact mentions `MyGame`, `ClientLauncher`, or `ServerLauncher`.
+
+#### Milestone 8F: Final acceptance and documentation
+
+- Run the complete automatic validation set below, both opt-in external suites, and the manual two-SDK launcher/editor smoke.
+- Update `README.md`, `README-ENG.md`, the accepted ADR, this ExecPlan, the kanban board, and the Graphify cache.
+- Inspect the final diff for game-specific paths and confirm no new work entered real-time hot paths.
+
+Exit criteria: every acceptance item in this plan passes, the engine and external game build independently, and Milestone 8 plus the parent ExecPlan can be marked complete.
 
 **Files**
 

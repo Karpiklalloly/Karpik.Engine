@@ -56,19 +56,27 @@ kanban-plugin: board
 
 ## Миграция и приёмка
 
-- [ ] **Удалить editor-local runtime packaging**
-	  - Удалить `Karpik.Editor/EditorRuntimeBundles.targets` после прохождения external runtime smoke.
-- [ ] **Убрать `MyGame` и игровые launcher-ы из engine root**
+- [ ] **Milestone 8A — собрать runtime из installed engine modules и game bundle**
+	  - Runner загружает side-compatible engine modules из проверенного versioned payload и Client/Server+Shared assemblies из game-owned bundle.
+	  - Общие runtime assemblies (`Karpik.Engine.Core`, runner, `Dragon`, `Karpik.Jobs`) не дублируются между load contexts.
+	  - Результат: `ECSInstaller` регистрирует `EcsDefaultWorld`, server snapshot работает, client-only module не попадает на Server.
+- [ ] **Milestone 8B — доказать полноценный внешний runtime**
+	  - Внешняя игра запускает server + два clients, использует ECS и content, отдаёт snapshot и проходит hot reload с непустым state.
+	  - После stop/switch не остаются процессы, IPC, shadow/state files и locked files.
+	  - Это обязательный gate перед удалением старых composition roots.
+- [ ] **Milestone 8C — удалить editor-local runtime packaging**
+	  - После 8B удалить `Karpik.Editor/EditorRuntimeBundles.targets`, его imports и editor-local runtime fallbacks.
+	  - Результат: editor использует только runner выбранной installation и bundles активной игры.
+- [ ] **Milestone 8D — убрать `MyGame` и игровые launcher-ы из engine root**
 	  - Перенести полезный sample в game template; удалить `MyGame`, `ClientLauncher`, `ServerLauncher` и их solution/build ссылки.
 	  - Результат: engine build graph не содержит game-specific composition roots.
-- [ ] **Отвязать Configurator от `MyGame` и root profile игры**
-	  - Оставить генерацию engine module catalog; game profile обрабатывает `Karpik.Engine.Sdk`.
-	  - Результат: engine и game graphs валидируются независимо.
-- [ ] **Пройти полную автоматическую приёмку**
+- [ ] **Milestone 8E — отвязать Configurator от `MyGame` и root game profile**
+	  - Оставить генерацию engine module catalog для SDK payload и независимо валидировать engine/game graphs.
+	  - Перегенерировать `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` через Configurator.
+- [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
 	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, `graphify update .`.
-- [ ] **Пройти desktop smoke для двух SDK**
-	  - Launcher → project A → server + два clients → switch → project B → compatible editor.
-	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles.
+	  - Desktop smoke: Launcher → project A → server + два clients → switch → project B → compatible editor.
+	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles; ExecPlan можно закрыть.
 
 ## Не входит в этот ExecPlan
 
