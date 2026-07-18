@@ -29,7 +29,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-18) Milestone 6B remediation complete: the Avalonia shell, startup arguments, open/build/publish/session commands, workspace persistence, and shutdown now compose through `ProjectSwitchCoordinator` and project-owned lifetimes; callbacks and snapshots are generation-gated, and dotnet children are bounded and confirm exit before disposal.
 - [x] (2026-07-18) Milestone 6 complete: Editor tests pass 82/82 with one opt-in smoke skipped by default, the editor project builds, and the real two-game external switch smoke passes 1/1 after starting server+client, confirming old PIDs exit, selecting the second game's distinct bundle paths, and confirming final shutdown.
 - [x] (2026-07-18) Milestone 6 desktop polish complete: console rows copy exactly through `Ctrl+C` or a context action, right-click selects the pointed row, clipboard failures are no-ops, and redirected dotnet/MSBuild output is decoded explicitly as UTF-8 so localized diagnostics remain readable.
-- [ ] Milestone 7: the launcher selects a version-compatible editor and handles cross-version handoff.
+- [x] (2026-07-18) Milestone 7 complete: the stable Avalonia launcher selects an exact-SDK installation/editor, persists recent projects outside games, and follows a strict bounded exit-code-20 handoff; Tooling 40/40, Launcher 12/12, Packager 15/15, and Editor 88/88 non-opt-in tests pass, with one external editor smoke skipped by default.
 - [ ] Milestone 8: monorepository game assumptions are removed and full acceptance passes.
 
 ## Surprises & Discoveries
@@ -99,6 +99,12 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Observation: A retained stable-name development payload can be obsolete even when a newer hash-qualified payload for the same SDK is valid.
   Evidence: The first Milestone 6 external switch smoke rejected `artifacts/karpik-home/Engines/0.6.0-dev` because it still flattened module DLLs; selecting the sole payload that passes `EngineInstallationValidator` made the unchanged two-game smoke pass.
 
+- Observation: Returning a non-zero Avalonia desktop lifetime code is insufficient when the process entry point discards the lifetime return value.
+  Evidence: The first Milestone 7 exit-contract test observed `void Program.Main`; changing both desktop entry points to `int Main` makes editor handoff code `20` observable by the launcher process host.
+
+- Observation: Expected-SDK validation cannot safely classify a cross-version handoff before proving the current installation is generally valid.
+  Evidence: A missing `.complete` marker was initially masked by the earlier `WrongSdkVersion` result; validating the installation first and comparing its proven manifest second preserves corrupt-installation failures.
+
 ## Decision Log
 
 - Decision: Use a thin NuGet-distributed custom MSBuild SDK plus a separate versioned engine payload.
@@ -116,6 +122,10 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Decision: Use a stable launcher with an editor packaged per compatible engine installation.
   Rationale: The current editor directly references engine contracts; version-matched editors avoid immediate compatibility branches across historical APIs.
   Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Use a strict one-shot JSON handoff file plus process exit code `20`, with `KarpikEngineRoot` inherited by the selected editor.
+  Rationale: The launcher can validate an absolute existing `.slnx`, resolve its exact SDK again, and bound restart loops without sharing mutable in-process state across editor versions. Handoff preflight runs before active-project teardown, but exit `20` is emitted only after teardown completes successfully.
+  Date/Author: 2026-07-18 / Codex
 
 - Decision: Preserve one active project per editor and one server plus multiple clients within that project.
   Rationale: This isolates workers, IPC, ports, watchers, logs, hot-reload state, and build state while preserving the existing multisession editor workflow.
@@ -210,6 +220,8 @@ The Milestone 5 re-review closes the remaining lifecycle and replacement gaps wi
 The final Milestone 5 lifecycle audit serializes every `ProcessManager` transition behind one gate. Worker-originated and public reload use the same gate and a private non-reentrant start core; counted stop requests and disposal publish intent before waiting, and the process-launch commit checks that intent under the same lock, so queued starts and in-flight reloads cannot launch after teardown begins. Lifecycle callbacks run outside the transition gate so callback-initiated disposal cannot reenter it. Each worker also owns a locked exit-notification disposition: reload defers exit publication before sending `StateRequest`, suppresses it only after state acquisition succeeds, and republishes an already deferred exit if acquisition aborts. The real minimal IPC worker exits immediately after `StateResponse`, matching production ordering and proving worker-requested reload racing stop/dispose, direct public reload racing stop, callback-to-dispose reentrancy, queued start/stop intent, and planned old-exit suppression. Focused lifecycle tests pass 8/8 and the full Runner suite passes 81/81 outside the sandbox; the exact-final opted-in external RuntimeBundle restart passes 1/1 in 1m46s. An independent narrow re-review reports Ready with no Critical or Important findings. This remains Milestone 5 process lifecycle work; editor project switching remains Milestone 6.
 
 Milestone 6 now has one production composition root from Avalonia startup to raw/evaluated project validation, candidate publication, project-owned sessions and dotnet commands, and ordered shutdown. Opening and switching accept `.slnx` files only; build and publish use the evaluated solution/project paths; no editor-local runtime bundle fallback remains. Every session mutation shares the coordinator command gate, and deferred session output, state, selection, and snapshots carry the project generation. Workspace teardown preserves current window/panel state while changing only the solution identity. The dotnet command owner drains and bounds UTF-8 output, kills the complete process tree, confirms exit, and disposes even when output capture fails. Console rows can be copied exactly through the keyboard or context menu. Fresh evidence is Editor 82/82 with the opt-in test skipped by default, a successful editor build, and an outside-sandbox two-game smoke that builds both games with ordinary dotnet commands, starts two workers for the first game, confirms both exit before the second publishes, verifies distinct second-game bundle roots, and confirms its worker exits on shutdown. Milestone 6 is complete; launcher selection and cross-version handoff remain Milestone 7.
+
+Milestone 7 adds a stable Avalonia launcher over the existing exact-SDK installation resolver. Recent projects live below platform local application data; corrupt history degrades to an empty list with a visible diagnostic. Each launch receives a unique owned handoff path and the selected `KarpikEngineRoot`; normal exit returns to project selection, code `20` requires a strict validated request, all other non-zero codes stop, and handoff loops are bounded. The editor preflights version compatibility before mutating its active context, performs the complete old-project teardown before returning a prepared incompatible project, and propagates the Avalonia lifetime code from `int Main`. Payload validation now requires `editor/Karpik.Editor.dll`. Automated two-installation tests prove exact editor selection, normal exit, malformed handoff rejection, bounded restarts, recent deduplication, and corrupt-cache recovery. Fresh evidence is Tooling 40/40, Launcher 12/12, Packager 15/15, Editor 88/88 with one opt-in smoke skipped, and zero-warning launcher builds.
 
 ## Context and Orientation
 

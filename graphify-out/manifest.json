@@ -855,8 +855,8 @@
     "semantic_hash": "739b37a0ee6aa66875dcda6ef6d30e59"
   },
   "KarpikEngine.slnx": {
-    "mtime": 1784130821.2980347,
-    "ast_hash": "7c4ff9e595c527664560884bdefce99f",
+    "mtime": 1784376136.9429753,
+    "ast_hash": "d75588a45e3e1b2749abc3f794bf59b8",
     "semantic_hash": ""
   },
   "Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj": {
@@ -3405,8 +3405,8 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/MainWindow.axaml.cs": {
-    "mtime": 1784372043.9185557,
-    "ast_hash": "8081651e52e48363e4269f4da57e2766",
+    "mtime": 1784375878.2809193,
+    "ast_hash": "b3be0ced3dabaf02828865ff897103d3",
     "semantic_hash": ""
   },
   "Karpik.Editor/Models/BoundedLog.cs": {
@@ -3420,13 +3420,13 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Program.cs": {
-    "mtime": 1784312605.650936,
-    "ast_hash": "5aa5e95e1ba92960ada38dba9109f3a0",
+    "mtime": 1784376313.4483786,
+    "ast_hash": "86a83e8a9ab87e3eb110647ef182f916",
     "semantic_hash": ""
   },
   "Karpik.Editor/ViewModels/EditorShellViewModel.cs": {
-    "mtime": 1784370162.1079752,
-    "ast_hash": "4ea3df55c5e7f7e4fd55897ac05755b3",
+    "mtime": 1784375828.7501261,
+    "ast_hash": "bb810fb244db2c25b10ddc65a9d417cc",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ClientFrameMetricsTests.cs": {
@@ -3760,8 +3760,8 @@
     "semantic_hash": ""
   },
   "Karpik.Editor.Tests/Projects/ProjectSwitchCoordinatorTests.cs": {
-    "mtime": 1784368848.9025304,
-    "ast_hash": "94c08030dc81e0a340ac5df63757ab4a",
+    "mtime": 1784376784.0369856,
+    "ast_hash": "f1d0ab2e10660d5c356243ecda5935e9",
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ActiveProjectContext.cs": {
@@ -3780,8 +3780,8 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ProjectOpenResult.cs": {
-    "mtime": 1784227786.2224061,
-    "ast_hash": "edceda619590363a4e1777e5b62a452d",
+    "mtime": 1784375650.5549166,
+    "ast_hash": "9b6f8f755bb37ee9d203469d3b2affee",
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ProjectOpenService.cs": {
@@ -3790,8 +3790,8 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ProjectSwitchCoordinator.cs": {
-    "mtime": 1784370110.4655395,
-    "ast_hash": "e8bfe88aab022d2216fd30a66775a576",
+    "mtime": 1784376818.6513724,
+    "ast_hash": "4c02dda695bea2fc2b07bae1db1a427b",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.TestWorker/Karpik.Engine.Core.Runner.TestWorker.csproj": {
@@ -4070,13 +4070,13 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/ManifestAndValidationTests.cs": {
-    "mtime": 1784127969.3555684,
-    "ast_hash": "c2d082a389501771ec0cfb20183b7a2b",
+    "mtime": 1784375959.6980538,
+    "ast_hash": "15db3ee9c13117769e81fc0dfd8207b8",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/RequiredApiSurfaceTests.cs": {
-    "mtime": 1784097629.1569297,
-    "ast_hash": "c3e1fd41c8396bf09e397cb9836d8b94",
+    "mtime": 1784375157.7682354,
+    "ast_hash": "414a777a24e68eabae2dd6ec77df22cb",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/TestInstallation.cs": {
@@ -4100,8 +4100,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling/EngineInstallationValidator.cs": {
-    "mtime": 1784128043.1373708,
-    "ast_hash": "ed75f771d00c2dbeffa522e80af0c102",
+    "mtime": 1784375997.398987,
+    "ast_hash": "1df9f64ebb1290870c7c63e806727f82",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling/GlobalJsonSdkVersionReader.cs": {
@@ -4185,13 +4185,13 @@
     "semantic_hash": ""
   },
   "docs/04_Roadmap/kanban-versioned-sdk-external-projects.md": {
-    "mtime": 1784374708.7874012,
-    "ast_hash": "472cb43bd23ec1b291e301aa84308bba",
+    "mtime": 1784377228.8433478,
+    "ast_hash": "36a041399fca472f55e34c0571fe0077",
     "semantic_hash": ""
   },
   "plans/versioned-sdk-external-projects-execplan.md": {
-    "mtime": 1784374708.2478964,
-    "ast_hash": "5d401ecb4c0f166bf7fe8bea7f91a775",
+    "mtime": 1784377189.650437,
+    "ast_hash": "4588c6fd2c9bd51224ead98334880b54",
     "semantic_hash": ""
   },
   "templates/Karpik.Game/Source/KarpikGame.Client/Content/runtime.txt": {
@@ -4272,6 +4272,116 @@
   "plans/editor-console-copy-implementation.md": {
     "mtime": 1784372232.7584407,
     "ast_hash": "98f7a5da4caff809fd8cf6668dc8e269",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/EditorProcessExitContractTests.cs": {
+    "mtime": 1784376280.1074376,
+    "ast_hash": "149981d4f0b8e5423e9a34637db942b3",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/EditorHandoffShellTests.cs": {
+    "mtime": 1784375922.540273,
+    "ast_hash": "d3280542527ae8868f85b574e78cce6b",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/ProjectHandoffServiceTests.cs": {
+    "mtime": 1784375589.7580955,
+    "ast_hash": "c5b93199c891580f2dc599ef299cc3b5",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/Projects/ProjectHandoffService.cs": {
+    "mtime": 1784375692.3843155,
+    "ast_hash": "e0f3d2be74313bfb13adcfd2eaf4a214",
+    "semantic_hash": ""
+  },
+  "Karpik.Engine.Tooling.Tests/EditorHandoffRequestTests.cs": {
+    "mtime": 1784375157.2408075,
+    "ast_hash": "4f3b7016dc25ca460a6f40660a216842",
+    "semantic_hash": ""
+  },
+  "Karpik.Engine.Tooling/EditorExitCodes.cs": {
+    "mtime": 1784375201.1138978,
+    "ast_hash": "673abd57ad2659e403e474c3f2c0e1d3",
+    "semantic_hash": ""
+  },
+  "Karpik.Engine.Tooling/EditorHandoffRequest.cs": {
+    "mtime": 1784375201.5709982,
+    "ast_hash": "8e77c8f9ba66243130819fe3ca7ae420",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/EditorProcessHostTests.cs": {
+    "mtime": 1784376851.2739754,
+    "ast_hash": "b446433e1a8652168d7bebcbb0b5911e",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/EditorResolverTests.cs": {
+    "mtime": 1784375338.3589563,
+    "ast_hash": "36ffd4424b5cd76b4d29a9e9716f1e8f",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj": {
+    "mtime": 1784375336.9973216,
+    "ast_hash": "1c7214220992fe4fc915efc0148dd7da",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/LauncherViewModelTests.cs": {
+    "mtime": 1784377056.9302797,
+    "ast_hash": "054bbd28af2a715f25391c8f3d187f88",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/ProjectRegistryTests.cs": {
+    "mtime": 1784375337.8969078,
+    "ast_hash": "b58d3dbe484cbd5b3ada0518bbad17cf",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher.Tests/TestWorkspace.cs": {
+    "mtime": 1784375337.4455576,
+    "ast_hash": "cce1c7da35e38244e2ac864da8abf6f3",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/App.axaml.cs": {
+    "mtime": 1784376135.4929497,
+    "ast_hash": "02887ffe40764f83a3d607b62cc9a294",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Karpik.Launcher.csproj": {
+    "mtime": 1784376134.0831418,
+    "ast_hash": "027453bbe87ecc06d16a319def9452e9",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/MainWindow.axaml.cs": {
+    "mtime": 1784376136.4765136,
+    "ast_hash": "c4fd3162087ce992c8b0d4b817c13ff2",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Models/RecentProject.cs": {
+    "mtime": 1784375436.8047378,
+    "ast_hash": "223906efca8037fb276fd979cb92e6df",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Program.cs": {
+    "mtime": 1784376313.9888659,
+    "ast_hash": "8818c5e55af53419a986fcbafec0987a",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Services/EditorProcessHost.cs": {
+    "mtime": 1784376875.697003,
+    "ast_hash": "5c0de81aa34ef3efa8d7477de79df122",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Services/EditorResolver.cs": {
+    "mtime": 1784375438.2748716,
+    "ast_hash": "444cba30581aa4c51c103369a696aec7",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/Services/ProjectRegistry.cs": {
+    "mtime": 1784377090.086652,
+    "ast_hash": "ea0d5203540bd0e9ebd72dd5aed962c8",
+    "semantic_hash": ""
+  },
+  "Karpik.Launcher/ViewModels/LauncherViewModel.cs": {
+    "mtime": 1784376943.0417838,
+    "ast_hash": "011b5378c71d72e606679f4d1a53312b",
     "semantic_hash": ""
   }
 }

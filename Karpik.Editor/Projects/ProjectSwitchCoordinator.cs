@@ -24,6 +24,7 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
 {
     private readonly IProjectOpenService _projectOpenService;
     private readonly IActiveProjectPublisher _publisher;
+    private readonly IProjectHandoffService _handoffService;
     private readonly object _stateGate = new();
     private readonly SemaphoreSlim _commandGate = new(1, 1);
     private readonly SemaphoreSlim _disposeGate = new(1, 1);
@@ -38,11 +39,13 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
     public ProjectSwitchCoordinator(
         IProjectOpenService projectOpenService,
         IActiveProjectPublisher? publisher = null,
-        ActiveProjectContext? initialContext = null)
+        ActiveProjectContext? initialContext = null,
+        IProjectHandoffService? handoffService = null)
     {
         ArgumentNullException.ThrowIfNull(projectOpenService);
         _projectOpenService = projectOpenService;
         _publisher = publisher ?? NullActiveProjectPublisher.Instance;
+        _handoffService = handoffService ?? NullProjectHandoffService.Instance;
         _ownedContext = initialContext;
         _activeProject = initialContext;
         _commandsEnabled = initialContext is not null;
@@ -93,6 +96,12 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
         try
         {
             ThrowIfShutdownRequested();
+            ProjectHandoffResult handoff = _handoffService.Prepare(solutionPath);
+            if (handoff.Code == ProjectHandoffCode.Failure)
+            {
+                return ProjectOpenResult.Failure(handoff.Message);
+            }
+
             ActiveProjectContext? previous;
             lock (_stateGate)
             {
@@ -121,6 +130,11 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
                         _ownedContext = null;
                     }
                 }
+            }
+
+            if (handoff.Code == ProjectHandoffCode.Requested)
+            {
+                return ProjectOpenResult.HandoffRequested(handoff.Message);
             }
 
             var generation = new ProjectGeneration(Interlocked.Increment(ref _nextGeneration));

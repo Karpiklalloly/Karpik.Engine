@@ -108,6 +108,8 @@
   <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
   <Project Path="Karpik.Editor/Karpik.Editor.csproj" />
   <Project Path="Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
+  <Project Path="Karpik.Launcher/Karpik.Launcher.csproj" />
+  <Project Path="Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
   <Project Path="ServerLauncher/ServerLauncher.csproj" />

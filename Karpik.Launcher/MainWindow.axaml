@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewModels="clr-namespace:Karpik.Launcher.ViewModels"
+        x:Class="Karpik.Launcher.MainWindow"
+        x:DataType="viewModels:LauncherViewModel"
+        Title="Karpik Launcher"
+        Width="760"
+        Height="500"
+        MinWidth="620"
+        MinHeight="400">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="16">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel Spacing="4">
+        <TextBlock Text="KarpikEngine" FontSize="26" FontWeight="SemiBold" />
+        <TextBlock Text="Choose a game. The launcher will select its exact engine and editor version."
+                   Opacity="0.7"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+      <Button Grid.Column="1"
+              Content="Open project..."
+              Click="OpenProject_OnClick"
+              IsEnabled="{Binding !IsBusy}"
+              VerticalAlignment="Center" />
+    </Grid>
+
+    <Border Grid.Row="1" Background="#20242C" CornerRadius="8" Padding="12">
+      <Grid RowDefinitions="Auto,*" RowSpacing="8">
+        <TextBlock Text="Recent projects" FontWeight="SemiBold" />
+        <ListBox x:Name="RecentProjectsList"
+                 Grid.Row="1"
+                 ItemsSource="{Binding RecentProjects}"
+                 DoubleTapped="RecentProjects_OnDoubleTapped"
+                 IsEnabled="{Binding !IsBusy}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="*,Auto" Margin="6" ColumnSpacing="16">
+                <StackPanel>
+                  <TextBlock Text="{Binding SolutionPath}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding LastOpenedUtc}" FontSize="11" Opacity="0.55" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Content="Open"
+                        CommandParameter="{Binding SolutionPath}"
+                        Click="OpenRecent_OnClick" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <ProgressBar Grid.Column="1"
+                   Width="120"
+                   IsIndeterminate="True"
+                   IsVisible="{Binding IsBusy}" />
+    </Grid>
+  </Grid>
+</Window>

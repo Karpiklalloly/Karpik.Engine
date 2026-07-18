@@ -38,6 +38,70 @@ public sealed class ProjectSwitchCoordinatorTests
     }
 
     [Fact]
+    public async Task SwitchAsync_TearsDownOldContextThenReturnsHandoffWithoutOpeningCandidate()
+    {
+        var events = new List<string>();
+        var old = CreateContext("Old.slnx", new ProjectGeneration(1), new RecordingLifetime(events));
+        var opener = new FakeProjectOpenService(
+            events,
+            ProjectOpenResult.Failure("must not open"));
+        var handoff = new RecordingHandoffService(
+            events,
+            ProjectHandoffResult.Requested("Different SDK."));
+        await using var coordinator = new ProjectSwitchCoordinator(
+            opener,
+            initialContext: old,
+            handoffService: handoff);
+
+        ProjectOpenResult result = await coordinator.SwitchAsync(
+            Path.GetFullPath("New.slnx"),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.RequiresEditorHandoff);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(0, opener.OpenCount);
+        Assert.Equal(
+            [
+                "handoff",
+                "cancel-build",
+                "stop-clients",
+                "stop-server",
+                "dispose-services",
+                "save-workspace",
+                "dispose-context"
+            ],
+            events);
+    }
+
+    [Fact]
+    public async Task SwitchAsync_WhenHandoffPreparationFails_KeepsTheActiveProject()
+    {
+        var events = new List<string>();
+        var old = CreateContext("Old.slnx", new ProjectGeneration(1), new RecordingLifetime(events));
+        var opener = new FakeProjectOpenService(
+            events,
+            ProjectOpenResult.Failure("must not open"));
+        var handoff = new RecordingHandoffService(
+            events,
+            ProjectHandoffResult.Failure("handoff unavailable"));
+        await using var coordinator = new ProjectSwitchCoordinator(
+            opener,
+            initialContext: old,
+            handoffService: handoff);
+
+        ProjectOpenResult result = await coordinator.SwitchAsync(
+            Path.GetFullPath("Broken.slnx"),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(result.RequiresEditorHandoff);
+        Assert.Same(old, coordinator.ActiveProject);
+        Assert.True(coordinator.CommandsEnabled);
+        Assert.Equal(0, opener.OpenCount);
+        Assert.Equal(["handoff"], events);
+    }
+
+    [Fact]
     public async Task SwitchAsync_WhenTeardownFails_DoesNotOpenCandidateAndLeavesNoActiveProject()
     {
         var events = new List<string>();
@@ -444,6 +508,17 @@ public sealed class ProjectSwitchCoordinatorTests
         {
             events.Add("publish");
             return Exception is null ? Task.CompletedTask : Task.FromException(Exception);
+        }
+    }
+
+    private sealed class RecordingHandoffService(
+        List<string> events,
+        ProjectHandoffResult result) : IProjectHandoffService
+    {
+        public ProjectHandoffResult Prepare(string solutionPath)
+        {
+            events.Add("handoff");
+            return result;
         }
     }
 

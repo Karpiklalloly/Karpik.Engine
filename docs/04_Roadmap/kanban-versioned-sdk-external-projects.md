@@ -46,12 +46,13 @@ kanban-plugin: board
 - [x] **Сделать безопасное переключение одного проекта**
 	  - Порядок: cancel build → clients → server → IPC/watchers → workspace → dispose → open candidate.
 	  - Результат: старые PID, порты, файлы и snapshots не переходят в новый проект.
-- [ ] **Добавить стабильный `Karpik.Launcher`**
+- [x] **Добавить стабильный `Karpik.Launcher`**
 	  - Recent projects, чтение `global.json`, проверка installation manifest, запуск совместимого editor.
 	  - Результат: пользователь открывает `.slnx` через один launcher.
-- [ ] **Сделать cross-version handoff**
+- [x] **Сделать cross-version handoff**
 	  - Same-version switch остаётся в editor; incompatible switch возвращается в launcher через handoff и exit code `20`.
 	  - Результат: проекты на двух версиях SDK открываются правильными editor binaries.
+	  - Проверка: Tooling 40/40, Launcher 12/12, Packager 15/15, Editor 88/88; один внешний editor smoke остаётся opt-in.
 
 ## Миграция и приёмка
 

@@ -15,7 +15,9 @@ public sealed class RequiredApiSurfaceTests
             "Karpik.Engine.Tooling.GlobalJsonSdkVersionReader",
             "Karpik.Engine.Tooling.EngineInstallationResolver",
             "Karpik.Engine.Tooling.EngineInstallationValidator",
-            "Karpik.Engine.Tooling.AtomicDirectoryPublisher"
+            "Karpik.Engine.Tooling.AtomicDirectoryPublisher",
+            "Karpik.Engine.Tooling.EditorHandoffRequest",
+            "Karpik.Engine.Tooling.EditorExitCodes"
         ];
 
         foreach (string expectedType in expectedTypes)

@@ -137,9 +137,20 @@ public sealed class EngineInstallationValidator
                 return Failure(EngineInstallationValidationCode.MissingRunner, $"Missing {side} runner assembly: {runner}", manifest);
             }
         }
-        if (!Directory.EnumerateFiles(Path.Combine(root, "editor"), "*", SearchOption.TopDirectoryOnly).Any())
+        string editorAssembly = Path.Combine(root, "editor", "Karpik.Editor.dll");
+        if (!File.Exists(editorAssembly))
         {
-            return Failure(EngineInstallationValidationCode.MissingEditor, "The editor payload directory is empty.", manifest);
+            return Failure(
+                EngineInstallationValidationCode.MissingEditor,
+                $"The editor payload does not contain its managed entry point: {editorAssembly}",
+                manifest);
+        }
+        if (PathSafety.IsReparsePoint(editorAssembly))
+        {
+            return Failure(
+                EngineInstallationValidationCode.ReparsePoint,
+                $"The editor entry point is a link or reparse point: {editorAssembly}",
+                manifest);
         }
         if (!Directory.EnumerateFiles(Path.Combine(root, "sdk"), "*.nupkg", SearchOption.TopDirectoryOnly).Any())
         {

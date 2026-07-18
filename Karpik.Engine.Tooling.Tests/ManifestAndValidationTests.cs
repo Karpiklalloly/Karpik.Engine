@@ -181,6 +181,21 @@ public sealed class ManifestAndValidationTests
     }
 
     [Fact]
+    public void ValidatorRequiresTheManagedEditorEntryPointInsteadOfAnyEditorFile()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath);
+        File.Delete(Path.Combine(root, "editor", "Karpik.Editor.dll"));
+        File.WriteAllText(Path.Combine(root, "editor", "readme.txt"), "not an editor");
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingEditor, result.Code);
+    }
+
+    [Fact]
     public void ValidatorRejectsCorruptUnknownManifestAndHashMismatch()
     {
         using var temporary = new TemporaryDirectory();

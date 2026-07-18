@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -6,6 +8,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
+using Karpik.Engine.Tooling;
 
 namespace Karpik.Editor;
 
@@ -24,10 +27,10 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(EditorStartupOptions? startupOptions)
     {
-        InitializeComponent();
-        _viewModel = new EditorShellViewModel(WorkspaceStore.CreateDefault());
-        _layoutStore = DockLayoutStore.CreateDefault();
         _startupOptions = startupOptions ?? new EditorStartupOptions(null, null);
+        InitializeComponent();
+        _viewModel = new EditorShellViewModel(WorkspaceStore.CreateDefault(), _startupOptions);
+        _layoutStore = DockLayoutStore.CreateDefault();
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -41,7 +44,10 @@ public sealed partial class MainWindow : Window
             openSolution: string.IsNullOrWhiteSpace(_startupOptions.SolutionPath));
         if (!string.IsNullOrWhiteSpace(_startupOptions.SolutionPath))
         {
-            await TryOpenProjectAsync(_startupOptions.SolutionPath);
+            if (!await TryOpenProjectAsync(_startupOptions.SolutionPath))
+            {
+                return;
+            }
         }
         Width = Math.Max(MinWidth, workspace.WindowWidth);
         Height = Math.Max(MinHeight, workspace.WindowHeight);
@@ -91,22 +97,41 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task TryOpenProjectAsync(string solutionPath)
+    private async Task<bool> TryOpenProjectAsync(string solutionPath)
     {
         try
         {
             ProjectOpenResult result = await _viewModel.OpenProjectAsync(solutionPath);
+            if (result.RequiresEditorHandoff)
+            {
+                await ExitForHandoffAsync();
+                return false;
+            }
             if (!result.IsSuccess)
             {
                 _viewModel.Console.Add(string.Join(Environment.NewLine, result.Diagnostics));
             }
+            return true;
         }
         catch (Exception exception) when (exception is ArgumentException
                                           or IOException
                                           or UnauthorizedAccessException)
         {
             _viewModel.Console.Add($"Не удалось открыть проект: {exception.Message}");
+            return true;
         }
+    }
+
+    private async Task ExitForHandoffAsync()
+    {
+        await _viewModel.ShutdownAsync();
+        _closeConfirmed = true;
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown(EditorExitCodes.HandoffRequested);
+            return;
+        }
+        Close();
     }
 
     private void Exit_OnClick(object? sender, RoutedEventArgs e) => Close();

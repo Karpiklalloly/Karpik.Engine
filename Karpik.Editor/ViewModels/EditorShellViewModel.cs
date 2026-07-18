@@ -257,19 +257,40 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     public ReactiveCommand<Unit, Unit> PublishProjectCommand { get; }
 
     public EditorShellViewModel(WorkspaceStore workspaceStore)
-        : this(workspaceStore, CreateProjectOpenService(workspaceStore))
+        : this(workspaceStore, new EditorStartupOptions(null, null))
+    {
+    }
+
+    public EditorShellViewModel(
+        WorkspaceStore workspaceStore,
+        EditorStartupOptions startupOptions)
+        : this(
+            workspaceStore,
+            CreateProjectOpenService(workspaceStore),
+            CreateProjectHandoffService(startupOptions))
     {
     }
 
     public EditorShellViewModel(
         WorkspaceStore workspaceStore,
         IProjectOpenService projectOpenService)
+        : this(workspaceStore, projectOpenService, NullProjectHandoffService.Instance)
+    {
+    }
+
+    public EditorShellViewModel(
+        WorkspaceStore workspaceStore,
+        IProjectOpenService projectOpenService,
+        IProjectHandoffService handoffService)
         : this(workspaceStore, new UnavailableEditorBackendFactory())
     {
         EditorSessionManager? placeholder = _sessionManager;
         DetachSessionManager();
         placeholder?.Dispose();
-        _projectCoordinator = new ProjectSwitchCoordinator(projectOpenService, this);
+        _projectCoordinator = new ProjectSwitchCoordinator(
+            projectOpenService,
+            this,
+            handoffService: handoffService);
         _projectCoordinator.PropertyChanged += OnProjectCoordinatorPropertyChanged;
     }
 
@@ -342,6 +363,37 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         new ProjectOpenService(
             contextFactory: new ActiveProjectContextFactory(
                 (solution, runtime) => new EditorProjectLifetime(workspaceStore, solution, runtime)));
+
+    private static IProjectHandoffService CreateProjectHandoffService(EditorStartupOptions startupOptions)
+    {
+        ArgumentNullException.ThrowIfNull(startupOptions);
+        if (string.IsNullOrWhiteSpace(startupOptions.HandoffPath))
+        {
+            return NullProjectHandoffService.Instance;
+        }
+
+        string? engineRoot = Environment.GetEnvironmentVariable("KarpikEngineRoot");
+        if (string.IsNullOrWhiteSpace(engineRoot))
+        {
+            return new FailedProjectHandoffService(
+                "The launcher did not provide KarpikEngineRoot to the editor process.");
+        }
+        try
+        {
+            return new ProjectHandoffService(startupOptions.HandoffPath, engineRoot);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return new FailedProjectHandoffService(
+                $"Editor handoff configuration is invalid: {exception.Message}");
+        }
+    }
+
+    private sealed class FailedProjectHandoffService(string diagnostic) : IProjectHandoffService
+    {
+        public ProjectHandoffResult Prepare(string solutionPath) =>
+            ProjectHandoffResult.Failure(diagnostic);
+    }
 
     private sealed class UnavailableEditorBackendFactory : IEditorBackendFactory
     {
