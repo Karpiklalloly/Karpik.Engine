@@ -14,6 +14,20 @@
     <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
   </PropertyGroup>
 
+  <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(KarpikEngineRoot)' != '' And '$(KarpikProjectKind)' == 'Runtime'">
+    <ItemGroup>
+      <Reference Include="Dragon">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Dragon.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
+      <Reference Include="Karpik.Engine.Core">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
   <Target Name="ValidateKarpikProjectReferencesBeforeRestore"
           BeforeTargets="_GenerateRestoreProjectPathWalk"
           Condition="'$(DesignTimeBuild)' != 'true'">

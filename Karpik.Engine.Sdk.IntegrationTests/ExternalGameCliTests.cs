@@ -261,6 +261,7 @@ public sealed class ExternalGameCliTests
             AssertSuccess(build, "build the generated solution");
             AssertRuntimeBundles(validRoot, engineRoot);
             await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, engineRoot);
+            await AssertMultiWorkerEcsCycleAsync(validRoot, engineRoot);
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -586,6 +587,96 @@ public sealed class ExternalGameCliTests
         Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
             "Clean stop must remove all bundle-owned worker shadow directories.");
         Assert.Equal(engineBefore, SnapshotFiles(engineRoot));
+    }
+
+    private static async Task AssertMultiWorkerEcsCycleAsync(string gameRoot, string engineRoot)
+    {
+        string serverBundle = Path.Combine(
+            gameRoot, "Source", "KarpikGame.Server", "bin", "Debug", "net10.0", "karpik-bundle");
+        string clientBundle = Path.Combine(
+            gameRoot, "Source", "KarpikGame.Client", "bin", "Debug", "net10.0", "karpik-bundle");
+        string serverRunner = Path.Combine(
+            engineRoot, "runners", "server",
+            OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
+        string clientRunner = Path.Combine(
+            engineRoot, "runners", "client",
+            OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
+
+        Assert.True(File.Exists(serverRunner), $"Server runner is missing: {serverRunner}");
+        Assert.True(File.Exists(clientRunner), $"Client runner is missing: {clientRunner}");
+
+        var serverOutput = new ConcurrentQueue<string>();
+        using var server = new EditorPreviewController(
+            new RuntimeLaunchOptions(Side.Server, serverRunner, serverBundle, engineRoot));
+        server.OutputReceived += serverOutput.Enqueue;
+
+        using var client1 = new EditorPreviewController(
+            new RuntimeLaunchOptions(Side.Client, clientRunner, clientBundle, engineRoot));
+        using var client2 = new EditorPreviewController(
+            new RuntimeLaunchOptions(Side.Client, clientRunner, clientBundle, engineRoot));
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        try
+        {
+            await Task.WhenAll(
+                server.StartAsync(timeout.Token),
+                client1.StartAsync(timeout.Token),
+                client2.StartAsync(timeout.Token));
+
+            Assert.Equal(EditorPreviewState.Running, server.State);
+            Assert.Equal(EditorPreviewState.Running, client1.State);
+            Assert.Equal(EditorPreviewState.Running, client2.State);
+
+            EditorRuntimeSnapshot? snapshot = await server.RequestSnapshotAsync(
+                TimeSpan.FromSeconds(5), timeout.Token);
+            Assert.NotNull(snapshot);
+            Assert.True(snapshot.TotalEntityCount > 0,
+                $"Expected non-empty ECS world, got TotalEntityCount={snapshot.TotalEntityCount}{Environment.NewLine}" +
+                string.Join(Environment.NewLine, serverOutput));
+
+            int firstProcessId = Assert.IsType<int>(server.ProcessId);
+            await server.HotReloadAsync(timeout.Token);
+            int secondProcessId = Assert.IsType<int>(server.ProcessId);
+            Assert.NotEqual(firstProcessId, secondProcessId);
+
+            EditorRuntimeSnapshot? snapshotAfter = await server.RequestSnapshotAsync(
+                TimeSpan.FromSeconds(5), timeout.Token);
+            Assert.NotNull(snapshotAfter);
+            Assert.True(snapshotAfter.TotalEntityCount > 0,
+                $"Expected non-empty ECS world after hot reload.{Environment.NewLine}" +
+                string.Join(Environment.NewLine, serverOutput));
+
+            await Task.WhenAll(
+                server.StopAsync(timeout.Token),
+                client1.StopAsync(timeout.Token),
+                client2.StopAsync(timeout.Token));
+
+            Assert.Equal(EditorPreviewState.Stopped, server.State);
+            Assert.Equal(EditorPreviewState.Stopped, client1.State);
+            Assert.Equal(EditorPreviewState.Stopped, client2.State);
+            Assert.Null(server.ProcessId);
+            Assert.Null(client1.ProcessId);
+            Assert.Null(client2.ProcessId);
+
+            Assert.DoesNotContain(serverOutput,
+                line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            await Task.WhenAll(
+                TryStopAsync(server),
+                TryStopAsync(client1),
+                TryStopAsync(client2));
+        }
+
+        static async Task TryStopAsync(EditorPreviewController controller)
+        {
+            if (controller.State != EditorPreviewState.Stopped)
+            {
+                try { await controller.StopAsync(CancellationToken.None); } catch { }
+            }
+        }
     }
 
     private static string ResolveRetainedEngineRoot(string repositoryRoot)
