@@ -4,7 +4,7 @@ namespace Karpik.Editor;
 
 public sealed class EditorWorkspace
 {
-    public string? ProjectPath { get; init; }
+    public string? SolutionPath { get; init; }
     public double LeftPanelWidth { get; init; } = 300;
     public double BottomPanelHeight { get; init; } = 220;
     public double WindowWidth { get; init; } = 1400;

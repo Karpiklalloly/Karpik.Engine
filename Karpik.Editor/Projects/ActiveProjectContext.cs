@@ -1,3 +1,4 @@
+using Karpik.Engine.Core;
 using Karpik.Engine.ProjectModel;
 
 namespace Karpik.Editor;
@@ -14,6 +15,13 @@ public interface IActiveProjectLifetime : IAsyncDisposable
     Task StopServerAsync(CancellationToken cancellationToken);
     Task DisposeProjectServicesAsync(CancellationToken cancellationToken);
     Task SaveWorkspaceAsync(string solutionPath, CancellationToken cancellationToken);
+}
+
+public interface IEditorProjectLifetime : IActiveProjectLifetime
+{
+    EditorSessionManager SessionManager { get; }
+    Task BuildAsync(Action<string> output, CancellationToken cancellationToken);
+    Task PublishAsync(Action<string> output, CancellationToken cancellationToken);
 }
 
 public sealed class NullActiveProjectLifetime : IActiveProjectLifetime
@@ -64,6 +72,15 @@ public sealed class ActiveProjectContext : IAsyncDisposable
     public ProjectRuntimeDescriptor Runtime { get; }
     public ProjectGeneration Generation { get; }
     public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
+    internal EditorSessionManager? SessionManager =>
+        (_lifetime as IEditorProjectLifetime)?.SessionManager;
+
+    internal Task BuildAsync(Action<string> output, CancellationToken cancellationToken) =>
+        GetEditorLifetime().BuildAsync(output, cancellationToken);
+
+    internal Task PublishAsync(Action<string> output, CancellationToken cancellationToken) =>
+        GetEditorLifetime().PublishAsync(output, cancellationToken);
 
     internal Task CancelActiveBuildAsync(CancellationToken cancellationToken) =>
         _lifetime.CancelActiveBuildAsync(cancellationToken);
@@ -116,6 +133,10 @@ public sealed class ActiveProjectContext : IAsyncDisposable
         }
         return fullPath;
     }
+
+    private IEditorProjectLifetime GetEditorLifetime() =>
+        _lifetime as IEditorProjectLifetime
+        ?? throw new InvalidOperationException("The active context has no editor project services.");
 
     private static ProjectRuntimeDescriptor NormalizeRuntime(ProjectRuntimeDescriptor runtime) =>
         runtime with

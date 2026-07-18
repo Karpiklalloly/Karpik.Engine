@@ -1,5 +1,9 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Reactive;
+using System.Reactive.Linq;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using Karpik.Engine.Core;
 using ReactiveUI;
@@ -185,18 +189,30 @@ public sealed class SessionsViewModel : ReactiveObject
     }
 }
 
-public sealed class EditorShellViewModel : ReactiveObject, IDisposable
+public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveProjectPublisher
 {
     private readonly WorkspaceStore _workspaceStore;
-    private readonly EditorSessionManager _sessionManager;
+    private EditorSessionManager? _sessionManager;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _pendingOutputGate = new();
     private readonly Queue<string> _pendingOutput = new(2_000);
+    private ProjectSwitchCoordinator? _projectCoordinator;
+    private SessionCommandBinding? _attachedSessionBinding;
+    private Action<EditorSession>? _sessionAddedHandler;
+    private Action<EditorSession?>? _selectionChangedHandler;
+    private Action<EditorSession, EditorPreviewState>? _sessionStateChangedHandler;
+    private Action<EditorSession, string>? _sessionOutputHandler;
+    private Action<Exception>? _backgroundOperationFailedHandler;
     private string? _projectPath;
     private string _status = "Проект не открыт";
     private Task? _snapshotLoop;
+    private ProjectGeneration _snapshotGeneration;
     private bool _outputDrainScheduled;
     private bool _disposed;
+    private bool _shutdownCompleted;
+
+    private EditorSessionManager SessionManager => _sessionManager
+        ?? throw new InvalidOperationException("No active project session manager is available.");
 
     public HierarchyViewModel Hierarchy { get; } = new();
     public ProjectViewModel Project { get; } = new();
@@ -221,39 +237,47 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
     {
         get
         {
-            EditorSession? server = _sessionManager.Sessions.FirstOrDefault(session => session.Side == Side.Server);
+            EditorSession? server = _sessionManager?.Sessions.FirstOrDefault(session => session.Side == Side.Server);
             return ProjectPath is not null
                    && server?.State is not (EditorPreviewState.Starting
-                       or EditorPreviewState.Running
-                       or EditorPreviewState.Stopping);
+                          or EditorPreviewState.Running
+                          or EditorPreviewState.Stopping);
         }
     }
 
-    public bool CanAddClient => ProjectPath is not null && _sessionManager.CanAddClient;
-    public bool CanStopAll => _sessionManager.Sessions.Any(session => session.State != EditorPreviewState.Stopped);
+    public bool CanAddClient => ProjectPath is not null && _sessionManager?.CanAddClient == true;
+    public bool CanStopAll => _sessionManager?.Sessions.Any(session => session.State != EditorPreviewState.Stopped) == true;
+    public bool CanBuild => ProjectPath is not null;
+    public bool CanPublish => ProjectPath is not null;
 
     public ReactiveCommand<Unit, Unit> StartServerCommand { get; }
     public ReactiveCommand<Unit, Unit> AddClientCommand { get; }
     public ReactiveCommand<Unit, Unit> StopAllCommand { get; }
+    public ReactiveCommand<Unit, Unit> BuildProjectCommand { get; }
+    public ReactiveCommand<Unit, Unit> PublishProjectCommand { get; }
 
     public EditorShellViewModel(WorkspaceStore workspaceStore)
-        : this(
-            workspaceStore,
-            new EditorPreviewBackendFactory(new RuntimeBundleResolver(AppContext.BaseDirectory)))
+        : this(workspaceStore, CreateProjectOpenService(workspaceStore))
     {
+    }
+
+    public EditorShellViewModel(
+        WorkspaceStore workspaceStore,
+        IProjectOpenService projectOpenService)
+        : this(workspaceStore, new UnavailableEditorBackendFactory())
+    {
+        EditorSessionManager? placeholder = _sessionManager;
+        DetachSessionManager();
+        placeholder?.Dispose();
+        _projectCoordinator = new ProjectSwitchCoordinator(projectOpenService, this);
+        _projectCoordinator.PropertyChanged += OnProjectCoordinatorPropertyChanged;
     }
 
     internal EditorShellViewModel(WorkspaceStore workspaceStore, IEditorBackendFactory backendFactory)
     {
         _workspaceStore = workspaceStore;
-        _sessionManager = new EditorSessionManager(backendFactory);
         Sessions = new SessionsViewModel(SelectSession);
-
-        _sessionManager.SessionAdded += OnSessionAdded;
-        _sessionManager.SelectionChanged += OnSelectionChanged;
-        _sessionManager.SessionStateChanged += OnSessionStateChanged;
-        _sessionManager.OutputReceived += OnSessionOutput;
-        _sessionManager.BackgroundOperationFailed += OnBackgroundOperationFailed;
+        AttachSessionManager(new EditorSessionManager(backendFactory), default);
 
         Hierarchy.WhenAnyValue(x => x.SelectedEntity)
             .Subscribe(entity => Inspector.Components = entity?.Components ?? []);
@@ -261,38 +285,148 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         StartServerCommand = ReactiveCommand.CreateFromTask(StartServerAsync);
         AddClientCommand = ReactiveCommand.CreateFromTask(AddClientAsync);
         StopAllCommand = ReactiveCommand.CreateFromTask(StopAllAsync);
+        BuildProjectCommand = ReactiveCommand.CreateFromTask(BuildProjectAsync);
+        PublishProjectCommand = ReactiveCommand.CreateFromTask(PublishProjectAsync);
     }
 
-    public async Task<EditorWorkspace> RestoreAsync(CancellationToken cancellationToken = default)
+    public async Task<ProjectOpenResult> OpenProjectAsync(
+        string solutionPath,
+        CancellationToken cancellationToken = default)
+    {
+        string fullPath = Path.GetFullPath(solutionPath);
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException("Solution file not found", fullPath);
+        }
+
+        ProjectSwitchCoordinator coordinator = _projectCoordinator
+            ?? throw new InvalidOperationException("Project opening is unavailable in this editor shell instance.");
+        ProjectOpenResult result = await coordinator.SwitchAsync(fullPath, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            Status = string.Join(Environment.NewLine, result.Diagnostics);
+        }
+        return result;
+    }
+
+    public async Task<EditorWorkspace> RestoreAsync(
+        bool openSolution = true,
+        CancellationToken cancellationToken = default)
     {
         EditorWorkspace workspace = await _workspaceStore.LoadAsync(cancellationToken);
-        if (workspace.ProjectPath is { } path && Directory.Exists(path))
+        if (openSolution && workspace.SolutionPath is { } path && File.Exists(path))
         {
-            OpenProject(path);
+            await OpenProjectAsync(path, cancellationToken);
         }
 
         return workspace;
     }
 
-    public void OpenProject(string path)
+    public Task PublishAsync(
+        ActiveProjectContext context,
+        CancellationToken cancellationToken)
     {
-        string fullPath = Path.GetFullPath(path);
-        if (!Directory.Exists(fullPath))
-        {
-            throw new DirectoryNotFoundException(fullPath);
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        EditorSessionManager sessionManager = context.SessionManager
+            ?? throw new InvalidOperationException("The active project candidate has no editor services.");
+        AttachSessionManager(sessionManager, context.Generation);
+        ProjectPath = context.SolutionPath;
+        Project.Path = context.SolutionPath;
+        Status = $"Открыт проект: {Path.GetFileName(context.SolutionPath)}";
+        Console.Add($"[{DateTime.Now:HH:mm:ss}] Открыт проект {context.SolutionPath}");
+        RaiseCommandState();
+        return Task.CompletedTask;
+    }
 
-        ProjectPath = fullPath;
-        Project.Path = fullPath;
-        Status = $"Открыт проект: {Path.GetFileName(fullPath)}";
-        Console.Add($"[{DateTime.Now:HH:mm:ss}] Открыт проект {fullPath}");
+    private static IProjectOpenService CreateProjectOpenService(WorkspaceStore workspaceStore) =>
+        new ProjectOpenService(
+            contextFactory: new ActiveProjectContextFactory(
+                (solution, runtime) => new EditorProjectLifetime(workspaceStore, solution, runtime)));
+
+    private sealed class UnavailableEditorBackendFactory : IEditorBackendFactory
+    {
+        public IEditorBackend Create(Side side) =>
+            throw new InvalidOperationException("No active project runtime is available.");
+    }
+
+    private void AttachSessionManager(
+        EditorSessionManager sessionManager,
+        ProjectGeneration generation)
+    {
+        ArgumentNullException.ThrowIfNull(sessionManager);
+        if (ReferenceEquals(_sessionManager, sessionManager))
+        {
+            return;
+        }
+        DetachSessionManager();
+        _sessionManager = sessionManager;
+        var binding = new SessionCommandBinding(sessionManager, generation);
+        _attachedSessionBinding = binding;
+        _sessionAddedHandler = session => OnSessionAdded(binding, session);
+        _selectionChangedHandler = session => OnSelectionChanged(binding, session);
+        _sessionStateChangedHandler = (session, state) =>
+            OnSessionStateChanged(binding, session, state);
+        _sessionOutputHandler = (session, line) => OnSessionOutput(binding, session, line);
+        _backgroundOperationFailedHandler = exception =>
+            OnBackgroundOperationFailed(binding, exception);
+        sessionManager.SessionAdded += _sessionAddedHandler;
+        sessionManager.SelectionChanged += _selectionChangedHandler;
+        sessionManager.SessionStateChanged += _sessionStateChangedHandler;
+        sessionManager.OutputReceived += _sessionOutputHandler;
+        sessionManager.BackgroundOperationFailed += _backgroundOperationFailedHandler;
+        Sessions.Items.Clear();
+        Sessions.SelectFromManager(null);
+    }
+
+    private void DetachSessionManager()
+    {
+        if (_sessionManager is null)
+        {
+            return;
+        }
+        _sessionManager.SessionAdded -= _sessionAddedHandler;
+        _sessionManager.SelectionChanged -= _selectionChangedHandler;
+        _sessionManager.SessionStateChanged -= _sessionStateChangedHandler;
+        _sessionManager.OutputReceived -= _sessionOutputHandler;
+        _sessionManager.BackgroundOperationFailed -= _backgroundOperationFailedHandler;
+        _sessionManager = null;
+        _attachedSessionBinding = null;
+        _sessionAddedHandler = null;
+        _selectionChangedHandler = null;
+        _sessionStateChangedHandler = null;
+        _sessionOutputHandler = null;
+        _backgroundOperationFailedHandler = null;
+    }
+
+    private void OnProjectCoordinatorPropertyChanged(
+        object? sender,
+        PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(ProjectSwitchCoordinator.ActiveProject)
+            && _projectCoordinator?.ActiveProject is null)
+        {
+            ClearPublishedProject();
+        }
+    }
+
+    private void ClearPublishedProject()
+    {
+        DetachSessionManager();
+        ProjectPath = null;
+        Project.Path = null;
+        Sessions.Items.Clear();
+        Sessions.SelectFromManager(null);
+        Hierarchy.SelectedEntity = null;
+        Hierarchy.Entities.Clear();
+        Inspector.Components = [];
+        Preview.Message = "Проект не открыт.";
         RaiseCommandState();
     }
 
     public Task SaveWorkspaceAsync(double windowWidth, double windowHeight, double leftWidth, double bottomHeight) =>
         _workspaceStore.SaveAsync(new EditorWorkspace
         {
-            ProjectPath = ProjectPath,
+            SolutionPath = ProjectPath,
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,
             LeftPanelWidth = leftWidth,
@@ -303,8 +437,9 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
     {
         try
         {
-            await _sessionManager.StartServerAsync(_lifetime.Token);
-            EnsureSnapshotLoop();
+            SessionCommandBinding binding = await ExecuteSessionCommandAsync(
+                static (manager, token) => manager.StartServerAsync(token));
+            EnsureSnapshotLoop(binding);
         }
         catch (Exception ex)
         {
@@ -316,8 +451,9 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
     {
         try
         {
-            await _sessionManager.AddClientAsync(_lifetime.Token);
-            EnsureSnapshotLoop();
+            SessionCommandBinding binding = await ExecuteSessionCommandAsync(
+                static (manager, token) => manager.AddClientAsync(token));
+            EnsureSnapshotLoop(binding);
         }
         catch (Exception ex)
         {
@@ -329,7 +465,8 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
     {
         try
         {
-            await _sessionManager.StopAllAsync(_lifetime.Token);
+            await ExecuteSessionCommandAsync(
+                static (manager, token) => manager.StopAllAsync(token));
         }
         catch (Exception ex)
         {
@@ -337,11 +474,117 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         }
     }
 
+    private async Task BuildProjectAsync()
+    {
+        ProjectSwitchCoordinator? coordinator = _projectCoordinator;
+        ActiveProjectContext? active = coordinator?.ActiveProject;
+        if (coordinator is null || active is null)
+        {
+            return;
+        }
+        ProjectGeneration generation = active.Generation;
+        try
+        {
+            EnqueueOutput($"Начинаю сборку: {Path.GetFileName(active.SolutionPath)}");
+            Status = "Сборка...";
+            await coordinator.ExecuteCommandAsync(
+                generation,
+                (context, token) => context.BuildAsync(
+                    line => AcceptProjectOutput(generation, line),
+                    token),
+                _lifetime.Token);
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput("Сборка завершена успешно");
+            Status = "Сборка успешна";
+        }
+        catch (OperationCanceledException)
+        {
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput("Сборка отменена");
+            Status = "Отменено";
+        }
+        catch (Exception ex)
+        {
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput($"Ошибка сборки: {ex.Message}");
+            Status = "Ошибка сборки";
+        }
+    }
+
+    private async Task PublishProjectAsync()
+    {
+        ProjectSwitchCoordinator? coordinator = _projectCoordinator;
+        ActiveProjectContext? active = coordinator?.ActiveProject;
+        if (coordinator is null || active is null)
+        {
+            return;
+        }
+        ProjectGeneration generation = active.Generation;
+        try
+        {
+            EnqueueOutput($"Начинаю публикацию: {Path.GetFileName(active.SolutionPath)}");
+            Status = "Публикация...";
+            await coordinator.ExecuteCommandAsync(
+                generation,
+                (context, token) => context.PublishAsync(
+                    line => AcceptProjectOutput(generation, line),
+                    token),
+                _lifetime.Token);
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput("Публикация завершена");
+            Status = "Публикация завершена";
+        }
+        catch (OperationCanceledException)
+        {
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput("Публикация отменена");
+            Status = "Отменено";
+        }
+        catch (Exception ex)
+        {
+            if (!coordinator.TryAcceptOutput(generation))
+            {
+                return;
+            }
+            EnqueueOutput($"Ошибка публикации: {ex.Message}");
+            Status = "Ошибка публикации";
+        }
+    }
+
+    private void AcceptProjectOutput(ProjectGeneration generation, string line)
+    {
+        if (_projectCoordinator?.TryAcceptOutput(generation) == true)
+        {
+            EnqueueOutput(line);
+        }
+    }
+
     private async Task StopSessionAsync(EditorSession session)
     {
         try
         {
-            await _sessionManager.StopSessionAsync(session, _lifetime.Token);
+            await ExecuteSessionCommandAsync(
+                (manager, token) => ExecuteForOwnedSessionAsync(
+                    manager,
+                    session,
+                    static (ownedManager, ownedSession, ownedToken) =>
+                        ownedManager.StopSessionAsync(ownedSession, ownedToken),
+                    token));
         }
         catch (Exception ex)
         {
@@ -353,7 +596,14 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
     {
         try
         {
-            await _sessionManager.RestartSessionAsync(session, _lifetime.Token);
+            SessionCommandBinding binding = await ExecuteSessionCommandAsync(
+                (manager, token) => ExecuteForOwnedSessionAsync(
+                    manager,
+                    session,
+                    static (ownedManager, ownedSession, ownedToken) =>
+                        ownedManager.RestartSessionAsync(ownedSession, ownedToken),
+                    token));
+            EnsureSnapshotLoop(binding);
         }
         catch (Exception ex)
         {
@@ -361,14 +611,21 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private async Task PollSnapshotsAsync(CancellationToken cancellationToken)
+    private async Task PollSnapshotsAsync(
+        SessionCommandBinding binding,
+        CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                EditorSession? requestedSession = _sessionManager.SelectedSession;
+                if (!IsCurrentBinding(binding))
+                {
+                    return;
+                }
+
+                EditorSession? requestedSession = binding.Manager.SelectedSession;
                 if (requestedSession?.State != EditorPreviewState.Running)
                 {
                     continue;
@@ -377,7 +634,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
                 EditorRuntimeSnapshot? snapshot;
                 try
                 {
-                    snapshot = await _sessionManager.RequestSelectedSnapshotAsync(
+                    snapshot = await binding.Manager.RequestSelectedSnapshotAsync(
                         TimeSpan.FromMilliseconds(200),
                         cancellationToken);
                 }
@@ -387,6 +644,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
                 }
                 catch (Exception ex)
                 {
+                    if (!IsCurrentBinding(binding))
+                    {
+                        return;
+                    }
                     EnqueueOutput($"[{requestedSession.Name}] Не удалось получить ECS snapshot: {ex.Message}");
                     continue;
                 }
@@ -395,7 +656,8 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
                 {
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (ReferenceEquals(requestedSession, _sessionManager.SelectedSession))
+                        if (IsCurrentBinding(binding)
+                            && ReferenceEquals(requestedSession, binding.Manager.SelectedSession))
                         {
                             ApplySnapshot(snapshot);
                         }
@@ -408,13 +670,71 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         }
     }
 
-    private void EnsureSnapshotLoop()
+    private void EnsureSnapshotLoop(SessionCommandBinding binding)
     {
-        if (_snapshotLoop is null || _snapshotLoop.IsCompleted)
+        if (_snapshotLoop is null
+            || _snapshotLoop.IsCompleted
+            || _snapshotGeneration != binding.Generation)
         {
-            _snapshotLoop = PollSnapshotsAsync(_lifetime.Token);
+            _snapshotGeneration = binding.Generation;
+            _snapshotLoop = PollSnapshotsAsync(binding, _lifetime.Token);
         }
     }
+
+    private async Task<SessionCommandBinding> ExecuteSessionCommandAsync(
+        Func<EditorSessionManager, CancellationToken, Task> command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ProjectSwitchCoordinator coordinator = _projectCoordinator
+            ?? throw new InvalidOperationException("No active project coordinator is available.");
+        ActiveProjectContext active = coordinator.ActiveProject
+            ?? throw new InvalidOperationException("No active project is available.");
+        ProjectGeneration generation = active.Generation;
+        EditorSessionManager? manager = null;
+        await coordinator.ExecuteCommandAsync(
+            generation,
+            async (context, token) =>
+            {
+                manager = context.SessionManager
+                    ?? throw new InvalidOperationException(
+                        "The active project has no editor session services.");
+                await command(manager, token);
+            },
+            _lifetime.Token);
+        return new SessionCommandBinding(
+            manager ?? throw new InvalidOperationException(
+                "The project command did not acquire session services."),
+            generation);
+    }
+
+    private static Task ExecuteForOwnedSessionAsync(
+        EditorSessionManager manager,
+        EditorSession session,
+        Func<EditorSessionManager, EditorSession, CancellationToken, Task> command,
+        CancellationToken cancellationToken)
+    {
+        if (!manager.Sessions.Contains(session))
+        {
+            throw new InvalidOperationException("The session belongs to a stale project generation.");
+        }
+        return command(manager, session, cancellationToken);
+    }
+
+    private bool IsCurrentBinding(SessionCommandBinding binding)
+    {
+        if (!ReferenceEquals(_sessionManager, binding.Manager)
+            || _attachedSessionBinding != binding)
+        {
+            return false;
+        }
+        return _projectCoordinator is null
+            ? !binding.Generation.IsValid
+            : _projectCoordinator.TryAcceptOutput(binding.Generation);
+    }
+
+    private readonly record struct SessionCommandBinding(
+        EditorSessionManager Manager,
+        ProjectGeneration Generation);
 
     private void ApplySnapshot(EditorRuntimeSnapshot snapshot)
     {
@@ -439,25 +759,49 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
 
     private void SelectSession(SessionItemViewModel item)
     {
-        _sessionManager.SelectSession(item.Session);
+        EditorSessionManager manager = SessionManager;
+        if (!manager.Sessions.Contains(item.Session))
+        {
+            return;
+        }
+        manager.SelectSession(item.Session);
         ClearSnapshot(item.Session);
     }
 
-    private void OnSessionAdded(EditorSession session) => Dispatcher.UIThread.Post(() =>
+    private void OnSessionAdded(
+        SessionCommandBinding binding,
+        EditorSession session) => Dispatcher.UIThread.Post(() =>
     {
+        if (!IsCurrentBinding(binding))
+        {
+            return;
+        }
         Sessions.Items.Add(new SessionItemViewModel(session, StopSessionAsync, RestartSessionAsync));
         RefreshSessions();
     });
 
-    private void OnSelectionChanged(EditorSession? session) => Dispatcher.UIThread.Post(() =>
+    private void OnSelectionChanged(
+        SessionCommandBinding binding,
+        EditorSession? session) => Dispatcher.UIThread.Post(() =>
     {
+        if (!IsCurrentBinding(binding))
+        {
+            return;
+        }
         Sessions.SelectFromManager(session);
         ClearSnapshot(session);
     });
 
-    private void OnSessionStateChanged(EditorSession session, EditorPreviewState state) =>
+    private void OnSessionStateChanged(
+        SessionCommandBinding binding,
+        EditorSession session,
+        EditorPreviewState state) =>
         Dispatcher.UIThread.Post(() =>
         {
+            if (!IsCurrentBinding(binding))
+            {
+                return;
+            }
             RefreshSessions();
             Status = state switch
             {
@@ -468,15 +812,33 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
                 _ => $"{session.Name}: остановлен"
             };
 
-            if (ReferenceEquals(session, _sessionManager.SelectedSession)
+            if (ReferenceEquals(session, binding.Manager.SelectedSession)
                 && state != EditorPreviewState.Running)
             {
                 ClearSnapshot(session);
             }
         });
 
-    private void OnSessionOutput(EditorSession session, string line) =>
-        EnqueueOutput($"[{session.Name}] {line}");
+    private void OnSessionOutput(
+        SessionCommandBinding binding,
+        EditorSession session,
+        string line)
+    {
+        if (IsCurrentBinding(binding))
+        {
+            EnqueueOutput($"[{session.Name}] {line}");
+        }
+    }
+
+    private void OnBackgroundOperationFailed(
+        SessionCommandBinding binding,
+        Exception exception)
+    {
+        if (IsCurrentBinding(binding))
+        {
+            OnBackgroundOperationFailed(exception);
+        }
+    }
 
     private void OnBackgroundOperationFailed(Exception exception) =>
         EnqueueOutput($"Ошибка фоновой операции: {exception.Message}");
@@ -507,7 +869,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         foreach (SessionItemViewModel item in Sessions.Items)
         {
             bool canRestart = item.Session.State is EditorPreviewState.Stopped or EditorPreviewState.Faulted
-                              && (item.Session.Side == Side.Server || _sessionManager.CanAddClient);
+                              && (item.Session.Side == Side.Server || SessionManager.CanAddClient);
             item.Refresh(canRestart);
         }
 
@@ -549,20 +911,34 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
         this.RaisePropertyChanged(nameof(CanStartServer));
         this.RaisePropertyChanged(nameof(CanAddClient));
         this.RaisePropertyChanged(nameof(CanStopAll));
+        this.RaisePropertyChanged(nameof(CanBuild));
+        this.RaisePropertyChanged(nameof(CanPublish));
     }
 
     public async Task ShutdownAsync()
     {
+        if (_shutdownCompleted)
+        {
+            return;
+        }
         _lifetime.Cancel();
         try
         {
-            await _sessionManager.StopAllAsync(CancellationToken.None);
+            if (_projectCoordinator is not null)
+            {
+                await _projectCoordinator.DisposeAsync();
+            }
+            else if (_sessionManager is not null)
+            {
+                await _sessionManager.StopAllAsync(CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
             EnqueueOutput($"Ошибка при завершении сессий: {ex.Message}");
+            throw;
         }
-
+        _shutdownCompleted = true;
         Dispose();
     }
 
@@ -573,14 +949,22 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable
             return;
         }
 
+        if (!_shutdownCompleted && _projectCoordinator is not null)
+        {
+            _lifetime.Cancel();
+            _projectCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _shutdownCompleted = true;
+        }
+
         _disposed = true;
         _lifetime.Cancel();
-        _sessionManager.SessionAdded -= OnSessionAdded;
-        _sessionManager.SelectionChanged -= OnSelectionChanged;
-        _sessionManager.SessionStateChanged -= OnSessionStateChanged;
-        _sessionManager.OutputReceived -= OnSessionOutput;
-        _sessionManager.BackgroundOperationFailed -= OnBackgroundOperationFailed;
-        _sessionManager.Dispose();
+        if (_projectCoordinator is not null)
+        {
+            _projectCoordinator.PropertyChanged -= OnProjectCoordinatorPropertyChanged;
+        }
+        EditorSessionManager? sessionManager = _sessionManager;
+        DetachSessionManager();
+        sessionManager?.Dispose();
         _lifetime.Dispose();
     }
 }

@@ -1,4 +1,5 @@
 using Karpik.Engine.Core;
+using Karpik.Engine.ProjectModel;
 using Xunit;
 
 namespace Karpik.Editor.Tests;
@@ -27,7 +28,7 @@ public sealed class PreviewIntegrationTests
             "runtimes",
             "client",
             workerName);
-        using var controller = new EditorPreviewController(Side.Client, workerPath);
+        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Client, workerPath, Path.GetTempPath()));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
 
         try
@@ -59,7 +60,7 @@ public sealed class PreviewIntegrationTests
         string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         string editorOutput = Path.Combine(repositoryRoot, "Karpik.Editor", "bin", "Debug", "net10.0");
         using var manager = new EditorSessionManager(
-            new EditorPreviewBackendFactory(new RuntimeBundleResolver(editorOutput)));
+            new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(editorOutput))));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var output = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var serverConnectionCount = 0;
@@ -124,5 +125,18 @@ public sealed class PreviewIntegrationTests
         {
             await manager.StopAllAsync(CancellationToken.None);
         }
+    }
+
+    private static ProjectRuntimeDescriptor CreateRuntimeDescriptor(string engineRoot)
+    {
+        string runnerName = OperatingSystem.IsWindows()
+            ? "Karpik.Engine.Core.Runner.exe"
+            : "Karpik.Engine.Core.Runner";
+        return new ProjectRuntimeDescriptor(
+            engineRoot,
+            Path.Combine(engineRoot, "runtimes", "client", "karpik-bundle"),
+            Path.Combine(engineRoot, "runtimes", "server", "karpik-bundle"),
+            Path.Combine(engineRoot, "runtimes", "client", runnerName),
+            Path.Combine(engineRoot, "runtimes", "server", runnerName));
     }
 }

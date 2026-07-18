@@ -800,8 +800,19 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
 
 public sealed class SystemMsBuildProcessFactory : IMsBuildProcessFactory
 {
-    public IMsBuildProcess Start(ProcessStartInfo startInfo) =>
-        new SystemMsBuildProcess(startInfo);
+    public IMsBuildProcess Start(ProcessStartInfo startInfo)
+    {
+        if (startInfo.RedirectStandardOutput)
+        {
+            startInfo.StandardOutputEncoding ??= Encoding.UTF8;
+        }
+        if (startInfo.RedirectStandardError)
+        {
+            startInfo.StandardErrorEncoding ??= Encoding.UTF8;
+        }
+
+        return new SystemMsBuildProcess(startInfo);
+    }
 }
 
 internal sealed class SystemMsBuildProcess : IMsBuildProcess
@@ -844,19 +855,35 @@ internal sealed class SystemMsBuildProcess : IMsBuildProcess
     {
         var builder = new StringBuilder(Math.Min(maximumCharacters, 4096));
         char[] buffer = new char[4096];
+        bool exceededLimit = false;
         while (true)
         {
             int read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken);
             if (read == 0)
             {
+                if (exceededLimit)
+                {
+                    throw new InvalidDataException(
+                        $"MSBuild process output exceeded {maximumCharacters} characters.");
+                }
                 return builder.ToString();
             }
-            if (builder.Length > maximumCharacters - read)
+
+            if (exceededLimit)
             {
-                throw new InvalidDataException(
-                    $"MSBuild process output exceeded {maximumCharacters} characters.");
+                continue;
             }
-            builder.Append(buffer, 0, read);
+
+            int remaining = maximumCharacters - builder.Length;
+            if (read > remaining)
+            {
+                builder.Append(buffer, 0, remaining);
+                exceededLimit = true;
+            }
+            else
+            {
+                builder.Append(buffer, 0, read);
+            }
         }
     }
 }

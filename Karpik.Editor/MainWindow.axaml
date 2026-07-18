@@ -73,7 +73,28 @@
     <DataTemplate DataType="local:ConsoleViewModel">
       <Grid RowDefinitions="Auto,*" Margin="6">
         <Button Content="Очистить" Command="{Binding ClearCommand}" HorizontalAlignment="Right" Margin="0,0,0,6" />
-        <ListBox Grid.Row="1" ItemsSource="{Binding Entries}" FontFamily="Consolas" FontSize="12" />
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding Entries}"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 SelectionMode="Single"
+                 KeyDown="ConsoleLog_OnKeyDown">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Padding="4,2"
+                      PointerPressed="ConsoleMessage_OnPointerPressed">
+                <Border.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="Копировать"
+                              CommandParameter="{Binding}"
+                              Click="CopyConsoleMessage_OnClick" />
+                  </ContextMenu>
+                </Border.ContextMenu>
+                <TextBlock Text="{Binding}" />
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:PreviewViewModel">
@@ -97,17 +118,22 @@
         <MenuItem Header="Запустить сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
         <MenuItem Header="Добавить клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
         <Separator />
+        <MenuItem Header="Собрать проект" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
+        <MenuItem Header="Опубликовать проект" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
+        <Separator />
         <MenuItem Header="Остановить все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
       </MenuItem>
     </Menu>
 
     <Border Grid.Row="1" Background="#252A33" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
         <Button Content="▶ Сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
         <Button Grid.Column="1" Content="＋ Клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
-        <Button Grid.Column="2" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
-        <TextBlock Grid.Column="3" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Column="4" Text="{Binding Status}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="⚙ Собрать" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
+        <Button Grid.Column="3" Content="📦 Опубликовать" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
+        <Button Grid.Column="4" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <TextBlock Grid.Column="5" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="6" Text="{Binding Status}" VerticalAlignment="Center" />
       </Grid>
     </Border>
 

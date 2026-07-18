@@ -40,10 +40,10 @@ kanban-plugin: board
 
 ## Editor и Launcher
 
-- [ ] **Ввести `ActiveProjectContext`**
+- [x] **Ввести `ActiveProjectContext`**
 	  - Context владеет installation, build inspection, bundles, watchers, IPC и sessions.
 	  - Результат: editor публикует только полностью открытый и проверенный проект.
-- [ ] **Сделать безопасное переключение одного проекта**
+- [x] **Сделать безопасное переключение одного проекта**
 	  - Порядок: cancel build → clients → server → IPC/watchers → workspace → dispose → open candidate.
 	  - Результат: старые PID, порты, файлы и snapshots не переходят в новый проект.
 - [ ] **Добавить стабильный `Karpik.Launcher`**
@@ -103,8 +103,9 @@ kanban-plugin: board
 	  - Review hardening applies the same retry-safe order to shutdown, rejects linked/reparse solution and graph paths before MSBuild, and bounds result JSON through a non-reparse file handle.
 	  - TOCTOU hardening retains Windows metadata handles through evaluation; non-Windows uses a bounded metadata-only mirror and rejects unmappable staging paths or explicit non-SDK imports.
 	  - Unconfirmed MSBuild termination transfers the process, result path, and input lease/mirror to a capacity-bounded tracked reaper; cleanup occurs only after exit confirmation and can be observed or drained.
-- [ ] **Wire contexts into editor runtime and desktop UI**
-	  - Replace editor-local bundle resolution, connect sessions/watchers/workspace lifetime, add asynchronous `.slnx` open/switch, and prove the external two-game process smoke.
+- [x] **Wire contexts into editor runtime and desktop UI**
+	  - Editor startup, `.slnx` open/switch, build/publish, sessions, snapshots, workspace shutdown, console copy, and UTF-8 process output all use the project-owned runtime path.
+	  - Editor 82/82 non-opt-in tests pass; the external two-game process smoke passes 1/1.
 
 %% kanban:settings
 ```

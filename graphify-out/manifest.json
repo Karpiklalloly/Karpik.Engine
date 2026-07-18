@@ -3370,8 +3370,8 @@
     "semantic_hash": "87b18a3909e98c1a8af8b505062844ba"
   },
   "Karpik.Editor.Tests/EditorWorkspaceTests.cs": {
-    "mtime": 1784227615.891644,
-    "ast_hash": "e5c193472113b824d6c88adfc0088b78",
+    "mtime": 1784313855.5027971,
+    "ast_hash": "18bce56057851ac649ba4794d2b28c23",
     "semantic_hash": ""
   },
   "Karpik.Editor.Tests/Karpik.Editor.Tests.csproj": {
@@ -3380,13 +3380,13 @@
     "semantic_hash": ""
   },
   "Karpik.Editor.Tests/PreviewIntegrationTests.cs": {
-    "mtime": 1784086579.1083822,
-    "ast_hash": "68d8e23f9749d5043473d4a2868d17ae",
+    "mtime": 1784313965.8854053,
+    "ast_hash": "3af1e6210d5dfc71c0472eac70af4d39",
     "semantic_hash": ""
   },
   "Karpik.Editor/App.axaml.cs": {
-    "mtime": 1784086579.1128333,
-    "ast_hash": "aebfb5d079a413957b1386b9fc4c49fa",
+    "mtime": 1784369188.5785077,
+    "ast_hash": "80d6cefa52744eabd7d69a93f407d85c",
     "semantic_hash": ""
   },
   "Karpik.Editor/Docking/DockLayoutStore.cs": {
@@ -3400,13 +3400,13 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Karpik.Editor.csproj": {
-    "mtime": 1784227612.3621106,
-    "ast_hash": "858926c53d618e9fdf9dd8973d7c01fc",
+    "mtime": 1784319543.14486,
+    "ast_hash": "5796dac22e8d2d788670567b4f4c19f7",
     "semantic_hash": ""
   },
   "Karpik.Editor/MainWindow.axaml.cs": {
-    "mtime": 1784086579.123963,
-    "ast_hash": "393bd205829ccf3c0d29fc93d63dc399",
+    "mtime": 1784372043.9185557,
+    "ast_hash": "8081651e52e48363e4269f4da57e2766",
     "semantic_hash": ""
   },
   "Karpik.Editor/Models/BoundedLog.cs": {
@@ -3415,18 +3415,18 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Models/EditorWorkspace.cs": {
-    "mtime": 1784086579.1277864,
-    "ast_hash": "55031af338661f98f143476e84bebd9c",
+    "mtime": 1784365872.437703,
+    "ast_hash": "51f9611f2e54e4d390b15a6caef4bf6a",
     "semantic_hash": ""
   },
   "Karpik.Editor/Program.cs": {
-    "mtime": 1784086579.1287866,
+    "mtime": 1784312605.650936,
     "ast_hash": "5aa5e95e1ba92960ada38dba9109f3a0",
     "semantic_hash": ""
   },
   "Karpik.Editor/ViewModels/EditorShellViewModel.cs": {
-    "mtime": 1784086579.1381671,
-    "ast_hash": "ce81b2a780444b8a0d05326a7a96ee85",
+    "mtime": 1784370162.1079752,
+    "ast_hash": "4ea3df55c5e7f7e4fd55897ac05755b3",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ClientFrameMetricsTests.cs": {
@@ -3710,28 +3710,23 @@
     "semantic_hash": ""
   },
   "Karpik.Editor.Tests/RuntimeBundleResolverTests.cs": {
-    "mtime": 1784086579.1088908,
-    "ast_hash": "efa2a871eb944ebeb52793df7d6e8bc7",
+    "mtime": 1784314424.2742956,
+    "ast_hash": "8f02cdde40def7283c948169cdfc46a3",
     "semantic_hash": ""
   },
   "Karpik.Editor/Runtime/EditorPreviewBackendFactory.cs": {
-    "mtime": 1784086579.1308107,
-    "ast_hash": "32e594c9c56d344bbb4954a5681b5a45",
+    "mtime": 1784312140.0598352,
+    "ast_hash": "97280c3b64001ceeb3933c17a1adfa24",
     "semantic_hash": ""
   },
   "Karpik.Editor/Runtime/EditorSessionManager.cs": {
-    "mtime": 1784086579.1326447,
-    "ast_hash": "a05731e0ecd7ebd642323afe34f60de5",
+    "mtime": 1784312422.4173746,
+    "ast_hash": "4571aaaed37a652f75ef4ea33ad88692",
     "semantic_hash": ""
   },
   "Karpik.Editor/Runtime/IEditorBackend.cs": {
     "mtime": 1784086579.1346605,
     "ast_hash": "55d78983691df205945d37cd40a0c970",
-    "semantic_hash": ""
-  },
-  "Karpik.Editor/Runtime/RuntimeBundleResolver.cs": {
-    "mtime": 1784086579.1356614,
-    "ast_hash": "5d6dde45ddbb0e8ec42245ab469955d4",
     "semantic_hash": ""
   },
   "plans/editor-multisession-launch-execplan.md": {
@@ -3765,18 +3760,18 @@
     "semantic_hash": ""
   },
   "Karpik.Editor.Tests/Projects/ProjectSwitchCoordinatorTests.cs": {
-    "mtime": 1784230581.140093,
-    "ast_hash": "72373f69e534e8363bd57c16663e2f43",
+    "mtime": 1784368848.9025304,
+    "ast_hash": "94c08030dc81e0a340ac5df63757ab4a",
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ActiveProjectContext.cs": {
-    "mtime": 1784228035.7612593,
-    "ast_hash": "71692524b5a2fc2fa0b8037b5f1246d4",
+    "mtime": 1784368569.013474,
+    "ast_hash": "80e3bbf9cb931b34aab2675864cbcd8e",
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/MsBuildProjectInspector.cs": {
-    "mtime": 1784235203.108335,
-    "ast_hash": "5989f105133113d4da2397c5c43607da",
+    "mtime": 1784372767.656525,
+    "ast_hash": "99f1643b247da5a865009614bfe0936c",
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ProjectInputLease.cs": {
@@ -3795,8 +3790,8 @@
     "semantic_hash": ""
   },
   "Karpik.Editor/Projects/ProjectSwitchCoordinator.cs": {
-    "mtime": 1784229847.1217988,
-    "ast_hash": "e2ddeeb171432cfe52ec3f84d640d7e2",
+    "mtime": 1784370110.4655395,
+    "ast_hash": "e8bfe88aab022d2216fd30a66775a576",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.TestWorker/Karpik.Engine.Core.Runner.TestWorker.csproj": {
@@ -4124,846 +4119,6 @@
     "ast_hash": "6a0618131a0ccdf346dc401f3cffa31e",
     "semantic_hash": ""
   },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/editor/Karpik.Editor.deps.json": {
-    "mtime": 1784126620.5453024,
-    "ast_hash": "93dd0f669bbdf1a74faf4a8f56ba10f6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/editor/Karpik.Editor.runtimeconfig.json": {
-    "mtime": 1784126620.6378777,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/engine-installation.json": {
-    "mtime": 1784126753.421309,
-    "ast_hash": "1d4444871d358fe27992d7ca4a3e61cd",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/AssetManagement.Core.deps.json": {
-    "mtime": 1784126642.306754,
-    "ast_hash": "db652e5049c38029fb21a2e592c71698",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/DebugModule/DebugModule.deps.json": {
-    "mtime": 1784126697.3401246,
-    "ast_hash": "6aeb72f4654e50d3bd14431408c378cf",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/ECS.Core.deps.json": {
-    "mtime": 1784126643.1023657,
-    "ast_hash": "f80b60f1fe17e0591bf779d1c0a7a82b",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Graphics.Core.deps.json": {
-    "mtime": 1784126644.6192925,
-    "ast_hash": "27f44d3ecfb58b14d91d975be56c64ff",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Graphics.OpenGL.deps.json": {
-    "mtime": 1784126653.2838252,
-    "ast_hash": "8d1cc687b3544c6e5f41b14308818aa0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Input.deps.json": {
-    "mtime": 1784126661.2477624,
-    "ast_hash": "b7bf8969839c3715bc2f4f0ece21ab65",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/LoggerModule.deps.json": {
-    "mtime": 1784126641.8603227,
-    "ast_hash": "a23fd33c3c49c960685852a3f01bd593",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Modding.Core.deps.json": {
-    "mtime": 1784126708.9800625,
-    "ast_hash": "05993f3f15274dbfe6de676609d1d9e6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Modding.Lua.deps.json": {
-    "mtime": 1784126714.9508023,
-    "ast_hash": "6b769ef904ef6bc7cddc9cbfb16ecde3",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.Core/Network.Client.Core.deps.json": {
-    "mtime": 1784126665.4182613,
-    "ast_hash": "b93a5335589e192b8dc0ba23f41e3d56",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Network.Client.LiteNetLib.deps.json": {
-    "mtime": 1784126670.6470613,
-    "ast_hash": "e782a3df051df3fc325b011e236a25dc",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.Core/Network.Server.Core.deps.json": {
-    "mtime": 1784126685.654096,
-    "ast_hash": "9b36ed5661885adcd2a70be297797966",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Network.Server.LiteNetLib.deps.json": {
-    "mtime": 1784126689.9673727,
-    "ast_hash": "a7477ccc7e61b9ccc30bda69c116d72c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.Core/Network.Shared.Core.deps.json": {
-    "mtime": 1784126642.5930264,
-    "ast_hash": "f62c9d554d53d29293f6b720bc50dacb",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.deps.json": {
-    "mtime": 1784126719.711987,
-    "ast_hash": "1df7157cd79455616e0fb10c9dd0e104",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Physics2D.Aether2D.deps.json": {
-    "mtime": 1784126728.2666621,
-    "ast_hash": "ad93d607ec3de8db9dbc0a17cccc62e4",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Physics2D.Core.deps.json": {
-    "mtime": 1784126727.9485157,
-    "ast_hash": "6ca0f581fa286c37175639e0b7d0820c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/StatAndAbilities/StatAndAbilities.deps.json": {
-    "mtime": 1784126736.65341,
-    "ast_hash": "1d479ef64a58b24f9465ea9b452301e9",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Tween.Core.deps.json": {
-    "mtime": 1784126741.1112516,
-    "ast_hash": "a11f68895e96cc1e75b1e1b6805ed180",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/UnsafeUtilities/UnsafeUtilities.deps.json": {
-    "mtime": 1784126744.1525574,
-    "ast_hash": "fa9150f847fe20146dfd589ba7ea3377",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Window.Core.deps.json": {
-    "mtime": 1784126643.9726849,
-    "ast_hash": "1907745006dfd1864ccbfa9f7927d289",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Window.Sdl2.deps.json": {
-    "mtime": 1784126681.164851,
-    "ast_hash": "83f4955fe38a2af579b7d3ab3b0314b1",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/client/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/client/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/server/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-final/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/server/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/editor/Karpik.Editor.deps.json": {
-    "mtime": 1784126620.5453024,
-    "ast_hash": "93dd0f669bbdf1a74faf4a8f56ba10f6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/editor/Karpik.Editor.runtimeconfig.json": {
-    "mtime": 1784126620.6378777,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/engine-installation.json": {
-    "mtime": 1784128280.0904467,
-    "ast_hash": "1d4444871d358fe27992d7ca4a3e61cd",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/AssetManagement.Core.deps.json": {
-    "mtime": 1784126642.306754,
-    "ast_hash": "db652e5049c38029fb21a2e592c71698",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/AssetManagement.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/DebugModule/DebugModule.deps.json": {
-    "mtime": 1784126697.3401246,
-    "ast_hash": "6aeb72f4654e50d3bd14431408c378cf",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/ECS.Core.deps.json": {
-    "mtime": 1784126643.1023657,
-    "ast_hash": "f80b60f1fe17e0591bf779d1c0a7a82b",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/ECS.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Graphics.Core.deps.json": {
-    "mtime": 1784126644.6192925,
-    "ast_hash": "27f44d3ecfb58b14d91d975be56c64ff",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Graphics.OpenGL.deps.json": {
-    "mtime": 1784126653.2838252,
-    "ast_hash": "8d1cc687b3544c6e5f41b14308818aa0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Graphics.OpenGL/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Input.deps.json": {
-    "mtime": 1784126661.2477624,
-    "ast_hash": "b7bf8969839c3715bc2f4f0ece21ab65",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Input/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/LoggerModule/LoggerModule.deps.json": {
-    "mtime": 1784126641.8603227,
-    "ast_hash": "a23fd33c3c49c960685852a3f01bd593",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Core/Modding.Core.deps.json": {
-    "mtime": 1784126708.9800625,
-    "ast_hash": "05993f3f15274dbfe6de676609d1d9e6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Modding.Lua/Modding.Lua.deps.json": {
-    "mtime": 1784126714.9508023,
-    "ast_hash": "6b769ef904ef6bc7cddc9cbfb16ecde3",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.Core/Network.Client.Core.deps.json": {
-    "mtime": 1784126665.4182613,
-    "ast_hash": "b93a5335589e192b8dc0ba23f41e3d56",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Client.LiteNetLib/Network.Client.LiteNetLib.deps.json": {
-    "mtime": 1784126670.6470613,
-    "ast_hash": "e782a3df051df3fc325b011e236a25dc",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.Core/Network.Server.Core.deps.json": {
-    "mtime": 1784126685.654096,
-    "ast_hash": "9b36ed5661885adcd2a70be297797966",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Server.LiteNetLib/Network.Server.LiteNetLib.deps.json": {
-    "mtime": 1784126689.9673727,
-    "ast_hash": "a7477ccc7e61b9ccc30bda69c116d72c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.Core/Network.Shared.Core.deps.json": {
-    "mtime": 1784126642.5930264,
-    "ast_hash": "f62c9d554d53d29293f6b720bc50dacb",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.deps.json": {
-    "mtime": 1784126719.711987,
-    "ast_hash": "1df7157cd79455616e0fb10c9dd0e104",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Aether2D/Physics2D.Aether2D.deps.json": {
-    "mtime": 1784126728.2666621,
-    "ast_hash": "ad93d607ec3de8db9dbc0a17cccc62e4",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Physics2D.Core/Physics2D.Core.deps.json": {
-    "mtime": 1784126727.9485157,
-    "ast_hash": "6ca0f581fa286c37175639e0b7d0820c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/StatAndAbilities/StatAndAbilities.deps.json": {
-    "mtime": 1784126736.65341,
-    "ast_hash": "1d479ef64a58b24f9465ea9b452301e9",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Tween.Core/Tween.Core.deps.json": {
-    "mtime": 1784126741.1112516,
-    "ast_hash": "a11f68895e96cc1e75b1e1b6805ed180",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/UnsafeUtilities/UnsafeUtilities.deps.json": {
-    "mtime": 1784126744.1525574,
-    "ast_hash": "fa9150f847fe20146dfd589ba7ea3377",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Core/Window.Core.deps.json": {
-    "mtime": 1784126643.9726849,
-    "ast_hash": "1907745006dfd1864ccbfa9f7927d289",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/modules/Window.Sdl2/Window.Sdl2.deps.json": {
-    "mtime": 1784126681.164851,
-    "ast_hash": "83f4955fe38a2af579b7d3ab3b0314b1",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/client/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/client/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/server/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784126626.8208663,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home-retained-validation/Engines/0.6.0-dev-5270fb65f53bc14fd7cba44424975bab7fb1ede51ee17ca574a6fd09532bb185/runners/server/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784126626.907667,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/editor/Karpik.Editor.deps.json": {
-    "mtime": 1784099103.478913,
-    "ast_hash": "93dd0f669bbdf1a74faf4a8f56ba10f6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/editor/Karpik.Editor.runtimeconfig.json": {
-    "mtime": 1784099103.500618,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/engine-installation.json": {
-    "mtime": 1784099737.7269824,
-    "ast_hash": "dee883e1e08a6c0efcd791b6182a119a",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/AssetManagement.Core.deps.json": {
-    "mtime": 1784099179.9136996,
-    "ast_hash": "db652e5049c38029fb21a2e592c71698",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/DebugModule.deps.json": {
-    "mtime": 1784099180.1983702,
-    "ast_hash": "6aeb72f4654e50d3bd14431408c378cf",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/ECS.Core.deps.json": {
-    "mtime": 1784099181.1009176,
-    "ast_hash": "f80b60f1fe17e0591bf779d1c0a7a82b",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Graphics.Core.deps.json": {
-    "mtime": 1784099187.0895655,
-    "ast_hash": "27f44d3ecfb58b14d91d975be56c64ff",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Graphics.OpenGL.deps.json": {
-    "mtime": 1784099187.6259053,
-    "ast_hash": "8d1cc687b3544c6e5f41b14308818aa0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Input.deps.json": {
-    "mtime": 1784099188.0671482,
-    "ast_hash": "b7bf8969839c3715bc2f4f0ece21ab65",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784099110.5100088,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784099110.5715523,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/LoggerModule.deps.json": {
-    "mtime": 1784099179.3585615,
-    "ast_hash": "a23fd33c3c49c960685852a3f01bd593",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Modding.Core.deps.json": {
-    "mtime": 1784099188.3907006,
-    "ast_hash": "05993f3f15274dbfe6de676609d1d9e6",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Modding.Lua.deps.json": {
-    "mtime": 1784099188.928477,
-    "ast_hash": "6b769ef904ef6bc7cddc9cbfb16ecde3",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/MyGame.Client.Main.deps.json": {
-    "mtime": 1784099193.428143,
-    "ast_hash": "efee6281ded44de3d89f4f4e74258d4b",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/MyGame.Server.Main.deps.json": {
-    "mtime": 1784099206.9024065,
-    "ast_hash": "658bbe3111a74a810c706d619bf6fb90",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/MyGame.Shared.Main.deps.json": {
-    "mtime": 1784099192.9609072,
-    "ast_hash": "95c43e5755c0cb43114dad7b48fde398",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/MyGameResources.deps.json": {
-    "mtime": 1784099193.743047,
-    "ast_hash": "d2c82215613d9d4e3688bdb65604d849",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Client.Core.deps.json": {
-    "mtime": 1784099189.1176543,
-    "ast_hash": "b93a5335589e192b8dc0ba23f41e3d56",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Client.LiteNetLib.deps.json": {
-    "mtime": 1784099189.4161084,
-    "ast_hash": "e782a3df051df3fc325b011e236a25dc",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Server.Core.deps.json": {
-    "mtime": 1784099204.8522577,
-    "ast_hash": "9b36ed5661885adcd2a70be297797966",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Server.LiteNetLib.deps.json": {
-    "mtime": 1784099205.0769362,
-    "ast_hash": "a7477ccc7e61b9ccc30bda69c116d72c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Shared.Core.deps.json": {
-    "mtime": 1784099180.7238326,
-    "ast_hash": "f62c9d554d53d29293f6b720bc50dacb",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Network.Shared.LiteNetLib.deps.json": {
-    "mtime": 1784099189.8008764,
-    "ast_hash": "1df7157cd79455616e0fb10c9dd0e104",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Physics2D.Aether2D.deps.json": {
-    "mtime": 1784099190.3788002,
-    "ast_hash": "ad93d607ec3de8db9dbc0a17cccc62e4",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Physics2D.Core.deps.json": {
-    "mtime": 1784099190.1282527,
-    "ast_hash": "6ca0f581fa286c37175639e0b7d0820c",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/StatAndAbilities.deps.json": {
-    "mtime": 1784099191.0391707,
-    "ast_hash": "1d479ef64a58b24f9465ea9b452301e9",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Tween.Core.deps.json": {
-    "mtime": 1784099191.3524272,
-    "ast_hash": "a11f68895e96cc1e75b1e1b6805ed180",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/UnsafeUtilities.deps.json": {
-    "mtime": 1784099191.5681605,
-    "ast_hash": "fa9150f847fe20146dfd589ba7ea3377",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Window.Core.deps.json": {
-    "mtime": 1784099186.5865333,
-    "ast_hash": "1907745006dfd1864ccbfa9f7927d289",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/modules/Window.Sdl2.deps.json": {
-    "mtime": 1784099192.0237331,
-    "ast_hash": "83f4955fe38a2af579b7d3ab3b0314b1",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/client/ClientLauncher.deps.json": {
-    "mtime": 1784099112.1226597,
-    "ast_hash": "58c6a60ea387657d10bba7c3c0bd7bbb",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/client/ClientLauncher.runtimeconfig.json": {
-    "mtime": 1784099112.1293163,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/client/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784099110.5100088,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/client/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784099110.5715523,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/server/Karpik.Engine.Core.Runner.deps.json": {
-    "mtime": 1784099110.5100088,
-    "ast_hash": "1760485ad6b10a056fa8245e059388de",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/server/Karpik.Engine.Core.Runner.runtimeconfig.json": {
-    "mtime": 1784099110.5715523,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/server/ServerLauncher.deps.json": {
-    "mtime": 1784099199.1971586,
-    "ast_hash": "13472787543f30b999ddefa887890da3",
-    "semantic_hash": ""
-  },
-  "artifacts/karpik-home/Engines/0.6.0-dev/runners/server/ServerLauncher.runtimeconfig.json": {
-    "mtime": 1784099199.2460084,
-    "ast_hash": "e4e731e0893251e07bf00c01430f5eb0",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/invalid/Foreign/Broken.cs": {
-    "mtime": 1784089679.0545535,
-    "ast_hash": "70afb68c88c1d94a6f9581f2069fe715",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/invalid/Foreign/Foreign.csproj": {
-    "mtime": 1784089947.1229086,
-    "ast_hash": "167b1db0e903f9259c5a95f795c8fe7e",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/invalid/Game.slnx": {
-    "mtime": 1784089676.7288852,
-    "ast_hash": "b7e781a4f64b78a8145c1359cc5edccf",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/invalid/Good/Good.csproj": {
-    "mtime": 1784089677.7095985,
-    "ast_hash": "2a51f6fc8daae2928093a8d54134da54",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/invalid/global.json": {
-    "mtime": 1784089676.0902944,
-    "ast_hash": "fd3168cab5140c7983cb5781ea922d67",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/valid/Valid.csproj": {
-    "mtime": 1784089675.183416,
-    "ast_hash": "0df1d922d4f0400968047a201d35b4e2",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/valid/global.json": {
-    "mtime": 1784089674.4420571,
-    "ast_hash": "fd3168cab5140c7983cb5781ea922d67",
-    "semantic_hash": ""
-  },
   "templates/Karpik.Game/.template.config/template.json": {
     "mtime": 1784129257.8377705,
     "ast_hash": "2a68e1182f99799ca37dc1aea373640e",
@@ -5019,79 +4174,9 @@
     "ast_hash": "fd3168cab5140c7983cb5781ea922d67",
     "semantic_hash": ""
   },
-  ".superpowers/sdd/progress.md": {
-    "mtime": 1784148271.9299753,
-    "ast_hash": "2900759beeacc40f1f7e35f4d149a290",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-1-brief.md": {
-    "mtime": 1784087875.5490673,
-    "ast_hash": "768b7ed8b95f49dcd9aaea1c48d9457b",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-1-report.md": {
-    "mtime": 1784088871.5400748,
-    "ast_hash": "6bb73ccb7a2a95ebcafb209828dcd33d",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-2-brief.md": {
-    "mtime": 1784095970.3282928,
-    "ast_hash": "8a552f833ef9ebe041a92b4eebfe76d9",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-2-report.md": {
-    "mtime": 1784096936.1356812,
-    "ast_hash": "501b29cbffe91ab38bde65bea0ec1306",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-3-brief.md": {
-    "mtime": 1784103848.0120575,
-    "ast_hash": "f314aedb88629d3e71ef8d21b56d1693",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-3-report.md": {
-    "mtime": 1784128481.9702759,
-    "ast_hash": "d5e7b6cd3aff1a8759f5479294469673",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-4-brief.md": {
-    "mtime": 1784128723.6399593,
-    "ast_hash": "6d00e394432941488f68a2b02f616821",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-4-report.md": {
-    "mtime": 1784133044.9258735,
-    "ast_hash": "6ca5b36581ec7e9d67856c29b85c49dc",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-5-brief.md": {
-    "mtime": 1784133612.952116,
-    "ast_hash": "898c2e49c9841d752e14f77f8208d56d",
-    "semantic_hash": ""
-  },
-  ".superpowers/sdd/task-5-report.md": {
-    "mtime": 1784148272.710994,
-    "ast_hash": "fc91ebd531ac06699d46fc9b5e4173f9",
-    "semantic_hash": ""
-  },
   "Karpik.Engine.Sdk/README.md": {
     "mtime": 1784096722.491038,
     "ast_hash": "d2711867c064cd98121a9dcd256c81f0",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/packages-v2/karpik.engine.sdk/0.6.0-local/README.md": {
-    "mtime": 1784089606.0,
-    "ast_hash": "bf4f846f6b272ce6a50cd138d09bde95",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/packages-v3/karpik.engine.sdk/0.6.0-local/README.md": {
-    "mtime": 1784089606.0,
-    "ast_hash": "bf4f846f6b272ce6a50cd138d09bde95",
-    "semantic_hash": ""
-  },
-  "artifacts/sdk-smoke/packages/karpik.engine.sdk/0.6.0-local/README.md": {
-    "mtime": 1784089606.0,
-    "ast_hash": "bf4f846f6b272ce6a50cd138d09bde95",
     "semantic_hash": ""
   },
   "docs/02_ADR/versioned-engine-sdk-and-external-game-projects.md": {
@@ -5100,13 +4185,13 @@
     "semantic_hash": ""
   },
   "docs/04_Roadmap/kanban-versioned-sdk-external-projects.md": {
-    "mtime": 1784235118.45175,
-    "ast_hash": "2a7e5ded626eefd040d8906026c6943b",
+    "mtime": 1784374708.7874012,
+    "ast_hash": "472cb43bd23ec1b291e301aa84308bba",
     "semantic_hash": ""
   },
   "plans/versioned-sdk-external-projects-execplan.md": {
-    "mtime": 1784235117.9675512,
-    "ast_hash": "439b5837c8fded9b1ef47ba11780d31f",
+    "mtime": 1784374708.2478964,
+    "ast_hash": "5d401ecb4c0f166bf7fe8bea7f91a775",
     "semantic_hash": ""
   },
   "templates/Karpik.Game/Source/KarpikGame.Client/Content/runtime.txt": {
@@ -5122,6 +4207,71 @@
   "templates/Karpik.Game/Source/KarpikGame.Shared/Content/shared-runtime.txt": {
     "mtime": 1784140121.4312155,
     "ast_hash": "c5a237ffce5c7c4059f40384670d0ca1",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/EditorStartupOptionsTests.cs": {
+    "mtime": 1784369131.6695714,
+    "ast_hash": "e9568dd14b21a4c3ffe6496bf3f8c7e0",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/EditorProjectLifetimeTests.cs": {
+    "mtime": 1784370045.0564332,
+    "ast_hash": "67aa0e80f444bfa17e10bfa86fee11ba",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/EditorShellProjectLifecycleTests.cs": {
+    "mtime": 1784369547.1696854,
+    "ast_hash": "74b552f49bca2d0e68a7b47f11a712e8",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/ExternalProjectSwitchIntegrationTests.cs": {
+    "mtime": 1784370404.0651915,
+    "ast_hash": "b03b6da711babf38ea78753dfc694088",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/EditorStartupOptions.cs": {
+    "mtime": 1784369188.118773,
+    "ast_hash": "23e552ea2587a08e0a24a351d8796157",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/Projects/EditorProjectCommandRunner.cs": {
+    "mtime": 1784370767.644249,
+    "ast_hash": "42430d8b38cdee1e79dd222e1386cf80",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/Projects/EditorProjectLifetime.cs": {
+    "mtime": 1784369492.6947865,
+    "ast_hash": "eb28869abb31e65a1de991b7239af469",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/Runtime/ProjectRuntimeResolver.cs": {
+    "mtime": 1784312119.3735895,
+    "ast_hash": "36c9a391ea1ca5c51aa054002de52742",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/Projects/MsBuildProcessOutputTests.cs": {
+    "mtime": 1784372720.755228,
+    "ast_hash": "b83b4f40e524e0658f63783d964278bd",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor.Tests/ConsoleMessageCopyTests.cs": {
+    "mtime": 1784371841.9072216,
+    "ast_hash": "0abd58b5fc50986e2da42a3bec32add5",
+    "semantic_hash": ""
+  },
+  "Karpik.Editor/Clipboard/ConsoleMessageCopy.cs": {
+    "mtime": 1784371935.2114303,
+    "ast_hash": "9e36dd5dbf2af5af0c3ed16e92cb107b",
+    "semantic_hash": ""
+  },
+  "plans/editor-console-copy-design.md": {
+    "mtime": 1784371576.5235102,
+    "ast_hash": "4f50027e262441b77cd4e16d6be75cc4",
+    "semantic_hash": ""
+  },
+  "plans/editor-console-copy-implementation.md": {
+    "mtime": 1784372232.7584407,
+    "ast_hash": "98f7a5da4caff809fd8cf6668dc8e269",
     "semantic_hash": ""
   }
 }

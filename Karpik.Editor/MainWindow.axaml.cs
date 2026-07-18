@@ -1,6 +1,9 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 
@@ -10,22 +13,36 @@ public sealed partial class MainWindow : Window
 {
     private readonly EditorShellViewModel _viewModel;
     private readonly DockLayoutStore _layoutStore;
+    private readonly EditorStartupOptions _startupOptions;
     private EditorDockFactory? _dockFactory;
     private bool _closeConfirmed;
 
     public MainWindow()
+        : this(null)
+    {
+    }
+
+    public MainWindow(EditorStartupOptions? startupOptions)
     {
         InitializeComponent();
         _viewModel = new EditorShellViewModel(WorkspaceStore.CreateDefault());
         _layoutStore = DockLayoutStore.CreateDefault();
+        _startupOptions = startupOptions ?? new EditorStartupOptions(null, null);
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;
     }
 
+    public EditorShellViewModel ViewModel => _viewModel;
+
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
-        EditorWorkspace workspace = await _viewModel.RestoreAsync();
+        EditorWorkspace workspace = await _viewModel.RestoreAsync(
+            openSolution: string.IsNullOrWhiteSpace(_startupOptions.SolutionPath));
+        if (!string.IsNullOrWhiteSpace(_startupOptions.SolutionPath))
+        {
+            await TryOpenProjectAsync(_startupOptions.SolutionPath);
+        }
         Width = Math.Max(MinWidth, workspace.WindowWidth);
         Height = Math.Max(MinHeight, workspace.WindowHeight);
 
@@ -49,25 +66,93 @@ public sealed partial class MainWindow : Window
 
     private async void OpenProject_OnClick(object? sender, RoutedEventArgs e)
     {
-        IReadOnlyList<IStorageFolder> folders = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
+        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
             {
                 Title = "Открыть проект KarpikEngine",
-                AllowMultiple = false
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("KarpikEngine Solution")
+                    {
+                        Patterns = ["*.slnx"]
+                    }
+                ]
             });
-        if (folders.Count == 0)
+        if (files.Count == 0)
         {
             return;
         }
 
-        string? path = folders[0].TryGetLocalPath();
+        string? path = files[0].TryGetLocalPath();
         if (path is not null)
         {
-            _viewModel.OpenProject(path);
+            await TryOpenProjectAsync(path);
+        }
+    }
+
+    private async Task TryOpenProjectAsync(string solutionPath)
+    {
+        try
+        {
+            ProjectOpenResult result = await _viewModel.OpenProjectAsync(solutionPath);
+            if (!result.IsSuccess)
+            {
+                _viewModel.Console.Add(string.Join(Environment.NewLine, result.Diagnostics));
+            }
+        }
+        catch (Exception exception) when (exception is ArgumentException
+                                          or IOException
+                                          or UnauthorizedAccessException)
+        {
+            _viewModel.Console.Add($"Не удалось открыть проект: {exception.Message}");
         }
     }
 
     private void Exit_OnClick(object? sender, RoutedEventArgs e) => Close();
+
+    private async void ConsoleLog_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not ListBox listBox
+            || e.Key != Key.C
+            || (e.KeyModifiers & KeyModifiers.Control) == 0)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        await TryCopyConsoleMessageAsync(listBox.SelectedItem);
+    }
+
+    private void ConsoleMessage_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control control
+            || e.GetCurrentPoint(control).Properties.PointerUpdateKind
+            != PointerUpdateKind.RightButtonPressed)
+        {
+            return;
+        }
+
+        if (control.FindAncestorOfType<ListBoxItem>() is { } item)
+        {
+            item.IsSelected = true;
+        }
+    }
+
+    private async void CopyConsoleMessage_OnClick(object? sender, RoutedEventArgs e)
+    {
+        object? message = (sender as MenuItem)?.CommandParameter;
+        await TryCopyConsoleMessageAsync(message);
+    }
+
+    private async Task TryCopyConsoleMessageAsync(object? selectedItem)
+    {
+        Func<string, Task>? writeTextAsync = Clipboard is { } clipboard
+            ? clipboard.SetTextAsync
+            : null;
+
+        await ConsoleMessageCopy.TryCopyAsync(selectedItem, writeTextAsync);
+    }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
@@ -90,8 +175,16 @@ public sealed partial class MainWindow : Window
                 _viewModel.Console.Add($"Не удалось сохранить раскладку: {ex.Message}");
             }
         }
-        await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom);
-        await _viewModel.ShutdownAsync();
+        try
+        {
+            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom);
+            await _viewModel.ShutdownAsync();
+        }
+        catch (Exception exception)
+        {
+            _viewModel.Console.Add($"Не удалось безопасно закрыть проект: {exception.Message}");
+            return;
+        }
         _closeConfirmed = true;
         Close();
     }

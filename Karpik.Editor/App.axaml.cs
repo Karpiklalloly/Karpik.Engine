@@ -12,7 +12,8 @@ public sealed partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            EditorStartupOptions options = EditorStartupOptions.Parse(desktop.Args);
+            desktop.MainWindow = new MainWindow(options);
         }
 
         base.OnFrameworkInitializationCompleted();

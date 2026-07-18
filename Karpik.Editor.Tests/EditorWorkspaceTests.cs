@@ -22,7 +22,7 @@ public sealed class EditorWorkspaceTests
     }
 
     [Fact]
-    public async Task WorkspaceStore_RestoresProjectAndLayout()
+    public async Task WorkspaceStore_RestoresSolutionAndLayout()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
         string path = Path.Combine(directory, "workspace.json");
@@ -31,14 +31,14 @@ public sealed class EditorWorkspaceTests
             var store = new WorkspaceStore(path);
             await store.SaveAsync(new EditorWorkspace
             {
-                ProjectPath = @"C:\games\sample\Sample.slnx",
+                SolutionPath = @"C:\games\sample\Sample.slnx",
                 LeftPanelWidth = 280,
                 BottomPanelHeight = 240
             }, TestContext.Current.CancellationToken);
 
             EditorWorkspace restored = await store.LoadAsync(TestContext.Current.CancellationToken);
 
-            Assert.Equal(@"C:\games\sample\Sample.slnx", restored.ProjectPath);
+            Assert.Equal(@"C:\games\sample\Sample.slnx", restored.SolutionPath);
             Assert.Equal(280, restored.LeftPanelWidth);
             Assert.Equal(240, restored.BottomPanelHeight);
         }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Karpik.Editor;
 using Karpik.Engine.Core;
+using Karpik.Engine.ProjectModel;
 using Xunit;
 
 namespace Karpik.Editor.Tests;
@@ -11,16 +12,16 @@ public sealed class RuntimeBundleResolverTests
     [Fact]
     public void Resolve_ReturnsCompletedBundleForRequestedSide()
     {
-        string root = CreateBundle(Side.Server);
+        string root = CreateBundleStructure();
         try
         {
-            var resolver = new RuntimeBundleResolver(root);
+            var resolver = new ProjectRuntimeResolver(CreateRuntimeDescriptor(root));
 
-            EditorRuntimeBundle bundle = resolver.Resolve(Side.Server);
+            ProjectRuntimeResolver.EditorRuntimeDescriptor bundle = resolver.Resolve(Side.Server);
 
             Assert.Equal(Side.Server, bundle.Side);
-            Assert.Equal(Path.Combine(root, "runtimes", "server"), bundle.DirectoryPath);
-            Assert.True(File.Exists(bundle.WorkerExecutablePath));
+            Assert.Equal(Path.Combine(root, "runtimes", "server", "karpik-bundle"), bundle.BundlePath);
+            Assert.True(File.Exists(bundle.RunnerPath));
         }
         finally
         {
@@ -31,14 +32,14 @@ public sealed class RuntimeBundleResolverTests
     [Fact]
     public void Resolve_RejectsBundleForAnotherSide()
     {
-        string root = CreateBundle(Side.Server);
+        string root = CreateBundleStructure();
         try
         {
-            string manifestPath = Path.Combine(root, "runtimes", "server", "runtime-bundle.json");
-            WriteManifest(manifestPath, Side.Client);
-            var resolver = new RuntimeBundleResolver(root);
+            string manifestPath = Path.Combine(root, "runtimes", "server", "karpik-bundle", "runtime-bundle.side");
+            WriteSideMarker(manifestPath, Side.Client);
+            var factory = new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(root)));
 
-            Assert.Throws<InvalidDataException>(() => resolver.Resolve(Side.Server));
+            Assert.Throws<InvalidDataException>(() => factory.Create(Side.Server));
         }
         finally
         {
@@ -49,16 +50,16 @@ public sealed class RuntimeBundleResolverTests
     [Fact]
     public void Resolve_RejectsBundleWithoutWorker()
     {
-        string root = CreateBundle(Side.Client);
+        string root = CreateBundleStructure();
         try
         {
             string workerName = OperatingSystem.IsWindows()
                 ? "Karpik.Engine.Core.Runner.exe"
                 : "Karpik.Engine.Core.Runner";
             File.Delete(Path.Combine(root, "runtimes", "client", workerName));
-            var resolver = new RuntimeBundleResolver(root);
+            var factory = new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(root)));
 
-            Assert.Throws<FileNotFoundException>(() => resolver.Resolve(Side.Client));
+            Assert.Throws<FileNotFoundException>(() => factory.Create(Side.Client));
         }
         finally
         {
@@ -69,16 +70,16 @@ public sealed class RuntimeBundleResolverTests
     [Fact]
     public void Resolve_RejectsBundleWithoutCompletedModuleStaging()
     {
-        string root = CreateBundle(Side.Server);
+        string root = CreateBundleStructure();
         try
         {
-            string bundleDirectory = Path.Combine(root, "runtimes", "server");
+            string bundleDirectory = Path.Combine(root, "runtimes", "server", "karpik-bundle");
             string moduleDirectory = Assert.Single(
                 Directory.GetDirectories(bundleDirectory, "modules.version.*"));
             File.Delete(Path.Combine(moduleDirectory, ".complete"));
-            var resolver = new RuntimeBundleResolver(root);
+            var factory = new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(root)));
 
-            Assert.Throws<InvalidDataException>(() => resolver.Resolve(Side.Server));
+            Assert.Throws<InvalidDataException>(() => factory.Create(Side.Server));
         }
         finally
         {
@@ -89,10 +90,10 @@ public sealed class RuntimeBundleResolverTests
     [Fact]
     public void EditorPreviewBackendFactory_CreatesBackendForRequestedBundleSide()
     {
-        string root = CreateBundle(Side.Client);
+        string root = CreateBundleStructure();
         try
         {
-            var factory = new EditorPreviewBackendFactory(new RuntimeBundleResolver(root));
+            var factory = new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(root)));
 
             using IEditorBackend backend = factory.Create(Side.Client);
 
@@ -106,31 +107,60 @@ public sealed class RuntimeBundleResolverTests
         }
     }
 
-    private static string CreateBundle(Side side)
+    private static ProjectRuntimeDescriptor CreateRuntimeDescriptor(string root)
     {
-        string root = Path.Combine(Path.GetTempPath(), $"KarpikEditorBundleTests-{Guid.NewGuid():N}");
-        string sideName = side.ToString().ToLowerInvariant();
-        string bundleDirectory = Path.Combine(root, "runtimes", sideName);
-        Directory.CreateDirectory(bundleDirectory);
-
-        string workerName = OperatingSystem.IsWindows()
+        string runnerName = OperatingSystem.IsWindows()
             ? "Karpik.Engine.Core.Runner.exe"
             : "Karpik.Engine.Core.Runner";
-        File.WriteAllText(Path.Combine(bundleDirectory, workerName), string.Empty);
+        return new ProjectRuntimeDescriptor(
+            root,
+            Path.Combine(root, "runtimes", "client", "karpik-bundle"),
+            Path.Combine(root, "runtimes", "server", "karpik-bundle"),
+            Path.Combine(root, "runtimes", "client", runnerName),
+            Path.Combine(root, "runtimes", "server", runnerName));
+    }
 
-        string moduleDirectory = Path.Combine(bundleDirectory, $"modules.version.{Guid.NewGuid():N}");
-        Directory.CreateDirectory(moduleDirectory);
-        File.WriteAllText(Path.Combine(moduleDirectory, ".complete"), string.Empty);
+    private static string CreateBundleStructure()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"KarpikEditorBundleTests-{Guid.NewGuid():N}");
 
-        WriteManifest(Path.Combine(bundleDirectory, "runtime-bundle.json"), side);
+        foreach (Side side in new[] { Side.Client, Side.Server })
+        {
+            string sideName = side.ToString().ToLowerInvariant();
+            string bundleDirectory = Path.Combine(root, "runtimes", sideName, "karpik-bundle");
+            Directory.CreateDirectory(bundleDirectory);
+
+            string runnerName = OperatingSystem.IsWindows()
+                ? "Karpik.Engine.Core.Runner.exe"
+                : "Karpik.Engine.Core.Runner";
+            File.WriteAllText(Path.Combine(root, "runtimes", sideName, runnerName), string.Empty);
+
+            // Create .complete marker for bundle
+            File.WriteAllText(Path.Combine(bundleDirectory, ".complete"), "karpik-runtime-bundle-v1\n");
+
+            // Create side marker
+            File.WriteAllText(Path.Combine(bundleDirectory, "runtime-bundle.side"), $"karpik-runtime-side-v1:{side}\n");
+
+            // Create Content directory with at least one file
+            string contentDir = Path.Combine(bundleDirectory, "Content");
+            Directory.CreateDirectory(contentDir);
+            File.WriteAllText(Path.Combine(contentDir, "placeholder.txt"), "placeholder");
+
+            // Create module staging directory
+            string moduleDirectory = Path.Combine(bundleDirectory, "modules.version.1");
+            Directory.CreateDirectory(moduleDirectory);
+            File.WriteAllText(Path.Combine(moduleDirectory, ".complete"), "karpik-module-staging-v1\n");
+
+            // Create TestModule.dll file and modules.list manifest
+            File.WriteAllText(Path.Combine(moduleDirectory, "TestModule.dll"), "fake dll content");
+            File.WriteAllText(Path.Combine(moduleDirectory, "modules.list"), "TestModule.dll\n");
+        }
 
         return root;
     }
 
-    private static void WriteManifest(string path, Side side)
+    private static void WriteSideMarker(string path, Side side)
     {
-        var options = new JsonSerializerOptions();
-        options.Converters.Add(new JsonStringEnumConverter());
-        File.WriteAllText(path, JsonSerializer.Serialize(new RuntimeBundleManifest(side), options));
+        File.WriteAllText(path, $"karpik-runtime-side-v1:{side}\n");
     }
 }

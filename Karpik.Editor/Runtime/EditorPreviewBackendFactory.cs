@@ -4,18 +4,18 @@ namespace Karpik.Editor;
 
 public sealed class EditorPreviewBackendFactory : IEditorBackendFactory
 {
-    private readonly RuntimeBundleResolver _bundleResolver;
+    private readonly ProjectRuntimeResolver _runtimeResolver;
 
-    public EditorPreviewBackendFactory(RuntimeBundleResolver bundleResolver)
+    public EditorPreviewBackendFactory(ProjectRuntimeResolver runtimeResolver)
     {
-        _bundleResolver = bundleResolver;
+        _runtimeResolver = runtimeResolver;
     }
 
     public IEditorBackend Create(Side side)
     {
-        EditorRuntimeBundle bundle = _bundleResolver.Resolve(side);
+        ProjectRuntimeResolver.EditorRuntimeDescriptor descriptor = _runtimeResolver.Resolve(side);
         return new EditorPreviewBackend(
-            new EditorPreviewController(side, bundle.WorkerExecutablePath));
+            new EditorPreviewController(new RuntimeLaunchOptions(side, descriptor.RunnerPath, descriptor.BundlePath)));
     }
 
     private sealed class EditorPreviewBackend : IEditorBackend

@@ -57,6 +57,16 @@ public sealed class EditorSessionManager : IDisposable
     public Task StopAllAsync(CancellationToken cancellationToken = default) =>
         RunLifecycleAsync(StopAllCoreAsync, cancellationToken);
 
+    public Task StopServerAsync(CancellationToken cancellationToken = default)
+    {
+        return _server is null
+            ? Task.CompletedTask
+            : RunLifecycleAsync(token => StopSessionCoreAsync(_server!, token), cancellationToken);
+    }
+
+    public Task StopAllClientsAsync(CancellationToken cancellationToken = default) =>
+        RunLifecycleAsync(StopClientsCoreAsync, cancellationToken);
+
     public void SelectSession(EditorSession session)
     {
         ValidateSession(session);

@@ -1,5 +1,8 @@
 namespace Karpik.Editor;
 
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 public interface IActiveProjectPublisher
 {
     Task PublishAsync(ActiveProjectContext context, CancellationToken cancellationToken);
@@ -17,7 +20,7 @@ public sealed class NullActiveProjectPublisher : IActiveProjectPublisher
         Task.CompletedTask;
 }
 
-public sealed class ProjectSwitchCoordinator : IAsyncDisposable
+public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyPropertyChanged
 {
     private readonly IProjectOpenService _projectOpenService;
     private readonly IActiveProjectPublisher _publisher;
@@ -68,6 +71,13 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         }
     }
 
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     public async Task<ProjectOpenResult> SwitchAsync(
         string solutionPath,
         CancellationToken cancellationToken = default)
@@ -82,8 +92,6 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         bool commandGateAcquired = false;
         try
         {
-            await _commandGate.WaitAsync(cancellationToken);
-            commandGateAcquired = true;
             ThrowIfShutdownRequested();
             ActiveProjectContext? previous;
             lock (_stateGate)
@@ -92,10 +100,20 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
                 previous = _ownedContext;
                 _activeProject = null;
             }
+            OnPropertyChanged(nameof(CommandsEnabled));
+            OnPropertyChanged(nameof(ActiveProject));
 
             if (previous is not null)
             {
-                await TeardownAsync(previous, cancellationToken);
+                await previous.CancelActiveBuildAsync(cancellationToken);
+            }
+
+            await _commandGate.WaitAsync(cancellationToken);
+            commandGateAcquired = true;
+            ThrowIfShutdownRequested();
+            if (previous is not null)
+            {
+                await TeardownAfterBuildCancellationAsync(previous, cancellationToken);
                 lock (_stateGate)
                 {
                     if (ReferenceEquals(_ownedContext, previous))
@@ -136,6 +154,8 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
                 _activeProject = candidate;
                 _commandsEnabled = true;
             }
+            OnPropertyChanged(nameof(ActiveProject));
+            OnPropertyChanged(nameof(CommandsEnabled));
             candidate = null;
             return openResult;
         }
@@ -209,11 +229,10 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
         }
     }
 
-    private static async Task TeardownAsync(
+    private static async Task TeardownAfterBuildCancellationAsync(
         ActiveProjectContext context,
         CancellationToken cancellationToken)
     {
-        await context.CancelActiveBuildAsync(cancellationToken);
         await context.StopClientsAsync(cancellationToken);
         await context.StopServerAsync(cancellationToken);
         await context.DisposeProjectServicesAsync(cancellationToken);
@@ -234,6 +253,8 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
             _commandsEnabled = false;
             _activeProject = null;
         }
+        OnPropertyChanged(nameof(CommandsEnabled));
+        OnPropertyChanged(nameof(ActiveProject));
 
         await _disposeGate.WaitAsync();
         try
@@ -243,17 +264,22 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable
                 return;
             }
 
+            ActiveProjectContext? context;
+            lock (_stateGate)
+            {
+                context = _ownedContext;
+            }
+            if (context is not null)
+            {
+                await context.CancelActiveBuildAsync(CancellationToken.None);
+            }
+
             await _commandGate.WaitAsync();
             try
             {
-                ActiveProjectContext? context;
-                lock (_stateGate)
-                {
-                    context = _ownedContext;
-                }
                 if (context is not null)
                 {
-                    await TeardownAsync(context, CancellationToken.None);
+                    await TeardownAfterBuildCancellationAsync(context, CancellationToken.None);
                     lock (_stateGate)
                     {
                         if (ReferenceEquals(_ownedContext, context))

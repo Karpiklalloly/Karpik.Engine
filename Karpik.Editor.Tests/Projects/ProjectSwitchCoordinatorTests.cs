@@ -154,11 +154,45 @@ public sealed class ProjectSwitchCoordinatorTests
             TestContext.Current.CancellationToken);
         await Task.Delay(30, TestContext.Current.CancellationToken);
 
-        Assert.Empty(events);
+        Assert.Equal(["cancel-build"], events);
         commandGate.SetResult();
         await command;
         await switching;
         Assert.Equal("cancel-build", events[0]);
+    }
+
+    [Fact]
+    public async Task SwitchAsync_CancelsActiveBuildBeforeWaitingForCommandGate()
+    {
+        var events = new List<string>();
+        var lifetime = new CancelingBuildLifetime(events);
+        var old = CreateContext("Old.slnx", new ProjectGeneration(1), lifetime);
+        var candidate = CreateContext("New.slnx", new ProjectGeneration(2));
+        var opener = new FakeProjectOpenService(events, ProjectOpenResult.Success(candidate));
+        await using var coordinator = new ProjectSwitchCoordinator(opener, initialContext: old);
+        Task command = coordinator.ExecuteCommandAsync(
+            old.Generation,
+            (_, token) =>
+            {
+                lifetime.BuildStarted.TrySetResult();
+                return lifetime.BuildCancelled.Task.WaitAsync(token);
+            },
+            TestContext.Current.CancellationToken);
+        await lifetime.BuildStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+
+        Task<ProjectOpenResult> switching = coordinator.SwitchAsync(
+            candidate.SolutionPath,
+            TestContext.Current.CancellationToken);
+        ProjectOpenResult result = await switching.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken);
+        await command;
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("cancel-build", events[0]);
+        Assert.Contains("open", events);
     }
 
     [Fact]
@@ -428,6 +462,51 @@ public sealed class ProjectSwitchCoordinatorTests
             return DisposeCount == 1
                 ? ValueTask.FromException(new InvalidOperationException("first dispose failed"))
                 : ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CancelingBuildLifetime(List<string> events) : IActiveProjectLifetime
+    {
+        public TaskCompletionSource BuildStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource BuildCancelled { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task CancelActiveBuildAsync(CancellationToken cancellationToken)
+        {
+            events.Add("cancel-build");
+            BuildCancelled.TrySetResult();
+            return Task.CompletedTask;
+        }
+
+        public Task StopClientsAsync(CancellationToken cancellationToken)
+        {
+            events.Add("stop-clients");
+            return Task.CompletedTask;
+        }
+
+        public Task StopServerAsync(CancellationToken cancellationToken)
+        {
+            events.Add("stop-server");
+            return Task.CompletedTask;
+        }
+
+        public Task DisposeProjectServicesAsync(CancellationToken cancellationToken)
+        {
+            events.Add("dispose-services");
+            return Task.CompletedTask;
+        }
+
+        public Task SaveWorkspaceAsync(string solutionPath, CancellationToken cancellationToken)
+        {
+            events.Add("save-workspace");
+            return Task.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            events.Add("dispose-context");
+            return ValueTask.CompletedTask;
         }
     }
 
