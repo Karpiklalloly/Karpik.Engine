@@ -61,10 +61,14 @@ kanban-plugin: board
 	  - Общие runtime assemblies (`Karpik.Engine.Core`, runner, `Dragon`, `Karpik.Jobs`) не дублируются между load contexts.
 	  - Результат: `ECSInstaller` регистрирует `EcsDefaultWorld`, server snapshot работает, client-only module не попадает на Server.
 	  - Проверка: Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 + `--validate`, editor resolver 5/5, внешний smoke на свежем layout-v2 installed Runner 1/1; прежняя ошибка `Not found service ... EcsDefaultWorld` отсутствует.
-- [ ] **Milestone 8B — доказать полноценный внешний runtime**
-	  - Внешняя игра запускает server + два clients, использует ECS и content, отдаёт snapshot и проходит hot reload с непустым state.
-	  - После stop/switch не остаются процессы, IPC, shadow/state files и locked files.
-	  - Это обязательный gate перед удалением старых composition roots.
+- [x] **Milestone 8B — доказать полноценный внешний runtime**
+ 	  - Внешняя игра запускает server + два clients, использует ECS и content, отдаёт snapshot и проходит hot reload с непустым state.
+ 	  - Тест проверяет сохранение ECS state: TotalEntityCount после reload = before + 1 (state restored + новая entity от OnConfigureComplete), GameComponent(42) присутствует в снимках до и после.
+ 	  - Вывод обоих Client собирается и проверяется на отсутствие Engine crashed.
+ 	  - Чтение content верифицируется: Content/runtime.txt выводится в лог и проверяется тестом.
+ 	  - Добавлен switch между двумя проектами: второй game материалзируется, строится, проходит полный multi-worker цикл.
+ 	  - Native layout консистентен: Packager вырезает native/ префикс, PluginLoadContext ищет native/<rid>/, PATH разделяется Path.PathSeparator.
+ 	  - После stop/reload не остаются процессы, IPC, shadow/state files и locked files.
 - [ ] **Milestone 8C — удалить editor-local runtime packaging**
 	  - После 8B удалить `Karpik.Editor/EditorRuntimeBundles.targets`, его imports и editor-local runtime fallbacks.
 	  - Результат: editor использует только runner выбранной installation и bundles активной игры.

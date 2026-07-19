@@ -7,8 +7,6 @@ public class ClientGameInstaller : IInstallerConfiguratable
 {
     public string Name => "KarpikGame.Client";
 
-    [DI] private EcsDefaultWorld _world = null!;
-
     public void OnRegisterServices(IServiceRegister services, IServiceContainer container) { }
 
     public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
@@ -18,6 +16,13 @@ public class ClientGameInstaller : IInstallerConfiguratable
 
     public void OnConfigureComplete(IServiceContainer services)
     {
-        Console.WriteLine($"[ClientGame] World has {_world.Count} entities. Client initialized.");
+        var world = (EcsDefaultWorld)services.GetService(typeof(EcsDefaultWorld))!;
+        Console.WriteLine($"[ClientGame] World has {world.Count} entities. Client initialized.");
+
+        string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
+        if (File.Exists(contentPath))
+        {
+            Console.WriteLine($"[ClientGame] Content: {File.ReadAllText(contentPath).Trim()}");
+        }
     }
 }

@@ -281,7 +281,10 @@ public static class PayloadLayout
             {
                 continue;
             }
-            CopyFileMerged(file, Path.Combine(destinationRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+            string stripped = relative.StartsWith("native/", StringComparison.OrdinalIgnoreCase)
+                ? relative["native/".Length..]
+                : relative;
+            CopyFileMerged(file, Path.Combine(destinationRoot, stripped.Replace('/', Path.DirectorySeparatorChar)));
         }
     }
 

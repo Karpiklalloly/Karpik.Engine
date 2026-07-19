@@ -77,6 +77,7 @@ public class Program
             {
                 Console.WriteLine("[Worker] Shutdown requested");
                 _isRunning.Value = false;
+                _stateCollected = true;
             };
             
             try

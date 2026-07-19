@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Karpik.Engine.Core;
 
@@ -1038,6 +1039,31 @@ internal class ProcessManager : IDisposable
         if (waitForDebugger)
         {
             startInfo.ArgumentList.Add("--wait-for-debugger");
+        }
+        string nativeDir = Path.Combine(launchOptions.EngineRoot, "native");
+        if (Directory.Exists(nativeDir))
+        {
+            string currentPath = startInfo.EnvironmentVariables["PATH"];
+            if (string.IsNullOrEmpty(currentPath))
+            {
+                currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+            }
+            string rid = RuntimeInformation.RuntimeIdentifier;
+            string osArch = rid[(rid.LastIndexOf('-') + 1)..];
+            string baseRid = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win-" + osArch
+                : RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux-" + osArch
+                : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "osx-" + osArch
+                : null;
+            if (baseRid is not null)
+            {
+                string platformNative = Path.Combine(nativeDir, baseRid);
+                if (Directory.Exists(platformNative))
+                {
+                    currentPath = platformNative + Path.PathSeparator + currentPath;
+                }
+            }
+            currentPath = nativeDir + Path.PathSeparator + currentPath;
+            startInfo.EnvironmentVariables["PATH"] = currentPath;
         }
         return startInfo;
 

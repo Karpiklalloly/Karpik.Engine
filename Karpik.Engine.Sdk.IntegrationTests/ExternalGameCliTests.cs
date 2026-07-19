@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -262,6 +263,19 @@ public sealed class ExternalGameCliTests
             AssertRuntimeBundles(validRoot, engineRoot);
             await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, engineRoot);
             await AssertMultiWorkerEcsCycleAsync(validRoot, engineRoot);
+
+            string secondRoot = Path.Combine(temporaryRoot, "second", "SecondGame");
+            await MaterializeAsync(temporaryRoot, hive, secondRoot, "SecondGame", commonEnvironment);
+            WriteNuGetConfig(secondRoot, packageFeed, offlinePackageFeed);
+            ProcessResult secondRestore = await RunAsync(
+                secondRoot, ["restore", "SecondGame.slnx", "-m:1", "-nr:false"], commonEnvironment);
+            AssertSuccess(secondRestore, "restore second game for project switch test");
+            ProcessResult secondBuild = await RunAsync(
+                secondRoot, ["build", "SecondGame.slnx", "-m:1", "-nr:false", "--no-restore"], commonEnvironment);
+            AssertSuccess(secondBuild, "build second game for project switch test");
+            AssertRuntimeBundles(secondRoot, engineRoot);
+            await AssertMultiWorkerEcsCycleAsync(secondRoot, engineRoot);
+
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -581,7 +595,7 @@ public sealed class ExternalGameCliTests
         Assert.Null(controller.ProcessId);
         Assert.True(output.Count(line => line.Contains("[Worker] Exited cleanly", StringComparison.Ordinal)) >= 2,
             string.Join(Environment.NewLine, output));
-        Assert.Contains(output, line => line.Contains("Total modules with state: 0", StringComparison.Ordinal));
+        Assert.Contains(output, line => line.Contains("Total modules with state: 1", StringComparison.Ordinal));
         Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
         string shadowRoot = Path.Combine(bundle, "reload", "shadow");
         Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
@@ -606,14 +620,20 @@ public sealed class ExternalGameCliTests
         Assert.True(File.Exists(clientRunner), $"Client runner is missing: {clientRunner}");
 
         var serverOutput = new ConcurrentQueue<string>();
+        var client1Output = new ConcurrentQueue<string>();
+        var client2Output = new ConcurrentQueue<string>();
+
         using var server = new EditorPreviewController(
             new RuntimeLaunchOptions(Side.Server, serverRunner, serverBundle, engineRoot));
         server.OutputReceived += serverOutput.Enqueue;
 
         using var client1 = new EditorPreviewController(
             new RuntimeLaunchOptions(Side.Client, clientRunner, clientBundle, engineRoot));
+        client1.OutputReceived += client1Output.Enqueue;
+
         using var client2 = new EditorPreviewController(
             new RuntimeLaunchOptions(Side.Client, clientRunner, clientBundle, engineRoot));
+        client2.OutputReceived += client2Output.Enqueue;
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
@@ -628,17 +648,36 @@ public sealed class ExternalGameCliTests
             Assert.Equal(EditorPreviewState.Running, client1.State);
             Assert.Equal(EditorPreviewState.Running, client2.State);
 
+            Assert.Contains(serverOutput,
+                line => line.Contains("[ServerGame] Content: server runtime content", StringComparison.Ordinal));
+            Assert.Contains(serverOutput,
+                line => line.Contains("[ServerGame] Shared content: shared runtime content", StringComparison.Ordinal));
+            Assert.Contains(client1Output,
+                line => line.Contains("[ClientGame] Content: client runtime content", StringComparison.Ordinal));
+            Assert.Contains(client2Output,
+                line => line.Contains("[ClientGame] Content: client runtime content", StringComparison.Ordinal));
+
             EditorRuntimeSnapshot? snapshot = await server.RequestSnapshotAsync(
                 TimeSpan.FromSeconds(5), timeout.Token);
             Assert.NotNull(snapshot);
             Assert.True(snapshot.TotalEntityCount > 0,
                 $"Expected non-empty ECS world, got TotalEntityCount={snapshot.TotalEntityCount}{Environment.NewLine}" +
                 string.Join(Environment.NewLine, serverOutput));
+            int beforeCount = snapshot.TotalEntityCount;
+
+            Assert.Contains(snapshot.Entities, entity =>
+                entity.Components.Any(component =>
+                    component.TypeName.Contains("GameComponent", StringComparison.Ordinal) &&
+                    component.DisplayValue.Contains("42", StringComparison.Ordinal)));
 
             int firstProcessId = Assert.IsType<int>(server.ProcessId);
             await server.HotReloadAsync(timeout.Token);
             int secondProcessId = Assert.IsType<int>(server.ProcessId);
             Assert.NotEqual(firstProcessId, secondProcessId);
+
+            string stateRoot = Path.Combine(serverBundle, "reload", "state");
+            Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
+                "Hot reload state must be consumed by the restarted worker.");
 
             EditorRuntimeSnapshot? snapshotAfter = await server.RequestSnapshotAsync(
                 TimeSpan.FromSeconds(5), timeout.Token);
@@ -646,6 +685,14 @@ public sealed class ExternalGameCliTests
             Assert.True(snapshotAfter.TotalEntityCount > 0,
                 $"Expected non-empty ECS world after hot reload.{Environment.NewLine}" +
                 string.Join(Environment.NewLine, serverOutput));
+
+            Assert.True(snapshotAfter.TotalEntityCount == beforeCount + 1,
+                $"ECS state loss or entity duplication: before={beforeCount}, after={snapshotAfter.TotalEntityCount}, expected={beforeCount + 1}");
+
+            Assert.Contains(snapshotAfter.Entities, entity =>
+                entity.Components.Any(component =>
+                    component.TypeName.Contains("GameComponent", StringComparison.Ordinal) &&
+                    component.DisplayValue.Contains("42", StringComparison.Ordinal)));
 
             await Task.WhenAll(
                 server.StopAsync(timeout.Token),
@@ -661,6 +708,14 @@ public sealed class ExternalGameCliTests
 
             Assert.DoesNotContain(serverOutput,
                 line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(client1Output,
+                line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(client2Output,
+                line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+
+            string shadowRoot = Path.Combine(serverBundle, "reload", "shadow");
+            Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
+                "Clean stop must remove all bundle-owned worker shadow directories.");
         }
         finally
         {

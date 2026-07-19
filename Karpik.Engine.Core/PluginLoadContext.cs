@@ -138,6 +138,7 @@ public class PluginLoadContext : AssemblyLoadContext
             if (native)
             {
                 yield return Path.Combine(directory, "runtimes", RuntimeInformation.RuntimeIdentifier, "native", libraryName);
+                yield return Path.Combine(directory, "native", RuntimeInformation.RuntimeIdentifier, libraryName);
             }
         }
         if (!_allowAppContextFallback)
