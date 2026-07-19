@@ -14,6 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Karpik.Editor\Karpik.Editor.csproj" AdditionalProperties="SkipEditorRuntimeBundles=true" />
+    <ProjectReference Include="..\Karpik.Editor\Karpik.Editor.csproj" />
   </ItemGroup>
 </Project>

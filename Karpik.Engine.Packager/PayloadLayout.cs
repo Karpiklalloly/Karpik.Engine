@@ -85,7 +85,7 @@ public static class PayloadLayout
             pathMapProperty
         ];
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "restore", "KarpikEngine.slnx", "-m:1", "-nr:false", "-p:Configuration=Release");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Editor/Karpik.Editor.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", "-p:SkipEditorRuntimeBundles=true");
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Editor/Karpik.Editor.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
 

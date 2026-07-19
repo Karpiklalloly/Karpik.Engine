@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Karpik.Editor.Tests;
 
-public sealed class RuntimeBundleResolverTests
+public sealed class ProjectRuntimeResolverTests
 {
     [Fact]
     public void Resolve_ReturnsCompletedBundleForRequestedSide()

@@ -69,8 +69,10 @@ kanban-plugin: board
  	  - Добавлен switch между двумя проектами: второй game материалзируется, строится, проходит полный multi-worker цикл.
  	  - Native layout консистентен: Packager вырезает native/ префикс, PluginLoadContext ищет native/<rid>/, PATH разделяется Path.PathSeparator.
  	  - После stop/reload не остаются процессы, IPC, shadow/state files и locked files.
-- [ ] **Milestone 8C — удалить editor-local runtime packaging**
-	  - После 8B удалить `Karpik.Editor/EditorRuntimeBundles.targets`, его imports и editor-local runtime fallbacks.
+- [x] **Milestone 8C — удалить editor-local runtime packaging**
+	  - Удалён `Karpik.Editor/EditorRuntimeBundles.targets` (уже не импортировался).
+	  - Убраны `SkipEditorRuntimeBundles` из PayloadLayout.cs и Karpik.Editor.Tests.csproj.
+	  - RuntimeBundleResolverTests переименован в ProjectRuntimeResolverTests.
 	  - Результат: editor использует только runner выбранной installation и bundles активной игры.
 - [ ] **Milestone 8D — убрать `MyGame` и игровые launcher-ы из engine root**
 	  - Перенести полезный sample в game template; удалить `MyGame`, `ClientLauncher`, `ServerLauncher` и их solution/build ссылки.

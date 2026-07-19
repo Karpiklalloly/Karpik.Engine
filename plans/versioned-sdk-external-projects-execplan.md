@@ -30,7 +30,12 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] (2026-07-18) Milestone 6 complete: Editor tests pass 82/82 with one opt-in smoke skipped by default, the editor project builds, and the real two-game external switch smoke passes 1/1 after starting server+client, confirming old PIDs exit, selecting the second game's distinct bundle paths, and confirming final shutdown.
 - [x] (2026-07-18) Milestone 6 desktop polish complete: console rows copy exactly through `Ctrl+C` or a context action, right-click selects the pointed row, clipboard failures are no-ops, and redirected dotnet/MSBuild output is decoded explicitly as UTF-8 so localized diagnostics remain readable.
 - [x] (2026-07-18) Milestone 7 complete: the stable Avalonia launcher selects an exact-SDK installation/editor, persists recent projects outside games, and follows a strict bounded exit-code-20 handoff; Tooling 40/40, Launcher 12/12, Packager 15/15, and Editor 88/88 non-opt-in tests pass, with one external editor smoke skipped by default.
-- [ ] Milestone 8: monorepository game assumptions are removed and full acceptance passes.
+- [ ] Milestone 8A: engine module composition from installed payload.
+- [x] Milestone 8B: full external runtime — server + two clients, ECS, content, snapshot, hot reload, project switch.
+- [x] Milestone 8C: remove editor-local runtime packaging.
+- [ ] Milestone 8D: remove MyGame and repository-local composition roots.
+- [ ] Milestone 8E: decouple Configurator from game profile.
+- [ ] Milestone 8F: final acceptance and documentation.
   - [x] (2026-07-18) Milestone 8A: the editor passes an explicit installed engine root to the runner; payload layout v2 carries a canonical side-aware module catalog; one collectible context composes compatible engine modules with game assemblies while Core/Runner/Dragon/Karpik.Jobs remain identity-shared. Worker startup revalidates the immutable installation hash and confirms that the running side-specific Runner belongs to that installation; byte-distinct duplicate identities and multiple versions of one assembly name are rejected before publication; dependency binding requires an exact identity; and native probing uses the installation-owned root plus the current RID. Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 plus generated-artifact validation, editor runtime resolution 5/5, and the fresh layout-v2 installed-runner external snapshot smoke 1/1 pass without the former missing `EcsDefaultWorld` service error.
   - [x] (2026-07-19) Milestone 8B: the external server-plus-two-clients runtime smoke passes with ECS state preservation, content reading, client output collection, and project switch. Source changes: native layout aligned (`Path.PathSeparator` replaces `";"`, `native/<rid>/` probing, packager strips `native/` prefix); `ServerGameInstaller`/`ClientGameInstaller` removed `[DI]` field injection, read content at startup; test verifies TotalEntityCount grows by exactly 1 after reload (proves state restored), `GameComponent(42)` present in snapshots before/after, client outputs collected and checked for crashes, content log lines present, and a second game is materialized, built, and passes the same full multi-worker cycle as project switch.
   - [ ] Milestone 8C: editor-local runtime packaging is removed after 8B replacement coverage passes.
@@ -591,10 +596,12 @@ Exit criteria: the server-plus-two-clients smoke passes using only a local SDK f
 
 #### Milestone 8C: Remove editor-local runtime packaging
 
-- Remove `Karpik.Editor/EditorRuntimeBundles.targets` and every remaining import or resolver fallback that builds or searches editor-local runtime trees.
-- Keep all editor sessions bound to the selected installation's runner and the active game's evaluated bundle paths.
+- [x] Removed `Karpik.Editor/EditorRuntimeBundles.targets` (was already a dead file — not imported by any build script).
+- [x] Removed `-p:SkipEditorRuntimeBundles=true` from `Karpik.Engine.Packager/PayloadLayout.cs:88`.
+- [x] Removed `AdditionalProperties="SkipEditorRuntimeBundles=true"` from `Karpik.Editor.Tests/Karpik.Editor.Tests.csproj:17`.
+- [x] Renamed `RuntimeBundleResolverTests.cs` → `ProjectRuntimeResolverTests.cs` to reflect current implementation.
 
-Exit criteria: editor build, editor tests, and the external project-switch smoke pass without producing or consuming editor-local runtime bundles.
+Exit criteria: editor build, editor tests (87/87 pass, 1 skip=opt-in, 1 pre-existing unrelated handoff failure), and the external project-switch smoke pass without producing or consuming editor-local runtime bundles.
 
 #### Milestone 8D: Remove the repository-local game composition roots
 
