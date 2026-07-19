@@ -25,9 +25,7 @@
             Condition="
               '$(KarpikSkipValidation)' != 'true'
               AND (
-                '$(MSBuildProjectName)' == 'ClientLauncher'
-                OR '$(MSBuildProjectName)' == 'ServerLauncher'
-                OR '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
+                '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
                 OR '$(MSBuildProjectName)' == 'Karpik.Engine.Server.Publish'
               )">
         <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)Configurator/Configurator.csproj&quot; -- --validate"

@@ -38,14 +38,12 @@ public sealed partial class ModuleLoader : IDisposable
         "DebugModule",
         "LoggerModule",
         "AssetManagement.Core",
-        "MyGameResources",
         "Network.Shared.Core",
         "ECS.Core",
         "Modding.Core",
         "Modding.Lua",
         "Network.Shared.LiteNetLib",
         "Physics2D.Core",
-        "MyGame.Shared.Main",
         "Physics2D.Aether2D",
         "StatAndAbilities",
         "Tween.Core",
@@ -60,7 +58,6 @@ public sealed partial class ModuleLoader : IDisposable
         "Graphics.Core",
         "Graphics.OpenGL",
         "Input",
-        "MyGame.Client.Main",
         "Window.Sdl2",
     };
 
@@ -68,7 +65,6 @@ public sealed partial class ModuleLoader : IDisposable
     {
         "Network.Server.Core",
         "Network.Server.LiteNetLib",
-        "MyGame.Server.Main",
     };
 
     public readonly PluginDescriptor[] ClientModules =
@@ -76,14 +72,12 @@ public sealed partial class ModuleLoader : IDisposable
         new("DebugModule", "Shared"),
         new("LoggerModule", "Shared"),
         new("AssetManagement.Core", "Shared"),
-        new("MyGameResources", "Shared"),
         new("Network.Shared.Core", "Shared"),
         new("ECS.Core", "Shared"),
         new("Modding.Core", "Shared"),
         new("Modding.Lua", "Shared"),
         new("Network.Shared.LiteNetLib", "Shared"),
         new("Physics2D.Core", "Shared"),
-        new("MyGame.Shared.Main", "Shared"),
         new("Physics2D.Aether2D", "Shared"),
         new("StatAndAbilities", "Shared"),
         new("Tween.Core", "Shared"),
@@ -94,7 +88,6 @@ public sealed partial class ModuleLoader : IDisposable
         new("Graphics.Core", "Client"),
         new("Graphics.OpenGL", "Client"),
         new("Input", "Client"),
-        new("MyGame.Client.Main", "Client"),
         new("Window.Sdl2", "Client"),
     };
 
@@ -103,21 +96,18 @@ public sealed partial class ModuleLoader : IDisposable
         new("DebugModule", "Shared"),
         new("LoggerModule", "Shared"),
         new("AssetManagement.Core", "Shared"),
-        new("MyGameResources", "Shared"),
         new("Network.Shared.Core", "Shared"),
         new("ECS.Core", "Shared"),
         new("Modding.Core", "Shared"),
         new("Modding.Lua", "Shared"),
         new("Network.Shared.LiteNetLib", "Shared"),
         new("Physics2D.Core", "Shared"),
-        new("MyGame.Shared.Main", "Shared"),
         new("Physics2D.Aether2D", "Shared"),
         new("StatAndAbilities", "Shared"),
         new("Tween.Core", "Shared"),
         new("UnsafeUtilities", "Shared"),
         new("Network.Server.Core", "Server"),
         new("Network.Server.LiteNetLib", "Server"),
-        new("MyGame.Server.Main", "Server"),
     };
 
 

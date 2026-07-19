@@ -22,9 +22,5 @@
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Core/Window.Core.csproj" Condition="'$(IsClient)' == 'true'" />
     <PluginReference Include="$(MSBuildThisFileDirectory)Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj" Condition="'$(IsClient)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" Condition="'$(IsClient)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" Condition="'$(IsServer)' == 'true'" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
-    <PluginReference Include="$(MSBuildThisFileDirectory)MyGame/MyGameResources/MyGameResources.csproj" />
   </ItemGroup>
 </Project>

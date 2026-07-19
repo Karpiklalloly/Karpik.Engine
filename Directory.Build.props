@@ -12,7 +12,7 @@
     </ItemDefinitionGroup>
     
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
-    <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             (                                 $(MSBuildProjectName.Contains('MyGame.'))                                 OR  $(MSBuildProjectName.Contains('Karpik.Engine'))                             )">
+    <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             $(MSBuildProjectName.Contains('Karpik.Engine'))">
 
         <KarpikModuleDependency Include="Network.Codegen">
             <OutputItemType>Analyzer</OutputItemType>
@@ -28,7 +28,7 @@
 
     </ItemGroup>
 
-    <ItemGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)Modules')) OR $(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)MyGame'))">
+    <ItemGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)Modules'))">
 
         <KarpikModuleDependency Include="Karpik.Engine.Core.Codegen">
             <OutputItemType>Analyzer</OutputItemType>

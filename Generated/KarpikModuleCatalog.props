@@ -6,9 +6,6 @@
     <KarpikModuleDependency Update="AssetManagement.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
-    <KarpikModuleDependency Update="ClientLauncher">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\ClientLauncher\ClientLauncher.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
     <KarpikModuleDependency Update="Configurator">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Configurator\Configurator.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
@@ -144,18 +141,6 @@
     <KarpikModuleDependency Update="Modding.TestModule">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.TestModule\Modding.TestModule.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
-    <KarpikModuleDependency Update="MyGame.Client.Main">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Client\MyGame.Client.Main\MyGame.Client.Main.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
-    <KarpikModuleDependency Update="MyGame.Server.Main">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Server\MyGame.Server.Main\MyGame.Server.Main.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
-    <KarpikModuleDependency Update="MyGame.Shared.Main">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\Shared\MyGame.Shared.Main\MyGame.Shared.Main.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
-    <KarpikModuleDependency Update="MyGameResources">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\MyGame\MyGameResources\MyGameResources.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Client">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
@@ -194,9 +179,6 @@
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Physics2D.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
-    </KarpikModuleDependency>
-    <KarpikModuleDependency Update="ServerLauncher">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\ServerLauncher\ServerLauncher.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="StatAndAbilities">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\StatAndAbilities\StatAndAbilities.csproj</ResolvedProjectPath>

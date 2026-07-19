@@ -156,9 +156,6 @@ public sealed class ConfiguratorTests
         Assert.Equal(first.Values, second.Values);
         Assert.True(graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Provider") <
                     graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Consumer"));
-        Assert.Contains("MyGame.Client.Main", loader);
-        Assert.Contains("MyGame.Server.Main", loader);
-        Assert.Contains("MyGameResources", loader);
         Assert.Contains("modules.version.*", loader);
         Assert.Contains(".complete", loader);
         Assert.Contains("public ModuleLoader(string bundleRoot)", loader);

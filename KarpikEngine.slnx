@@ -74,19 +74,7 @@
   <Folder Name="/Modules/Shared/Tween/">
     <Project Path="Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
   </Folder>
-  <Folder Name="/MyGame/">
-    <Project Path="MyGame/MyGameResources/MyGameResources.csproj" />
-  </Folder>
-  <Folder Name="/MyGame/Client/">
-    <Project Path="MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj" />
-  </Folder>
-  <Folder Name="/MyGame/Server/">
-    <Project Path="MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj" />
-  </Folder>
-  <Folder Name="/MyGame/Shared/">
-    <Project Path="MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj" />
-  </Folder>
-  <Project Path="ClientLauncher/ClientLauncher.csproj" />
+  
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
   <Project Path="Dragon/Dragon.csproj" />
@@ -112,7 +100,6 @@
   <Project Path="Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
-  <Project Path="ServerLauncher/ServerLauncher.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
   <Project Path="TestVeldrid/TestVeldrid.csproj" />
   <Project Path="Tools/StaticAnalyzer/StaticAnalyzer.csproj" />

@@ -5,14 +5,6 @@ namespace ProjectConfigurator;
 
 public static class RepositoryParser
 {
-    private static readonly HashSet<string> GameRootPaths = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "MyGame/MyGameResources/MyGameResources.csproj",
-        "MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj",
-        "MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj",
-        "MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj"
-    };
-
     public static RepositoryModel Load(string rootPath, string solutionPath)
     {
         var errors = new List<string>();
@@ -89,25 +81,6 @@ public static class RepositoryParser
 
         var propsPath = Path.Combine(rootPath, "Directory.Build.props");
         var (selections, settingValues) = ReadProfile(propsPath, errors);
-        var gameRoots = projects.Values
-            .Where(project => GameRootPaths.Contains(project.RelativePath))
-            .OrderBy(project => project.PluginId, StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var path in GameRootPaths)
-        {
-            if (!gameRoots.Any(project => project.RelativePath.Equals(path, StringComparison.OrdinalIgnoreCase)))
-            {
-                errors.Add($"Required game root is missing from the solution: {path}");
-            }
-        }
-
-        foreach (var project in projects.Values.Where(project =>
-                     project.RelativePath.StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase) &&
-                     !GameRootPaths.Contains(project.RelativePath)))
-        {
-            errors.Add($"Unknown game project: {project.RelativePath}");
-        }
 
         return new RepositoryModel
         {
@@ -117,7 +90,7 @@ public static class RepositoryParser
             ProjectsByPath = projects,
             Plugins = plugins,
             Modules = modules,
-            GameRoots = gameRoots,
+            GameRoots = [],
             Selections = selections,
             SettingValues = settingValues,
             ParseErrors = errors
@@ -379,19 +352,15 @@ public static class RepositoryParser
     public static ProjectSide GetSide(string path)
     {
         var normalized = NormalizeRelativePath(path);
-        if (normalized.StartsWith("Modules/Client/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Client/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Client/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Client;
         }
-        if (normalized.StartsWith("Modules/Server/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Server/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Server/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Server;
         }
-        if (normalized.StartsWith("Modules/Shared/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Shared/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/MyGameResources/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Shared/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Shared;
         }

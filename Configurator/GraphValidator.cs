@@ -45,8 +45,7 @@ public static class GraphValidator
         }
 
         foreach (var project in model.ProjectsByPath.Values.Where(project =>
-                     project.RelativePath.StartsWith("Modules/", StringComparison.OrdinalIgnoreCase) ||
-                     project.RelativePath.StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase)))
+                     project.RelativePath.StartsWith("Modules/", StringComparison.OrdinalIgnoreCase)))
         {
             if (project.DirectProjectReferences.Count > 0)
             {

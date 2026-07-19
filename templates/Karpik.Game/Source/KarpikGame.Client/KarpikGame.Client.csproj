@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Content\runtime.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Content\**\*" CopyToOutputDirectory="PreserveNewest" Link="Content\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="..\..\Mods\**\*" CopyToOutputDirectory="PreserveNewest" Link="Mods\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

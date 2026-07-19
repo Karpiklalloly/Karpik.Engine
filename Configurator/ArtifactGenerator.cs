@@ -57,11 +57,6 @@ public static class ArtifactGenerator
         {
             references.Add(CreateReference(ns, plugin.Project));
         }
-        foreach (var root in model.GameRoots.OrderBy(project => project.PluginId, StringComparer.Ordinal))
-        {
-            references.Add(CreateReference(ns, root));
-        }
-
         return new XDocument(new XDeclaration("1.0", "utf-8", null), project)
             .ToString() + Environment.NewLine;
     }
