@@ -644,7 +644,7 @@ For the accepted remediation, "equivalent sample behaviour" means the already-ap
 
 ##### Approved Milestone 8B-8D remediation
 
-Task R1 restores one portable game-bundle asset contract.
+###### Task 1 (R1): Restore the portable game-bundle asset contract
 
 - Tests first: extend `Karpik.Engine.Sdk.Tasks.Tests/BuildKarpikRuntimeBundleTaskTests.cs` so a bundle containing `Content/runtime.txt` and `Mods/MyCoolMod/mod_info.json` must publish both roots, and so an escaping, linked, duplicate, or oversized mod item fails transactionally without replacing the prior complete bundle.
 - Modify `Karpik.Engine.Sdk.Tasks/BuildKarpikRuntimeBundleTask.cs` to accept a separate `Mods` item array, materialize it below bundle-owned `Mods/`, include it in the existing entry/depth/byte bounds, and permit that root in complete-bundle validation. `Content` remains required; `Mods` is optional.
@@ -660,7 +660,7 @@ Run from the repository worktree:
 
 Expected observation: all ordinary tests pass; generated side bundles contain `Content/` and `Mods/`; no runtime launch option or environment variable can bypass the bundle.
 
-Task R2 repairs Milestone 8C acceptance rather than merely renaming its fixtures.
+###### Task 2 (R2): Repair Milestone 8C runtime ownership acceptance
 
 - Rewrite `Karpik.Editor.Tests/PreviewIntegrationTests.cs` so opt-in runtime tests take a validated installation from `KARPIK_TEST_ENGINE_ROOT` and game bundles from `KARPIK_TEST_GAME_ROOT`. Use `Assert.SkipUnless` when the opt-in environment is absent; never silently return and never derive runners or bundles from `Karpik.Editor/bin/.../runtimes`.
 - Rewrite the setup in `Karpik.Editor.Tests/ProjectRuntimeResolverTests.cs` with physically separate `engine/runners/{side}` and `game/.../karpik-bundle` roots. Assert that the descriptor returns the exact installed runner and active-game bundle for each side.
@@ -672,7 +672,7 @@ Run:
 
 Expected observation: ordinary ownership tests pass, opt-in tests are reported as skipped without their environment, and every constructed runner/bundle pair crosses the installation/game boundary explicitly.
 
-Task R3 replaces the false-positive switch claim with real coordinator evidence.
+###### Task 3 (R3): Replace the false-positive switch claim with coordinator evidence
 
 - Extend `Karpik.Editor.Tests/Projects/ExternalProjectSwitchIntegrationTests.cs`: start one server and two clients for the first generated game, keep all three PIDs, call `EditorShellViewModel.OpenProjectAsync` for the second solution while they are active, and assert every old PID exits before the new project becomes active.
 - After the switch, assert the first client and server bundle `reload/state` and `reload/shadow` trees are empty, and acquire exclusive read/write handles on representative first-project bundle files to prove locks were released.
@@ -686,7 +686,7 @@ Run after recreating the local package and engine payload described in `Concrete
 
 Expected observation: one opt-in test passes with three first-project workers and three second-project workers; no old process, reload artifact, or locked representative file survives the switch or shutdown.
 
-Task R4 makes the destructive migration internally consistent without importing the old platformer into the engine repository.
+###### Task 4 (R4): Make the destructive migration internally consistent
 
 - Remove `RepositoryModel.GameRoots` and its remaining validation loop from `Configurator/Models.cs` and `Configurator/GraphValidator.cs`. Remove the four deleted `MyGame` fixture projects and helpers from `Configurator.Tests/ConfiguratorTests.cs`; replace them with assertions over an engine-only repository model.
 - Replace the deleted-launcher diagnostic in `Configurator/ArtifactGenerator.cs` with guidance to build the selected first-party module set or use the installed side runner. Run Configurator generation so `Generated/ModuleLoader.cs` changes only through the generator.
