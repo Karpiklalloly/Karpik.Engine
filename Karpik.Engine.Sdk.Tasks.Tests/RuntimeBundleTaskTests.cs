@@ -4,6 +4,7 @@ using Karpik.Engine.Sdk.Tasks;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Xunit;
+using Xunit.Sdk;
 
 public sealed class RuntimeBundleTaskTests
 {
@@ -419,9 +420,17 @@ public sealed class RuntimeBundleTaskTests
         {
             File.CreateSymbolicLink(linkedMod, realMod);
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        catch (PlatformNotSupportedException exception)
         {
-            return;
+            throw SkipException.ForSkip($"Symbolic links are not supported on this platform: {exception.Message}");
+        }
+        catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
+        }
+        catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
         }
 
         string bundle = CreateCompleteBundle(tree, "preserve");
@@ -538,6 +547,9 @@ public sealed class RuntimeBundleTaskTests
         item.SetMetadata("TargetPath", targetPath);
         return item;
     }
+
+    private static bool IsWindowsSymbolicLinkPrivilegeFailure(Exception exception) =>
+        OperatingSystem.IsWindows() && exception.HResult == unchecked((int)0x80070522);
 
     private sealed class FailingPublishFileSystem : RuntimeBundleFileSystem
     {

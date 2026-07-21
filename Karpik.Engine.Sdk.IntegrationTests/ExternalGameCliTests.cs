@@ -274,10 +274,10 @@ public sealed class ExternalGameCliTests
             WriteNuGetConfig(secondRoot, packageFeed, offlinePackageFeed);
             ProcessResult secondRestore = await RunAsync(
                 secondRoot, ["restore", "SecondGame.slnx", "-m:1", "-nr:false"], commonEnvironment);
-            AssertSuccess(secondRestore, "restore second game for project switch test");
+            AssertSuccess(secondRestore, "restore second independently generated game");
             ProcessResult secondBuild = await RunAsync(
                 secondRoot, ["build", "SecondGame.slnx", "-m:1", "-nr:false", "--no-restore"], commonEnvironment);
-            AssertSuccess(secondBuild, "build second game for project switch test");
+            AssertSuccess(secondBuild, "build second independently generated game");
             AssertRuntimeBundles(secondRoot, engineRoot, "SecondGame");
             await AssertMultiWorkerEcsCycleAsync(secondRoot, engineRoot, "SecondGame");
 
