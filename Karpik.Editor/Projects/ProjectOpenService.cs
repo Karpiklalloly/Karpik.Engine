@@ -317,9 +317,13 @@ public sealed class ProjectOpenService : IProjectOpenService
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string relative = Path.GetRelativePath(normalizedRoot, Path.GetFullPath(candidate));
         string current = normalizedRoot;
-        if (IsReparsePoint(current))
+        if (IsReparsePoint(current, out bool rootExists))
         {
             return true;
+        }
+        if (!rootExists)
+        {
+            return false;
         }
 
         foreach (string segment in relative.Split(
@@ -327,25 +331,26 @@ public sealed class ProjectOpenService : IProjectOpenService
                      StringSplitOptions.RemoveEmptyEntries))
         {
             current = Path.Combine(current, segment);
-            if (!Directory.Exists(current))
-            {
-                return false;
-            }
-            if (IsReparsePoint(current))
+            if (IsReparsePoint(current, out bool exists))
             {
                 return true;
+            }
+            if (!exists)
+            {
+                return false;
             }
         }
 
         return false;
     }
 
-    private static bool IsReparsePoint(string path)
+    private static bool IsReparsePoint(string path, out bool exists)
     {
-        FileSystemInfo info = Directory.Exists(path)
-            ? new DirectoryInfo(path)
-            : new FileInfo(path);
-        return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
+        var info = new DirectoryInfo(path);
+        string? linkTarget = info.LinkTarget;
+        exists = info.Exists;
+        return linkTarget is not null
+               || (exists && (info.Attributes & FileAttributes.ReparsePoint) != 0);
     }
 
     private static void ValidateTargetPath(

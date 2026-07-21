@@ -143,7 +143,7 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
-    public async Task OpenAsync_RejectsRuntimeBundleBelowLinkedDirectoryEscapingActiveGameRoot()
+    public async Task OpenAsync_RejectsRuntimeBundleBelowExistingLinkedDirectoryEscapingActiveGameRoot()
     {
         using var solution = TestSolution.Create();
         string outside = Path.Combine(solution.Root, "Outside");
@@ -151,22 +151,7 @@ public sealed class ProjectOpenServiceTests
         Directory.CreateDirectory(Path.Combine(outside, "karpik-bundle"));
         try
         {
-            try
-            {
-                Directory.CreateSymbolicLink(linkedBundles, outside);
-            }
-            catch (PlatformNotSupportedException exception)
-            {
-                throw SkipException.ForSkip($"Unable to create a directory symbolic link: {exception.Message}");
-            }
-            catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
-            {
-                throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
-            }
-            catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
-            {
-                throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
-            }
+            CreateDirectorySymbolicLinkOrSkip(linkedBundles, outside);
 
             var evaluations = solution.CreateEvaluations().ToArray();
             int client = Array.FindIndex(evaluations, evaluation => evaluation.Side == "Client");
@@ -200,6 +185,44 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
+    public async Task OpenAsync_RejectsRuntimeBundleBelowDanglingLinkedDirectory()
+    {
+        using var solution = TestSolution.Create();
+        string missingTarget = Path.Combine(solution.Root, "Outside", "missing-target");
+        string linkedBundles = Path.Combine(solution.Root, "DanglingBundles");
+        try
+        {
+            CreateDirectorySymbolicLinkOrSkip(linkedBundles, missingTarget);
+
+            var evaluations = solution.CreateEvaluations().ToArray();
+            int client = Array.FindIndex(evaluations, evaluation => evaluation.Side == "Client");
+            evaluations[client] = evaluations[client] with
+            {
+                RuntimeBundlePath = Path.Combine(linkedBundles, "karpik-bundle")
+            };
+            var service = new ProjectOpenService(
+                new FakeInspector(evaluations),
+                new FakeInstallationProvider(solution.EngineRoot),
+                new FakeContextFactory());
+
+            ProjectOpenResult result = await service.OpenAsync(
+                solution.SolutionPath,
+                new ProjectGeneration(1),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains(
+                result.Diagnostics,
+                diagnostic => diagnostic.Contains("link", StringComparison.OrdinalIgnoreCase)
+                              || diagnostic.Contains("reparse", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfPresent(linkedBundles);
+        }
+    }
+
+    [Fact]
     public void SymbolicLinkCapabilitySkip_RecognizesOnlyWindowsPrivilegeNotHeld()
     {
         var privilegeFailure = new TestException(unchecked((int)0x80070522));
@@ -210,7 +233,7 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
-    public async Task OpenAsync_UsesExactEvaluatedRuntimeBundlePathsForArbitraryGameProjects()
+    public async Task OpenAsync_AcceptsOrdinaryNonexistentRuntimeOutputDirectoriesWithArbitraryGameProjects()
     {
         using var solution = TestSolution.Create(
             clientProjectFileName: "Sandbox.Client.Runtime.csproj",
@@ -687,6 +710,34 @@ public sealed class ProjectOpenServiceTests
 
     private static bool IsWindowsSymbolicLinkPrivilegeFailure(Exception exception) =>
         OperatingSystem.IsWindows() && exception.HResult == unchecked((int)0x80070522);
+
+    private static void CreateDirectorySymbolicLinkOrSkip(string path, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(path, target);
+        }
+        catch (PlatformNotSupportedException exception)
+        {
+            throw SkipException.ForSkip($"Unable to create a directory symbolic link: {exception.Message}");
+        }
+        catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
+        }
+        catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
+        }
+    }
+
+    private static void DeleteDirectoryLinkIfPresent(string path)
+    {
+        if (Directory.Exists(path) || new DirectoryInfo(path).LinkTarget is not null)
+        {
+            Directory.Delete(path);
+        }
+    }
 
     private sealed class TestException : Exception
     {
