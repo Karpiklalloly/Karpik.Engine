@@ -17,19 +17,35 @@ public sealed class EditorProjectBuildContractTests
         string projectPath = Path.Combine(repositoryRoot, "Karpik.Editor", "Karpik.Editor.csproj");
 
         XDocument project = XDocument.Load(projectPath);
-        string source = project.ToString(SaveOptions.DisableFormatting);
+        string normalizedSource = Normalize(project.ToString(SaveOptions.DisableFormatting));
 
         Assert.DoesNotContain(
             project.Descendants(),
             element => element.Name.LocalName == "Import"
-                       && ((string?)element.Attribute("Project"))?.Contains(
-                           "EditorRuntimeBundles.targets",
-                           StringComparison.OrdinalIgnoreCase) == true);
+                       && Normalize((string?)element.Attribute("Project") ?? "").Contains(
+                           "editorruntimebundles.targets",
+                           StringComparison.Ordinal));
         Assert.DoesNotContain(
             project.Descendants(),
-            element => element.Name.LocalName == "SkipEditorRuntimeBundles");
-        Assert.DoesNotContain("EditorRuntimeBundles.targets", source, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("SkipEditorRuntimeBundles", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("$(TargetDir)runtimes", source, StringComparison.Ordinal);
+            element => element.Name.LocalName.Equals(
+                "SkipEditorRuntimeBundles",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("editorruntimebundles.targets", normalizedSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("skipeditorruntimebundles", normalizedSource, StringComparison.Ordinal);
+        Assert.False(ContainsEditorLocalRuntimeOutput(normalizedSource));
     }
+
+    [Theory]
+    [InlineData("$(TargetDir)runtimes")]
+    [InlineData("$(TargetDir)\\runtimes")]
+    [InlineData("$(TARGETDIR)/RUNTIMES")]
+    public void EditorLocalRuntimeOutputDetection_NormalizesCaseAndSlashes(string value) =>
+        Assert.True(ContainsEditorLocalRuntimeOutput(Normalize(value)));
+
+    private static string Normalize(string value) =>
+        value.Replace('\\', '/').ToLowerInvariant();
+
+    private static bool ContainsEditorLocalRuntimeOutput(string normalizedValue) =>
+        normalizedValue.Contains("$(targetdir)runtimes", StringComparison.Ordinal)
+        || normalizedValue.Contains("$(targetdir)/runtimes", StringComparison.Ordinal);
 }

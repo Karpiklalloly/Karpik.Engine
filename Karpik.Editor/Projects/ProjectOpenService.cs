@@ -293,17 +293,59 @@ public sealed class ProjectOpenService : IProjectOpenService
         {
             diagnostics.Add(
                 $"Project '{evaluation.ProjectPath}' evaluates KarpikRuntimeBundlePath outside the active game root.");
+            return;
+        }
+        if (HasReparsePointAncestor(evaluation.RuntimeBundlePath, gameRoot))
+        {
+            diagnostics.Add(
+                $"Project '{evaluation.ProjectPath}' evaluates KarpikRuntimeBundlePath below a link or reparse point.");
         }
     }
 
     private static bool IsWithinRoot(string candidate, string root)
     {
-        string normalizedCandidate = Path.GetFullPath(candidate);
-        string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        return normalizedCandidate.Equals(normalizedRoot, PathComparison) ||
-               normalizedCandidate.StartsWith(
-                   normalizedRoot + Path.DirectorySeparatorChar,
-                   PathComparison);
+        string relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(candidate));
+        return !Path.IsPathRooted(relative)
+               && !relative.Equals("..", StringComparison.Ordinal)
+               && !relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+               && !relative.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal);
+    }
+
+    private static bool HasReparsePointAncestor(string candidate, string root)
+    {
+        string normalizedRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string relative = Path.GetRelativePath(normalizedRoot, Path.GetFullPath(candidate));
+        string current = normalizedRoot;
+        if (IsReparsePoint(current))
+        {
+            return true;
+        }
+
+        foreach (string segment in relative.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            if (!Directory.Exists(current))
+            {
+                return false;
+            }
+            if (IsReparsePoint(current))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        FileSystemInfo info = Directory.Exists(path)
+            ? new DirectoryInfo(path)
+            : new FileInfo(path);
+        return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }
 
     private static void ValidateTargetPath(
@@ -400,7 +442,4 @@ public sealed class ProjectOpenService : IProjectOpenService
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 
-    private static StringComparison PathComparison { get; } = OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase
-        : StringComparison.Ordinal;
 }

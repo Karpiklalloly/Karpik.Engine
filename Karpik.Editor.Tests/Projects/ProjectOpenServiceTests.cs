@@ -1,6 +1,7 @@
 using Karpik.Editor;
 using Karpik.Engine.ProjectModel;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Karpik.Editor.Tests.Projects;
 
@@ -139,6 +140,87 @@ public sealed class ProjectOpenServiceTests
         Assert.Contains(
             result.Diagnostics,
             diagnostic => diagnostic.Contains("active game root", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task OpenAsync_RejectsRuntimeBundleBelowLinkedDirectoryEscapingActiveGameRoot()
+    {
+        using var solution = TestSolution.Create();
+        string outside = Path.Combine(solution.Root, "Outside");
+        string linkedBundles = Path.Combine(solution.Root, "LinkedBundles");
+        Directory.CreateDirectory(Path.Combine(outside, "karpik-bundle"));
+        try
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(linkedBundles, outside);
+            }
+            catch (Exception exception) when (exception is UnauthorizedAccessException
+                                             or IOException
+                                             or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"Unable to create a directory symbolic link: {exception.Message}");
+            }
+
+            var evaluations = solution.CreateEvaluations().ToArray();
+            int client = Array.FindIndex(evaluations, evaluation => evaluation.Side == "Client");
+            evaluations[client] = evaluations[client] with
+            {
+                RuntimeBundlePath = Path.Combine(linkedBundles, "karpik-bundle")
+            };
+            var service = new ProjectOpenService(
+                new FakeInspector(evaluations),
+                new FakeInstallationProvider(solution.EngineRoot),
+                new FakeContextFactory());
+
+            ProjectOpenResult result = await service.OpenAsync(
+                solution.SolutionPath,
+                new ProjectGeneration(1),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains(
+                result.Diagnostics,
+                diagnostic => diagnostic.Contains("link", StringComparison.OrdinalIgnoreCase)
+                              || diagnostic.Contains("reparse", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(linkedBundles) || new DirectoryInfo(linkedBundles).LinkTarget is not null)
+            {
+                Directory.Delete(linkedBundles);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task OpenAsync_UsesExactEvaluatedRuntimeBundlePathsForArbitraryGameProjects()
+    {
+        using var solution = TestSolution.Create(
+            clientProjectFileName: "Sandbox.Client.Runtime.csproj",
+            serverProjectFileName: "DedicatedHost.csproj");
+        string customClientBundle = Path.Combine(solution.Root, "Output", "Sandbox.Client", "runtime-client");
+        string customServerBundle = Path.Combine(solution.Root, "Publish", "DedicatedHost", "runtime-server");
+        var evaluations = solution.CreateEvaluations().ToArray();
+        int client = Array.FindIndex(evaluations, evaluation => evaluation.Side == "Client");
+        int server = Array.FindIndex(evaluations, evaluation => evaluation.Side == "Server");
+        evaluations[client] = evaluations[client] with { RuntimeBundlePath = customClientBundle };
+        evaluations[server] = evaluations[server] with { RuntimeBundlePath = customServerBundle };
+        var factory = new FakeContextFactory();
+        var service = new ProjectOpenService(
+            new FakeInspector(evaluations),
+            new FakeInstallationProvider(solution.EngineRoot),
+            factory);
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        ProjectRuntimeDescriptor runtime = Assert.IsType<ProjectRuntimeDescriptor>(factory.Runtime);
+        Assert.Equal(customClientBundle, runtime.ClientBundlePath);
+        Assert.Equal(customServerBundle, runtime.ServerBundlePath);
     }
 
     [Fact]
@@ -574,6 +656,7 @@ public sealed class ProjectOpenServiceTests
     private sealed class FakeContextFactory : IActiveProjectContextFactory
     {
         public int CreateCount { get; private set; }
+        public ProjectRuntimeDescriptor? Runtime { get; private set; }
 
         public ActiveProjectContext Create(
             KarpikSolutionModel solution,
@@ -581,15 +664,24 @@ public sealed class ProjectOpenServiceTests
             ProjectGeneration generation)
         {
             CreateCount++;
+            Runtime = runtime;
             return new ActiveProjectContext(solution, runtime, generation, NullActiveProjectLifetime.Instance);
         }
     }
 
     private sealed class TestSolution : IDisposable
     {
-        private TestSolution(string root)
+        private readonly string _clientProjectFileName;
+        private readonly string _serverProjectFileName;
+
+        private TestSolution(
+            string root,
+            string clientProjectFileName,
+            string serverProjectFileName)
         {
             Root = root;
+            _clientProjectFileName = clientProjectFileName;
+            _serverProjectFileName = serverProjectFileName;
             Directory.CreateDirectory(root);
         }
 
@@ -602,27 +694,32 @@ public sealed class ProjectOpenServiceTests
         public string ServerRunner => Path.Combine(EngineRoot, "runners", "server", RunnerName);
         public string ClientProjectPath => ClientProject;
         private string SharedProject => Path.Combine(Root, "Shared", "Shared.csproj");
-        private string ClientProject => Path.Combine(Root, "Client", "Client.csproj");
-        private string ServerProject => Path.Combine(Root, "Server", "Server.csproj");
+        private string ClientProject => Path.Combine(Root, "Client", _clientProjectFileName);
+        private string ServerProject => Path.Combine(Root, "Server", _serverProjectFileName);
         private static string RunnerName => OperatingSystem.IsWindows()
             ? "Karpik.Engine.Core.Runner.exe"
             : "Karpik.Engine.Core.Runner";
 
-        public static TestSolution Create(bool validSdk = true)
+        public static TestSolution Create(
+            bool validSdk = true,
+            string clientProjectFileName = "Client.csproj",
+            string serverProjectFileName = "Server.csproj")
         {
             var solution = new TestSolution(Path.Combine(
                 Path.GetTempPath(),
                 "KarpikEditorProjectOpenTests",
-                Guid.NewGuid().ToString("N")));
+                Guid.NewGuid().ToString("N")),
+                clientProjectFileName,
+                serverProjectFileName);
             Directory.CreateDirectory(solution.EngineRoot);
             WriteProject(solution.SharedProject, validSdk ? "Karpik.Engine.Sdk" : "Microsoft.NET.Sdk", "Shared");
             WriteProject(solution.ClientProject, "Karpik.Engine.Sdk", "Client", "../Shared/Shared.csproj");
             WriteProject(solution.ServerProject, "Karpik.Engine.Sdk", "Server", "../Shared/Shared.csproj");
-            File.WriteAllText(solution.SolutionPath, """
+            File.WriteAllText(solution.SolutionPath, $"""
                 <Solution>
-                  <Project Path="Shared/Shared.csproj" />
-                  <Project Path="Client/Client.csproj" />
-                  <Project Path="Server/Server.csproj" />
+                  <Project Path="{Path.GetRelativePath(solution.Root, solution.SharedProject)}" />
+                  <Project Path="{Path.GetRelativePath(solution.Root, solution.ClientProject)}" />
+                  <Project Path="{Path.GetRelativePath(solution.Root, solution.ServerProject)}" />
                 </Solution>
                 """);
             File.WriteAllText(Path.Combine(solution.Root, "global.json"), """

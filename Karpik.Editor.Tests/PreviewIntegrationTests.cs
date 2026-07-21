@@ -11,7 +11,7 @@ public sealed class PreviewIntegrationTests
     [Trait("Category", "Integration")]
     public async Task PreviewWorker_StartsProvidesSnapshotAndStops()
     {
-        ProjectRuntimeDescriptor runtime = RequireRuntimeDescriptor("KARPIK_RUN_EDITOR_INTEGRATION");
+        ProjectRuntimeDescriptor runtime = await RequireRuntimeDescriptorAsync("KARPIK_RUN_EDITOR_INTEGRATION");
         ProjectRuntimeResolver.EditorRuntimeDescriptor client =
             new ProjectRuntimeResolver(runtime).Resolve(Side.Client);
         using var controller = new EditorPreviewController(
@@ -39,7 +39,7 @@ public sealed class PreviewIntegrationTests
     [Trait("Category", "Integration")]
     public async Task SessionManager_StartsServerThenMultipleClientsAndStopsThemTogether()
     {
-        ProjectRuntimeDescriptor runtime = RequireRuntimeDescriptor("KARPIK_RUN_EDITOR_MULTISESSION_INTEGRATION");
+        ProjectRuntimeDescriptor runtime = await RequireRuntimeDescriptorAsync("KARPIK_RUN_EDITOR_MULTISESSION_INTEGRATION");
         using var manager = new EditorSessionManager(
             new EditorPreviewBackendFactory(new ProjectRuntimeResolver(runtime)));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
@@ -108,7 +108,7 @@ public sealed class PreviewIntegrationTests
         }
     }
 
-    private static ProjectRuntimeDescriptor RequireRuntimeDescriptor(string optInVariable)
+    private static async Task<ProjectRuntimeDescriptor> RequireRuntimeDescriptorAsync(string optInVariable)
     {
         string? engineRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_ENGINE_ROOT");
         string? gameRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_GAME_ROOT");
@@ -124,16 +124,49 @@ public sealed class PreviewIntegrationTests
 
         string activeGameRoot = Path.GetFullPath(gameRoot!);
         Assert.True(Directory.Exists(activeGameRoot), $"Game root was not found: {activeGameRoot}");
+        string solutionPath = Assert.Single(Directory.EnumerateFiles(
+            activeGameRoot,
+            "*.slnx",
+            SearchOption.TopDirectoryOnly));
+        KarpikSolutionModel solution = new KarpikSolutionReader().Read(solutionPath);
+        IReadOnlyList<MsBuildProjectEvaluation> evaluations = await new MsBuildProjectInspector().InspectAsync(
+            solution,
+            validatedEngineRoot,
+            TestContext.Current.CancellationToken);
+        MsBuildProjectEvaluation client = Assert.Single(evaluations, IsRuntimeClient);
+        MsBuildProjectEvaluation server = Assert.Single(evaluations, IsRuntimeServer);
+        string clientBundle = AssertBundleBelowActiveGameRoot(client.RuntimeBundlePath, activeGameRoot);
+        string serverBundle = AssertBundleBelowActiveGameRoot(server.RuntimeBundlePath, activeGameRoot);
+
         return new ProjectRuntimeDescriptor(
             validatedEngineRoot,
-            GetGameBundlePath(activeGameRoot, "KarpikEngineGame.Client"),
-            GetGameBundlePath(activeGameRoot, "KarpikEngineGame.Server"),
+            clientBundle,
+            serverBundle,
             GetInstalledRunnerPath(validatedEngineRoot, "client"),
             GetInstalledRunnerPath(validatedEngineRoot, "server"));
     }
 
-    private static string GetGameBundlePath(string gameRoot, string projectName) =>
-        Path.Combine(gameRoot, "Source", projectName, "bin", "Debug", "net10.0", "karpik-bundle");
+    private static bool IsRuntimeClient(MsBuildProjectEvaluation evaluation) =>
+        string.Equals(evaluation.Kind, "Runtime", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(evaluation.Side, "Client", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRuntimeServer(MsBuildProjectEvaluation evaluation) =>
+        string.Equals(evaluation.Kind, "Runtime", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(evaluation.Side, "Server", StringComparison.OrdinalIgnoreCase);
+
+    private static string AssertBundleBelowActiveGameRoot(string bundlePath, string gameRoot)
+    {
+        Assert.True(Path.IsPathFullyQualified(bundlePath), "KarpikRuntimeBundlePath must be absolute.");
+        string fullBundlePath = Path.GetFullPath(bundlePath);
+        string relative = Path.GetRelativePath(Path.GetFullPath(gameRoot), fullBundlePath);
+        Assert.False(
+            Path.IsPathRooted(relative)
+            || relative.Equals("..", StringComparison.Ordinal)
+            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            || relative.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal),
+            $"KarpikRuntimeBundlePath escapes KARPIK_TEST_GAME_ROOT: {fullBundlePath}");
+        return fullBundlePath;
+    }
 
     private static string GetInstalledRunnerPath(string engineRoot, string side)
     {
