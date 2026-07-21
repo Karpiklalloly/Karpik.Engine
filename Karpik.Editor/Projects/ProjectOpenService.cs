@@ -168,7 +168,8 @@ public sealed class ProjectOpenService : IProjectOpenService
         IReadOnlyList<string> evaluatedDiagnostics = ValidateEvaluations(
             solution,
             evaluations,
-            engineRoot);
+            engineRoot,
+            Path.GetDirectoryName(solution.SolutionPath)!);
         if (evaluatedDiagnostics.Count > 0)
         {
             return ProjectOpenResult.Failure(evaluatedDiagnostics);
@@ -200,7 +201,8 @@ public sealed class ProjectOpenService : IProjectOpenService
     private static IReadOnlyList<string> ValidateEvaluations(
         KarpikSolutionModel solution,
         IReadOnlyList<MsBuildProjectEvaluation> evaluations,
-        string engineRoot)
+        string engineRoot,
+        string gameRoot)
     {
         var diagnostics = new List<string>();
         var expectedByPath = solution.Projects.ToDictionary(
@@ -268,8 +270,8 @@ public sealed class ProjectOpenService : IProjectOpenService
                 "A game solution must evaluate exactly one Runtime Client and exactly one Runtime Server project.");
             return diagnostics;
         }
-        ValidateBundlePath(clients[0], diagnostics);
-        ValidateBundlePath(servers[0], diagnostics);
+        ValidateBundlePath(clients[0], gameRoot, diagnostics);
+        ValidateBundlePath(servers[0], gameRoot, diagnostics);
         ValidateTargetPath(clients[0], diagnostics);
         ValidateTargetPath(servers[0], diagnostics);
         return diagnostics;
@@ -277,6 +279,7 @@ public sealed class ProjectOpenService : IProjectOpenService
 
     private static void ValidateBundlePath(
         MsBuildProjectEvaluation evaluation,
+        string gameRoot,
         ICollection<string> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(evaluation.RuntimeBundlePath) ||
@@ -284,7 +287,23 @@ public sealed class ProjectOpenService : IProjectOpenService
         {
             diagnostics.Add(
                 $"Project '{evaluation.ProjectPath}' must evaluate an absolute KarpikRuntimeBundlePath.");
+            return;
         }
+        if (!IsWithinRoot(evaluation.RuntimeBundlePath, gameRoot))
+        {
+            diagnostics.Add(
+                $"Project '{evaluation.ProjectPath}' evaluates KarpikRuntimeBundlePath outside the active game root.");
+        }
+    }
+
+    private static bool IsWithinRoot(string candidate, string root)
+    {
+        string normalizedCandidate = Path.GetFullPath(candidate);
+        string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        return normalizedCandidate.Equals(normalizedRoot, PathComparison) ||
+               normalizedCandidate.StartsWith(
+                   normalizedRoot + Path.DirectorySeparatorChar,
+                   PathComparison);
     }
 
     private static void ValidateTargetPath(
@@ -380,4 +399,8 @@ public sealed class ProjectOpenService : IProjectOpenService
     private static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
+
+    private static StringComparison PathComparison { get; } = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 }

@@ -116,6 +116,32 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
+    public async Task OpenAsync_RejectsRuntimeBundleOutsideActiveGameRoot()
+    {
+        using var solution = TestSolution.Create();
+        string foreignBundle = Path.Combine(
+            Path.GetTempPath(),
+            $"KarpikForeignBundle-{Guid.NewGuid():N}",
+            "karpik-bundle");
+        var evaluations = solution.CreateEvaluations().ToArray();
+        evaluations[0] = evaluations[0] with { RuntimeBundlePath = foreignBundle };
+        var service = new ProjectOpenService(
+            new FakeInspector(evaluations),
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory());
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic => diagnostic.Contains("active game root", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task OpenAsync_RequiresExactlyOneClientAndServerRuntime()
     {
         using var solution = TestSolution.Create();

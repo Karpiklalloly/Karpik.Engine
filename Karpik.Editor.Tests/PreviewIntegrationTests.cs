@@ -1,5 +1,6 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.ProjectModel;
+using Karpik.Engine.Tooling;
 using Xunit;
 
 namespace Karpik.Editor.Tests;
@@ -10,25 +11,11 @@ public sealed class PreviewIntegrationTests
     [Trait("Category", "Integration")]
     public async Task PreviewWorker_StartsProvidesSnapshotAndStops()
     {
-        if (Environment.GetEnvironmentVariable("KARPIK_RUN_EDITOR_INTEGRATION") != "1")
-        {
-            return;
-        }
-
-        string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        string workerName = OperatingSystem.IsWindows()
-            ? "Karpik.Engine.Core.Runner.exe"
-            : "Karpik.Engine.Core.Runner";
-        string workerPath = Path.Combine(
-            repositoryRoot,
-            "Karpik.Editor",
-            "bin",
-            "Debug",
-            "net10.0",
-            "runtimes",
-            "client",
-            workerName);
-        using var controller = new EditorPreviewController(new RuntimeLaunchOptions(Side.Client, workerPath, Path.GetTempPath(), repositoryRoot));
+        ProjectRuntimeDescriptor runtime = RequireRuntimeDescriptor("KARPIK_RUN_EDITOR_INTEGRATION");
+        ProjectRuntimeResolver.EditorRuntimeDescriptor client =
+            new ProjectRuntimeResolver(runtime).Resolve(Side.Client);
+        using var controller = new EditorPreviewController(
+            new RuntimeLaunchOptions(Side.Client, client.RunnerPath, client.BundlePath, client.EngineRoot));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
 
         try
@@ -52,15 +39,9 @@ public sealed class PreviewIntegrationTests
     [Trait("Category", "Integration")]
     public async Task SessionManager_StartsServerThenMultipleClientsAndStopsThemTogether()
     {
-        if (Environment.GetEnvironmentVariable("KARPIK_RUN_EDITOR_MULTISESSION_INTEGRATION") != "1")
-        {
-            return;
-        }
-
-        string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        string editorOutput = Path.Combine(repositoryRoot, "Karpik.Editor", "bin", "Debug", "net10.0");
+        ProjectRuntimeDescriptor runtime = RequireRuntimeDescriptor("KARPIK_RUN_EDITOR_MULTISESSION_INTEGRATION");
         using var manager = new EditorSessionManager(
-            new EditorPreviewBackendFactory(new ProjectRuntimeResolver(CreateRuntimeDescriptor(editorOutput))));
+            new EditorPreviewBackendFactory(new ProjectRuntimeResolver(runtime)));
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var output = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var serverConnectionCount = 0;
@@ -127,16 +108,41 @@ public sealed class PreviewIntegrationTests
         }
     }
 
-    private static ProjectRuntimeDescriptor CreateRuntimeDescriptor(string engineRoot)
+    private static ProjectRuntimeDescriptor RequireRuntimeDescriptor(string optInVariable)
     {
-        string runnerName = OperatingSystem.IsWindows()
-            ? "Karpik.Engine.Core.Runner.exe"
-            : "Karpik.Engine.Core.Runner";
+        string? engineRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_ENGINE_ROOT");
+        string? gameRoot = Environment.GetEnvironmentVariable("KARPIK_TEST_GAME_ROOT");
+        Assert.SkipUnless(
+            Environment.GetEnvironmentVariable(optInVariable) == "1"
+            && !string.IsNullOrWhiteSpace(engineRoot)
+            && !string.IsNullOrWhiteSpace(gameRoot),
+            $"Set {optInVariable}=1, KARPIK_TEST_ENGINE_ROOT, and KARPIK_TEST_GAME_ROOT to run this integration test.");
+
+        string validatedEngineRoot = Path.GetFullPath(engineRoot!);
+        EngineInstallationValidationResult validation = new EngineInstallationValidator().Validate(validatedEngineRoot);
+        Assert.True(validation.IsValid, validation.Message);
+
+        string activeGameRoot = Path.GetFullPath(gameRoot!);
+        Assert.True(Directory.Exists(activeGameRoot), $"Game root was not found: {activeGameRoot}");
         return new ProjectRuntimeDescriptor(
-            engineRoot,
-            Path.Combine(engineRoot, "runtimes", "client", "karpik-bundle"),
-            Path.Combine(engineRoot, "runtimes", "server", "karpik-bundle"),
-            Path.Combine(engineRoot, "runtimes", "client", runnerName),
-            Path.Combine(engineRoot, "runtimes", "server", runnerName));
+            validatedEngineRoot,
+            GetGameBundlePath(activeGameRoot, "KarpikEngineGame.Client"),
+            GetGameBundlePath(activeGameRoot, "KarpikEngineGame.Server"),
+            GetInstalledRunnerPath(validatedEngineRoot, "client"),
+            GetInstalledRunnerPath(validatedEngineRoot, "server"));
+    }
+
+    private static string GetGameBundlePath(string gameRoot, string projectName) =>
+        Path.Combine(gameRoot, "Source", projectName, "bin", "Debug", "net10.0", "karpik-bundle");
+
+    private static string GetInstalledRunnerPath(string engineRoot, string side)
+    {
+        string runnerDirectory = Path.Combine(engineRoot, "runners", side);
+        string executable = Path.Combine(
+            runnerDirectory,
+            OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
+        return File.Exists(executable)
+            ? executable
+            : Path.Combine(runnerDirectory, "Karpik.Engine.Core.Runner.dll");
     }
 }
