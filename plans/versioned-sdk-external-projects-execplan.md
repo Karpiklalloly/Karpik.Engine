@@ -36,6 +36,12 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [ ] Milestone 8D: remove MyGame and repository-local composition roots.
 - [ ] Milestone 8E: decouple Configurator from game profile.
 - [ ] Milestone 8F: final acceptance and documentation.
+  - [x] (2026-07-21) Milestone 8B-8D remediation audit reproduced the first regression with the ordinary SDK integration suite: `Template_has_the_standard_external_game_structure` fails because Milestone 8D deleted `Source/KarpikGame.Shared/Content/shared-runtime.txt`. The audit also found that the alleged 8B project switch was two independent runs, the 8C opt-in preview tests still consume the deleted editor-local runtime layout, `Mods/` is not published into game bundles, and the uncommitted `KARPIK_CONTENT_ROOT` workaround bypasses the validated bundle boundary.
+  - [x] (2026-07-21) The developer approved the bounded remediation design: retain a representative external ECS/content/mod sample rather than porting the deleted platformer; make all runtime assets bundle-owned; prove switching through the real editor coordinator; and finish only the Configurator cleanup required to leave 8D internally consistent.
+  - [ ] Remediation R1: restore the accepted content fixture and add validated `Mods/` publication to game-owned bundles.
+  - [ ] Remediation R2: remove editor source-content fallback and replace stale editor-local runtime tests with installed-runner/external-bundle acceptance.
+  - [ ] Remediation R3: make the real two-project editor switch prove server-plus-two-clients cleanup, file unlock, and new-project bundle ownership.
+  - [ ] Remediation R4: finish the Configurator/game-root cleanup required by 8D, regenerate artifacts, and reconcile milestone evidence.
   - [x] (2026-07-18) Milestone 8A: the editor passes an explicit installed engine root to the runner; payload layout v2 carries a canonical side-aware module catalog; one collectible context composes compatible engine modules with game assemblies while Core/Runner/Dragon/Karpik.Jobs remain identity-shared. Worker startup revalidates the immutable installation hash and confirms that the running side-specific Runner belongs to that installation; byte-distinct duplicate identities and multiple versions of one assembly name are rejected before publication; dependency binding requires an exact identity; and native probing uses the installation-owned root plus the current RID. Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 plus generated-artifact validation, editor runtime resolution 5/5, and the fresh layout-v2 installed-runner external snapshot smoke 1/1 pass without the former missing `EcsDefaultWorld` service error.
   - [x] (2026-07-19) Milestone 8B: the external server-plus-two-clients runtime smoke passes with ECS state preservation, content reading, client output collection, and project switch. Source changes: native layout aligned (`Path.PathSeparator` replaces `";"`, `native/<rid>/` probing, packager strips `native/` prefix); `ServerGameInstaller`/`ClientGameInstaller` removed `[DI]` field injection, read content at startup; test verifies TotalEntityCount grows by exactly 1 after reload (proves state restored), `GameComponent(42)` present in snapshots before/after, client outputs collected and checked for crashes, content log lines present, and a second game is materialized, built, and passes the same full multi-worker cycle as project switch.
   - [ ] Milestone 8C: editor-local runtime packaging is removed after 8B replacement coverage passes.
@@ -119,6 +125,18 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Observation: isolated module outputs initially contained both `Newtonsoft.Json` 9.0.1 and 13.0.4 because `NativeLibraryLoader` supplied an old transitive dependency.
   Evidence: a single collectible `AssemblyLoadContext` cannot load both versions deterministically. The Veldrid projects now pin 13.0.4, and validation rejects both byte-distinct copies of one full identity and different identities sharing one simple assembly name before publication.
 
+- Observation: Milestone 8D deleted the three `runtime.txt` fixtures and the installer reads that Milestone 8B used as its content acceptance contract, but left the tests and Progress claim unchanged.
+  Evidence: `dotnet test Karpik.Engine.Sdk.IntegrationTests\Karpik.Engine.Sdk.IntegrationTests.csproj -m:1 -nr:false --no-restore` on 2026-07-21 produced 1 failed, 4 passed, and 2 skipped; the failure is the missing `Source/KarpikGame.Shared/Content/shared-runtime.txt`.
+
+- Observation: the Milestone 8B test named a second independent materialization a project switch, but it never called `ProjectSwitchCoordinator` or `EditorShellViewModel.OpenProjectAsync` while workers from the first project were active.
+  Evidence: `ExternalGameCliTests.AssertMultiWorkerEcsCycleAsync` fully stops each game before the second game is materialized; the actual coordinator-based switch lives in `Karpik.Editor.Tests/Projects/ExternalProjectSwitchIntegrationTests.cs` and currently starts only one client.
+
+- Observation: the SDK copies `Mods/**` to side-project outputs but `BuildKarpikRuntimeBundle` collects only `$(TargetDir)Content/**`, so the moved Lua sample is absent from installed runtime bundles.
+  Evidence: `templates/Karpik.Game/Source/KarpikGame.Client/KarpikGame.Client.csproj`, `templates/Karpik.Game/Source/KarpikGame.Server/KarpikGame.Server.csproj`, and `Karpik.Engine.Sdk/Sdk/Sdk.targets` disagree about the published asset roots.
+
+- Observation: the original 8D/8E order is not independently executable because deleting `MyGame/` first makes the pre-8E Configurator model invalid, while performing 8E first changes generated composition artifacts before 8D.
+  Evidence: commit `a420207` necessarily removed `RepositoryParser.GameRootPaths` and `ArtifactGenerator` game roots inside the nominal 8D commit, but left `RepositoryModel.GameRoots`, test-fixture game roots, and launcher wording in generated output.
+
 ## Decision Log
 
 - Decision: Use a thin NuGet-distributed custom MSBuild SDK plus a separate versioned engine payload.
@@ -136,6 +154,18 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - Decision: Use a stable launcher with an editor packaged per compatible engine installation.
   Rationale: The current editor directly references engine contracts; version-matched editors avoid immediate compatibility branches across historical APIs.
   Date/Author: 2026-07-15 / developer and Codex
+
+- Decision: Repair Milestones 8B-8D around a representative external sample instead of porting the deleted repository platformer wholesale.
+  Rationale: the accepted external contract is server plus two clients, ECS state, content, mods, snapshot, hot reload, and project switching. Porting the old network/physics/rendering sample would require generalizing `Network.Codegen` and module selection and is a separate feature rather than a correction of the external-project migration.
+  Date/Author: 2026-07-21 / developer and Codex
+
+- Decision: Runtime `Content/` and `Mods/` remain immutable game-bundle inputs; the editor must not redirect asset lookup to a mutable game source directory.
+  Rationale: bundle publication already provides bounded path, link, size, identity, and transactional validation. `KARPIK_CONTENT_ROOT` would introduce an unvalidated third runtime root, make CLI and editor launches behave differently, and weaken project-switch isolation.
+  Date/Author: 2026-07-21 / developer and Codex
+
+- Decision: Treat the minimum Configurator decoupling needed to remove `MyGame/` as an 8D prerequisite and leave broader generator modernization to later work.
+  Rationale: the former milestone order is circular. Removing the dead `GameRoots` model and deleted-launcher diagnostics restores a coherent engine-only graph without expanding this remediation into a network-codegen redesign.
+  Date/Author: 2026-07-21 / developer and Codex
 
 - Decision: payload layout v2 requires `modules/modules.catalog`, with canonical `Shared|Client|Server` ownership for every isolated module root.
   Rationale: the external runner cannot safely infer side ownership after packaging from module IDs alone, and flattening isolated outputs reintroduces dependency collisions. A hashed installation-owned catalog makes selection deterministic and keeps engine modules out of game-owned bundles.
@@ -609,6 +639,70 @@ Exit criteria: editor build, editor tests (87/87 pass, 1 skip=opt-in, 1 pre-exis
 - Remove `MyGame/`, `ClientLauncher/`, `ServerLauncher/`, their solution entries, and their game/resource references from shared build files and generated artifacts.
 
 Exit criteria: the external template retains equivalent sample behaviour while the engine solution and build graph contain no repository-local game or game launcher.
+
+For the accepted remediation, "equivalent sample behaviour" means the already-approved external acceptance sample: a side-pure server plus two clients, a non-empty Dragon ECS world with state surviving hot reload, bundle-owned `Content/` and `Mods/`, readable representative assets, and a real editor project switch. It does not mean restoring the deleted platformer implementation. The old network/physics/rendering sample remains available in Git history and may be redesigned as a separate external sample after `Network.Codegen` no longer assumes `MyGame.*.Main` assembly names and namespaces.
+
+##### Approved Milestone 8B-8D remediation
+
+Task R1 restores one portable game-bundle asset contract.
+
+- Tests first: extend `Karpik.Engine.Sdk.Tasks.Tests/BuildKarpikRuntimeBundleTaskTests.cs` so a bundle containing `Content/runtime.txt` and `Mods/MyCoolMod/mod_info.json` must publish both roots, and so an escaping, linked, duplicate, or oversized mod item fails transactionally without replacing the prior complete bundle.
+- Modify `Karpik.Engine.Sdk.Tasks/BuildKarpikRuntimeBundleTask.cs` to accept a separate `Mods` item array, materialize it below bundle-owned `Mods/`, include it in the existing entry/depth/byte bounds, and permit that root in complete-bundle validation. `Content` remains required; `Mods` is optional.
+- Modify `Karpik.Engine.Sdk/Sdk/Sdk.targets` to collect `$(TargetDir)Mods/**` after build, pass stable relative `TargetPath` metadata to the task, and keep Shared-project content flowing transitively through the side output.
+- Restore `templates/Karpik.Game/Source/KarpikGame.Client/Content/runtime.txt`, `templates/Karpik.Game/Source/KarpikGame.Server/Content/runtime.txt`, and `templates/Karpik.Game/Source/KarpikGame.Shared/Content/shared-runtime.txt`. Restore the corresponding startup reads in `ClientGameInstaller.cs` and `ServerGameInstaller.cs`; these are cold initialization paths, not frame-loop work.
+- Extend `Karpik.Engine.Sdk.IntegrationTests/ExternalGameCliTests.cs` so template structure, side bundles, server/client log output, and moved Lua mod files are asserted from the bundle. The test must continue to prove `GameComponent(42)` and exact `TotalEntityCount == before + 1` after hot reload.
+- Remove the current uncommitted `ContentRoot`/`KARPIK_CONTENT_ROOT` changes from `ProjectOpenResult.cs`, `ProjectOpenService.cs`, `ProjectRuntimeResolver.cs`, `EditorPreviewBackendFactory.cs`, `RuntimeLaunchOptions.cs`, `ProcessManager.cs`, and `AssetsManager.cs`; no source-tree fallback remains.
+
+Run from the repository worktree:
+
+    dotnet test Karpik.Engine.Sdk.Tasks.Tests\Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false --no-restore
+    dotnet test Karpik.Engine.Sdk.IntegrationTests\Karpik.Engine.Sdk.IntegrationTests.csproj -m:1 -nr:false --no-restore
+
+Expected observation: all ordinary tests pass; generated side bundles contain `Content/` and `Mods/`; no runtime launch option or environment variable can bypass the bundle.
+
+Task R2 repairs Milestone 8C acceptance rather than merely renaming its fixtures.
+
+- Rewrite `Karpik.Editor.Tests/PreviewIntegrationTests.cs` so opt-in runtime tests take a validated installation from `KARPIK_TEST_ENGINE_ROOT` and game bundles from `KARPIK_TEST_GAME_ROOT`. Use `Assert.SkipUnless` when the opt-in environment is absent; never silently return and never derive runners or bundles from `Karpik.Editor/bin/.../runtimes`.
+- Rewrite the setup in `Karpik.Editor.Tests/ProjectRuntimeResolverTests.cs` with physically separate `engine/runners/{side}` and `game/.../karpik-bundle` roots. Assert that the descriptor returns the exact installed runner and active-game bundle for each side.
+- Add a source/build-contract test in `Karpik.Editor.Tests` that loads `Karpik.Editor/Karpik.Editor.csproj` and asserts there is no `EditorRuntimeBundles.targets` import, `SkipEditorRuntimeBundles`, or target that creates `$(TargetDir)runtimes`.
+
+Run:
+
+    dotnet test Karpik.Editor.Tests\Karpik.Editor.Tests.csproj -m:1 -nr:false --no-restore --filter "FullyQualifiedName~ProjectRuntimeResolverTests|FullyQualifiedName~PreviewIntegrationTests|FullyQualifiedName~EditorProject"
+
+Expected observation: ordinary ownership tests pass, opt-in tests are reported as skipped without their environment, and every constructed runner/bundle pair crosses the installation/game boundary explicitly.
+
+Task R3 replaces the false-positive switch claim with real coordinator evidence.
+
+- Extend `Karpik.Editor.Tests/Projects/ExternalProjectSwitchIntegrationTests.cs`: start one server and two clients for the first generated game, keep all three PIDs, call `EditorShellViewModel.OpenProjectAsync` for the second solution while they are active, and assert every old PID exits before the new project becomes active.
+- After the switch, assert the first client and server bundle `reload/state` and `reload/shadow` trees are empty, and acquire exclusive read/write handles on representative first-project bundle files to prove locks were released.
+- Start one server and two clients for the second game, assert their runtime descriptors are below the second game and their runners are below the selected installation, then call `ShutdownAsync` and repeat PID, reload-tree, and exclusive-handle checks.
+- Keep `ExternalGameCliTests` responsible for the full standalone ECS/content/hot-reload cycle on two independently generated games, but change its wording and Progress evidence so it no longer claims that sequential execution itself is an editor switch.
+
+Run after recreating the local package and engine payload described in `Concrete Steps`:
+
+    $env:KARPIK_RUN_EDITOR_PROJECT_SWITCH_INTEGRATION='1'
+    dotnet test Karpik.Editor.Tests\Karpik.Editor.Tests.csproj -m:1 -nr:false --no-restore --filter "FullyQualifiedName~ExternalProjectSwitch_StopsOldWorkersAndUsesTheNewGameBundles"
+
+Expected observation: one opt-in test passes with three first-project workers and three second-project workers; no old process, reload artifact, or locked representative file survives the switch or shutdown.
+
+Task R4 makes the destructive migration internally consistent without importing the old platformer into the engine repository.
+
+- Remove `RepositoryModel.GameRoots` and its remaining validation loop from `Configurator/Models.cs` and `Configurator/GraphValidator.cs`. Remove the four deleted `MyGame` fixture projects and helpers from `Configurator.Tests/ConfiguratorTests.cs`; replace them with assertions over an engine-only repository model.
+- Replace the deleted-launcher diagnostic in `Configurator/ArtifactGenerator.cs` with guidance to build the selected first-party module set or use the installed side runner. Run Configurator generation so `Generated/ModuleLoader.cs` changes only through the generator.
+- Add tests asserting generated artifacts contain none of `MyGame`, `ClientLauncher`, or `ServerLauncher`. Keep historical prose cleanup for Milestone 8F, but production projects, evaluated build inputs, generator output, and active acceptance tests must not require those names.
+- Reconcile `Progress`, the kanban board, and `docs/02_ADR/editor-desktop-stack.md` only after R1-R3 pass. Mark 8D complete only after the external template and actual switch smoke both pass.
+
+Run:
+
+    dotnet run --project Configurator\Configurator.csproj --no-restore -- --generate
+    dotnet run --project Configurator\Configurator.csproj --no-restore -- --validate
+    dotnet test Configurator.Tests\Configurator.Tests.csproj -m:1 -nr:false --no-restore
+    rg -n "MyGame|ClientLauncher|ServerLauncher" AutoGenerated.targets Generated Configurator Karpik.Editor Karpik.Engine.Client.Publish Karpik.Engine.Server.Publish KarpikEngine.slnx
+
+Expected observation: Configurator validation and tests pass, generated artifacts contain no deleted game/launcher names, and any remaining matches are either historical documentation or explicitly recorded future `Network.Codegen` modernization work.
+
+Real-time assessment for R1-R4: bundle creation, project opening, process startup, installer configuration, Configurator, and tests are cold paths. No change enters `Update`, `FixedUpdate`, ECS `Run`, rendering, serialization loops, or network pumps. The only runtime lookup remains `AssetsManager.RootPath` against the worker base directory; no new per-frame allocation, lock, pointer chasing, or cross-side reference is introduced.
 
 #### Milestone 8E: Decouple Configurator from the game profile
 
