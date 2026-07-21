@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Security;
 using Karpik.Editor;
+using Karpik.Engine.Core;
 using Karpik.Engine.ProjectModel;
 using Karpik.Engine.Tooling;
 using ReactiveUI.Builder;
@@ -73,38 +75,96 @@ public sealed class ExternalProjectSwitchIntegrationTests
             Assert.True(firstOpen.IsSuccess, string.Join(Environment.NewLine, firstOpen.Diagnostics));
             await viewModel.StartServerCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
             await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
+            await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
             EditorProjectLifetime firstLifetime = Assert.Single(created).Lifetime;
             int[] firstPids = firstLifetime.SessionManager.Sessions
                 .Select(session => Assert.IsType<int>(session.ProcessId))
                 .ToArray();
-            Assert.Equal(2, firstPids.Length);
+            Assert.Equal(
+                [Side.Server, Side.Client, Side.Client],
+                firstLifetime.SessionManager.Sessions.Select(session => session.Side));
+            Assert.Equal(3, firstPids.Length);
+            Assert.Equal(3, firstPids.Distinct().Count());
+            Assert.All(
+                firstPids,
+                pid => Assert.True(
+                    IsProcessRunning(pid),
+                    $"First-project worker PID {pid} exited before the switch."));
+            ProjectRuntimeDescriptor firstRuntime = created[0].Runtime;
+            AssertRuntimeOwnership(firstRuntime, firstRoot, engineRoot);
 
-            ProjectOpenResult secondOpen = await viewModel.OpenProjectAsync(
-                secondSolution,
-                TestContext.Current.CancellationToken);
+            bool secondActivationObserved = false;
+            bool firstWorkersExitedBeforeSecondActivation = false;
+            viewModel.PropertyChanged += ObserveSecondActivation;
+
+            ProjectOpenResult secondOpen;
+            try
+            {
+                secondOpen = await viewModel.OpenProjectAsync(
+                    secondSolution,
+                    TestContext.Current.CancellationToken);
+            }
+            finally
+            {
+                viewModel.PropertyChanged -= ObserveSecondActivation;
+            }
             Assert.True(secondOpen.IsSuccess, string.Join(Environment.NewLine, secondOpen.Diagnostics));
+            Assert.True(secondActivationObserved, "The second project was never published by the editor shell.");
+            Assert.True(
+                firstWorkersExitedBeforeSecondActivation,
+                "The second project became active before every first-project worker exited.");
             await AssertProcessesExitedAsync(firstPids);
+            AssertReloadTreesEmpty(firstRuntime);
+            AssertRepresentativeBundleFilesAreExclusivelyOpenable(firstRuntime);
             Assert.Equal(Path.GetFullPath(secondSolution), viewModel.ProjectPath);
             Assert.Collection(
                 created,
                 first =>
                 {
                     Assert.Equal(Path.GetFullPath(firstSolution), first.SolutionPath);
-                    Assert.StartsWith(Path.GetFullPath(firstRoot), first.Runtime.ClientBundlePath);
-                    Assert.StartsWith(Path.GetFullPath(firstRoot), first.Runtime.ServerBundlePath);
+                    AssertRuntimeOwnership(first.Runtime, firstRoot, engineRoot);
                 },
                 second =>
                 {
                     Assert.Equal(Path.GetFullPath(secondSolution), second.SolutionPath);
-                    Assert.StartsWith(Path.GetFullPath(secondRoot), second.Runtime.ClientBundlePath);
-                    Assert.StartsWith(Path.GetFullPath(secondRoot), second.Runtime.ServerBundlePath);
+                    AssertRuntimeOwnership(second.Runtime, secondRoot, engineRoot);
                 });
 
             await viewModel.StartServerCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
+            await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
+            await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
             EditorProjectLifetime secondLifetime = created[1].Lifetime;
-            int secondPid = Assert.IsType<int>(Assert.Single(secondLifetime.SessionManager.Sessions).ProcessId);
+            int[] secondPids = secondLifetime.SessionManager.Sessions
+                .Select(session => Assert.IsType<int>(session.ProcessId))
+                .ToArray();
+            Assert.Equal(
+                [Side.Server, Side.Client, Side.Client],
+                secondLifetime.SessionManager.Sessions.Select(session => session.Side));
+            Assert.Equal(3, secondPids.Length);
+            Assert.Equal(3, secondPids.Distinct().Count());
+            Assert.All(
+                secondPids,
+                pid => Assert.True(
+                    IsProcessRunning(pid),
+                    $"Second-project worker PID {pid} exited before shutdown."));
+            ProjectRuntimeDescriptor secondRuntime = created[1].Runtime;
+            AssertRuntimeOwnership(secondRuntime, secondRoot, engineRoot);
             await viewModel.ShutdownAsync();
-            await AssertProcessesExitedAsync([secondPid]);
+            await AssertProcessesExitedAsync(secondPids);
+            AssertReloadTreesEmpty(secondRuntime);
+            AssertRepresentativeBundleFilesAreExclusivelyOpenable(secondRuntime);
+
+            void ObserveSecondActivation(object? sender, PropertyChangedEventArgs args)
+            {
+                if (args.PropertyName != nameof(EditorShellViewModel.ProjectPath)
+                    || !PathEquals(viewModel.ProjectPath, secondSolution))
+                {
+                    return;
+                }
+
+                secondActivationObserved = true;
+                firstWorkersExitedBeforeSecondActivation = firstPids.All(pid => !IsProcessRunning(pid));
+            }
         }
         finally
         {
@@ -223,6 +283,76 @@ public sealed class ExternalProjectSwitchIntegrationTests
         }
     }
 
+    private static void AssertRuntimeOwnership(
+        ProjectRuntimeDescriptor runtime,
+        string gameRoot,
+        string engineRoot)
+    {
+        AssertPathEqual(
+            Path.Combine(gameRoot, "Source", "KarpikGame.Client", "bin", "Debug", "net10.0", "karpik-bundle"),
+            runtime.ClientBundlePath);
+        AssertPathEqual(
+            Path.Combine(gameRoot, "Source", "KarpikGame.Server", "bin", "Debug", "net10.0", "karpik-bundle"),
+            runtime.ServerBundlePath);
+        AssertPathEqual(
+            Path.Combine(
+                engineRoot,
+                "runners",
+                "client",
+                OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner"),
+            runtime.ClientRunnerPath);
+        AssertPathEqual(
+            Path.Combine(
+                engineRoot,
+                "runners",
+                "server",
+                OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner"),
+            runtime.ServerRunnerPath);
+    }
+
+    private static void AssertReloadTreesEmpty(ProjectRuntimeDescriptor runtime)
+    {
+        AssertReloadTreeEmpty(runtime.ClientBundlePath, "state");
+        AssertReloadTreeEmpty(runtime.ClientBundlePath, "shadow");
+        AssertReloadTreeEmpty(runtime.ServerBundlePath, "state");
+        AssertReloadTreeEmpty(runtime.ServerBundlePath, "shadow");
+    }
+
+    private static void AssertReloadTreeEmpty(string bundlePath, string treeName)
+    {
+        string path = Path.Combine(bundlePath, "reload", treeName);
+        Assert.False(
+            Directory.Exists(path)
+            && Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories).Any(),
+            $"Reload tree retained artifacts: {path}");
+    }
+
+    private static void AssertRepresentativeBundleFilesAreExclusivelyOpenable(
+        ProjectRuntimeDescriptor runtime)
+    {
+        using FileStream client = OpenRepresentativeBundleFileExclusively(runtime.ClientBundlePath);
+        using FileStream server = OpenRepresentativeBundleFileExclusively(runtime.ServerBundlePath);
+    }
+
+    private static FileStream OpenRepresentativeBundleFileExclusively(string bundlePath)
+    {
+        string modules = RuntimeBundleLayout.ResolveModuleDirectory(bundlePath);
+        string representative = Path.Combine(
+            modules,
+            RuntimeBundleLayout.ReadCanonicalModuleManifest(modules)
+                .First(name => name.StartsWith("KarpikGame.", StringComparison.Ordinal)));
+        return File.Open(representative, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private static void AssertPathEqual(string expected, string actual) =>
+        Assert.True(
+            PathEquals(expected, actual),
+            $"Expected path '{Path.GetFullPath(expected)}', actual '{Path.GetFullPath(actual)}'.");
+
+    private static bool PathEquals(string? first, string second) =>
+        first is not null
+        && string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), PathComparison);
+
     private static bool IsProcessRunning(int processId)
     {
         try
@@ -253,6 +383,10 @@ public sealed class ExternalProjectSwitchIntegrationTests
 
     private static string GetRepositoryRoot() =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     private static void CopyDirectory(string source, string destination)
     {
