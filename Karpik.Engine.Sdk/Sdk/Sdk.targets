@@ -36,15 +36,17 @@
   </Target>
 
   <Target Name="BuildKarpikRuntimeBundle"
-          AfterTargets="Build"
+          AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
     <ItemGroup>
       <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
                              Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
-      <_KarpikBundleContent Include="$(TargetDir)Content\**\*"
-                            TargetPath="%(RecursiveDir)%(Filename)%(Extension)" />
-      <_KarpikBundleMod Include="$(TargetDir)Mods\**\*"
-                        TargetPath="%(RecursiveDir)%(Filename)%(Extension)" />
+      <_KarpikBundleContent Include="$(TargetDir)Content\**\*" />
+      <_KarpikBundleMod Include="$(TargetDir)Mods\**\*" />
+      <_KarpikBundleContent Update="@(_KarpikBundleContent)"
+                            TargetPath="%(_KarpikBundleContent.RecursiveDir)%(_KarpikBundleContent.Filename)%(_KarpikBundleContent.Extension)" />
+      <_KarpikBundleMod Update="@(_KarpikBundleMod)"
+                        TargetPath="%(_KarpikBundleMod.RecursiveDir)%(_KarpikBundleMod.Filename)%(_KarpikBundleMod.Extension)" />
     </ItemGroup>
     <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
                                   PrimaryAssembly="$(TargetPath)"

@@ -18,7 +18,7 @@ public sealed class KarpikValidationTaskTests
         var bundleTask = Assert.Single(bundleTarget.Elements("BuildKarpikRuntimeBundleTask"));
 
         Assert.Contains(props.Descendants("KarpikRuntimeBundleDirectoryName"), element => element.Value == "karpik-bundle");
-        Assert.Equal("Build", (string?)bundleTarget.Attribute("AfterTargets"));
+        Assert.Equal("CopyFilesToOutputDirectory", (string?)bundleTarget.Attribute("AfterTargets"));
         string condition = Assert.IsType<XAttribute>(bundleTarget.Attribute("Condition")).Value;
         Assert.Contains("'$(KarpikProjectKind)' == 'Runtime'", condition);
         Assert.Contains("'$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server'", condition);
@@ -27,13 +27,30 @@ public sealed class KarpikValidationTaskTests
         Assert.Equal("@(_KarpikBundleContent)", (string?)bundleTask.Attribute("Content"));
         Assert.Equal("@(_KarpikBundleMod)", (string?)bundleTask.Attribute("Mods"));
 
-        XElement bundleMod = Assert.Single(bundleTarget.Descendants("_KarpikBundleMod"));
-        Assert.Equal(@"$(TargetDir)Mods\**\*", (string?)bundleMod.Attribute("Include"));
-        Assert.Equal("%(RecursiveDir)%(Filename)%(Extension)", (string?)bundleMod.Attribute("TargetPath"));
+        XElement[] bundleMods = bundleTarget.Descendants("_KarpikBundleMod").ToArray();
+        Assert.Equal(2, bundleMods.Length);
+        XElement bundleModInclude = Assert.Single(bundleMods, item => item.Attribute("Include") is not null);
+        Assert.Equal(@"$(TargetDir)Mods\**\*", (string?)bundleModInclude.Attribute("Include"));
+        Assert.Null(bundleModInclude.Attribute("TargetPath"));
+        Assert.Null(bundleModInclude.Element("TargetPath"));
+        XElement bundleModUpdate = Assert.Single(bundleMods, item => item.Attribute("Update") is not null);
+        Assert.Equal("@(_KarpikBundleMod)", (string?)bundleModUpdate.Attribute("Update"));
+        Assert.Equal(
+            "%(_KarpikBundleMod.RecursiveDir)%(_KarpikBundleMod.Filename)%(_KarpikBundleMod.Extension)",
+            (string?)bundleModUpdate.Attribute("TargetPath"));
         Assert.Equal("$(KarpikSide)", (string?)bundleTask.Attribute("Side"));
-        XElement contentItem = Assert.Single(bundleTarget.Descendants("_KarpikBundleContent"));
-        Assert.StartsWith("$(TargetDir)Content", (string?)contentItem.Attribute("Include"));
-        Assert.DoesNotContain("$(MSBuildProjectDirectory)", (string?)contentItem.Attribute("Include"));
+        XElement[] contentItems = bundleTarget.Descendants("_KarpikBundleContent").ToArray();
+        Assert.Equal(2, contentItems.Length);
+        XElement contentInclude = Assert.Single(contentItems, item => item.Attribute("Include") is not null);
+        Assert.StartsWith("$(TargetDir)Content", (string?)contentInclude.Attribute("Include"));
+        Assert.Null(contentInclude.Attribute("TargetPath"));
+        Assert.Null(contentInclude.Element("TargetPath"));
+        XElement contentUpdate = Assert.Single(contentItems, item => item.Attribute("Update") is not null);
+        Assert.Equal("@(_KarpikBundleContent)", (string?)contentUpdate.Attribute("Update"));
+        Assert.Equal(
+            "%(_KarpikBundleContent.RecursiveDir)%(_KarpikBundleContent.Filename)%(_KarpikBundleContent.Extension)",
+            (string?)contentUpdate.Attribute("TargetPath"));
+        Assert.DoesNotContain("$(MSBuildProjectDirectory)", (string?)contentInclude.Attribute("Include"));
 
         XElement bundlePath = targets.Root.Elements("PropertyGroup")
             .SelectMany(group => group.Elements("KarpikRuntimeBundlePath"))

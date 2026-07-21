@@ -265,9 +265,9 @@ public sealed class ExternalGameCliTests
                 ["build", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-restore"],
                 commonEnvironment);
             AssertSuccess(build, "build the generated solution");
-            AssertRuntimeBundles(validRoot, engineRoot);
-            await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, engineRoot);
-            await AssertMultiWorkerEcsCycleAsync(validRoot, engineRoot);
+            AssertRuntimeBundles(validRoot, engineRoot, "KarpikGame");
+            await AssertRunnerHotReloadAndCleanShutdownAsync(validRoot, engineRoot, "KarpikGame");
+            await AssertMultiWorkerEcsCycleAsync(validRoot, engineRoot, "KarpikGame");
 
             string secondRoot = Path.Combine(temporaryRoot, "second", "SecondGame");
             await MaterializeAsync(temporaryRoot, hive, secondRoot, "SecondGame", commonEnvironment);
@@ -278,8 +278,8 @@ public sealed class ExternalGameCliTests
             ProcessResult secondBuild = await RunAsync(
                 secondRoot, ["build", "SecondGame.slnx", "-m:1", "-nr:false", "--no-restore"], commonEnvironment);
             AssertSuccess(secondBuild, "build second game for project switch test");
-            AssertRuntimeBundles(secondRoot, engineRoot);
-            await AssertMultiWorkerEcsCycleAsync(secondRoot, engineRoot);
+            AssertRuntimeBundles(secondRoot, engineRoot, "SecondGame");
+            await AssertMultiWorkerEcsCycleAsync(secondRoot, engineRoot, "SecondGame");
 
             ProcessResult test = await RunAsync(
                 validRoot,
@@ -455,33 +455,53 @@ public sealed class ExternalGameCliTests
         }
     }
 
-    private static void AssertRuntimeBundles(string gameRoot, string engineRoot)
+    private static void AssertRuntimeBundles(string gameRoot, string engineRoot, string generatedProjectName)
     {
         string output = Path.Combine("bin", "Debug", "net10.0", "karpik-bundle");
-        string client = Path.Combine(gameRoot, "Source", "KarpikGame.Client", output);
-        string server = Path.Combine(gameRoot, "Source", "KarpikGame.Server", output);
-        string shared = Path.Combine(gameRoot, "Source", "KarpikGame.Shared", output);
+        string client = Path.Combine(gameRoot, "Source", $"{generatedProjectName}.Client", output);
+        string server = Path.Combine(gameRoot, "Source", $"{generatedProjectName}.Server", output);
+        string shared = Path.Combine(gameRoot, "Source", $"{generatedProjectName}.Shared", output);
         Assert.True(Directory.Exists(client), $"Client bundle is missing: {client}");
         Assert.True(Directory.Exists(server), $"Server bundle is missing: {server}");
         Assert.False(Directory.Exists(shared), $"Shared project must not create a runtime bundle: {shared}");
         Assert.False(IsWithinRoot(client, engineRoot));
         Assert.False(IsWithinRoot(server, engineRoot));
-        AssertBundle(client, "Client", "KarpikGame.Client.dll", "KarpikGame.Server.dll");
-        AssertBundle(server, "Server", "KarpikGame.Server.dll", "KarpikGame.Client.dll");
+        AssertBundle(
+            client,
+            "Client",
+            $"{generatedProjectName}.Client.dll",
+            $"{generatedProjectName}.Server.dll",
+            $"{generatedProjectName}.Shared.dll");
+        AssertBundle(
+            server,
+            "Server",
+            $"{generatedProjectName}.Server.dll",
+            $"{generatedProjectName}.Client.dll",
+            $"{generatedProjectName}.Shared.dll");
 
-        static void AssertBundle(string bundle, string side, string primary, string forbidden)
+        static void AssertBundle(string bundle, string side, string primary, string forbidden, string sharedAssembly)
         {
+            string outputDirectory = Assert.IsType<string>(Path.GetDirectoryName(bundle));
+            string outputMod = Path.Combine(outputDirectory, "Mods", "MyCoolMod", "mod_info.json");
+            Assert.True(
+                File.Exists(outputMod),
+                $"Generated {side} output is missing copied mod metadata: {outputMod}{Environment.NewLine}" +
+                string.Join(Environment.NewLine, Directory.EnumerateFiles(outputDirectory, "*", SearchOption.AllDirectories)));
+
             Assert.Equal($"karpik-runtime-side-v1:{side}\n", File.ReadAllText(Path.Combine(bundle, "runtime-bundle.side")));
             Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
             string modules = Assert.Single(Directory.GetDirectories(bundle, "modules.version.*", SearchOption.TopDirectoryOnly));
             Assert.Equal("karpik-module-staging-v1\n", File.ReadAllText(Path.Combine(modules, ".complete")));
             string[] names = File.ReadAllLines(Path.Combine(modules, "modules.list"));
-            Assert.Equal(new[] { primary, "KarpikGame.Shared.dll" }.Order(StringComparer.Ordinal), names);
+            Assert.Equal(new[] { primary, sharedAssembly }.Order(StringComparer.Ordinal), names);
             Assert.DoesNotContain(forbidden, names, StringComparer.OrdinalIgnoreCase);
             Assert.DoesNotContain(names, name => name.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase));
             Assert.True(File.Exists(Path.Combine(bundle, "Content", "runtime.txt")));
             Assert.True(File.Exists(Path.Combine(bundle, "Content", "shared-runtime.txt")));
-            Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "mod_info.json")));
+            Assert.True(
+                File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "mod_info.json")),
+                $"Generated {side} bundle is missing mod metadata.{Environment.NewLine}" +
+                string.Join(Environment.NewLine, Directory.EnumerateFiles(bundle, "*", SearchOption.AllDirectories)));
             Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "Client", "Client.lua")));
             Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "Server", "ServerSide.lua")));
         }
@@ -553,12 +573,15 @@ public sealed class ExternalGameCliTests
         return published.DestinationDirectory;
     }
 
-    private static async Task AssertRunnerHotReloadAndCleanShutdownAsync(string gameRoot, string engineRoot)
+    private static async Task AssertRunnerHotReloadAndCleanShutdownAsync(
+        string gameRoot,
+        string engineRoot,
+        string generatedProjectName)
     {
         string bundle = Path.Combine(
             gameRoot,
             "Source",
-            "KarpikGame.Server",
+            $"{generatedProjectName}.Server",
             "bin",
             "Debug",
             "net10.0",
@@ -611,12 +634,15 @@ public sealed class ExternalGameCliTests
         Assert.Equal(engineBefore, SnapshotFiles(engineRoot));
     }
 
-    private static async Task AssertMultiWorkerEcsCycleAsync(string gameRoot, string engineRoot)
+    private static async Task AssertMultiWorkerEcsCycleAsync(
+        string gameRoot,
+        string engineRoot,
+        string generatedProjectName)
     {
         string serverBundle = Path.Combine(
-            gameRoot, "Source", "KarpikGame.Server", "bin", "Debug", "net10.0", "karpik-bundle");
+            gameRoot, "Source", $"{generatedProjectName}.Server", "bin", "Debug", "net10.0", "karpik-bundle");
         string clientBundle = Path.Combine(
-            gameRoot, "Source", "KarpikGame.Client", "bin", "Debug", "net10.0", "karpik-bundle");
+            gameRoot, "Source", $"{generatedProjectName}.Client", "bin", "Debug", "net10.0", "karpik-bundle");
         string serverRunner = Path.Combine(
             engineRoot, "runners", "server",
             OperatingSystem.IsWindows() ? "Karpik.Engine.Core.Runner.exe" : "Karpik.Engine.Core.Runner");
