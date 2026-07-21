@@ -129,7 +129,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
   Evidence: `dotnet test Karpik.Engine.Sdk.IntegrationTests\Karpik.Engine.Sdk.IntegrationTests.csproj -m:1 -nr:false --no-restore` on 2026-07-21 produced 1 failed, 4 passed, and 2 skipped; the failure is the missing `Source/KarpikGame.Shared/Content/shared-runtime.txt`.
 
 - Observation: the Milestone 8B test named a second independent materialization a project switch, but it never called `ProjectSwitchCoordinator` or `EditorShellViewModel.OpenProjectAsync` while workers from the first project were active.
-  Evidence: `ExternalGameCliTests.AssertMultiWorkerEcsCycleAsync` fully stops each game before the second game is materialized; the actual coordinator-based switch lives in `Karpik.Editor.Tests/Projects/ExternalProjectSwitchIntegrationTests.cs` and currently starts only one client.
+  Evidence: this was the historical audit state on 2026-07-21: `ExternalGameCliTests.AssertMultiWorkerEcsCycleAsync` fully stopped each game before the second game was materialized, while the coordinator-based smoke started only one client. Remediation R3 now keeps one server and two clients active in each game and proves teardown through the real editor switch.
 
 - Observation: the SDK copies `Mods/**` to side-project outputs but `BuildKarpikRuntimeBundle` collects only `$(TargetDir)Content/**`, so the moved Lua sample is absent from installed runtime bundles.
   Evidence: `templates/Karpik.Game/Source/KarpikGame.Client/KarpikGame.Client.csproj`, `templates/Karpik.Game/Source/KarpikGame.Server/KarpikGame.Server.csproj`, and `Karpik.Engine.Sdk/Sdk/Sdk.targets` disagree about the published asset roots.

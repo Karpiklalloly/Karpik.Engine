@@ -93,9 +93,12 @@ public sealed class ExternalProjectSwitchIntegrationTests
             ProjectRuntimeDescriptor firstRuntime = created[0].Runtime;
             AssertRuntimeOwnership(firstRuntime, firstRoot, engineRoot);
 
-            bool secondActivationObserved = false;
-            bool firstWorkersExitedBeforeSecondActivation = false;
-            viewModel.PropertyChanged += ObserveSecondActivation;
+            bool firstProjectDeactivationObserved = false;
+            bool secondProjectPrePublicationBoundaryObserved = false;
+            bool firstWorkersExitedBeforeSecondProjectPublication = false;
+            bool secondProjectPublicationObserved = false;
+            viewModel.PropertyChanging += ObserveSecondProjectPrePublicationBoundary;
+            viewModel.PropertyChanged += ObserveProjectPathChanged;
 
             ProjectOpenResult secondOpen;
             try
@@ -106,13 +109,22 @@ public sealed class ExternalProjectSwitchIntegrationTests
             }
             finally
             {
-                viewModel.PropertyChanged -= ObserveSecondActivation;
+                viewModel.PropertyChanging -= ObserveSecondProjectPrePublicationBoundary;
+                viewModel.PropertyChanged -= ObserveProjectPathChanged;
             }
             Assert.True(secondOpen.IsSuccess, string.Join(Environment.NewLine, secondOpen.Diagnostics));
-            Assert.True(secondActivationObserved, "The second project was never published by the editor shell.");
             Assert.True(
-                firstWorkersExitedBeforeSecondActivation,
-                "The second project became active before every first-project worker exited.");
+                firstProjectDeactivationObserved,
+                "The shell never synchronously cleared the first project path during the switch.");
+            Assert.True(
+                secondProjectPrePublicationBoundaryObserved,
+                "The shell never raised the synchronous pre-publication boundary for the second project path.");
+            Assert.True(
+                firstWorkersExitedBeforeSecondProjectPublication,
+                "At least one first-project worker was still alive immediately before second-project publication.");
+            Assert.True(
+                secondProjectPublicationObserved,
+                "The shell never synchronously published the exact second-project path.");
             await AssertProcessesExitedAsync(firstPids);
             AssertReloadTreesEmpty(firstRuntime);
             AssertRepresentativeBundleFilesAreExclusivelyOpenable(firstRuntime);
@@ -154,16 +166,37 @@ public sealed class ExternalProjectSwitchIntegrationTests
             AssertReloadTreesEmpty(secondRuntime);
             AssertRepresentativeBundleFilesAreExclusivelyOpenable(secondRuntime);
 
-            void ObserveSecondActivation(object? sender, PropertyChangedEventArgs args)
+            void ObserveSecondProjectPrePublicationBoundary(
+                object? sender,
+                PropertyChangingEventArgs args)
             {
                 if (args.PropertyName != nameof(EditorShellViewModel.ProjectPath)
-                    || !PathEquals(viewModel.ProjectPath, secondSolution))
+                    || !firstProjectDeactivationObserved
+                    || viewModel.ProjectPath is not null)
                 {
                     return;
                 }
 
-                secondActivationObserved = true;
-                firstWorkersExitedBeforeSecondActivation = firstPids.All(pid => !IsProcessRunning(pid));
+                secondProjectPrePublicationBoundaryObserved = true;
+                firstWorkersExitedBeforeSecondProjectPublication = firstPids.All(
+                    pid => !IsProcessRunning(pid));
+            }
+
+            void ObserveProjectPathChanged(object? sender, PropertyChangedEventArgs args)
+            {
+                if (args.PropertyName != nameof(EditorShellViewModel.ProjectPath))
+                {
+                    return;
+                }
+
+                if (viewModel.ProjectPath is null)
+                {
+                    firstProjectDeactivationObserved = true;
+                }
+                else if (PathEquals(viewModel.ProjectPath, secondSolution))
+                {
+                    secondProjectPublicationObserved = true;
+                }
             }
         }
         finally
