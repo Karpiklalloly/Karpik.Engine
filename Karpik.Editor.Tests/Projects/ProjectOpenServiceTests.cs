@@ -155,11 +155,17 @@ public sealed class ProjectOpenServiceTests
             {
                 Directory.CreateSymbolicLink(linkedBundles, outside);
             }
-            catch (Exception exception) when (exception is UnauthorizedAccessException
-                                             or IOException
-                                             or PlatformNotSupportedException)
+            catch (PlatformNotSupportedException exception)
             {
                 throw SkipException.ForSkip($"Unable to create a directory symbolic link: {exception.Message}");
+            }
+            catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+            {
+                throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
+            }
+            catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+            {
+                throw SkipException.ForSkip($"Creating a directory symbolic link requires an unavailable Windows privilege: {exception.Message}");
             }
 
             var evaluations = solution.CreateEvaluations().ToArray();
@@ -191,6 +197,16 @@ public sealed class ProjectOpenServiceTests
                 Directory.Delete(linkedBundles);
             }
         }
+    }
+
+    [Fact]
+    public void SymbolicLinkCapabilitySkip_RecognizesOnlyWindowsPrivilegeNotHeld()
+    {
+        var privilegeFailure = new TestException(unchecked((int)0x80070522));
+        var unrelatedFailure = new TestException(unchecked((int)0x80070005));
+
+        Assert.Equal(OperatingSystem.IsWindows(), IsWindowsSymbolicLinkPrivilegeFailure(privilegeFailure));
+        Assert.False(IsWindowsSymbolicLinkPrivilegeFailure(unrelatedFailure));
     }
 
     [Fact]
@@ -666,6 +682,17 @@ public sealed class ProjectOpenServiceTests
             CreateCount++;
             Runtime = runtime;
             return new ActiveProjectContext(solution, runtime, generation, NullActiveProjectLifetime.Instance);
+        }
+    }
+
+    private static bool IsWindowsSymbolicLinkPrivilegeFailure(Exception exception) =>
+        OperatingSystem.IsWindows() && exception.HResult == unchecked((int)0x80070522);
+
+    private sealed class TestException : Exception
+    {
+        public TestException(int hresult)
+        {
+            HResult = hresult;
         }
     }
 
