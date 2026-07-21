@@ -138,7 +138,7 @@ public sealed class ConfiguratorTests
     }
 
     [Fact]
-    public void Generator_IsDeterministicAndIncludesGameRootsInBothSides()
+    public void Generator_IsDeterministicForEngineOnlyRepository()
     {
         using var repository = new TestRepository();
         var provider = repository.AddPlugin(ProjectSide.Shared, "Provider");
@@ -153,6 +153,9 @@ public sealed class ConfiguratorTests
         var loader = first.Single(artifact => artifact.Key.EndsWith("ModuleLoader.cs", StringComparison.Ordinal)).Value;
 
         Assert.True(graph.IsValid);
+        Assert.DoesNotContain(typeof(RepositoryModel).GetProperties(), property => property.Name == "GameRoots");
+        Assert.All(model.ProjectsByPath.Values,
+            project => Assert.StartsWith("Modules/", project.RelativePath, StringComparison.Ordinal));
         Assert.Equal(first.Values, second.Values);
         Assert.True(graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Provider") <
                     graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Consumer"));
@@ -164,6 +167,12 @@ public sealed class ConfiguratorTests
         Assert.Contains("public sealed partial class ModuleLoader", loader);
         Assert.Contains("_loadContext = CreateLoadContext(_shadowCopyDirectory)", loader);
         Assert.Contains("LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies)", loader);
+        foreach (var artifact in first.Values)
+        {
+            Assert.DoesNotContain("MyGame", artifact, StringComparison.Ordinal);
+            Assert.DoesNotContain("ClientLauncher", artifact, StringComparison.Ordinal);
+            Assert.DoesNotContain("ServerLauncher", artifact, StringComparison.Ordinal);
+        }
     }
 }
 
@@ -178,10 +187,6 @@ internal sealed class TestRepository : IDisposable
     {
         RootPath = Path.Combine(Path.GetTempPath(), "KarpikConfiguratorTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(RootPath);
-        AddGameRoot("MyGame/MyGameResources/MyGameResources.csproj");
-        AddGameRoot("MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj");
-        AddGameRoot("MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj");
-        AddGameRoot("MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj");
     }
 
     public string RootPath { get; }
@@ -273,12 +278,6 @@ internal sealed class TestRepository : IDisposable
         {
             Directory.Delete(RootPath, recursive: true);
         }
-    }
-
-    private void AddGameRoot(string relativePath)
-    {
-        AddProject(relativePath, new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
-            new XElement("PropertyGroup", new XElement("TargetFramework", "net10.0"))));
     }
 
     private void AddProject(string relativePath, XElement project)

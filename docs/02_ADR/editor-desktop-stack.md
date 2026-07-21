@@ -33,7 +33,7 @@ Create a separate side-neutral `Karpik.Editor` orchestration application using:
 
 For 0.6, the Veldrid preview is isolated from the Avalonia visual tree: it runs in a separate SDL2 window or process. The editor and runtime communicate through editor-facing bridge contracts and bounded snapshot/batch messages. The preview must not expose ECS pools, graphics types, or ReactiveUI types to the editor.
 
-`Karpik.Editor` is not a Client or Server composition root. Its build produces two physically separated runtime bundles, `runtimes/client` and `runtimes/server`, from the existing launcher composition roots. The desktop process may own one server session and multiple explicitly created client sessions. Stopping or losing the server stops all clients; clients cannot start without a running server.
+`Karpik.Editor` is not a Client or Server composition root. The selected versioned engine installation provides the side-specific runners and first-party engine modules, while the active external game build owns its physically separated Client and Server bundles. The desktop process may own one server session and multiple explicitly created client sessions. Stopping or losing the server stops all clients; clients cannot start without a running server.
 
 The session selected in the «Сессии» panel is the sole source of editor snapshots. Hierarchy and Inspector are cleared immediately on selection changes, and a response from a previously selected process is discarded. Client snapshots execute as rare diagnostic work on the gameplay simulation thread; server snapshots execute at the server tick safe point. Snapshot polling remains bounded to one selected backend at 4 Hz.
 
@@ -70,6 +70,7 @@ Rejected as the default. ReactiveUI better fits composed editor events such as d
 - Measure preview frame allocations and frame time with the editor open; editor diagnostics must not add allocations to runtime hot paths.
 - Add integration coverage for editor bridge snapshot delivery and preview start/stop lifecycle.
 - Start one server and at least two clients, verify distinct processes and two server-side connections, switch snapshot source between all sessions, then stop the server and verify cascade shutdown.
+- Open a second external game through the real project coordinator while the first server and two clients are active; verify all old processes, reload artifacts, and module-file locks are released before the second project is published, and verify runners remain installation-owned while bundles remain game-owned.
 
 ## Links
 

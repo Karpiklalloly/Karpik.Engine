@@ -74,12 +74,12 @@ kanban-plugin: board
 	  - Убраны `SkipEditorRuntimeBundles` из PayloadLayout.cs и Karpik.Editor.Tests.csproj.
 	  - RuntimeBundleResolverTests переименован в ProjectRuntimeResolverTests.
 	  - Результат: editor использует только runner выбранной installation и bundles активной игры.
-- [ ] **Milestone 8D — убрать `MyGame` и игровые launcher-ы из engine root**
+- [x] **Milestone 8D — убрать `MyGame` и игровые launcher-ы из engine root**
 	  - Перенести полезный sample в game template; удалить `MyGame`, `ClientLauncher`, `ServerLauncher` и их solution/build ссылки.
-	  - Результат: engine build graph не содержит game-specific composition roots.
-- [ ] **Milestone 8E — отвязать Configurator от `MyGame` и root game profile**
-	  - Оставить генерацию engine module catalog для SDK payload и независимо валидировать engine/game graphs.
-	  - Перегенерировать `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` через Configurator.
+	  - Результат: внешний шаблон доказал server + два clients, ECS, bundle-owned `Content/`/`Mods/` и hot reload; реальный editor switch доказал teardown; engine build graph и Configurator не содержат game-specific composition roots.
+- [ ] **Milestone 8E — завершить модернизацию Configurator и `Network.Codegen`**
+	  - Сохранить engine module catalog для SDK payload и вынести оставшиеся исторические `MyGame.*.Main` assumptions из `Network.Codegen` в отдельную будущую работу.
+	  - Не менять уже завершённую engine-only генерацию `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` иначе чем через Configurator.
 - [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
 	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, `graphify update .`.
 	  - Desktop smoke: Launcher → project A → server + два clients → switch → project B → compatible editor.

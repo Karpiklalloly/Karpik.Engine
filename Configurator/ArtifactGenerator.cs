@@ -141,7 +141,7 @@ public static class ArtifactGenerator
         sb.AppendLine("        var sourceDirectory = ResolveModuleDirectory();");
         sb.AppendLine("        ModuleDirectory = sourceDirectory;");
         sb.AppendLine("        if (!Directory.Exists(sourceDirectory))");
-        sb.AppendLine("            throw new DirectoryNotFoundException($\"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.\");");
+        sb.AppendLine("            throw new DirectoryNotFoundException($\"No completed module staging directory was found at: {sourceDirectory}. Build the selected first-party module set or use the installed side runner.\");");
         sb.AppendLine("        var manifestFiles = _bundleRoot is null ? null : RuntimeBundleLayout.ReadCanonicalModuleManifest(sourceDirectory);");
         sb.AppendLine("        var requiredAssemblies = ResolveAssemblyNames(manifestFiles, assemblyNames);");
         sb.AppendLine("        var shadowRoot = Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, \"reload\", \"shadow\");");
@@ -152,7 +152,7 @@ public static class ArtifactGenerator
         sb.AppendLine("            CopyDirectory(sourceDirectory, _shadowCopyDirectory, manifestFiles);");
         sb.AppendLine("            var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + \".dll\"))).ToArray();");
         sb.AppendLine("            if (missing.Length > 0)");
-        sb.AppendLine("                throw new FileNotFoundException($\"Required module assemblies are missing from {sourceDirectory}: {string.Join(\", \", missing)}. Build the matching ClientLauncher or ServerLauncher project.\");");
+        sb.AppendLine("                throw new FileNotFoundException($\"Required module assemblies are missing from {sourceDirectory}: {string.Join(\", \", missing)}. Build the selected first-party module set or use the installed side runner.\");");
         sb.AppendLine("            _loadContext = CreateLoadContext(_shadowCopyDirectory);");
         sb.AppendLine("            LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies);");
         sb.AppendLine("        }");

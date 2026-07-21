@@ -90,7 +90,6 @@ public static class RepositoryParser
             ProjectsByPath = projects,
             Plugins = plugins,
             Modules = modules,
-            GameRoots = [],
             Selections = selections,
             SettingValues = settingValues,
             ParseErrors = errors

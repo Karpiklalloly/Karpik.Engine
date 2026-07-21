@@ -137,7 +137,7 @@ public static class GraphValidator
         RepositoryModel model,
         List<PluginInfo> activePlugins)
     {
-        var active = model.GameRoots.ToDictionary(project => project.AbsolutePath, StringComparer.OrdinalIgnoreCase);
+        var active = new Dictionary<string, ProjectInfo>(StringComparer.OrdinalIgnoreCase);
         foreach (var module in model.Modules.Values)
         {
             var selection = model.Selections[module.Id];
@@ -172,7 +172,6 @@ public static class GraphValidator
         List<string> errors)
     {
         var graphProjects = model.Plugins.Select(plugin => plugin.Project)
-            .Concat(model.GameRoots)
             .DistinctBy(project => project.AbsolutePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
         foreach (var project in graphProjects)
@@ -206,9 +205,7 @@ public static class GraphValidator
                 }
 
                 var isGraphProject = model.Plugins.Any(plugin =>
-                                         string.Equals(plugin.Project.AbsolutePath, target.AbsolutePath, StringComparison.OrdinalIgnoreCase)) ||
-                                     model.GameRoots.Any(root =>
-                                         string.Equals(root.AbsolutePath, target.AbsolutePath, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(plugin.Project.AbsolutePath, target.AbsolutePath, StringComparison.OrdinalIgnoreCase));
                 if (isGraphProject && !activeProjects.ContainsKey(target.AbsolutePath) && !dependency.Optional)
                 {
                     errors.Add($"{project.RelativePath}: required module dependency is disabled: {target.RelativePath}");

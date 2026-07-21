@@ -119,7 +119,7 @@ public sealed partial class ModuleLoader : IDisposable
         var sourceDirectory = ResolveModuleDirectory();
         ModuleDirectory = sourceDirectory;
         if (!Directory.Exists(sourceDirectory))
-            throw new DirectoryNotFoundException($"No completed module staging directory was found at: {sourceDirectory}. Build the launcher project before starting the worker.");
+            throw new DirectoryNotFoundException($"No completed module staging directory was found at: {sourceDirectory}. Build the selected first-party module set or use the installed side runner.");
         var manifestFiles = _bundleRoot is null ? null : RuntimeBundleLayout.ReadCanonicalModuleManifest(sourceDirectory);
         var requiredAssemblies = ResolveAssemblyNames(manifestFiles, assemblyNames);
         var shadowRoot = Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, "reload", "shadow");
@@ -130,7 +130,7 @@ public sealed partial class ModuleLoader : IDisposable
             CopyDirectory(sourceDirectory, _shadowCopyDirectory, manifestFiles);
             var missing = requiredAssemblies.Where(name => !File.Exists(Path.Combine(_shadowCopyDirectory, name + ".dll"))).ToArray();
             if (missing.Length > 0)
-                throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the matching ClientLauncher or ServerLauncher project.");
+                throw new FileNotFoundException($"Required module assemblies are missing from {sourceDirectory}: {string.Join(", ", missing)}. Build the selected first-party module set or use the installed side runner.");
             _loadContext = CreateLoadContext(_shadowCopyDirectory);
             LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies);
         }
