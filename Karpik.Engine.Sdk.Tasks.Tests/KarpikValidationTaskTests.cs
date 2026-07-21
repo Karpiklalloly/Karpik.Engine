@@ -24,6 +24,12 @@ public sealed class KarpikValidationTaskTests
         Assert.Contains("'$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server'", condition);
         Assert.Equal("$(KarpikRuntimeBundlePath)", (string?)bundleTask.Attribute("BundlePath"));
         Assert.Equal("$(TargetPath)", (string?)bundleTask.Attribute("PrimaryAssembly"));
+        Assert.Equal("@(_KarpikBundleContent)", (string?)bundleTask.Attribute("Content"));
+        Assert.Equal("@(_KarpikBundleMod)", (string?)bundleTask.Attribute("Mods"));
+
+        XElement bundleMod = Assert.Single(bundleTarget.Descendants("_KarpikBundleMod"));
+        Assert.Equal(@"$(TargetDir)Mods\**\*", (string?)bundleMod.Attribute("Include"));
+        Assert.Equal("%(RecursiveDir)%(Filename)%(Extension)", (string?)bundleMod.Attribute("TargetPath"));
         Assert.Equal("$(KarpikSide)", (string?)bundleTask.Attribute("Side"));
         XElement contentItem = Assert.Single(bundleTarget.Descendants("_KarpikBundleContent"));
         Assert.StartsWith("$(TargetDir)Content", (string?)contentItem.Attribute("Include"));

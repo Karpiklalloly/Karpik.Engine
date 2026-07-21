@@ -43,12 +43,15 @@
                              Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
       <_KarpikBundleContent Include="$(TargetDir)Content\**\*"
                             TargetPath="%(RecursiveDir)%(Filename)%(Extension)" />
+      <_KarpikBundleMod Include="$(TargetDir)Mods\**\*"
+                        TargetPath="%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
     <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
                                   PrimaryAssembly="$(TargetPath)"
                                   BundlePath="$(KarpikRuntimeBundlePath)"
                                   Assemblies="@(_KarpikBundleAssembly)"
-                                  Content="@(_KarpikBundleContent)" />
+                                  Content="@(_KarpikBundleContent)"
+                                  Mods="@(_KarpikBundleMod)" />
   </Target>
 
   <Target Name="ValidateKarpikProjectReferencesBeforeBuild"

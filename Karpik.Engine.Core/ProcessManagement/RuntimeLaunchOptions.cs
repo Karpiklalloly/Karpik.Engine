@@ -259,7 +259,7 @@ public static class RuntimeBundleLayout
             {
                 continue;
             }
-            if (Directory.Exists(entry) && name is "Content" or "modules.version.1" or "reload")
+            if (Directory.Exists(entry) && name is "Content" or "Mods" or "modules.version.1" or "reload")
             {
                 continue;
             }

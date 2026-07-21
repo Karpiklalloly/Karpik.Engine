@@ -20,5 +20,16 @@ public class ServerGameInstaller : IInstallerConfiguratable
         int entity = world.NewEntity();
         world.GetPool<GameComponent>().Add(entity) = new GameComponent { Value = 42 };
         Console.WriteLine($"[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}");
+
+        string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
+        if (File.Exists(contentPath))
+        {
+            Console.WriteLine($"[ServerGame] Content: {File.ReadAllText(contentPath).Trim()}");
+        }
+        string sharedContentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "shared-runtime.txt");
+        if (File.Exists(sharedContentPath))
+        {
+            Console.WriteLine($"[ServerGame] Shared content: {File.ReadAllText(sharedContentPath).Trim()}");
+        }
     }
 }

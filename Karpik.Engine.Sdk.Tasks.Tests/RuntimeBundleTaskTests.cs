@@ -30,6 +30,7 @@ public sealed class RuntimeBundleTaskTests
         string primary = tree.Write($"output/Game.{side}.dll", side);
         string shared = tree.Write("output/Game.Shared.dll", "shared");
         string content = tree.Write("assets/settings.json", "{}");
+        string mod = tree.Write("mods/MyCoolMod/mod_info.json", "{\"name\":\"MyCoolMod\"}");
         string bundle = Path.Combine(tree.Root, "publish", "karpik-bundle");
         var engine = new FakeBuildEngine();
         var task = new BuildKarpikRuntimeBundleTask
@@ -39,7 +40,8 @@ public sealed class RuntimeBundleTaskTests
             PrimaryAssembly = primary,
             BundlePath = bundle,
             Assemblies = [new TaskItem(shared), new TaskItem(primary)],
-            Content = [ContentItem(content, "Config/settings.json")]
+            Content = [ContentItem(content, "Config/settings.json")],
+            Mods = [ContentItem(mod, "MyCoolMod/mod_info.json")]
         };
 
         Assert.True(task.Execute());
@@ -54,6 +56,10 @@ public sealed class RuntimeBundleTaskTests
         Assert.True(File.Exists(Path.Combine(bundle, "modules.version.1", $"Game.{side}.dll")));
         Assert.True(File.Exists(Path.Combine(bundle, "modules.version.1", "Game.Shared.dll")));
         Assert.Equal("{}", File.ReadAllText(Path.Combine(bundle, "Content", "Config", "settings.json")));
+        Assert.Equal("{\"name\":\"MyCoolMod\"}", File.ReadAllText(Path.Combine(bundle, "Mods", "MyCoolMod", "mod_info.json")));
+        Assert.Equal(bundle, Karpik.Engine.Core.RuntimeBundleLayout.Validate(
+            bundle,
+            Enum.Parse<Karpik.Engine.Core.Side>(side)));
         Assert.False(File.Exists(Path.Combine(bundle, ".karpik-owned-staging")));
         Assert.DoesNotContain(
             Directory.EnumerateFiles(bundle, "*", SearchOption.AllDirectories),
@@ -365,6 +371,79 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Theory]
+    [InlineData("escaping")]
+    [InlineData("duplicate")]
+    [InlineData("oversized")]
+    public void Execute_InvalidModInputPreservesLastCompleteBundle(string invalidKind)
+    {
+        using var tree = new TemporaryTree();
+        string bundle = CreateCompleteBundle(tree, "preserve");
+        string primary = tree.Write("output/Game.Client.dll", "new-game");
+        string mod = tree.Write("mods/MyCoolMod/mod_info.json", "new-mod");
+        ITaskItem[] mods = invalidKind switch
+        {
+            "escaping" => [ContentItem(mod, "../escaped.json")],
+            "duplicate" =>
+            [
+                ContentItem(mod, "MyCoolMod/mod_info.json"),
+                ContentItem(tree.Write("mods/duplicate.json", "duplicate"), "MyCoolMod/mod_info.json")
+            ],
+            "oversized" => [ContentItem(CreateOversizedFile(tree, "mods/oversized.bin"), "MyCoolMod/oversized.bin")],
+            _ => throw new ArgumentOutOfRangeException(nameof(invalidKind))
+        };
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")],
+            Mods = mods
+        };
+
+        Assert.False(task.Execute());
+        AssertCompleteBundleWasPreserved(bundle);
+        Assert.False(File.Exists(Path.Combine(tree.Root, "escaped.json")));
+        Assert.False(Directory.Exists(bundle + ".previous"));
+        Assert.Empty(Directory.EnumerateDirectories(tree.Root, "complete-bundle.staging.*"));
+    }
+
+    [Fact]
+    public void Execute_LinkedModInputPreservesLastCompleteBundleWhenSymbolicLinksAreAvailable()
+    {
+        using var tree = new TemporaryTree();
+        string realMod = tree.Write("mods/MyCoolMod/mod_info.json", "new-mod");
+        string linkedMod = Path.Combine(tree.Root, "linked-mod.json");
+        try
+        {
+            File.CreateSymbolicLink(linkedMod, realMod);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+            return;
+        }
+
+        string bundle = CreateCompleteBundle(tree, "preserve");
+        string primary = tree.Write("output/Game.Client.dll", "new-game");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")],
+            Mods = [ContentItem(linkedMod, "MyCoolMod/mod_info.json")]
+        };
+
+        Assert.False(task.Execute());
+        AssertCompleteBundleWasPreserved(bundle);
+        Assert.False(Directory.Exists(bundle + ".previous"));
+        Assert.Empty(Directory.EnumerateDirectories(tree.Root, "complete-bundle.staging.*"));
+    }
+
+    [Theory]
     [InlineData("crlf-manifest")]
     [InlineData("bom-manifest")]
     [InlineData("unsafe-manifest")]
@@ -436,6 +515,21 @@ public sealed class RuntimeBundleTaskTests
         File.WriteAllText(Path.Combine(bundle, "Content", "content.txt"), "old-content");
         File.WriteAllText(Path.Combine(bundle, "Content", "sentinel.txt"), sentinel);
         return bundle;
+    }
+
+    private static string CreateOversizedFile(TemporaryTree tree, string relativePath)
+    {
+        string path = tree.Write(relativePath, string.Empty);
+        using FileStream stream = File.OpenWrite(path);
+        stream.SetLength(BuildKarpikRuntimeBundleTask.MaxIndividualFileBytes + 1);
+        return path;
+    }
+
+    private static void AssertCompleteBundleWasPreserved(string bundle)
+    {
+        Assert.Equal("preserve", File.ReadAllText(Path.Combine(bundle, "Content", "sentinel.txt")));
+        Assert.Equal("old-game", File.ReadAllText(Path.Combine(bundle, "modules.version.1", "Game.Client.dll")));
+        Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
     }
 
     private static TaskItem ContentItem(string path, string targetPath)

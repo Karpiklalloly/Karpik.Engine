@@ -7,6 +7,7 @@
     <KarpikSide>Shared</KarpikSide>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="..\..\Content\**\*" CopyToOutputDirectory="PreserveNewest" Link="Content\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Content\**\*" CopyToOutputDirectory="PreserveNewest" Link="Content\%(RecursiveDir)%(Filename)%(Extension)" TargetPath="Content\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

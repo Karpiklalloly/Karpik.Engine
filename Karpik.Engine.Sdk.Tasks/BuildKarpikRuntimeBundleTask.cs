@@ -42,6 +42,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
     public ITaskItem[] Content { get; set; } = [];
 
+    public ITaskItem[] Mods { get; set; } = [];
+
     public override bool Execute()
     {
         try
@@ -145,9 +147,9 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxManifestEntries} assemblies.");
         }
-        if (Content.Length > MaxTreeEntries)
+        if (Mods.Length > MaxTreeEntries || Content.Length > MaxTreeEntries - Mods.Length)
         {
-            throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} content items.");
+            throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} asset items.");
         }
         var sources = new SortedDictionary<string, string>(StringComparer.Ordinal);
         var assemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -181,58 +183,25 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
         string modules = Path.Combine(staging, "modules.version.1");
         string contentRoot = Path.Combine(staging, "Content");
-        var contentTargets = new HashSet<string>(BundleIdentityComparer);
-        var contentDirectories = new HashSet<string>(BundleIdentityComparer) { contentRoot };
-        var contentSources = new List<(string Source, string Destination)>();
-        foreach (ITaskItem item in Content.OrderBy(item => item.GetMetadata("TargetPath"), StringComparer.Ordinal))
+        var assetDirectories = new HashSet<string>(BundleIdentityComparer);
+        var assetSources = new List<(string Source, string Destination)>();
+        PrepareAssetRoot(Content, "Content", contentRoot, assetDirectories, assetSources, ref totalInputBytes);
+        if (Mods.Length > 0)
         {
-            string source = Path.GetFullPath(item.ItemSpec);
-            if (!File.Exists(source) || IsReparsePoint(source))
-            {
-                throw new InvalidDataException($"Runtime content is missing or linked: {item.ItemSpec}");
-            }
-            EnsureNotReparse(Path.GetDirectoryName(source)!);
-            string relative = item.GetMetadata("TargetPath");
-            if (string.IsNullOrWhiteSpace(relative))
-            {
-                relative = Path.GetFileName(source);
-            }
-            relative = relative.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-            string destination = Path.GetFullPath(Path.Combine(contentRoot, relative));
-            if (!IsContained(contentRoot, destination) || !contentTargets.Add(destination))
-            {
-                throw new InvalidDataException($"Runtime content target escapes or conflicts within Content: {relative}");
-            }
-            int depth = Path.GetRelativePath(contentRoot, destination)
-                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
-                .Length;
-            long length = new FileInfo(source).Length;
-            if (depth + 1 > MaxTreeDepth
-                || length > MaxIndividualFileBytes
-                || totalInputBytes > MaxBundleBytes - length)
-            {
-                throw new InvalidDataException(
-                    $"Runtime content exceeds bundle limits ({MaxTreeDepth} depth, {MaxIndividualFileBytes} bytes per file, {MaxBundleBytes} bytes total): {relative}");
-            }
-            totalInputBytes += length;
-            for (string? directory = Path.GetDirectoryName(destination);
-                 directory is not null && IsContained(contentRoot, directory);
-                 directory = Path.GetDirectoryName(directory))
-            {
-                contentDirectories.Add(directory);
-                if (BundleIdentityComparer.Equals(directory, contentRoot))
-                {
-                    break;
-                }
-            }
-            contentSources.Add((source, destination));
+            PrepareAssetRoot(
+                Mods,
+                "Mods",
+                Path.Combine(staging, "Mods"),
+                assetDirectories,
+                assetSources,
+                ref totalInputBytes);
         }
 
         int fixedEntries = 3 // root markers plus staging ownership marker
                            + 1 // modules.version.1 directory
                            + sources.Count
                            + 2; // module manifest and marker
-        if (fixedEntries > MaxTreeEntries - contentDirectories.Count - contentSources.Count)
+        if (fixedEntries > MaxTreeEntries - assetDirectories.Count - assetSources.Count)
         {
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} tree entries.");
         }
@@ -248,7 +217,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             manifestText,
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         File.WriteAllText(Path.Combine(modules, ".complete"), ModuleCompletionMarker);
-        foreach ((string source, string destination) in contentSources)
+        foreach ((string source, string destination) in assetSources)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(source, destination, overwrite: false);
@@ -256,6 +225,61 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
         File.WriteAllText(Path.Combine(staging, "runtime-bundle.side"), SideMarkerPrefix + Side + "\n");
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
+    }
+
+    private static void PrepareAssetRoot(
+        IEnumerable<ITaskItem> items,
+        string rootName,
+        string assetRoot,
+        ISet<string> assetDirectories,
+        ICollection<(string Source, string Destination)> assetSources,
+        ref long totalInputBytes)
+    {
+        var targets = new HashSet<string>(BundleIdentityComparer);
+        assetDirectories.Add(assetRoot);
+        foreach (ITaskItem item in items.OrderBy(item => item.GetMetadata("TargetPath"), StringComparer.Ordinal))
+        {
+            string source = Path.GetFullPath(item.ItemSpec);
+            if (!File.Exists(source) || IsReparsePoint(source))
+            {
+                throw new InvalidDataException($"Runtime {rootName} item is missing or linked: {item.ItemSpec}");
+            }
+            EnsureNotReparse(Path.GetDirectoryName(source)!);
+            string relative = item.GetMetadata("TargetPath");
+            if (string.IsNullOrWhiteSpace(relative))
+            {
+                relative = Path.GetFileName(source);
+            }
+            relative = relative.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            string destination = Path.GetFullPath(Path.Combine(assetRoot, relative));
+            if (!IsContained(assetRoot, destination) || !targets.Add(destination))
+            {
+                throw new InvalidDataException($"Runtime asset target escapes or conflicts within {rootName}: {relative}");
+            }
+            int depth = Path.GetRelativePath(assetRoot, destination)
+                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+                .Length;
+            long length = new FileInfo(source).Length;
+            if (depth + 1 > MaxTreeDepth
+                || length > MaxIndividualFileBytes
+                || totalInputBytes > MaxBundleBytes - length)
+            {
+                throw new InvalidDataException(
+                    $"Runtime {rootName} item exceeds bundle limits ({MaxTreeDepth} depth, {MaxIndividualFileBytes} bytes per file, {MaxBundleBytes} bytes total): {relative}");
+            }
+            totalInputBytes += length;
+            for (string? directory = Path.GetDirectoryName(destination);
+                 directory is not null && IsContained(assetRoot, directory);
+                 directory = Path.GetDirectoryName(directory))
+            {
+                assetDirectories.Add(directory);
+                if (BundleIdentityComparer.Equals(directory, assetRoot))
+                {
+                    break;
+                }
+            }
+            assetSources.Add((source, destination));
+        }
     }
 
     private static void AddAssembly(
@@ -395,7 +419,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             }
             var allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
             {
-                "Content", "modules.version.1", "reload"
+                "Content", "Mods", "modules.version.1", "reload"
             };
             foreach (string entry in Directory.EnumerateFileSystemEntries(root, "*", SearchOption.TopDirectoryOnly))
             {

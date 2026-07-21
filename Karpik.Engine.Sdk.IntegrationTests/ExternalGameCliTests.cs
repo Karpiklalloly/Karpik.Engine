@@ -70,9 +70,14 @@ public sealed class ExternalGameCliTests
             "KarpikGame.slnx",
             "Directory.Solution.targets",
             "Source/KarpikGame.Client/KarpikGame.Client.csproj",
+            "Source/KarpikGame.Client/Content/runtime.txt",
             "Source/KarpikGame.Server/KarpikGame.Server.csproj",
+            "Source/KarpikGame.Server/Content/runtime.txt",
             "Source/KarpikGame.Shared/KarpikGame.Shared.csproj",
             "Source/KarpikGame.Shared/Content/shared-runtime.txt",
+            "Mods/MyCoolMod/mod_info.json",
+            "Mods/MyCoolMod/Client/Client.lua",
+            "Mods/MyCoolMod/Server/ServerSide.lua",
             "Tests/KarpikGame.Tests/KarpikGame.Tests.csproj"
         ];
 
@@ -476,6 +481,9 @@ public sealed class ExternalGameCliTests
             Assert.DoesNotContain(names, name => name.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase));
             Assert.True(File.Exists(Path.Combine(bundle, "Content", "runtime.txt")));
             Assert.True(File.Exists(Path.Combine(bundle, "Content", "shared-runtime.txt")));
+            Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "mod_info.json")));
+            Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "Client", "Client.lua")));
+            Assert.True(File.Exists(Path.Combine(bundle, "Mods", "MyCoolMod", "Server", "ServerSide.lua")));
         }
     }
 
