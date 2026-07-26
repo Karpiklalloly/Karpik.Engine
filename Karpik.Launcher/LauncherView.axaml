@@ -8,7 +8,7 @@
                 x:Class="Karpik.Launcher.LauncherView"
                 x:DataType="viewModels:ILauncherViewModel"
                 x:Name="Root"
-                d:DataContext="{d:DesignInstance Type=viewModels:ILauncherViewModel, IsDesignTimeCreatable=True}">
+                d:DataContext="{d:DesignInstance Type=viewModels:ILauncherViewModel}">
     <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="16">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <StackPanel Spacing="4">

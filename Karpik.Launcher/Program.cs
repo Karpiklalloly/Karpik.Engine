@@ -1,4 +1,6 @@
+using System.Reflection;
 using Avalonia;
+using Karpik.Launcher.ViewModels;
 using ReactiveUI.Avalonia;
 
 namespace Karpik.Launcher;
@@ -14,5 +16,8 @@ internal static class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
-            .UseReactiveUI(_ => { });
+            .UseReactiveUI(x =>
+            {
+                x.WithViewsFromAssembly(Assembly.GetExecutingAssembly());
+            });
 }

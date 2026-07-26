@@ -1,13 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewModels="clr-namespace:Karpik.Launcher.ViewModels"
         xmlns:avalonia="http://reactiveui.net"
         x:Class="Karpik.Launcher.MainWindow"
-        x:DataType="viewModels:LauncherViewModel"
         Title="Karpik Launcher"
         Width="760"
         Height="500"
         MinWidth="620"
         MinHeight="400">
-  <avalonia:ViewModelViewHost Name="Host"/>
+    <Grid>
+        <avalonia:ViewModelViewHost Name="Host" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+    </Grid>
 </Window>

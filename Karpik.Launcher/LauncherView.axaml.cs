@@ -1,16 +1,11 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
+﻿using Avalonia.Input;
 using Karpik.Launcher.Models;
 using Karpik.Launcher.ViewModels;
 using ReactiveUI.Avalonia;
 
 namespace Karpik.Launcher;
 
-public partial class LauncherView : ReactiveUserControl<ILauncherViewModel>
+public partial class LauncherView : ReactiveUserControl<LauncherViewModel>
 {
     public LauncherView()
     {

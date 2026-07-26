@@ -1,6 +1,9 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Karpik.Launcher.ViewModels;
+using ReactiveUI;
+using Splat;
 
 namespace Karpik.Launcher;
 
