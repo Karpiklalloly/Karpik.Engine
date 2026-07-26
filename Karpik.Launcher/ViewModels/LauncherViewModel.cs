@@ -1,24 +1,41 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Karpik.Launcher.Models;
 using Karpik.Launcher.Services;
+using ReactiveUI;
 
 namespace Karpik.Launcher.ViewModels;
 
-public sealed class LauncherViewModel : INotifyPropertyChanged
+public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
 {
+    private readonly IStorageProvider _storageProvider;
+    private readonly IClipboard? _clipboard;
     private readonly ProjectRegistry _projectRegistry;
     private readonly IEditorProcessHost _editorHost;
+    private readonly CancellationTokenSource _lifetime = new();
     private bool _isBusy;
     private string _status = "Select a Karpik project.";
 
     public LauncherViewModel(
-        ProjectRegistry? projectRegistry = null,
-        IEditorProcessHost? editorHost = null)
+        ProjectRegistry projectRegistry,
+        IEditorProcessHost editorHost,
+        IStorageProvider storageProvider,
+        IClipboard? clipboard)
     {
-        _projectRegistry = projectRegistry ?? new ProjectRegistry();
-        _editorHost = editorHost ?? new EditorProcessHost();
+        _storageProvider = storageProvider;
+        _clipboard = clipboard;
+        _projectRegistry = projectRegistry;
+        _editorHost = editorHost;
+        OpenProjectCommand = ReactiveCommand.Create(OpenProjectAsync);
+        OpenRecentProjectCommand = ReactiveCommand.CreateFromTask<string>(OpenRecentProjectAsync);
+        CopyErrorCommand = ReactiveCommand.CreateFromTask(CopyErrorAsync);
         ReloadRecentProjects();
     }
 
@@ -27,30 +44,22 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
     public bool IsBusy
     {
         get => _isBusy;
-        private set
-        {
-            if (_isBusy == value) return;
-            _isBusy = value;
-            OnPropertyChanged();
-        }
+        private set => this.RaiseAndSetIfChanged(ref _isBusy, value);
     }
 
     public string Status
     {
         get => _status;
-        private set
-        {
-            if (_status == value) return;
-            _status = value;
-            OnPropertyChanged();
-        }
+        private set => this.RaiseAndSetIfChanged(ref _status, value);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public ICommand OpenProjectCommand { get; }
+    public ICommand OpenRecentProjectCommand { get; }
+    public ICommand CopyErrorCommand { get; }
 
     public async Task<EditorHostResult> LaunchAsync(
         string solutionPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         if (IsBusy)
         {
@@ -83,6 +92,11 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
         }
     }
 
+    public void OnClose(object? o, WindowClosingEventArgs windowClosingEventArgs)
+    {
+        _lifetime.Cancel();
+    }
+
     private void ReloadRecentProjects()
     {
         RecentProjects.Clear();
@@ -95,7 +109,48 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
             Status = diagnostic;
         }
     }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    
+    private async Task OpenProjectAsync()
+    {
+        IReadOnlyList<IStorageFile> files = await _storageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Open Karpik project",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Karpik solution") { Patterns = ["*.slnx"] }
+                ]
+            });
+        string? solutionPath = files.SingleOrDefault()?.TryGetLocalPath();
+        if (solutionPath is not null)
+        {
+            await LaunchAsync(solutionPath);
+        }
+    }
+    
+    private async Task OpenRecentProjectAsync(string solutionPath)
+    {
+        await LaunchAsync(solutionPath);
+    }
+    
+    private async Task LaunchAsync(string solutionPath)
+    {
+        try
+        {
+            await LaunchAsync(solutionPath, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            // LauncherViewModel publishes the actionable diagnostic through Status.
+        }
+    }
+    
+    private Task CopyErrorAsync()
+    {
+        return _clipboard?.SetTextAsync(Status) ?? Task.CompletedTask;
+    }
 }

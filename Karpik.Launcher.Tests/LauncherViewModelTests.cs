@@ -16,7 +16,7 @@ public sealed class LauncherViewModelTests
         Directory.CreateDirectory(Path.GetDirectoryName(registry.RegistryPath)!);
         File.WriteAllText(registry.RegistryPath, json);
 
-        var viewModel = new LauncherViewModel(registry, new RecordingHost());
+        var viewModel = new LauncherViewModel(registry, new RecordingHost(), null, null);
 
         Assert.Empty(viewModel.RecentProjects);
         Assert.Contains("recent-project", viewModel.Status, StringComparison.OrdinalIgnoreCase);
@@ -29,7 +29,7 @@ public sealed class LauncherViewModelTests
         string localRoot = Path.Combine(workspace.RootPath, "local");
         string solution = workspace.CreateGame("Game", "sdk-a");
         var host = new RecordingHost();
-        var viewModel = new LauncherViewModel(new ProjectRegistry(localRoot), host);
+        var viewModel = new LauncherViewModel(new ProjectRegistry(localRoot), host, null, null);
 
         EditorHostResult result = await viewModel.LaunchAsync(
             solution,

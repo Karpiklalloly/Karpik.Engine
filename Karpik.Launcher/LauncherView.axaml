@@ -1,0 +1,67 @@
+﻿<reactiveUi:ReactiveObject xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                xmlns:viewModels="clr-namespace:Karpik.Launcher.ViewModels"
+                xmlns:reactiveUi="clr-namespace:ReactiveUI;assembly=ReactiveUI"
+                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                x:Class="Karpik.Launcher.LauncherView"
+                x:DataType="viewModels:ILauncherViewModel"
+                x:Name="Root"
+                d:DataContext="{d:DesignInstance Type=viewModels:ILauncherViewModel, IsDesignTimeCreatable=True}">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="16">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="KarpikEngine" FontSize="26" FontWeight="SemiBold" />
+          <TextBlock Text="Choose a game. The launcher will select its exact engine and editor version."
+                     Opacity="0.7"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                Content="Open project..."
+                Command="{Binding OpenProjectCommand}"
+                IsEnabled="{Binding !IsBusy}"
+                VerticalAlignment="Center" />
+      </Grid>
+
+      <Border Grid.Row="1" Background="#20242C" CornerRadius="8" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+          <TextBlock Text="Recent projects" FontWeight="SemiBold" />
+          <ListBox x:Name="RecentProjectsList"
+                   Grid.Row="1"
+                   ItemsSource="{Binding RecentProjects}"
+                   DoubleTapped="RecentProjects_OnDoubleTapped"
+                   IsEnabled="{Binding !IsBusy}">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="*,Auto" Margin="6" ColumnSpacing="16">
+                  <StackPanel>
+                    <TextBlock Text="{Binding SolutionPath}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding LastOpenedUtc}" FontSize="11" Opacity="0.55" />
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Content="Open"
+                          Command="{Binding ElementName=Root, Path=ViewModel.OpenRecentProjectCommand}"
+                          CommandParameter="{Binding SolutionPath}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap">
+          <TextBlock.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Скопировать" Command="{Binding CopyErrorCommand}" />
+            </ContextMenu>
+          </TextBlock.ContextMenu>
+        </TextBlock>
+        <ProgressBar Grid.Column="1"
+                     Width="120"
+                     IsIndeterminate="True"
+                     IsVisible="{Binding IsBusy}" />
+    </Grid>
+  </Grid>
+</reactiveUi:ReactiveObject>
