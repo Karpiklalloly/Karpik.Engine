@@ -313,8 +313,7 @@ public sealed class ProjectOpenService : IProjectOpenService
 
     private static bool HasReparsePointAncestor(string candidate, string root)
     {
-        string normalizedRoot = Path.GetFullPath(root)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedRoot = NormalizeBundleRoot(root);
         string relative = Path.GetRelativePath(normalizedRoot, Path.GetFullPath(candidate));
         string current = normalizedRoot;
         if (IsReparsePoint(current, out bool rootExists))
@@ -343,6 +342,9 @@ public sealed class ProjectOpenService : IProjectOpenService
 
         return false;
     }
+
+    private static string NormalizeBundleRoot(string root) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
 
     private static bool IsReparsePoint(string path, out bool exists)
     {

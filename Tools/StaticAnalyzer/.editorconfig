@@ -2,4 +2,4 @@
 
 [*]
 # Comma-separated list of directories that contain unloadable code.
-dotnet_diagnostic.SA001.prohibited_source_directories = Modules,MyGame
+dotnet_diagnostic.SA001.prohibited_source_directories = Modules

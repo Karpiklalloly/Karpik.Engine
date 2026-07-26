@@ -1,5 +1,6 @@
 using Karpik.Editor;
 using Karpik.Engine.ProjectModel;
+using System.Reflection;
 using Xunit;
 using Xunit.Sdk;
 
@@ -143,7 +144,7 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
-    public async Task OpenAsync_RejectsRuntimeBundleBelowExistingLinkedDirectoryEscapingActiveGameRoot()
+    public async Task OpenAsync_RejectsRuntimeBundleBelowExistingLinkedDirectory()
     {
         using var solution = TestSolution.Create();
         string outside = Path.Combine(solution.Root, "Outside");
@@ -233,6 +234,20 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
+    public void RuntimeBundleRootNormalization_PreservesFilesystemRoot()
+    {
+        string filesystemRoot = Path.GetPathRoot(Path.GetTempPath())!;
+        MethodInfo? normalizeRoot = typeof(ProjectOpenService).GetMethod(
+            "NormalizeBundleRoot",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(normalizeRoot);
+
+        string normalizedRoot = Assert.IsType<string>(normalizeRoot.Invoke(null, [filesystemRoot]));
+
+        Assert.Equal(Path.GetFullPath(filesystemRoot), normalizedRoot);
+    }
+
+    [Fact]
     public async Task OpenAsync_AcceptsOrdinaryNonexistentRuntimeOutputDirectoriesWithArbitraryGameProjects()
     {
         using var solution = TestSolution.Create(
@@ -292,11 +307,17 @@ public sealed class ProjectOpenServiceTests
         {
             File.CreateSymbolicLink(linkedSolution, solution.SolutionPath);
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException
-                                         or IOException
-                                         or PlatformNotSupportedException)
+        catch (PlatformNotSupportedException exception)
         {
-            return;
+            throw SkipException.ForSkip($"Unable to create a file symbolic link: {exception.Message}");
+        }
+        catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating a file symbolic link requires an unavailable Windows privilege: {exception.Message}");
+        }
+        catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating a file symbolic link requires an unavailable Windows privilege: {exception.Message}");
         }
 
         var inspector = new FakeInspector(solution.CreateEvaluations());
@@ -332,16 +353,7 @@ public sealed class ProjectOpenServiceTests
             string outsideProject = Path.Combine(outside, "Client.csproj");
             WriteStandaloneProject(outsideProject, "Client");
             string linkedDirectory = Path.Combine(game, "Client");
-            try
-            {
-                Directory.CreateSymbolicLink(linkedDirectory, outside);
-            }
-            catch (Exception exception) when (exception is UnauthorizedAccessException
-                                             or IOException
-                                             or PlatformNotSupportedException)
-            {
-                return;
-            }
+            CreateDirectorySymbolicLinkOrSkip(linkedDirectory, outside);
             string solutionPath = Path.Combine(game, "Game.slnx");
             File.WriteAllText(solutionPath, """
                 <Solution>
@@ -391,16 +403,7 @@ public sealed class ProjectOpenServiceTests
         {
             WriteStandaloneProject(Path.Combine(outside, "Shared.csproj"), "Shared");
             string linkedDirectory = Path.Combine(game, "LinkedShared");
-            try
-            {
-                Directory.CreateSymbolicLink(linkedDirectory, outside);
-            }
-            catch (Exception exception) when (exception is UnauthorizedAccessException
-                                             or IOException
-                                             or PlatformNotSupportedException)
-            {
-                return;
-            }
+            CreateDirectorySymbolicLinkOrSkip(linkedDirectory, outside);
             string client = Path.Combine(game, "Client", "Client.csproj");
             Directory.CreateDirectory(Path.GetDirectoryName(client)!);
             File.WriteAllText(client, """

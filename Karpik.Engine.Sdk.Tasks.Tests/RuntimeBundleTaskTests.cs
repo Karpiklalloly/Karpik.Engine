@@ -172,9 +172,17 @@ public sealed class RuntimeBundleTaskTests
         {
             File.CreateSymbolicLink(linkedAssembly, realAssembly);
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        catch (PlatformNotSupportedException exception)
         {
-            return;
+            throw SkipException.ForSkip($"Symbolic links are not supported on this platform: {exception.Message}");
+        }
+        catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
+        }
+        catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
         }
         var engine = new FakeBuildEngine();
         var task = new BuildKarpikRuntimeBundleTask
@@ -202,9 +210,17 @@ public sealed class RuntimeBundleTaskTests
         {
             Directory.CreateSymbolicLink(link, outside);
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        catch (PlatformNotSupportedException exception)
         {
-            return;
+            throw SkipException.ForSkip($"Symbolic links are not supported on this platform: {exception.Message}");
+        }
+        catch (UnauthorizedAccessException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
+        }
+        catch (IOException exception) when (IsWindowsSymbolicLinkPrivilegeFailure(exception))
+        {
+            throw SkipException.ForSkip($"Creating symbolic links requires a Windows privilege that is unavailable: {exception.Message}");
         }
 
         string primary = tree.Write("output/Game.Client.dll", "game");
