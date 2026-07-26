@@ -402,8 +402,8 @@ internal static class FakeRepository
             assemblyVersion: versionedDependencies ? "2.0.0.0" : null);
         WriteProject(root, "Modules/Shared/TestModuleA/TestModuleA.csproj", "TestModuleA", "../../../Dependencies/A/SharedDependencyA.csproj");
         WriteProject(root, "Modules/Shared/TestModuleB/TestModuleB.csproj", "TestModuleB", "../../../Dependencies/B/SharedDependencyB.csproj");
-        WriteProject(root, "ClientLauncher/ClientLauncher.csproj", "ClientLauncher", "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
-        WriteProject(root, "ServerLauncher/ServerLauncher.csproj", "ServerLauncher", "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
+        WriteProject(root, "Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj", "Karpik.Engine.Client.Publish", "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
+        WriteProject(root, "Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj", "Karpik.Engine.Server.Publish", "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
         string sdkProject = Path.Combine(root, "Karpik.Engine.Sdk", "Karpik.Engine.Sdk.csproj");
         Directory.CreateDirectory(Path.GetDirectoryName(sdkProject)!);
         File.WriteAllText(sdkProject, """
@@ -444,18 +444,18 @@ internal static class FakeRepository
               <Project Path="Dependencies/B/SharedDependencyB.csproj" />
               <Project Path="Modules/Shared/TestModuleA/TestModuleA.csproj" />
               <Project Path="Modules/Shared/TestModuleB/TestModuleB.csproj" />
-              <Project Path="ClientLauncher/ClientLauncher.csproj" />
-              <Project Path="ServerLauncher/ServerLauncher.csproj" />
+              <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
+              <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
             </Solution>
             """);
 
         WriteStaleFile(root, "Karpik.Editor/bin/Release/net10.0/stale-editor.txt");
-        WriteStaleFile(root, "ClientLauncher/bin/Release/net10.0/stale-runner.txt");
-        WriteStaleFile(root, "ClientLauncher/bin/Release/net10.0/runtimes/win-x64/native/stale-native.dll");
-        WriteStaleFile(root, "ClientLauncher/bin/Release/net10.0/modules.version.stale/Module.dll");
-        WriteStaleFile(root, "ClientLauncher/bin/Release/net10.0/modules.version.stale/.complete");
-        WriteStaleFile(root, "ServerLauncher/bin/Release/net10.0/modules.version.stale/Module.dll");
-        WriteStaleFile(root, "ServerLauncher/bin/Release/net10.0/modules.version.stale/.complete");
+        WriteStaleFile(root, "Karpik.Engine.Client.Publish/bin/Release/net10.0/stale-runner.txt");
+        WriteStaleFile(root, "Karpik.Engine.Client.Publish/bin/Release/net10.0/runtimes/win-x64/native/stale-native.dll");
+        WriteStaleFile(root, "Karpik.Engine.Client.Publish/bin/Release/net10.0/modules.version.stale/Module.dll");
+        WriteStaleFile(root, "Karpik.Engine.Client.Publish/bin/Release/net10.0/modules.version.stale/.complete");
+        WriteStaleFile(root, "Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/Module.dll");
+        WriteStaleFile(root, "Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/.complete");
         return root;
     }
 

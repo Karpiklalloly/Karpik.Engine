@@ -34,7 +34,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 - [x] Milestone 8B: full external runtime — server + two clients, ECS, content, snapshot, and hot reload on two independently generated games; the editor switch is verified separately by Remediation R3.
 - [x] Milestone 8C: remove editor-local runtime packaging.
 - [x] Milestone 8D: remove MyGame and repository-local composition roots.
-- [ ] Milestone 8E: decouple Configurator from game profile.
+- [ ] Milestone 8E: generalize the six `Network.Codegen` sample assembly/namespace assumptions; Configurator engine-only decoupling and catalog generation completed in R4.
 - [ ] Milestone 8F: final acceptance and documentation.
   - [x] (2026-07-21) Milestone 8B-8D remediation audit reproduced the first regression with the ordinary SDK integration suite: `Template_has_the_standard_external_game_structure` fails because Milestone 8D deleted `Source/KarpikGame.Shared/Content/shared-runtime.txt`. The audit also found that the alleged 8B project switch was two independent runs, the 8C opt-in preview tests still consume the deleted editor-local runtime layout, `Mods/` is not published into game bundles, and the uncommitted `KARPIK_CONTENT_ROOT` workaround bypasses the validated bundle boundary.
   - [x] (2026-07-21) The developer approved the bounded remediation design: retain a representative external ECS/content/mod sample rather than porting the deleted platformer; make all runtime assets bundle-owned; prove switching through the real editor coordinator; and finish only the Configurator cleanup required to leave 8D internally consistent.
@@ -46,7 +46,7 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
   - [x] (2026-07-19) Milestone 8B standalone runtime acceptance: the external server-plus-two-clients smoke passes with ECS state preservation, content reading, and client output collection for each of two independently generated games. Source changes: native layout aligned (`Path.PathSeparator` replaces `";"`, `native/<rid>/` probing, packager strips `native/` prefix); `ServerGameInstaller`/`ClientGameInstaller` removed `[DI]` field injection and read content at startup; the test verifies `TotalEntityCount` grows by exactly 1 after reload, `GameComponent(42)` is present before and after reload, client outputs contain no crash, and both games complete the same standalone lifecycle. Sequential completion is not editor-switch evidence; the real coordinator switch is covered by Remediation R3.
   - [x] Milestone 8C: editor-local runtime packaging is removed after 8B replacement coverage passes.
   - [x] Milestone 8D: the reusable sample is moved into the external template and repository-local `MyGame`, `ClientLauncher`, and `ServerLauncher` composition roots are removed; the minimum Configurator cleanup needed for an internally consistent engine-only graph is complete.
-  - [ ] Milestone 8E: Configurator emits an engine SDK payload module catalog without `MyGame` or repository game-profile assumptions.
+  - [ ] Milestone 8E: remove or generalize the six hard-coded `Network.Codegen` sample assembly/namespace assumptions while preserving the engine module catalog completed in R4.
   - [ ] Milestone 8F: complete automated acceptance, two-SDK desktop smoke, documentation, and Graphify refresh pass.
 
 ## Surprises & Discoveries
@@ -704,13 +704,13 @@ Expected observation: Configurator validation and tests pass, generated artifact
 
 Real-time assessment for R1-R4: bundle creation, project opening, process startup, installer configuration, Configurator, and tests are cold paths. No change enters `Update`, `FixedUpdate`, ECS `Run`, rendering, serialization loops, or network pumps. The only runtime lookup remains `AssetsManager.RootPath` against the worker base directory; no new per-frame allocation, lock, pointer chasing, or cross-side reference is introduced.
 
-#### Milestone 8E: Decouple Configurator from the game profile
+#### Milestone 8E: Generalize Network.Codegen beyond the deleted game profile
 
-- Remove `MyGame` roots and root game-profile assumptions from `Configurator/RepositoryParser.cs`, `Models.cs`, `GraphValidator.cs`, and `ArtifactGenerator.cs`.
-- Preserve validation and generation for the engine's first-party module graph and emit the SDK payload module catalog needed by 8A.
-- Regenerate `Generated/KarpikModuleCatalog.props` and `Generated/ModuleLoader.cs` through Configurator, never by hand.
+- Treat Configurator's engine-only graph validation, deterministic generation, and SDK payload module catalog as completed by R4; preserve those artifacts and continue regenerating them only through Configurator.
+- Remove or generalize the six hard-coded `Network.Codegen` client, server, and shared assembly/namespace assumptions so code generation derives identities from arbitrary external game projects.
+- Add focused generator tests for non-sample external assembly and namespace identities without changing RPC serialization or runtime network hot paths.
 
-Exit criteria: Configurator generation and validation are deterministic, module boundary tests pass, and no generated artifact mentions `MyGame`, `ClientLauncher`, or `ServerLauncher`.
+Exit criteria: `Network.Codegen` contains none of the six deleted sample assembly/namespace assumptions, generator tests pass for arbitrary external Client/Server/Shared identities, and Configurator continues to emit the same deterministic engine module catalog.
 
 #### Milestone 8F: Final acceptance and documentation
 

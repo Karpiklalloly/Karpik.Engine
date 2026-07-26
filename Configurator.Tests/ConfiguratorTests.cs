@@ -156,7 +156,9 @@ public sealed class ConfiguratorTests
         Assert.DoesNotContain(typeof(RepositoryModel).GetProperties(), property => property.Name == "GameRoots");
         Assert.All(model.ProjectsByPath.Values,
             project => Assert.StartsWith("Modules/", project.RelativePath, StringComparison.Ordinal));
-        Assert.Equal(first.Values, second.Values);
+        Assert.Equal(
+            first.OrderBy(artifact => artifact.Key, StringComparer.OrdinalIgnoreCase),
+            second.OrderBy(artifact => artifact.Key, StringComparer.OrdinalIgnoreCase));
         Assert.True(graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Provider") <
                     graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Consumer"));
         Assert.Contains("modules.version.*", loader);
@@ -167,11 +169,15 @@ public sealed class ConfiguratorTests
         Assert.Contains("public sealed partial class ModuleLoader", loader);
         Assert.Contains("_loadContext = CreateLoadContext(_shadowCopyDirectory)", loader);
         Assert.Contains("LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies)", loader);
+        string[] retiredIdentifiers =
+        [
+            string.Concat("My", "Game"),
+            string.Concat("Client", "Launcher"),
+            string.Concat("Server", "Launcher")
+        ];
         foreach (var artifact in first.Values)
         {
-            Assert.DoesNotContain("MyGame", artifact, StringComparison.Ordinal);
-            Assert.DoesNotContain("ClientLauncher", artifact, StringComparison.Ordinal);
-            Assert.DoesNotContain("ServerLauncher", artifact, StringComparison.Ordinal);
+            Assert.DoesNotContain(retiredIdentifiers, identifier => artifact.Contains(identifier, StringComparison.Ordinal));
         }
     }
 }

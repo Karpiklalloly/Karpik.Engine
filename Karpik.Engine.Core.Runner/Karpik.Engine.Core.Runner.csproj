@@ -5,7 +5,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <!-- Worker process - will be spawned by ClientLauncher -->
+        <!-- Generic worker process packaged into the installed client and server runner directories. -->
     </PropertyGroup>
 
     <ItemGroup>
