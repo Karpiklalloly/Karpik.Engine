@@ -500,8 +500,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj": {
-    "mtime": 1785082086.8370204,
-    "ast_hash": "5be9f2f1a4a571ac1d3964de18230669",
+    "mtime": 1785123889.3152406,
+    "ast_hash": "b8ecbf186a8c379a3185a6eee8d150e7",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/Program.cs": {
@@ -1275,8 +1275,8 @@
     "semantic_hash": "619bc01b96669eecc75b8311c44136c8"
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj": {
-    "mtime": 1784051216.1848404,
-    "ast_hash": "1d95c3903a7835b683da7b40c03ae39c",
+    "mtime": 1785122280.8490508,
+    "ast_hash": "d19b3c10a75a94914af845cbb8de5554",
     "semantic_hash": ""
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagementInstaller.cs": {
@@ -1295,8 +1295,8 @@
     "semantic_hash": "e2295dfe29fa5fa8d88a7ff9ad5d95fb"
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/AssetsManager.cs": {
-    "mtime": 1785056758.906594,
-    "ast_hash": "e60a6a39393d20c09165ce45adfc67ba",
+    "mtime": 1785122381.5452666,
+    "ast_hash": "92c66f7c1497ea5837df652c5a068cb3",
     "semantic_hash": ""
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/Assets/TextAsset.cs": {
@@ -2425,9 +2425,9 @@
     "semantic_hash": "c3c068368e327aa221d5de89ca8b4899"
   },
   "first-parties/Karpik.Jobs/Karpik.Jobs/JobHandleMethodBuilder.cs": {
-    "mtime": 1780427295.1623342,
-    "ast_hash": "88000c4c28a2ba09e1f0d75f569b30ec",
-    "semantic_hash": "88000c4c28a2ba09e1f0d75f569b30ec"
+    "mtime": 1785124582.0095508,
+    "ast_hash": "ee0c7eaf6cde0ed9f10fb578a438cdc8",
+    "semantic_hash": ""
   },
   "first-parties/Karpik.Jobs/Karpik.Jobs/JobProfilerCallback.cs": {
     "mtime": 1780583273.0368505,
@@ -3600,8 +3600,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/EnginePayloadBuilderTests.cs": {
-    "mtime": 1785056758.7802935,
-    "ast_hash": "9bdf24ed21a73e5f3855c9b172a6c4d6",
+    "mtime": 1785127658.892638,
+    "ast_hash": "00aaa11291bfb8fa618ab78e6e2e204e",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj": {
@@ -3635,8 +3635,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/PayloadLayout.cs": {
-    "mtime": 1785056758.7881575,
-    "ast_hash": "b436c33517bffa6659e3a5ee09e64952",
+    "mtime": 1785127402.5140455,
+    "ast_hash": "e495f48f52b77d91d1c65a9422751ce9",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/Program.cs": {
@@ -3775,8 +3775,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/KarpikValidationTaskTests.cs": {
-    "mtime": 1785056758.8388097,
-    "ast_hash": "75d12feb0b3777d821277b9715cb326c",
+    "mtime": 1785127434.6780515,
+    "ast_hash": "8cd8787569cd5fea8bb4d149edc6db6c",
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/RuntimeBundleTaskTests.cs": {
@@ -3805,8 +3805,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj": {
-    "mtime": 1785056758.8478754,
-    "ast_hash": "f2f76ff1b70fbebee092f32b019a7a17",
+    "mtime": 1785127400.3421087,
+    "ast_hash": "dd6db0d26c963d1e6efcd9fdf564af4e",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/AtomicDirectoryPublisherTests.cs": {
@@ -4247,6 +4247,21 @@
   "templates/Karpik.Game/Content/Sprites/default.jpg": {
     "mtime": 1785056760.385997,
     "ast_hash": "87b18a3909e98c1a8af8b505062844ba",
+    "semantic_hash": ""
+  },
+  "Karpik.Engine.Core.Runner.Tests/AssetsManagerRuntimeBundleTests.cs": {
+    "mtime": 1785122281.8947015,
+    "ast_hash": "ccfa424c678026cbad054ab263b3e771",
+    "semantic_hash": ""
+  },
+  "Karpik.Engine.Core.Runner.Tests/ShaderAssetLoadingTests.cs": {
+    "mtime": 1785124107.6287825,
+    "ast_hash": "9668e896fa8ab69f991c06d985a6a942",
+    "semantic_hash": ""
+  },
+  "first-parties/Karpik.Jobs/Karpik.Jobs.Tests/JobHandleMethodBuilderRaceTests.cs": {
+    "mtime": 1785124581.4699154,
+    "ast_hash": "9a1f6e95452526f09de61fad11c0950c",
     "semantic_hash": ""
   }
 }
