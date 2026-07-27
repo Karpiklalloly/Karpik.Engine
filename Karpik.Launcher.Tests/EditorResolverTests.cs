@@ -7,6 +7,18 @@ namespace Karpik.Launcher.Tests;
 public sealed class EditorResolverTests
 {
     [Fact]
+    public void CreateInstallationCreatesAValidEngineInstallation()
+    {
+        using var workspace = new TestWorkspace();
+        string localRoot = Path.Combine(workspace.RootPath, "local");
+        string installation = workspace.CreateInstallation(localRoot, "engine", "1.0.0", "sdk");
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(installation);
+
+        Assert.True(result.IsValid, result.Message);
+    }
+
+    [Fact]
     public void ResolveSelectsTheEditorFromTheExactSdkInstallation()
     {
         using var workspace = new TestWorkspace();

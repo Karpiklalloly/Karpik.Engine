@@ -3600,8 +3600,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/EnginePayloadBuilderTests.cs": {
-    "mtime": 1785056758.7802935,
-    "ast_hash": "9bdf24ed21a73e5f3855c9b172a6c4d6",
+    "mtime": 1785127658.892638,
+    "ast_hash": "00aaa11291bfb8fa618ab78e6e2e204e",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj": {
@@ -3635,8 +3635,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/PayloadLayout.cs": {
-    "mtime": 1785056758.7881575,
-    "ast_hash": "b436c33517bffa6659e3a5ee09e64952",
+    "mtime": 1785127402.5140455,
+    "ast_hash": "e495f48f52b77d91d1c65a9422751ce9",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/Program.cs": {
@@ -3775,8 +3775,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/KarpikValidationTaskTests.cs": {
-    "mtime": 1785056758.8388097,
-    "ast_hash": "75d12feb0b3777d821277b9715cb326c",
+    "mtime": 1785127434.6780515,
+    "ast_hash": "8cd8787569cd5fea8bb4d149edc6db6c",
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/RuntimeBundleTaskTests.cs": {
@@ -3805,8 +3805,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj": {
-    "mtime": 1785056758.8478754,
-    "ast_hash": "f2f76ff1b70fbebee092f32b019a7a17",
+    "mtime": 1785127400.3421087,
+    "ast_hash": "dd6db0d26c963d1e6efcd9fdf564af4e",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/AtomicDirectoryPublisherTests.cs": {

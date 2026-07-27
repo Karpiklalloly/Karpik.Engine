@@ -38,6 +38,11 @@ internal sealed class TestWorkspace : IDisposable
         File.WriteAllText(Path.Combine(root, "runners", "client", "Karpik.Engine.Core.Runner.dll"), "client");
         File.WriteAllText(Path.Combine(root, "runners", "server", "Karpik.Engine.Core.Runner.dll"), "server");
         File.WriteAllText(Path.Combine(root, "modules", "Module", "Module.dll"), "module");
+        File.WriteAllText(
+            Path.Combine(root, "modules", EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize([
+                new EngineModuleCatalogEntry("Module", EngineModuleSide.Shared)
+            ]));
         var manifest = new EngineInstallationManifest
         {
             EngineVersion = engineVersion,
