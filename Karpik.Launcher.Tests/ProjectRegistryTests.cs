@@ -13,7 +13,7 @@ public sealed class ProjectRegistryTests
         string localRoot = Path.Combine(workspace.RootPath, "local");
         string solution = workspace.CreateGame("Game", "sdk-a");
         var registry = new ProjectRegistry(localRoot);
-        var first = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var first = new DateTime(2026, 1, 1, 0, 0, 0, 0);
         var second = first.AddDays(1);
 
         registry.Add(solution, first);

@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+        <xsd:element name="root" msdata:IsDataSet="true">
+            
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="Select_Project">
+        <value>Open Project</value>
+    </resheader>
+    <data name="Select_Project" xml:space="preserve">
+        <value>Open...</value>
+    </data>
+    <data name="Open_Project" xml:space="preserve">
+        <value>Open</value>
+    </data>
+    <data name="Recent_Projects" xml:space="preserve">
+        <value>Recent projects</value>
+    </data>
+    <data name="Select_Project_Status" xml:space="preserve">
+        <value>Select a Karpik project</value>
+    </data>
+    <data name="Opening_Project_Status" xml:space="preserve">
+        <value>Opening {0}...</value>
+    </data>
+    <data name="Editor_Launch_Was_Cancelled_Status" xml:space="preserve">
+        <value>Editor launch was cancelled</value>
+    </data>
+    <data name="Exception_Status" xml:space="preserve">
+        <value>Exception: {0}</value>
+    </data>
+    <data name="Open_Project_Window_Title" xml:space="preserve">
+        <value>Open Karpik project</value>
+    </data>
+</root>

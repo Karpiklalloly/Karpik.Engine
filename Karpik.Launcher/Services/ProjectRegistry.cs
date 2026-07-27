@@ -51,10 +51,10 @@ public sealed class ProjectRegistry
         }
     }
 
-    public void Add(string solutionPath, DateTimeOffset? openedAtUtc = null)
+    public void Add(string solutionPath, DateTime? openedAtUtc = null)
     {
         string path = NormalizeSolutionPath(solutionPath);
-        var recent = new RecentProject(path, openedAtUtc ?? DateTimeOffset.UtcNow);
+        var recent = new RecentProject(path, openedAtUtc ?? DateTime.UtcNow);
         RecentProject[] projects = Load()
             .Where(project => !PathComparer.Equals(project.SolutionPath, path))
             .Prepend(recent)

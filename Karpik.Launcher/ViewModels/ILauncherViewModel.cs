@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
+using Karpik.Launcher.Localization;
 using Karpik.Launcher.Models;
 
 namespace Karpik.Launcher.ViewModels;
@@ -11,6 +12,8 @@ public interface ILauncherViewModel
     public bool IsBusy { get; }
     
     public string Status { get; }
+    
+    public LocalizationService Localization { get; }
     
     public ICommand OpenProjectCommand { get; }
     

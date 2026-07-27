@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Karpik.Launcher.Localization;
 using Karpik.Launcher.Models;
 using Karpik.Launcher.Services;
 using ReactiveUI;
@@ -21,7 +22,7 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
     private readonly IEditorProcessHost _editorHost;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _isBusy;
-    private string _status = "Select a Karpik project.";
+    private string _status;
 
     public LauncherViewModel(
         ProjectRegistry projectRegistry,
@@ -36,6 +37,8 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         OpenProjectCommand = ReactiveCommand.Create(OpenProjectAsync);
         OpenRecentProjectCommand = ReactiveCommand.CreateFromTask<string>(OpenRecentProjectAsync);
         CopyErrorCommand = ReactiveCommand.CreateFromTask(CopyErrorAsync);
+
+        _status = Localization["Select_Project_Status"];
         ReloadRecentProjects();
     }
 
@@ -52,6 +55,8 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         get => _status;
         private set => this.RaiseAndSetIfChanged(ref _status, value);
     }
+
+    public LocalizationService Localization { get; } = LocalizationService.Instance;
 
     public ICommand OpenProjectCommand { get; }
     public ICommand OpenRecentProjectCommand { get; }
@@ -71,19 +76,19 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         {
             _projectRegistry.Add(solutionPath);
             ReloadRecentProjects();
-            Status = $"Opening {Path.GetFileName(solutionPath)}...";
+            Status = string.Format(Localization["Opening_Project_Status"], Path.GetFileName(solutionPath));
             EditorHostResult result = await _editorHost.RunAsync(solutionPath, cancellationToken);
-            Status = result.Message;
+            Status = result.Message; // TODO: localize the message based on the result code.
             return result;
         }
         catch (OperationCanceledException)
         {
-            Status = "Editor launch was cancelled.";
+            Status = Localization["Editor_Launch_Was_Cancelled_Status"];
             throw;
         }
         catch (Exception exception)
         {
-            Status = exception.Message;
+            Status = string.Format(Localization["Exception_Status"], exception.Message);
             throw;
         }
         finally
@@ -106,7 +111,7 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         }
         if (_projectRegistry.LastLoadDiagnostic is { } diagnostic)
         {
-            Status = diagnostic;
+            Status = diagnostic; // TODO: localize the message.
         }
     }
     
@@ -115,7 +120,7 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         IReadOnlyList<IStorageFile> files = await _storageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
-                Title = "Open Karpik project",
+                Title = Localization["Open_Project_Window_Title"],
                 AllowMultiple = false,
                 FileTypeFilter =
                 [
