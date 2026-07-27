@@ -7,7 +7,7 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 internal class AssetsManager : IAssetsManager
 {
-    public string RootPath => AppDomain.CurrentDomain.BaseDirectory;
+    public string RootPath { get; }
     public string ContentPath => Path.Combine(RootPath, "Content");
     public string ModsPath => Path.Combine(RootPath, "Mods");
     public IFileSystem FileSystem => _fileSystem;
@@ -27,6 +27,7 @@ internal class AssetsManager : IAssetsManager
     public AssetsManager(IFileSystem fileSystem)
     {
         _fileSystem = fileSystem;
+        RootPath = Path.GetFullPath(Environment.CurrentDirectory);
     }
     
     public void RegisterSaver(IAssetSaver saver)

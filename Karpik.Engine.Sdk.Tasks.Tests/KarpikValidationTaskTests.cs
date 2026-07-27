@@ -9,6 +9,22 @@ using Xunit;
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
+    public void SdkWiresCoreCodegenAnalyzerIntoExternalProjects()
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+
+        XElement codegenPath = Assert.Single(
+            targets.Root!.Elements("PropertyGroup").Elements("_KarpikCoreCodegenAssembly"));
+        XElement analyzer = Assert.Single(targets.Root.Elements("ItemGroup").Elements("Analyzer"));
+
+        Assert.Contains("Karpik.Engine.Core.Codegen.dll", codegenPath.Value, StringComparison.Ordinal);
+        Assert.Equal("$(_KarpikCoreCodegenAssembly)", (string?)analyzer.Attribute("Include"));
+        Assert.Equal(
+            "Exists('$(_KarpikCoreCodegenAssembly)')",
+            (string?)analyzer.Attribute("Condition"));
+    }
+
+    [Fact]
     public void SdkWiresRuntimeBundleOnlyForClientAndServerRuntimeProjects()
     {
         var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));

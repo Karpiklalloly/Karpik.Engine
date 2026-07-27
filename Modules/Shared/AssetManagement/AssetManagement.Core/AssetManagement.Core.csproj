@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="Karpik.Engine.Core.Runner.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <KarpikModuleDependency Include="Karpik.Engine.Core" />
       <KarpikModuleDependency Include="Karpik.Jobs" />
       <KarpikModuleDependency Include="LoggerModule" />

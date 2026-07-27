@@ -1,7 +1,13 @@
 <Project>
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
+    <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Analyzer Include="$(_KarpikCoreCodegenAssembly)"
+              Condition="Exists('$(_KarpikCoreCodegenAssembly)')" />
+  </ItemGroup>
 
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />

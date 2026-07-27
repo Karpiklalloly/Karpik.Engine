@@ -25,6 +25,8 @@
       <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core.Runner.TestWorker\Karpik.Engine.Core.Runner.TestWorker.csproj" />
+      <ProjectReference Include="..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />
+      <ProjectReference Include="..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj"
                         OutputItemType="Analyzer"
                         ReferenceOutputAssembly="false" />
