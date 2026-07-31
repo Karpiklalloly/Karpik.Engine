@@ -10,4 +10,5 @@ public static class KarpikDiagnosticCodes
     public const string ProjectReferenceCycle = "KARPIK006";
     public const string UnknownOrAmbiguousModule = "KARPIK007";
     public const string MissingRequiredModule = "KARPIK008";
+    public const string EngineInstallationResolutionFailed = "KARPIK009";
 }

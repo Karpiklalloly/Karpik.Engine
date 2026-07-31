@@ -88,7 +88,7 @@ internal sealed class ReadBaselineA : IEcsRunParallel
 {
     private sealed class Aspect : EcsAspect
     {
-        public EcsReadonlyPool<BaselineComponentA> Component = default;
+        public ReadonlyEcsPool<BaselineComponentA> Component = default;
     }
 
     public void RunParallel()
@@ -100,7 +100,7 @@ internal sealed class ReadBaselineB : IEcsRunParallel
 {
     private sealed class Aspect : EcsAspect
     {
-        public EcsReadonlyPool<BaselineComponentB> Component = default;
+        public ReadonlyEcsPool<BaselineComponentB> Component = default;
     }
 
     public void RunParallel()
@@ -136,7 +136,7 @@ internal sealed class ReadAWriteB : IEcsRunParallel
 {
     private sealed class Aspect : EcsAspect
     {
-        public EcsReadonlyPool<BaselineComponentA> Read = default;
+        public ReadonlyEcsPool<BaselineComponentA> Read = default;
         public EcsPool<BaselineComponentB> Write = null!;
     }
 

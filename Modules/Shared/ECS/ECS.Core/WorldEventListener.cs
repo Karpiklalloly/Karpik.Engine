@@ -4,6 +4,7 @@ public class WorldEventListener : IEcsEntityEventListener, IDisposable
 {
     public event Action<int>? OnNewEntityCreated; 
     public event Action<int>? OnNewEntityDeleted; 
+    public event Action<int>? OnMigratedEntity; 
     
     public EcsWorld World => _world;
     
@@ -19,6 +20,11 @@ public class WorldEventListener : IEcsEntityEventListener, IDisposable
         OnNewEntityCreated?.Invoke(entityID);
     }
 
+    public void OnMigrateEntity(int entityID)
+    {
+        OnMigratedEntity?.Invoke(entityID);
+    }
+
     public void OnDelEntity(int entityID)
     {
         OnNewEntityDeleted?.Invoke(entityID);
@@ -27,6 +33,7 @@ public class WorldEventListener : IEcsEntityEventListener, IDisposable
     public void Dispose()
     {
         OnNewEntityCreated = null;
+        OnMigratedEntity = null;
         OnNewEntityDeleted = null;
         _world.RemoveListener(this);
     }

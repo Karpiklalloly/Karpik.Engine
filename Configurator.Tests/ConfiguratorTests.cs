@@ -41,6 +41,31 @@ public sealed class ConfiguratorTests
     }
 
     [Fact]
+    public void ParserAndGenerator_ResolveProjectAlias()
+    {
+        using var repository = new TestRepository();
+        var provider = repository.AddPlugin(ProjectSide.Shared, "Provider");
+        repository.AddPlugin(ProjectSide.Shared, "Consumer", dependencyIds: [("LegacyProvider", false)]);
+        repository.Alias("LegacyProvider", provider);
+        repository.Select("Provider");
+        repository.Select("Consumer");
+
+        var model = repository.Load();
+        var graph = GraphValidator.Validate(model);
+        var catalog = ArtifactGenerator.BuildArtifacts(model, graph)
+            .Single(artifact => artifact.Key.EndsWith("KarpikModuleCatalog.props", StringComparison.Ordinal))
+            .Value;
+
+        Assert.True(graph.IsValid, string.Join(Environment.NewLine, graph.Errors));
+        Assert.EndsWith(
+            provider.Replace('/', Path.DirectorySeparatorChar),
+            model.Modules["Consumer"].Standalone!.Project.Dependencies.Single().TargetPath,
+            StringComparison.Ordinal);
+        Assert.Contains("Update=\"LegacyProvider\"", catalog, StringComparison.Ordinal);
+        Assert.Contains(provider.Replace('/', '\\'), catalog, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Parser_RejectsUnknownAndAmbiguousDependencyIds()
     {
         using var unknownRepository = new TestRepository();
@@ -188,6 +213,7 @@ internal sealed class TestRepository : IDisposable
     private readonly Dictionary<string, XElement> _projectDocuments = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<XElement> _selections = [];
     private readonly List<XElement> _settings = [];
+    private readonly List<XElement> _aliases = [];
 
     public TestRepository()
     {
@@ -262,6 +288,13 @@ internal sealed class TestRepository : IDisposable
             new XAttribute("Value", value)));
     }
 
+    public void Alias(string id, string projectPath)
+    {
+        _aliases.Add(new XElement("KarpikModuleAlias",
+            new XAttribute("Include", id),
+            new XAttribute("Project", projectPath)));
+    }
+
     public RepositoryModel Load()
     {
         foreach (var project in _projectDocuments)
@@ -273,6 +306,7 @@ internal sealed class TestRepository : IDisposable
         new XDocument(new XElement("Solution", _projects.Select(path =>
             new XElement("Project", new XAttribute("Path", path))))).Save(Path.Combine(RootPath, "Test.slnx"));
         new XDocument(new XElement("Project",
+            new XElement("ItemGroup", _aliases),
             new XElement("ItemGroup", new XAttribute("Label", "ProjectConfigurator"), _selections.Concat(_settings))))
             .Save(Path.Combine(RootPath, "Directory.Build.props"));
         return RepositoryParser.Load(RootPath, Path.Combine(RootPath, "Test.slnx"));

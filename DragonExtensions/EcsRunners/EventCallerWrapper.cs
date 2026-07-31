@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 using System.Runtime.CompilerServices;
-using DCFApixels.DragonECS.RunnersCore;
+using DCFApixels.DragonECS.Core;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.DragonECS

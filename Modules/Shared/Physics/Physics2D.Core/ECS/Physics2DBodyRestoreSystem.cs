@@ -9,13 +9,13 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
     private class RuntimeBodyAspect : EcsAspect
     {
         public EcsPool<PhysicsBodyRef> BodyRefs = Inc;
-        public EcsReadonlyPool<PhysicsBodyDefinition> Definitions = Opt;
+        public ReadonlyEcsPool<PhysicsBodyDefinition> Definitions = Opt;
     }
 
     private class DefinitionAspect : EcsAspect
     {
-        public EcsReadonlyPool<PhysicsBodyDefinition> Definitions = Inc;
-        public EcsReadonlyPool<Transform2D> Transforms = Inc;
+        public ReadonlyEcsPool<PhysicsBodyDefinition> Definitions = Inc;
+        public ReadonlyEcsPool<Transform2D> Transforms = Inc;
         public EcsPool<CreateBodyRequest> Requests = Opt;
         public EcsPool<PhysicsBodyRef> BodyRefs = Exc;
     }

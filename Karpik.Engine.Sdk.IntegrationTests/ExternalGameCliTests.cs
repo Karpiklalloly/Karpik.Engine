@@ -71,8 +71,12 @@ public sealed class ExternalGameCliTests
             "Directory.Solution.targets",
             "Source/KarpikGame.Client/KarpikGame.Client.csproj",
             "Source/KarpikGame.Client/Content/runtime.txt",
+            "Source/KarpikGame.Client.Launcher/KarpikGame.Client.Launcher.csproj",
+            "Source/KarpikGame.Client.Launcher/Program.cs",
             "Source/KarpikGame.Server/KarpikGame.Server.csproj",
             "Source/KarpikGame.Server/Content/runtime.txt",
+            "Source/KarpikGame.Server.Launcher/KarpikGame.Server.Launcher.csproj",
+            "Source/KarpikGame.Server.Launcher/Program.cs",
             "Source/KarpikGame.Shared/KarpikGame.Shared.csproj",
             "Source/KarpikGame.Shared/Content/shared-runtime.txt",
             "Mods/MyCoolMod/mod_info.json",
@@ -90,6 +94,43 @@ public sealed class ExternalGameCliTests
             path => forbiddenNames.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase));
         Assert.Empty(Directory.EnumerateDirectories(templateRoot, "bin", SearchOption.AllDirectories));
         Assert.Empty(Directory.EnumerateDirectories(templateRoot, "obj", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void Template_launchers_are_runnable_projects_with_build_only_runtime_dependencies()
+    {
+        string templateRoot = GetTemplateRoot();
+        var expected = new Dictionary<string, (string Side, string RuntimeReference)>(StringComparer.Ordinal)
+        {
+            ["Source/KarpikGame.Client.Launcher/KarpikGame.Client.Launcher.csproj"] =
+                ("Client", "..\\KarpikGame.Client\\KarpikGame.Client.csproj"),
+            ["Source/KarpikGame.Server.Launcher/KarpikGame.Server.Launcher.csproj"] =
+                ("Server", "..\\KarpikGame.Server\\KarpikGame.Server.csproj")
+        };
+
+        XDocument solution = XDocument.Load(Path.Combine(templateRoot, "KarpikGame.slnx"));
+        string[] solutionProjects = solution
+            .Descendants("Project")
+            .Select(project => (string?)project.Attribute("Path"))
+            .OfType<string>()
+            .ToArray();
+
+        foreach ((string relativePath, (string side, string runtimeReference)) in expected)
+        {
+            Assert.Contains(relativePath, solutionProjects);
+
+            XDocument document = XDocument.Load(Path.Combine(templateRoot, Normalize(relativePath)));
+            XElement root = Assert.IsType<XElement>(document.Root);
+            Assert.Equal("Karpik.Engine.Sdk", (string?)root.Attribute("Sdk"));
+            Assert.Equal("Exe", ReadTopLevelProperty(root, "OutputType"));
+            Assert.Equal("Tool", ReadTopLevelProperty(root, "KarpikProjectKind"));
+            Assert.Equal(side, ReadTopLevelProperty(root, "KarpikSide"));
+
+            XElement reference = Assert.Single(root.Elements("ItemGroup").Elements("ProjectReference"));
+            Assert.Equal(runtimeReference, (string?)reference.Attribute("Include"));
+            Assert.Equal("false", (string?)reference.Attribute("ReferenceOutputAssembly"));
+            Assert.Equal("false", (string?)reference.Attribute("Private"));
+        }
     }
 
     [Fact]
@@ -212,7 +253,10 @@ public sealed class ExternalGameCliTests
                 temporaryRoot,
                 nugetConfig,
                 commonEnvironment);
-            commonEnvironment["KarpikEngineRoot"] = engineRoot;
+            commonEnvironment.Remove("KarpikEngineRoot");
+            commonEnvironment["KarpikLocalApplicationDataRoot"] =
+                Path.Combine(temporaryRoot, "local");
+            Assert.False(commonEnvironment.ContainsKey("KarpikEngineRoot"));
             Assert.True(File.Exists(Path.Combine(
                 repositoryRoot,
                 "Karpik.Engine.Sdk.Tasks",
@@ -561,7 +605,7 @@ public sealed class ExternalGameCliTests
 
         EnginePayloadBuildResult published = new EnginePayloadBuilder().Build(
             prepared,
-            Path.Combine(temporaryRoot, "task5-engine-home"),
+            Path.Combine(temporaryRoot, "local", "Karpik"),
             "0.6.0-dev-task5",
             PackageVersion);
         EngineInstallationValidationResult validation = new EngineInstallationValidator().Validate(

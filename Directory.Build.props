@@ -10,6 +10,10 @@
             <Visible>false</Visible>
         </KarpikModuleDependency>
     </ItemDefinitionGroup>
+
+    <ItemGroup>
+        <KarpikModuleAlias Include="Dragon" Project="third-parties/DragonECS/DragonECS.csproj" />
+    </ItemGroup>
     
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
     <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             $(MSBuildProjectName.Contains('Karpik.Engine'))">

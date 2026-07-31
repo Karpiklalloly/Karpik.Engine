@@ -68,6 +68,7 @@ public sealed class RepositoryModel
     public required string SolutionPath { get; init; }
     public required string PropsPath { get; init; }
     public required IReadOnlyDictionary<string, ProjectInfo> ProjectsByPath { get; init; }
+    public required IReadOnlyDictionary<string, ProjectInfo> ProjectAliases { get; init; }
     public required IReadOnlyList<PluginInfo> Plugins { get; init; }
     public required IReadOnlyDictionary<string, ModuleInfo> Modules { get; init; }
     public required IReadOnlyDictionary<string, ModuleSelection> Selections { get; init; }

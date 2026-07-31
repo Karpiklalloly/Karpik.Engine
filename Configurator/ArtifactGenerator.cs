@@ -28,6 +28,8 @@ public static class ArtifactGenerator
     {
         var projects = model.ProjectsByPath.Values
             .Select(project => (Id: project.PluginId, project.RelativePath))
+            .Concat(model.ProjectAliases
+                .Select(alias => (Id: alias.Key, alias.Value.RelativePath)))
             .Concat(model.Plugins
                 .Where(plugin => plugin.Kind == PluginKind.Core)
                 .Select(plugin => (Id: plugin.ModuleId, plugin.Project.RelativePath)))

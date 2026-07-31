@@ -52,7 +52,8 @@ public class ECSInstaller : IInstaller, IInstallerHotReload, IInstallerConfigura
         _reloaded = false;
         ToTemplateExtensions.Clear();
         ToTemplateExtensions2.Clear();
-        EcsStaticCleaner.ResetAll();
+        TypeMeta.ClearCache();
+        EcsAspect.ClearCache();
 
         _world.Destroy();
         _world = null!;

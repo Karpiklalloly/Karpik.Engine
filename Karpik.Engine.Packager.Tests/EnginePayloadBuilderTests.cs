@@ -254,6 +254,7 @@ public sealed class EnginePayloadBuilderTests
                 .SequenceEqual(File.ReadAllBytes(Path.Combine(moduleB, "SharedDependency.dll"))));
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Sdk.Tasks.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.ProjectModel.dll");
+        AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Tooling.dll");
         AssertPackageContains(first.DestinationDirectory, "analyzers/dotnet/cs/Karpik.Engine.Core.Codegen.dll");
         Assert.True(second.ReusedExistingInstallation,
             $"Changed payload files: {string.Join(", ", differences)}; changed package entries: {string.Join(", ", packageDifferences)}");
@@ -388,9 +389,14 @@ internal static class FakeRepository
             "Karpik.Engine.Core.Codegen");
         WriteProject(
             root,
+            "Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj",
+            "Karpik.Engine.Tooling",
+            "../Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj");
+        WriteProject(
+            root,
             "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj",
             "Karpik.Engine.Sdk.Tasks",
-            "../Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj");
+            "../Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj");
         WriteProject(
             root,
             "Dependencies/A/SharedDependencyA.csproj",
@@ -428,6 +434,8 @@ internal static class FakeRepository
                       Pack="true" PackagePath="tools/net10.0/" />
                 <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.ProjectModel.dll"
                       Pack="true" PackagePath="tools/net10.0/" />
+                <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.Tooling.dll"
+                      Pack="true" PackagePath="tools/net10.0/" />
                 <None Include="$(KarpikCoreCodegenOutputPath)Karpik.Engine.Core.Codegen.dll"
                       Pack="true" PackagePath="analyzers/dotnet/cs/" />
               </ItemGroup>
@@ -446,6 +454,7 @@ internal static class FakeRepository
               <Project Path="Karpik.Editor/Karpik.Editor.csproj" />
               <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
               <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
+              <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
               <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
               <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
               <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />

@@ -225,7 +225,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         SchedulerAccessMode? mode = namedType.Name switch
         {
             "EcsPool" => SchedulerAccessMode.Write,
-            "EcsReadonlyPool" => SchedulerAccessMode.Read,
+            "ReadonlyEcsPool" => SchedulerAccessMode.Read,
             _ => null
         };
 
@@ -320,7 +320,7 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
         foreach (INamedTypeSymbol iface in type.AllInterfaces)
         {
-            if (iface.Name is "IEcsPool" or "IEcsReadonlyPool" or "IEcsPoolImplementation")
+            if (iface.Name is "IEcsPool" or "IReadonlyEcsPool" or "IEcsPoolImplementation")
                 return true;
         }
 

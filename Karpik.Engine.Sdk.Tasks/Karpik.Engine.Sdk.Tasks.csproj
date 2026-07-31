@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Karpik.Engine.ProjectModel\Karpik.Engine.ProjectModel.csproj" />
+        <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
     </ItemGroup>
 
     <ItemGroup>

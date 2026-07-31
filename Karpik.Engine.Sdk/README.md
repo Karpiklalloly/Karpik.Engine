@@ -28,6 +28,23 @@ Every project in the game solution must use the SDK and explicitly declare both 
 </Project>
 ```
 
+Runtime projects resolve their engine installation automatically before
+`ResolveAssemblyReferences`. The SDK selects the single validated installation
+under the platform local application-data store whose manifest provides the
+exact `Karpik.Engine.Sdk` version pinned by `global.json`. An ordinary
+`dotnet build` therefore does not require a process-scoped
+`KarpikEngineRoot`.
+
+`KarpikEngineRoot` remains an explicit absolute-path override for launcher,
+editor, and diagnostic workflows. An invalid explicit root fails the build
+instead of falling back. Automatic lookup also fails when no exact installation
+exists or when multiple valid installations provide the same SDK version; it
+never selects by timestamp or directory enumeration order.
+
+Tests and portable tooling may set `KarpikLocalApplicationDataRoot` to replace
+the platform local application-data root. Normal game projects must leave this
+property unset.
+
 The external game template also places the package's standard `templates/Directory.Solution.targets` file at the game solution root and commits it with the solution:
 
 ```xml

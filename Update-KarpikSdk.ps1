@@ -9,6 +9,7 @@ $EngineVersion = "0.6.0-dev"
 
 $RepositoryRoot = $PSScriptRoot
 $PackagerProject = Join-Path $RepositoryRoot "Karpik.Engine.Packager\Karpik.Engine.Packager.csproj"
+$EnvironmentModule = Join-Path $RepositoryRoot "Karpik.Sdk.Environment.psm1"
 $KarpikHome = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Karpik"
 $EnginesRoot = Join-Path $KarpikHome "Engines"
 $ArchiveRoot = Join-Path $KarpikHome "ArchivedEngines"
@@ -90,6 +91,12 @@ if (-not (Test-Path -LiteralPath $PackagerProject -PathType Leaf)) {
     throw "Karpik.Engine.Packager was not found: $PackagerProject"
 }
 
+if (-not (Test-Path -LiteralPath $EnvironmentModule -PathType Leaf)) {
+    throw "Karpik SDK environment module was not found: $EnvironmentModule"
+}
+
+Import-Module $EnvironmentModule -Force
+
 New-Item -ItemType Directory -Path $EnginesRoot -Force | Out-Null
 
 Write-Host "Building KarpikEngine SDK $SdkVersion and engine $EngineVersion..."
@@ -127,6 +134,9 @@ if ($null -eq $newManifest -or
     -not (Test-Path -LiteralPath (Join-Path $installationRoot ".complete") -PathType Leaf)) {
     throw "The newly published installation did not pass the script contract checks: $installationRoot"
 }
+
+Write-Host "Updating KarpikEngineRoot -> $installationRoot"
+Set-KarpikEngineRootEnvironment -InstallationRoot $installationRoot
 
 $matchingPreviousInstallations = @(
     Get-ChildItem -LiteralPath $EnginesRoot -Directory |

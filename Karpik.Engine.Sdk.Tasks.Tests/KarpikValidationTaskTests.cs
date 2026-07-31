@@ -25,6 +25,31 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
+    public void SdkResolvesEngineRootBeforeCreatingRuntimeReferences()
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+        XElement usingTask = targets.Root!.Elements("UsingTask")
+            .Single(element => (string?)element.Attribute("TaskName") ==
+                               "Karpik.Engine.Sdk.Tasks.ResolveKarpikEngineRootTask");
+        XElement target = targets.Root.Elements("Target")
+            .Single(element => (string?)element.Attribute("Name") ==
+                               "_KarpikResolveEngineReferenceAssemblies");
+        XElement resolve = Assert.Single(target.Elements("ResolveKarpikEngineRootTask"));
+        XElement output = Assert.Single(resolve.Elements("Output"));
+
+        Assert.Equal("$(_KarpikSdkTaskAssembly)", (string?)usingTask.Attribute("AssemblyFile"));
+        Assert.Equal("ResolveAssemblyReferences", (string?)target.Attribute("BeforeTargets"));
+        Assert.Equal("'$(KarpikProjectKind)' == 'Runtime'", (string?)target.Attribute("Condition"));
+        Assert.Equal("$(_KarpikMsBuildSdkVersion)", (string?)resolve.Attribute("SdkVersion"));
+        Assert.Equal("$(KarpikEngineRoot)", (string?)resolve.Attribute("ExplicitRoot"));
+        Assert.Equal(
+            "$(KarpikLocalApplicationDataRoot)",
+            (string?)resolve.Attribute("LocalApplicationDataRoot"));
+        Assert.Equal("ResolvedRoot", (string?)output.Attribute("TaskParameter"));
+        Assert.Equal("KarpikEngineRoot", (string?)output.Attribute("PropertyName"));
+    }
+
+    [Fact]
     public void SdkWiresRuntimeBundleOnlyForClientAndServerRuntimeProjects()
     {
         var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));

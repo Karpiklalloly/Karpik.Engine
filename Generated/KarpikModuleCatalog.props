@@ -16,7 +16,10 @@
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\DebugModule\DebugModule.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Dragon">
-      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Dragon\Dragon.csproj</ResolvedProjectPath>
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\third-parties\DragonECS\DragonECS.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
+    <KarpikModuleDependency Update="DragonECS">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\third-parties\DragonECS\DragonECS.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="DragonExtensions">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\DragonExtensions\DragonExtensions.csproj</ResolvedProjectPath>

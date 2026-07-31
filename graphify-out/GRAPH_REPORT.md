@@ -1,16 +1,16 @@
-# Graph Report - KarpikEngine  (2026-07-27)
+# Graph Report - KarpikEngine  (2026-07-31)
 
 ## Corpus Check
-- 840 files · ~347,516 words
+- 856 files · ~391,777 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 10035 nodes · 16416 edges · 1461 communities (415 shown, 1046 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 859 edges (avg confidence: 0.8)
+- 10502 nodes · 18726 edges · 1182 communities (445 shown, 737 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 1099 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `98a71037`
+- Built from commit: `d473ed17`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -221,6 +221,7 @@
 - Community 203
 - Community 204
 - Community 205
+- Community 206
 - Community 207
 - Community 208
 - Community 209
@@ -418,11 +419,8 @@
 - Community 405
 - Community 406
 - Community 407
-- Community 408
 - Community 409
-- Community 410
 - .Create
-- Community 412
 - Community 413
 - Community 414
 - Community 415
@@ -482,7 +480,6 @@
 - ICollection
 - IEnumerable
 - IEnumerator
-- Iterator
 - IntPtr
 - List
 - long
@@ -492,29 +489,24 @@
 - Widgets (Виджеты)
 - EcsWorld
 - Community 486
-- EditorBrowsable
 - Community 488
 - Enumerator
 - ICollection
 - Community 491
-- int
 - Community 493
 - Community 494
 - Community 495
 - Community 496
 - Network.Client.LiteNetLib.csproj
-- .WrappedDefaultWorldComponentWriteMethods_AreInferredAsWrite
-- bool
-- int
+- ServiceProvider
 - short
-- .SnapshotFiles
 - Network.Client.Core.csproj
 - StatAndAbilities.csproj
 - bool
 - EcsWorld
 - MethodImpl
-- char
-- Dictionary
+- JobHandleMethodBuilder
+- .GetDiagnostics
 - HashSet
 - int
 - MethodImpl
@@ -522,7 +514,7 @@
 - Community 514
 - Community 515
 - Stopwatch
-- string
+- Улучшение сетевой подсистемы
 - IReadOnlyCollection
 - Type
 - char
@@ -538,258 +530,36 @@
 - Enumerator
 - Community 531
 - IEnumerable
-- IEnumerator
-- int
-- string
-- Type
-- uint
-- Community 538
-- string
-- char
-- IReadOnlyList
-- string
-- bool
-- Community 544
+- ObjectPool
 - EditorBrowsable
-- int
-- IReadOnlyList
-- object
-- Obsolete
-- Community 550
-- Community 551
-- Type
-- bool
-- Dictionary
-- EcsWorld
-- Enumerator
-- int
-- Community 558
-- Obsolete
-- short
-- Type
-- Builder
-- Dictionary
-- EcsMaskIterator
-- EcsWorld
-- EditorBrowsable
-- Enumerator
-- int
-- List
-- Community 570
-- MethodImpl
-- Obsolete
-- short
-- string
-- Type
-- uint
-- bool
-- Community 578
+- Файловая организация
+- DockContextDataTemplate
+- JobHandleAwaiter
+- Program
+- Program.cs
+- OpMaskKey
+- Примеры использования
+- Реализация
+- Иерархия элементов
+- ⚠️ Critical Decisions
+- Project Structure Changes
+- ProcessManagerLifecycleTests.cs
+- IPC Protocol Details
+- JobProfilerHooks
 - HashSet
-- Архитектурные правила
-- int
-- IServiceProvider
 - List
-- MethodImpl
-- string
-- Array
-- bool
-- Builder
-- Dictionary
-- EcsPipeline
-- Enumerator
-- IEnumerable
-- IEnumerator
-- int
-- IReadOnlyDictionary
-- IServiceProvider
-- MethodImpl
-- string
 - Type
-- Action
-- EcsPipeline
-- MethodImpl
-- Type
-- bool
-- Builder
-- ConcurrentDictionary
-- EcsWorld
-- HashSet
-- int
-- List
-- MethodImpl
-- object
-- Stack
-- Type
-- bool
-- HashSet
-- int
-- Community 618
 - Community 619
-- long
-- MethodImpl
-- Community 622
-- short
-- string
-- Type
-- int
-- long
 - Community 628
-- MethodImpl
-- Community 630
-- bool
-- EditorBrowsable
-- IEnumerable
-- int
-- MethodImpl
-- object
-- Obsolete
-- short
-- Type
-- EcsWorld
-- IEnumerable
-- int
-- long
-- MethodImpl
-- Community 645
-- bool
-- Comparison
-- EcsMaskIterator
-- int
-- long
-- MethodImpl
-- bool
-- Dictionary
-- EcsWorld
-- int
-- List
-- long
-- Comparison
-- EcsWorld
-- Builder
-- Type
-- EcsPipeline
-- Type
-- .ResetAll
 - Community 665
-- Dictionary
-- EcsPipeline
-- EcsWorld
-- int
-- Type
-- EcsWorld
-- IntPtr
-- Array
-- bool
-- byte
-- int
-- IntPtr
-- Community 678
-- Type
-- byte
-- int
-- MethodImpl
-- Comparison
-- int
-- MethodImpl
-- Enumerator
-- IEnumerator
-- int
-- PhysicsPushSystem
-- MethodImpl
 - Community 691
-- Dictionary
-- IEnumerable
-- int
-- MethodImpl
-- object
-- string
-- Type
-- bool
 - Community 700
-- Enumerator
-- IEnumerator
-- int
-- List
-- MethodImpl
-- string
-- MethodImpl
-- Type
-- Entry
-- int
-- MethodImpl
-- bool
-- Enumerator
-- IEnumerable
-- int
-- MethodImpl
-- Enumerator
-- IEnumerator
-- int
-- MethodImpl
-- bool
-- Builder
-- EcsWorld
-- EditorBrowsable
-- IEnumerator
-- int
-- MethodImpl
-- Obsolete
-- Type
-- EcsWorld
-- List
-- MethodImpl
-- Type
-- bool
-- Builder
-- EcsWorld
-- EditorBrowsable
-- IEnumerator
-- int
-- MethodImpl
-- Obsolete
-- Type
-- EcsWorld
-- object
-- Type
-- bool
-- Dictionary
-- Enumerator
-- IEnumerator
-- int
-- List
-- Stack
-- VertexID
-- Builder
-- object
-- string
-- EcsWorld
-- MethodImpl
-- Dictionary
-- IEnumerable
-- IEnumerator
-- Type
-- Builder
-- IEnumerable
-- IEnumerator
-- IReadOnlyList
-- Obsolete
-- VertexID
-- EcsWorld
-- IEnumerable
-- int
-- List
-- long
-- MethodImpl
-- short
-- MethodImpl
 - EcsWorld
 - int
 - EcsWorld
 - Type
 - IEnumerable
 - MethodImpl
-- Span
-- EcsPipeline
 - Span
 - int
 - List
@@ -798,16 +568,8 @@
 - List
 - Fact
 - Type
-- Action
-- bool
-- EcsWorld
-- Fact
-- int
-- Fact
 - Fact
 - Exception
-- RecordingProcessFactory
-- FileSystemKarpikProjectInputProvider
 - int
 - IRootDock
 - string
@@ -892,17 +654,6 @@
 - double
 - Stopwatch
 - EcsPipeline
-- Builder
-- Assembly
-- Builder
-- Dictionary
-- EcsPipeline
-- Exception
-- int
-- List
-- string
-- StringBuilder
-- Type
 - Fact
 - Fact
 - ManualResetEventSlim
@@ -1178,20 +929,13 @@
 - Action
 - ConcurrentQueue
 - EcsWorld
-- bool
-- string
 - string
 - int
 - string
 - bool
 - EcsWorld
 - Type
-- IReadOnlyList
-- HashSet
-- List
-- Type
 - ConcurrentDictionary
-- EcsWorld
 - ConsoleColor
 - bool
 - ConsoleColor
@@ -1424,24 +1168,6 @@
 - ImmutableHashSet
 - INamedTypeSymbol
 - SymbolAnalysisContext
-- Action
-- AnalysisContext
-- bool
-- CancellationToken
-- Compilation
-- DiagnosticDescriptor
-- Dictionary
-- Func
-- HashSet
-- ICollection
-- IEnumerable
-- ImmutableArray
-- INamedTypeSymbol
-- INamespaceSymbol
-- IReadOnlyDictionary
-- ITypeSymbol
-- List
-- SymbolAnalysisContext
 - DiagnosticDescriptor
 - Diagnostic
 - DiagnosticAnalyzer
@@ -1455,97 +1181,104 @@
 - Task
 - Theory
 - Fact
-- GameComponent.cs
-- ITypeMeta
-- Program.cs
 - GraphicsCameraState
-- 🌍 Large World Support (Floating Origin)
-- ProcessManagerLifecycleTests.cs
 
 ## God Nodes (most connected - your core abstractions)
 1. `Karpik.Engine.Core` - 157 edges
 2. `IServiceContainer` - 95 edges
-3. `DCFApixels.DragonECS` - 93 edges
-4. `EcsWorld` - 80 edges
-5. `System.Runtime.CompilerServices` - 74 edges
-6. `EcsGroup` - 64 edges
-7. `Karpik.Jobs` - 63 edges
-8. `EditorShellViewModel` - 62 edges
-9. `JobScheduler` - 59 edges
-10. `ProcessManager` - 58 edges
+3. `DCFApixels.DragonECS` - 91 edges
+4. `EcsWorld` - 84 edges
+5. `EcsGroup` - 79 edges
+6. `System.Runtime.CompilerServices` - 78 edges
+7. `Throw` - 76 edges
+8. `EcsSpan` - 72 edges
+9. `EcsWorld` - 71 edges
+10. `Karpik.Jobs` - 63 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Aspect` --inherits--> `EcsAspect`  [EXTRACTED]
-  ECS.Core.Tests/Program.cs → Dragon/EcsAspect.cs
-- `Aspect` --inherits--> `EcsAspect`  [EXTRACTED]
-  ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs → Dragon/EcsAspect.cs
-- `Aspect` --inherits--> `EcsAspect`  [EXTRACTED]
-  Modules/Shared/Physics/Physics2D.Core/ECS/Physics2DBodyCreator.cs → Dragon/EcsAspect.cs
-- `Aspect` --inherits--> `EcsAspect`  [EXTRACTED]
-  Modules/Shared/Physics/Physics2D.Core/ECS/Physics2DBodyDestroyer.cs → Dragon/EcsAspect.cs
-- `DefinitionAspect` --inherits--> `EcsAspect`  [EXTRACTED]
-  Modules/Shared/Physics/Physics2D.Core/ECS/Physics2DBodyRestoreSystem.cs → Dragon/EcsAspect.cs
+- `ComponentA` --implements--> `IEcsComponent`  [EXTRACTED]
+  ECS.Core.Tests/Program.cs → third-parties/DragonECS/src/Pools/EcsPool.cs
+- `ComponentB` --implements--> `IEcsComponent`  [EXTRACTED]
+  ECS.Core.Tests/Program.cs → third-parties/DragonECS/src/Pools/EcsPool.cs
+- `BaselineComponentA` --implements--> `IEcsComponent`  [EXTRACTED]
+  ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs → third-parties/DragonECS/src/Pools/EcsPool.cs
+- `BaselineComponentB` --implements--> `IEcsComponent`  [EXTRACTED]
+  ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs → third-parties/DragonECS/src/Pools/EcsPool.cs
+- `BaselineComponentC` --implements--> `IEcsComponent`  [EXTRACTED]
+  ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs → third-parties/DragonECS/src/Pools/EcsPool.cs
 
 ## Import Cycles
 - None detected.
 
-## Communities (1461 total, 1046 thin omitted)
+## Communities (1182 total, 737 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.08
-Nodes (15): ModuleRegistration, EditorSnapshotLongDisplay, EditorSnapshotPosition, EditorSnapshotTests, EditorSnapshotThrowingGetter, KarpikGame.Shared, KarpikGame.Server, DCFApixels.DragonECS (+7 more)
+Cohesion: 0.05
+Nodes (24): MouseButtons, IClientRpcCommand, IEventCommand, INetCommand, IStateCommand, ITargetRpcCommand, NetworkId, IEzRangeStat (+16 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.15
-Nodes (4): LayerList, LayersMap, MoveHandler, MoveHandler
+Cohesion: 0.12
+Nodes (9): MoveHandler, IDependencyGraph, Builder, IEnumerable, IEnumerator, IReadOnlyList, VertexID, LayersMap (+1 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.12
-Nodes (17): Cleanup(), ConvertToChuncks(), CopyTo(), Dispose(), EcsMaskChunck, EcsMaskFlags, Enumerable, GetEnumerator() (+9 more)
+Cohesion: 0.07
+Nodes (16): bool, Builder, ComponentsRegistrar, HMem, IEnumerator, int, MethodImpl, ReadOnlySpan (+8 more)
+
+### Community 3 - "Community 3"
+Cohesion: 0.06
+Nodes (16): EntitySlot, EntitySlotMeta, IsEnableAutoReleaseDelEntBufferScope, INamedMember, HashSet, List, long, MethodImpl (+8 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.04
-Nodes (30): IInstaller, IInstallerConfiguratable, IInstallerDestroy, IInstallerHotReload, IInstallerListener, EditorSnapshotWorldInstaller, ManualGameplayInstaller, LifecycleSmokeInstaller (+22 more)
+Cohesion: 0.05
+Nodes (22): IInstallerConfiguratable, EditorSnapshotWorldInstaller, ManualGameplayInstaller, LifecycleSmokeInstaller, IServiceContainer, IServiceRegister, GraphicsHeadlessInstaller, InputInstaller (+14 more)
+
+### Community 5 - "Community 5"
+Cohesion: 0.07
+Nodes (21): Conditional, AddListener(), RemoveListener(), AddListener(), IEcsPoolEventListener, List, MethodImpl, Type (+13 more)
+
+### Community 6 - "Community 6"
+Cohesion: 0.05
+Nodes (13): ISystemBegin, ISystemFixedUpdate, BodyLink, CoreAetherConverters, SystemAetherConverters, Physics2DBodyCreator, PhysicsPushSystem, PhysicsStepSystem (+5 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.06
-Nodes (15): ISystem, ISystemDestroy, ISystemFixedUpdate, ISystemInit, ISystemMainThreadFrameBegin, ISystemRender, LifecycleSmokeSystem, IGraphicsBackend (+7 more)
+Cohesion: 0.04
+Nodes (23): ISystem, ISystemDestroy, ISystemMainThreadBegin, ISystemMainThreadFrameBegin, ISystemRender, IGraphicsBackend, GraphicsCoreBeginSystem, GraphicsCoreInitSystem (+15 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.05
 Nodes (6): CallbackTweenBehaviour, GroupTweenBehaviour, InterpolationTweenBehaviour, SequenceTweenBehaviour, TweenBehaviour, WaitTimeTweenBehaviour
 
 ### Community 9 - "Community 9"
-Cohesion: 0.09
-Nodes (11): BuilderInstance, CheckConstraints(), CheckRepeats(), Builder, BuilderInstance, Combined, DebuggerProxy, EcsStaticMask (+3 more)
+Cohesion: 0.06
+Nodes (5): Builder, EcsPipelineBuilderExtensions, MethodImpl, Type, Throw
 
 ### Community 10 - "Community 10"
-Cohesion: 0.07
-Nodes (8): Abstract, Abstract, DebuggerProxy, EcsWorld, NullWorld, WorldComponentPool, WorldComponentPoolAbstract, WorldComponentPoolAbstract
+Cohesion: 0.08
+Nodes (15): Abstract, bool, IEnumerable, int, MethodImpl, object, ReadOnlySpan, short (+7 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.06
-Nodes (8): EcsRenderPrepareRunner, EcsUpdateRunner, IRenderPrepareSystem, ISystemRenderPrepare, EcsServiceProvider, FixedRunTicker, EngineRunner, EcsRenderPrepareScheduler
+Cohesion: 0.08
+Nodes (15): EcsServiceProvider, EcsUpdateSchedulerMode, EcsUpdateSystemDescriptor, EcsUpdateRunner, Assembly, Builder, Dictionary, Exception (+7 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.14
-Nodes (3): MetaGenerator, TypeMeta, InitFlag
+Cohesion: 0.11
+Nodes (12): InitFlag, bool, int, object, Provider, RuntimeTypeHandle, string, Type (+4 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.14
 Nodes (10): Easing, ResetMode, GTweens.Tweens, GTweens.Tweeners, GTweens.Contexts, GTweens.Builders, GTweens.TweenBehaviours, GTweens.Easings (+2 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.14
-Nodes (7): EditorBrowsable, int, MethodImpl, Obsolete, Enumerator, ReadOnlySpan, ThrowHelper
+Cohesion: 0.10
+Nodes (10): bool, Builder, HMem, IEnumerator, int, MethodImpl, ReadOnlySpan, Type (+2 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.06
-Nodes (5): EcsGroup, EcsReadonlyGroup, IHasDependencies, IEnumerable, ISet
+Cohesion: 0.13
+Nodes (7): CombinedAspectExtensions, IEnumerable, EcsReadonlyGroup, EcsSpan, IComponentMask, Comparison, QueriesExtensions
 
 ### Community 16 - "Community 16"
-Cohesion: 0.05
-Nodes (13): AllocationSummary, ClientFrameMetrics, ClientFrameTimingSnapshot, FrameAllocationWindow, FrameCounterWindow, FrameTimingWindow, MergeAvailabilitySummary, TimingSummary (+5 more)
+Cohesion: 0.08
+Nodes (9): AllocationSummary, ClientFrameMetrics, ClientFrameTimingSnapshot, FrameAllocationWindow, FrameCounterWindow, FrameTimingWindow, MergeAvailabilitySummary, TimingSummary (+1 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.31
@@ -1553,43 +1286,39 @@ Nodes (7): ConfiguratorTests, Fact, Type, Default, Name, Required, Values
 
 ### Community 18 - "Community 18"
 Cohesion: 0.06
-Nodes (16): InjectionBranch, InjectionNode, InjectionNodeBase, Injection, InjectionBase, InjectionHistorySpanReader, InjectionList, Injector (+8 more)
+Nodes (22): InjectionBase, InjectionHistorySpanReader, NodeBase, InjectionNodeBase, ReadOnlySpan, Type, InjectionBranch, Type (+14 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.16
-Nodes (8): AllocatingCompatibility, Program, Sample, CancellationTokenSource, JobHandle, Exception, Action, Span
-
-### Community 20 - "Community 20"
-Cohesion: 0.06
-Nodes (16): ExcCountComparer, IncCountComparer, ComparisonHach, InsertionSort(), IStructComparer, Sort(), SwapIfGreater(), UnsafeArraySortHalperX (+8 more)
+Cohesion: 0.11
+Nodes (14): AllocatingCompatibility, Action, Exception, int, Lock, ManualResetEventSlim, JobCompletion, CancellationTokenSource (+6 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.08
-Nodes (14): Aspect, BaselineComponentA, BaselineComponentB, BaselineComponentC, ReadAWriteB, ReadBaselineA, ReadBaselineB, UnknownBaselineAccess (+6 more)
+Cohesion: 0.09
+Nodes (12): Enumerator, EcsWorld, entlong, Enumerator, ICollection, int, MethodImpl, short (+4 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.07
-Nodes (16): DebuggerProxy, Handler, HandlerDebugInfo, MemoryAllocator, MemoryAllocatorHandlerExtensions, Meta, StateDebugInfo, Union (+8 more)
+Cohesion: 0.06
+Nodes (33): HandlerDebugInfo, Meta, StateDebugInfo, Handler, HMem, IntPtr, AllocatorUtility, CreateArray_Debug() (+25 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.15
-Nodes (6): GraphicsCameraState, Vertex2D, MergeContext, MergeThread, Framebuffer, VertexLayoutDescription
+Cohesion: 0.13
+Nodes (7): TextureUvTransform, TextAnchorTransform, Vertex2D, MergeContext, MergeThread, Framebuffer, VertexLayoutDescription
 
 ### Community 24 - "Community 24"
-Cohesion: 0.08
-Nodes (3): EcsPool, EcsPoolExtensions, EcsReadonlyPool
+Cohesion: 0.10
+Nodes (11): bool, Builder, ComponentsRegistrar, IEnumerator, int, MethodImpl, ReadOnlySpan, Type (+3 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.04
 Nodes (46): 1. Command Buffer Architecture, 2. Модель синхронизации, 3. API для записи команд, 4. Абстракция от Veldrid, 5. Жизненный цикл ресурсов, 6. Синхронизация с игровым циклом, 7. Обработка ошибок, 8. Поверхность API (для пользователя) (+38 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.04
-Nodes (46): Component, Debug, Define Symbols, DragonECS - C# Entity Component System Фреймворк, EcsDebug, EcsGroup, EcsSpan, Entity (+38 more)
+Cohesion: 0.08
+Nodes (24): CacheTo(), Cleanup(), ConvertToChuncks(), EcsGroup, IEcsPool, IEntityStorage, List, MethodImpl (+16 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.10
-Nodes (9): ComponentLifecycleContext, EcsMetaWorld, ComponentTemplate, ComponentTemplateBase, IComponentTemplate, TagComponentTemplate, EcsWorld, ICloneable (+1 more)
+Nodes (10): EcsCommandBuffer, EcsDefaultCommandBuffer, EcsMetaWorld, ComponentTemplate, ComponentTemplateBase, IComponentTemplate, TagComponentTemplate, EcsWorld (+2 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.22
@@ -1597,123 +1326,131 @@ Nodes (4): HotReloadHandler, DebugThings, DebugModule, Karpik.Engine.Core.Hot
 
 ### Community 29 - "Community 29"
 Cohesion: 0.07
-Nodes (10): Enumerator, Enumerator, SystemNode, EnumerableInt, Enumerator, ILinkedNext, LinkedListCountIterator, LinkedListIterator (+2 more)
+Nodes (20): bool, float, IEnumerator, int, KeyValuePair, MethodImpl, string, AppendOnlyTable (+12 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.10
-Nodes (3): EcsTagPool, EcsTagPoolExtensions, ReadonlyEcsTagPool
+Cohesion: 0.09
+Nodes (10): IEcsEntityEventListener, IEcsWorldEventListener, WorldEventListExtensions, bool, Enumerator, IEnumerable, int, MethodImpl (+2 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.20
 Nodes (5): Fact, InlineData, Task, Theory, ProjectOpenServiceTests
 
 ### Community 32 - "Community 32"
-Cohesion: 0.11
-Nodes (6): EcsWorldConfig, ConfigContainer, ConfigContainerExtensions, IConfigContainer, IConfigContainerWriter, KeyValuePair
+Cohesion: 0.09
+Nodes (13): IHasDependencies, IEnumerable, IEnumerator, int, List, MethodImpl, ReadOnlySpan, string (+5 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.06
 Nodes (7): FloatInterpolator, IInterpolator, IntInterpolator, SystemQuaternionInterpolator, SystemVector2Interpolator, SystemVector3Interpolator, SystemVector4Interpolator
 
 ### Community 34 - "Community 34"
-Cohesion: 0.08
-Nodes (4): EcsPipeline, IEcsRunner, Throw, EcsProcessRaw
+Cohesion: 0.09
+Nodes (20): IReadOnlyCollection, Array, bool, Dictionary, IEnumerator, int, IReadOnlyDictionary, MethodImpl (+12 more)
 
 ### Community 35 - "Community 35"
-Cohesion: 0.10
-Nodes (16): Attribute, ModuleAttribute, MainThreadOnlyAttribute, RenderPrepareCommandAttribute, SequentialSystemAttribute, DeepDIAttribute, DIAttribute, NetworkedComponentAttribute (+8 more)
+Cohesion: 0.25
+Nodes (8): bool, int, short, string, EcsConsts, EcsDefines, Il2CppSetOptionAttribute, Option
 
 ### Community 36 - "Community 36"
-Cohesion: 0.10
-Nodes (17): BlockingUpdateSystem, ISystemUpdate, BlockingUpdateSystem, CompletionFlag, CountingUpdateSystem, DependentOrderedSystem, FirstBlockingUpdateSystem, FirstConflictingSystem (+9 more)
+Cohesion: 0.05
+Nodes (29): AttributeUsageAttribute, BlockingUpdateSystem, UpdateSystem, AccessDecoratedSystem, MetadataComponentA, MetadataComponentB, OrderDecoratedSystem, PredecessorSystem (+21 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.22
-Nodes (9): Karpik.Engine.Packager, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Packager.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2) (+1 more)
+Cohesion: 0.12
+Nodes (18): Karpik.Engine.Packager, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Packager.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2) (+10 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.16
-Nodes (7): IEditorBackend, IEditorBackendFactory, Side, RuntimeLayout, List, RecordingBackendFactory, UnavailableEditorBackendFactory
+Cohesion: 0.18
+Nodes (5): IEditorBackend, IEditorBackendFactory, FakeEditorBackendFactory, FakeEditorBackend, UnavailableEditorBackendFactory
 
 ### Community 39 - "Community 39"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (13): IEnumerable, Side, Type, RuntimeModuleComposition, Fact, RuntimeModuleCompositionTests, IEnumerable, ReadOnlySpan (+5 more)
 
-### Community 40 - "Community 40"
-Cohesion: 0.13
-Nodes (3): GraphicsCoreTests, TextLayout, TextLayoutResult
-
 ### Community 41 - "Community 41"
-Cohesion: 0.12
-Nodes (11): AccessAnalysisResult, SchedulerOperationWalker, IAddressOfOperation, IDynamicInvocationOperation, IInvocationOperation, IMethodSymbol, IOperation, ITypeOfOperation (+3 more)
+Cohesion: 0.17
+Nodes (7): IAddressOfOperation, IDynamicInvocationOperation, IOperation, ITypeOfOperation, Location, CancellationToken, Compilation
 
 ### Community 42 - "Community 42"
-Cohesion: 0.12
-Nodes (12): IEcsDefaultAddParams, DebuggerProxy, EcsModule, EcsProcess, EcsProcessRaw, Enumerator, IEcsComponentMember, IEcsMember (+4 more)
+Cohesion: 0.11
+Nodes (9): Dictionary, IEnumerable, IEnumerator, KeyValuePair, Type, ConfigContainer, ConfigContainerExtensions, IConfigContainer (+1 more)
 
 ### Community 43 - "Community 43"
-Cohesion: 0.05
-Nodes (35): Alternatives Considered, Consequences, Context, Decision, Deterministic Module Graph, Links, Validation, Artifacts And Notes (+27 more)
+Cohesion: 0.07
+Nodes (28): Artifacts And Notes, Context and Orientation, Conventions, Current status, Decision Log, Dependency Contract, Engine modules, Game roots (+20 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.11
-Nodes (22): Dragon, DragonExtensions, Karpik.Engine.Client.Publish, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Core.Codegen, Karpik.Engine.Core, Karpik.Engine.Core.Runner (+14 more)
+Nodes (23): DragonExtensions, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Client.Publish, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Core.Codegen, Karpik.Engine.Core (+15 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.08
-Nodes (25): CancellationToken, HashSet, IDisposable, int, JsonElement, object, Process, SemaphoreSlim (+17 more)
+Cohesion: 0.07
+Nodes (29): CancellationToken, HashSet, IDisposable, object, Process, ProcessStartInfo, SemaphoreSlim, Task (+21 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.06
-Nodes (7): DebuggerProxy, EcsLongsSpan, EcsSpan, Enumerator, ArrayUtility, CombinedAspectExtensions, Enumerator
+Cohesion: 0.13
+Nodes (6): ISet, ICollection, long, MethodImpl, ReadOnlySpan, EcsGroup
 
 ### Community 47 - "Community 47"
 Cohesion: 0.33
 Nodes (5): netstandard2.0, Microsoft.CodeAnalysis.Analyzers (3.3.4), Microsoft.CodeAnalysis.CSharp (4.3.0), Microsoft.CodeAnalysis.CSharp.Workspaces (4.3.0), Microsoft.NET.Sdk
 
+### Community 48 - "Community 48"
+Cohesion: 0.08
+Nodes (15): GetPoolInstanceMarker, EcsMaskChunck, int, long, MethodImpl, PoolSlot, Preserve, short (+7 more)
+
 ### Community 49 - "Community 49"
 Cohesion: 0.12
-Nodes (8): DependencyGraphExtensions, DependencyGraphVertextID, Enumerator, IDependencyGraph, ReadonlyDependenciesCollection, VertexInfo, from, to
+Nodes (3): Asset, IAssetsManager, ComponentsTemplateAsset
 
 ### Community 50 - "Community 50"
-Cohesion: 0.13
-Nodes (5): DebuggerProxy, EcsMask, WorldMaskComponent, EcsStaticMask, WorldMaskComponent
+Cohesion: 0.15
+Nodes (8): Builder, Dictionary, EcsMaskIterator, EcsStaticMask, EcsWorld, EcsMask, WorldMaskComponent, WorldMaskComponent
 
 ### Community 51 - "Community 51"
-Cohesion: 0.15
-Nodes (10): Karpik.Launcher.ViewModels, Karpik.Launcher, LauncherView, MainWindow, AppBuilder, STAThread, Program, ReactiveUserControl (+2 more)
+Cohesion: 0.14
+Nodes (11): Karpik.Launcher.Models, Karpik.Launcher.ViewModels, Karpik.Launcher.Services, Karpik.Launcher.Tests, Karpik.Launcher, MainWindow, InlineData, Theory (+3 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.14
-Nodes (11): IAsyncDisposable, Action, CancellationToken, int, SemaphoreSlim, Task, ValueTask, ActiveProjectContext (+3 more)
+Cohesion: 0.10
+Nodes (17): IAsyncDisposable, Action, CancellationToken, Func, int, SemaphoreSlim, Task, ValueTask (+9 more)
 
 ### Community 53 - "Community 53"
+Cohesion: 0.06
+Nodes (16): FixedRunTicker, Time, EcsBeginRunner, EcsFixedRunner, EcsLateRunner, EcsMainThreadBeginRunner, EcsMainThreadFrameBeginRunner, EcsRenderRunner (+8 more)
+
+### Community 54 - "Community 54"
 Cohesion: 0.07
-Nodes (21): API, Builder, Combined, AnyMarker, ExcludeMarker, IncludeMarker, OptionalMarker, SingletonMarker (+13 more)
+Nodes (27): Debug, Define Symbols, DragonECS - C# 实体组件系统框架, EcsDebug, FAQ, License, Meta Attributes, Released games: (+19 more)
 
 ### Community 55 - "Community 55"
 Cohesion: 0.21
 Nodes (7): ConsoleLogger, FileLogger, ILogger, Logger, LoggerDecorator, LogLevel, StreamWriter
 
 ### Community 56 - "Community 56"
-Cohesion: 0.17
-Nodes (7): MethodImpl, Fact, JobRuntimeDiagnosticsTests, Fact, JobSchedulerWorkerPublicationTests, Fact, JobSchedulerWorkerRuntimeTests
+Cohesion: 0.07
+Nodes (26): JobBatchInfo, int, long, void, JobDescriptor, bool, byte, Exception (+18 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.07
-Nodes (25): AsyncLocal, DataReceivedEventHandler, ExitDisposition, Action, bool, CancellationToken, CancellationTokenSource, EventHandler (+17 more)
+Cohesion: 0.08
+Nodes (24): AsyncLocal, DataReceivedEventHandler, ExitDisposition, Action, bool, CancellationToken, CancellationTokenSource, EventHandler (+16 more)
 
 ### Community 58 - "Community 58"
 Cohesion: 0.09
-Nodes (11): bool, object, Span, Stream, uint, FileAttributeTagInformation, IProjectInputLeaseHook, LeasedFile (+3 more)
+Nodes (17): AspectCache, PoolCache, List, Stack, EcsWorld, AspectCache, EcsWorld, PoolCache (+9 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.13
-Nodes (3): IComponentLifecycleAsync, BaseAssetSaver, IModManager
+Nodes (5): IComponentLifecycleAsync, JsonSaver, BaseAssetSaver, ComponentsTemplateSaver, IModManager
 
 ### Community 61 - "Community 61"
-Cohesion: 0.16
-Nodes (17): IEcsComponent, BodyConfig, BodyType, CollisionEvent, CreateBodyRequest, DestroyBodyRequest, PhysicsBodyDefinition, PhysicsBodyHandle (+9 more)
+Cohesion: 0.10
+Nodes (22): EditorSnapshotLongDisplay, EditorSnapshotPosition, EditorSnapshotTests, EditorSnapshotThrowingGetter, BodyConfig, BodyType, CollisionEvent, CreateBodyRequest (+14 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.08
+Nodes (5): Enumerator, ResizableArray, ThrowHelper, Karpik.Engine.Shared.UnsafeUtilities, IEnumerator
 
 ### Community 63 - "Community 63"
 Cohesion: 0.07
@@ -1721,87 +1458,87 @@ Nodes (29): Architecture and ECS, Assets, ECS Update Scheduling, Fixed, Graphics
 
 ### Community 64 - "Community 64"
 Cohesion: 0.05
-Nodes (40): Veldrid.SPIRV, Veldrid.ImageSharp, Veldrid.ImGui, Veldrid.MetalBindings, Veldrid.OpenGLBindings, Veldrid.RenderDoc, Veldrid.SDL2, Veldrid.StartupUtilities (+32 more)
+Nodes (38): Veldrid.SPIRV, Veldrid.ImageSharp, Veldrid.ImGui, Veldrid.MetalBindings, Veldrid.OpenGLBindings, Veldrid.RenderDoc, Veldrid.SDL2, Veldrid.StartupUtilities (+30 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.22
-Nodes (7): ModuleSelection, Dictionary, HashSet, IEnumerable, List, XElement, RepositoryParser
+Cohesion: 0.23
+Nodes (7): Dictionary, HashSet, IEnumerable, IReadOnlyDictionary, List, XElement, RepositoryParser
 
 ### Community 66 - "Community 66"
-Cohesion: 0.09
-Nodes (13): EcsBeginRunner, EcsFixedRunner, EcsLateRunner, EcsMainThreadBeginRunner, EcsMainThreadFrameBeginRunner, EcsRenderRunner, IBeginRunSystem, IEcsFixedRun (+5 more)
+Cohesion: 0.07
+Nodes (21): SystemExecutionNode, Karpik.Engine.Shared, ComponentA, ComponentB, ReadA, UnknownAccess, WriteA, WriteB (+13 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.13
 Nodes (12): ValidationDelegates, ValidationExtensions, FloatTweener, IntTweener, SystemColorTweener, SystemQuaternionTweener, SystemVector2Tweener, SystemVector3Tweener (+4 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.13
-Nodes (8): AlphaInstaller, AlphaLateInstaller, EngineRunnerLifecycleTests, LegacyDragonRunSystem, LifecycleTrace, OrderTrace, ZetaEarlyInstaller, ZetaInstaller
+Cohesion: 0.12
+Nodes (7): BeginContextSystem, EndContextSystem, EngineRunnerLifecycleTests, LegacyDragonRunSystem, LifecycleSmokeSystem, LifecycleTrace, IEcsRun
 
 ### Community 69 - "Community 69"
-Cohesion: 0.19
-Nodes (6): Fact, JobSchedulerDependencyTests, Fact, JobSchedulerProfilerTests, Fact, JobSchedulerValueSchedulingTests
+Cohesion: 0.16
+Nodes (11): KarpikDiagnostic, KarpikProjectSide, HashSet, ICollection, IReadOnlyDictionary, IReadOnlyList, List, string (+3 more)
 
 ### Community 70 - "Community 70"
-Cohesion: 0.23
-Nodes (7): Func, ActiveProjectContextFactory, IActiveProjectContextFactory, ProjectGeneration, ProjectRuntimeDescriptor, FakeContextFactory, KarpikSolutionModel
+Cohesion: 0.07
+Nodes (27): Basic Concepts, Component, Configs, Debug, Define Symbols, DragonECS - C# Entity Component System Framework, EcsDebug, Entity (+19 more)
 
 ### Community 71 - "Community 71"
-Cohesion: 0.21
-Nodes (4): DependencyGraph, To, DependencyIndex, VertexInfo
+Cohesion: 0.11
+Nodes (13): Karpik.Engine.Sdk.Tasks.Tests, ResolveKarpikEngineRootTask, BuildErrorEventArgs, BuildMessageEventArgs, BuildWarningEventArgs, CustomBuildEventArgs, Fact, IBuildEngine (+5 more)
 
 ### Community 72 - "Community 72"
 Cohesion: 0.16
-Nodes (12): Builder, IBuilder, ISystemBegin, ISystemDestroy, ISystemFixedUpdate, ISystemInit, ISystemLateUpdate, ISystemMainThreadBegin (+4 more)
+Nodes (12): IBuilder, ISystemBegin, ISystemDestroy, ISystemFixedUpdate, ISystemInit, ISystemLateUpdate, ISystemMainThreadBegin, ISystemMainThreadFrameBegin (+4 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.08
 Nodes (11): Body, BodyLink, AetherPhysicsWorld, CircleShape, Contact, Fixture, OnCollisionEventHandler, QueryReportFixtureDelegate (+3 more)
 
 ### Community 74 - "Community 74"
-Cohesion: 0.11
-Nodes (9): IPipeline, IShader, VeldridPipeline, VeldridShader, BackgroundConsoleColor, ForegroundConsoleColor, IDisposable, PackagerTemporaryDirectory (+1 more)
+Cohesion: 0.09
+Nodes (10): IPipeline, IShader, VeldridPipeline, VeldridShader, BackgroundConsoleColor, ForegroundConsoleColor, IDisposable, IEcsEntityEventListener (+2 more)
 
 ### Community 75 - "Community 75"
 Cohesion: 0.17
 Nodes (9): net10.0, Microsoft.NET.Sdk, net10.0, Microsoft.NET.Sdk, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2) (+1 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.18
-Nodes (8): EzRangeStatGenerator, GenStatStructIncremental, GeneratorSyntaxContext, HintName, SourceText, StructGenerationInfo, Symbol, Syntax
+Cohesion: 0.33
+Nodes (4): int, Span, uint, SortHalper
 
 ### Community 78 - "Community 78"
-Cohesion: 0.17
-Nodes (18): Dictionary, IReadOnlyDictionary, IReadOnlyList, List, GraphValidator, IReadOnlyDictionary, IReadOnlyList, List (+10 more)
+Cohesion: 0.15
+Nodes (19): Dictionary, IReadOnlyDictionary, IReadOnlyList, List, GraphValidator, IReadOnlyDictionary, IReadOnlyList, List (+11 more)
 
 ### Community 79 - "Community 79"
-Cohesion: 0.14
-Nodes (11): CancellationToken, string, Task, EditorWorkspace, WorkspaceStore, Action, CancellationToken, Task (+3 more)
+Cohesion: 0.10
+Nodes (16): MaskQueryExecutor, ReadOnlySpan, bool, Comparison, EcsMaskIterator, int, long, MethodImpl (+8 more)
 
 ### Community 80 - "Community 80"
 Cohesion: 0.10
-Nodes (5): UncheckedUtility, UncheckedCoreUtility, DCFApixels.DragonECS.UncheckedCore, EcsWorld, EntitiesMatrix
+Nodes (7): IEcsPool, IEcsPoolImplementation, ComponentsRegistrar, EcsWorld, ReadOnlySpan, IEcsPoolImplementation, EcsNullPool
 
 ### Community 81 - "Community 81"
-Cohesion: 0.08
-Nodes (24): int, long, void, JobDescriptor, JobDescriptorHandle, JobDescriptorKind, bool, int (+16 more)
+Cohesion: 0.18
+Nodes (9): JobDescriptorHandle, JobDescriptorKind, bool, int, MethodImpl, object, JobDescriptorPool, Fact (+1 more)
 
 ### Community 82 - "Community 82"
-Cohesion: 0.06
-Nodes (18): IBuilder, IModule, ManualGameplayModule, LifecycleSmokeModule, GraphicsCoreModule, InputModuleEcs, CaptureInputModule, NetworkClientModule (+10 more)
+Cohesion: 0.17
+Nodes (14): ActiveCommand, CommandCompletion, Action, CancellationToken, int, IReadOnlyList, object, SemaphoreSlim (+6 more)
 
 ### Community 83 - "Community 83"
 Cohesion: 0.06
-Nodes (19): BeginSystem, DestroySystem, FixedUpdateSystem, InitSystem, LateSystem, MainThreadBeginSystem, MainThreadFrameBeginSystem, RenderPrepareSystem (+11 more)
+Nodes (17): BeginSystem, FixedUpdateSystem, InitSystem, LateSystem, MainThreadBeginSystem, MainThreadFrameBeginSystem, RenderPrepareSystem, RenderSystem (+9 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.16
-Nodes (8): ClientSimulationWorker, IpcClient, bool, Bootstrap, EditorRuntimeSnapshot, HotReloadState, Ref, Program
+Cohesion: 0.11
+Nodes (13): IBuilder, IModule, ManualGameplayModule, LifecycleSmokeModule, GraphicsCoreModule, InputModuleEcs, CaptureInputModule, NetworkClientModule (+5 more)
 
 ### Community 86 - "Community 86"
-Cohesion: 0.06
-Nodes (18): EcsAccessAttribute, EcsAccessMode, EcsComponentAccessDescriptor, EcsOrderAttribute, EcsOrderKind, EcsSystemOrderDescriptor, EcsUpdateGraph, EcsUpdateGraphBuildException (+10 more)
+Cohesion: 0.12
+Nodes (8): IInstaller, IInstallerDestroy, IInstallerHotReload, IInstallerListener, GraphicsOpenGLInstaller, WindowSdlInstaller, AssetManagementInstaller, LiteNetLibNetworkInstaller
 
 ### Community 87 - "Community 87"
 Cohesion: 0.11
@@ -1812,27 +1549,27 @@ Cohesion: 0.20
 Nodes (8): Assembly, IEnumerable, IReadOnlyDictionary, Side, StringBuilder, XElement, ArtifactGenerator, XNamespace
 
 ### Community 89 - "Community 89"
-Cohesion: 0.08
-Nodes (26): 0.4.x Module Graph Follow-Up, 0.5 Scheduler / Jobs / Memory, 0.9 Networking / Replay / Diagnostics, Action Networking Sample, Client / Server / Shared, Done Criteria, Done Criteria, ECS Access Metadata (+18 more)
+Cohesion: 0.25
+Nodes (8): 0.9 Networking / Replay / Diagnostics, Action Networking Sample, Done Criteria, ECS Snapshots, Headless Server, Network Diagnostics, Networking Base, Replay / Determinism
 
 ### Community 90 - "Community 90"
-Cohesion: 0.15
-Nodes (6): IAssetLoader, IAssetSaver, Assembly, ConcurrentDictionary, IServiceProvider, AssetsManager
+Cohesion: 0.30
+Nodes (3): VertexID, DependencyGraph, VertexInfo
 
 ### Community 91 - "Community 91"
-Cohesion: 0.05
-Nodes (23): IEcsDestroy, IEcsInit, IEcsPreInit, IEcsRun, IEcsRunFinally, EcsDestroyRunner, EcsInitRunner, EcsPreInitRunner (+15 more)
+Cohesion: 0.04
+Nodes (44): ActionWithData, Delegate, EcsProcessRaw, IEcsPreInit, IEcsRunFinally, IEcsRunWithData, MetaProxyBase, RunHelper (+36 more)
 
 ### Community 92 - "Community 92"
-Cohesion: 0.10
-Nodes (13): EcsMetaAttribute, EcsMetaAttributeHalper, SplitStream, IMetaColor, MetaColor, MetaColorAttribute, MetaDescription, MetaDescriptionAttribute (+5 more)
+Cohesion: 0.16
+Nodes (10): DllImport, FileAttributeTagInformation, IntPtr, MarshalAs, SafeFileHandle, uint, FileAttributeTagInformation, IProjectInputLeaseHook (+2 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.14
-Nodes (6): DockLayoutStore, BoundedLog, DockSerializer, Fact, Task, EditorWorkspaceTests
+Cohesion: 0.06
+Nodes (21): Karpik.Memory.Tests, Karpik.Memory, WorkerRunResult, WorkerThreadState, int, long, NativeAllocationToken, NativeMemoryMath (+13 more)
 
 ### Community 94 - "Community 94"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (13): HotReloadState, IpcMessage, IpcMessageType, Action, CancellationToken, CancellationTokenSource, Func, NamedPipeClientStream (+5 more)
 
 ### Community 95 - "Community 95"
@@ -1840,28 +1577,32 @@ Cohesion: 0.22
 Nodes (7): UseWorldCodeFixProvider, CodeFixContext, CodeFixProvider, Document, FixAllProvider, NamespaceName, TypeName
 
 ### Community 96 - "Community 96"
-Cohesion: 0.11
-Nodes (19): 2D Physics Engines, 3D Physics Engines, 🏗️ Architecture Design, Batch Operations, Components, 📐 Core Interfaces, 📦 Dependencies, 🔄 ECS Integration (+11 more)
+Cohesion: 0.08
+Nodes (26): 2D Physics Engines, 3D Physics Engines, 🏗️ Architecture Design, Batch Operations, Client Prediction Flow, Components, 📐 Core Interfaces, 📦 Dependencies (+18 more)
+
+### Community 97 - "Community 97"
+Cohesion: 0.17
+Nodes (11): ISymbol, OperationBlockAnalysisContext, SchedulerAccess, AnalysisContext, DiagnosticDescriptor, HashSet, ICollection, IEnumerable (+3 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.12
 Nodes (14): Karpik.Engine.Sdk.IntegrationTests, FileStamp, ProcessResult, StartedProcess, Action, Func, ExternalTemporaryState, CancellationToken (+6 more)
 
 ### Community 100 - "Community 100"
-Cohesion: 0.06
-Nodes (32): 1. Karpik.Engine.Core.Runner.csproj, 2. New Files, 3. Modified Files, Architecture Diagram, Benefits, Binary Format, ✅ Completed, Hot Reload Flow (+24 more)
+Cohesion: 0.08
+Nodes (25): Architecture Diagram, Benefits, ✅ Completed, Hot Reload Flow, IModuleHotReload Interface, Implementation Details, Implementation Status, IPC Mechanism: Named Pipes (+17 more)
 
 ### Community 101 - "Community 101"
-Cohesion: 0.07
-Nodes (25): Destination, ICollection, IDictionary, IEnumerable, int, ISet, ITaskItem, long (+17 more)
+Cohesion: 0.05
+Nodes (33): Destination, IBuildEngine, ICollection, IDictionary, IEnumerable, int, ISet, ITaskItem (+25 more)
 
 ### Community 102 - "Community 102"
-Cohesion: 0.17
-Nodes (6): bool, MethodImpl, NativeResult, Action, Fact, NativeResultTests
+Cohesion: 0.16
+Nodes (4): CursorRequest, InputEvent, InputEventKind, InputEventRing
 
 ### Community 103 - "Community 103"
-Cohesion: 0.14
-Nodes (6): ISystemLateUpdate, UpdateSystem, Physics2DBodyDestroyer, TweenUpdatePausableSystem, TweenUpdateSystem, Tween
+Cohesion: 0.25
+Nodes (6): CancellationToken, Fact, Task, EditorHandoffShellTests, RecordingOpenService, RequestedHandoffService
 
 ### Community 104 - "Community 104"
 Cohesion: 0.08
@@ -1872,11 +1613,11 @@ Cohesion: 0.09
 Nodes (22): 1. Async Loading Queue, 2. Asset Bundles, 3. Hot Reload для ассетов, 4. Memory Budget, 5. Asset References, AssetManagement - Code Review, CR-001: Race Condition при загрузке ассетов, CR-002: Null-forgiving operator без проверки (+14 more)
 
 ### Community 106 - "Community 106"
-Cohesion: 0.10
-Nodes (3): EcsWorld, IEcsPool, GetPoolInstanceMarker
+Cohesion: 0.12
+Nodes (5): Entry, int, MethodImpl, Entry, SparseArray
 
 ### Community 107 - "Community 107"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (10): ComponentArrayConverter, ComponentsTemplate, IEcsComponentMember, JsonConverter, JsonReader, JsonWriter, MethodInfo, OnDeserialized (+2 more)
 
 ### Community 108 - "Community 108"
@@ -1888,8 +1629,8 @@ Cohesion: 0.14
 Nodes (4): ThreadBuffer, DrawCommand, DrawCommandType, IOrderedCommandBuffer
 
 ### Community 110 - "Community 110"
-Cohesion: 0.12
-Nodes (12): Aspect, ComponentA, ComponentB, ComponentLifecycleTrace, EcsCoreCollection, LifecycleComponent, LifecycleFailureException, ReadA (+4 more)
+Cohesion: 0.20
+Nodes (6): Action, Fact, EcsCoreCollection, EcsCoreTests, LifecycleFixture, ICollectionFixture
 
 ### Community 111 - "Community 111"
 Cohesion: 0.27
@@ -1897,23 +1638,23 @@ Nodes (4): int, EditorHandoffRequest, Fact, EditorHandoffRequestTests
 
 ### Community 112 - "Community 112"
 Cohesion: 0.09
-Nodes (23): Code Style, Development Conventions, Documentation, MyGame — исключение, Test-Driven Development (TDD), using директивы, Анализ кода, Запуск тестов (+15 more)
+Nodes (21): Code Style, Development Conventions, Documentation, Test-Driven Development (TDD), using директивы, Анализ кода, Запуск тестов, Класс/Модуль (+13 more)
 
 ### Community 113 - "Community 113"
-Cohesion: 0.13
-Nodes (5): AutoScope, AutoScope, DefaultDebugService, EcsProfilerMarker, MarkerData
+Cohesion: 0.12
+Nodes (7): Application, App, IReadOnlyList, EditorStartupOptions, Fact, EditorStartupOptionsTests, App
 
 ### Community 114 - "Community 114"
-Cohesion: 0.14
-Nodes (10): IEcsInject, IEcsInjectProcess, IInjectionBlock, IInjectionUnit, IMonoWorldInject, InjectionGraph, IOnInitInjectionComplete, string (+2 more)
+Cohesion: 0.08
+Nodes (23): Component, Define Symbols, DragonECS - C# Entity Component System Фреймворк, Entity, FAQ, System, Быстрый старт, Как Выключать/Включать системы? (+15 more)
 
 ### Community 115 - "Community 115"
-Cohesion: 0.16
-Nodes (3): EcsDebugUtility, TypeMetaDataCachedExtensions, IReadOnlyCollection
+Cohesion: 0.18
+Nodes (8): EzRangeStatGenerator, GenStatStructIncremental, GeneratorSyntaxContext, HintName, SourceText, StructGenerationInfo, Symbol, Syntax
 
 ### Community 116 - "Community 116"
 Cohesion: 0.06
-Nodes (19): EventCallersWorldExtensions, IEcsComponentEvent, IEcsComponentRequest, IEcsRunOnEvent, IEcsRunOnEvents, IEcsRunOnRequest, RunOnEventSystem, RunOnRequestSystem (+11 more)
+Nodes (20): EventCallersWorldExtensions, IEcsComponentEvent, IEcsComponentRequest, IEcsRunOnEvent, IEcsRunOnEvents, IEcsRunOnRequest, RunOnEventSystem, RunOnRequestSystem (+12 more)
 
 ### Community 117 - "Community 117"
 Cohesion: 0.09
@@ -1928,12 +1669,8 @@ Cohesion: 0.09
 Nodes (22): 1. LINQ в Hot Paths, 1. Null-forgiving operators без проверок, 2. ConcurrentDictionary без необходимости, 2. Пустые обработчики событий, 3. List.Remove O(n²), 3. Singleton без возможности замены, 4. GetAwaiter().GetResult() — Deadlock risk, 5. Race conditions (+14 more)
 
 ### Community 120 - "Community 120"
-Cohesion: 0.26
-Nodes (3): ManualGameplayRunSystem, ManualGameplaySystem, ManualGameplayTrace
-
-### Community 122 - "Community 122"
-Cohesion: 0.16
-Nodes (6): EcsPipeline, InitDeclaredRunner, EcsPipelineExtensions, DIExtensions, InitDeclaredRunner, IServiceProvider
+Cohesion: 0.18
+Nodes (4): GameplayLoopDriverTests, ManualGameplayRunSystem, ManualGameplaySystem, ManualGameplayTrace
 
 ### Community 124 - "Community 124"
 Cohesion: 0.09
@@ -1952,23 +1689,23 @@ Cohesion: 0.10
 Nodes (20): 1. Input Action System, 2. Input Recording/Playback, 3. Gamepad Support, 4. Input Contexts, CR-001: Опечатка в имени метода, CR-002: Присвоение null! событиям, HI-001: Избыточное использование ConcurrentDictionary, HI-002: Аллокации каждый кадр (+12 more)
 
 ### Community 128 - "Community 128"
-Cohesion: 0.12
-Nodes (19): ActiveCommand, CommandCompletion, Action, CancellationToken, int, IReadOnlyList, object, SemaphoreSlim (+11 more)
+Cohesion: 0.14
+Nodes (11): CancellationToken, string, Task, EditorWorkspace, WorkspaceStore, Action, CancellationToken, Task (+3 more)
 
 ### Community 129 - "Community 129"
 Cohesion: 0.18
 Nodes (10): int, IReadOnlyDictionary, JsonElement, EngineInstallationManifest, IEnumerable, EngineInstallationValidationCode, EngineInstallationValidationResult, EngineInstallationValidator (+2 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.25
-Nodes (3): ToTemplateExtensions, ToTemplateExtensions2, IEcsTagComponent
+Cohesion: 0.11
+Nodes (8): ToTemplateExtensions, ToTemplateExtensions2, IEcsTagComponent, bool, EcsDefaultWorld, EcsEventWorld, string, ECSInstaller
 
 ### Community 131 - "Community 131"
-Cohesion: 0.16
-Nodes (15): CancellationToken, int, string, Task, EditorHostCode, EditorHostResult, EditorProcessHost, EditorProcessStartRequest (+7 more)
+Cohesion: 0.17
+Nodes (14): CancellationToken, int, string, Task, EditorHostCode, EditorHostResult, EditorProcessHost, EditorProcessStartRequest (+6 more)
 
 ### Community 133 - "Community 133"
-Cohesion: 0.13
+Cohesion: 0.11
 Nodes (11): bool, byte, ConcurrentDictionary, int, MethodImpl, NativeLinearAllocator, Action, Fact (+3 more)
 
 ### Community 134 - "Community 134"
@@ -1976,16 +1713,12 @@ Cohesion: 0.18
 Nodes (9): Action, Fact, JobHandle, ManualResetEventSlim, JobHandleMethodBuilderRaceTests, SuspendedCompletionAwaitable, SuspendedCompletionAwaiter, INotifyCompletion (+1 more)
 
 ### Community 135 - "Community 135"
-Cohesion: 0.14
-Nodes (15): bool, CancellationToken, Func, int, long, object, SemaphoreSlim, StringComparer (+7 more)
+Cohesion: 0.13
+Nodes (16): ProjectGeneration, bool, CancellationToken, Func, int, long, object, SemaphoreSlim (+8 more)
 
 ### Community 136 - "Community 136"
 Cohesion: 0.10
 Nodes (21): Artifacts And Notes, Concrete Steps, Context and Orientation, Decision Log, Deliver the 0.5 scheduler, jobs, memory, and threaded client foundation, Idempotence And Recovery, Milestone 1: Native memory foundation, Milestone 2: Standalone jobs runtime (+13 more)
-
-### Community 137 - "Community 137"
-Cohesion: 0.11
-Nodes (6): PhysicalFileSystem, Karpik.Engine.Shared.AssetManagement.Core.Physical, IFileSystem, AssetsManagerRuntimeBundleTests, Fact, CurrentDirectoryCollection
 
 ### Community 138 - "Community 138"
 Cohesion: 0.10
@@ -1996,32 +1729,40 @@ Cohesion: 0.10
 Nodes (21): 🎨 2D Runtime, Adding a Dependency, 🌐 Client / Server / Shared, 💬 Community, 🤝 Contributing, 🏗️ ECS and Lifecycle, 🔥 Hot Reload, Hot Reload (+13 more)
 
 ### Community 140 - "Community 140"
-Cohesion: 0.17
-Nodes (12): DeepDebugException, ImplementationException, InjectionException, NullInstanceException, Exception, CancellationToken, Task, TimeSpan (+4 more)
+Cohesion: 0.15
+Nodes (14): EcsUpdateGraphBuildException, LifecycleFailureException, Exception, CancellationToken, Task, TimeSpan, ExternalProcessTermination, ExternalProcessTerminationException (+6 more)
+
+### Community 141 - "Community 141"
+Cohesion: 0.15
+Nodes (6): IAssetLoader, IAssetSaver, Assembly, ConcurrentDictionary, IServiceProvider, AssetsManager
 
 ### Community 142 - "Community 142"
-Cohesion: 0.18
-Nodes (9): Fact, InlineData, Theory, WorkStealingDequeTests, bool, int, MethodImpl, WorkStealingDeque (+1 more)
+Cohesion: 0.20
+Nodes (8): Fact, InlineData, Theory, WorkStealingDequeTests, bool, int, MethodImpl, WorkStealingDeque
 
 ### Community 143 - "Community 143"
-Cohesion: 0.08
-Nodes (12): int, SimpleNativeArray, Fact, SimpleNativeArrayTests, bool, MethodImpl, ReadOnlySpan, Span (+4 more)
+Cohesion: 0.07
+Nodes (14): int, SimpleNativeArray, Fact, JobSchedulerValueSchedulingTests, Fact, SimpleNativeArrayTests, bool, MethodImpl (+6 more)
 
 ### Community 144 - "Community 144"
 Cohesion: 0.08
-Nodes (14): EcsAspectBuilderExtensions, Builder, Builder, Configurator, EcsPipelineBuilderExtensions, InitInjectionList, IEcsModule, IEcsProcess (+6 more)
+Nodes (21): JobSystemModule, Configurator, IEcsMember, InitInjectionList, InjectionList, SystemNode, EcsAspectBuilderExtensions, Dictionary (+13 more)
 
 ### Community 145 - "Community 145"
-Cohesion: 0.13
-Nodes (7): AddParams, AddParamsFlags, AddParamsFlagsUtility, EcsPipelineTemplate, Record, IEquatable, Record
+Cohesion: 0.25
+Nodes (6): Record, Builder, object, string, EcsPipelineTemplate, Record
+
+### Community 146 - "Community 146"
+Cohesion: 0.14
+Nodes (11): string, EcsDefaultWorld, EcsEventWorld, IEcsDefaultAddParams, EcsModule, IEcsInject, IEcsInjectProcess, IInjectionUnit (+3 more)
 
 ### Community 147 - "Community 147"
-Cohesion: 0.19
-Nodes (9): CancellationToken, Fact, InlineData, Task, Theory, EditorProcessHostTests, Fact, EditorResolverTests (+1 more)
+Cohesion: 0.20
+Nodes (10): CancellationToken, Fact, InlineData, IReadOnlyList, List, Task, Theory, EditorProcessHostTests (+2 more)
 
 ### Community 148 - "Community 148"
-Cohesion: 0.07
-Nodes (13): EcsWhereExecutor, WorldStateVersionsChecker, EcsPipelineBuilderExtensions, bool, EcsGroup, EcsMaskIterator, EcsReadonlyGroup, EcsSpan (+5 more)
+Cohesion: 0.11
+Nodes (13): bool, EcsGroup, EcsMaskIterator, EcsReadonlyGroup, long, MethodImpl, WorldStateVersionsChecker, EcsWhereToGroupExecutor (+5 more)
 
 ### Community 149 - "Community 149"
 Cohesion: 0.10
@@ -2040,16 +1781,16 @@ Cohesion: 0.11
 Nodes (18): 1. Абстракция для рендер-пайплайна, 2. Система слоёв рендеринга, 3. Batch rendering, 4. Object pooling для текстур, CR-001: Небезопасные касты типов, CR-002: Null-forgiving operator без проверки, Graphics.Raylib - Code Review, HI-001: Захардкоженный цвет фона (+10 more)
 
 ### Community 153 - "Community 153"
-Cohesion: 0.13
-Nodes (3): DebuggerProxy, Enumerator, UnsafeArray
+Cohesion: 0.21
+Nodes (5): IReadOnlyCollection, RuntimeTypeHandle, Type, EcsDebugUtility, TypeMetaDataCachedExtensions
 
 ### Community 154 - "Community 154"
-Cohesion: 0.06
-Nodes (19): DockContextDataTemplateTests, EditorDockFactoryTests, Karpik.Editor.Tests, Karpik.Editor, Karpik.Editor.Tests.Projects, Karpik.Engine.ProjectModel, IMsBuildProjectInspector, TerminationAttempt (+11 more)
+Cohesion: 0.08
+Nodes (16): Karpik.Engine.Sdk.Tasks, Karpik.Editor, Karpik.Editor.Tests.Projects, Karpik.Engine.ProjectModel, string, EngineInstallationProvider, EngineInstallationSelection, IEngineInstallationProvider (+8 more)
 
 ### Community 155 - "Community 155"
-Cohesion: 0.19
-Nodes (7): Action, Exception, int, Lock, ManualResetEventSlim, JobCompletion, Exception
+Cohesion: 0.18
+Nodes (10): bool, EcsWorld, MethodImpl, DummyHandler, EcsComponentCopy, EcsComponentLifecycle, EcsWorldComponent, IEcsComponentCopy (+2 more)
 
 ### Community 156 - "Community 156"
 Cohesion: 0.17
@@ -2068,47 +1809,55 @@ Cohesion: 0.11
 Nodes (19): Artifacts And Notes, Concrete Steps, Context And Orientation, Decision Log, Idempotence And Recovery, Milestone 1: Baseline and tests, Milestone 2: Value-job contracts and descriptors, Milestone 3: Dependencies, batches, and caller-owned results (+11 more)
 
 ### Community 160 - "Community 160"
-Cohesion: 0.06
-Nodes (21): Karpik.Memory.Tests, Karpik.Memory, NativeMemoryMath, bool, int, MethodImpl, NativePool, int (+13 more)
+Cohesion: 0.10
+Nodes (13): bool, int, MethodImpl, NativePool, Action, AllocationBudget, Fact, NativeAllocationBudgetTests (+5 more)
 
 ### Community 161 - "Community 161"
 Cohesion: 0.11
 Nodes (17): Lifecycle и ECS, Physics2D и пример игры, v0.2, v0.3, Архитектура и ECS, Архитектура проекта, Ассеты, Выполнение в главном потоке (+9 more)
 
 ### Community 162 - "Community 162"
-Cohesion: 0.17
-Nodes (7): DummyHandler, EcsComponentCopyHandler, EcsComponentLifecycleHandler, EcsWorldComponentHandler, IEcsComponentCopy, IEcsComponentLifecycle, IEcsWorldComponent
-
-### Community 163 - "Community 163"
-Cohesion: 0.11
-Nodes (12): BodyLink, CoreAetherConverters, SystemAetherConverters, Aspect, Aspect, DefinitionAspect, Physics2DBodyRestoreSystem, RuntimeBodyAspect (+4 more)
+Cohesion: 0.12
+Nodes (14): CheckConstraints(), CheckRepeats(), ConcurrentDictionary, int, Key, MethodImpl, object, Stack (+6 more)
 
 ### Community 164 - "Community 164"
 Cohesion: 0.11
 Nodes (18): Artifacts And Notes, Build the unmanaged memory foundation, Concrete Steps, Context And Orientation, Decision Log, Idempotence And Recovery, Milestone 1: Project and diagnostics spine, Milestone 2: Containers (+10 more)
 
+### Community 165 - "Community 165"
+Cohesion: 0.17
+Nodes (7): InitDeclaredRunner, EcsPipeline, InitDeclaredRunner, Builder, IEnumerable, EcsPipelineExtensions, IEcsPipelineMember
+
+### Community 166 - "Community 166"
+Cohesion: 0.22
+Nodes (4): ImGuiDebugPanelSystem, FrameTimingClipboardFormatter, GraphicsLoadTestScenario, GraphicsLoadTestSettings
+
+### Community 167 - "Community 167"
+Cohesion: 0.11
+Nodes (18): Artifacts and Notes, Concrete Steps, Context and Orientation, Decision Log, Idempotence and Recovery, Make external game builds resolve their engine installation automatically, Milestone 1: Tested resolver task, Milestone 2: SDK target and package wiring (+10 more)
+
 ### Community 168 - "Community 168"
-Cohesion: 0.04
-Nodes (19): ISystemMainThreadBegin, ImGuiBeginSystem, ImGuiRenderContext, MouseButtons, ConsumeInputSystem, DestroySystem, PublishInputSystem, UpdateSystem (+11 more)
+Cohesion: 0.06
+Nodes (12): ImGuiRenderContext, CaptureInputSystem, HeadlessWindowInputIntegrationTests, InputCaptureState, IWindow, HeadlessWindow, SDL2Window, Karpik.Engine.Modules.Window.Sdl2 (+4 more)
 
 ### Community 169 - "Community 169"
 Cohesion: 0.12
 Nodes (15): Code Review: Modding (Core + Lua), CR-1: Singleton Logger без возможности замены [Critical], CR-2: GetAwaiter().GetResult() — Potential Deadlock [Critical], HI-1: ConcurrentDictionary без необходимости [High], HI-2: ToArray() перед итерацией — лишняя аллокация [High], HI-3: Отсутствует sandbox для Lua-скриптов [High], HI-4: DI поле не инициализировано [High], Issues Found (+7 more)
 
 ### Community 170 - "Community 170"
-Cohesion: 0.16
-Nodes (11): IClipboard, IStorageProvider, bool, CancellationToken, CancellationTokenSource, ICommand, ObservableCollection, string (+3 more)
+Cohesion: 0.13
+Nodes (14): IClipboard, IStorageProvider, LauncherView, bool, CancellationToken, CancellationTokenSource, ICommand, ObservableCollection (+6 more)
 
 ### Community 171 - "Community 171"
-Cohesion: 0.04
-Nodes (16): QuadVertexBuffer, DrawRectCmd, DrawSortKey, DrawSpace, ImGuiOverlayState, FontAtlasMetrics, FontGlyph, SystemToVeldridExtensions (+8 more)
+Cohesion: 0.05
+Nodes (14): QuadVertexBuffer, DrawRectCmd, DrawSortKey, DrawSpace, ImGuiOverlayState, FontAtlasMetrics, FontGlyph, SystemToVeldridExtensions (+6 more)
 
 ### Community 172 - "Community 172"
-Cohesion: 0.17
-Nodes (6): ProcessStartInfo, Fact, InlineData, Theory, RuntimeLaunchOptionsTests, RuntimeTree
+Cohesion: 0.22
+Nodes (5): ProcessStartInfo, Fact, InlineData, Theory, RuntimeLaunchOptionsTests
 
 ### Community 173 - "Community 173"
-Cohesion: 0.21
+Cohesion: 0.19
 Nodes (7): Dictionary, Id, List, Optional, XElement, TestRepository, Target
 
 ### Community 174 - "Community 174"
@@ -2116,7 +1865,7 @@ Cohesion: 0.13
 Nodes (15): 1.1 State Buffer, 1.2 Interpolation System, 1.3 Тестирование, 2.1 Client-Side Prediction, 2.2 Server Reconciliation, 2.3 Тестирование, 3.1 Delta Compression, 3.2 Incremental Snapshots (+7 more)
 
 ### Community 175 - "Community 175"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (14): Job System Optimizations, P0-1: CTS Pool, P1-1: Work-Stealing Deque, Критичность, Критичность, Метрики, Метрики, Проблема (+6 more)
 
 ### Community 176 - "Community 176"
@@ -2124,23 +1873,23 @@ Cohesion: 0.13
 Nodes (14): 0.4 Exit Gate Before 0.5, 0.4 System Lifecycle Plan, Build And Dependency Hygiene, Defaults, Design Rules, Milestone 1: API Skeleton And Compatibility, Milestone 2: Parallel Scheduler Prototype, Milestone 3: World Facade And Component Lifecycle (+6 more)
 
 ### Community 177 - "Community 177"
-Cohesion: 0.21
-Nodes (5): AnalyzerTestHarness, StaticAnalyzer.Tests, MetadataReference, Fact, CodegenDeploymentTests
+Cohesion: 0.20
+Nodes (6): BuildErrorEventArgs, BuildMessageEventArgs, BuildWarningEventArgs, CustomBuildEventArgs, IDictionary, FakeBuildEngine
 
 ### Community 178 - "Community 178"
-Cohesion: 0.06
-Nodes (20): BundleTree, Fact, FileStream, IEnumerable, IReadOnlyList, StringComparison, Task, TimeSpan (+12 more)
+Cohesion: 0.15
+Nodes (9): Fact, FileStream, IEnumerable, IReadOnlyList, StringComparison, Task, TimeSpan, Trait (+1 more)
 
 ### Community 179 - "Community 179"
-Cohesion: 0.19
-Nodes (4): ArrayPool, RawTextLoader, TextAsset, BaseAssetLoader
+Cohesion: 0.20
+Nodes (6): BuilderInstance, bool, HashSet, List, Builder, BuilderInstance
 
 ### Community 180 - "Community 180"
 Cohesion: 0.09
-Nodes (12): Collision, CollisionList, DebuggerProxy, Entry, Enumerator, LinkedList, MetaID, MetaIDAttribute (+4 more)
+Nodes (18): Collision, CollisionList, LinkedList, Entry, HashSet, IEnumerable, IEnumerator, int (+10 more)
 
 ### Community 181 - "Community 181"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (6): CommandSet, CommandSetState, GraphicsContext, GraphicsContextCommandSetTests, CommandSet, CommandSetState
 
 ### Community 182 - "Community 182"
@@ -2160,32 +1909,40 @@ Cohesion: 0.13
 Nodes (14): Code Review: Tween.Core, HI-1: List.Remove в Tick() — O(n²) [High], HI-2: Stopwatch каждый кадр — overhead [High], HI-3: DI поля без null! [High], Issues Found, MI-1: GTweenSequenceBuilder — mutable struct semantics [Medium], MI-2: Easing allocations [Medium], MI-3: TweenUpdatePausableSystem — дублирование логики [Medium] (+6 more)
 
 ### Community 186 - "Community 186"
-Cohesion: 0.24
-Nodes (4): EcsUpdateSchedulerAnalyzer, ISymbol, OperationBlockAnalysisContext, SchedulerAccess
+Cohesion: 0.21
+Nodes (6): int, long, string, StringComparer, RuntimeBundleLayout, RuntimeLaunchOptions
+
+### Community 187 - "Community 187"
+Cohesion: 0.19
+Nodes (8): Enumerator, IEnumerator, int, MethodImpl, EnumerableInt, Enumerator, LinkedListCountIterator, LinkedListIterator
 
 ### Community 188 - "Community 188"
-Cohesion: 0.23
-Nodes (3): IEcsEntityEventListener, IEcsWorldEventListener, WorldEventListExtensions
+Cohesion: 0.17
+Nodes (6): bool, MethodImpl, NativeResult, Action, Fact, NativeResultTests
 
 ### Community 189 - "Community 189"
-Cohesion: 0.18
-Nodes (7): Karpik.Launcher.Models, Karpik.Launcher.Localization, Karpik.Launcher.Services, Karpik.Launcher.Tests, IReadOnlyList, ReadOnlyListExtensions, ProjectRegistryTests
+Cohesion: 0.13
+Nodes (14): DragonMetaAttribute, MetaIDAttribute, bool, string, MetaNameAttribute, IEnumerable, Type, MetaProxyAttribute (+6 more)
+
+### Community 190 - "Community 190"
+Cohesion: 0.10
+Nodes (12): ClientSimulationWorker, ClientSimulationWorker, IpcClient, bool, Bootstrap, EditorRuntimeSnapshot, HotReloadState, MainThreadScheduler (+4 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.12
-Nodes (6): InitNetworkClientSystem, InitNetworkClientSystem, LiteNetLibConnectionRequest, IConnectionRequest, IDisconnectInfo, IPeer
+Cohesion: 0.02
+Nodes (35): ISystemInit, DestroyNetworkClientSystem, InitNetworkClientSystem, UpdateNetworkClientSystem, DestroyNetworkClientSystem, InitNetworkClientSystem, UpdateNetworkClientSystem, InitSystem (+27 more)
 
 ### Community 193 - "Community 193"
-Cohesion: 0.20
-Nodes (10): ActionWithData, CheckCache(), IEcsProcessExtensions, Init_Internal(), OnSetup(), Pair, RunHelperWithFinally, Pair (+2 more)
+Cohesion: 0.11
+Nodes (18): dragon-ecs, dragonecs, ecs, framework, performance, author, name, url (+10 more)
 
 ### Community 194 - "Community 194"
 Cohesion: 0.13
 Nodes (14): Add self-contained graphics stress scenarios, Artifacts and Notes, Concrete Steps, Context and Orientation, Decision Log, Idempotence and Recovery, Milestones, Outcomes & Retrospective (+6 more)
 
 ### Community 196 - "Community 196"
-Cohesion: 0.07
-Nodes (31): EditorSession, EditorComponentSnapshot, Guid, WindowClosingEventArgs, Action, bool, CancellationToken, CancellationTokenSource (+23 more)
+Cohesion: 0.08
+Nodes (30): EditorSession, EditorComponentSnapshot, Guid, Action, bool, CancellationToken, CancellationTokenSource, Exception (+22 more)
 
 ### Community 197 - "Community 197"
 Cohesion: 0.13
@@ -2196,12 +1953,12 @@ Cohesion: 0.13
 Nodes (14): Artifacts and Notes, Concrete Steps, Context and Orientation, Decision Log, Extend Window and Graphics 2D Rendering, Idempotence and Recovery, Milestones, Outcomes & Retrospective (+6 more)
 
 ### Community 199 - "Community 199"
-Cohesion: 0.07
-Nodes (13): AspectCache, EcsWorld, EcsWorldExtenssions, entlong, AllowedInWorldsAttribute, AspectCache, EcsWorld, PoolCache (+5 more)
+Cohesion: 0.14
+Nodes (7): int, long, MethodImpl, short, entlong, EcsWorld, entlong
 
 ### Community 200 - "Community 200"
-Cohesion: 0.14
-Nodes (14): 0.6 2D Runtime Core, 2D Math, Basic Editor Foundation, Build-time Sprite Atlases, Camera2D, Content Pipeline Base, Done Criteria, Foundation Utilities (+6 more)
+Cohesion: 0.06
+Nodes (32): 0.4.x Module Graph Follow-Up, 0.5 Scheduler / Jobs / Memory, 0.6 2D Runtime Core, 2D Math, Basic Editor Foundation, Build-time Sprite Atlases, Camera2D, Client / Server / Shared (+24 more)
 
 ### Community 201 - "Community 201"
 Cohesion: 0.14
@@ -2224,16 +1981,16 @@ Cohesion: 0.06
 Nodes (15): BuilderPart, Buff, BuffEzRange, BuffEzRangeExtensions, BuffRange, BuffRangeExtensions, BuffType, DefaultRangeStat (+7 more)
 
 ### Community 207 - "Community 207"
-Cohesion: 0.22
-Nodes (5): Job, bool, ConcurrentQueue, int, ThreadState
+Cohesion: 0.20
+Nodes (10): from, bool, IEnumerator, int, DependencyGraphExtensions, DependencyGraphVertextID, Enumerator, ReadonlyDependenciesCollection (+2 more)
 
 ### Community 208 - "Community 208"
-Cohesion: 0.17
-Nodes (3): Enumerator, ThrowHelper, Karpik.Engine.Shared.UnsafeUtilities
+Cohesion: 0.24
+Nodes (5): Builder, IEnumerable, ReadOnlySpan, Type, EcsTypeCode
 
 ### Community 209 - "Community 209"
 Cohesion: 0.17
-Nodes (3): CancellationTokenSource, JobHandleMethodBuilder, IAsyncStateMachine
+Nodes (6): byte, ReadOnlySpan, uint, IMetaColor, MetaColor, MetaColorAttribute
 
 ### Community 210 - "Community 210"
 Cohesion: 0.14
@@ -2244,44 +2001,40 @@ Cohesion: 0.15
 Nodes (12): Build / Verification, Critical Rules, ExecPlans, graphify, KarpikEngine Agent Instructions, Knowledge Base, Project Shape, Response Style (+4 more)
 
 ### Community 212 - "Community 212"
-Cohesion: 0.22
-Nodes (9): GameUI — Документация модуля, ImGui Debug, Styles, Widget Tree, Архитектура, Введение, Слои системы, Ссылки (+1 more)
+Cohesion: 0.15
+Nodes (13): GameUI — Документация модуля, ImGui Debug, Styles, Widget Tree, Widgets (Виджеты), Архитектура, Введение, Как это работает (+5 more)
 
 ### Community 213 - "Community 213"
 Cohesion: 0.15
 Nodes (12): Code Review: Network.Server.LiteNetLib, CR-1: Пустые обработчики событий [Critical], HI-1: Hardcoded порт [High], HI-2: Отсутствует DI для INetworkManager [High], HI-3: Неправильное именование класса [High], Issues Found, MI-1: Нет обработки ошибок [Medium], Overview (+4 more)
 
-### Community 214 - "Community 214"
-Cohesion: 0.26
-Nodes (4): CursorRequest, InputEvent, InputEventKind, InputEventRing
-
 ### Community 215 - "Community 215"
-Cohesion: 0.12
-Nodes (12): string, IProjectHandoffService, NullProjectHandoffService, ProjectHandoffCode, ProjectHandoffResult, ProjectHandoffService, RequestedHandoffService, Fact (+4 more)
+Cohesion: 0.13
+Nodes (11): string, IProjectHandoffService, NullProjectHandoffService, ProjectHandoffCode, ProjectHandoffResult, ProjectHandoffService, Fact, HandoffWorkspace (+3 more)
 
 ### Community 216 - "Community 216"
-Cohesion: 0.08
-Nodes (13): Karpik.Engine.Packager.Tests, CancellationToken, Fact, ProcessStartInfo, Task, DotNetProcessRunnerTests, NeverExitsProcess, NeverExitsProcessFactory (+5 more)
+Cohesion: 0.22
+Nodes (5): Karpik.Engine.Packager.Tests, Fact, RequiredApiSurfaceTests, Fact, UpdateKarpikSdkScriptTests
 
 ### Community 217 - "Community 217"
 Cohesion: 0.18
 Nodes (8): Editor и Launcher, Engine payload и внешняя игра, Milestone 5 review hardening, Milestone 6 foundation, SDK и валидация, Зафиксировано, Миграция и приёмка, Не входит в этот ExecPlan
 
 ### Community 218 - "Community 218"
-Cohesion: 0.18
+Cohesion: 0.17
 Nodes (9): IPC Optimizations, P0-2: ArrayPool, Альтернатива (Zero-Allocation), Критичность, Метрики, Проблема, Решение, 🔗 Связанные (+1 more)
 
 ### Community 219 - "Community 219"
-Cohesion: 0.14
-Nodes (3): LiteNetLibPeer, IRpc, IWriter
+Cohesion: 0.19
+Nodes (5): AlphaInstaller, AlphaLateInstaller, OrderTrace, ZetaEarlyInstaller, ZetaInstaller
 
 ### Community 220 - "Community 220"
 Cohesion: 0.17
 Nodes (11): Code Review: Graphics.Core, Issues Found, MI-1: Пустой инсталлер [Medium], MI-2: IWindow смешивает ввод и окно [Medium], MI-3: Magic numbers в WindowFlags [Low], MI-4: IRenderer перегружен методами [Low], Overview, Positive Aspects ✅ (+3 more)
 
 ### Community 221 - "Community 221"
-Cohesion: 0.13
-Nodes (7): StructGenerationInfo, RangeStatGenerator, StructReceiver, StructWithStatReceiver, Karpik.Engine.Shared.StatAndAbilities.Codegen, Karpik.Engine.Shared.StatAndAbilities.Codegen.Attributes, ISyntaxReceiver
+Cohesion: 0.11
+Nodes (8): StructGenerationInfo, RangeStatGenerator, StatGenerator, StructReceiver, StructWithStatReceiver, Karpik.Engine.Shared.StatAndAbilities.Codegen, Karpik.Engine.Shared.StatAndAbilities.Codegen.Attributes, ISyntaxReceiver
 
 ### Community 222 - "Community 222"
 Cohesion: 0.36
@@ -2296,8 +2049,12 @@ Cohesion: 0.17
 Nodes (12): Compatibility Граница, Component Lifecycle, Data-First Операции, ECS, Hot Path Ограничения, Hot Reload, Lifecycle Систем, Компоненты И Аспекты (+4 more)
 
 ### Community 225 - "Community 225"
-Cohesion: 0.13
-Nodes (4): DestroyNetworkClientSystem, UpdateNetworkClientSystem, INetworkManager, ITargetRpcSender
+Cohesion: 0.17
+Nodes (3): FakeInputSource, InputEventRingTests, Karpik.Engine.Client.InputModule.Tests
+
+### Community 226 - "Community 226"
+Cohesion: 0.26
+Nodes (3): CommandInfo, FieldInfo, RpcGenerator
 
 ### Community 227 - "Community 227"
 Cohesion: 0.17
@@ -2308,28 +2065,32 @@ Cohesion: 0.17
 Nodes (12): Approved Milestone 8B-8D remediation, Milestone 8: Remove monorepository game assumptions, Milestone 8A: Compose installed engine modules with game bundles, Milestone 8B: Prove the complete external runtime replacement, Milestone 8C: Remove editor-local runtime packaging, Milestone 8D: Remove the repository-local game composition roots, Milestone 8E: Generalize Network.Codegen beyond the deleted game profile, Milestone 8F: Final acceptance and documentation (+4 more)
 
 ### Community 229 - "Community 229"
-Cohesion: 0.31
-Nodes (5): Fact, Task, EditorHandoffShellTests, Fact, EditorShellProjectLifecycleTests
+Cohesion: 0.16
+Nodes (13): IEnumerable, StateFlag, DebuggerProxy, EcsWorld, IEnumerable, int, List, long (+5 more)
 
 ### Community 230 - "Community 230"
 Cohesion: 0.18
 Nodes (10): 🔧 ECS-системы, Modding, 🔄 Жизненный цикл, 🔗 Зависимости, 💡 Использование, 🎯 Назначение, 📋 Обзор, ⚠️ Особенности (+2 more)
 
 ### Community 231 - "Community 231"
-Cohesion: 0.06
-Nodes (17): IsExternalInit, System.Runtime.CompilerServices, int, IncrementSliceJob, WriteResultJob, int, long, NativeAllocationToken (+9 more)
+Cohesion: 0.26
+Nodes (8): string, MetaDescription, MetaDescriptionAttribute, IReadOnlyList, DebuggerProxy, InitFlag, ITypeMeta, ITypeMetaExstensions
 
 ### Community 232 - "Community 232"
-Cohesion: 0.18
-Nodes (4): Type, MainThreadScheduler, Side, Type
+Cohesion: 0.15
+Nodes (7): IEnumerator, int, MethodImpl, Span, DebuggerProxy, Enumerator, UnsafeArray
 
 ### Community 233 - "Community 233"
 Cohesion: 0.18
 Nodes (10): 🔧 ECS-системы, 🚨 Performance Notes, StatAndAbilities, 🔗 Зависимости, 💡 Использование, 🎯 Назначение, 📋 Обзор, ⚠️ Особенности (+2 more)
 
 ### Community 234 - "Community 234"
-Cohesion: 0.16
-Nodes (5): EcsUpdateScheduler, EcsUpdateSystemJob, WorkerRunResult, WorkerThreadState, GCHandle
+Cohesion: 0.20
+Nodes (3): EcsUpdateScheduler, EcsUpdateSystemJob, GCHandle
+
+### Community 235 - "Community 235"
+Cohesion: 0.41
+Nodes (5): Builder, EcsTypeCode, IEnumerable, ReadOnlySpan, Type
 
 ### Community 237 - "Community 237"
 Cohesion: 0.25
@@ -2345,7 +2106,7 @@ Nodes (10): ADR Handoff, File Location and Naming, Formatting, How to Use ExecPl
 
 ### Community 241 - "Community 241"
 Cohesion: 0.35
-Nodes (4): Func, Fact, JobSystemBaselineTests, Fact
+Nodes (4): Fact, JobSystemBaselineTests, Fact, ShaderAssetLoadingTests
 
 ### Community 242 - "Community 242"
 Cohesion: 0.13
@@ -2354,10 +2115,6 @@ Nodes (12): DataReceivedEventArgs, FieldInfo, Action, EventHandler, Fact, Func, 
 ### Community 243 - "Community 243"
 Cohesion: 0.29
 Nodes (5): Fact, InlineData, Task, Theory, EditorPreviewControllerTests
-
-### Community 244 - "Community 244"
-Cohesion: 0.10
-Nodes (4): EditorSessionManagerTests, FakeEditorBackend, FakeEditorBackendFactory, FakeEditorBackend
 
 ### Community 245 - "Community 245"
 Cohesion: 0.20
@@ -2372,8 +2129,8 @@ Cohesion: 0.20
 Nodes (10): Abort И Recovery, Hot Reload, Граница Состояния, Загрузка Модулей, Контракт Модуля, Модель, Ограничения Реального Времени, Порядок Reload (+2 more)
 
 ### Community 248 - "Community 248"
-Cohesion: 0.06
-Nodes (10): ComponentLifecycleException, StaticExtensions, World, DefaultWorld, EventWorld, MetaWorld, DragonExtensions, IEcsPool (+2 more)
+Cohesion: 0.04
+Nodes (20): ComponentLifecycleException, EntityBuilder, StaticExtensions, World, EcsRenderPrepareSchedulerRuntimeTests, CoreComponentExtensions, CoreComponentExtensionsTag, DefaultWorld (+12 more)
 
 ### Community 249 - "Community 249"
 Cohesion: 0.20
@@ -2397,7 +2154,7 @@ Nodes (7): CR-001: Отсутствие исходных файлов, HI-001: �
 
 ### Community 254 - "Community 254"
 Cohesion: 0.04
-Nodes (29): BenchmarkActions, Action, ValueNoOpForJob, ValueNoOpJob, IJob, IJobFor, JobBatchInfo, JobProfilerEvent (+21 more)
+Nodes (34): Karpik.Jobs.Tests, BenchmarkActions, Action, ValueNoOpForJob, ValueNoOpJob, IJob, IJobFor, JobProfilerEvent (+26 more)
 
 ### Community 255 - "Community 255"
 Cohesion: 0.20
@@ -2420,31 +2177,35 @@ Cohesion: 0.20
 Nodes (4): Func, IReadOnlyList, ListExtensions, ProjectConfigurator
 
 ### Community 262 - "Community 262"
-Cohesion: 0.22
-Nodes (9): DllImport, FileAttributeTagInformation, FileStream, IntPtr, MarshalAs, SafeFileHandle, uint, FileAttributeTagInformation (+1 more)
+Cohesion: 0.12
+Nodes (15): DllImport, FileAttributeTagInformation, FileStream, int, IntPtr, JsonElement, MarshalAs, SafeFileHandle (+7 more)
 
 ### Community 264 - "Community 264"
 Cohesion: 0.22
 Nodes (3): IClientSimulationLoop, BlockingSimulationLoop, ThrowingSimulationLoop
 
 ### Community 265 - "Community 265"
-Cohesion: 0.06
-Nodes (27): Karpik.Engine.Sdk.Tasks, IBuildEngine, Action, BuildErrorEventArgs, BuildMessageEventArgs, BuildWarningEventArgs, CustomBuildEventArgs, Fact (+19 more)
+Cohesion: 0.18
+Nodes (7): Action, Fact, IReadOnlyList, List, KarpikValidationTaskTests, TestProjectTree, TestProjectTree
 
 ### Community 267 - "Community 267"
-Cohesion: 0.11
-Nodes (6): Application, IEngineRunner, MainThreadScheduler, Ref, Dictionary, Bootstrap
+Cohesion: 0.09
+Nodes (7): Application, IEngineRunner, MainThreadScheduler, Ref, Dictionary, Type, Bootstrap
+
+### Community 269 - "Community 269"
+Cohesion: 0.21
+Nodes (6): DestroySystem, IEcsDestroy, EcsProcess, IReadOnlyList, SystemExecutionNode, EcsRunParallelRunner
 
 ### Community 270 - "Community 270"
-Cohesion: 0.18
-Nodes (10): MethodImpl, SemaphoreSlim, Thread, JobSystem, Action, bool, CancellationTokenSource, int (+2 more)
+Cohesion: 0.11
+Nodes (15): Job, bool, ConcurrentQueue, int, MethodImpl, SemaphoreSlim, Thread, JobSystem (+7 more)
 
 ### Community 272 - "Community 272"
 Cohesion: 0.22
 Nodes (8): Common Mistakes, Core Rule, Debug vs Release, Karpik Memory, Ownership Rules, Pick The Right Primitive, References, Testing And Verification
 
 ### Community 273 - "Community 273"
-Cohesion: 0.18
+Cohesion: 0.22
 Nodes (9): IPC, Job System, Performance Overview, Process Isolation, SimpleNativeArray, 📊 Метрики, 🔴 Проблемы, 🔗 Связанные документы (+1 more)
 
 ### Community 274 - "Community 274"
@@ -2452,36 +2213,28 @@ Cohesion: 0.22
 Nodes (8): Архитектурные изменения в коде, План рефакторинга Graphics модуля, Текущие риски, Цель, Этап 1: Рефакторинг Command Buffer (API), Этап 2: Оптимизация рендеринга (Batching), Этап 3: Жизненный цикл и Асинхронность, Этап 4: Интеграция и Тесты
 
 ### Community 275 - "Community 275"
-Cohesion: 0.12
-Nodes (10): EditorDockFactory, Factory, bool, Task, MainWindow, KeyEventArgs, PointerPressedEventArgs, RoutedEventArgs (+2 more)
+Cohesion: 0.09
+Nodes (13): DockLayoutStore, EditorDockFactory, DockSerializer, Factory, bool, Task, WindowClosingEventArgs, MainWindow (+5 more)
 
 ### Community 276 - "Community 276"
 Cohesion: 0.22
 Nodes (9): 🔧 ECS-системы, Network.Shared, 🔗 Зависимости, 💡 Использование, 🎯 Назначение, 📋 Обзор, ⚠️ Особенности, 📦 Сервисы (+1 more)
 
 ### Community 277 - "Community 277"
-Cohesion: 0.24
-Nodes (6): DebuggerProxy, EntityDebuggerProxy, EntitySlotInfo, StateFlag, DCFApixels.DragonECS.Core.Unchecked, StateFlag
+Cohesion: 0.25
+Nodes (5): BundleTree, Side, RunnerLaunchArguments, Fact, RunnerArgumentsTests
 
 ### Community 278 - "Community 278"
-Cohesion: 0.24
-Nodes (6): string, EngineInstallationResolutionCode, EngineInstallationResolutionResult, EngineInstallationResolver, Fact, GlobalJsonAndResolverTests
+Cohesion: 0.11
+Nodes (15): string, EngineInstallationResolutionCode, EngineInstallationResolutionResult, EngineInstallationResolver, GlobalJsonSdkVersionCode, GlobalJsonSdkVersionReader, GlobalJsonSdkVersionResult, Fact (+7 more)
 
 ### Community 279 - "Community 279"
-Cohesion: 0.17
-Nodes (3): LiteNetLibNetworkManager, EventBasedNetListener, NetManager
+Cohesion: 0.28
+Nodes (4): TextureLoader, TextureAsset, ITexture2D, ResourceFactory
 
 ### Community 281 - "Community 281"
 Cohesion: 0.22
 Nodes (9): Architecture Overview, 💥 Collision Events System, Collision Filtering, ECS Integration, Event Buffer (Lock-free for threading), Event Types, ICollisionCallback Interface, Performance Notes (+1 more)
-
-### Community 282 - "Community 282"
-Cohesion: 0.15
-Nodes (6): DestroyNetworkClientSystem, UpdateNetworkClientSystem, Karpik.Engine.Client.Network.LiteNetLib.Systems, Karpik.Engine.Client.Network.LiteNetLib, Karpik.Engine.Shared.Network.LiteNetLib.Configs, NetworkConfig
-
-### Community 283 - "Community 283"
-Cohesion: 0.23
-Nodes (4): DebuggerProxy, IQueryExecutorImplementation, MaskQueryExecutor, EcsWorld
 
 ### Community 284 - "Community 284"
 Cohesion: 0.14
@@ -2491,13 +2244,17 @@ Nodes (13): Implementation, Action, Fact, Id, InlineData, IReadOnlyList, List, O
 Cohesion: 0.22
 Nodes (9): Karpik.Engine.ProjectModel, net10.0, Microsoft.NET.Sdk, Karpik.Engine.ProjectModel.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2) (+1 more)
 
+### Community 286 - "Community 286"
+Cohesion: 0.22
+Nodes (7): DateTime, JsonSerializerOptions, int, IReadOnlyList, StringComparer, ProjectRegistry, Fact
+
 ### Community 287 - "Community 287"
 Cohesion: 0.25
 Nodes (8): Graphics, Window, and Input, Hot Reload, Key Changes, Lifecycle and ECS, Modules and Validation, Physics2D and Game Sample, Upgrade Notes, v0.4
 
 ### Community 288 - "Community 288"
-Cohesion: 0.11
-Nodes (7): ModMetaDataAsset, EventModMethods, ExecutionSide, IModContainer, ModdingInstaller, ModMetaData, Karpik.Engine.Shared.Modding
+Cohesion: 0.08
+Nodes (9): JsonLoader, ComponentsTemplateLoader, ModMetaDataLoader, ModMetaDataAsset, EventModMethods, ExecutionSide, IModContainer, ModMetaData (+1 more)
 
 ### Community 289 - "Community 289"
 Cohesion: 0.25
@@ -2508,7 +2265,7 @@ Cohesion: 0.25
 Nodes (7): Changelog Format, Links, Maintaining Changelogs, Overview, Review Checklist, Semantic Versioning, Workflow
 
 ### Community 291 - "Community 291"
-Cohesion: 0.20
+Cohesion: 0.25
 Nodes (8): Architecture Overview, 🔄 Process Isolation, TDD (Test-Driven Development), 📦 Внешние зависимости, 📐 Принципы разработки, 🔗 Связанные документы, 🏗️ Структура проекта, Файловая организация
 
 ### Community 292 - "Community 292"
@@ -2520,16 +2277,12 @@ Cohesion: 0.25
 Nodes (7): Alternatives Considered, Consequences, Context, Decision, Links, Native Memory Ownership, Validation
 
 ### Community 294 - "Community 294"
-Cohesion: 0.12
-Nodes (14): Архитектура, Дополнительные ресурсы, 🔗 Зависимости между фазами, 📊 Оценка времени, 🎯 Приоритеты, 📋 Текущее состояние, Улучшение сетевой подсистемы, 📁 Файлы для изменения (+6 more)
-
-### Community 295 - "Community 295"
-Cohesion: 0.09
-Nodes (10): AttributeUsageAttribute, AccessDecoratedSystem, MetadataComponentA, MetadataComponentB, OrderDecoratedSystem, PredecessorSystem, SchedulerMetadataAttributeTests, SuccessorSystem (+2 more)
+Cohesion: 0.25
+Nodes (6): 🔴 P0 - Critical, 🟡 P1 - High, 🟢 P2 - Medium, Roadmap, 🔗 Связанные документы, 📊 Статус
 
 ### Community 296 - "Community 296"
-Cohesion: 0.25
-Nodes (5): Item, LayerSystemsList, IComparable, Item, LayerSystemsList
+Cohesion: 0.15
+Nodes (11): IComparable, Item, LayerSystemsList, bool, int, ReadOnlySpan, string, Item (+3 more)
 
 ### Community 297 - "Community 297"
 Cohesion: 0.25
@@ -2551,49 +2304,61 @@ Nodes (7): Links, Prevention, Resolution, Root Cause, <Short Postmortem Title>, 
 Cohesion: 0.25
 Nodes (8): Phase 1: Core (DONE), Phase 2: Layout (DONE), Phase 3: Events (DONE), Phase 4: Styles (DONE), Phase 5: Input (DONE), Phase 6: MVVM (NOT IMPLEMENTED), Phase 7: Tables (NOT IMPLEMENTED), Roadmap
 
+### Community 302 - "Community 302"
+Cohesion: 0.43
+Nodes (5): To, DependencyIndex, Dictionary, List, Stack
+
 ### Community 303 - "Community 303"
-Cohesion: 0.18
-Nodes (5): ModuleRegistratorGenerator, EcsUpdateRegistryGeneratorTests, GeneratedSourceResult, Karpik.Engine.Core.Codegen, IAssemblySymbol
+Cohesion: 0.25
+Nodes (6): ComponentAccessMetadata, SystemMetadata, SystemOrderMetadata, ComponentAccessMetadata, Karpik.Engine.Core.Codegen, SystemOrderMetadata
 
 ### Community 305 - "Community 305"
-Cohesion: 0.24
-Nodes (7): DateTime, JsonSerializerOptions, int, IReadOnlyList, StringComparer, ProjectRegistry, Fact
+Cohesion: 0.03
+Nodes (42): Attribute, ModuleAttribute, EcsAccessAttribute, EcsAccessMode, EcsComponentAccessDescriptor, EcsOrderAttribute, EcsOrderKind, EcsSystemOrderDescriptor (+34 more)
 
 ### Community 306 - "Community 306"
-Cohesion: 0.07
-Nodes (11): CommandBufferDrawExtensions, DrawTextCmd, DrawTextureCmd, GraphicsLoadTestRenderPrepareSystem, GraphicsLoadTestResources, ICommandBuffer, AtlasFont, IFont (+3 more)
+Cohesion: 0.06
+Nodes (12): CommandBufferDrawExtensions, DrawTextCmd, DrawTextureCmd, GraphicsLoadTestRenderPrepareSystem, GraphicsLoadTestResources, ICommandBuffer, AtlasFont, IFont (+4 more)
 
 ### Community 307 - "Community 307"
-Cohesion: 0.12
-Nodes (5): GlobalCommandCollector, GlobalCommandIdCoordinator, CommandInfo, FieldInfo, Network.Codegen
+Cohesion: 0.15
+Nodes (4): CommandIdDebugger, CommandIdManager, GlobalCommandCollector, Network.Codegen
+
+### Community 308 - "Community 308"
+Cohesion: 0.18
+Nodes (10): PageSlot, sbyte, bool, IEnumerator, int, IntPtr, uint, DebuggerProxy (+2 more)
 
 ### Community 309 - "Community 309"
 Cohesion: 0.27
 Nodes (4): Program, VertexPositionColor, TestVeldrid, RgbaFloat
 
+### Community 310 - "Community 310"
+Cohesion: 0.23
+Nodes (8): Comparer, IComparer, ComparableWrapper, ComparerWrapper, ComparisonWrapper, Comparison, Func, MethodImpl
+
+### Community 311 - "Community 311"
+Cohesion: 0.28
+Nodes (3): CancellationToken, Task, NeverExitsProcess
+
 ### Community 312 - "Community 312"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (12): FileStamp, ITestOutputHelper, Dictionary, IReadOnlyDictionary, IReadOnlyList, List, string, StringComparison (+4 more)
 
 ### Community 313 - "Community 313"
-Cohesion: 0.29
-Nodes (6): FullPath, byte, List, UTF8Encoding, EngineContentHash, RelativePath
+Cohesion: 0.39
+Nodes (3): Fact, Type, JobSystemCompatibilityBoundaryTests
 
 ### Community 314 - "Community 314"
 Cohesion: 0.12
 Nodes (5): AssetHandle, AssetPath, IFileSystem, JobHandle, Type
 
 ### Community 315 - "Community 315"
-Cohesion: 0.39
-Nodes (4): Fact, InlineData, Theory, EditorProjectBuildContractTests
+Cohesion: 0.12
+Nodes (15): Aspects And Queries, Avoid, Components And Pools, DragonECS Agent Notes, Entities, Events And Requests, First Rule, If Asked To Modify DragonECS (+7 more)
 
 ### Community 316 - "Community 316"
 Cohesion: 0.29
 Nodes (6): Components, Core Model, Hot Path Rules, Karpik Dragon ECS, Pool Access, Preferred Filtering: EcsAspect
-
-### Community 317 - "Community 317"
-Cohesion: 0.09
-Nodes (8): NullComponent, IEcsClassPool, IEcsHybridPool, IEcsPoolEventListener, IEcsPoolImplementationExtensions, IEcsReadonlyPool, IEcsStructPool, PoolEventListExtensions
 
 ### Community 318 - "Community 318"
 Cohesion: 0.29
@@ -2608,8 +2373,8 @@ Cohesion: 0.29
 Nodes (6): Edge Cases, Integration Tests, Karpik Testing, Performance Tests, Property-Based Testing, Required Coverage
 
 ### Community 322 - "Community 322"
-Cohesion: 0.33
-Nodes (5): string, EngineInstallationProvider, EngineInstallationSelection, IEngineInstallationProvider, FakeInstallationProvider
+Cohesion: 0.14
+Nodes (14): Aspect, Collections, ECS Root, EcsGroup, EcsSpan, Example for Unity, Framework Concepts, Generic example (+6 more)
 
 ### Community 323 - "Community 323"
 Cohesion: 0.29
@@ -2639,37 +2404,41 @@ Nodes (7): Programmatic определение, Глобальные ресур�
 Cohesion: 0.29
 Nodes (7): Styles (Стили), Каскад, Наследуемые свойства, Определение стилей, Применение стилей, Принцип: CSS-like, Селекторы
 
+### Community 332 - "Community 332"
+Cohesion: 0.18
+Nodes (10): GraphComponentA, GraphComponentB, GraphComponentC, GraphReadA, GraphReadA2, GraphReadB, GraphSequential, GraphWriteA (+2 more)
+
 ### Community 333 - "Community 333"
 Cohesion: 0.32
 Nodes (3): Preset2DPipeline, TextureResources, Karpik.Engine.Client.Graphics.Core.Sets
 
 ### Community 334 - "Community 334"
-Cohesion: 0.22
-Nodes (9): Karpik.Engine.Sdk.IntegrationTests, net10.0, Microsoft.NET.Test.Sdk (18.0.1), xunit.runner.visualstudio (3.1.5), xunit.v3 (3.2.2), Microsoft.NET.Sdk, Karpik.Engine.Sdk, net10.0 (+1 more)
+Cohesion: 0.14
+Nodes (14): EcsGroup, EcsSpan, ECS入口, Unity示例, 世界, 世界配置, 公用示例, 掩码 (+6 more)
 
 ### Community 335 - "Community 335"
-Cohesion: 0.15
-Nodes (8): LiteNetLibDisconnectInfo, LiteNetLibWriter, ConnectionState, DeliveryMethod, PacketType, Karpik.Engine.Shared.Network.LiteNetLib, Karpik.Engine.Shared.Network.Core, NetDataWriter
+Cohesion: 0.29
+Nodes (6): FullPath, byte, List, UTF8Encoding, EngineContentHash, RelativePath
 
 ### Community 336 - "Community 336"
-Cohesion: 0.18
-Nodes (10): GraphComponentA, GraphComponentB, GraphComponentC, GraphReadA, GraphReadA2, GraphReadB, GraphSequential, GraphWriteA (+2 more)
+Cohesion: 0.40
+Nodes (3): SystemAccess, TypeMetadataComparer, TypeMetadataComparer
 
-### Community 337 - "Community 337"
-Cohesion: 0.22
-Nodes (7): CultureInfo, INotifyPropertyChanged, LocalizationService, RecentProject, ICommand, ObservableCollection, ILauncherViewModel
+### Community 338 - "Community 338"
+Cohesion: 0.15
+Nodes (13): EcsGroup, EcsSpan, Аспект, Запросы, Коллекции, Концепции фреймворка, Корень ECS, Маска (+5 more)
 
 ### Community 339 - "Community 339"
 Cohesion: 0.29
 Nodes (6): Func, Task, ConsoleMessageCopy, Fact, Task, ConsoleMessageCopyTests
 
 ### Community 341 - "Community 341"
-Cohesion: 0.25
-Nodes (5): Fact, InlineData, Task, Theory, LauncherViewModelTests
+Cohesion: 0.16
+Nodes (12): AccessAnalysisResult, ITypeParameterSymbol, OperationWalker, Action, bool, Dictionary, Func, ImmutableArray (+4 more)
 
 ### Community 342 - "Community 342"
-Cohesion: 0.29
-Nodes (4): ConcurrentBag, Func, MethodImpl, ObjectPool
+Cohesion: 0.25
+Nodes (6): AttributeData, SchedulerAccessMode, List, AccessAnalysisResult, SchedulerAccess, SchedulerAccessMode
 
 ### Community 343 - "Community 343"
 Cohesion: 0.50
@@ -2686,10 +2455,6 @@ Nodes (3): FontAtlasData, FontAtlasParser, FontAtlasMetrics
 ### Community 346 - "Community 346"
 Cohesion: 0.33
 Nodes (5): KarpikEngine Performance, Preferred Patterns, Real-Time Gate, Three-Level Answer Pattern, Validation
-
-### Community 347 - "Community 347"
-Cohesion: 0.27
-Nodes (4): CancellationToken, IReadOnlyList, string, TestSolution
 
 ### Community 348 - "Community 348"
 Cohesion: 0.33
@@ -2716,8 +2481,8 @@ Cohesion: 0.33
 Nodes (5): Constraints, ImGui Overlay, Input Capture, Runtime, Writing A Panel
 
 ### Community 354 - "Community 354"
-Cohesion: 0.22
-Nodes (4): DebuggerProxy, Enumerator, ID, IDState
+Cohesion: 0.16
+Nodes (7): DebuggerProxy, Dictionary, EcsWorld, List, IQueryExecutorImplementation, MaskQueryExecutor, EcsWorld
 
 ### Community 355 - "Community 355"
 Cohesion: 0.33
@@ -2731,53 +2496,49 @@ Nodes (6): Hit Testing, Input (Ввод), Quadtree (потом, если пон�
 Cohesion: 0.33
 Nodes (6): Layout (Компоновка), Как работает, Пример, Производительность, Свойства контейнера, Упрощённый Flexbox
 
-### Community 358 - "Community 358"
-Cohesion: 0.29
-Nodes (5): AttributeData, AccessAnalysisResult, SchedulerAccess, SchedulerAccessMode, SchedulerAccessMode
-
 ### Community 359 - "Community 359"
-Cohesion: 0.48
-Nodes (6): IClientRpcCommand, IEventCommand, INetCommand, IStateCommand, ITargetRpcCommand, NetworkId
+Cohesion: 0.24
+Nodes (4): char, int, MethodImpl, BitsUtility
 
 ### Community 360 - "Community 360"
-Cohesion: 0.05
-Nodes (23): DebuggerProxy, PageSlot, EntitySlot, IntExtensions, IsEnableAutoReleaseDelEntBufferScope, GetPoolInstanceMarker, PoolSlot, PoolsMediator (+15 more)
+Cohesion: 0.09
+Nodes (11): IsExternalInit, DCFApixels.DragonECS.Core.Internal, Unity.IL2CPP.CompilerServices, System.Runtime.CompilerServices, DCFApixels.DragonECS.Core, DCFApixels.DragonECS.Core.Unchecked, int, EcsWorldConfig (+3 more)
+
+### Community 361 - "Community 361"
+Cohesion: 0.24
+Nodes (7): char, IReadOnlyCollection, ReadOnlySpan, string, Type, MetaGroup, MetaGroupAttribute
 
 ### Community 362 - "Community 362"
-Cohesion: 0.33
-Nodes (3): DockContextDataTemplate, Control, IDataTemplate
+Cohesion: 0.21
+Nodes (6): EcsGroup, EcsReadonlyGroup, entlong, MethodImpl, ReadOnlySpan, UncheckedUtility
 
 ### Community 363 - "Community 363"
-Cohesion: 0.13
-Nodes (8): Dictionary, IReadOnlyList, string, StringComparer, XDocument, XElement, ProjectInputLease, Retention
+Cohesion: 0.10
+Nodes (12): Dictionary, int, IReadOnlyList, object, Stream, string, StringComparer, XDocument (+4 more)
 
 ### Community 364 - "Community 364"
 Cohesion: 0.33
 Nodes (5): commandName, targetProject, profiles, DebugRoslynSourceGenerator, $schema
 
-### Community 366 - "Community 366"
-Cohesion: 0.05
-Nodes (37): Karpik.Jobs.Benchmarks, Karpik.Jobs.Tests, Karpik.Memory.Benchmarks, Karpik.Memory, Karpik.Memory.Tests, net10.0, Microsoft.NET.Sdk, net10.0 (+29 more)
+### Community 365 - "Community 365"
+Cohesion: 0.25
+Nodes (4): KarpikGame.Launcher, ProcessStartInfo, Task, EngineLauncher
 
-### Community 367 - "Community 367"
-Cohesion: 0.33
-Nodes (3): ProjectType, ProjectTypeDetector, ProjectType
+### Community 366 - "Community 366"
+Cohesion: 0.06
+Nodes (28): Karpik.Jobs.Benchmarks, Karpik.Jobs.Tests, Karpik.Memory.Benchmarks, Karpik.Memory, Karpik.Memory.Tests, net10.0, Microsoft.NET.Sdk, netstandard2.0 (+20 more)
 
 ### Community 369 - "Community 369"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (5): UseWorldAnalyzer, DoNotUseDragonLifecycleAnalyzer, SchedulerDiagnosticDescriptors, StaticAnalyzer.ECS, DiagnosticAnalyzer
 
 ### Community 370 - "Community 370"
 Cohesion: 0.22
 Nodes (7): net10.0, Microsoft.NET.Sdk, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2), Microsoft.NET.Sdk
 
-### Community 372 - "Community 372"
-Cohesion: 0.25
-Nodes (7): DllImport, FileAttributeTagInformation, int, IntPtr, MarshalAs, SafeFileHandle, NativeLease
-
-### Community 375 - "Community 375"
-Cohesion: 0.21
-Nodes (4): Client, Server, Karpik.Engine.Client.Publish, Karpik.Engine.Publish.Server
+### Community 371 - "Community 371"
+Cohesion: 0.50
+Nodes (4): Debug, EcsDebug, Мета-Атрибуты, Профилирование
 
 ### Community 376 - "Community 376"
 Cohesion: 0.33
@@ -2795,21 +2556,17 @@ Nodes (5): netstandard2.0, Microsoft.CodeAnalysis.Analyzers (3.3.4), Microsoft.C
 Cohesion: 0.33
 Nodes (5): 🏗 Architecture & Entry Points, [Name] Module AGENT Guide, ⚡ Performance Context, 🎯 Purpose, 🔗 Usage for AI
 
-### Community 380 - "Community 380"
-Cohesion: 0.40
-Nodes (3): AppBuilder, STAThread, Program
-
 ### Community 381 - "0.5 Scheduler / Jobs / Memory"
-Cohesion: 0.43
-Nodes (4): EditorLaunchDescriptor, EditorResolutionCode, EditorResolutionResult, EditorResolver
+Cohesion: 0.33
+Nodes (5): int, Stopwatch, string, MarkerData, MarkerInfo
 
 ### Community 382 - "Community 382"
-Cohesion: 0.40
-Nodes (3): EditorEntitySnapshot, EditorRuntimeSnapshot, EditorSnapshotLimits
+Cohesion: 0.29
+Nodes (4): EditorEntitySnapshot, EditorRuntimeSnapshot, EditorSnapshotLimits, TimeSpan
 
 ### Community 383 - "Community 383"
-Cohesion: 0.22
-Nodes (9): Karpik.Engine.Tooling, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Tooling.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2) (+1 more)
+Cohesion: 0.33
+Nodes (6): Karpik.Engine.Tooling.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2), Microsoft.NET.Sdk
 
 ### Community 384 - "Community 384"
 Cohesion: 0.40
@@ -2843,9 +2600,13 @@ Nodes (4): Physics 2D API Specification, RigidBodyComponent, Компонент�
 Cohesion: 0.40
 Nodes (4): KarpikEngine Documentation, 🎯 Быстрые ссылки, 📑 Разделы, 📁 Структура
 
+### Community 393 - "Community 393"
+Cohesion: 0.22
+Nodes (7): Alternatives Considered, Consequences, Context, Decision, Deterministic Module Graph, Links, Validation
+
 ### Community 394 - "Community 394"
-Cohesion: 0.33
-Nodes (5): ComponentAccessMetadata, SystemMetadata, SystemOrderMetadata, ComponentAccessMetadata, SystemOrderMetadata
+Cohesion: 0.32
+Nodes (5): char, int, string, DragonMetaAttributeHalper, SplitStream
 
 ### Community 395 - "Community 395"
 Cohesion: 0.40
@@ -2875,21 +2636,17 @@ Nodes (3): Agent Workflow, KarpikEngine Knowledge Base, Layout
 Cohesion: 0.50
 Nodes (4): Core, IRenderer — интерфейс рендерера, UiTypeId — типы элементов, Базовые типы
 
+### Community 405 - "Community 405"
+Cohesion: 0.29
+Nodes (4): ArrayPool, ShaderLoader, ShaderAsset, BaseAssetLoader
+
 ### Community 409 - "Community 409"
 Cohesion: 0.25
 Nodes (3): DiagnosticIds, SchedulerDiagnosticDescriptorTests, StaticAnalyzer
 
-### Community 410 - "Community 410"
-Cohesion: 0.31
-Nodes (4): Karpik.Engine.Packager, SelectedModuleProject, Program, TextWriter
-
 ### Community 411 - ".Create"
-Cohesion: 0.47
-Nodes (3): IEzRangeStat, IRangeStat, IStat
-
-### Community 412 - "Community 412"
-Cohesion: 0.07
-Nodes (12): JobHandleCompletionSource, Karpik.Jobs.Tests, Karpik.Jobs, JobExecutor, JobForExecutor, JobProfilerHooks, JobRuntimeDiagnostics, NoOpJob (+4 more)
+Cohesion: 0.31
+Nodes (4): InjectionNodeBase, EcsPipeline, EcsProcess, InjectionNode
 
 ### Community 413 - "Community 413"
 Cohesion: 0.50
@@ -2900,36 +2657,40 @@ Cohesion: 0.16
 Nodes (9): Func, string, AtomicDirectoryPublisher, StringComparison, PathSafety, Fact, AtomicDirectoryPublisherTests, Staging (+1 more)
 
 ### Community 415 - "Community 415"
-Cohesion: 0.50
-Nodes (4): EcsConsts, EcsDefines, Il2CppSetOptionAttribute, Option
+Cohesion: 0.39
+Nodes (4): MemberInfo, MethodImpl, Type, ReflectionUtility
 
 ### Community 416 - "Community 416"
-Cohesion: 0.12
-Nodes (12): CancellationToken, IReadOnlyList, Process, ProcessStartInfo, Task, TimeSpan, DotNetProcessRunner, DotNetProcessTerminationException (+4 more)
+Cohesion: 0.09
+Nodes (17): CancellationToken, IReadOnlyList, Process, ProcessStartInfo, Task, TimeSpan, DotNetProcessRunner, DotNetProcessTerminationException (+9 more)
 
 ### Community 417 - "Community 417"
-Cohesion: 0.23
-Nodes (7): EditorRuntimeDescriptor, EditorPreviewBackendFactory, EditorRuntimeDescriptor, ProjectRuntimeResolver, Fact, ProjectRuntimeResolverTests, RuntimeLayout
+Cohesion: 0.14
+Nodes (11): Side, EditorRuntimeDescriptor, EditorPreviewBackendFactory, EditorRuntimeDescriptor, ProjectRuntimeResolver, Fact, ProjectRuntimeResolverTests, RuntimeLayout (+3 more)
 
 ### Community 418 - "Community 418"
 Cohesion: 0.12
 Nodes (11): net10.0, Microsoft.NET.Sdk, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2), Microsoft.NET.Sdk, net10.0 (+3 more)
 
+### Community 419 - "Community 419"
+Cohesion: 0.36
+Nodes (4): Dictionary, List, StringBuilder, JsonDebugger
+
 ### Community 421 - "Community 421"
-Cohesion: 0.08
-Nodes (22): KarpikDiagnostic, KarpikProjectDescriptor, Stream, FileSystemKarpikProjectInputProvider, IKarpikProjectInputProvider, StringComparer, KarpikPathPolicy, KarpikProjectReadStatus (+14 more)
+Cohesion: 0.12
+Nodes (14): KarpikProjectDescriptor, Stream, FileSystemKarpikProjectInputProvider, IKarpikProjectInputProvider, StringComparer, KarpikPathPolicy, KarpikProjectReadStatus, IEnumerable (+6 more)
 
 ### Community 422 - "Community 422"
 Cohesion: 0.67
 Nodes (3): Optional: MonoGame/FNA Compatibility Layer, Scope, Не делать
 
 ### Community 424 - "SystemVector3Interpolator"
-Cohesion: 0.03
-Nodes (34): IRunner, ModuleStagingCleanup, CustomLayers, ModuleStagingCleanupTests, Time, LoadedFont, ShaderLoader, TextureLoader (+26 more)
+Cohesion: 0.04
+Nodes (27): JobHandleCompletionSource, IRunner, ModuleStagingCleanup, CustomLayers, ModuleStagingCleanupTests, LoadedFont, EcsWorldExtensions, EntitySnapshot (+19 more)
 
 ### Community 438 - "FixedUpdateSystem"
-Cohesion: 0.10
-Nodes (7): DebugServiceExtensions, MarkerData, NullDebugService, EcsDebug, MarkerInfo, DebugService, OnPrintHandler
+Cohesion: 0.06
+Nodes (17): AutoScope, DebugService, HideInCallstack, MarkerData, OnPrintHandler, char, Dictionary, HashSet (+9 more)
 
 ### Community 439 - "EcsRunLateRunner"
 Cohesion: 0.33
@@ -2943,21 +2704,37 @@ Nodes (5): Editor Console Copy Implementation Plan, Global Constraints, Task 1: 
 Cohesion: 0.33
 Nodes (5): net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2), Microsoft.NET.Sdk
 
+### Community 447 - "ProcessManagerLifecycleTests.cs"
+Cohesion: 0.43
+Nodes (5): ComponentLifecycleContext, ComponentLifecycleTrace, bool, int, LifecycleComponent
+
 ### Community 448 - "ISystemMainThreadBegin"
 Cohesion: 0.50
 Nodes (3): net10.0, LiteNetLib (1.3.1), Microsoft.NET.Sdk
+
+### Community 450 - "FileSystemKarpikProjectInputProvider"
+Cohesion: 0.33
+Nodes (3): ProjectType, ProjectTypeDetector, ProjectType
+
+### Community 451 - "Vertex2D"
+Cohesion: 0.24
+Nodes (4): BoundedLog, Fact, Task, EditorWorkspaceTests
 
 ### Community 452 - ".Init"
 Cohesion: 0.24
 Nodes (6): Fact, MsBuildProjectEvaluation, ProjectRuntimeDescriptor, Task, Trait, PreviewIntegrationTests
 
+### Community 454 - "Реализация"
+Cohesion: 0.11
+Nodes (7): ISystemLateUpdate, Physics2DBodyDestroyer, PhysicsPullSystem, TweenUpdatePausableSystem, TweenUpdateSystem, GTweensContext, Tween
+
 ### Community 455 - "Community 455"
-Cohesion: 0.17
-Nodes (8): IReadOnlyList, CancellationToken, Fact, Task, TaskCompletionSource, ValueTask, FakeProcess, MsBuildProjectInspectorTests
+Cohesion: 0.18
+Nodes (7): CancellationToken, Fact, Task, TaskCompletionSource, ValueTask, FakeProcess, MsBuildProjectInspectorTests
 
 ### Community 456 - "Community 456"
-Cohesion: 0.13
-Nodes (7): EnginePayloadBuilder, EnginePayloadBuildResult, Fact, IReadOnlyDictionary, EnginePayloadBuilderTests, FakeRepository, PreparedPayload
+Cohesion: 0.11
+Nodes (9): Karpik.Engine.Packager, EnginePayloadBuilder, EnginePayloadBuildResult, Fact, IReadOnlyDictionary, EnginePayloadBuilderTests, FakeRepository, PackagerTemporaryDirectory (+1 more)
 
 ### Community 457 - "Graphics.Core.csproj"
 Cohesion: 0.50
@@ -2984,132 +2761,196 @@ Cohesion: 0.50
 Nodes (3): net10.0, Microsoft.NET.Sdk, MoonSharp (2.0.0)
 
 ### Community 466 - "Community 466"
-Cohesion: 0.20
-Nodes (5): MsBuildProjectEvaluation, ICollection, IReadOnlyList, StringComparer, ProjectOpenService
+Cohesion: 0.10
+Nodes (12): IReadOnlyList, IMsBuildProjectInspector, MsBuildProjectEvaluation, ICollection, IReadOnlyList, StringComparer, ProjectOpenService, CancellationToken (+4 more)
 
 ### Community 467 - "IEquatable"
 Cohesion: 0.40
 Nodes (3): BootstrapBoundaryTests, Fact, WorkingDirectoryCollection
 
+### Community 470 - "IStat"
+Cohesion: 0.18
+Nodes (4): ISystemRenderPrepare, CountingRenderPrepareSystem, EcsRenderPrepareScheduler, EcsRenderPrepareRunner
+
 ### Community 471 - "Community 471"
-Cohesion: 0.19
-Nodes (5): Fact, InlineData, Theory, ManifestAndValidationTests, TestInstallation
+Cohesion: 0.18
+Nodes (6): BundleTree, Fact, InlineData, Theory, ManifestAndValidationTests, TestInstallation
+
+### Community 476 - "IEnumerator"
+Cohesion: 0.29
+Nodes (7): ECS.Core.Tests, net10.0, Microsoft.NET.Test.Sdk (17.12.0), xunit (2.9.2), xunit.runner.visualstudio (2.8.2), Microsoft.NET.Sdk, ECS.Core
+
+### Community 478 - "IntPtr"
+Cohesion: 0.29
+Nodes (7): Building, Dependency Injection, Layers, Modules, Pipeline, Sorting, Sorting Order
+
+### Community 479 - "List"
+Cohesion: 0.29
+Nodes (7): Внедрение зависимостей, Модули, Пайплайн, Порядок сортировки, Построение, Слои, Сортировка
+
+### Community 480 - "long"
+Cohesion: 0.29
+Nodes (7): 依赖注入, 初始化, 层级, 排序, 排序顺序, 模块, 管线
+
+### Community 482 - "Obsolete"
+Cohesion: 0.18
+Nodes (8): Karpik.Launcher.Localization, CultureInfo, INotifyPropertyChanged, LocalizationService, RecentProject, ICommand, ObservableCollection, ILauncherViewModel
+
+### Community 483 - "Stack"
+Cohesion: 0.20
+Nodes (4): bool, Span, NonClosingStream, SeekOrigin
+
+### Community 484 - "Widgets (Виджеты)"
+Cohesion: 0.50
+Nodes (3): IReadOnlyList, ITaskItem, ValidateKarpikProjectReferencesTask
+
+### Community 485 - "EcsWorld"
+Cohesion: 0.60
+Nodes (3): RuntimeTypeHandleKey, MethodImpl, RuntimeTypeHandleKey
 
 ### Community 486 - "Community 486"
-Cohesion: 0.24
-Nodes (10): Karpik.Engine.Core.Runner.TestWorker, byte, CancellationToken, NamedPipeClientStream, SemaphoreSlim, Task, Type, Program (+2 more)
+Cohesion: 0.33
+Nodes (8): byte, CancellationToken, NamedPipeClientStream, SemaphoreSlim, Task, Type, Program, Payload
 
 ### Community 488 - "Community 488"
-Cohesion: 0.16
-Nodes (11): net10.0, Karpik.Engine.Sdk, net10.0, Karpik.Engine.Sdk, net10.0, Karpik.Engine.Sdk, net10.0, Microsoft.NET.Test.Sdk (18.0.1) (+3 more)
+Cohesion: 0.12
+Nodes (15): net10.0, Karpik.Engine.Sdk, net10.0, Karpik.Engine.Sdk, net10.0, Karpik.Engine.Sdk, net10.0, Karpik.Engine.Sdk (+7 more)
+
+### Community 489 - "Enumerator"
+Cohesion: 0.29
+Nodes (4): Fact, EditorResolverTests, Fact, TestWorkspace
 
 ### Community 491 - "Community 491"
 Cohesion: 0.06
 Nodes (25): AssemblyLoadContext, AssemblyName, Karpik.Engine.Core.ModuleManagement, Assembly, EngineModuleDescriptor, string, EngineModuleDescriptor, ModuleLoader (+17 more)
 
-### Community 494 - "Community 494"
-Cohesion: 0.33
-Nodes (5): GlobalJsonSdkVersionCode, GlobalJsonSdkVersionReader, GlobalJsonSdkVersionResult, InlineData, Theory
-
 ### Community 495 - "Community 495"
 Cohesion: 0.10
-Nodes (10): Karpik.Engine.Tooling.Tests, Karpik.Engine.Tooling, JsonException, BundleTree, int, EditorExitCodes, ManifestContractException, TrackingMovePublisher (+2 more)
+Nodes (11): Karpik.Engine.Tooling.Tests, Karpik.Engine.Tooling, JsonException, SelectedModuleProject, int, EditorExitCodes, ManifestContractException, TrackingMovePublisher (+3 more)
 
 ### Community 497 - "Network.Client.LiteNetLib.csproj"
 Cohesion: 0.50
 Nodes (3): net10.0, LiteNetLib (1.3.1), Microsoft.NET.Sdk
 
+### Community 501 - "short"
+Cohesion: 0.50
+Nodes (4): Debugging, Example with Unity Jobs, Multithreading, Principles
+
+### Community 505 - "bool"
+Cohesion: 0.50
+Nodes (4): Многопоточность, Отладка, Пример с Unity Jobs, Принцип работы
+
+### Community 506 - "EcsWorld"
+Cohesion: 0.50
+Nodes (4): Debugging, Unity Jobs 示例, 基本原则, 多线程
+
+### Community 508 - "JobHandleMethodBuilder"
+Cohesion: 0.22
+Nodes (3): CancellationTokenSource, JobHandleMethodBuilder, IAsyncStateMachine
+
+### Community 509 - ".GetDiagnostics"
+Cohesion: 0.39
+Nodes (3): JobRuntimeDiagnostics, Fact, JobRuntimeDiagnosticsTests
+
 ### Community 514 - "Community 514"
-Cohesion: 0.15
-Nodes (13): Karpik.Engine.Sdk.Tasks, net10.0, Microsoft.Build.Framework (17.8.3), Microsoft.Build.Utilities.Core (17.8.3), Microsoft.NET.Sdk, Karpik.Engine.Sdk.Tasks.Tests, net10.0, Microsoft.Build.Framework (17.11.31) (+5 more)
+Cohesion: 0.12
+Nodes (16): Karpik.Engine.Sdk, net10.0, Microsoft.NET.Sdk, Karpik.Engine.Sdk.Tasks, net10.0, Microsoft.Build.Framework (17.8.3), Microsoft.Build.Utilities.Core (17.8.3), Microsoft.NET.Sdk (+8 more)
 
 ### Community 515 - "Community 515"
 Cohesion: 0.13
 Nodes (14): CancellationToken, Task, TimeSpan, EditorPreviewBackend, bool, CancellationToken, int, object (+6 more)
 
-### Community 550 - "Community 550"
-Cohesion: 0.50
-Nodes (4): Классы и структуры, Соглашения именования, Тесты, Файлы
+### Community 517 - "Улучшение сетевой подсистемы"
+Cohesion: 0.25
+Nodes (8): Архитектура, Дополнительные ресурсы, 🔗 Зависимости между фазами, 📊 Оценка времени, 🎯 Приоритеты, 📋 Текущее состояние, Улучшение сетевой подсистемы, 📁 Файлы для изменения
 
-### Community 558 - "Community 558"
+### Community 533 - "ObjectPool"
+Cohesion: 0.29
+Nodes (4): ConcurrentBag, Func, MethodImpl, ObjectPool
+
+### Community 539 - "Файловая организация"
+Cohesion: 0.33
+Nodes (6): MyGame — исключение, Исключение: ECS компоненты, Правило: One Type Per File, Структура проекта, Тестовый проект, Файловая организация
+
+### Community 540 - "DockContextDataTemplate"
+Cohesion: 0.33
+Nodes (3): DockContextDataTemplate, Control, IDataTemplate
+
+### Community 542 - "Program"
+Cohesion: 0.40
+Nodes (3): AppBuilder, STAThread, Program
+
+### Community 543 - "Program.cs"
+Cohesion: 0.40
+Nodes (3): AppBuilder, STAThread, Program
+
+### Community 544 - "OpMaskKey"
+Cohesion: 0.17
+Nodes (7): OpMaskKey, int, short, string, uint, DebuggerProxy, OpMaskKey
+
+### Community 548 - "Примеры использования"
 Cohesion: 0.50
 Nodes (4): MVVM, Примеры использования, Простое меню, Стили
 
-### Community 570 - "Community 570"
+### Community 549 - "Реализация"
 Cohesion: 0.50
 Nodes (4): Демо-интеграция, Реализация, Структура проекта, Тесты
 
-### Community 580 - "Архитектурные правила"
+### Community 550 - "Иерархия элементов"
 Cohesion: 0.50
 Nodes (4): Иерархия элементов, Почему через индексы, Пример обхода, Принцип: Linked List в данных
+
+### Community 552 - "⚠️ Critical Decisions"
+Cohesion: 0.50
+Nodes (4): 1. Fixed Timestep vs Variable, 2. Determinism, 3. Thread Safety, ⚠️ Critical Decisions
+
+### Community 553 - "Project Structure Changes"
+Cohesion: 0.50
+Nodes (4): 1. Karpik.Engine.Core.Runner.csproj, 2. New Files, 3. Modified Files, Project Structure Changes
+
+### Community 555 - "IPC Protocol Details"
+Cohesion: 0.67
+Nodes (3): Binary Format, IPC Protocol Details, Message Types
 
 ### Community 619 - "Community 619"
 Cohesion: 0.16
 Nodes (14): CancellationToken, CancellationTokenSource, int, SemaphoreSlim, string, Task, TimeSpan, IpcServer (+6 more)
 
 ### Community 628 - "Community 628"
-Cohesion: 0.12
-Nodes (7): Application, App, IReadOnlyList, EditorStartupOptions, Fact, EditorStartupOptionsTests, App
-
-### Community 664 - ".ResetAll"
-Cohesion: 0.13
-Nodes (5): EcsStaticCleaner, EcsTypeCodeCache, EcsTypeCodeKey, EcsTypeCodeManager, TypeCodeInfo
+Cohesion: 0.10
+Nodes (9): DockContextDataTemplateTests, EditorDockFactoryTests, Karpik.Editor.Tests, Fact, EditorProcessExitContractTests, Fact, InlineData, Theory (+1 more)
 
 ### Community 665 - "Community 665"
 Cohesion: 0.10
-Nodes (19): IReadOnlyList, ProjectOpenResult, CancellationToken, Task, IProjectOpenService, CancellationToken, RecordingOpenService, Action (+11 more)
-
-### Community 689 - "PhysicsPushSystem"
-Cohesion: 0.17
-Nodes (5): ISystemBegin, CaptureInputSystem, HeadlessWindowInputIntegrationTests, Physics2DBodyCreator, PhysicsPushSystem
+Nodes (19): IReadOnlyList, ProjectOpenResult, CancellationToken, Task, IProjectOpenService, Action, bool, CancellationToken (+11 more)
 
 ### Community 691 - "Community 691"
 Cohesion: 0.22
 Nodes (6): KarpikGame.Client, KarpikGame.Tests, ClientGreeting, Program, Fact, GreetingTests
 
-### Community 806 - "RecordingProcessFactory"
-Cohesion: 0.50
-Nodes (4): List, ProcessStartInfo, Queue, RecordingProcessFactory
-
-### Community 1455 - "GameComponent.cs"
-Cohesion: 0.50
-Nodes (4): Widgets (Виджеты), Как это работает, Почему без наследования, Принцип: Data-Driven, без наследования
-
-### Community 1456 - "ITypeMeta"
-Cohesion: 0.47
-Nodes (4): DebuggerProxy, InitFlag, ITypeMeta, ITypeMetaExstensions
-
-### Community 1457 - "Program.cs"
-Cohesion: 0.50
-Nodes (4): 1. Fixed Timestep vs Variable, 2. Determinism, 3. Thread Safety, ⚠️ Critical Decisions
-
-### Community 1459 - "🌍 Large World Support (Floating Origin)"
-Cohesion: 0.50
-Nodes (4): 🌍 Large World Support (Floating Origin), Problem: Float Precision, Solution: Floating Origin, World Position Component
-
-### Community 1460 - "ProcessManagerLifecycleTests.cs"
-Cohesion: 0.67
-Nodes (3): Client Prediction Flow, 🌐 Network Sync Architecture (Future), State Snapshot
+### Community 1458 - "GraphicsCameraState"
+Cohesion: 0.07
+Nodes (28): aspect, Aspect, mask, DefinitionAspect, RuntimeBodyAspect, CombinedAspect, EmptyAspect, SingleAspect (+20 more)
 
 ## Knowledge Gaps
-- **1641 isolated node(s):** `net10.0`, `Microsoft.NET.Test.Sdk (17.12.0)`, `xunit (2.9.2)`, `xunit.runner.visualstudio (2.8.2)`, `Microsoft.NET.Sdk` (+1636 more)
+- **1753 isolated node(s):** `net10.0`, `Microsoft.NET.Test.Sdk (17.12.0)`, `xunit (2.9.2)`, `xunit.runner.visualstudio (2.8.2)`, `Microsoft.NET.Sdk` (+1748 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **1046 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **737 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Karpik.Engine.Core` connect `SystemVector3Interpolator` to `Community 0`, `Community 515`, `Community 132`, `Community 4`, `Community 7`, `Community 264`, `Community 137`, `Community 266`, `Community 267`, `Community 11`, `Community 16`, `Community 144`, `Community 282`, `Community 27`, `Community 154`, `Community 288`, `Community 417`, `Community 35`, `Community 36`, `Community 163`, `Community 38`, `Community 295`, `Community 168`, `Community 39`, `Community 171`, `Community 172`, `Community 303`, `PhysicsPushSystem`, `Community 177`, `Community 179`, `Community 52`, `Community 53`, `Community 178`, `InitSystem`, `Community 57`, `Community 68`, `Community 196`, `Community 207`, `Community 335`, `Community 82`, `Community 83`, `IEquatable`, `Community 86`, `Community 91`, `Community 120`, `Community 94`, `Community 225`, `Community 98`, `Community 103`, `Community 361`, `Community 234`, `Community 107`, `Community 491`, `Community 619`, `Community 110`, `Community 495`, `Community 242`, `Community 243`, `Community 116`, `Community 244`, `Community 375`, `Community 248`, `Community 122`, `Community 382`?**
-  _High betweenness centrality (0.154) - this node is a cross-community bridge._
-- **Why does `System.Runtime.CompilerServices` connect `Community 231` to `Community 2`, `Community 133`, `Community 134`, `Community 135`, `Community 9`, `Community 10`, `Community 267`, `Community 140`, `Community 269`, `Community 13`, `Community 14`, `Community 143`, `Community 145`, `Community 18`, `Community 148`, `Community 277`, `Community 22`, `Community 20`, `.ResetAll`, `Community 153`, `Community 24`, `Community 283`, `Community 28`, `Community 29`, `Community 406`, `Community 157`, `Community 160`, `Community 162`, `Community 42`, `Community 46`, `FixedUpdateSystem`, `Community 59`, `Community 317`, `Community 189`, `Community 193`, `Community 205`, `Community 207`, `Community 80`, `Community 208`, `Community 209`, `Community 342`, `Community 354`, `Community 102`, `Community 360`, `Community 234`, `Community 109`, `Community 242`, `Community 116`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
-- **Why does `DCFApixels.DragonECS` connect `Community 0` to `Community 4`, `Community 7`, `Community 9`, `Community 10`, `Community 11`, `Community 140`, `Community 137`, `Community 14`, `Community 144`, `Community 145`, `Community 18`, `Community 148`, `Community 277`, `Community 21`, `.ResetAll`, `Community 24`, `Community 282`, `Community 283`, `.Create`, `Community 415`, `Community 32`, `Community 288`, `Community 163`, `Community 295`, `Community 168`, `SystemVector3Interpolator`, `Community 42`, `Community 46`, `Community 303`, `ITypeMeta`, `Community 177`, `Community 180`, `Community 53`, `FixedUpdateSystem`, `Community 317`, `Community 61`, `Community 68`, `Community 199`, `Community 335`, `Community 82`, `Community 91`, `Community 92`, `Community 225`, `Community 359`, `Community 360`, `Community 103`, `Community 110`, `Community 114`, `Community 115`?**
-  _High betweenness centrality (0.078) - this node is a cross-community bridge._
+- **Why does `Karpik.Engine.Core` connect `SystemVector3Interpolator` to `Community 0`, `Community 515`, `Community 4`, `Community 6`, `Community 7`, `Community 264`, `Community 266`, `Community 267`, `Community 16`, `Community 665`, `Community 154`, `Community 288`, `Community 417`, `Community 36`, `Community 38`, `Community 168`, `ProcessManagerLifecycleTests.cs`, `Community 171`, `Community 305`, `Community 52`, `Community 53`, `Community 57`, `Community 186`, `Community 61`, `Community 192`, `Community 66`, `Community 196`, `Community 68`, `Реализация`, `Community 83`, `Community 84`, `IEquatable`, `Community 86`, `IStat`, `ICollection`, `Community 120`, `Community 94`, `Community 98`, `Community 491`, `Community 619`, `Community 494`, `Community 243`, `Community 116`, `ServiceProvider`, `Community 628`, `Community 375`, `Community 248`, `Community 122`, `Community 382`, `int`?**
+  _High betweenness centrality (0.129) - this node is a cross-community bridge._
+- **Why does `System.Runtime.CompilerServices` connect `Community 360` to `Community 133`, `Community 134`, `Community 7`, `Community 135`, `Community 5`, `Community 267`, `Community 140`, `Community 13`, `Community 270`, `Community 143`, `Community 144`, `Community 18`, `ObjectPool`, `Community 22`, `Community 26`, `Community 155`, `Community 28`, `JobHandleAwaiter`, `Community 157`, `.Create`, `Community 160`, `Community 34`, `Community 162`, `ProcessManagerLifecycleTests.cs`, `Community 51`, `Community 59`, `Community 188`, `Community 187`, `Community 62`, `Community 205`, `Community 91`, `Community 93`, `Community 231`, `Community 109`, `Community 116`, `Community 248`, `JobHandleMethodBuilder`, `Community 254`?**
+  _High betweenness centrality (0.096) - this node is a cross-community bridge._
+- **Why does `DCFApixels.DragonECS` connect `Community 0` to `Community 5`, `Community 6`, `Community 7`, `Community 9`, `Community 140`, `Community 144`, `Community 145`, `Community 146`, `Community 18`, `Community 153`, `.Create`, `Community 288`, `Community 34`, `Community 35`, `Community 36`, `Community 162`, `Community 168`, `SystemVector3Interpolator`, `Community 42`, `Community 171`, `Community 305`, `GraphicsCameraState`, `Community 180`, `Community 58`, `Community 61`, `Community 189`, `Community 192`, `Community 66`, `Community 68`, `Реализация`, `Community 209`, `Community 91`, `Community 231`, `Community 360`, `Community 361`, `Community 248`?**
+  _High betweenness centrality (0.059) - this node is a cross-community bridge._
 - **What connects `net10.0`, `Microsoft.NET.Test.Sdk (17.12.0)`, `xunit (2.9.2)` to the rest of the system?**
-  _1641 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1753 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.07575757575757576 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05254901960784314 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.1471861471861472 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.11666666666666667 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06656426011264721 - nodes in this community are weakly interconnected._

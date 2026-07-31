@@ -74,10 +74,12 @@
   <Folder Name="/Modules/Shared/Tween/">
     <Project Path="Modules/Shared/Tween/Tween.Core/Tween.Core.csproj" />
   </Folder>
+  <Folder Name="/third-parties/">
+    <Project Path="third-parties/DragonECS/DragonECS.csproj" />
+  </Folder>
   
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
-  <Project Path="Dragon/Dragon.csproj" />
   <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
   <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />

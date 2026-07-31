@@ -22,6 +22,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj" />
         <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+        <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
     </ItemGroup>
 
     <ItemGroup>

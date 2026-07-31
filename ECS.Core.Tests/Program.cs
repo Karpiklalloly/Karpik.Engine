@@ -329,7 +329,7 @@ sealed class ReadA : IEcsRunParallel
 {
     private sealed class Aspect : EcsAspect
     {
-        public EcsReadonlyPool<ComponentA> Component = default;
+        public ReadonlyEcsPool<ComponentA> Component = default;
     }
 
     public void RunParallel()

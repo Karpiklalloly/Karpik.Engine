@@ -2,6 +2,7 @@
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
     <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
+    <_KarpikMsBuildSdkVersion>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildThisFileDirectory)'))))))</_KarpikMsBuildSdkVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,6 +11,8 @@
   </ItemGroup>
 
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikEngineRootTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
@@ -21,10 +24,15 @@
   </PropertyGroup>
 
   <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
-          Condition="'$(KarpikEngineRoot)' != '' And '$(KarpikProjectKind)' == 'Runtime'">
+          Condition="'$(KarpikProjectKind)' == 'Runtime'">
+    <ResolveKarpikEngineRootTask SdkVersion="$(_KarpikMsBuildSdkVersion)"
+                                 ExplicitRoot="$(KarpikEngineRoot)"
+                                 LocalApplicationDataRoot="$(KarpikLocalApplicationDataRoot)">
+      <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
+    </ResolveKarpikEngineRootTask>
     <ItemGroup>
-      <Reference Include="Dragon">
-        <HintPath>$(KarpikEngineRoot)\runners\server\Dragon.dll</HintPath>
+      <Reference Include="DragonECS">
+        <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.dll</HintPath>
         <Private>false</Private>
       </Reference>
       <Reference Include="Karpik.Engine.Core">

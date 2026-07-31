@@ -10,7 +10,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
-      <ProjectReference Include="..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
     </ItemGroup>

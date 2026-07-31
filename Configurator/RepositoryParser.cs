@@ -77,9 +77,10 @@ public static class RepositoryParser
             }
         }
 
-        ResolveDependencies(projects.Values, plugins, errors);
-
         var propsPath = Path.Combine(rootPath, "Directory.Build.props");
+        var aliases = ReadAliases(rootPath, propsPath, projects, errors);
+        ResolveDependencies(projects.Values, plugins, aliases, errors);
+
         var (selections, settingValues) = ReadProfile(propsPath, errors);
 
         return new RepositoryModel
@@ -88,6 +89,7 @@ public static class RepositoryParser
             SolutionPath = solutionPath,
             PropsPath = propsPath,
             ProjectsByPath = projects,
+            ProjectAliases = aliases,
             Plugins = plugins,
             Modules = modules,
             Selections = selections,
@@ -186,6 +188,7 @@ public static class RepositoryParser
     private static void ResolveDependencies(
         IEnumerable<ProjectInfo> projects,
         IEnumerable<PluginInfo> plugins,
+        IReadOnlyDictionary<string, ProjectInfo> aliases,
         List<string> errors)
     {
         var projectsById = new Dictionary<string, List<ProjectInfo>>(StringComparer.Ordinal);
@@ -196,6 +199,10 @@ public static class RepositoryParser
         foreach (var plugin in plugins.Where(plugin => plugin.Kind == PluginKind.Core))
         {
             Add(plugin.ModuleId, plugin.Project);
+        }
+        foreach (var alias in aliases)
+        {
+            Add(alias.Key, alias.Value);
         }
         foreach (var pair in projectsById.Where(pair => pair.Value.Count > 1))
         {
@@ -238,6 +245,38 @@ public static class RepositoryParser
                 matches.Add(project);
             }
         }
+    }
+
+    private static Dictionary<string, ProjectInfo> ReadAliases(
+        string rootPath,
+        string propsPath,
+        IReadOnlyDictionary<string, ProjectInfo> projects,
+        List<string> errors)
+    {
+        var aliases = new Dictionary<string, ProjectInfo>(StringComparer.Ordinal);
+        var document = XDocument.Load(propsPath);
+        foreach (var element in document.Descendants().Where(element => element.Name.LocalName == "KarpikModuleAlias"))
+        {
+            var id = element.Attribute("Include")?.Value;
+            var projectPath = element.Attribute("Project")?.Value;
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(projectPath))
+            {
+                errors.Add("KarpikModuleAlias requires Include and Project.");
+                continue;
+            }
+
+            var absolutePath = Path.GetFullPath(Path.Combine(rootPath, projectPath));
+            if (!projects.TryGetValue(absolutePath, out var project))
+            {
+                errors.Add($"KarpikModuleAlias '{id}' targets a project outside the solution: {projectPath}.");
+                continue;
+            }
+            if (!aliases.TryAdd(id, project))
+            {
+                errors.Add($"Duplicate KarpikModuleAlias: {id}.");
+            }
+        }
+        return aliases;
     }
 
     private static PluginInfo InferPlugin(ProjectInfo project, HashSet<string> coreModuleIds)

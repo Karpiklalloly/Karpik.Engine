@@ -1,5 +1,5 @@
 ﻿using DCFApixels.DragonECS;
-using DCFApixels.DragonECS.RunnersCore;
+using DCFApixels.DragonECS.Core;
 using DragonExtensions;
 using System.Reflection;
 

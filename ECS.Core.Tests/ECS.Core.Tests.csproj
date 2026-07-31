@@ -20,7 +20,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Dragon\Dragon.csproj" />
       <ProjectReference Include="..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
     </ItemGroup>
 

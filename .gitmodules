@@ -7,3 +7,6 @@
 [submodule "first-parties/Karpik.Jobs"]
 	path = first-parties/Karpik.Jobs
 	url = https://github.com/Karpiklalloly/Karpik.Jobs.git
+[submodule "third-parties/DragonECS"]
+	path = third-parties/DragonECS
+	url = https://github.com/DCFApixels/DragonECS.git

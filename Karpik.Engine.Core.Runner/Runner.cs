@@ -536,7 +536,7 @@ public class EngineRunner : IEngineRunner
         newBuilder.AddRunner<EcsLateRunner>();
         newBuilder.AddRunner<EcsRenderPrepareRunner>();
         newBuilder.AddRunner<EcsRenderRunner>();
-        var newPipeline = newBuilder.Build(newServiceProvider);
+        var newPipeline = newBuilder.Build();
         newServiceProvider.Register(newPipeline.Injector);
         newServiceProvider.Register(newPipeline);
         newServiceProvider.InjectAll();

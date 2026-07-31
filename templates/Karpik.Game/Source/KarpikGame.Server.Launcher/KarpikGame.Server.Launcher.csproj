@@ -1,0 +1,17 @@
+<Project Sdk="Karpik.Engine.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <KarpikProjectKind>Tool</KarpikProjectKind>
+    <KarpikSide>Server</KarpikSide>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\KarpikGame.Launcher\EngineLauncher.cs" Link="EngineLauncher.cs" />
+    <ProjectReference Include="..\KarpikGame.Server\KarpikGame.Server.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+  </ItemGroup>
+</Project>

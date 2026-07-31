@@ -1,4 +1,4 @@
-﻿using DCFApixels.DragonECS.RunnersCore;
+﻿using DCFApixels.DragonECS.Core;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Shared.ECS;
