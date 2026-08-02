@@ -5,18 +5,15 @@ using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
 
 namespace Network.Server.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem : ISystemInit
+internal class InitNetworkClientSystem(INetworkManager manager, NetworkConfig config) : ISystemInit
 {
-    [DI] private INetworkManager _manager = null!;
-    [DI] private NetworkConfig _config = null!;
-    
     public void Init()
     {
-        _manager.Start(_config.Port);
-        _manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
-        _manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
-        _manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
-        _manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
+        manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
+        manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
+        manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
+        manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
+        manager.Start(config.Port);
     }
 
     internal static void ManagerOnConnectionRequestEvent(IConnectionRequest request)
@@ -40,26 +37,22 @@ internal class InitNetworkClientSystem : ISystemInit
     }
 }
 
-internal class UpdateNetworkClientSystem : ISystemBegin
+internal class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
 {
-    [DI] private INetworkManager _manager = null!;
-    
     public void Begin()
     {
-        _manager.PollEvents();
+        manager.PollEvents();
     }
 }
 
-internal class DestroyNetworkClientSystem : ISystemDestroy
+internal class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
 {
-    [DI] private INetworkManager _manager = null!;
-    
     public void Destroy()
     {
-        _manager.NetworkReceiveEvent -= InitNetworkClientSystem.ManagerOnNetworkReceiveEvent;
-        _manager.PeerConnectedEvent -= InitNetworkClientSystem.ManagerOnPeerConnectedEvent;
-        _manager.PeerDisconnectedEvent -= InitNetworkClientSystem.ManagerOnPeerDisconnectedEvent;
-        _manager.ConnectionRequestEvent -= InitNetworkClientSystem.ManagerOnConnectionRequestEvent;
-        _manager.Stop();
+        manager.NetworkReceiveEvent -= InitNetworkClientSystem.ManagerOnNetworkReceiveEvent;
+        manager.PeerConnectedEvent -= InitNetworkClientSystem.ManagerOnPeerConnectedEvent;
+        manager.PeerDisconnectedEvent -= InitNetworkClientSystem.ManagerOnPeerDisconnectedEvent;
+        manager.ConnectionRequestEvent -= InitNetworkClientSystem.ManagerOnConnectionRequestEvent;
+        manager.Stop();
     }
 }

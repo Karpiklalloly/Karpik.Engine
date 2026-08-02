@@ -1,12 +1,10 @@
 ﻿using Autofac;
-using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Network.Server.LiteNetLib;
 
-[Module]
-public class NetworkServerModuleInstaller : IModuleInstaller, IModuleInstallerConfiguratable
+[Module(ModuleScope.Simulation)]
+public class NetworkServerModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Server.LiteNetLib";
     public void OnRegisterServices(ContainerBuilder builder)
@@ -14,13 +12,5 @@ public class NetworkServerModuleInstaller : IModuleInstaller, IModuleInstallerCo
         
     }
 
-    public void OnConfigure(IServiceResolver services, out IModule? module)
-    {
-        module = new NetworkServerModule();
-    }
-
-    public void OnConfigureComplete(IServiceResolver services)
-    {
-        
-    }
+    public IModule? CreateModule() => new NetworkServerModule();
 }
