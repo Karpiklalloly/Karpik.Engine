@@ -1,12 +1,11 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Modules.Window.Core;
 
 internal class WindowCoreModule : IModule
 {
-    public void Import(IBuilder b, IServiceResolver services)
+    public void Add(ISystemRegistry systems)
     {
-        b.Add(new UpdateSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
+        systems.Add<UpdateSystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
     }
 }

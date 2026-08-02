@@ -1,26 +1,18 @@
 ﻿using Autofac;
-using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Karpik.Engine.Modules.Window.Core;
 
-[Module]
-public class WindowCoreModuleInstaller : IModuleInstaller, IModuleInstallerConfiguratable
+[Module(ModuleScope.Engine)]
+public class WindowCoreModuleInstaller : IModuleInstaller
 {
     public string Name => "Window.Core";
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register(new InputCaptureState());
+        builder.RegisterType<InputCaptureState>()
+            .AsSelf()
+            .SingleInstance();
     }
 
-    public void OnConfigure(IServiceResolver services, out IModule? module)
-    {
-        module = new WindowCoreModule();
-    }
-
-    public void OnConfigureComplete(IServiceResolver services)
-    {
-        
-    }
+    public IModule? CreateModule() => new WindowCoreModule();
 }

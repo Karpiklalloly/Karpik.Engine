@@ -49,4 +49,9 @@ public sealed class HeadlessWindow : IWindow
     {
         Exists = false;
     }
+
+    public void Dispose()
+    {
+        Close();
+    }
 }

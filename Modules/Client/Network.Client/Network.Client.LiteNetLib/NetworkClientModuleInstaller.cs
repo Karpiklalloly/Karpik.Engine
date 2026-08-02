@@ -1,12 +1,10 @@
 ﻿using Autofac;
-using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib;
 
-[Module]
-public class NetworkClientModuleInstaller : IModuleInstaller, IModuleInstallerConfiguratable
+[Module(ModuleScope.Simulation)]
+public class NetworkClientModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Client.Core";
     
@@ -14,14 +12,6 @@ public class NetworkClientModuleInstaller : IModuleInstaller, IModuleInstallerCo
     {
         
     }
-
-    public void OnConfigure(IServiceResolver services, out IModule? module)
-    {
-        module = new NetworkClientModule();
-    }
-
-    public void OnConfigureComplete(IServiceResolver services)
-    {
-        
-    }
+    
+    public IModule? CreateModule() => new NetworkClientModule();
 }

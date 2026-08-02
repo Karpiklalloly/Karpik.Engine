@@ -7,7 +7,7 @@ namespace Karpik.Engine.Modules.Window.Sdl2;
 
 public class SDL2Window : IWindow
 {
-    [DI] private Application _application = null!;
+    private readonly Application _application;
     private readonly Sdl2Window _window;
     private bool _isResized;
 
@@ -41,8 +41,9 @@ public class SDL2Window : IWindow
         }
     }
 
-    public SDL2Window(Sdl2Window window)
+    public SDL2Window(Sdl2Window window, Application application)
     {
+        _application = application;
         _window = window;
         _window.Resized += WindowOnResized;
         _window.Closed += WindowOnClosed;

@@ -1,34 +1,27 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.InputModule;
 
-internal class PublishInputSystem : ISystemMainThreadBegin
+internal class PublishInputSystem(Input input) : ISystemMainThreadBegin
 {
-    [DI] private Input _input = null!;
-
     public void MainThreadBegin()
     {
-        _input.PublishPlatformFrame();
+        input.PublishPlatformFrame();
     }
 }
 
-internal class ConsumeInputSystem : ISystemBegin
+internal class ConsumeInputSystem(Input input) : ISystemBegin
 {
-    [DI] private Input _input = null!;
-
     public void Begin()
     {
-        _input.ConsumeSimulationFrame();
+        input.ConsumeSimulationFrame();
     }
 }
 
-internal class DestroySystem : ISystemDestroy
+internal class DestroySystem(Input input) : ISystemDestroy
 {
-    [DI] private Input _input = null!;
-
     public void Destroy()
     {
-        _input.Destroy();
+        input.Destroy();
     }
 }
