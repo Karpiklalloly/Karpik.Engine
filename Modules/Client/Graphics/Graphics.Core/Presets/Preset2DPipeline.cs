@@ -18,10 +18,16 @@ public class Preset2DPipeline
     
     public ResourceSet WhiteRectResourceSet => _textureResources.WhiteRectResourceSet;
 
-    [DI] private IAssetsManager _assetsManager = null!;
-    [DI] private GraphicsDevice _device = null!;
+    private readonly IAssetsManager _assetsManager;
+    private readonly GraphicsDevice _device;
     private TextureResources _textureResources = new();
     private ResourceLayout _textureLayout = null!;
+
+    public Preset2DPipeline(IAssetsManager assetsManager, GraphicsDevice device)
+    {
+        _assetsManager = assetsManager;
+        _device = device;
+    }
 
     public void Init()
     {

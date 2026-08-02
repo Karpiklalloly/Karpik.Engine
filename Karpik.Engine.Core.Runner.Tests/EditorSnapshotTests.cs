@@ -1,6 +1,8 @@
+using Autofac;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 public sealed class EditorSnapshotTests
@@ -10,7 +12,7 @@ public sealed class EditorSnapshotTests
     {
         var world = new EcsDefaultWorld();
         var runner = new EngineRunner();
-        runner.RegisterModule(new EditorSnapshotWorldInstaller(world));
+        runner.RegisterModule(new EditorSnapshotWorldModuleInstaller(world));
 
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         runner.Setup(new Application(Side.Client), scheduler);
@@ -40,7 +42,7 @@ public sealed class EditorSnapshotTests
     {
         var world = new EcsDefaultWorld();
         var runner = new EngineRunner();
-        runner.RegisterModule(new EditorSnapshotWorldInstaller(world));
+        runner.RegisterModule(new EditorSnapshotWorldModuleInstaller(world));
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         runner.Setup(new Application(Side.Client), scheduler);
         scheduler.Execute();
@@ -77,7 +79,7 @@ public sealed class EditorSnapshotTests
     {
         var world = new EcsDefaultWorld();
         var runner = new EngineRunner();
-        runner.RegisterModule(new EditorSnapshotWorldInstaller(world));
+        runner.RegisterModule(new EditorSnapshotWorldModuleInstaller(world));
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         runner.Setup(new Application(Side.Client), scheduler);
         scheduler.Execute();
@@ -109,12 +111,12 @@ internal readonly struct EditorSnapshotThrowingGetter : IEcsComponent
     public int Value => throw new InvalidOperationException("broken getter");
 }
 
-internal sealed class EditorSnapshotWorldInstaller(EcsDefaultWorld world) : IInstaller
+internal sealed class EditorSnapshotWorldModuleInstaller(EcsDefaultWorld world) : IModuleInstaller
 {
-    public string Name => nameof(EditorSnapshotWorldInstaller);
+    public string Name => nameof(EditorSnapshotWorldModuleInstaller);
 
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
+    public void OnRegisterServices(ContainerBuilder builder)
     {
-        services.Register(world);
+        builder.Register(world);
     }
 }

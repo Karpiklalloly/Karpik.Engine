@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "branchName": "v-0.6",
+  "worktreePath": "C:\\Users\\artem\\RiderProjects\\KarpikEngine",
+  "upstream": null,
+  "mergeBase": null,
+  "firstSeenHead": "ccde2d75daee038763104434c4158c71f33183a4",
+  "lastSeenHead": "ccde2d75daee038763104434c4158c71f33183a4",
+  "lastAnalyzedHead": "ccde2d75daee038763104434c4158c71f33183a4",
+  "stale": false,
+  "staleReason": null,
+  "staleSince": null,
+  "lifecycleEvent": null,
+  "createdAt": "2026-08-01T07:51:40.781Z",
+  "updatedAt": "2026-08-01T07:51:40.781Z"
+}

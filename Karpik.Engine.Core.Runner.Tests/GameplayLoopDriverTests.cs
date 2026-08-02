@@ -1,6 +1,8 @@
+using Autofac;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
 using Karpik.Engine.Shared.ECS.Scheduling;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 public sealed class GameplayLoopDriverTests
@@ -87,7 +89,7 @@ public sealed class GameplayLoopDriverTests
         {
             UpdateSchedulerMode = EcsUpdateSchedulerMode.Deterministic
         };
-        runner.RegisterModule(new ManualGameplayInstaller());
+        runner.RegisterModule(new ManualGameplayModuleInstaller());
         runner.Setup(new Application(Side.Server), scheduler);
         scheduler.Execute();
         ManualGameplayTrace.Clear();
@@ -112,27 +114,27 @@ internal static class ManualGameplayTrace
     }
 }
 
-internal sealed class ManualGameplayInstaller : IInstallerConfiguratable
+internal sealed class ManualGameplayModuleInstaller : IModuleInstallerConfiguratable
 {
-    public string Name => nameof(ManualGameplayInstaller);
+    public string Name => nameof(ManualGameplayModuleInstaller);
 
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
+    public void OnRegisterServices(ContainerBuilder builder)
     {
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
+    public void OnConfigure(IServiceResolver services, out IModule? module)
     {
         module = new ManualGameplayModule();
     }
 
-    public void OnConfigureComplete(IServiceContainer services)
+    public void OnConfigureComplete(IServiceResolver services)
     {
     }
 }
 
 internal sealed class ManualGameplayModule : IModule
 {
-    public void Import(IBuilder builder)
+    public void Import(IBuilder builder, IServiceResolver services)
     {
         builder.Add((object)new ManualGameplaySystem());
         builder.Add((object)new ManualGameplayRunSystem());

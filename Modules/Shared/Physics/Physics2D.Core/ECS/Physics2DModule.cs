@@ -5,7 +5,7 @@ namespace Karpik.Engine.Shared.Physics.Core;
 
 internal class Physics2DModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new Physics2DBodyRestoreSystem());
         b.Add(new Physics2DBodyCreator(), EcsConsts.PRE_BEGIN_LAYER);

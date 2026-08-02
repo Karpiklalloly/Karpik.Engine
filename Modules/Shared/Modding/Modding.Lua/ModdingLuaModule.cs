@@ -6,7 +6,7 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 
 internal class ModdingLuaModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new InitSystem());
         b.Add(new UpdateSystem());

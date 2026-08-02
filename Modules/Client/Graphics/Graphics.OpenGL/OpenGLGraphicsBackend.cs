@@ -49,6 +49,7 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     public void Initialize()
     {
         _pipeline.Init();
+        _mergeThread.Init();
         _graphicsLoadTestResources.Initialize(_device, _pipeline.TextureLayout);
         _imgui.Init(_device, _window);
     }
@@ -65,9 +66,16 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         GraphicsContext.BeginFrame();
     }
 
-    public void BeginMerge()
+    public void BeginMerge(in Camera2D camera)
     {
-        _mergeThread.TryBeginMerge();
+        Framebuffer framebuffer = _device.MainSwapchain.Framebuffer;
+        uint width = framebuffer.Width;
+        uint height = framebuffer.Height;
+
+        Camera2D normalizedCamera = camera.Normalized(width, height);
+        var view = new RenderView(normalizedCamera, width, height);
+
+        _mergeThread.TryBeginMerge(in view);
     }
 
     public void SubmitScene()
@@ -126,7 +134,6 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 
     public void Dispose()
     {
-        _graphicsLoadTestResources.Dispose();
     }
 
     private void PublishGpuTimestampIfAvailable()

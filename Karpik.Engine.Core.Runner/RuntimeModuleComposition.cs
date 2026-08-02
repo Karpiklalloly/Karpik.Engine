@@ -33,7 +33,7 @@ public static class RuntimeModuleComposition
             type.Assembly.GetName().Name == "ECS.Core" &&
             type.Name == "ECSInstaller" &&
             !type.IsAbstract &&
-            typeof(IInstaller).IsAssignableFrom(type) &&
+            typeof(IModuleInstaller).IsAssignableFrom(type) &&
             type.GetCustomAttributes(typeof(ModuleAttribute), inherit: false).Length == 1);
         if (!hasEcsInstaller)
         {

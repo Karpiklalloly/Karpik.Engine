@@ -5,7 +5,7 @@ namespace Karpik.Engine.Shared.Tweening;
 
 internal class TweenModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new TweenUpdateSystem(), EcsConsts.POST_END_LAYER);
         b.Add(new TweenUpdatePausableSystem(), EcsConsts.POST_END_LAYER);

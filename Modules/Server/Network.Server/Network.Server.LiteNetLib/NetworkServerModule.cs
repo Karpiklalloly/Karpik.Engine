@@ -6,7 +6,7 @@ namespace Network.Server.LiteNetLib;
 
 internal class NetworkServerModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new InitNetworkClientSystem());
         b.Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);

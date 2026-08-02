@@ -15,7 +15,7 @@ public sealed class HeadlessGraphicsBackend : IGraphicsBackend
         GraphicsContext.BeginFrame();
     }
 
-    public void BeginMerge()
+    public void BeginMerge(in Camera2D camera)
     {
     }
 

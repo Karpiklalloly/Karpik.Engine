@@ -6,9 +6,9 @@ public interface IMergeThread : IDisposable
 {
     public bool IsRunning { get; }
 
-    public bool TryBeginMerge();
+    public void Init();
 
-    public void BeginMerge();
+    public bool TryBeginMerge(in RenderView view);
 
     public void WaitForCompletion();
 

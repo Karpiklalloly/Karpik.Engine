@@ -5,7 +5,7 @@ namespace Karpik.Engine.Client.InputModule;
 
 internal class InputModuleEcs : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new PublishInputSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -1000);
         b.Add(new ConsumeInputSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -1000);

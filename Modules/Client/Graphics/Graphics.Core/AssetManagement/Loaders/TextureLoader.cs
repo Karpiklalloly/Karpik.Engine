@@ -6,16 +6,17 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
-public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>, IOnInjectedDI
+public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
 {
     public override string? DefaultPath => "Sprites/default.jpg";
     public override string[] SupportedExtensions => [".jpg", ".png", ".bmp", ".tga", ".psd", ".gif", ".hdr"];
 
-    [DI] private GraphicsDevice _device = null!;
-    private ResourceFactory _factory = null!;
-    
-    public void OnInjected()
+    private readonly GraphicsDevice _device;
+    private readonly ResourceFactory _factory;
+
+    public TextureLoader(GraphicsDevice device)
     {
+        _device = device;
         _factory = _device.ResourceFactory;
     }
     

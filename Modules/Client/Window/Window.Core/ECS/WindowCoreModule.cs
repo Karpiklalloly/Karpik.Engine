@@ -5,7 +5,7 @@ namespace Karpik.Engine.Modules.Window.Core;
 
 internal class WindowCoreModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Import(IBuilder b, IServiceResolver services)
     {
         b.Add(new UpdateSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
     }

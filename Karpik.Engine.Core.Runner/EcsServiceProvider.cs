@@ -1,8 +1,10 @@
-﻿using DCFApixels.DragonECS;
+﻿using Autofac;
+using DCFApixels.DragonECS;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Karpik.Engine.Core;
 
-public class EcsServiceProvider : IServiceRegister, IServiceContainer, IInjectionBlock
+public class EcsServiceProvider : ContainerBuilder, IServiceContainer, IInjectionBlock
 {
     private readonly ServiceProvider _serviceProvider;
 
@@ -11,12 +13,12 @@ public class EcsServiceProvider : IServiceRegister, IServiceContainer, IInjectio
         _serviceProvider = serviceProvider;
     }
 
-    public IServiceRegister Register<T>(T service) where T : class
+    public ContainerBuilder Register<T>(T service) where T : class
     {
         return _serviceProvider.Register(service);
     }
 
-    public IServiceRegister Register(Type serviceType, object service)
+    public ContainerBuilder Register(Type serviceType, object service)
     {
         return _serviceProvider.Register(serviceType, service);
     }

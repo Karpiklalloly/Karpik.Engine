@@ -10,7 +10,7 @@ using Pipeline = Veldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
-public class MergeThread : IMergeThread, IOnInjectedDI
+public class MergeThread : IMergeThread
 {
     private const int MaxQuads = 16000;
     private const int MaxVertices = MaxQuads * 4;
@@ -25,10 +25,9 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private volatile bool _shutdown;
     private Exception? _workerException;
 
-    [DI] private GraphicsDevice _device = null!;
-    [DI] private Preset2DPipeline _2dPipeline = null!;
-    [DI] private GraphicsCameraState _cameraState = null!;
-    [DI] private ClientFrameMetrics _clientFrameMetrics = null!;
+    private GraphicsDevice _device;
+    private Preset2DPipeline _2dPipeline;
+    private ClientFrameMetrics _clientFrameMetrics;
 
     // TODO: Сделать возможность переключиться на ushort
     private DeviceBuffer _indexBuffer = null!;
@@ -50,20 +49,35 @@ public class MergeThread : IMergeThread, IOnInjectedDI
     private long _currentMergeDrawEncodeTicks;
 
     private bool _isUsingA = true;
+    private bool _inited;
+    private bool _workerStarted;
+    private int _disposed;
 
-    public MergeThread()
+    public MergeThread(GraphicsDevice device, Preset2DPipeline dPipeline, ClientFrameMetrics clientFrameMetrics)
     {
+        _device = device;
+        _2dPipeline = dPipeline;
+        _clientFrameMetrics = clientFrameMetrics;
         _workerThread = new Thread(WorkerLoop)
         {
             IsBackground = true,
             Priority = ThreadPriority.AboveNormal,
             Name = "GraphicsMerge"
         };
-        _workerThread.Start();
     }
 
-    public void OnInjected()
+    public void Init()
     {
+        if (_inited)
+        {
+            return;
+        }
+
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            throw new ObjectDisposedException(nameof(MergeThread));
+        }
+
         var factory = _device.ResourceFactory;
         uint[] indices = new uint[MaxIndices];
         for (int i = 0; i < MaxQuads; i++)
@@ -111,40 +125,13 @@ public class MergeThread : IMergeThread, IOnInjectedDI
             CommandList = factory.CreateCommandList(),
             SubmitFence = factory.CreateFence(signaled: true)
         };
+
+        _workerThread.Start();
+        _workerStarted = true;
+        _inited = true;
     }
 
-    public void BeginMerge()
-    {
-        if (!_completed.IsSet)
-        {
-            WaitForCompletion();
-        }
-
-        _isUsingA = !_isUsingA; // Переключаем буферы
-        _buildContextIndex = SelectBuildContextIndex();
-        if (_buildContextIndex < 0)
-        {
-            return;
-        }
-
-        if (!GraphicsContext.TryAcquireMergeBuffers(out _buildCommandSetIndex, out List<ICommandBuffer>? buffers))
-        {
-            return;
-        }
-
-        _buildContext = GetContext(_buildContextIndex);
-        _buildBuffers = buffers!;
-        _buildFramebuffer = _device.MainSwapchain.Framebuffer;
-        _buildFramebufferWidth = _buildFramebuffer.Width;
-        _buildFramebufferHeight = _buildFramebuffer.Height;
-        _cameraState.CaptureForFrame(_buildFramebufferWidth, _buildFramebufferHeight);
-        _buildCamera = _cameraState.FrameCamera;
-        _workerException = null;
-        _completed.Reset();
-        _workAvailable.Set();
-    }
-
-    public bool TryBeginMerge()
+    public bool TryBeginMerge(in RenderView view)
     {
         if (!_completed.IsSet)
         {
@@ -167,10 +154,9 @@ public class MergeThread : IMergeThread, IOnInjectedDI
         _buildContext = GetContext(_buildContextIndex);
         _buildBuffers = buffers!;
         _buildFramebuffer = _device.MainSwapchain.Framebuffer;
-        _buildFramebufferWidth = _buildFramebuffer.Width;
-        _buildFramebufferHeight = _buildFramebuffer.Height;
-        _cameraState.CaptureForFrame(_buildFramebufferWidth, _buildFramebufferHeight);
-        _buildCamera = _cameraState.FrameCamera;
+        _buildFramebufferWidth = view.FramebufferWidth;
+        _buildFramebufferHeight = view.FramebufferHeight;
+        _buildCamera = view.Camera;
         Volatile.Write(ref _workerException, null);
         _completed.Reset();
         _workAvailable.Set();
@@ -229,11 +215,43 @@ public class MergeThread : IMergeThread, IOnInjectedDI
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _shutdown = true;
-        _workAvailable.Set();
-        _workerThread.Join();
-        _workAvailable.Dispose();
-        _completed.Dispose();
+        if (_workerStarted)
+        {
+            _workAvailable.Set();
+            _workerThread.Join();
+        }
+
+        try
+        {
+            if (_inited)
+            {
+                _device.WaitForIdle();
+            }
+
+            DisposeContext(ref _mergeContextA);
+            DisposeContext(ref _mergeContextB);
+            DisposeContext(ref _mergeContextC);
+            _indexBuffer?.Dispose();
+        }
+        finally
+        {
+            _workAvailable.Dispose();
+            _completed.Dispose();
+        }
+    }
+
+    private static void DisposeContext(ref MergeContext context)
+    {
+        context.CommandList?.Dispose();
+        context.SubmitFence?.Dispose();
+        context.VertexBuffer?.Dispose();
+        context = default;
     }
 
     private void WorkerLoop()

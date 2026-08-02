@@ -1,8 +1,10 @@
 ﻿using System.Collections.Concurrent;
+using Autofac;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Karpik.Engine.Core;
 
-public class ServiceProvider : IServiceRegister, IServiceContainer
+public class ServiceProvider : ContainerBuilder, IServiceContainer
 {
     public ConcurrentDictionary<Type, List<object>> Services => _services;
 
@@ -10,11 +12,11 @@ public class ServiceProvider : IServiceRegister, IServiceContainer
 
     public ServiceProvider()
     {
-        Register<IServiceRegister>(this);
+        Register<ContainerBuilder>(this);
         Register<IServiceContainer>(this);
     }
     
-    public IServiceRegister Register<T>(T service) where T : class
+    public ContainerBuilder Register<T>(T service) where T : class
     {
         Register(typeof(T), service);
         if (service.GetType() != typeof(T))
@@ -24,7 +26,7 @@ public class ServiceProvider : IServiceRegister, IServiceContainer
         return this;
     }
 
-    public IServiceRegister Register(Type serviceType, object service)
+    public ContainerBuilder Register(Type serviceType, object service)
     {
         if (!_services.ContainsKey(serviceType))
         {

@@ -8,7 +8,7 @@ public interface IGraphicsBackend : IDisposable
 
     void BeginFrame();
 
-    void BeginMerge();
+    void BeginMerge(in Camera2D camera);
 
     void SubmitScene();
 
