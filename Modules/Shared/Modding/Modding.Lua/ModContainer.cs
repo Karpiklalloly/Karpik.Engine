@@ -8,10 +8,10 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModContainer : IModContainer
 {
-    public ModMetaData MetaData => MetaDataHandle.Asset.MetaData;
+    public ModMetaData? MetaData => _metaDataHandle.Asset?.MetaData;
     public IFileSystem FileSystem => _assetsManager.FileSystem;
     public string DirectoryPath { get; }
-    public AssetHandle<ModMetaDataAsset> MetaDataHandle { get; }
+    public AssetHandle<ModMetaDataAsset> MetaDataHandle => _metaDataHandle;
     public Script Script { get; }
 
     public bool IsEnabled
@@ -33,9 +33,8 @@ public class ModContainer : IModContainer
     public IReadOnlyList<DynValue> LoadFunctions => _loadFunction;
     public IReadOnlyList<DynValue> UnloadFunctions => _unloadFunction;
     
-    // [DI] private EcsDefaultWorld _world;
-    [DI] private IAssetsManager _assetsManager;
-    [DI] private Time _time = null!;
+    private readonly IAssetsManager _assetsManager;
+    private readonly Time _time;
     private readonly List<DynValue> _updateFunction = new();
     private readonly List<DynValue> _startFunction = new();
     private readonly List<DynValue> _loadFunction = new();
@@ -43,21 +42,24 @@ public class ModContainer : IModContainer
     private readonly Dictionary<string, DynValue> _loadedModules = new();
 
     private bool _isStarted = false;
+    private bool _disposed = false;
+    private AssetHandle<ModMetaDataAsset> _metaDataHandle;
     
-    internal ModContainer(string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
+    internal ModContainer(IAssetsManager assetsManager, Time time, string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
     {
+        _assetsManager = assetsManager;
+        _time = time;
         DirectoryPath = directoryPath;
-        MetaDataHandle = metaDataHandle;
+        _metaDataHandle = metaDataHandle;
         Script = new Script();
         Script.Options.ScriptLoader = new ModScriptLoader(directoryPath, this);
         Script.Options.DebugPrint = s => Log(s);
     }
 
-    internal void Initialize()
+    internal async JobHandle Initialize()
     {
-        // Script.Globals["G"] = new GameAPI(MetaData.Id, this, _world);
-        Script.Globals["G"] = new GameAPI(MetaData.Id, this);
-        LoadRootScripts();
+        Script.Globals["G"] = new GameAPI(MetaData?.Id ?? throw new NullReferenceException(), this);
+        await LoadRootScripts();
     }
 
     public DynValue LoadModule(string moduleName)
@@ -158,7 +160,8 @@ public class ModContainer : IModContainer
                 string fileName = _assetsManager.FileSystem.GetFileName(scriptFile);
                 try
                 {
-                    Script.DoStream(FileSystem.OpenRead(scriptFile));
+                    await using var read = FileSystem.OpenRead(scriptFile);
+                    Script.DoStream(read);
                     
                     var updateFunction = Script.Globals.Get(EventModMethods.OnUpdate);
                     if (updateFunction.IsNotNil() && updateFunction.Type == DataType.Function)
@@ -202,16 +205,25 @@ public class ModContainer : IModContainer
 
     private async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
-        await Logger.Instance.Log($"[Mod: {MetaData.Name}] {message}", level);
+        await Logger.Instance.Log($"[Mod: {MetaData?.Name}] {message}", level);
     }
 
-    public void Destroy()
+    public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        
         Unload();
         _loadFunction.Clear();
         _startFunction.Clear();
         _updateFunction.Clear();
         _loadedModules.Clear();
         _unloadFunction.Clear();
+        
+        _metaDataHandle.Dispose();
     }
 }

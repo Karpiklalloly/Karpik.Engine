@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.Log;
@@ -7,14 +8,14 @@ using MoonSharp.Interpreter;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
-public class ModManager : IModManager
+[Export(typeof(IModManager))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
+public class ModManager(IAssetsManager assetsManager, Time time) : IModManager
 {
     private readonly ConcurrentDictionary<string, ModContainer> _loadedMods = new();
-    [DI] private IAssetsManager _assetsManager;
-    [DI] private IServiceContainer _serviceProvider;
     private string _subFolder;
     
-    private IFileSystem FileSystem => _assetsManager.FileSystem;
+    private IFileSystem FileSystem => assetsManager.FileSystem;
 
     public void Init(ExecutionSide caller)
     {
@@ -32,7 +33,7 @@ public class ModManager : IModManager
     {
         if (!FileSystem.ExistsDirectory(modsRootDirectory))
         {
-            modsRootDirectory = FileSystem.Combine(_assetsManager.ModsPath, modsRootDirectory);
+            modsRootDirectory = FileSystem.Combine(assetsManager.ModsPath, modsRootDirectory);
             if (!FileSystem.ExistsDirectory(modsRootDirectory))
             {
                 await Logger.Instance.Log(nameof(ModManager), $"Mods directory not found: {modsRootDirectory}", LogLevel.Error);
@@ -59,18 +60,35 @@ public class ModManager : IModManager
                 return;
             }
 
-            var handle = await _assetsManager.LoadAssetAsync<ModMetaDataAsset>(metadataPath);
-            var metaData = handle.Asset.MetaData;
-            if (string.IsNullOrEmpty(handle.Asset.MetaData.Id))
+            var handle = await assetsManager.LoadAssetAsync<ModMetaDataAsset>(metadataPath);
+            if (!handle.IsValid
+                || handle.Asset is null
+                || string.IsNullOrEmpty(handle.Asset.MetaData.Id))
             {
+                handle.Dispose();
                 await Logger.Instance.Log(nameof(ModManager), $"Invalid mod metadata in {modDirectory}", LogLevel.Error);
                 return;
             }
             
-            var container = new ModContainer(FileSystem.Combine(modDirectory, _subFolder), handle);
-            _serviceProvider.Inject(container);
-            container.Initialize();
-            _loadedMods[metaData.Id] = container;
+            var metaData = handle.Asset.MetaData;
+            var container = new ModContainer(assetsManager, time, FileSystem.Combine(modDirectory, _subFolder), handle);
+            
+            try
+            {
+                await container.Initialize();
+            }
+            catch
+            {
+                container.Dispose();
+                throw;
+            }
+            if (!_loadedMods.TryAdd(metaData.Id, container))
+            {
+                container.Dispose();
+
+                await Logger.Instance.Log(nameof(ModManager), $"Duplicate mod id: {metaData.Id}", LogLevel.Error);
+                return;
+            }
             
             await Logger.Instance.Log(nameof(ModManager), $"Mod loaded: {metaData.Name} v{metaData.Version} by {metaData.Author}");
         }
@@ -108,7 +126,7 @@ public class ModManager : IModManager
     {
         foreach (var container in _loadedMods.Values)
         {
-            container.Unload();
+            container.Dispose();
         }
     }
 
@@ -155,14 +173,15 @@ public class ModManager : IModManager
         }
     }
 
-    public void Destroy()
+    public void Dispose()
     {
-        foreach (var item in _loadedMods)
+        foreach (var container in _loadedMods.Values)
         {
-            var container = item.Value;
-            container.Destroy();
+            container.Dispose();
         }
+
         _loadedMods.Clear();
+        // TODO: на все симуляции сразу действует. Надо скоуп сделать
         UserData.UnregisterType<GameAPI>();
     }
 }

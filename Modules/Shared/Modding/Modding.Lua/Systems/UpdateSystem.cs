@@ -1,25 +1,32 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
-using Karpik.Engine.Shared.ECS;
+﻿using Karpik.Engine.Core;
+using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-internal class InitSystem : ISystemInit
+internal sealed class InitSystem(
+    IModManager modManager,
+    IAssetsManager assetsManager,
+    Application application)
+    : ISystemInit
 {
-    [DI] private ModManager _modManager = null!;
-    
     public void Init()
     {
-        _modManager.StartMods();
+        var side = application.ApplicationSide == Side.Server
+            ? ExecutionSide.Server
+            : ExecutionSide.Client;
+
+        modManager.Init(side);
+        modManager.LoadMods(assetsManager.ModsPath)
+            .GetAwaiter()
+            .GetResult();
+        modManager.StartMods();
     }
 }
 
-internal class UpdateSystem : ISystemLateUpdate
+internal class UpdateSystem(IModManager modManager) : ISystemLateUpdate
 {
-    [DI] private ModManager _modManager = null!;
-    
     public void LateUpdate()
     {
-        _modManager.UpdateMods();
+        modManager.UpdateMods();
     }
 }

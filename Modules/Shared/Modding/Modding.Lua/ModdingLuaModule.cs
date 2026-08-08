@@ -1,14 +1,13 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Modding.Lua.Systems;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 internal class ModdingLuaModule : IModule
 {
-    public void Import(IBuilder b, IServiceResolver services)
+    public void Add(ISystemRegistry systems)
     {
-        b.Add(new InitSystem());
-        b.Add(new UpdateSystem());
+        systems.Add<InitSystem>();
+        systems.Add<UpdateSystem>();
     }
 }

@@ -1,11 +1,9 @@
 ﻿using Autofac;
-using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Karpik.Engine.Shared.Modding;
 
-[Module]
+[Module(ModuleScope.Engine)]
 public class ModdingModuleInstaller : IModuleInstaller
 {
     public string Name => "Modding.Core";
