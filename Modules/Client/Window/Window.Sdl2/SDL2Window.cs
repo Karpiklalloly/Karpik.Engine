@@ -1,10 +1,13 @@
-﻿using Karpik.Engine.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using Veldrid;
 using Veldrid.Sdl2;
 
 namespace Karpik.Engine.Modules.Window.Sdl2;
 
+[Export(typeof(IWindow))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class SDL2Window : IWindow
 {
     private readonly Application _application;

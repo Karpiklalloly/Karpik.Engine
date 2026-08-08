@@ -1,3 +1,4 @@
+using System.Composition;
 using System.Drawing;
 using System.Numerics;
 using System.Diagnostics;
@@ -10,6 +11,8 @@ using Pipeline = Veldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
+[Export(typeof(IMergeThread))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class MergeThread : IMergeThread
 {
     private const int MaxQuads = 16000;

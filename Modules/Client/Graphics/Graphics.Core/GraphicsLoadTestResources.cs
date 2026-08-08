@@ -1,7 +1,11 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
+[Export(typeof(GraphicsLoadTestResources))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class GraphicsLoadTestResources : IDisposable
 {
     private static readonly RgbaByte[] Colors =

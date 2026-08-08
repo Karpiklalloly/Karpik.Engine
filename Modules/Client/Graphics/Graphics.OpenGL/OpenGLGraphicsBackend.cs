@@ -1,3 +1,4 @@
+using System.Composition;
 using System.Diagnostics;
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
@@ -8,6 +9,8 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
+[Export(typeof(IGraphicsBackend))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 {
     private readonly GraphicsDevice _device;
@@ -45,8 +48,8 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     }
 
     public bool IsHeadless => false;
-
-    public void Initialize()
+    
+    public void Start()
     {
         _pipeline.Init();
         _mergeThread.Init();

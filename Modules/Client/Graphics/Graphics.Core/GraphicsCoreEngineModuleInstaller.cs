@@ -4,25 +4,12 @@ using Karpik.Engine.Core;
 namespace Karpik.Engine.Client.Graphics.Core;
 
 [Module(ModuleScope.Engine, -101)]
-public class GraphicsCoreEngineModuleInstaller : IModuleInstaller, IModuleInstallerConfiguratable
+public class GraphicsCoreEngineModuleInstaller : IModuleInstaller
 {
     public string Name => "Graphics.Core";
     
     public void OnRegisterServices(ContainerBuilder builder)
     {
-
-        builder.RegisterType<GraphicsLoadTestSettings>()
-            .AsSelf()
-            .SingleInstance();
-
-        builder.RegisterType<GraphicsLoadTestResources>()
-            .AsSelf()
-            .SingleInstance();
-
-        builder.RegisterType<ImGuiRenderContext>()
-            .AsSelf()
-            .SingleInstance();
-
         builder.Register(x =>
         {
             var overlayState = new ImGuiOverlayState();
@@ -35,15 +22,5 @@ public class GraphicsCoreEngineModuleInstaller : IModuleInstaller, IModuleInstal
         })
         .AsSelf()
         .SingleInstance();
-    }
-
-    public void OnConfigure(IServiceResolver services)
-    {
-        services.Resolve<IGraphicsBackend>().Initialize();
-    }
-
-    public void OnConfigureComplete(IServiceResolver services)
-    {
-        
     }
 }

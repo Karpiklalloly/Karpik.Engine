@@ -3,5 +3,6 @@
 public enum ModuleScope
 {
     Engine,
+    ModSet,
     Simulation
 }

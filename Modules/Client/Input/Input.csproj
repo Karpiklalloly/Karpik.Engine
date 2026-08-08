@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <KarpikModuleDependency Include="Karpik.Engine.Core" />
-      <KarpikModuleDependency Include="Graphics" />
       <KarpikModuleDependency Include="Window" />
     </ItemGroup>
 

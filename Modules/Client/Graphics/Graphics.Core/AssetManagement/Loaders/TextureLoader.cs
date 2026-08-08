@@ -1,4 +1,5 @@
-﻿using Karpik.Engine.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using StbImageSharp;
@@ -6,22 +7,31 @@ using Veldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
 {
     public override string? DefaultPath => "Sprites/default.jpg";
     public override string[] SupportedExtensions => [".jpg", ".png", ".bmp", ".tga", ".psd", ".gif", ".hdr"];
 
-    private readonly GraphicsDevice _device;
-    private readonly ResourceFactory _factory;
+    // TODO: Убрать нулабл отсюда, временное решение для перехода на DI
+    private readonly GraphicsDevice? _device;
+    private readonly ResourceFactory? _factory;
 
-    public TextureLoader(GraphicsDevice device)
+    public TextureLoader(MainThreadScheduler scheduler, IServiceResolver resolver, GraphicsDevice? device = null) : base(scheduler, resolver)
     {
         _device = device;
-        _factory = _device.ResourceFactory;
+        _factory = _device?.ResourceFactory;
     }
     
-    protected override JobHandle<ITexture2D?> OnLoadAsync(Stream stream, string assetName)
+    protected override JobHandle<ITexture2D?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
+        if (_device is null || _factory is null)
+        {
+            throw new NotSupportedException("Texture loading is unavailable. No GraphicsDevice or ResourceFactory");
+            return JobHandle<ITexture2D?>.FromResult(null);
+        }
+
         return Job.Run<ITexture2D?>(() =>
         {
             ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
@@ -47,7 +57,7 @@ public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
             ResourceSet set = _factory.CreateResourceSet(new ResourceSetDescription(
                 layout, view, sampler));
             
-            VeldridTexture2D? texture2D = new(texture, set);
+            VeldridTexture2D texture2D = new(texture, set);
 
             return texture2D;
         });

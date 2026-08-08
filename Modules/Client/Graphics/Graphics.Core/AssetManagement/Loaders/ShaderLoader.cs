@@ -1,15 +1,18 @@
-﻿using System.Text;
+﻿using System.Composition;
+using System.Text;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
-public class ShaderLoader : BaseAssetLoader<ShaderAsset, byte[]>
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public class ShaderLoader(MainThreadScheduler mainThreadScheduler, IServiceResolver serviceContainer) : BaseAssetLoader<ShaderAsset, byte[]>(mainThreadScheduler, serviceContainer)
 {
     public override string? DefaultPath => null;
     public override string[] SupportedExtensions => [".vert", ".frag"];
-    protected override JobHandle<byte[]?> OnLoadAsync(Stream stream, string assetName)
+    protected override JobHandle<byte[]?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
         return Job.Run(() =>
         {

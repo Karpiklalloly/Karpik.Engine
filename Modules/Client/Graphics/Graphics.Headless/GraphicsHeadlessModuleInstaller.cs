@@ -11,8 +11,5 @@ public sealed class GraphicsHeadlessModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<HeadlessGraphicsBackend>()
-            .As<IGraphicsBackend>()
-            .SingleInstance();
     }
 }

@@ -1,21 +1,25 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
-public class FontLoader : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public class FontLoader(MainThreadScheduler mainThreadScheduler, IServiceResolver serviceContainer) : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>(mainThreadScheduler, serviceContainer)
 {
     public override string? DefaultPath => null;
     public override string[] SupportedExtensions => [".font-json"];
 
-    protected override async JobHandle<LoadedFont> OnLoadAsync(Stream stream, string assetName)
+    protected override async JobHandle<LoadedFont> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
         using MemoryStream memory = new MemoryStream();
         await stream.CopyToAsync(memory);
 
         FontAtlasData fontData = FontAtlasParser.Parse(memory.GetBuffer().AsSpan(0, (int)memory.Length));
         string atlasPath = ResolveAtlasPath(assetName, fontData.AtlasPath);
-        AssetHandle<TextureAsset> textureHandle = await AssetsManager.LoadAssetAsync<TextureAsset>(atlasPath);
+        AssetHandle<TextureAsset> textureHandle = await context.Manager.LoadAssetAsync<TextureAsset>(atlasPath);
 
         TextureAsset? textureAsset = textureHandle.Asset;
         if (textureAsset is null)

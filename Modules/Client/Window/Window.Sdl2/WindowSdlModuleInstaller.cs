@@ -10,9 +10,6 @@ namespace Karpik.Engine.Modules.Window.Sdl2;
 [Module(ModuleScope.Engine, -200)]
 public class WindowSdlModuleInstaller : IModuleInstaller
 {
-    private Sdl2Window _window = null!;
-    private SDL2Window _sdl2Window = null!;
-
     public string Name => "Window.Sdl2";
     
     public void OnRegisterServices(ContainerBuilder builder)
@@ -38,13 +35,5 @@ public class WindowSdlModuleInstaller : IModuleInstaller
                 window.Close();
             }
         });
-        
-        builder.RegisterType<SDL2Window>()
-            .As<IWindow>()
-            .SingleInstance();
-        
-        builder.RegisterType<SDL2InputSource>()
-            .As<IInputSource>()
-            .SingleInstance();
     }
 }

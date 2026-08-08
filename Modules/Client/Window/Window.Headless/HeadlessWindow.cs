@@ -1,8 +1,12 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using Veldrid;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 
+[Export(typeof(IWindow))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class HeadlessWindow : IWindow
 {
     private int _width = 800;

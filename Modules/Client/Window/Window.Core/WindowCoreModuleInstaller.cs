@@ -9,9 +9,6 @@ public class WindowCoreModuleInstaller : IModuleInstaller
     public string Name => "Window.Core";
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<InputCaptureState>()
-            .AsSelf()
-            .SingleInstance();
     }
 
     public IModule? CreateModule() => new WindowCoreModule();

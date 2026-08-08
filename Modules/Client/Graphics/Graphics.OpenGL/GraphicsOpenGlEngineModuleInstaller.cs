@@ -15,19 +15,6 @@ public class GraphicsOpenGlEngineModuleInstaller : IModuleInstaller
     
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<Preset2DPipeline>()
-            .AsSelf()
-            .SingleInstance();
-
-        builder.RegisterType<MergeThread>()
-            .AsSelf()
-            .As<IMergeThread>()
-            .SingleInstance();
-
-        builder.RegisterType<OpenGLGraphicsBackend>()
-            .As<IGraphicsBackend>()
-            .SingleInstance();
-        
         builder.Register(context =>
             {
                 var options = new GraphicsDeviceOptions(

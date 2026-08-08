@@ -1,9 +1,13 @@
+using System.Composition;
 using System.Numerics;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using Veldrid;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 
+[Export(typeof(HeadlessInputController))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class HeadlessInputController
 {
     private const int KeyCount = (int)Key.LastKey + 1;

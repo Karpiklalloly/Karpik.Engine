@@ -1,9 +1,13 @@
+using System.Composition;
 using System.Numerics;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using Veldrid;
 
 namespace Karpik.Engine.Client.InputModule;
 
+[Export(typeof(Input))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public class Input
 {
     private const int DefaultEventCapacity = 256;

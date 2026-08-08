@@ -10,9 +10,6 @@ public class InputModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<Input>()
-            .AsSelf()
-            .SingleInstance();
     }
 
     public IModule? CreateModule() => new InputModuleEcs();

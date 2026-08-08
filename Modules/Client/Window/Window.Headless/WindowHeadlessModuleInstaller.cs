@@ -11,17 +11,5 @@ public sealed class WindowHeadlessModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<HeadlessInputController>()
-            .AsSelf()
-            .SingleInstance();
-
-        builder.RegisterType<HeadlessInputSource>()
-            .As<IInputSource>()
-            .SingleInstance();
-
-        builder.RegisterType<HeadlessWindow>()
-            .As<IWindow>()
-            .AsSelf()
-            .SingleInstance();
     }
 }

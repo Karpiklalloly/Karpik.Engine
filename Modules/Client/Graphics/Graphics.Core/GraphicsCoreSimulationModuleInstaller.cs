@@ -10,9 +10,6 @@ public class GraphicsCoreSimulationModuleInstaller : IModuleInstaller
     
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.RegisterType<GraphicsCameraState>()
-            .AsSelf()
-            .SingleInstance();
     }
 
     public IModule? CreateModule() => new GraphicsCoreModule();

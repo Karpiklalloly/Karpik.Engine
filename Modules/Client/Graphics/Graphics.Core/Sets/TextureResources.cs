@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Client.Graphics.Core.Sets;
 
-public class TextureResources
+public class TextureResources : IDisposable
 {
     public ResourceSet WhiteRectResourceSet { get; private set; }
     public Texture WhiteTexture { get; private set; }
@@ -33,5 +33,12 @@ public class TextureResources
         );
         
         WhiteRectResourceSet = factory.CreateResourceSet(ref rsDesc);
+    }
+    
+    public void Dispose()
+    {
+        WhiteRectResourceSet.Dispose();
+        WhiteTextureView.Dispose();
+        WhiteTexture.Dispose();
     }
 }
