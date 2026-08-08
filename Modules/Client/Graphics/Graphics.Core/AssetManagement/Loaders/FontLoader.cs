@@ -7,7 +7,7 @@ namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 [Export(typeof(IAssetLoader))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-public class FontLoader(MainThreadScheduler mainThreadScheduler, IServiceResolver serviceContainer) : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>(mainThreadScheduler, serviceContainer)
+public class FontLoader : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>
 {
     public override string? DefaultPath => null;
     public override string[] SupportedExtensions => [".font-json"];

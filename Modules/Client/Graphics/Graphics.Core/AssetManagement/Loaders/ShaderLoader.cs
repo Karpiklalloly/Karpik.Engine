@@ -8,7 +8,7 @@ namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
 [Export(typeof(IAssetLoader))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-public class ShaderLoader(MainThreadScheduler mainThreadScheduler, IServiceResolver serviceContainer) : BaseAssetLoader<ShaderAsset, byte[]>(mainThreadScheduler, serviceContainer)
+public class ShaderLoader : BaseAssetLoader<ShaderAsset, byte[]>
 {
     public override string? DefaultPath => null;
     public override string[] SupportedExtensions => [".vert", ".frag"];

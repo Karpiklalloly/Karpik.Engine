@@ -1,6 +1,12 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement.Core.Physical;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 
-internal class PhysicalFileSystem : IFileSystem
+namespace Karpik.Engine.Shared.AssetManagement.Core.Physical;
+
+[Export(typeof(IFileSystem))]
+[Export(typeof(PhysicalFileSystem))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public class PhysicalFileSystem : IFileSystem
 {
     public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
     public bool Exists(string path) => File.Exists(path);

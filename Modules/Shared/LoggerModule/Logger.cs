@@ -11,26 +11,26 @@ public enum LogLevel
     Critical
 }
 
-public interface ILogger : IDisposable
+public interface ILoggerKarpik : IDisposable
 {
     JobHandle Log(string message, LogLevel level = LogLevel.Debug);
     JobHandle Log(string source, string message, LogLevel level = LogLevel.Debug);
     void SetMinLevel(LogLevel level);
 }
 
-public abstract class Logger(ILogger logger)
+public abstract class Logger(ILoggerKarpik logger)
 {
-    public static ILogger Instance { get; } = new ConsoleLogger();
+    public static ILoggerKarpik Instance { get; } = new ConsoleLogger();
 }
 
-public abstract class LoggerDecorator : ILogger
+public abstract class LoggerDecorator : ILoggerKarpik
 {
-    private readonly ILogger? _logger;
+    private readonly ILoggerKarpik? _logger;
     protected LogLevel _minLevel = LogLevel.Debug;
     
     private bool _isDisposed;
 
-    protected LoggerDecorator(ILogger? logger)
+    protected LoggerDecorator(ILoggerKarpik? logger)
     {
         _logger = logger;
     }
@@ -84,7 +84,7 @@ public sealed class ConsoleLogger : LoggerDecorator
 {
     private readonly SemaphoreSlim _consoleLock = new SemaphoreSlim(1, 1);
 
-    public ConsoleLogger(ILogger? logger = null) : base(logger) { }
+    public ConsoleLogger(ILoggerKarpik? logger = null) : base(logger) { }
 
     public override async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
     {
@@ -127,7 +127,7 @@ public sealed class FileLogger : LoggerDecorator
     private StreamWriter? _writer;
     private bool _disposed;
 
-    public FileLogger(string filePath, ILogger? logger = null) : base(logger)
+    public FileLogger(string filePath, ILoggerKarpik? logger = null) : base(logger)
     {
         _filePath = filePath;
         Initialize();

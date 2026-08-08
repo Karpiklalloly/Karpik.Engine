@@ -18,7 +18,7 @@ public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
     private readonly GraphicsDevice? _device;
     private readonly ResourceFactory? _factory;
 
-    public TextureLoader(MainThreadScheduler scheduler, IServiceResolver resolver, GraphicsDevice? device = null) : base(scheduler, resolver)
+    public TextureLoader(GraphicsDevice? device = null)
     {
         _device = device;
         _factory = _device?.ResourceFactory;

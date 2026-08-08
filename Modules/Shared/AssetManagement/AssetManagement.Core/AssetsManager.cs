@@ -1,10 +1,13 @@
 ﻿using System.Collections.Concurrent;
+using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.Log;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
+[Export(typeof(IAssetsManager))]
+[Export(typeof(AssetsManager))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 internal class AssetsManager : IAssetsManager
 {
     public string RootPath { get; }
@@ -22,12 +25,15 @@ internal class AssetsManager : IAssetsManager
     private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
     
     private readonly IFileSystem _fileSystem;
-    [DI] private IServiceProvider _serviceProvider = null!;
+    private readonly AssetLoadContext _assetLoadContext;
 
-    public AssetsManager(IFileSystem fileSystem)
+    public AssetsManager(IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
     {
         _fileSystem = fileSystem;
+        _assetLoadContext = new AssetLoadContext(this);
         RootPath = Path.GetFullPath(Environment.CurrentDirectory);
+        RegisterSavers(savers);
+        RegisterLoaders(loaders);
     }
     
     public void RegisterSaver(IAssetSaver saver)
@@ -40,51 +46,27 @@ internal class AssetsManager : IAssetsManager
         RegisterLoaderInternal(loader);
     }
 
-    public void RegisterSavers(Assembly assembly)
+    private void RegisterSavers(IAssetSaver[] savers)
     {
-        var loaderTypes = assembly.GetTypes()
-            .Where(type => typeof(IAssetSaver).IsAssignableFrom(type)
-                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
-
-        foreach (var loaderType in loaderTypes)
+        foreach (var saver in savers)
         {
-            try
-            {
-                var loaderInstance = (IAssetSaver)Activator.CreateInstance(loaderType)!;
-                RegisterSaverInternal(loaderInstance);
-            }
-            catch (Exception e)
-            {
-                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register saver {loaderType.Name}: {e.Message}", LogLevel.Error);
-            }
+            RegisterSaver(saver);
         }
     }
-
-    public void RegisterLoaders(Assembly assembly)
+    
+    private void RegisterLoaders(IAssetLoader[] loaders)
     {
-        var loaderTypes = assembly.GetTypes()
-            .Where(type => typeof(IAssetLoader).IsAssignableFrom(type)
-                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
-
-        foreach (var loaderType in loaderTypes)
+        foreach (var loader in loaders)
         {
-            try
-            {
-                var loaderInstance = (IAssetLoader)Activator.CreateInstance(loaderType)!;
-                RegisterLoaderInternal(loaderInstance);
-            }
-            catch (Exception e)
-            {
-                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
-            }
+            RegisterLoader(loader);
         }
     }
 
     private void RegisterLoaderInternal(IAssetLoader loader)
     {
-        _serviceProvider.Inject(loader);
         foreach (var extension in loader.SupportedExtensions)
         {
+            // TODO: Подумать, что делать с перезаписью (мб приоритет в интерфейсе сделать)
             string safeExt = NormalizeExtension(extension);
             _loaders[(safeExt, loader.AssetType)] = loader;
         }
@@ -92,7 +74,6 @@ internal class AssetsManager : IAssetsManager
     
     private void RegisterSaverInternal(IAssetSaver saver)
     {
-        _serviceProvider.Inject(saver);
         _savers[saver.AssetType] = saver;
     }
     
@@ -165,7 +146,7 @@ internal class AssetsManager : IAssetsManager
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);
 
-        var newAsset = await loader.LoadAsync(stream, targetPath);
+        var newAsset = await loader.LoadAsync(_assetLoadContext, stream, targetPath);
         newAsset.Id = id;
         newAsset.Path = targetPath;
         newAsset.Type = assetType;
@@ -261,7 +242,7 @@ internal class AssetsManager : IAssetsManager
         var assets = _loadedAssets.Values;
         foreach (var asset in assets)
         {
-            if (asset.RefCount > 0)
+            while (asset.RefCount > 0)
             {
                 ReleaseAsset(asset);
             }
@@ -270,8 +251,13 @@ internal class AssetsManager : IAssetsManager
     
     private string NormalizeExtension(string ext)
     {
-        return ext.StartsWith(".", StringComparison.InvariantCultureIgnoreCase)
+        return ext.StartsWith('.')
             ? ext.ToLowerInvariant()
             : "." + ext.ToLowerInvariant();
+    }
+
+    public void Dispose()
+    {
+        ReleaseAll();
     }
 }

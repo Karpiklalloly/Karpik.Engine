@@ -13,7 +13,7 @@ public abstract class JsonLoader<TAsset, TValue> : BaseAssetLoader<TAsset, TValu
         Serializer.SerializationBinder = new LooseAssemblyNameBinder();
     }
 
-    protected override async JobHandle<TValue?> OnLoadAsync(Stream stream, string assetName)
+    protected override async JobHandle<TValue?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
         return await Job.Run(() =>
         {

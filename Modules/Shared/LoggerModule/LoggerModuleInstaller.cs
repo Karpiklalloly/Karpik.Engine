@@ -11,6 +11,6 @@ public class LoggerModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register<ILogger>(Logger.Instance);
+        builder.Register<ILoggerKarpik>(Logger.Instance);
     }
 }
