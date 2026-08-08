@@ -14,8 +14,6 @@ public class ComponentsTemplate
     [JsonProperty("Components")]
     private IEcsComponentMember[] _components;
 
-    private IServiceContainer _container;
-
     public ComponentsTemplate()
     {
         Components = [];
@@ -31,18 +29,13 @@ public class ComponentsTemplate
         Components = Convert(components);
     }
 
-    public async JobHandle ApplyTo(int entityID, EcsWorld world)
+    public async JobHandle ApplyTo(int entityID, EcsWorld world, IServiceResolver container)
     {
         foreach (var template in Components)
         {
             template.ApplyTo(entityID, world);
-            await template.OnLoad(_container, entityID, world);
+            await template.OnLoad(container, entityID, world);
         }
-    }
-
-    public void OnLoad(IServiceContainer container)
-    {
-        _container = container;
     }
     
     [OnSerializing]

@@ -41,7 +41,7 @@ public static class EcsWorldExtensions
             }
         }
 
-        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IServiceContainer container)
+        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IServiceResolver container)
         {
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
@@ -62,8 +62,7 @@ public static class EcsWorldExtensions
             await foreach (var entitySnapshot in list.ToAsyncEnumerable())
             {
                 newWorld.NewEntity(entitySnapshot.Id);
-                entitySnapshot.Components.OnLoad(container);
-                await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld);
+                await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld, container);
             }
         }
     }

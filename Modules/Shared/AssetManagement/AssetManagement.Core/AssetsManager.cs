@@ -10,9 +10,9 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 internal class AssetsManager : IAssetsManager
 {
-    public string RootPath { get; }
-    public string ContentPath => Path.Combine(RootPath, "Content");
-    public string ModsPath => Path.Combine(RootPath, "Mods");
+    public string RootPath => FileSystem.RootPath;
+    public string ContentPath => FileSystem.ContentPath;
+    public string ModsPath => FileSystem.ModsPath;
     public IFileSystem FileSystem => _fileSystem;
     
     // [Hash, Asset Type] -> [Asset Instance]
@@ -31,7 +31,6 @@ internal class AssetsManager : IAssetsManager
     {
         _fileSystem = fileSystem;
         _assetLoadContext = new AssetLoadContext(this);
-        RootPath = Path.GetFullPath(Environment.CurrentDirectory);
         RegisterSavers(savers);
         RegisterLoaders(loaders);
     }

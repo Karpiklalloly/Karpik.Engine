@@ -3,7 +3,7 @@ using Karpik.Jobs;
 
 namespace DragonExtensions;
 
-public class World(EcsWorld world, IServiceContainer container)
+public class World(EcsWorld world, IServiceResolver resolver)
 {
     public EcsWorld Base => world;
     
@@ -98,7 +98,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             var component = pool.Get(entityId);
-            component = await component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId));
+            component = await component.EnableAsync(component, new ComponentLifecycleContext(resolver, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -112,7 +112,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             ref var component = ref pool.Get(entityId);
-            component = component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            component = component.EnableAsync(component, new ComponentLifecycleContext(resolver, world, entityId)).GetAwaiter().GetResult();
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -127,7 +127,7 @@ public class World(EcsWorld world, IServiceContainer container)
         {
             pool.Add(entityId) = component;
             component = pool.Get(entityId);
-            component = await component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId));
+            component = await component.EnableAsync(component, new ComponentLifecycleContext(resolver, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -142,7 +142,7 @@ public class World(EcsWorld world, IServiceContainer container)
         {
             pool.Add(entityId) = component;
             component = pool.Get(entityId);
-            component = component.EnableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            component = component.EnableAsync(component, new ComponentLifecycleContext(resolver, world, entityId)).GetAwaiter().GetResult();
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -156,7 +156,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             var component = pool.Get(entityId);
-            component = await component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId));
+            component = await component.DisableAsync(component, new ComponentLifecycleContext(resolver, world, entityId));
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -170,7 +170,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             var component = pool.Get(entityId);
-            component = component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            component = component.DisableAsync(component, new ComponentLifecycleContext(resolver, world, entityId)).GetAwaiter().GetResult();
             pool.Get(entityId) = component;
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -184,7 +184,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             var component = pool.Get(entityId);
-            component = await component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId));
+            component = await component.DisableAsync(component, new ComponentLifecycleContext(resolver, world, entityId));
             pool.Del(entityId);
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)
@@ -198,7 +198,7 @@ public class World(EcsWorld world, IServiceContainer container)
         try
         {
             var component = pool.Get(entityId);
-            component = component.DisableAsync(component, new ComponentLifecycleContext(container, world, entityId)).GetAwaiter().GetResult();
+            component = component.DisableAsync(component, new ComponentLifecycleContext(resolver, world, entityId)).GetAwaiter().GetResult();
             pool.Del(entityId);
         }
         catch (Exception ex) when (ex is not ComponentLifecycleException)

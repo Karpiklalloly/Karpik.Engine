@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Karpik.Engine.Shared.AssetManagement.Core;
+﻿namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public interface IAssetsManager : IDisposable
 {

@@ -2,6 +2,10 @@
 
 public interface IFileSystem
 {
+    public string RootPath { get; }
+    public string ContentPath { get; }
+    public string ModsPath { get; }
+    
     public char DirectorySeparatorChar { get; }
     public bool Exists(string path);
     public string GetExtension(string path);

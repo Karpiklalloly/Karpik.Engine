@@ -28,7 +28,7 @@ public abstract class Asset
         return RefCount <= 0;
     }
     
-    public void AddDependency(Asset child)
+    public void AddDependency(Asset? child)
     {
         if (child is null) return;
         if (child == this) return;
