@@ -3,6 +3,7 @@
     <PropertyGroup>
         <!-- Это поможет избежать проблем, если разные модули используют разные версии NuGet пакетов -->
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <KarpikRepositoryRoot>$(MSBuildThisFileDirectory)</KarpikRepositoryRoot>
     </PropertyGroup>
 
     <ItemDefinitionGroup>
@@ -11,40 +12,36 @@
         </KarpikModuleDependency>
     </ItemDefinitionGroup>
 
-    <ItemGroup>
-        <KarpikModuleAlias Include="Dragon" Project="third-parties/DragonECS/DragonECS.csproj" />
-    </ItemGroup>
-    
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
     <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             $(MSBuildProjectName.Contains('Karpik.Engine'))">
 
-        <KarpikModuleDependency Include="Network.Codegen">
+        <ProjectReference Include="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </KarpikModuleDependency>
+        </ProjectReference>
 
-        <KarpikModuleDependency Include="StatAndAbilities.Codegen">
+        <ProjectReference Include="$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </KarpikModuleDependency>
+        </ProjectReference>
 
     </ItemGroup>
 
     <ItemGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)Modules'))">
 
-        <KarpikModuleDependency Include="Karpik.Engine.Core.Codegen">
+        <ProjectReference Include="$(KarpikRepositoryRoot)Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </KarpikModuleDependency>
+        </ProjectReference>
 
-        <KarpikModuleDependency Include="StaticAnalyzer">
+        <ProjectReference Include="$(KarpikRepositoryRoot)Tools\StaticAnalyzer\StaticAnalyzer.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
-        </KarpikModuleDependency>
+        </ProjectReference>
 
     </ItemGroup>
 

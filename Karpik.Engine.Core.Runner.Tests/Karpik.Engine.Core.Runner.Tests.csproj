@@ -19,7 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DragonExtensions\DragonExtensions.csproj" />
+      <ProjectReference Include="..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />

@@ -10,13 +10,13 @@
     "semantic_hash": "062730c833ec4f3c492633c378b287c0"
   },
   "Configurator.Tests/ConfiguratorTests.cs": {
-    "mtime": 1785264845.9623213,
-    "ast_hash": "5ff54053d0a3d0a71efcaff515dd2a10",
+    "mtime": 1786294698.0638552,
+    "ast_hash": "05543e2f997e21231638960a4992b07d",
     "semantic_hash": ""
   },
   "Configurator/ArtifactGenerator.cs": {
-    "mtime": 1785264886.0084612,
-    "ast_hash": "09b299b32ef15612cc03039f9b792432",
+    "mtime": 1786293091.1249156,
+    "ast_hash": "629bde64ca0b561fa3db074a73ac6bce",
     "semantic_hash": ""
   },
   "Configurator/Configurator.csproj": {
@@ -25,8 +25,8 @@
     "semantic_hash": "b647dc15fab58e6992174448b97572a2"
   },
   "Configurator/GraphValidator.cs": {
-    "mtime": 1785056758.6652913,
-    "ast_hash": "05f8e3c277e3a51cf4bbd93d321be269",
+    "mtime": 1786294725.4174683,
+    "ast_hash": "0f89041d08d16ae1d887b694728d73b1",
     "semantic_hash": ""
   },
   "Configurator/Models.cs": {
@@ -44,66 +44,6 @@
     "ast_hash": "0aa56a6aee5c2027f925f0e7f7624805",
     "semantic_hash": ""
   },
-  "DragonExtensions/ComponentLifecycleContext.cs": {
-    "mtime": 1786213732.339,
-    "ast_hash": "52dc7a1ccbd35790b9c534a38c6004e1",
-    "semantic_hash": ""
-  },
-  "DragonExtensions/ComponentLifecycleException.cs": {
-    "mtime": 1784051215.7645698,
-    "ast_hash": "6ab8a1d64520d09c4a7a89ac58573aaa",
-    "semantic_hash": "6ab8a1d64520d09c4a7a89ac58573aaa"
-  },
-  "DragonExtensions/DragonExtensions.csproj": {
-    "mtime": 1785263550.9481802,
-    "ast_hash": "498919bdebb4f3de1792bcafaeb5e424",
-    "semantic_hash": ""
-  },
-  "DragonExtensions/EcsRunners/EventCallerWrapper.cs": {
-    "mtime": 1785263882.6254582,
-    "ast_hash": "6bab925baa689da349dfc35684cee433",
-    "semantic_hash": ""
-  },
-  "DragonExtensions/EcsRunners/EventCallers.cs": {
-    "mtime": 1784051215.7689078,
-    "ast_hash": "c756650007cbf0cdaa87f0f4229bf2f2",
-    "semantic_hash": "c756650007cbf0cdaa87f0f4229bf2f2"
-  },
-  "DragonExtensions/EcsRunners/LifeCycleRunners.cs": {
-    "mtime": 1785263882.6556277,
-    "ast_hash": "45785e65eefe3727311544b312257dc5",
-    "semantic_hash": ""
-  },
-  "DragonExtensions/EntityBuilder.cs": {
-    "mtime": 1784051215.77192,
-    "ast_hash": "3d588d3ba429c0ece7611dbefa16a0bc",
-    "semantic_hash": "3d588d3ba429c0ece7611dbefa16a0bc"
-  },
-  "DragonExtensions/GlobalUsings.cs": {
-    "mtime": 1784051215.77485,
-    "ast_hash": "6489852c37853e87a53e67c5184dd79c",
-    "semantic_hash": "6489852c37853e87a53e67c5184dd79c"
-  },
-  "DragonExtensions/IComponentLifecycleAsync.cs": {
-    "mtime": 1784051215.775879,
-    "ast_hash": "f2bb284125ef239ab44ea0a6c240105a",
-    "semantic_hash": "f2bb284125ef239ab44ea0a6c240105a"
-  },
-  "DragonExtensions/LifeCycleBridge.cs": {
-    "mtime": 1786264918.675507,
-    "ast_hash": "5c13a510322fd59d531720855dc06bb0",
-    "semantic_hash": ""
-  },
-  "DragonExtensions/StaticExtensions.cs": {
-    "mtime": 1784051215.778656,
-    "ast_hash": "3c6fbcb10ac5cecdb49666e253c2464c",
-    "semantic_hash": "3c6fbcb10ac5cecdb49666e253c2464c"
-  },
-  "DragonExtensions/World.cs": {
-    "mtime": 1786213699.81,
-    "ast_hash": "319d95e7d3dc2a78ee3fd45e5dca3ba1",
-    "semantic_hash": ""
-  },
   "ECS.Core.Tests/ECS.Core.Tests.csproj": {
     "mtime": 1785264564.1649785,
     "ast_hash": "ee66feaa62e1ec1a68878b545a9c559a",
@@ -115,12 +55,12 @@
     "semantic_hash": ""
   },
   "ECS.Core.Tests/Program.cs": {
-    "mtime": 1786265534.2229438,
-    "ast_hash": "f5384897df6c7d3eb2513ddae3b1a5c6",
+    "mtime": 1786291511.336,
+    "ast_hash": "5284c409c0548dec9f53eacb9dcc6ff3",
     "semantic_hash": ""
   },
   "ECS.Core.Tests/PrototypeDependencyGraphBaselineTests.cs": {
-    "mtime": 1785264617.6530964,
+    "mtime": 1786291511.351,
     "ast_hash": "0f3787dd66dac40ccb81ff884c2f3212",
     "semantic_hash": ""
   },
@@ -165,8 +105,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj": {
-    "mtime": 1786269580.5085475,
-    "ast_hash": "a7f4c500a20159bebd4fe48aacb9012e",
+    "mtime": 1786293330.1700459,
+    "ast_hash": "e094bbfb3bb357c9a751556cbff7958b",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/Program.cs": {
@@ -175,7 +115,7 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner/Builder.cs": {
-    "mtime": 1785263882.6058142,
+    "mtime": 1786291511.356,
     "ast_hash": "15d82ac04b141688862771af17460ce8",
     "semantic_hash": ""
   },
@@ -200,8 +140,8 @@
     "semantic_hash": "6140f0c67d5b34d1376d71f18fd58ac4"
   },
   "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj": {
-    "mtime": 1785263952.877017,
-    "ast_hash": "c65812e444d91d7bcb4a2754b9c6527e",
+    "mtime": 1786293329.2933984,
+    "ast_hash": "a9d498490fdecfa04eab7fed936ab4f5",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner/Program.cs": {
@@ -215,8 +155,8 @@
     "semantic_hash": "ae45405f0d921f78b69df344a7a2eea6"
   },
   "Karpik.Engine.Core.Runner/Runner.cs": {
-    "mtime": 1786265668.8700073,
-    "ast_hash": "287588aa9d85e57d1a10f63eb528d510",
+    "mtime": 1786291524.22,
+    "ast_hash": "c596604b0d83072942a6daa971664780",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/Application.cs": {
@@ -470,13 +410,13 @@
     "semantic_hash": "739b37a0ee6aa66875dcda6ef6d30e59"
   },
   "KarpikEngine.slnx": {
-    "mtime": 1785263428.5870023,
-    "ast_hash": "fc9ef7f1e5d19c0c6e837de6fd62f08a",
+    "mtime": 1786291073.7163248,
+    "ast_hash": "e074093f32ce1e909f4f8be773e4c91c",
     "semantic_hash": ""
   },
   "Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj": {
-    "mtime": 1784051215.9440355,
-    "ast_hash": "5476ee16f807c4eb3894b4b21b246435",
+    "mtime": 1786293275.3301382,
+    "ast_hash": "f514189e1824f729bd89fd8e3313e2c1",
     "semantic_hash": ""
   },
   "Modules/Client/Graphics/Graphics.Core.Tests/Program.cs": {
@@ -600,8 +540,8 @@
     "semantic_hash": ""
   },
   "Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj": {
-    "mtime": 1786042415.611,
-    "ast_hash": "02bfbe9aead6fec9ce2854023755e30b",
+    "mtime": 1786293276.212684,
+    "ast_hash": "2c1d0b4840a9a20fa443c3283c02f192",
     "semantic_hash": ""
   },
   "Modules/Client/Graphics/Graphics.Core/ICommandBuffer.cs": {
@@ -725,9 +665,9 @@
     "semantic_hash": "0228e196a45ce5ef6183d17f551e30a8"
   },
   "Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj": {
-    "mtime": 1784051216.1178215,
-    "ast_hash": "04a3687f72c4341837cb20e2a2c9f15d",
-    "semantic_hash": "04a3687f72c4341837cb20e2a2c9f15d"
+    "mtime": 1786293277.669824,
+    "ast_hash": "18dfbf82034fb0dc3cd55f41650336cc",
+    "semantic_hash": ""
   },
   "Modules/Client/Input/Input.cs": {
     "mtime": 1786207872.203,
@@ -735,8 +675,8 @@
     "semantic_hash": ""
   },
   "Modules/Client/Input/Input.csproj": {
-    "mtime": 1786207903.996,
-    "ast_hash": "23102208a3a43b1dfbe010b46beaf115",
+    "mtime": 1786293278.6411855,
+    "ast_hash": "c9d374891a0ad1853c341b9a2288512a",
     "semantic_hash": ""
   },
   "Modules/Client/Input/InputModuleEcs.cs": {
@@ -755,14 +695,14 @@
     "semantic_hash": ""
   },
   "Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj": {
-    "mtime": 1784051216.144915,
-    "ast_hash": "11ead67ac8b562e1b266d1b2588db13f",
-    "semantic_hash": "11ead67ac8b562e1b266d1b2588db13f"
+    "mtime": 1786293279.8645227,
+    "ast_hash": "3ec6cb86b666e185516668005f6e359b",
+    "semantic_hash": ""
   },
   "Modules/Client/Network.Client/Network.Client.LiteNetLib/Network.Client.LiteNetLib.csproj": {
-    "mtime": 1784051216.1465619,
-    "ast_hash": "99f0722be35e83f2e69c50b9f36909b8",
-    "semantic_hash": "99f0722be35e83f2e69c50b9f36909b8"
+    "mtime": 1786293280.7667181,
+    "ast_hash": "25ec5bf7682760b2235668a6f6a3865a",
+    "semantic_hash": ""
   },
   "Modules/Client/Network.Client/Network.Client.LiteNetLib/NetworkClientModule.cs": {
     "mtime": 1785658923.173,
@@ -805,9 +745,9 @@
     "semantic_hash": ""
   },
   "Modules/Client/Window/Window.Core/Window.Core.csproj": {
-    "mtime": 1785261923.5182424,
-    "ast_hash": "81e262e86769dc7ee80a3efb727ad51e",
-    "semantic_hash": "81e262e86769dc7ee80a3efb727ad51e"
+    "mtime": 1786293281.7770624,
+    "ast_hash": "00c5fccfd00ccdff6ed6bb3a2449c29f",
+    "semantic_hash": ""
   },
   "Modules/Client/Window/Window.Sdl2/SDL2InputSource.cs": {
     "mtime": 1786207073.459,
@@ -820,9 +760,9 @@
     "semantic_hash": ""
   },
   "Modules/Client/Window/Window.Sdl2/Window.Sdl2.csproj": {
-    "mtime": 1784051216.1717534,
-    "ast_hash": "1d531f026f32e0fbf5a47c12d83e17de",
-    "semantic_hash": "1d531f026f32e0fbf5a47c12d83e17de"
+    "mtime": 1786293282.6776755,
+    "ast_hash": "2de756379ce19913d245b4717d22d796",
+    "semantic_hash": ""
   },
   "Modules/Server/Network.Server/Network.Server.Core/Network.Server.Core.csproj": {
     "mtime": 1784051216.1739945,
@@ -830,9 +770,9 @@
     "semantic_hash": "f8db0c9917dd3486d4e7f4719a6ddd08"
   },
   "Modules/Server/Network.Server/Network.Server.LiteNetLib/Network.Server.LiteNetLib.csproj": {
-    "mtime": 1784051216.1754458,
-    "ast_hash": "ded1cb3719fbdbfa9abada865205e05f",
-    "semantic_hash": "ded1cb3719fbdbfa9abada865205e05f"
+    "mtime": 1786293320.957645,
+    "ast_hash": "1052ab7bbe943201f1a9dd0834b631a2",
+    "semantic_hash": ""
   },
   "Modules/Server/Network.Server/Network.Server.LiteNetLib/NetworkServerModule.cs": {
     "mtime": 1785662406.422,
@@ -865,8 +805,8 @@
     "semantic_hash": ""
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj": {
-    "mtime": 1785122280.8490508,
-    "ast_hash": "d19b3c10a75a94914af845cbb8de5554",
+    "mtime": 1786293321.5249462,
+    "ast_hash": "7d9952e25a2452c5913cb9c1b276bc43",
     "semantic_hash": ""
   },
   "Modules/Shared/AssetManagement/AssetManagement.Core/AssetPath.cs": {
@@ -940,9 +880,9 @@
     "semantic_hash": ""
   },
   "Modules/Shared/DebugModule/DebugModule.csproj": {
-    "mtime": 1784051216.1960297,
-    "ast_hash": "2d6fca621e5a0f166c81e531e28bf71c",
-    "semantic_hash": "2d6fca621e5a0f166c81e531e28bf71c"
+    "mtime": 1786293322.166451,
+    "ast_hash": "0aa15cbae870bc84dbc701a4972e15e4",
+    "semantic_hash": ""
   },
   "Modules/Shared/DebugModule/DebugThings.cs": {
     "mtime": 1784051148.9949188,
@@ -985,8 +925,8 @@
     "semantic_hash": "7005000dee4b14643d07c9193f5ead63"
   },
   "Modules/Shared/ECS/ECS.Core/ECS.Core.csproj": {
-    "mtime": 1785261923.520574,
-    "ast_hash": "225136d431ad1902e1620bb5c85c7f65",
+    "mtime": 1786293322.9451866,
+    "ast_hash": "b271e223b9eb56cdc0acaf03f11afc15",
     "semantic_hash": ""
   },
   "Modules/Shared/ECS/ECS.Core/EcsMetaWorld.cs": {
@@ -1015,7 +955,7 @@
     "semantic_hash": "835d8161a6217b8078488819b3c7167d"
   },
   "Modules/Shared/ECS/ECS.Core/IComponentTemplate.cs": {
-    "mtime": 1786213921.749,
+    "mtime": 1786291511.341,
     "ast_hash": "7836fc9ab80edc7f048d01d12fd164f3",
     "semantic_hash": ""
   },
@@ -1045,7 +985,7 @@
     "semantic_hash": ""
   },
   "Modules/Shared/ECS/ECS.Core/Worlds.cs": {
-    "mtime": 1786213785.421,
+    "mtime": 1786291511.346,
     "ast_hash": "b0b8ac9a90c03a61b454eb34e38a912c",
     "semantic_hash": ""
   },
@@ -1055,8 +995,8 @@
     "semantic_hash": "fb6447a5b0d3a2c729ea25b90d84175c"
   },
   "Modules/Shared/LoggerModule/LoggerModule.csproj": {
-    "mtime": 1786257905.845,
-    "ast_hash": "2c8b9f863610b7ef4d87e976f00a0ed7",
+    "mtime": 1786293323.8696773,
+    "ast_hash": "34a3c87c2a260def7b36ff9c04d122d1",
     "semantic_hash": ""
   },
   "Modules/Shared/Modding/Modding.Core/AssetManagement/AssetLoaders/ModMetaDataLoader.cs": {
@@ -1095,8 +1035,8 @@
     "semantic_hash": "752d1649b75e938d868713b71b614837"
   },
   "Modules/Shared/Modding/Modding.Core/Modding.Core.csproj": {
-    "mtime": 1784051216.2225533,
-    "ast_hash": "d0284d7df8ed79c6259b341a41fc50a9",
+    "mtime": 1786293324.8845465,
+    "ast_hash": "b35d7b6dce36581e7c94a48028707fc7",
     "semantic_hash": ""
   },
   "Modules/Shared/Modding/Modding.Lua/GameAPI.cs": {
@@ -1175,9 +1115,9 @@
     "semantic_hash": "398d491e4fae295dcdb6af119aac43e3"
   },
   "Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj": {
-    "mtime": 1784051216.2400908,
-    "ast_hash": "d7636f8a5aade41b105080899a5f3cd2",
-    "semantic_hash": "d7636f8a5aade41b105080899a5f3cd2"
+    "mtime": 1786293325.8326004,
+    "ast_hash": "40ecfba7a1f02bbd63f522687f0cdc0d",
+    "semantic_hash": ""
   },
   "Modules/Shared/Network.Shared/Network.Shared.Core/ComponentAttribute.cs": {
     "mtime": 1784051149.0563042,
@@ -1240,9 +1180,9 @@
     "semantic_hash": "4b0374c79e478a44ce339d78c9eba6c1"
   },
   "Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj": {
-    "mtime": 1784051216.2467794,
-    "ast_hash": "4c3fde148cd9d4f7825c71046f6b700b",
-    "semantic_hash": "4c3fde148cd9d4f7825c71046f6b700b"
+    "mtime": 1786293326.7466745,
+    "ast_hash": "a7d981af439cbeed5261b24f3499c7f8",
+    "semantic_hash": ""
   },
   "Modules/Shared/Network.Shared/Network.Shared.Core/NetworkConfig.cs": {
     "mtime": 1786224015.085,
@@ -1320,9 +1260,9 @@
     "semantic_hash": "3db8f1672d6688a082237baed066941c"
   },
   "Modules/Shared/Physics/Physics2D.Core/Physics2D.Core.csproj": {
-    "mtime": 1785261923.527675,
-    "ast_hash": "0d37536ce9aeae75c666d1bea3bd7113",
-    "semantic_hash": "0d37536ce9aeae75c666d1bea3bd7113"
+    "mtime": 1786293327.5855982,
+    "ast_hash": "4ec8b80b6c441a0fff88b2d6c1be3be7",
+    "semantic_hash": ""
   },
   "Modules/Shared/Physics/Physics2D.Core/Physics2DLayers.cs": {
     "mtime": 1784051216.2983139,
@@ -1380,9 +1320,9 @@
     "semantic_hash": "712209ea72e474c5dac52fbff309102b"
   },
   "Modules/Shared/StatAndAbilities/StatAndAbilities.csproj": {
-    "mtime": 1785261923.5286777,
-    "ast_hash": "f6c545a44655e0b3a7b42f1ebb402c89",
-    "semantic_hash": "f6c545a44655e0b3a7b42f1ebb402c89"
+    "mtime": 1786293340.0691895,
+    "ast_hash": "2d4e056812e9a3fd4f780f528320d4ba",
+    "semantic_hash": ""
   },
   "Modules/Shared/Tween/Tween.Core/ECS/Systems/TweenUpdateSystem.cs": {
     "mtime": 1786256648.573,
@@ -1395,9 +1335,9 @@
     "semantic_hash": ""
   },
   "Modules/Shared/Tween/Tween.Core/Tween.Core.csproj": {
-    "mtime": 1785261923.5296774,
-    "ast_hash": "78f77c1ff756abfe8d0aa1a728be2e0e",
-    "semantic_hash": "78f77c1ff756abfe8d0aa1a728be2e0e"
+    "mtime": 1786293328.5111828,
+    "ast_hash": "0c6d74628fe9d7da2908f38d6c196f20",
+    "semantic_hash": ""
   },
   "Modules/Shared/Tween/Tween.Core/Tween.cs": {
     "mtime": 1786256833.018,
@@ -1775,7 +1715,7 @@
     "semantic_hash": ""
   },
   "Tools/StaticAnalyzer/ECS/001.WorldWrapper/UseWorldAnalyzer.cs": {
-    "mtime": 1784051216.451527,
+    "mtime": 1786291524.215,
     "ast_hash": "20d7327601815918dc06b32954f52775",
     "semantic_hash": "20d7327601815918dc06b32954f52775"
   },
@@ -1790,7 +1730,7 @@
     "semantic_hash": "14ba2a2d39cc0244c820a149dcfafdab"
   },
   "Tools/StaticAnalyzer/ECS/003.UpdateScheduler/EcsUpdateSchedulerAnalyzer.cs": {
-    "mtime": 1785264617.6456282,
+    "mtime": 1786291524.206,
     "ast_hash": "4c41842cc1e1ac6b41ee40bef427c1a2",
     "semantic_hash": ""
   },
@@ -2330,8 +2270,8 @@
     "semantic_hash": "b242be8d3478de86ae91f94d393b6b7d"
   },
   "docs/02_ADR/module-graph.md": {
-    "mtime": 1784051216.4858108,
-    "ast_hash": "715124dfab77991ea0c5a0bada9f68a1",
+    "mtime": 1786294770.6123314,
+    "ast_hash": "b1fa4de919f5b1f1024f566defea69e6",
     "semantic_hash": ""
   },
   "docs/02_ADR/native-memory-ownership.md": {
@@ -2580,9 +2520,9 @@
     "semantic_hash": "1642ce34852883a1548796ced763eb56"
   },
   "first-parties/Karpik.Jobs/README.md": {
-    "mtime": 1780854294.3566852,
-    "ast_hash": "e657f719d4352b077f322eb93b00845f",
-    "semantic_hash": "e657f719d4352b077f322eb93b00845f"
+    "mtime": 1786290511.3669834,
+    "ast_hash": "42825ac15a129a60b5c10001fc304b7f",
+    "semantic_hash": ""
   },
   "plans/PLANS.md": {
     "mtime": 1784051218.005804,
@@ -2730,7 +2670,7 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/EcsRenderPrepareSchedulerRuntimeTests.cs": {
-    "mtime": 1784051215.839113,
+    "mtime": 1786291524.229,
     "ast_hash": "44ccc76eef0844ddbd181a7f4206d2c1",
     "semantic_hash": ""
   },
@@ -3120,8 +3060,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj": {
-    "mtime": 1785056758.7813077,
-    "ast_hash": "85789f46eb41e2cb8829bc2eb707a158",
+    "mtime": 1786293659.8690798,
+    "ast_hash": "3ad73386b399508e03b496cb25083dd3",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager.Tests/RequiredApiSurfaceTests.cs": {
@@ -3145,8 +3085,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/Karpik.Engine.Packager.csproj": {
-    "mtime": 1785056758.7876523,
-    "ast_hash": "fc9a27665676537e5ef50131ee83c9d4",
+    "mtime": 1786293652.796686,
+    "ast_hash": "4c539ba699112980823f9ee9ab28d80f",
     "semantic_hash": ""
   },
   "Karpik.Engine.Packager/PayloadLayout.cs": {
@@ -3165,8 +3105,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj": {
-    "mtime": 1785056758.7946663,
-    "ast_hash": "09132c3356e499dd09fcc7f71fe5c072",
+    "mtime": 1786293661.1824052,
+    "ast_hash": "069c571c6a5ac33988d769f5509eab54",
     "semantic_hash": ""
   },
   "Karpik.Engine.ProjectModel/Diagnostics/KarpikDiagnostic.cs": {
@@ -3185,8 +3125,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj": {
-    "mtime": 1785056758.801196,
-    "ast_hash": "b198a0d236a73c5be03c6596ef78ed02",
+    "mtime": 1786293658.757438,
+    "ast_hash": "13e401c00f8e086b65d861faa63604c8",
     "semantic_hash": ""
   },
   "Karpik.Engine.ProjectModel/Model/KarpikModuleReference.cs": {
@@ -3255,8 +3195,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.IntegrationTests/Karpik.Engine.Sdk.IntegrationTests.csproj": {
-    "mtime": 1785056758.8247857,
-    "ast_hash": "2229458076b7619777ee5e26d5d59971",
+    "mtime": 1786293657.5946567,
+    "ast_hash": "91d69f293932e36b801d837243594ca6",
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/ExternalCycleValidationSmoke.ps1": {
@@ -3285,8 +3225,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj": {
-    "mtime": 1785442437.508394,
-    "ast_hash": "5dc4bc02f6e162627b418197131748b9",
+    "mtime": 1786293654.0140798,
+    "ast_hash": "2e7491969951fd6f687c53f7418a311b",
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks.Tests/KarpikValidationTaskTests.cs": {
@@ -3305,8 +3245,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj": {
-    "mtime": 1785442546.9316208,
-    "ast_hash": "afd59e565d6042264cc1c1a45dc7646d",
+    "mtime": 1786293655.161423,
+    "ast_hash": "bf70ea58c8779f94b75ba2e9d1b1c4ee",
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk.Tasks/ValidateKarpikProjectReferencesTask.cs": {
@@ -3320,8 +3260,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj": {
-    "mtime": 1785442702.8120737,
-    "ast_hash": "fdc9ecb6cbcc1c6cd82747f89b465551",
+    "mtime": 1786293656.4454403,
+    "ast_hash": "0d7b3486f0ae6bcfd5e2c6340e33118c",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/AtomicDirectoryPublisherTests.cs": {
@@ -3335,8 +3275,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj": {
-    "mtime": 1785056758.8629692,
-    "ast_hash": "cdd3a77180638e24354035efde7c253c",
+    "mtime": 1786293662.4272141,
+    "ast_hash": "071294cc19c7e84e1adfde693fc5dd29",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling.Tests/ManifestAndValidationTests.cs": {
@@ -3380,8 +3320,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj": {
-    "mtime": 1785056758.8767042,
-    "ast_hash": "5d24ebd5f6e187717ba47055a86b0904",
+    "mtime": 1786293663.4666054,
+    "ast_hash": "22cf0eb0ca8145d0dd8a235ed00fdd58",
     "semantic_hash": ""
   },
   "Karpik.Engine.Tooling/ModuleLayoutPolicy.cs": {
@@ -4392,6 +4332,76 @@
   "plans/autofac-runner-scopes-execplan.md": {
     "mtime": 1786266186.1124187,
     "ast_hash": "cea70e2347e3d00a6dcd03328719046b",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/ComponentLifecycleContext.cs": {
+    "mtime": 1786291524.201,
+    "ast_hash": "52dc7a1ccbd35790b9c534a38c6004e1",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/ComponentLifecycleException.cs": {
+    "mtime": 1786291524.234,
+    "ast_hash": "6ab8a1d64520d09c4a7a89ac58573aaa",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/DragonECS.Karpik.Extensions.csproj": {
+    "mtime": 1786290934.322,
+    "ast_hash": "f48f4df3fa845bcbe54f118224ae5d6b",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/EcsRunners/EventCallerWrapper.cs": {
+    "mtime": 1785263882.6254582,
+    "ast_hash": "6bab925baa689da349dfc35684cee433",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/EcsRunners/EventCallers.cs": {
+    "mtime": 1784051215.7689078,
+    "ast_hash": "c756650007cbf0cdaa87f0f4229bf2f2",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/EcsRunners/LifeCycleRunners.cs": {
+    "mtime": 1785263882.6556277,
+    "ast_hash": "45785e65eefe3727311544b312257dc5",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/EntityBuilder.cs": {
+    "mtime": 1786291524.211,
+    "ast_hash": "3d588d3ba429c0ece7611dbefa16a0bc",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/GlobalUsings.cs": {
+    "mtime": 1784051215.77485,
+    "ast_hash": "6489852c37853e87a53e67c5184dd79c",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/IComponentLifecycleAsync.cs": {
+    "mtime": 1786291524.225,
+    "ast_hash": "f2bb284125ef239ab44ea0a6c240105a",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/LifeCycleBridge.cs": {
+    "mtime": 1786291513.243,
+    "ast_hash": "6880b635d0e46357f1e7b135ee23ce99",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/StaticExtensions.cs": {
+    "mtime": 1786291524.239,
+    "ast_hash": "3c6fbcb10ac5cecdb49666e253c2464c",
+    "semantic_hash": ""
+  },
+  "first-parties/DragonECS.Karpik.Extensions/World.cs": {
+    "mtime": 1786291524.243,
+    "ast_hash": "319d95e7d3dc2a78ee3fd45e5dca3ba1",
+    "semantic_hash": ""
+  },
+  "first-parties/Karpik.Jobs/README.ru.md": {
+    "mtime": 1786290559.5765913,
+    "ast_hash": "7bf4be4550ec53c4e7da8441b08b35db",
+    "semantic_hash": ""
+  },
+  "plans/module-library-dependency-separation-execplan.md": {
+    "mtime": 1786294771.271909,
+    "ast_hash": "a6fae6f25f44d536c980c997829a20d0",
     "semantic_hash": ""
   }
 }

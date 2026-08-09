@@ -44,12 +44,27 @@ public static class GraphValidator
             }
         }
 
-        foreach (var project in model.ProjectsByPath.Values.Where(project =>
-                     project.RelativePath.StartsWith("Modules/", StringComparison.OrdinalIgnoreCase)))
+        var modulePaths = model.Plugins
+            .Select(plugin => plugin.Project.AbsolutePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var project in model.Plugins
+                     .Select(plugin => plugin.Project)
+                     .DistinctBy(project => project.AbsolutePath, StringComparer.OrdinalIgnoreCase))
         {
-            if (project.DirectProjectReferences.Count > 0)
+            foreach (var referencePath in project.DirectProjectReferences)
             {
-                errors.Add($"{project.RelativePath}: direct ProjectReference is forbidden; use KarpikModuleDependency.");
+                if (!model.ProjectsByPath.TryGetValue(referencePath, out var target))
+                {
+                    errors.Add($"{project.RelativePath}: ProjectReference target is outside the solution: {referencePath}.");
+                    continue;
+                }
+
+                if (modulePaths.Contains(target.AbsolutePath))
+                {
+                    errors.Add(
+                        $"{project.RelativePath}: module-to-module ProjectReference is forbidden; " +
+                        $"use KarpikModuleDependency for {target.RelativePath}.");
+                }
             }
         }
     }
@@ -174,6 +189,9 @@ public static class GraphValidator
         var graphProjects = model.Plugins.Select(plugin => plugin.Project)
             .DistinctBy(project => project.AbsolutePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var modulePaths = graphProjects
+            .Select(project => project.AbsolutePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var project in graphProjects)
         {
             foreach (var dependency in project.Dependencies)
@@ -194,6 +212,15 @@ public static class GraphValidator
                     continue;
                 }
 
+                var isGraphProject = modulePaths.Contains(target.AbsolutePath);
+                if (!isGraphProject)
+                {
+                    errors.Add(
+                        $"{project.RelativePath}: KarpikModuleDependency '{dependency.Id}' targets non-module project " +
+                        $"{target.RelativePath}; use ProjectReference.");
+                    continue;
+                }
+
                 if (!IsSideAllowed(project.Side, target.Side))
                 {
                     errors.Add($"{project.RelativePath} ({project.Side}) references forbidden project {target.RelativePath} ({target.Side}).");
@@ -204,12 +231,24 @@ public static class GraphValidator
                     continue;
                 }
 
-                var isGraphProject = model.Plugins.Any(plugin =>
-                    string.Equals(plugin.Project.AbsolutePath, target.AbsolutePath, StringComparison.OrdinalIgnoreCase));
-                if (isGraphProject && !activeProjects.ContainsKey(target.AbsolutePath) && !dependency.Optional)
+                if (!activeProjects.ContainsKey(target.AbsolutePath) && !dependency.Optional)
                 {
                     errors.Add($"{project.RelativePath}: required module dependency is disabled: {target.RelativePath}");
                 }
+            }
+
+
+            foreach (var referencePath in project.DirectProjectReferences)
+            {
+                if (!model.ProjectsByPath.TryGetValue(referencePath, out var target) ||
+                    IsSideAllowed(project.Side, target.Side))
+                {
+                    continue;
+                }
+
+                errors.Add(
+                    $"{project.RelativePath} ({project.Side}) references forbidden project " +
+                    $"{target.RelativePath} ({target.Side}).");
             }
         }
     }
@@ -278,4 +317,5 @@ public static class GraphValidator
                from == to ||
                (from is ProjectSide.Client or ProjectSide.Server && to == ProjectSide.Shared);
     }
+
 }

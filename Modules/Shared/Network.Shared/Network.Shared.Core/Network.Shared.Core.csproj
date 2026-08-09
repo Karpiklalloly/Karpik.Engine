@@ -8,8 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="DragonExtensions" />
-      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <ProjectReference Include="..\..\..\..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
-
 </Project>

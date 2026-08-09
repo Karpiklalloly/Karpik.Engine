@@ -26,9 +26,13 @@ public static class ArtifactGenerator
 
     private static string BuildCatalog(RepositoryModel model)
     {
-        var projects = model.ProjectsByPath.Values
-            .Select(project => (Id: project.PluginId, project.RelativePath))
+        var modulePaths = model.Plugins
+            .Select(plugin => plugin.Project.AbsolutePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var projects = model.Plugins
+            .Select(plugin => (Id: plugin.Project.PluginId, plugin.Project.RelativePath))
             .Concat(model.ProjectAliases
+                .Where(alias => modulePaths.Contains(alias.Value.AbsolutePath))
                 .Select(alias => (Id: alias.Key, alias.Value.RelativePath)))
             .Concat(model.Plugins
                 .Where(plugin => plugin.Kind == PluginKind.Core)

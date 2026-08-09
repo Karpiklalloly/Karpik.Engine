@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Karpik.Jobs" />
+      <ProjectReference Include="..\..\..\..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />
       <KarpikModuleDependency Include="AssetManagement" />
       <KarpikModuleDependency Include="ECS" />
     </ItemGroup>

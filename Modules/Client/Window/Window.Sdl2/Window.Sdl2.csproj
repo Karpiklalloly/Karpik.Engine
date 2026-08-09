@@ -8,8 +8,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Veldrid.SDL2" />
-      <KarpikModuleDependency Include="Veldrid.StartupUtilities" />
+      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
+      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
       <KarpikModuleDependency Include="Window" />
     </ItemGroup>
 

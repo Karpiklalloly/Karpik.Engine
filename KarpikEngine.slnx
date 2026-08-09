@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/first-parties/" />
+  <Folder Name="/first-parties/">
+    <Project Path="first-parties/DragonECS.Karpik.Extensions/DragonECS.Karpik.Extensions.csproj" />
+  </Folder>
   <Folder Name="/first-parties/Karpik.Jobs/">
     <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Benchmarks/Karpik.Memory.Benchmarks.csproj" />
     <Project Path="first-parties/Karpik.Jobs/Karpik.Memory.Tests/Karpik.Memory.Tests.csproj" />
@@ -80,7 +82,6 @@
   
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
-  <Project Path="DragonExtensions/DragonExtensions.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
   <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
   <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />

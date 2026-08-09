@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <KarpikModuleDependency Remove="Network.Codegen;StatAndAbilities.Codegen" />
+        <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>
 
 </Project>

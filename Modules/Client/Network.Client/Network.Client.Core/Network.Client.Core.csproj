@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <KarpikModuleDependency Include="Network.Shared" />
     </ItemGroup>
 

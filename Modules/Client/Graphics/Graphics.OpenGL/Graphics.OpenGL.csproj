@@ -8,12 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <KarpikModuleDependency Include="Veldrid.SPIRV" />
-        <KarpikModuleDependency Include="Veldrid.Utilities" />
+        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
+        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
         <KarpikModuleDependency Include="ECS" />
         <KarpikModuleDependency Include="Graphics" />
-        <KarpikModuleDependency Include="Veldrid" />
-        <KarpikModuleDependency Include="Veldrid.SDL2" />
+        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
+        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -10,3 +10,6 @@
 [submodule "third-parties/DragonECS"]
 	path = third-parties/DragonECS
 	url = https://github.com/DCFApixels/DragonECS.git
+[submodule "first-parties/DragonECS.Karpik.Extensions"]
+	path = first-parties/DragonECS.Karpik.Extensions
+	url = https://github.com/Karpiklalloly/DragonECS.Karpik.Extensions.git
