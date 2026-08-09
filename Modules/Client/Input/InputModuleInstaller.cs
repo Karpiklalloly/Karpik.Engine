@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.InputModule;
 
@@ -7,10 +6,6 @@ namespace Karpik.Engine.Client.InputModule;
 public class InputModuleInstaller : IModuleInstaller
 {
     public string Name => "Input";
-
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 
     public IModule? CreateModule() => new InputModuleEcs();
 }

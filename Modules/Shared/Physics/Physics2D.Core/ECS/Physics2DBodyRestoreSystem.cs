@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public sealed class Physics2DBodyRestoreSystem : ISystemInit
+public sealed class Physics2DBodyRestoreSystem(DefaultWorld world) : ISystemInit
 {
     private class RuntimeBodyAspect : EcsAspect
     {
@@ -20,13 +20,11 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
         public EcsPool<PhysicsBodyRef> BodyRefs = Exc;
     }
 
-    [DI] private DefaultWorld _world = null!;
-
     public void Init()
     {
         int clearedRuntimeRefs = 0;
         int missingDefinitions = 0;
-        foreach (var entity in _world.Where(out RuntimeBodyAspect runtimeBody))
+        foreach (var entity in world.Where(out RuntimeBodyAspect runtimeBody))
         {
             if (!runtimeBody.Definitions.Has(entity))
             {
@@ -38,7 +36,7 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
         }
 
         int queuedBodies = 0;
-        foreach (var entity in _world.Where(out DefinitionAspect definition))
+        foreach (var entity in world.Where(out DefinitionAspect definition))
         {
             if (definition.Requests.Has(entity))
             {

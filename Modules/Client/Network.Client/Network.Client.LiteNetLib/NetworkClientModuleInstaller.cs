@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib;
 
@@ -7,11 +6,6 @@ namespace Karpik.Engine.Client.Network.LiteNetLib;
 public class NetworkClientModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Client.LiteNetLib";
-    
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-        
-    }
     
     public IModule? CreateModule() => new NetworkClientModule();
 }

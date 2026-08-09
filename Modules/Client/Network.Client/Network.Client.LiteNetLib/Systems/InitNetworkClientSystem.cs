@@ -1,6 +1,5 @@
 ﻿using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Network.Core;
-using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 

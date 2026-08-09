@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
@@ -7,10 +6,6 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 public class ModdingLuaModuleInstaller : IModuleInstaller
 {
     public string Name => "Modding.Lua";
-    
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 
     public IModule? CreateModule() => new ModdingLuaModule();
 }

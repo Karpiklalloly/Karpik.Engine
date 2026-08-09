@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
@@ -7,10 +6,6 @@ namespace Karpik.Engine.Client.Graphics.Core;
 public class GraphicsCoreSimulationModuleInstaller : IModuleInstaller
 {
     public string Name => "Graphics.Core";
-    
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 
     public IModule? CreateModule() => new GraphicsCoreModule();
 }

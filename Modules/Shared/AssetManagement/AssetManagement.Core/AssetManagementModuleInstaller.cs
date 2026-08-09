@@ -7,8 +7,4 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 public class AssetManagementModuleInstaller : IModuleInstaller
 {
     public string Name => "AssetManagement.Core";
-
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 }

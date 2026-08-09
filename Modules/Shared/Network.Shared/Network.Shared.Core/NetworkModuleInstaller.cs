@@ -7,8 +7,4 @@ namespace Karpik.Engine.Shared.Network.LiteNetLib;
 public class NetworkModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Shared.Core";
- 
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 }

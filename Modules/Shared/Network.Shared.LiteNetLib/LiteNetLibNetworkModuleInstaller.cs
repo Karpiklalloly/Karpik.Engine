@@ -7,8 +7,4 @@ namespace Karpik.Engine.Shared.Network.LiteNetLib;
 public class LiteNetLibNetworkModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Shared.LiteNetLib";
- 
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 }

@@ -1,4 +1,5 @@
-﻿using Karpik.Engine.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Physics.Core;
 using nkast.Aether.Physics2D.Collision;
 using nkast.Aether.Physics2D.Collision.Shapes;
@@ -10,7 +11,9 @@ using Vector2 = System.Numerics.Vector2;
 
 namespace Karpik.Engine.Shared.Physics.Aether2D;
 
-public sealed class AetherPhysicsWorld : IPhysicsWorld2D 
+[Export(typeof(IPhysicsWorld2D))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
+public sealed class AetherPhysicsWorld : IPhysicsWorld2D
 {
     private class BodyLink 
     {
@@ -18,8 +21,7 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         public PhysicsBodyHandle Handle;
     }
 
-    [DI] private DragonExtensions.World _ecsWorld = null!;
-    [DI] private World _world = null!;
+    private readonly World _world;
     private readonly RayCastReportFixtureDelegate _cachedRaycastDelegate;
     private readonly QueryReportFixtureDelegate _cachedOverlapDelegate;
 
@@ -50,8 +52,9 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
     private readonly CircleShape _cachedQueryCircle = new CircleShape(1f, 1f);
     private Transform _cachedQueryTransform = new Transform();
 
-    public AetherPhysicsWorld()
+    public AetherPhysicsWorld(World world)
     {
+        _world = world;
         _cachedCollisionHandler = OnBodyCollision;
         _cachedRaycastDelegate = AetherRaycastCallback;
         _cachedOverlapDelegate = AetherOverlapCallback;

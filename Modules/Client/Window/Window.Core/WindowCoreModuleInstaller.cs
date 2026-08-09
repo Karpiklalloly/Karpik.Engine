@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Modules.Window.Core;
 
@@ -7,9 +6,6 @@ namespace Karpik.Engine.Modules.Window.Core;
 public class WindowCoreModuleInstaller : IModuleInstaller
 {
     public string Name => "Window.Core";
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 
     public IModule? CreateModule() => new WindowCoreModule();
 }

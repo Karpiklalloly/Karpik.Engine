@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Modding;
 
@@ -7,9 +6,4 @@ namespace Karpik.Engine.Shared.Modding;
 public class ModdingModuleInstaller : IModuleInstaller
 {
     public string Name => "Modding.Core";
-
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-        
-    }
 }

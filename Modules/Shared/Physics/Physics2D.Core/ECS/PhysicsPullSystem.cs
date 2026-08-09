@@ -5,7 +5,7 @@ using Karpik.Engine.Shared.ECS;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class PhysicsPullSystem : ISystemLateUpdate
+public class PhysicsPullSystem(IPhysicsWorld2D physics, DefaultWorld world) : ISystemLateUpdate
 {
     class TransformAspect : EcsAspect 
     {
@@ -18,14 +18,11 @@ public class PhysicsPullSystem : ISystemLateUpdate
         public EcsPool<PhysicsBodyRef> Bodies = Inc;
         public EcsPool<Velocity2D> Velocities = Inc;
     }
-    
-    [DI] private IPhysicsWorld2D _physics = null!;
-    [DI] private DefaultWorld _world = null!;
-    
+
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[2048];
     private Vector2[] _vecBuf = new Vector2[2048];
     private float[] _floatBuf = new float[2048];
-    
+
     public void LateUpdate()
     {
         SyncTransforms();
@@ -34,7 +31,7 @@ public class PhysicsPullSystem : ISystemLateUpdate
     
      private void SyncTransforms()
     {
-        var span = _world.Where(out TransformAspect aspect);
+        var span = world.Where(out TransformAspect aspect);
         int count = span.Count;
         if (count == 0) return;
 
@@ -45,7 +42,7 @@ public class PhysicsPullSystem : ISystemLateUpdate
             _handlesBuf[i] = aspect.Bodies.Get(span[i]).Handle;
         }
 
-        _physics.GetTransforms(
+        physics.GetTransforms(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
             _floatBuf.AsSpan(0, count)
@@ -61,7 +58,7 @@ public class PhysicsPullSystem : ISystemLateUpdate
 
     private void SyncVelocities()
     {
-        var span = _world.Where(out VelocityAspect aspect);
+        var span = world.Where(out VelocityAspect aspect);
         int count = span.Count;
         if (count == 0) return;
 
@@ -72,7 +69,7 @@ public class PhysicsPullSystem : ISystemLateUpdate
             _handlesBuf[i] = aspect.Bodies.Get(span[i]).Handle;
         }
 
-        _physics.GetVelocities(
+        physics.GetVelocities(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
             _floatBuf.AsSpan(0, count)

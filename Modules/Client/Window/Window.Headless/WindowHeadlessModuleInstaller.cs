@@ -1,6 +1,4 @@
-using Autofac;
 using Karpik.Engine.Core;
-using Karpik.Engine.Modules.Window.Core;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 
@@ -8,8 +6,4 @@ namespace Karpik.Engine.Modules.Window.Headless;
 public sealed class WindowHeadlessModuleInstaller : IModuleInstaller
 {
     public string Name => "Window.Headless";
-
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
 }
