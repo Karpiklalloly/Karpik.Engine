@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using System.Composition;
 using System.Net;
 using System.Net.Sockets;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -8,6 +10,8 @@ using DeliveryMethod = Karpik.Engine.Shared.Network.Core.DeliveryMethod;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
 
+[Export(typeof(INetworkManager))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public class LiteNetLibNetworkManager : INetworkManager
 {
     public event INetworkManager.NetworkEventHandler? NetworkReceiveEvent;
@@ -19,6 +23,7 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     private readonly EventBasedNetListener _listener;
     private readonly ConcurrentDictionary<NetPeer, IPeer> _peers = new();
+    private bool _disposed = false;
 
     public LiteNetLibNetworkManager()
     {
@@ -74,14 +79,12 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     public void Stop()
     {
-        _listener.NetworkReceiveEvent -= OnNetworkReceive;
-        _listener.PeerConnectedEvent -= OnPeerConnected;
-        _listener.PeerDisconnectedEvent -= OnPeerDisconnected;
-        _listener.ConnectionRequestEvent -= ListenerOnConnectionRequestEvent;
-        _listener.ClearNetworkReceiveEvent();
-        _listener.ClearNetworkReceiveUnconnectedEvent();
-        Manager.DisconnectAll();
-        Manager.Stop();
+        if (Manager.IsRunning)
+        {
+            Manager.DisconnectAll();
+            Manager.Stop();
+        }
+
         _peers.Clear();
     }
 
@@ -123,5 +126,30 @@ public class LiteNetLibNetworkManager : INetworkManager
     private void ListenerOnConnectionRequestEvent(ConnectionRequest request)
     {
         ConnectionRequestEvent?.Invoke(new LiteNetLibConnectionRequest(request));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        Stop();
+
+        _listener.NetworkReceiveEvent -= OnNetworkReceive;
+        _listener.PeerConnectedEvent -= OnPeerConnected;
+        _listener.PeerDisconnectedEvent -= OnPeerDisconnected;
+        _listener.ConnectionRequestEvent -= ListenerOnConnectionRequestEvent;
+
+        _listener.ClearNetworkReceiveEvent();
+        _listener.ClearNetworkReceiveUnconnectedEvent();
+
+        NetworkReceiveEvent = null;
+        PeerConnectedEvent = null;
+        PeerDisconnectedEvent = null;
+        ConnectionRequestEvent = null;
     }
 }

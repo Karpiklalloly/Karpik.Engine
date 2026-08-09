@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Shared.Network.Core;
 
-public interface INetworkManager
+public interface INetworkManager : IDisposable
 {
     public delegate void NetworkEventHandler(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod);
     public delegate void PeerConnectionEventHandler(IPeer peer);

@@ -1,5 +1,10 @@
-﻿namespace Karpik.Engine.Shared.Network.LiteNetLib.Configs;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 
+namespace Karpik.Engine.Shared.Network.Core;
+
+[Export(typeof(NetworkConfig))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public class NetworkConfig
 {
     public string Address { get; set; } = "localhost";
