@@ -2,6 +2,8 @@
 
 > 📅 Обновлено: 2026-05-31
 
+См. также: [Dependency Injection и области жизни](dependency-injection-and-scopes.md).
+
 ## 🏗️ Структура проекта
 
 ```

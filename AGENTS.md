@@ -30,7 +30,7 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 - `Server` - server logic and validation.
 - `Shared` - common code independent of runtime side.
 - Modules are independent, expose clear APIs, and depend on interfaces rather than concrete modules.
-- Use DI through `[DI]` fields and interfaces; avoid singleton/service locator patterns for replaceable logic.
+- Register services with `[Export]` + `[ServiceRegistration]` or explicitly in `IModuleInstaller.OnRegisterServices`; inject services and systems through constructors. Do not add `[DI]` field/property injection or service locators for statically known dependencies.
 
 ## Build / Verification
 - When running `dotnet build` from an agent shell, prefer single-node builds with MSBuild node reuse disabled:

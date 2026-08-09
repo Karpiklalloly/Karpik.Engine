@@ -10,8 +10,8 @@
     "semantic_hash": "062730c833ec4f3c492633c378b287c0"
   },
   "Configurator.Tests/ConfiguratorTests.cs": {
-    "mtime": 1786293030.510992,
-    "ast_hash": "8427008a85880455088342919a8a318d",
+    "mtime": 1786294698.0638552,
+    "ast_hash": "05543e2f997e21231638960a4992b07d",
     "semantic_hash": ""
   },
   "Configurator/ArtifactGenerator.cs": {
@@ -25,8 +25,8 @@
     "semantic_hash": "b647dc15fab58e6992174448b97572a2"
   },
   "Configurator/GraphValidator.cs": {
-    "mtime": 1786293090.666074,
-    "ast_hash": "f58951508f3acdb752b9d1d891d58810",
+    "mtime": 1786294725.4174683,
+    "ast_hash": "0f89041d08d16ae1d887b694728d73b1",
     "semantic_hash": ""
   },
   "Configurator/Models.cs": {
@@ -2270,8 +2270,8 @@
     "semantic_hash": "b242be8d3478de86ae91f94d393b6b7d"
   },
   "docs/02_ADR/module-graph.md": {
-    "mtime": 1786293373.651231,
-    "ast_hash": "db548c7bd79c3ae0c3a58cff57cc3a60",
+    "mtime": 1786294770.6123314,
+    "ast_hash": "b1fa4de919f5b1f1024f566defea69e6",
     "semantic_hash": ""
   },
   "docs/02_ADR/native-memory-ownership.md": {
@@ -4400,8 +4400,8 @@
     "semantic_hash": ""
   },
   "plans/module-library-dependency-separation-execplan.md": {
-    "mtime": 1786294528.1227384,
-    "ast_hash": "8c3be8a8e5b3ef5d2e9dd0a06b6ddbe3",
+    "mtime": 1786294771.271909,
+    "ast_hash": "a6fae6f25f44d536c980c997829a20d0",
     "semantic_hash": ""
   }
 }

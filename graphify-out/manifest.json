@@ -2125,9 +2125,9 @@
     "semantic_hash": "21ebe3ad49a531005e16e1f10bf75feb"
   },
   ".codex/skills/karpik-engine-architecture/SKILL.md": {
-    "mtime": 1784051215.6947212,
-    "ast_hash": "39e94bbe55583befa646d46aff107778",
-    "semantic_hash": "39e94bbe55583befa646d46aff107778"
+    "mtime": 1786301531.5281918,
+    "ast_hash": "89bce97a2becd11e6545f37701df6c8a",
+    "semantic_hash": ""
   },
   ".codex/skills/karpik-engine-architecture/agents/openai.yaml": {
     "mtime": 1784051215.6962807,
@@ -2190,8 +2190,8 @@
     "semantic_hash": "80e88ea45d08d6d874849fa1a298f201"
   },
   "AGENTS.md": {
-    "mtime": 1785057566.641323,
-    "ast_hash": "694db97e09e829aa5ee6cba74d89648d",
+    "mtime": 1786301503.8262882,
+    "ast_hash": "6a01eb1e7b87b5eb0b02005cd9393a0e",
     "semantic_hash": ""
   },
   "Changelog_0.4.md": {
@@ -2255,9 +2255,9 @@
     "semantic_hash": "34e149ad5dc071c06acf369355ff4c89"
   },
   "docs/01_Architecture/overview.md": {
-    "mtime": 1784051216.4802942,
-    "ast_hash": "c6a57e4a2b92be10fa26512cc8c038a2",
-    "semantic_hash": "c6a57e4a2b92be10fa26512cc8c038a2"
+    "mtime": 1786301503.8280473,
+    "ast_hash": "a6a2ef69398fe7f4c00e3660cdc96d50",
+    "semantic_hash": ""
   },
   "docs/02_ADR/README.md": {
     "mtime": 1784051216.4822958,
@@ -4402,6 +4402,11 @@
   "plans/module-library-dependency-separation-execplan.md": {
     "mtime": 1786294771.271909,
     "ast_hash": "a6fae6f25f44d536c980c997829a20d0",
+    "semantic_hash": ""
+  },
+  "docs/01_Architecture/dependency-injection-and-scopes.md": {
+    "mtime": 1786301531.5293417,
+    "ast_hash": "cddc690eba70710e24a46f53a96e7413",
     "semantic_hash": ""
   }
 }
