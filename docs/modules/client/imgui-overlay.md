@@ -35,15 +35,13 @@ using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Core;
 
-public sealed class MyDebugPanelSystem : ISystemRender
+public sealed class MyDebugPanelSystem(ImGuiOverlayState overlay) : ISystemRender
 {
-    [DI] private ImGuiOverlayState _overlay = null!;
-
     private string _text = string.Empty;
 
     public void Render()
     {
-        if (!_overlay.Enabled)
+        if (!overlay.Enabled)
         {
             return;
         }
@@ -56,10 +54,16 @@ public sealed class MyDebugPanelSystem : ISystemRender
 }
 ```
 
-Register pure ImGui panels between the built-in debug panel and render system:
+Register the system type in an `IModule` between the built-in debug panel and render system. Runner creates it from the `Simulation` scope and injects constructor dependencies:
 
 ```csharp
-b.Add(new MyDebugPanelSystem(), CustomLayers.END_PROGRAM_LAYER, 1745);
+public sealed class MyDebugModule : IModule
+{
+    public void Add(ISystemRegistry systems)
+    {
+        systems.Add<MyDebugPanelSystem>(CustomLayers.END_PROGRAM_LAYER, 1745);
+    }
+}
 ```
 
 If a system also writes to `GraphicsContext.Buffer`, keep it in the normal gameplay/basic layer.

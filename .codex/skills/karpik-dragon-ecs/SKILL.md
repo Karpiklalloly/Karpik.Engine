@@ -8,8 +8,9 @@ description: Dragon ECS rules for KarpikEngine. Use when Codex implements or rev
 ## Core Model
 - Entity: `entlong`.
 - Component: `struct` implementing `IEcsComponent`.
-- System: logic implementing `IEcsRun`, `IEcsRunLate`, `IEcsRunParallel`, `IEcsInit` and related interfaces.
-- World: `EcsWorld` / `EcsDefaultWorld`.
+- User system: logic implementing Karpik `ISystemInit`, `ISystemUpdate`, `ISystemLateUpdate` and related interfaces.
+- Direct Dragon `IEcsRun`, `IEcsInit` and related interfaces are compatibility/backend API.
+- User-facing world: `DefaultWorld`; backend world: `EcsWorld` / `EcsDefaultWorld`.
 - Pools: `EcsPool<T>` for mutable data, `EcsReadonlyPool<T>` for read-only data.
 
 ## Components
@@ -52,7 +53,7 @@ Cache pools in `IEcsInit` when the system does not use an aspect or when that is
 Prefer a nested `EcsAspect` for filtering:
 
 ```csharp
-public class MovementSystem : IEcsRun
+public sealed class MovementSystem(DefaultWorld world) : ISystemUpdate
 {
     private class Aspect : EcsAspect
     {
@@ -61,11 +62,9 @@ public class MovementSystem : IEcsRun
         public EcsReadonlyPool<StaticTag> Static = Opt;
     }
 
-    [DI] private EcsDefaultWorld _world;
-
-    public void Run()
+    public void Update()
     {
-        foreach (var e in _world.Where(out Aspect a))
+        foreach (var e in world.Where(out Aspect a))
         {
             ref var pos = ref a.Position.Get(e);
             ref var vel = ref a.Velocity.Get(e);

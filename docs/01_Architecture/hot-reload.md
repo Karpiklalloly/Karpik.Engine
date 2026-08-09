@@ -4,148 +4,136 @@
 
 ## Модель
 
-Надёжный hot reload в `0.4` выполняется перезапуском worker-процесса. Launcher остаётся живым, завершает старый worker и запускает новый. Это гарантированно освобождает managed static state, фоновые задачи, подписки и native-библиотеки старого процесса.
-
-`CoreRunner` поддерживает два режима:
+Надёжный hot reload выполняется перезапуском worker-процесса. Launcher остаётся живым, получает переносимое состояние, завершает старый worker и запускает новый. Граница процесса гарантированно освобождает managed static state, фоновые задачи и native-библиотеки старого worker.
 
 | Режим | Поведение |
 |-------|-----------|
 | `HotReloadMode.RestartWorker` | Launcher работает как watcher и запускает `Karpik.Engine.Core.Runner` отдельным процессом |
-| `HotReloadMode.Disabled` | Движок запускается напрямую в процессе launcher без hot reload |
+| `HotReloadMode.Disabled` | Движок запускается напрямую в процессе launcher |
 
-По умолчанию Debug использует `RestartWorker`, Release использует `Disabled`. Режим можно задать через `HotReloadOptions`.
-
-Hot reload не запускает сборку проектов. Перед reload изменённые модули должны быть собраны и скопированы в staging-директорию `modules/`.
+По умолчанию Debug использует `RestartWorker`, Release — `Disabled`. Hot reload сам не собирает проекты: обновлённые модули должны быть заранее собраны и скопированы в staging-каталог `modules/`.
 
 ## Граница Состояния
 
-В `0.4` между worker-процессами сохраняются только ECS-миры:
+Переносимое состояние предоставляют сервисы `IRestartWorkerStateProvider`, разрешённые из `Simulation` scope:
 
-- `DefaultWorld`;
-- `EventWorld`;
-- `MetaWorld`.
+```csharp
+public interface IRestartWorkerStateProvider
+{
+    string Key { get; }
+    byte[] Capture();
+    void Restore(ReadOnlySpan<byte> data);
+}
+```
 
-Состояние сериализует `ECSInstaller`. Ядро намеренно запрашивает snapshot только у этого инсталлера. `IInstallerHotReload` остаётся legacy-интерфейсом и не является разрешением сохранять произвольный object graph модулей.
+Каждый provider обязан иметь непустой уникальный `Key`. Runner собирает результаты `Capture()` в `Dictionary<string, byte[]>`; новый worker передаёт каждому provider данные с совпадающим ключом.
 
-Не сохраняются:
+Сейчас `EcsRestartWorkerStateProvider` с ключом `ECS` сохраняет три backend-мира:
+
+- `EcsDefaultWorld`;
+- `EcsEventWorld`;
+- `EcsMetaWorld`.
+
+Интерфейс расширяемый, но это не разрешение сериализовать произвольный object graph DI-контейнера. Обычно не сохраняются:
 
 - DI-сервисы и runtime-кэши;
 - сокеты, `IPeer` и сетевые соединения;
-- render-ресурсы и native handles;
-- physics handles;
-- потоки, задачи и подписки на события;
-- static-поля worker-процесса.
+- render- и physics-handles;
+- потоки, задачи и подписки;
+- static-поля worker.
 
-Если данные должны переживать reload как gameplay-состояние, они должны лежать в ECS-компонентах. Если значение существует только внутри текущего процесса, модуль должен восстановить его из ECS-данных во время обычной инициализации.
+Gameplay-состояние, которое должно пережить restart, хранится в ECS-компонентах. Process-local ресурсы пересоздаются из устойчивых данных при обычном запуске новой Simulation.
 
 ## Участники
 
 | Участник | Ответственность |
 |----------|-----------------|
-| Launcher / watcher | `CoreRunner` и `ProcessManager`: держат worker-процесс, IPC server и порядок перезапуска |
-| Worker | `Karpik.Engine.Core.Runner.Program`: загружает модули, выполняет loop и отвечает на IPC |
-| Ядро worker | `Bootstrap` и `EngineRunner`: вызывают lifecycle инсталлеров и систем |
-| ECS | `ECSInstaller`: снимает и восстанавливает snapshot трёх миров |
-| Модули | Пересоздают runtime-only ресурсы обычным lifecycle-кодом |
+| Launcher / watcher | `CoreRunner` и `ProcessManager`: IPC, порядок остановки и запуска worker |
+| Worker | `Karpik.Engine.Core.Runner.Program`: module loading, loop и ответы на IPC |
+| `EngineRunner` | Разрешение state providers, `Capture`, построение scope и `Restore` |
+| `EcsRestartWorkerStateProvider` | Snapshot и восстановление трёх ECS-миров |
+| Остальные сервисы | Повторяемое создание и очистка через Autofac lifecycle |
 
 ## Порядок Reload
 
-Reload можно запросить клавишей `R` в консоли watcher или из worker через `HotReloadHandler`. Во втором случае worker отправляет watcher сообщение `HotReloadRequest`.
+Reload можно запросить клавишей `R` в watcher или из worker через `HotReloadHandler`. Во втором случае worker отправляет launcher сообщение `HotReloadRequest`.
 
 ```mermaid
 sequenceDiagram
     participant W as Launcher / watcher
     participant IPC as Named Pipe
     participant Old as Старый worker
-    participant ECS as ECSInstaller
+    participant P as IRestartWorkerStateProvider
     participant New as Новый worker
 
     W->>IPC: StateRequest
     IPC->>Old: StateRequest
     Old->>Old: MainThreadScheduler.InvokeAsync(...)
-    Old->>ECS: OnPrepareHotReload()
-    ECS->>ECS: Snapshot Default, Event, Meta
-    ECS->>ECS: Очистить static helper caches и Destroy worlds
-    ECS-->>Old: ECS state bytes
-    Old-->>IPC: StateResponse
-    IPC-->>W: HotReloadState
-    W->>IPC: ShutdownRequest
-    Old-->>IPC: ShutdownAck
-    Old-->>W: Завершение процесса
-    W->>New: Запуск со state-file
-    New->>New: Загрузка side-specific modules
-    New->>ECS: OnRegisterServices()
-    New->>ECS: OnHotReload(), второй проход при запросе модуля
-    ECS->>ECS: Restore Default, Event, Meta
-    New->>New: Configure, Build pipeline, Init
+    Old->>P: Capture()
+    P-->>Old: key + bytes
+    Old-->>W: HotReloadState
+    Old->>Old: остановить loop и Dispose scopes
+    W->>New: запуск со state-file
+    New->>New: загрузить side-specific modules
+    New->>New: построить Engine -> ModSet -> Simulation
+    New->>P: Restore(bytes)
+    New->>New: resolve systems, build pipeline, Init
     New-->>W: WorkerReady
 ```
 
 Подробный порядок:
 
-1. `ProcessManager.HotReloadAsync()` отправляет старому worker `StateRequest`.
-2. `IpcClient` принимает запрос на IPC-потоке и передаёт сбор состояния в `MainThreadScheduler`.
-3. На основном потоке worker вызывает `Bootstrap.GetHotReloadData()`, затем `EngineRunner.GetHotReloadData()`.
-4. `EngineRunner` вызывает `ECSInstaller.OnPrepareHotReload()`.
-5. `ECSInstaller` сериализует три мира, очищает ECS static helper caches и уничтожает старые worlds.
-6. Worker помечает состояние собранным и прекращает loop. После snapshot ни client loop, ни server loop не должны запускать следующий tick.
-7. Worker возвращает `StateResponse`. Только после успешного ответа watcher отправляет `ShutdownRequest`, ожидает завершение процесса и при необходимости завершает его принудительно.
-8. Watcher записывает состояние во временный `reload/state/*.bin` и запускает новый worker с `--state-file`.
-9. Новый worker загружает snapshot до старта движка, выбирает модули по `Side` и передаёт состояние в `Bootstrap.Initialize()`.
-10. `EngineRunner.Setup()` сначала регистрирует сервисы модулей. Затем применяет ECS state до конфигурации модулей, построения pipeline и вызова `Init`.
-11. `ECSInstaller.OnHotReload()` использует существующий двухпроходный протокол `IInstallerHotReload`: первый вызов запрашивает повторный проход, второй восстанавливает три мира.
-12. После полной инициализации worker отправляет `WorkerReady`, и watcher считает запуск завершённым.
+1. `ProcessManager.HotReloadAsync()` запрашивает состояние у текущего worker.
+2. `IpcClient` принимает `StateRequest` и через `MainThreadScheduler` вызывает `Program.GetHotReloadState()` на основном потоке.
+3. `Bootstrap.GetHotReloadData()` делегирует `EngineRunner.GetHotReloadData()`.
+4. Runner разрешает все `IRestartWorkerStateProvider`, проверяет уникальность ключей и вызывает `Capture()`.
+5. После успешного ответа worker прекращает loop. `Bootstrap.Shutdown()` разрушает pipeline, затем `Simulation`, `ModSet` и `Engine` scopes.
+6. Launcher дожидается выхода worker, при необходимости отправляет shutdown request или завершает process tree.
+7. Launcher записывает `HotReloadState` во временный state-file и запускает новый worker.
+8. Новый Runner строит три DI scope и вызывает `Restore()` у provider с соответствующим ключом.
+9. Восстановление завершается до разрешения систем, построения pipeline и `Init`.
+10. После успешной инициализации worker отправляет `WorkerReady`.
 
 ## Abort И Recovery
 
-Если старый worker не вернул ECS snapshot за `StateRequestTimeout`, reload отменяется. Watcher не завершает старый worker. Это сохраняет текущую сессию, если ошибка произошла до разрушения ECS-миров.
+Если `Capture()` выбрасывает исключение или state response не получен за `StateRequestTimeout`, worker возвращает пустой ответ, не останавливает loop, а launcher отменяет reload.
 
-Если worker подтвердил shutdown, но не завершился за `GracefulShutdownTimeout`, watcher завершает process tree принудительно.
+Если worker не выходит за `GracefulShutdownTimeout`, launcher сначала запрашивает shutdown, затем при необходимости завершает process tree принудительно.
 
-Если worker аварийно завершился вне reload, watcher запускает новый worker без snapshot. Это crash recovery, а не сохранение gameplay-состояния.
+Аварийный выход worker вне запланированного reload запускает новый worker без snapshot. Это crash recovery, а не сохранение gameplay-состояния.
 
-Текущие ограничения recovery:
-
-- `ECSInstaller.OnPrepareHotReload()` уничтожает worlds после получения snapshot, но до отправки ответа watcher. Ошибка сериализации после разрушения worlds уже не позволяет безопасно продолжить старую сессию;
-- ошибки восстановления модуля логируются внутри `EngineRunner.ApplyInitialState()`, после чего startup продолжается. Для production-ready recovery восстановление должно стать fail-fast.
+Ошибка `Restore()` является startup-ошибкой: `EngineRunner.Setup()` освобождает уже построенные scopes и не запускает pipeline с частично восстановленным состоянием.
 
 ## Загрузка Модулей
 
-Сборка launcher копирует outputs модулей в `modules/`. При запуске worker сгенерированный `ModuleLoader`:
+При запуске worker сгенерированный `ModuleLoader`:
 
 1. выбирает `Shared + Client` или `Shared + Server` assemblies по `Side`;
-2. копирует staging-директорию в `reload/shadow/{pid}_{guid}`;
-3. проверяет наличие обязательных assemblies;
-4. загружает DLL из worker-specific shadow copy.
+2. копирует staging-каталог в worker-specific shadow copy;
+3. проверяет обязательные assemblies;
+4. загружает DLL и передаёт их типы Runner до начала `Setup`.
 
-Shadow copy позволяет следующей сборке перезаписать `modules/`, пока текущий worker ещё использует старые DLL. После завершения worker `ProcessManager` удаляет его shadow-директории.
+После начала `Setup` добавлять модули или типы нельзя. Shadow copy позволяет сборке обновлять `modules/`, пока текущий worker использует прежние DLL.
 
-## Контракт Модуля
+## Контракт Runtime-Ресурсов
 
-Модуль, содержащий runtime-only ресурсы, должен:
+- Сервисы освобождают ресурсы через `IDisposable`/`IAsyncDisposable`; Autofac вызывает их при уничтожении owning scope.
+- ECS-системы освобождают системные ресурсы через `ISystemDestroy`, когда разрушается pipeline.
+- Event subscriptions должны быть сняты до завершения owning scope.
+- Runtime handles восстанавливаются из устойчивых ECS-данных, а не переносятся между процессами.
+- Конструкторы должны оставаться лёгкими; длительная инициализация выполняется в явном lifecycle вне frame hot path.
 
-- создавать их повторяемо во время обычного lifecycle;
-- освобождать их в `Destroy` или полагаться на завершение worker как финальную границу очистки;
-- отписываться от событий, если объект может быть уничтожен до завершения процесса;
-- восстанавливать runtime handles из устойчивых ECS-данных;
-- не запускать IPC, snapshot или blocking reload-операции из frame hot path.
-
-Пример из Physics 2D:
-
-- `PhysicsBodyDefinition` хранит устойчивое описание тела;
-- `PhysicsBodyRef` хранит process-local handle;
-- `Physics2DBodyRestoreSystem.Init()` удаляет восстановленные старые handles и создаёт `CreateBodyRequest` для недостающих runtime bodies.
-
-Для клиентского соединения reconnect token хранится отдельно от `IPeer`. После перезапуска client worker новый сетевой runtime отправляет token серверу и привязывается к существующему игроку.
+Пример Physics 2D: `PhysicsBodyDefinition` сохраняет конфигурацию тела, а `PhysicsBodyRef` содержит process-local handle. После восстановления ECS `Physics2DBodyRestoreSystem.Init()` удаляет старые handles и создаёт `CreateBodyRequest`, чтобы backend построил тела заново.
 
 ## Ограничения Реального Времени
 
-IPC waits, JSON-сериализация, файловые операции, shadow copy и запуск процесса допустимы только на границе reload. Их нельзя переносить в `Begin`, `FixedUpdate`, `Update`, `LateUpdate`, `Render` или сетевой hot path.
+IPC waits, сериализация, файловые операции, shadow copy и запуск процесса допустимы только на границе reload. Их нельзя переносить в `MainThreadBegin`, `Begin`, `FixedUpdate`, `Update`, `LateUpdate`, `RenderPrepare`, `Render` или сетевой hot path.
 
-Snapshot снимается на основном потоке worker через `MainThreadScheduler`, чтобы ECS-миры не сериализовались одновременно с изменяющими их системами.
+Snapshot снимается на основном потоке, чтобы ECS-миры не сериализовались одновременно с системами, которые их изменяют.
 
 ## Связанные Документы
 
+- [Dependency Injection и области жизни](dependency-injection-and-scopes.md)
 - [Architecture Overview](overview.md)
 - [ECS](../modules/shared/ecs.md)
 - [Restart-worker Hot Reload ExecPlan](../../plans/restart-worker-hot-reload-execplan.md)

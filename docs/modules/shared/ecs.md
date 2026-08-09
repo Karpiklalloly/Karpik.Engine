@@ -6,7 +6,8 @@
 
 - **Слой**: Shared (Client + Server)
 - **Приоритет**: 0 (стандартный)
-- **Инсталлер**: `ECSInstaller`
+- **Инсталлер**: `EcsModuleInstaller`
+- **Область жизни**: `Simulation`
 
 ## Назначение
 
@@ -15,7 +16,7 @@
 Пользовательский код должен:
 
 - реализовывать Karpik lifecycle-интерфейсы `ISystem*`;
-- получать facade worlds через DI;
+- получать facade worlds через конструктор;
 - использовать `struct`-компоненты с `IEcsComponent`;
 - использовать Dragon `EcsAspect`, `EcsPool<T>` и `EcsReadonlyPool<T>` внутри аспектов.
 
@@ -35,19 +36,25 @@ Facade world предоставляет создание и удаление с�
 
 ## Lifecycle Систем
 
-Порядок фаз в `0.4`:
+Порядок основных фаз:
 
 ```text
-Init -> Begin -> FixedUpdate -> Update -> LateUpdate -> Render -> Destroy
+Init
+MainThreadBegin -> MainThreadFrameBegin -> Begin -> FixedUpdate -> Update
+-> LateUpdate -> RenderPrepare -> Render
+Destroy
 ```
 
 | Интерфейс | Назначение |
 |-----------|------------|
 | `ISystemInit` | Однократная инициализация |
-| `ISystemBegin` | Main-thread работа в начале кадра: input, window, подготовка render frame |
+| `ISystemMainThreadBegin` | Main-thread input/window работа перед simulation frame |
+| `ISystemMainThreadFrameBegin` | Main-thread подготовка render frame |
+| `ISystemBegin` | Начало gameplay frame |
 | `ISystemFixedUpdate` | Фиксированный simulation tick |
 | `ISystemUpdate` | Gameplay update |
 | `ISystemLateUpdate` | Последовательная post-simulation работа |
+| `ISystemRenderPrepare` | Подготовка render-данных после simulation |
 | `ISystemRender` | Main-thread render submit, ImGui и present |
 | `ISystemDestroy` | Однократное освобождение ресурсов |
 
@@ -74,7 +81,12 @@ public sealed class MovementSystem : ISystemUpdate
         public EcsPool<Position> Position = Inc;
     }
 
-    [DI] private DefaultWorld _world = null!;
+    private readonly DefaultWorld _world;
+
+    public MovementSystem(DefaultWorld world)
+    {
+        _world = world;
+    }
 
     public void Update()
     {
@@ -99,13 +111,17 @@ private sealed class Aspect : EcsAspect
 ## Data-First Операции
 
 ```csharp
-[DI] private DefaultWorld _world = null!;
+public sealed class SpawnSystem(DefaultWorld world) : ISystemInit
+{
+    public void Init()
+    {
+        var entity = world.New();
+        world.Add(entity.ID, new Position { X = 10f, Y = 20f });
 
-var entity = _world.New();
-_world.Add(entity.ID, new Position { X = 10f, Y = 20f });
-
-ref var position = ref _world.Get<Position>(entity.ID);
-position.X += 1f;
+        ref var position = ref world.Get<Position>(entity.ID);
+        position.X += 1f;
+    }
+}
 ```
 
 Сначала формируются данные компонента, затем компонент добавляется в мир. Это особенно важно для компонентов с lifecycle.
@@ -161,13 +177,13 @@ await _world.DelEnabledAsync(entity.ID, pool);
 
 ## Hot Reload
 
-`ECSInstaller` сериализует и восстанавливает Default, Event и Meta worlds при restart-worker hot reload. В `0.4` это единственное состояние модулей, которое ядро переносит между worker-процессами.
+`EcsRestartWorkerStateProvider` зарегистрирован как `IRestartWorkerStateProvider` в `Simulation`. При restart-worker reload он сериализует и восстанавливает backend-миры `EcsDefaultWorld`, `EcsEventWorld` и `EcsMetaWorld`.
 
 ```text
-OnPrepareHotReload -> snapshot ECS worlds -> restart worker -> OnHotReload -> restore ECS worlds
+Capture -> snapshot ECS worlds -> restart worker -> построение Simulation scope -> Restore
 ```
 
-Snapshot снимается на основном потоке через `MainThreadScheduler`. После сериализации старые worlds уничтожаются, а worker прекращает loop до следующего tick. Новый worker восстанавливает worlds после регистрации сервисов и до построения pipeline.
+Snapshot снимается на основном потоке через `MainThreadScheduler`. После успешного `Capture` старый worker прекращает loop; pipeline и области Autofac освобождаются обычным shutdown-путём. Новый worker сначала строит `Engine`, `ModSet` и `Simulation`, затем вызывает `Restore` до разрешения систем, построения pipeline и `Init`.
 
 Snapshot API работает на backend-уровне. Gameplay-системам не следует самостоятельно сериализовать world во время кадра. Полный порядок работы ядра и контракт runtime-only ресурсов описаны в [Hot Reload](../../01_Architecture/hot-reload.md).
 
@@ -186,7 +202,8 @@ Snapshot API работает на backend-уровне. Gameplay-система
 
 ```text
 ECS.Core/
-├── ECSInstaller.cs
+├── EcsModuleInstaller.cs
+├── EcsRestartWorkerStateProvider.cs
 ├── Worlds.cs
 ├── EcsMetaWorld.cs
 ├── EcsWorldExtensions.cs

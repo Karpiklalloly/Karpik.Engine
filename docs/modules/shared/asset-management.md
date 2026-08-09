@@ -1,84 +1,76 @@
-# AssetManagement
+# Asset Management
 
-> Система загрузки и управления ассетами
+> Загрузка, кэширование и сохранение ассетов для Client и Server
 
-## 📋 Обзор
+## Обзор
 
-- **Слой**: Shared (Client + Server)
-- **Приоритет**: -100 (загружается первым)
-- **Интерфейсы**: `IModule`, `IModuleListener`, `IModuleConfiguratable`, `IModuleDestroy`
+- **Модуль**: `AssetManagement.Core`
+- **Инсталлер**: `AssetManagementModuleInstaller`
+- **Область жизни**: `Engine`
+- **Приоритет модуля**: `-10000`
 
-## 🎯 Назначение
+`AssetsManager` является Engine-сервисом: один экземпляр используется всеми `ModSet` и `Simulation` текущего worker. Инсталлер только объявляет модуль и его порядок; обычные сервисы регистрируются атрибутами.
 
-Централизованная система загрузки, кэширования и освобождения игровых ассетов.
+| Контракт | Реализация | Регистрация |
+|----------|------------|-------------|
+| `IAssetsManager` | `AssetsManager` | Engine singleton |
+| `IFileSystem` | `PhysicalFileSystem` | Engine singleton |
+| `IAssetLoader` | загрузчики разных модулей | Engine singleton, multiple export |
+| `IAssetSaver` | сохранятели разных модулей | Engine singleton, multiple export |
 
-## 📦 Сервисы
+## Регистрация Loader И Saver
 
-| Интерфейс | Реализация | Описание |
-|-----------|------------|----------|
-| `IAssetsManager` | `AssetsManager` | Менеджер ассетов |
-
-## 🔧 ECS-системы
-
-Нет ECS-систем. Модуль работает на уровне сервисов.
-
-## 📁 Структура
-
-```
-AssetManagement.Core/
-├── AssetManagementInstaller.cs  # Инсталлер модуля
-├── AssetsManager.cs             # Менеджер ассетов
-├── Asset.cs                     # Базовый класс ассета
-├── AssetHandle.cs               # Хэндл для доступа к ассету
-├── AssetPath.cs                 # Пути к ассетам
-├── IAssetLoader.cs              # Интерфейс загрузчика
-├── IAssetSaver.cs               # Интерфейс сохранения
-├── IFileSystem.cs               # Абстракция файловой системы
-├── PhysicalFileSystem.cs        # Физическая ФС
-├── BaseAssetLoader.cs           # Базовый загрузчик
-├── BaseAssetSaver.cs            # Базовый сохранятель
-├── AssetLoaders/
-│   ├── JsonLoader.cs            # Загрузка JSON
-│   └── RawTextLoader.cs         # Загрузка текста
-└── Assets/
-    └── TextAsset.cs             # Текстовый ассет
-```
-
-## 🔗 Зависимости
-
-Нет внешних зависимостей от других модулей.
-
-## 💡 Использование
+Каждый loader/saver сам экспортирует общий контракт. Регистрировать его вручную в `AssetManagementModuleInstaller` не нужно:
 
 ```csharp
-// Получение менеджера
-var assets = services.Get<IAssetsManager>();
-
-// Загрузка ассета
-var handle = assets.Load<TextAsset>("path/to/file.txt");
-var text = handle.Asset.Text;
-
-// Освобождение
-handle.Release();
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public sealed class TextureLoader : BaseAssetLoader<TextureAsset, Texture>
+{
+    // ...
+}
 ```
 
-## 🔄 Жизненный цикл
+Runner собирает все такие экспорты. Autofac передаёт `IAssetLoader[]` и `IAssetSaver[]` в конструктор `AssetsManager`, а менеджер строит таблицы поиска по расширению и типу ассета.
 
-1. **OnRegisterServices** — создание `AssetsManager`
-2. **OnConfigureComplete** — регистрация встроенных загрузчиков
-3. **OnAnotherModuleLoaded** — регистрация загрузчиков из других модулей
-4. **Destroy** — освобождение всех ассетов
+Поскольку `AssetsManager` принадлежит `Engine`, его loader/saver также должны быть доступны в `Engine`. Engine-сервис не может зависеть от `ModSet` или `Simulation`.
 
-## ⚠️ Особенности
+Повторная пара `(extension, asset type)` или повторный saver для одного типа сейчас перезаписывает предыдущее значение. Явной модели приоритетов ещё нет, поэтому совпадения должны быть намеренными и проверяться отдельно.
 
-- Автоматическое обнаружение загрузчиков через рефлексию
-- Поддержка зависимостей между ассетами (`IHasDependencies`)
-- Абстракция файловой системы для тестирования
-- Hot Reload поддержка через сохранение/загрузку JSON
+## Использование
 
-## 🚨 Performance Notes
+Получайте `IAssetsManager` через конструктор:
 
-| Проблема | Решение |
-|----------|---------|
-| `AssetHandle` без `Span` API | P2-2: Добавить `ReadOnlySpan<byte> GetData()` |
-| Аллокации при загрузке | Использовать `ArrayPool<byte>.Shared` |
+```csharp
+public sealed class LevelLoader(IAssetsManager assets)
+{
+    public async JobHandle<string> LoadDescription(string path)
+    {
+        using AssetHandle<TextAsset> handle = await assets.LoadAssetAsync<TextAsset>(path);
+        return handle.Asset?.Text ?? string.Empty;
+    }
+}
+```
+
+`AssetHandle<T>` увеличивает счётчик ссылок. Его необходимо освобождать через `Dispose`/`using`; прямой вызов внутренних методов release не нужен.
+
+## Жизненный Цикл
+
+1. Runner строит Engine container и создаёт `AssetsManager` при разрешении сервиса.
+2. Constructor injection передаёт файловую систему, логгер и все loader/saver.
+3. Загруженные ассеты кэшируются по `(path hash, asset type)`.
+4. При освобождении последнего handle ассет выгружается.
+5. При уничтожении Engine scope Autofac вызывает `AssetsManager.Dispose()`, который освобождает оставшиеся ассеты.
+
+Asset Manager не использует `OnAnotherModuleLoaded`, `OnConfigureComplete` или `IModuleDestroy`.
+
+## Ограничения Производительности
+
+- Загрузка, сохранение и файловый I/O не выполняются в frame/ECS hot path.
+- Loader не должен блокировать основной поток при длительном I/O.
+- Зависимости между ассетами учитываются через `TryAddDependency`; дочерний ассет удерживается до выгрузки родителя.
+- `ConcurrentDictionary` защищает таблицы менеджера, но не превращает произвольный loader или сам объект ассета в thread-safe тип.
+
+## Связанные Документы
+
+- [Dependency Injection и области жизни](../../01_Architecture/dependency-injection-and-scopes.md)

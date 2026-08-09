@@ -1,533 +1,116 @@
-# Physics 2D API Specification
+# Physics 2D
+
+> Simulation-scoped 2D physics с ECS-интеграцией
 
 ## Обзор
 
-API для работы с 2D физикой. Полная абстракция от физического движка (Aether.Physics2D). Интеграция с Dragon ECS.
+Physics 2D разделён на API/системы и backend:
 
-## Компоненты (ECS)
+| Модуль | Scope | Назначение |
+|--------|-------|------------|
+| `Physics2D.Core` | Simulation | Компоненты, `IPhysicsWorld2D` и ECS-системы синхронизации |
+| `Physics2D.Aether2D` | Simulation | Реализация `IPhysicsWorld2D` на Aether.Physics2D |
 
-Все компоненты реализуют `IEcsComponent`.
+`AetherPhysicsWorld` экспортируется как Simulation singleton. `Physics2DAetherModuleInstaller` явно создаёт backend `World` с гравитацией; это сложная регистрация стороннего типа, поэтому она находится в installer.
 
-### RigidBodyComponent
+Системы регистрируются типами через `Physics2DModule` и получают `IPhysicsWorld2D`, `DefaultWorld` и `Time` через конструкторы.
 
-Данные физического тела. Реализует `IEcsComponent`.
+## ECS-Данные
 
-```csharp
-using DCFApixels.DragonECS.Core;
+| Компонент | Назначение |
+|-----------|------------|
+| `Transform2D` | Устойчивая позиция и rotation сущности |
+| `Velocity2D` | Линейная и угловая скорость |
+| `PhysicsBodyDefinition` | Устойчивая конфигурация тела и shape |
+| `PhysicsBodyRef` | Process-local handle backend-тела |
+| `CreateBodyRequest` | Запрос на создание тела |
+| `DestroyBodyRequest` | Запрос на удаление тела |
+| `TeleportRequest` | Запрос на изменение transform |
+| `SetVelocityRequest` | Запрос на изменение скорости |
 
-public struct RigidBodyComponent : IEcsComponent
-{
-    public float Mass;
-    public float InverseMass;
-    public Vector2Float Velocity;
-    public float AngularVelocity;
-    public Vector2Float Force;
-    public float Torque;
-    public float LinearDamping;
-    public float AngularDamping;
-    public RigidBodyType BodyType;
-    public bool IsSimulated;
-    public bool AllowSleep;
-    public bool IsAwake;
-}
+`BodyConfig` задаёт тип тела, массу, friction, restitution, sensor/gravity flags и collision masks. `ShapeConfig` создаётся через `ShapeConfig.Box(size)` или `ShapeConfig.Circle(radius)`.
 
-public enum RigidBodyType : byte
-{
-    Static = 0,
-    Dynamic = 1,
-    Kinematic = 2
-}
+## Создание Тела
 
-### Collider Components
-
-Отдельные компоненты для каждого типа коллайдера (ECS-подход: компонент = тип). Все реализуют `IEcsComponent`.
+Constructor injection используется и в пользовательских системах:
 
 ```csharp
-using DCFApixels.DragonECS.Core;
-
-public struct BoxColliderComponent : IEcsComponent
+public sealed class SpawnPhysicsBodySystem(DefaultWorld world) : ISystemInit
 {
-    public Vector2Float Offset;
-    public Vector2Float Size;
-    public float Angle;
-    
-    public float Density;
-    public float Friction;
-    public float Restitution;
-    public bool IsSensor;
-    public CollisionCategory Category;
-    public CollisionCategory Mask;
-}
-    public CollisionCategory Category;
-    public CollisionCategory Mask;
-}
-
-public struct CircleColliderComponent : IEcsComponent
-{
-    public Vector2Float Offset;
-    public float Radius;
-    
-    public float Density;
-    public float Friction;
-    public float Restitution;
-    public bool IsSensor;
-    public CollisionCategory Category;
-    public CollisionCategory Mask;
-}
-
-public struct PolygonColliderComponent : IEcsComponent
-{
-    public Vector2Float Offset;
-    public float Angle;
-    public Vector2Float Centroid;
-    public ReadOnlySpan<Vector2Float> Vertices;
-    public ReadOnlySpan<Vector2Float> Normals;
-    
-    public float Density;
-    public float Friction;
-    public float Restitution;
-    public bool IsSensor;
-    public CollisionCategory Category;
-    public CollisionCategory Mask;
-}
-
-public struct ChainColliderComponent : IEcsComponent
-{
-    public Vector2Float Offset;
-    public ReadOnlySpan<Vector2Float> Vertices;
-    public float Friction;
-    public float Restitution;
-    public bool IsSensor;
-    public CollisionCategory Category;
-    public CollisionCategory Mask;
-}
-```
-
-### ColliderComponent (Legacy - deprecated)
-
-> Устаревший универсальный компонент. Рекомендуется использовать специализированные компоненты выше.
-
-```csharp
-// DEPRECATED - используйте BoxColliderComponent, CircleColliderComponent и т.д.
-public struct ColliderComponent
-{
-    public ColliderShapeType ShapeType;    // тип формы
-    public Vector2Float Offset;            // смещение относительно body
-    public float Angle;                    // поворот
-    
-    // Box
-    public Vector2Float Size;
-    
-    // Circle  
-    public float Radius;
-    
-    // Polygon
-    public ReadOnlySpan<Vector2Float> Vertices;
-    
-    public float Density;                 // плотность
-    public float Friction;                 // трение
-    public float Restitution;              // упругость
-    public bool IsSensor;                  // тригер/коллайдер
-    public CollisionCategory Category;    // категория
-    public CollisionCategory Mask;        // маска коллизий
-}
-
-public enum CollisionCategory : uint
-{
-    Default = 0x0001,
-    Player = 0x0002,
-    Enemy = 0x0004,
-    Wall = 0x0008,
-    Projectile = 0x0010,
-    Trigger = 0x0020
-}
-```
-
-### PhysicsStateComponent
-
-Состояние для синхронизации.
-
-```csharp
-public struct PhysicsStateComponent : IEcsComponent
-{
-    public Vector2Float Position;
-    public float Rotation;         // в градусах
-    public bool IsDirty;
-}
-```
-
-## Интерфейсы
-
-### IPhysicsWorld
-
-Главный интерфейс физического мира.
-
-```csharp
-public interface IPhysicsWorld : IDisposable
-{
-    // Конфигурация
-    Vector2Float Gravity { get; set; }
-    int VelocityIterations { get; set; }
-    int PositionIterations { get; set; }
-    
-    // Управление телами
-    Entity CreateBody(Entity entity, RigidBodyComponent rigidBody, ColliderComponent collider);
-    void DestroyBody(Entity entity);
-    
-    // Получить данные
-    bool TryGetBody(Entity entity, out IPhysicsBody body);
-    bool HasBody(Entity entity);
-    
-    // Синхронизация
-    void Step(float deltaTime);
-    void SyncToEcs();
-    
-    // Queries
-    bool Raycast(RaycastInput input, out RaycastHit hit);
-    int RaycastAll(RaycastInput input, Span<RaycastHit> hits);
-    
-    bool Overlap(OverlapInput input, Span<Entity> entities);
-    int OverlapAll(OverlapInput input, Span<Entity> entities);
-}
-```
-
-### IPhysicsBody
-
-Интерфейс тела в физическом мире.
-
-```csharp
-public interface IPhysicsBody
-{
-    Entity Entity { get; }
-    
-    Vector2Float Position { get; set; }
-    float Rotation { get; set; }  // градусы
-    
-    Vector2Float LinearVelocity { get; set; }
-    float AngularVelocity { get; set; }
-    
-    float Mass { get; }
-    float InverseMass { get; }
-    float Inertia { get; }
-    float InverseInertia { get; }
-    
-    RigidBodyType BodyType { get; }
-    bool IsAwake { get; set; }
-    
-    // Управление
-    void ApplyForce(Vector2Float force);
-    void ApplyForceAtPoint(Vector2Float force, Vector2Float point);
-    void ApplyTorque(float torque);
-    void ApplyLinearImpulse(Vector2Float impulse);
-    void ApplyAngularImpulse(float impulse);
-    
-    // Коллайдеры
-    int GetColliderCount();
-    IPhysicsCollider GetCollider(int index);
-    IPhysicsCollider AddCollider(ColliderComponent collider);
-    void RemoveCollider(int index);
-}
-```
-
-### IPhysicsCollider
-
-Интерфейс коллайдера.
-
-```csharp
-public interface IPhysicsCollider
-{
-    IPhysicsBody Body { get; }
-    ColliderShapeType ShapeType { get; }
-    
-    Vector2Float Offset { get; set; }
-    float Angle { get; set; }
-    
-    float Friction { get; set; }
-    float Restitution { get; set; }
-    float Density { get; set; }
-    bool IsSensor { get; set; }
-    
-    CollisionCategory Category { get; set; }
-    CollisionCategory Mask { get; set; }
-}
-```
-
-## Queries
-
-### RaycastInput / RaycastHit
-
-```csharp
-public readonly struct RaycastInput
-{
-    public Vector2Float Origin;
-    public Vector2Float Direction;
-    public float MaxDistance;
-    public CollisionCategory Mask;
-}
-
-public readonly struct RaycastHit
-{
-    public Entity Entity;
-    public Vector2Float Point;
-    public Vector2Float Normal;
-    public float Fraction;
-    public IPhysicsCollider Collider;
-}
-```
-
-### OverlapInput
-
-```csharp
-public readonly struct OverlapInput
-{
-    public Vector2Float Position;
-    public ColliderShapeType ShapeType;
-    public Vector2Float Size;      // для box
-    public float Radius;           // для circle
-    public CollisionCategory Mask;
-}
-```
-
-## События
-
-События реализуются через компоненты в ECS (Event-based подход Dragon).
-
-### CollisionEvent
-
-```csharp
-public struct CollisionEvent : IEcsComponent
-{
-    public int EntityA;
-    public int EntityB;
-    public Vector2Float ContactPoint;
-    public Vector2Float ContactNormal;
-    public float Penetration;
-}
-```
-
-### TriggerEvent
-
-```csharp
-public struct TriggerEnterEvent : IEcsTagComponent { }
-public struct TriggerStayEvent : IEcsTagComponent { }
-public struct TriggerExitEvent : IEcsTagComponent { }
-
-public struct TriggerEventData : IEcsComponent
-{
-    public int TriggerEntity;
-    public int OtherEntity;
-}
-```
-
-## Системы
-
-### PhysicsStepSystem
-
-Шаг физики. Выполняет симуляцию.
-
-```csharp
-[PhysicsPhase(PhysicsPhase.Step)]
-public partial struct PhysicsStepSystem : ISystem
-{
-    public void Run(ref EcsPipeline.Builder b)
+    public void Init()
     {
-        b.Injection(out IPhysicsWorld world);
-        
-        b.Update<PhysicsStepProcess>(Layer.Physics);
-    }
-}
-
-[UpdateInGroup(typeof(PhysicsStepProcess))]
-public partial struct PhysicsStepProcess
-{
-    public void Run(ref EcsPipeline.Builder b, ref EcsWorld world, float delta)
-    {
-        // 1. Apply forces
-        // 2. Step simulation
-        // 3. Handle collisions
-    }
-}
-```
-
-### PhysicsSyncSystem
-
-Синхронизация между ECS и физическим миром.
-
-```csharp
-[PhysicsPhase(PhysicsPhase.SyncToEcs)]
-public partial struct PhysicsSyncSystem : ISystem
-{
-    public void Run(ref EcsPipeline.Builder b)
-    {
-        b.Injection(out IPhysicsWorld world);
-        
-        // Sync position/rotation from physics to ECS
-    }
-}
-```
-
-## Модуль Physics
-
-Интеграция с Dragon ECS через `IEcsModule`.
-
-```csharp
-public class PhysicsModule : IEcsModule
-{
-    public void Import(EcsPipeline.Builder b)
-    {
-        b.Inject(_physicsWorld);
-        
-        b.Add(new PhysicsInitSystem());
-        b.Add(new PhysicsStepSystem());
-        b.Add(new PhysicsSyncToEcsSystem());
-        b.Add(new PhysicsCleanupSystem());
-    }
-}
-
-// Pipeline construction
-var pipeline = EcsPipeline.New()
-    .AddModule(new PhysicsModule())
-    // other modules
-    .Build();
-```
-
-## Архитектура
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     ECS (Dragon)                        │
-├─────────────────────────────────────────────────────────┤
-│  RigidBodyComponent  │  ColliderComponent  │  PhysicsState  │
-└──────────┬────────────┴─────────┬───────────┴──────┬─────┘
-           │                      │                   │
-           ▼                      ▼                   ▼
-┌─────────────────────────────────────────────────────────┐
-│                   PhysicsSyncSystem                    │
-├─────────────────────────────────────────────────────────┤
-│                      IPhysicsWorld                       │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              AetherPhysicsWorld                  │   │
-│  │              (реализация)                         │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Примеры использования
-
-### Создание динамического тела с box коллайдером
-
-```csharp
-var entity = world.NewEntity();
-
-ref var rigidBody = ref entity.Add<RigidBodyComponent>();
-rigidBody.BodyType = RigidBodyType.Dynamic;
-rigidBody.Mass = 1f;
-rigidBody.LinearDamping = 0.01f;
-
-ref var box = ref entity.Add<BoxColliderComponent>();
-box.Size = new Vector2Float(1f, 1f);
-box.Density = 1f;
-box.Friction = 0.3f;
-
-physicsWorld.CreateBody(entity, rigidBody, box);
-```
-
-### Создание circle коллайдера
-
-```csharp
-ref var circle = ref entity.Add<CircleColliderComponent>();
-circle.Radius = 0.5f;
-circle.Density = 1f;
-circle.Friction = 0.3f;
-```
-
-### Использование Aspect для работы с разными коллайдерами
-
-В Dragon ECS Aspect наследуются от `EcsAspect` и используют `B.IncludePool<T>()`.
-
-```csharp
-using DCFApixels.DragonECS;
-
-// Aspect для работы с физическими телами
-public sealed class PhysicsBodyAspect : EcsAspect
-{
-    public readonly EcsPool<RigidBodyComponent> RigidBodies = B.IncludePool<RigidBodyComponent>();
-    public readonly EcsPool<PhysicsStateComponent> States = B.IncludePool<PhysicsStateComponent>();
-}
-
-// Aspect для box коллайдеров - комбинирование
-public sealed class BoxColliderAspect : EcsAspect
-{
-    public readonly PhysicsBodyAspect PhysicsBody = B.Combine<PhysicsBodyAspect>();
-    public readonly EcsPool<BoxColliderComponent> BoxColliders = B.IncludePool<BoxColliderComponent>();
-}
-
-// Aspect для circle коллайдеров
-public sealed class CircleColliderAspect : EcsAspect
-{
-    public readonly PhysicsBodyAspect PhysicsBody = B.Combine<PhysicsBodyAspect>();
-    public readonly EcsPool<CircleColliderComponent> CircleColliders = B.IncludePool<CircleColliderComponent>();
-}
-```
-
-### Использование Aspect В Системе
-
-```csharp
-public sealed class VelocityDebugSystem : ISystemUpdate
-{
-    private sealed class Aspect : EcsAspect
-    {
-        public EcsReadonlyPool<Velocity2D> Velocities = Inc;
-    }
-
-    [DI] private DefaultWorld _world = null!;
-
-    public void Update()
-    {
-        foreach (var entity in _world.Where(out Aspect aspect))
+        var entity = world.New();
+        world.Add(entity.ID, new Transform2D
         {
-            ref readonly var velocity = ref aspect.Velocities.Get(entity);
-            var speedSquared = velocity.Linear.LengthSquared();
-        }
+            Position = new Vector2(0f, 5f),
+            Rotation = 0f
+        });
+        world.Add(entity.ID, new CreateBodyRequest
+        {
+            BodyConfig = new BodyConfig
+            {
+                Type = BodyType.Dynamic,
+                Mass = 1f,
+                Friction = 0.3f,
+                CategoryBits = Physics2DLayers.Player,
+                MaskBits = Physics2DLayers.All
+            },
+            ShapeConfig = ShapeConfig.Box(new Vector2(1f, 1f))
+        });
     }
 }
 ```
 
-### Raycast
+`Physics2DBodyCreator` обрабатывает запрос в `Begin`, создаёт backend-тело, записывает `PhysicsBodyDefinition` и добавляет `PhysicsBodyRef`. Для удаления добавьте `DestroyBodyRequest`.
+
+## Порядок Синхронизации
+
+```text
+Init:        Physics2DBodyRestoreSystem подготавливает восстановленные тела
+Begin:       create requests и push teleport/velocity в backend
+FixedUpdate: PhysicsStepSystem выполняет Step(Time.FixedDeltaTime)
+LateUpdate:  destroy requests и копирование transform/velocity обратно в ECS
+```
+
+Физика всегда использует fixed dt. Нельзя подменять его frame delta.
+
+## Запросы К Backend
+
+`IPhysicsWorld2D` предоставляет raycast, overlap, collision events, force/impulse и прямые операции с velocity. API принимает caller-provided spans:
 
 ```csharp
-var input = new RaycastInput
-{
-    Origin = playerPosition,
-    Direction = direction,
-    MaxDistance = 10f,
-    Mask = CollisionCategory.Enemy | CollisionCategory.Wall
-};
+Span<RaycastHit2D> hits = stackalloc RaycastHit2D[16];
+int count = physics.Raycast(
+    start,
+    end,
+    Physics2DLayers.Platform | Physics2DLayers.Player,
+    hits);
 
-if (physicsWorld.Raycast(input, out var hit))
+for (int i = 0; i < count; i++)
 {
-    // hit.Entity - что мы задели
+    int entityId = hits[i].Entity;
+    // ...
 }
 ```
 
-### Trigger
+Размер буфера ограничивает число возвращённых результатов. Не создавайте новый массив для каждого запроса в hot path.
 
-```csharp
-ref var box = ref entity.Add<BoxColliderComponent>();
-box.Size = new Vector2Float(2f, 2f);
-box.IsSensor = true;
+## Restart-Worker Hot Reload
 
-// Обработка в системе
-foreach (var (trigger, entity) in SystemAPI.Query<RefRO<BoxColliderComponent>>()
-    .WithAll<IsTriggerEvent>())
-{
-    // Обработка входа/выхода
-}
-```
+`PhysicsBodyRef` нельзя переносить между процессами: handle относится к конкретному экземпляру backend. Устойчивая `PhysicsBodyDefinition` сохраняется вместе с ECS-миром.
 
-## Требования к реализации
+После `EcsRestartWorkerStateProvider.Restore()` система `Physics2DBodyRestoreSystem` удаляет восстановленные старые handles и создаёт `CreateBodyRequest`. Новые backend-тела создаются обычным simulation lifecycle.
 
-1. **Zero Allocation**: Все временные данные в queries использовать Span/Memory
-2. **Thread Safety**: IPhysicsWorld не потокобезопасен, синхронизация на уровне системы
-3. **ECS Integration**: Полная интеграция с Dragon ECS
-4. **Abstraction**: Aether деталь реализации, можно заменить на другой движок
+## Ограничения Производительности
+
+- Компоненты остаются unmanaged `struct`; не храните backend objects в ECS.
+- Массовая синхронизация выполняется плотными буферами и spans.
+- Создание/удаление тел — структурные операции, их не следует выполнять без необходимости каждый tick.
+- Raycast/overlap получают буфер от вызывающего кода и не должны выделять память на каждый запрос.
+- Не выполняйте blocking I/O, DI resolution или LINQ внутри physics-систем.
+
+## Связанные Документы
+
+- [ECS](ecs.md)
+- [Hot Reload](../../01_Architecture/hot-reload.md)
+- [Dependency Injection и области жизни](../../01_Architecture/dependency-injection-and-scopes.md)

@@ -1,81 +1,64 @@
 # Modding
 
-> Система модификаций на базе Lua
+> Загрузка и выполнение Lua-модов
 
-## 📋 Обзор
+## Обзор
 
-- **Слой**: Shared (Client + Server)
-- **Приоритет**: 0 (стандартный)
-- **Интерфейсы**: `IModule`, `IModuleConfiguratable`, `IModuleDestroy`
+Modding разделён на два модуля:
 
-## 🎯 Назначение
+| Модуль | Scope | Назначение |
+|--------|-------|------------|
+| `Modding.Core` | Engine | Контракты, метаданные и `ModMetaDataLoader` |
+| `Modding.Lua` | Simulation | `ModManager`, Lua-контейнеры и ECS-системы |
 
-Предоставляет систему модов с поддержкой Lua-скриптов.
-
-## 📦 Сервисы
-
-| Интерфейс | Реализация | Описание |
-|-----------|------------|----------|
-| `IModManager` | `ModManager` | Менеджер модов |
-
-## 🔧 ECS-системы
-
-| Система | Слой | Описание |
-|---------|------|----------|
-| `UpdateSystem` | Update | Обновление Lua-скриптов |
-
-## 📁 Структура
-
-```
-Modding.Core/
-├── ModdingInstaller.cs       # Инсталлер ядра
-├── IModManager.cs            # Интерфейс менеджера
-├── IModContainer.cs          # Контейнер мода
-├── ModMetaData.cs            # Метаданные мода
-├── ExecutionSide.cs          # Client/Server
-├── EventModMethods.cs        # События мода
-└── AssetManagement/
-    ├── Assets/
-    │   └── ModMetaDataAsset.cs
-    └── Loaders/
-        └── ModMetaDataLoader.cs
-
-Modding.Lua/
-├── ModdingLuaInstaller.cs    # Инсталлер Lua
-├── ModdingLuaModule.cs       # ECS-модуль
-├── ModManager.cs             # Реализация менеджера
-├── ModContainer.cs           # Контейнер Lua-мода
-├── ModScriptLoader.cs        # Загрузчик скриптов
-├── GameAPI.cs                # API для модов
-└── Systems/
-    └── UpdateSystem.cs       # Обновление модов
-```
-
-## 🔗 Зависимости
-
-- `AssetManagement` — загрузка метаданных модов
-- `MoonSharp` или аналогичный Lua-интерпретатор
-
-## 💡 Использование
+`ModdingModuleInstaller` и `ModdingLuaModuleInstaller` не создают сервисы вручную. `ModManager` экспортируется атрибутами как `IModManager` и создаётся Autofac один раз на `Simulation`.
 
 ```csharp
-// Загрузка модов
-var modManager = services.Get<IModManager>();
-modManager.LoadMods(pathToMods);
-
-// API для модов (в Lua)
-GameAPI.Log("Hello from mod!")
+[Export(typeof(IModManager))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
+public sealed class ModManager(
+    ILogger<ModManager> logger,
+    IAssetsManager assets,
+    Time time) : IModManager
+{
+    // ...
+}
 ```
 
-## 🔄 Жизненный цикл
+Фактический конструктор также получает отдельные типизированные логгеры для `ModContainer` и `GameAPI`.
 
-1. **OnRegisterServices** — создание `ModManager`, определение стороны (Client/Server)
-2. **OnConfigureComplete** — загрузка модов из директории
-3. **Destroy** — очистка Lua-контекстов
+## Жизненный Цикл
 
-## ⚠️ Особенности
+`ModdingLuaModule` регистрирует типы двух систем через `ISystemRegistry`:
 
-- Разделение на Client/Server моды через `ExecutionSide`
-- Изолированные Lua-контексты для каждого мода
-- API для взаимодействия с движком
-- Горячая перезагрузка скриптов
+- `InitSystem` определяет Client/Server сторону из `Application`, вызывает `IModManager.Init`, загружает моды из `IAssetsManager.ModsPath` и запускает их;
+- `UpdateSystem` вызывает `UpdateMods()` в `LateUpdate`.
+
+Моды загружаются во время `Init` новой Simulation, то есть после построения `Engine -> ModSet -> Simulation`. Они не добавляют регистрации в уже построенные Engine или ModSet containers.
+
+`ModManager` реализует `IDisposable`. При уничтожении Simulation scope Autofac освобождает менеджер, а тот освобождает все `ModContainer` и очищает таблицу загруженных модов.
+
+`ReloadAllMods` перезапускает Lua-контейнеры внутри текущей Simulation. Это не перезагрузка .NET-сборок и не изменение состава DI-container.
+
+## Использование
+
+Получайте менеджер через конструктор. Обычно загрузкой управляет встроенный `InitSystem`, поэтому gameplay-код не должен повторно загружать каталог:
+
+```csharp
+public sealed class ModDiagnostics(IModManager mods)
+{
+    public ModMetaData GetMetadata(string id) => mods.GetModMetadata(id);
+}
+```
+
+## Ограничения
+
+- Текущая реализация использует process-global регистрацию `MoonSharp.UserData` для `GameAPI`. Комментарий в коде фиксирует, что полноценная изоляция нескольких одновременных Simulation ещё требует отдельного решения.
+- Lua-моды могут иметь Client/Server подкаталоги, выбранные через `ExecutionSide`.
+- Метаданные загружаются через Engine-сервис `IAssetsManager` и экспортированный `ModMetaDataLoader`.
+- `UpdateMods()` выполняется в simulation loop; моды не должны делать blocking I/O или непредсказуемо долгую работу в этом вызове.
+
+## Связанные Документы
+
+- [Dependency Injection и области жизни](../../01_Architecture/dependency-injection-and-scopes.md)
+- [Hot Reload](../../01_Architecture/hot-reload.md)
