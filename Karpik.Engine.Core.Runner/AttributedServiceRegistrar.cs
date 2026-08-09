@@ -41,6 +41,10 @@ internal static class AttributedServiceRegistrar
             {
                 registration.As(export.ContractType ?? type);
             }
+            if (typeof(IStartable).IsAssignableFrom(type))
+            {
+                registration.As<IStartable>();
+            }
 
             switch (service.Lifetime)
             {

@@ -1,3 +1,5 @@
+using Autofac;
+using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.ModuleManagement;
 using System.Composition;
@@ -8,7 +10,23 @@ public sealed class ModuleLoaderExplicitBundleTests
     [Fact]
     public void PluginContext_IdentitySharesExportAttributeAssemblyWithRunner()
     {
-        System.Reflection.Assembly contractAssembly = typeof(ExportAttribute).Assembly;
+        AssertIdentityShared(typeof(ExportAttribute).Assembly);
+    }
+
+    [Fact]
+    public void PluginContext_IdentitySharesAutofacAssemblyWithRunner()
+    {
+        AssertIdentityShared(typeof(ContainerBuilder).Assembly);
+    }
+
+    [Fact]
+    public void PluginContext_IdentitySharesDragonEcsAssemblyWithRunner()
+    {
+        AssertIdentityShared(typeof(EcsDefaultWorld).Assembly);
+    }
+
+    private static void AssertIdentityShared(System.Reflection.Assembly contractAssembly)
+    {
         string dependencyDirectory = Path.GetDirectoryName(contractAssembly.Location)!;
         var context = new PluginLoadContext(
             dependencyDirectory,

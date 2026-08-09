@@ -1,3 +1,4 @@
+using Autofac;
 using System.Composition;
 using Karpik.Engine.Core;
 using Xunit;
@@ -47,6 +48,17 @@ public sealed class AutofacCompositionTests
         Assert.Equal(1, CompositionTrace.AsyncDisposeCount);
     }
 
+    [Fact]
+    public void Setup_StartsAttributedEngineServiceImplementingIStartable()
+    {
+        CompositionTrace.Clear();
+
+        EngineRunner runner = SetupRunner();
+
+        Assert.Equal(1, CompositionTrace.StartCount);
+        runner.Destroy();
+    }
+
     private static EngineRunner SetupRunner(Dictionary<string, byte[]>? hotReloadData = null)
     {
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
@@ -62,6 +74,7 @@ public sealed class AutofacCompositionTests
             typeof(SimulationTransientProbe),
             typeof(SyncDisposableProbe),
             typeof(AsyncDisposableProbe),
+            typeof(StartableProbe),
             typeof(RestartStateProbe)
         ]);
         runner.Setup(new Application(Side.Server), scheduler, hotReloadData);
@@ -78,6 +91,7 @@ internal static class CompositionTrace
     public static int SyncDisposeCount { get; set; }
     public static int AsyncDisposeCount { get; set; }
     public static int CollectionCount { get; set; }
+    public static int StartCount { get; set; }
     public static List<string> RestartEvents { get; } = [];
 
     public static void Clear()
@@ -88,6 +102,7 @@ internal static class CompositionTrace
         SyncDisposeCount = 0;
         AsyncDisposeCount = 0;
         CollectionCount = 0;
+        StartCount = 0;
         RestartEvents.Clear();
     }
 }
@@ -186,6 +201,13 @@ internal sealed class AsyncDisposableProbe : IAsyncDisposable
         CompositionTrace.AsyncDisposeCount++;
         return ValueTask.CompletedTask;
     }
+}
+
+[Export(typeof(StartableProbe))]
+[ServiceRegistration(ModuleScope.Engine)]
+internal sealed class StartableProbe : IStartable
+{
+    public void Start() => CompositionTrace.StartCount++;
 }
 
 [Export(typeof(IRestartWorkerStateProvider))]

@@ -320,8 +320,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/PluginLoadContext.cs": {
-    "mtime": 1785056758.7671523,
-    "ast_hash": "f32b3634a3e6b2d28dc2b01482d852e6",
+    "mtime": 1786272045.4919984,
+    "ast_hash": "f3abf63b1cdf9e42473a0e1d6259f7b3",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/ProcessManagement/IpcClient.cs": {
@@ -3080,8 +3080,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ModuleLoaderExplicitBundleTests.cs": {
-    "mtime": 1785056758.7450051,
-    "ast_hash": "507ccfefae2efeb7bea3113c91bf2072",
+    "mtime": 1786272021.762918,
+    "ast_hash": "630b70a42da48d025832d22cb566e09a",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ProcessManagerLifecycleTests.cs": {

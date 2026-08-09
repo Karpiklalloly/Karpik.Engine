@@ -18,7 +18,8 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         "Karpik.Engine.Core.Runner",
         "Karpik.Engine.Core",
-        "Dragon",
+        "Autofac",
+        "DragonECS",
         "Karpik.Jobs",
         "System.Composition.AttributedModel",
     };

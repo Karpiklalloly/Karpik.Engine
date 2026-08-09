@@ -320,8 +320,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/PluginLoadContext.cs": {
-    "mtime": 1786272045.4919984,
-    "ast_hash": "f3abf63b1cdf9e42473a0e1d6259f7b3",
+    "mtime": 1786274225.3632555,
+    "ast_hash": "c08e0355145e41a5160468726f0fb01c",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/ProcessManagement/IpcClient.cs": {
@@ -3080,8 +3080,8 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ModuleLoaderExplicitBundleTests.cs": {
-    "mtime": 1786272021.762918,
-    "ast_hash": "630b70a42da48d025832d22cb566e09a",
+    "mtime": 1786274154.8994017,
+    "ast_hash": "84bf187fbf52874e94192e1c2238ee6a",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/ProcessManagerLifecycleTests.cs": {
@@ -4355,13 +4355,13 @@
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner.Tests/AutofacCompositionTests.cs": {
-    "mtime": 1786266011.845357,
-    "ast_hash": "0fdb78e500fef6fe3756c5d8ce5d8f23",
+    "mtime": 1786274155.3769426,
+    "ast_hash": "9d002296b3aa460c1bad0605194a2a27",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core.Runner/AttributedServiceRegistrar.cs": {
-    "mtime": 1786264980.9781132,
-    "ast_hash": "2393dc05a9d5301efd5260da9d9e9c75",
+    "mtime": 1786274226.1103024,
+    "ast_hash": "e98f7d66eb5143317e1dda8a4c867c23",
     "semantic_hash": ""
   },
   "Karpik.Engine.Core/IRestartWorkerStateProvider.cs": {
