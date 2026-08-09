@@ -2688,8 +2688,8 @@
       "source_location": "L373",
       "_origin": "ast",
       "id": "ecs_core_tests_program_componentlifecycletrace",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "componentlifecycletrace"
     },
     {
@@ -2699,8 +2699,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "ecs_core_tests_program_cs_int",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "int"
     },
     {
@@ -2710,8 +2710,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "ecs_core_tests_program_cs_bool",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "bool"
     },
     {
@@ -2732,8 +2732,8 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "ecs_core_tests_program_componentlifecycletrace_observe",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": ".observe()"
     },
     {
@@ -2743,8 +2743,8 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "ecs_core_tests_program_lifecyclecomponent",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "lifecyclecomponent"
     },
     {
@@ -2754,8 +2754,8 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "ecs_core_tests_program_lifecyclecomponent_enableasync",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": ".enableasync()"
     },
     {
@@ -2765,8 +2765,8 @@
       "source_location": "L433",
       "_origin": "ast",
       "id": "ecs_core_tests_program_lifecyclecomponent_disableasync",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": ".disableasync()"
     },
     {
@@ -3087,8 +3087,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": "schedulermetadataattributetests"
     },
     {
@@ -3098,8 +3098,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_sequentialsystemattribute_issingleuseclassmarker",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".sequentialsystemattribute_issingleuseclassmarker()"
     },
     {
@@ -3120,8 +3120,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_mainthreadonlyattribute_issingleuseclassormethodmarker",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".mainthreadonlyattribute_issingleuseclassormethodmarker()"
     },
     {
@@ -3131,8 +3131,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_readsandwritesattributes_exposecomponenttypesandaccessmodes",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".readsandwritesattributes_exposecomponenttypesandaccessmodes()"
     },
     {
@@ -3142,8 +3142,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_runsbeforeandafterattributes_exposetargetsystemtypesandorderkinds",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".runsbeforeandafterattributes_exposetargetsystemtypesandorderkinds()"
     },
     {
@@ -3153,8 +3153,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_accessandorderattributes_canbeappliedtohelpermethods",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".accessandorderattributes_canbeappliedtohelpermethods()"
     },
     {
@@ -3164,8 +3164,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_ecs_core_tests_schedulermetadataattributetests_schedulermetadataattributetests_getusage",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": ".getusage()"
     },
     {
@@ -3175,8 +3175,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "attributeusageattribute",
-      "community": 36,
-      "community_name": "Community 36",
+      "community": 410,
+      "community_name": "IKarpikProjectInputProvider",
       "norm_label": "attributeusageattribute"
     },
     {
@@ -4321,8 +4321,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorstartupoptionstests_karpik_editor_tests_editorstartupoptionstests",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "editorstartupoptionstests"
     },
     {
@@ -4338,8 +4338,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorstartupoptionstests_karpik_editor_tests_editorstartupoptionstests_parse_solutiontakesprecedenceandmissingvaluesareignored",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".parse_solutiontakesprecedenceandmissingvaluesareignored()"
     },
     {
@@ -4349,8 +4349,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_tests_editorstartupoptionstests_cs_fact",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "fact"
     },
     {
@@ -4366,8 +4366,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorstartupoptionstests_karpik_editor_tests_editorstartupoptionstests_parse_nullargumentsreturnsemptyoptions",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".parse_nullargumentsreturnsemptyoptions()"
     },
     {
@@ -4394,8 +4394,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_karpik_editor_tests_editorworkspacetests",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": "editorworkspacetests"
     },
     {
@@ -4411,8 +4411,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_karpik_editor_tests_editorworkspacetests_boundedlog_dropsoldestentries",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".boundedlog_dropsoldestentries()"
     },
     {
@@ -4422,8 +4422,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_cs_fact",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": "fact"
     },
     {
@@ -4439,8 +4439,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_karpik_editor_tests_editorworkspacetests_workspacestore_restoressolutionandlayout",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".workspacestore_restoressolutionandlayout()"
     },
     {
@@ -4450,8 +4450,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_cs_task",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": "task"
     },
     {
@@ -4467,8 +4467,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_editorworkspacetests_karpik_editor_tests_editorworkspacetests_docklayoutstore_roundtripsdocktree",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".docklayoutstore_roundtripsdocktree()"
     },
     {
@@ -6358,8 +6358,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_editorshellprojectlifecycletests_karpik_editor_tests_projects_testeditorprojectlifetime_disposeasync",
-      "community": 408,
-      "community_name": "WorkspaceStore",
+      "community": 82,
+      "community_name": "Community 82",
       "norm_label": ".disposeasync()"
     },
     {
@@ -6369,8 +6369,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_editorshellprojectlifecycletests_cs_valuetask",
-      "community": 408,
-      "community_name": "WorkspaceStore",
+      "community": 82,
+      "community_name": "Community 82",
       "norm_label": "valuetask"
     },
     {
@@ -7596,8 +7596,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_projectopenservicetests",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": "projectopenservicetests.cs"
     },
     {
@@ -8152,8 +8152,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_projectopenservicetests_cs_exception",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": "exception"
     },
     {
@@ -8204,8 +8204,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_projectopenservicetests_karpik_editor_tests_projects_testexception",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": "testexception"
     },
     {
@@ -8336,8 +8336,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_projectopenservicetests_karpik_editor_tests_projects_replacementattempthook",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": "replacementattempthook"
     },
     {
@@ -8353,8 +8353,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_tests_projects_projectopenservicetests_karpik_editor_tests_projects_replacementattempthook_afterleaseacquired",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": ".afterleaseacquired()"
     },
     {
@@ -9554,8 +9554,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_editor_app_axaml",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "app.axaml.cs"
     },
     {
@@ -9587,8 +9587,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_app_axaml_karpik_editor_app",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "app"
     },
     {
@@ -9598,8 +9598,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "application",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "application"
     },
     {
@@ -9615,8 +9615,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_app_axaml_karpik_editor_app_initialize",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".initialize()"
     },
     {
@@ -9632,8 +9632,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_app_axaml_karpik_editor_app_onframeworkinitializationcompleted",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".onframeworkinitializationcompleted()"
     },
     {
@@ -9878,8 +9878,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_docking_docklayoutstore_karpik_editor_docklayoutstore_save",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".save()"
     },
     {
@@ -10085,8 +10085,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_editor_editorstartupoptions",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "editorstartupoptions.cs"
     },
     {
@@ -10102,8 +10102,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_editorstartupoptions_karpik_editor_editorstartupoptions",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "editorstartupoptions"
     },
     {
@@ -10119,8 +10119,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_editorstartupoptions_karpik_editor_editorstartupoptions_parse",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".parse()"
     },
     {
@@ -10130,8 +10130,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_editorstartupoptions_cs_ireadonlylist",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "ireadonlylist"
     },
     {
@@ -10334,8 +10334,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "window",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "window"
     },
     {
@@ -10581,8 +10581,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_models_boundedlog_cs",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": "boundedlog.cs"
     },
     {
@@ -10598,8 +10598,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_models_boundedlog_karpik_editor_boundedlog",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": "boundedlog"
     },
     {
@@ -10648,8 +10648,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_models_boundedlog_karpik_editor_boundedlog_add",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".add()"
     },
     {
@@ -10665,8 +10665,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_models_boundedlog_karpik_editor_boundedlog_clear",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 277,
+      "community_name": "Community 277",
       "norm_label": ".clear()"
     },
     {
@@ -10805,8 +10805,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_editor_program",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": "program.cs"
     },
     {
@@ -10822,8 +10822,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_program_karpik_editor_program",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": "program"
     },
     {
@@ -10839,8 +10839,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_program_karpik_editor_program_main",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": ".main()"
     },
     {
@@ -10850,8 +10850,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_program_cs_stathread",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": "stathread"
     },
     {
@@ -10867,8 +10867,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_program_karpik_editor_program_buildavaloniaapp",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": ".buildavaloniaapp()"
     },
     {
@@ -10878,8 +10878,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_program_cs_appbuilder",
-      "community": 97,
-      "community_name": "Community 97",
+      "community": 415,
+      "community_name": "Community 415",
       "norm_label": "appbuilder"
     },
     {
@@ -12073,8 +12073,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_editorprojectlifetime_karpik_editor_editorprojectlifetime_disposeasync",
-      "community": 408,
-      "community_name": "WorkspaceStore",
+      "community": 82,
+      "community_name": "Community 82",
       "norm_label": ".disposeasync()"
     },
     {
@@ -12084,8 +12084,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_editorprojectlifetime_cs_valuetask",
-      "community": 408,
-      "community_name": "WorkspaceStore",
+      "community": 82,
+      "community_name": "Community 82",
       "norm_label": "valuetask"
     },
     {
@@ -12196,8 +12196,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_imsbuildprocessfactory",
-      "community": 82,
-      "community_name": "Community 82",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "imsbuildprocessfactory"
     },
     {
@@ -12213,8 +12213,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_imsbuildprocessfactory_start",
-      "community": 82,
-      "community_name": "Community 82",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".start()"
     },
     {
@@ -12224,8 +12224,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_cs_processstartinfo",
-      "community": 82,
-      "community_name": "Community 82",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "processstartinfo"
     },
     {
@@ -12326,8 +12326,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "msbuildprojectinspector"
     },
     {
@@ -12348,8 +12348,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_cs_string",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "string"
     },
     {
@@ -12370,8 +12370,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "retainedprocessreaper",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "retainedprocessreaper"
     },
     {
@@ -12438,8 +12438,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_addscopedimplicitinput",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".addscopedimplicitinput()"
     },
     {
@@ -12455,8 +12455,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_findnearestinput",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".findnearestinput()"
     },
     {
@@ -12472,8 +12472,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_iswithinroot",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".iswithinroot()"
     },
     {
@@ -12796,8 +12796,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_readresult",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".readresult()"
     },
     {
@@ -12870,8 +12870,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_cs_uint",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "uint"
     },
     {
@@ -13045,8 +13045,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_fileattributetaginformation",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "fileattributetaginformation"
     },
     {
@@ -13062,8 +13062,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_normalizerequiredproperty",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".normalizerequiredproperty()"
     },
     {
@@ -13073,8 +13073,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_cs_jsonelement",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "jsonelement"
     },
     {
@@ -13090,8 +13090,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_msbuildprojectinspector_readproperty",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".readproperty()"
     },
     {
@@ -13101,8 +13101,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_cs_stringcomparer",
-      "community": 262,
-      "community_name": "Community 262",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "stringcomparer"
     },
     {
@@ -13118,8 +13118,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_systemmsbuildprocessfactory",
-      "community": 82,
-      "community_name": "Community 82",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": "systemmsbuildprocessfactory"
     },
     {
@@ -13135,8 +13135,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_msbuildprojectinspector_karpik_editor_systemmsbuildprocessfactory_start",
-      "community": 82,
-      "community_name": "Community 82",
+      "community": 45,
+      "community_name": "Community 45",
       "norm_label": ".start()"
     },
     {
@@ -15175,8 +15175,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_projectopenservice_karpik_editor_projectopenservice_getrunnerpath",
-      "community": 31,
-      "community_name": "Community 31",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": ".getrunnerpath()"
     },
     {
@@ -15192,8 +15192,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_projects_projectopenservice_karpik_editor_projectopenservice_normalizesolutionpath",
-      "community": 31,
-      "community_name": "Community 31",
+      "community": 466,
+      "community_name": "Community 466",
       "norm_label": ".normalizesolutionpath()"
     },
     {
@@ -16232,8 +16232,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_editor_runtime_editorsessionmanager_karpik_editor_editorsessionmanager_dispose",
-      "community": 408,
-      "community_name": "WorkspaceStore",
+      "community": 82,
+      "community_name": "Community 82",
       "norm_label": ".dispose()"
     },
     {
@@ -17030,8 +17030,8 @@
       },
       "_origin": "ast",
       "id": "karpik_editor_viewmodels_editorshellviewmodel_karpik_editor_editorshellviewmodel_createprojecthandoffservice",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".createprojecthandoffservice()"
     },
     {
@@ -17706,8 +17706,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_client_publish_client_cs",
-      "community": 505,
-      "community_name": "bool",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "client.cs"
     },
     {
@@ -17722,8 +17722,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:d58e4c0692c9f273",
-      "community": 505,
-      "community_name": "bool",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "karpik.engine.client.publish"
     },
     {
@@ -17739,8 +17739,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_client_publish_client_karpik_engine_client_publish_client",
-      "community": 505,
-      "community_name": "bool",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "client"
     },
     {
@@ -17756,8 +17756,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_client_publish_client_karpik_engine_client_publish_client_start",
-      "community": 505,
-      "community_name": "bool",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": ".start()"
     },
     {
@@ -19048,8 +19048,8 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_autofaccompositiontests_compositionmodule",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 58,
+      "community_name": "Community 58",
       "norm_label": "compositionmodule"
     },
     {
@@ -19059,8 +19059,8 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_autofaccompositiontests_compositionmodule_add",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 58,
+      "community_name": "Community 58",
       "norm_label": ".add()"
     },
     {
@@ -19367,8 +19367,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_cs",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": "clientframemetricstests.cs"
     },
     {
@@ -19378,8 +19378,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": "clientframemetricstests"
     },
     {
@@ -19389,8 +19389,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests_frametimingwindow_atintervalboundary_publishesaveragep95andmaximum",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".frametimingwindow_atintervalboundary_publishesaveragep95andmaximum()"
     },
     {
@@ -19411,8 +19411,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests_framecounterwindow_atintervalboundary_publishesunavailablecount",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".framecounterwindow_atintervalboundary_publishesunavailablecount()"
     },
     {
@@ -19422,8 +19422,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests_frameallocationwindow_atintervalboundary_publishesallocationtotals",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".frameallocationwindow_atintervalboundary_publishesallocationtotals()"
     },
     {
@@ -19433,8 +19433,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests_frametimingwindow_withmoresamplesthanpreviousring_usesallsamplesforpercentiles",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".frametimingwindow_withmoresamplesthanpreviousring_usesallsamplesforpercentiles()"
     },
     {
@@ -19444,8 +19444,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_clientframemetricstests_clientframemetricstests_nanosecondstostopwatchticks_convertsonemillisecond",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".nanosecondstostopwatchticks_convertsonemillisecond()"
     },
     {
@@ -19648,8 +19648,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_cs",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "ecsrenderprepareschedulerruntimetests.cs"
     },
     {
@@ -19659,8 +19659,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_ecsrenderprepareschedulerruntimetests",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "ecsrenderprepareschedulerruntimetests"
     },
     {
@@ -19670,8 +19670,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_ecsrenderprepareschedulerruntimetests_deterministicmode_invokesrenderpreparesystems",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".deterministicmode_invokesrenderpreparesystems()"
     },
     {
@@ -19692,8 +19692,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_ecsrenderprepareschedulerruntimetests_lifecyclebridge_invokesrenderpreparesystem",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".lifecyclebridge_invokesrenderpreparesystem()"
     },
     {
@@ -19703,8 +19703,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_ecsrenderprepareschedulerruntimetests_buildercontract_exposesrenderprepareregistration",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".buildercontract_exposesrenderprepareregistration()"
     },
     {
@@ -19717,8 +19717,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_countingrenderpreparesystem",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "countingrenderpreparesystem"
     },
     {
@@ -19739,8 +19739,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_runner_tests_ecsrenderprepareschedulerruntimetests_countingrenderpreparesystem_renderprepare",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".renderprepare()"
     },
     {
@@ -20556,8 +20556,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": "gameplayloopdrivertests.cs"
     },
     {
@@ -20666,8 +20666,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaytrace",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": "manualgameplaytrace"
     },
     {
@@ -20677,8 +20677,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_cs_list",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": "list"
     },
     {
@@ -20688,8 +20688,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_cs_ireadonlylist",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": "ireadonlylist"
     },
     {
@@ -20710,8 +20710,8 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaytrace_add",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".add()"
     },
     {
@@ -20721,8 +20721,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaymoduleinstaller",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": "manualgameplaymoduleinstaller"
     },
     {
@@ -20732,8 +20732,8 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaymoduleinstaller_createmodule",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": ".createmodule()"
     },
     {
@@ -20743,8 +20743,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaymodule",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": "manualgameplaymodule"
     },
     {
@@ -20754,8 +20754,8 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaymodule_add",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": ".add()"
     },
     {
@@ -20765,8 +20765,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": "manualgameplaysystem"
     },
     {
@@ -20776,8 +20776,8 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_begin",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".begin()"
     },
     {
@@ -20787,8 +20787,8 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_fixedupdate",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".fixedupdate()"
     },
     {
@@ -20798,8 +20798,8 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_update",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".update()"
     },
     {
@@ -20809,8 +20809,8 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_lateupdate",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".lateupdate()"
     },
     {
@@ -20820,8 +20820,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_renderprepare",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".renderprepare()"
     },
     {
@@ -20831,8 +20831,8 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_render",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".render()"
     },
     {
@@ -20842,8 +20842,8 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_gameplayloopdrivertests_manualgameplaysystem_destroy",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 162,
+      "community_name": "Community 162",
       "norm_label": ".destroy()"
     },
     {
@@ -21857,8 +21857,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "program.cs"
     },
     {
@@ -21945,8 +21945,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_cs_ireadonlylist",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "ireadonlylist"
     },
     {
@@ -21956,8 +21956,8 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_ordertrace",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "ordertrace"
     },
     {
@@ -21967,8 +21967,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_cs_list",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "list"
     },
     {
@@ -21989,8 +21989,8 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_ordertrace_add",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".add()"
     },
     {
@@ -22000,8 +22000,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_alphamoduleinstaller",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "alphamoduleinstaller"
     },
     {
@@ -22011,8 +22011,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_alphamoduleinstaller_onregisterservices",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".onregisterservices()"
     },
     {
@@ -22022,8 +22022,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_cs_containerbuilder",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "containerbuilder"
     },
     {
@@ -22033,8 +22033,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_zetamoduleinstaller",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "zetamoduleinstaller"
     },
     {
@@ -22044,8 +22044,8 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_zetamoduleinstaller_onregisterservices",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".onregisterservices()"
     },
     {
@@ -22055,8 +22055,8 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_alphalatemoduleinstaller",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "alphalatemoduleinstaller"
     },
     {
@@ -22066,8 +22066,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_alphalatemoduleinstaller_onregisterservices",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".onregisterservices()"
     },
     {
@@ -22077,8 +22077,8 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_zetaearlymoduleinstaller",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "zetaearlymoduleinstaller"
     },
     {
@@ -22088,8 +22088,8 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_zetaearlymoduleinstaller_onregisterservices",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".onregisterservices()"
     },
     {
@@ -22099,8 +22099,8 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecycletrace",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "lifecycletrace"
     },
     {
@@ -22110,8 +22110,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecycletrace_clear",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".clear()"
     },
     {
@@ -22121,8 +22121,8 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecycletrace_add",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".add()"
     },
     {
@@ -22132,8 +22132,8 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokemoduleinstaller",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": "lifecyclesmokemoduleinstaller"
     },
     {
@@ -22143,8 +22143,8 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokemoduleinstaller_onregisterservices",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".onregisterservices()"
     },
     {
@@ -22154,8 +22154,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokemoduleinstaller_createmodule",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 19,
+      "community_name": "Community 19",
       "norm_label": ".createmodule()"
     },
     {
@@ -22165,8 +22165,8 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokemodule",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": "lifecyclesmokemodule"
     },
     {
@@ -22176,8 +22176,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokemodule_add",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 15,
+      "community_name": "Community 15",
       "norm_label": ".add()"
     },
     {
@@ -22187,8 +22187,8 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "lifecyclesmokesystem"
     },
     {
@@ -22198,8 +22198,8 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_init",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".init()"
     },
     {
@@ -22209,8 +22209,8 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_begin",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".begin()"
     },
     {
@@ -22220,8 +22220,8 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_fixedupdate",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".fixedupdate()"
     },
     {
@@ -22231,8 +22231,8 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_update",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".update()"
     },
     {
@@ -22242,8 +22242,8 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_lateupdate",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".lateupdate()"
     },
     {
@@ -22253,8 +22253,8 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_render",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".render()"
     },
     {
@@ -22264,8 +22264,8 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "karpik_engine_core_runner_tests_program_lifecyclesmokesystem_destroy",
-      "community": 35,
-      "community_name": "Community 35",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".destroy()"
     },
     {
@@ -22749,7 +22749,7 @@
       "metadata": {
         "namespace": "Karpik.Engine.Core.Runner",
         "scope_chain": [
-          "s67"
+          "s71"
         ]
       },
       "_origin": "ast",
@@ -22766,7 +22766,7 @@
       "metadata": {
         "namespace": "Karpik.Engine.Core.Runner",
         "scope_chain": [
-          "s67"
+          "s71"
         ]
       },
       "_origin": "ast",
@@ -25429,8 +25429,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "frametimingwindow"
     },
     {
@@ -25446,8 +25446,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_publish",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".publish()"
     },
     {
@@ -25480,8 +25480,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_publishwindow",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".publishwindow()"
     },
     {
@@ -25497,8 +25497,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_reset",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".reset()"
     },
     {
@@ -25514,8 +25514,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_gethistogrambucket",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".gethistogrambucket()"
     },
     {
@@ -25531,8 +25531,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_getpercentileticks",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".getpercentileticks()"
     },
     {
@@ -25548,8 +25548,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_frametimingwindow_getbucketupperbound",
-      "community": 492,
-      "community_name": "FrameTimingWindow",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": ".getbucketupperbound()"
     },
     {
@@ -25820,8 +25820,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_clientframemetrics_publishpresent",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".publishpresent()"
     },
     {
@@ -25837,8 +25837,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_clientframemetrics_publishgpucommandnanoseconds",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".publishgpucommandnanoseconds()"
     },
     {
@@ -25888,8 +25888,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_clientframemetrics_karpik_engine_core_clientframemetrics_nanosecondstostopwatchticks",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".nanosecondstostopwatchticks()"
     },
     {
@@ -27746,8 +27746,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemfixedupdate_cs",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "isystemfixedupdate.cs"
     },
     {
@@ -27763,8 +27763,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemfixedupdate_karpik_engine_core_isystemfixedupdate",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "isystemfixedupdate"
     },
     {
@@ -27780,8 +27780,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemfixedupdate_karpik_engine_core_isystemfixedupdate_fixedupdate",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".fixedupdate()"
     },
     {
@@ -27791,8 +27791,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isysteminit_cs",
-      "community": 58,
-      "community_name": "Community 58",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "isysteminit.cs"
     },
     {
@@ -27808,8 +27808,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isysteminit_karpik_engine_core_isysteminit",
-      "community": 58,
-      "community_name": "Community 58",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "isysteminit"
     },
     {
@@ -27825,8 +27825,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isysteminit_karpik_engine_core_isysteminit_init",
-      "community": 58,
-      "community_name": "Community 58",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".init()"
     },
     {
@@ -28016,8 +28016,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemrenderprepare_cs",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "isystemrenderprepare.cs"
     },
     {
@@ -28033,8 +28033,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemrenderprepare_karpik_engine_core_isystemrenderprepare",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "isystemrenderprepare"
     },
     {
@@ -28050,8 +28050,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_lifecycle_isystemrenderprepare_karpik_engine_core_isystemrenderprepare_renderprepare",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".renderprepare()"
     },
     {
@@ -31850,8 +31850,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_core_scheduling_ecsupdatescheduler_karpik_engine_shared_ecs_scheduling_ecsupdatescheduler_initializerenderprepare",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".initializerenderprepare()"
     },
     {
@@ -37346,8 +37346,8 @@
       },
       "_origin": "ast",
       "id": "karpik_engine_sdk_integrationtests_externalgameclitests_karpik_engine_sdk_integrationtests_externalgameclitests_snapshotfiles",
-      "community": 415,
-      "community_name": "Community 415",
+      "community": 312,
+      "community_name": "Community 312",
       "norm_label": ".snapshotfiles()"
     },
     {
@@ -37357,8 +37357,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_engine_sdk_integrationtests_externalgameclitests_cs_dictionary",
-      "community": 415,
-      "community_name": "Community 415",
+      "community": 312,
+      "community_name": "Community 312",
       "norm_label": "dictionary"
     },
     {
@@ -37368,8 +37368,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "filestamp",
-      "community": 415,
-      "community_name": "Community 415",
+      "community": 312,
+      "community_name": "Community 312",
       "norm_label": "filestamp"
     },
     {
@@ -40223,8 +40223,8 @@
       },
       "_origin": "ast",
       "id": "karpik_engine_sdk_tasks_resolvekarpikengineroottask_karpik_engine_sdk_tasks_resolvekarpikengineroottask",
-      "community": 71,
-      "community_name": "Community 71",
+      "community": 278,
+      "community_name": "Community 278",
       "norm_label": "resolvekarpikengineroottask"
     },
     {
@@ -40240,8 +40240,8 @@
       },
       "_origin": "ast",
       "id": "karpik_engine_sdk_tasks_resolvekarpikengineroottask_karpik_engine_sdk_tasks_resolvekarpikengineroottask_execute",
-      "community": 71,
-      "community_name": "Community 71",
+      "community": 278,
+      "community_name": "Community 278",
       "norm_label": ".execute()"
     },
     {
@@ -40257,8 +40257,8 @@
       },
       "_origin": "ast",
       "id": "karpik_engine_sdk_tasks_resolvekarpikengineroottask_karpik_engine_sdk_tasks_resolvekarpikengineroottask_logresolutionerror",
-      "community": 71,
-      "community_name": "Community 71",
+      "community": 278,
+      "community_name": "Community 278",
       "norm_label": ".logresolutionerror()"
     },
     {
@@ -40480,8 +40480,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_server_publish_server_cs",
-      "community": 509,
-      "community_name": "Server.cs",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "server.cs"
     },
     {
@@ -40496,8 +40496,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:e4f3362b84bfc65b",
-      "community": 509,
-      "community_name": "Server.cs",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "karpik.engine.publish.server"
     },
     {
@@ -40513,8 +40513,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_server_publish_server_karpik_engine_publish_server_server",
-      "community": 509,
-      "community_name": "Server.cs",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": "server"
     },
     {
@@ -40530,8 +40530,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_karpik_engine_server_publish_server_karpik_engine_publish_server_server_start",
-      "community": 509,
-      "community_name": "Server.cs",
+      "community": 375,
+      "community_name": "Community 375",
       "norm_label": ".start()"
     },
     {
@@ -43066,8 +43066,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "editorprocesshosttests.cs"
     },
     {
@@ -43082,8 +43082,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:cb211cf158f1e00e",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "karpik.launcher.tests"
     },
     {
@@ -43256,8 +43256,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_cs_ireadonlylist",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "ireadonlylist"
     },
     {
@@ -43274,8 +43274,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_karpik_launcher_tests_recordingprocessrunner",
-      "community": 131,
-      "community_name": "Community 131",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "recordingprocessrunner"
     },
     {
@@ -43285,8 +43285,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_cs_list",
-      "community": 131,
-      "community_name": "Community 131",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "list"
     },
     {
@@ -43302,8 +43302,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_karpik_launcher_tests_recordingprocessrunner_runasync",
-      "community": 131,
-      "community_name": "Community 131",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": ".runasync()"
     },
     {
@@ -43313,8 +43313,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_cs_cancellationtoken",
-      "community": 131,
-      "community_name": "Community 131",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "cancellationtoken"
     },
     {
@@ -43330,8 +43330,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_karpik_launcher_tests_readonlylistextensions",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "readonlylistextensions"
     },
     {
@@ -43347,8 +43347,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorprocesshosttests_karpik_launcher_tests_readonlylistextensions_indexof",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": ".indexof()"
     },
     {
@@ -43358,8 +43358,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_tests_editorresolvertests",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 147,
+      "community_name": "Community 147",
       "norm_label": "editorresolvertests.cs"
     },
     {
@@ -43525,8 +43525,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "launcherviewmodeltests.cs"
     },
     {
@@ -43542,8 +43542,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_karpik_launcher_tests_launcherviewmodeltests",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "launcherviewmodeltests"
     },
     {
@@ -43559,8 +43559,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_karpik_launcher_tests_launcherviewmodeltests_constructorsurvivesacorruptrecentprojectcacheandshowsadiagnostic",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": ".constructorsurvivesacorruptrecentprojectcacheandshowsadiagnostic()"
     },
     {
@@ -43570,8 +43570,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_cs_theory",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "theory"
     },
     {
@@ -43581,8 +43581,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_cs_inlinedata",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "inlinedata"
     },
     {
@@ -43598,8 +43598,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_karpik_launcher_tests_launcherviewmodeltests_launchasyncpersiststheprojectandpublishesthehostresult",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 131,
+      "community_name": "Community 131",
       "norm_label": ".launchasyncpersiststheprojectandpublishesthehostresult()"
     },
     {
@@ -43620,8 +43620,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_tests_launcherviewmodeltests_cs_fact",
-      "community": 147,
-      "community_name": "Community 147",
+      "community": 131,
+      "community_name": "Community 131",
       "norm_label": "fact"
     },
     {
@@ -43677,8 +43677,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_tests_projectregistrytests",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "projectregistrytests.cs"
     },
     {
@@ -43812,8 +43812,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_app_axaml",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "app.axaml.cs"
     },
     {
@@ -43828,8 +43828,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:fa54c7de5aac93e0",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "karpik.launcher"
     },
     {
@@ -43845,8 +43845,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_app_axaml_karpik_launcher_app",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": "app"
     },
     {
@@ -43862,8 +43862,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_app_axaml_karpik_launcher_app_initialize",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".initialize()"
     },
     {
@@ -43879,8 +43879,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_app_axaml_karpik_launcher_app_onframeworkinitializationcompleted",
-      "community": 162,
-      "community_name": "Community 162",
+      "community": 97,
+      "community_name": "Community 97",
       "norm_label": ".onframeworkinitializationcompleted()"
     },
     {
@@ -43967,8 +43967,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_launcherview_axaml",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "launcherview.axaml.cs"
     },
     {
@@ -43984,8 +43984,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_launcherview_axaml_karpik_launcher_launcherview",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "launcherview"
     },
     {
@@ -43995,8 +43995,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "reactiveusercontrol",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "reactiveusercontrol"
     },
     {
@@ -44012,8 +44012,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_launcherview_axaml_karpik_launcher_launcherview_recentprojects_ondoubletapped",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": ".recentprojects_ondoubletapped()"
     },
     {
@@ -44023,8 +44023,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tappedeventargs",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "tappedeventargs"
     },
     {
@@ -44034,8 +44034,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_localization_localizationservice",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "localizationservice.cs"
     },
     {
@@ -44050,8 +44050,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:53ee2a38db91f30a",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "karpik.launcher.localization"
     },
     {
@@ -44123,8 +44123,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_mainwindow_axaml",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "mainwindow.axaml.cs"
     },
     {
@@ -44140,8 +44140,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_mainwindow_axaml_karpik_launcher_mainwindow",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "mainwindow"
     },
     {
@@ -44167,8 +44167,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:25fc7bdfca86001d",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "karpik.launcher.models"
     },
     {
@@ -44195,8 +44195,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_program",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "program.cs"
     },
     {
@@ -44212,8 +44212,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_program_karpik_launcher_program",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "program"
     },
     {
@@ -44229,8 +44229,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_program_karpik_launcher_program_main",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": ".main()"
     },
     {
@@ -44240,8 +44240,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_program_cs_stathread",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "stathread"
     },
     {
@@ -44257,8 +44257,8 @@
       },
       "_origin": "ast",
       "id": "karpik_launcher_program_karpik_launcher_program_buildavaloniaapp",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": ".buildavaloniaapp()"
     },
     {
@@ -44268,8 +44268,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "karpik_launcher_program_cs_appbuilder",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "appbuilder"
     },
     {
@@ -44295,8 +44295,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:5e6a5bc216b73ac7",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "karpik.launcher.services"
     },
     {
@@ -44718,8 +44718,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_services_projectregistry",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "projectregistry.cs"
     },
     {
@@ -44869,8 +44869,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_viewmodels_ilauncherviewmodel",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "ilauncherviewmodel.cs"
     },
     {
@@ -44885,8 +44885,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:4fd9774491829fdb",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "karpik.launcher.viewmodels"
     },
     {
@@ -44935,8 +44935,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "karpik_launcher_viewmodels_launcherviewmodel",
-      "community": 68,
-      "community_name": "Community 68",
+      "community": 170,
+      "community_name": "Community 170",
       "norm_label": "launcherviewmodel.cs"
     },
     {
@@ -45868,8 +45868,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_cs",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": "program.cs"
     },
     {
@@ -46374,8 +46374,8 @@
       "source_location": "L746",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": "fakecommandbuffer"
     },
     {
@@ -46396,8 +46396,8 @@
       "source_location": "L756",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer_add",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".add()"
     },
     {
@@ -46407,8 +46407,8 @@
       "source_location": "L774",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer_getrectcommands",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".getrectcommands()"
     },
     {
@@ -46418,8 +46418,8 @@
       "source_location": "L779",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer_gettexturecommands",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".gettexturecommands()"
     },
     {
@@ -46429,8 +46429,8 @@
       "source_location": "L784",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer_gettextcommands",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".gettextcommands()"
     },
     {
@@ -46440,8 +46440,8 @@
       "source_location": "L789",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_fakecommandbuffer_clear",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".clear()"
     },
     {
@@ -46451,8 +46451,8 @@
       "source_location": "L794",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_faketexture",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": "faketexture"
     },
     {
@@ -46473,8 +46473,8 @@
       "source_location": "L800",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_client_graphics_graphics_core_tests_program_faketexture_dispose",
-      "community": 306,
-      "community_name": "Community 306",
+      "community": 354,
+      "community_name": "Community 354",
       "norm_label": ".dispose()"
     },
     {
@@ -51979,8 +51979,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_graphicsheadlessmoduleinstaller",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": "graphicsheadlessmoduleinstaller.cs"
     },
     {
@@ -51995,8 +51995,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:02fb9c205e30414e",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": "karpik.engine.client.graphics.headless"
     },
     {
@@ -52012,8 +52012,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_graphicsheadlessmoduleinstaller_karpik_engine_client_graphics_headless_graphicsheadlessmoduleinstaller",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": "graphicsheadlessmoduleinstaller"
     },
     {
@@ -52023,8 +52023,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": "headlessgraphicsbackend.cs"
     },
     {
@@ -52040,8 +52040,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": "headlessgraphicsbackend"
     },
     {
@@ -52057,8 +52057,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_start",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".start()"
     },
     {
@@ -52091,8 +52091,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_beginmerge",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".beginmerge()"
     },
     {
@@ -52108,8 +52108,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_submitscene",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".submitscene()"
     },
     {
@@ -52125,8 +52125,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_updateimgui",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".updateimgui()"
     },
     {
@@ -52142,8 +52142,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_renderimgui",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".renderimgui()"
     },
     {
@@ -52159,8 +52159,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_swapbuffers",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".swapbuffers()"
     },
     {
@@ -52176,8 +52176,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_headless_headlessgraphicsbackend_karpik_engine_client_graphics_headless_headlessgraphicsbackend_dispose",
-      "community": 277,
-      "community_name": "Community 277",
+      "community": 7,
+      "community_name": "Community 7",
       "norm_label": ".dispose()"
     },
     {
@@ -53195,8 +53195,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_opengl_openglgraphicsbackend_karpik_engine_client_graphics_opengl_openglgraphicsbackend_swapbuffers",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".swapbuffers()"
     },
     {
@@ -53229,8 +53229,8 @@
       },
       "_origin": "ast",
       "id": "modules_client_graphics_graphics_opengl_openglgraphicsbackend_karpik_engine_client_graphics_opengl_openglgraphicsbackend_publishgputimestampifavailable",
-      "community": 16,
-      "community_name": "Community 16",
+      "community": 68,
+      "community_name": "Community 68",
       "norm_label": ".publishgputimestampifavailable()"
     },
     {
@@ -61163,8 +61163,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "modules_shared_ecs_ecs_core_iecsrunlate",
-      "community": 549,
-      "community_name": "IEcsRunLate.cs",
+      "community": 492,
+      "community_name": "FrameTimingWindow",
       "norm_label": "iecsrunlate.cs"
     },
     {
@@ -61180,8 +61180,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_ecs_ecs_core_iecsrunlate_karpik_engine_shared_ecs_iecsrunlate",
-      "community": 549,
-      "community_name": "IEcsRunLate.cs",
+      "community": 492,
+      "community_name": "FrameTimingWindow",
       "norm_label": "iecsrunlate"
     },
     {
@@ -61197,8 +61197,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_ecs_ecs_core_iecsrunlate_karpik_engine_shared_ecs_iecsrunlate_runlate",
-      "community": 549,
-      "community_name": "IEcsRunLate.cs",
+      "community": 492,
+      "community_name": "FrameTimingWindow",
       "norm_label": ".runlate()"
     },
     {
@@ -61214,8 +61214,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_ecs_ecs_core_iecsrunlate_karpik_engine_shared_ecs_ecsrunlaterunner",
-      "community": 549,
-      "community_name": "IEcsRunLate.cs",
+      "community": 492,
+      "community_name": "FrameTimingWindow",
       "norm_label": "ecsrunlaterunner"
     },
     {
@@ -61231,8 +61231,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_ecs_ecs_core_iecsrunlate_karpik_engine_shared_ecs_ecsrunlaterunner_runlate",
-      "community": 549,
-      "community_name": "IEcsRunLate.cs",
+      "community": 492,
+      "community_name": "FrameTimingWindow",
       "norm_label": ".runlate()"
     },
     {
@@ -67510,8 +67510,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "modules_shared_physics_physics2d_core_ecs_physicsstepsystem",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "physicsstepsystem.cs"
     },
     {
@@ -67527,8 +67527,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_physics_physics2d_core_ecs_physicsstepsystem_karpik_engine_shared_physics_core_physicsstepsystem",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": "physicsstepsystem"
     },
     {
@@ -67544,8 +67544,8 @@
       },
       "_origin": "ast",
       "id": "modules_shared_physics_physics2d_core_ecs_physicsstepsystem_karpik_engine_shared_physics_core_physicsstepsystem_fixedupdate",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".fixedupdate()"
     },
     {
@@ -67589,8 +67589,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_physics_physics2d_core_iphysicsworld2d_karpik_engine_shared_physics_core_iphysicsworld2d_step",
-      "community": 258,
-      "community_name": "Community 258",
+      "community": 244,
+      "community_name": "Community 244",
       "norm_label": ".step()"
     },
     {
@@ -69820,8 +69820,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_delegates_validationdelegates_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "validationdelegates.cs"
     },
     {
@@ -69836,8 +69836,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:146d1dabb2d51a8b",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "gtweens.delegates"
     },
     {
@@ -69853,8 +69853,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_delegates_validationdelegates_gtweens_delegates_validationdelegates",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "validationdelegates"
     },
     {
@@ -71094,8 +71094,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_extensions_validationextensions_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "validationextensions.cs"
     },
     {
@@ -71111,8 +71111,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_extensions_validationextensions_gtweens_extensions_validationextensions",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "validationextensions"
     },
     {
@@ -71149,8 +71149,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:99e265e7a13c805d",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "gtweens.interpolators"
     },
     {
@@ -73489,8 +73489,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_floattweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "floattweener.cs"
     },
     {
@@ -73522,8 +73522,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_floattweener_gtweens_tweeners_floattweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "floattweener"
     },
     {
@@ -73674,8 +73674,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_inttweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "inttweener.cs"
     },
     {
@@ -73691,8 +73691,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_inttweener_gtweens_tweeners_inttweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "inttweener"
     },
     {
@@ -73702,8 +73702,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemcolortweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemcolortweener.cs"
     },
     {
@@ -73719,8 +73719,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemcolortweener_gtweens_tweeners_systemcolortweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemcolortweener"
     },
     {
@@ -73741,8 +73741,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemquaterniontweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemquaterniontweener.cs"
     },
     {
@@ -73758,8 +73758,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemquaterniontweener_gtweens_tweeners_systemquaterniontweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemquaterniontweener"
     },
     {
@@ -73780,8 +73780,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector2tweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector2tweener.cs"
     },
     {
@@ -73797,8 +73797,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector2tweener_gtweens_tweeners_systemvector2tweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector2tweener"
     },
     {
@@ -73819,8 +73819,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector3tweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector3tweener.cs"
     },
     {
@@ -73836,8 +73836,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector3tweener_gtweens_tweeners_systemvector3tweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector3tweener"
     },
     {
@@ -73858,8 +73858,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector4tweener_cs",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector4tweener.cs"
     },
     {
@@ -73875,8 +73875,8 @@
       },
       "_origin": "ast",
       "id": "c_users_artem_riderprojects_karpikengine_worktrees_versioned_sdk_external_projects_modules_shared_tween_tween_core_tween_tweeners_systemvector4tweener_gtweens_tweeners_systemvector4tweener",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 74,
+      "community_name": "Community 74",
       "norm_label": "systemvector4tweener"
     },
     {
@@ -81790,8 +81790,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_componentlifecyclecontext",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "componentlifecyclecontext.cs"
     },
     {
@@ -81806,8 +81806,8 @@
       },
       "_origin": "ast",
       "id": "csharp_namespace:5023a17ea0334343",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "dragonextensions"
     },
     {
@@ -81823,8 +81823,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_componentlifecyclecontext_dragonextensions_componentlifecyclecontext",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "componentlifecyclecontext"
     },
     {
@@ -81834,8 +81834,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_componentlifecyclecontext_cs_ecsworld",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "ecsworld"
     },
     {
@@ -81845,8 +81845,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_componentlifecyclecontext_cs_int",
-      "community": 225,
-      "community_name": "Community 225",
+      "community": 296,
+      "community_name": "Community 296",
       "norm_label": "int"
     },
     {
@@ -83894,8 +83894,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_lifecyclebridge_dragonextensions_renderpreparesystem",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "renderpreparesystem"
     },
     {
@@ -83905,8 +83905,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "irenderpreparesystem",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "irenderpreparesystem"
     },
     {
@@ -83922,8 +83922,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_lifecyclebridge_dragonextensions_renderpreparesystem_renderprepare",
-      "community": 244,
-      "community_name": "Community 244",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": ".renderprepare()"
     },
     {
@@ -83967,8 +83967,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_staticextensions",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "staticextensions.cs"
     },
     {
@@ -83984,8 +83984,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_staticextensions_dragonextensions_staticextensions",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "staticextensions"
     },
     {
@@ -83995,8 +83995,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "first_parties_dragonecs_karpik_extensions_world",
-      "community": 375,
-      "community_name": "Community 375",
+      "community": 83,
+      "community_name": "Community 83",
       "norm_label": "world.cs"
     },
     {
@@ -86025,8 +86025,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobschedulervalueschedulingtests_karpik_jobs_tests_incrementslicejob",
-      "community": 254,
-      "community_name": "Community 254",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "incrementslicejob"
     },
     {
@@ -86042,8 +86042,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobschedulervalueschedulingtests_karpik_jobs_tests_incrementslicejob_execute",
-      "community": 254,
-      "community_name": "Community 254",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": ".execute()"
     },
     {
@@ -86701,8 +86701,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": "jobsystemcompatibilityboundarytests"
     },
     {
@@ -86718,8 +86718,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests_jobsystem_ismarkedasallocatingcompatibilitypath",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": ".jobsystem_ismarkedasallocatingcompatibilitypath()"
     },
     {
@@ -86729,8 +86729,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_cs_fact",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": "fact"
     },
     {
@@ -86746,8 +86746,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests_constructor_ismarkedasallocatingcompatibilitypath",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": ".constructor_ismarkedasallocatingcompatibilitypath()"
     },
     {
@@ -86763,8 +86763,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests_delegatecompatibilityapis_aremarkedasallocatingcompatibilitypath",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": ".delegatecompatibilityapis_aremarkedasallocatingcompatibilitypath()"
     },
     {
@@ -86780,8 +86780,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests_valuejobscheduler_doesnotreferencelegacydelegatecompatibilitytypes",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": ".valuejobscheduler_doesnotreferencelegacydelegatecompatibilitytypes()"
     },
     {
@@ -86797,8 +86797,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_karpik_jobs_tests_jobsystemcompatibilityboundarytests_containstype",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": ".containstype()"
     },
     {
@@ -86808,8 +86808,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_jobs_tests_jobsystemcompatibilityboundarytests_cs_type",
-      "community": 500,
-      "community_name": "ServiceProvider",
+      "community": 254,
+      "community_name": "Community 254",
       "norm_label": "type"
     },
     {
@@ -90635,8 +90635,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_memory_tests_nativeallocationbudgettests_karpik_memory_tests_nativeallocationbudgettests_nativelinearallocator_preallocatedallocateandreset_allocateszeromanagedbytes",
-      "community": 133,
-      "community_name": "Community 133",
+      "community": 160,
+      "community_name": "Community 160",
       "norm_label": ".nativelinearallocator_preallocatedallocateandreset_allocateszeromanagedbytes()"
     },
     {
@@ -93433,8 +93433,8 @@
       },
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_memory_nativeresulthandle_karpik_memory_nativeresulthandle_validate",
-      "community": 254,
-      "community_name": "Community 254",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": ".validate()"
     },
     {
@@ -93444,8 +93444,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "first_parties_karpik_jobs_karpik_memory_nativeresulthandle_cs_methodimpl",
-      "community": 254,
-      "community_name": "Community 254",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "methodimpl"
     },
     {
@@ -101787,8 +101787,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_debugutils_typemeta_cs_runtimetypehandle",
-      "community": 29,
-      "community_name": "Community 29",
+      "community": 485,
+      "community_name": "EcsWorld",
       "norm_label": "runtimetypehandle"
     },
     {
@@ -101882,8 +101882,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_debugutils_typemeta_dcfapixels_dragonecs_typemeta_get",
-      "community": 29,
-      "community_name": "Community 29",
+      "community": 485,
+      "community_name": "EcsWorld",
       "norm_label": ".get()"
     },
     {
@@ -105455,8 +105455,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecspipeline_dcfapixels_dragonecs_ecspipeline_createprocess",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".createprocess()"
     },
     {
@@ -107412,8 +107412,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_poolcache",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": "poolcache"
     },
     {
@@ -107429,8 +107429,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_poolcache_init",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": ".init()"
     },
     {
@@ -107446,8 +107446,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_poolcache_ondestroy",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": ".ondestroy()"
     },
     {
@@ -107516,8 +107516,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_wherequerycache",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": "wherequerycache"
     },
     {
@@ -107533,8 +107533,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_wherequerycache_init",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": ".init()"
     },
     {
@@ -107550,8 +107550,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cache_dcfapixels_dragonecs_wherequerycache_ondestroy",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": ".ondestroy()"
     },
     {
@@ -108420,8 +108420,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_calcentitycomponentmasklength",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".calcentitycomponentmasklength()"
     },
     {
@@ -108437,8 +108437,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_setentitycomponentmasklength",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".setentitycomponentmasklength()"
     },
     {
@@ -108454,8 +108454,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_onentitydispenserresized",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".onentitydispenserresized()"
     },
     {
@@ -108602,8 +108602,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_getcomponenttypeidsfor",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".getcomponenttypeidsfor()"
     },
     {
@@ -108636,8 +108636,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_getcomponentpoolsfor",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".getcomponentpoolsfor()"
     },
     {
@@ -108647,8 +108647,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cs_list",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": "list"
     },
     {
@@ -108664,8 +108664,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_getcomponentsfor",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".getcomponentsfor()"
     },
     {
@@ -108681,8 +108681,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_getcomponenttypesfor",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".getcomponenttypesfor()"
     },
     {
@@ -108692,8 +108692,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cs_hashset",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": "hashset"
     },
     {
@@ -108703,8 +108703,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_cs_type",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": "type"
     },
     {
@@ -108720,8 +108720,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_ecsworld_getcomponenttypeidsfor_internal",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".getcomponenttypeidsfor_internal()"
     },
     {
@@ -108756,8 +108756,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_debuggerproxy",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": "debuggerproxy"
     },
     {
@@ -108824,8 +108824,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_iecsworldeventlistener_onreleasedelentitybuffer",
-      "community": 189,
-      "community_name": "Community 189",
+      "community": 3,
+      "community_name": "Community 3",
       "norm_label": ".onreleasedelentitybuffer()"
     },
     {
@@ -108960,8 +108960,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_dcfapixels_dragonecs_worldeventlistextensions_invokeonreleasedelentitybuffer",
-      "community": 189,
-      "community_name": "Community 189",
+      "community": 3,
+      "community_name": "Community 3",
       "norm_label": ".invokeonreleasedelentitybuffer()"
     },
     {
@@ -109377,8 +109377,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_pools_dcfapixels_dragonecs_ecsworld_findorautocreatepool",
-      "community": 32,
-      "community_name": "Community 32",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".findorautocreatepool()"
     },
     {
@@ -109394,8 +109394,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_ecsworld_pools_dcfapixels_dragonecs_ecsworld_initpoolinstance_internal",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".initpoolinstance_internal()"
     },
     {
@@ -114710,8 +114710,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_internal_arrayutility_dcfapixels_dragonecs_core_internal_arrayutility_fill",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".fill()"
     },
     {
@@ -114727,8 +114727,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_internal_arrayutility_dcfapixels_dragonecs_core_internal_arrayutility_upsizewithoutcopy",
-      "community": 3,
-      "community_name": "Community 3",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".upsizewithoutcopy()"
     },
     {
@@ -118396,8 +118396,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_iecspoolimplementation",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": "iecspoolimplementation"
     },
     {
@@ -118407,8 +118407,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "iecspool",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": "iecspool"
     },
     {
@@ -118424,8 +118424,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_iecspoolimplementation_oninit",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": ".oninit()"
     },
     {
@@ -118435,8 +118435,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_cs_componentsregistrar",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": "componentsregistrar"
     },
     {
@@ -118452,8 +118452,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_iecspoolimplementation_onworldresize",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": ".onworldresize()"
     },
     {
@@ -118497,8 +118497,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_iecspoolimplementation_onworlddestroy",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": ".onworlddestroy()"
     },
     {
@@ -118514,8 +118514,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_iecspoolimplementation_onlockedchanged_debug",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": ".onlockedchanged_debug()"
     },
     {
@@ -118853,8 +118853,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_core_internal_ecsnullpool_oninit",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 5,
+      "community_name": "Community 5",
       "norm_label": ".oninit()"
     },
     {
@@ -119051,8 +119051,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": "iecspool"
     },
     {
@@ -119068,8 +119068,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_addempty",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".addempty()"
     },
     {
@@ -119085,8 +119085,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_addraw",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".addraw()"
     },
     {
@@ -119102,8 +119102,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_setraw",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".setraw()"
     },
     {
@@ -119119,8 +119119,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_del",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".del()"
     },
     {
@@ -119136,8 +119136,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_clearall",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".clearall()"
     },
     {
@@ -119153,8 +119153,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_pools_ecspoolbase_dcfapixels_dragonecs_iecspool_copy",
-      "community": 106,
-      "community_name": "Community 106",
+      "community": 35,
+      "community_name": "Community 35",
       "norm_label": ".copy()"
     },
     {
@@ -122614,8 +122614,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_exceptions_dcfapixels_dragonecs_core_internal_throw_world_poolalreadycreated",
-      "community": 296,
-      "community_name": "Community 296",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".world_poolalreadycreated()"
     },
     {
@@ -122789,8 +122789,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_exceptions_dcfapixels_dragonecs_core_internal_throw_undefinedexception",
-      "community": 32,
-      "community_name": "Community 32",
+      "community": 280,
+      "community_name": "Community 280",
       "norm_label": ".undefinedexception()"
     },
     {
@@ -124214,8 +124214,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": "itemplatenode.cs"
     },
     {
@@ -124231,8 +124231,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenode",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": "itemplatenode"
     },
     {
@@ -124248,8 +124248,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenode_apply",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".apply()"
     },
     {
@@ -124265,8 +124265,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": "itemplatenodeextensions"
     },
     {
@@ -124282,8 +124282,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions_applyandreturn",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".applyandreturn()"
     },
     {
@@ -124299,8 +124299,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions_applyandreturnlong",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".applyandreturnlong()"
     },
     {
@@ -124316,8 +124316,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions_apply",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".apply()"
     },
     {
@@ -124333,8 +124333,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions_newentity",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".newentity()"
     },
     {
@@ -124350,8 +124350,8 @@
       },
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_dcfapixels_dragonecs_itemplatenodeextensions_newentitylong",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": ".newentitylong()"
     },
     {
@@ -124361,8 +124361,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_cs_readonlyspan",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": "readonlyspan"
     },
     {
@@ -124372,8 +124372,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "third_parties_dragonecs_src_utils_itemplatenode_cs_ienumerable",
-      "community": 354,
-      "community_name": "Community 354",
+      "community": 231,
+      "community_name": "Community 231",
       "norm_label": "ienumerable"
     },
     {
@@ -144576,8 +144576,8 @@
       "source_location": "L978",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043c\u043d\u043e\u0433\u043e\u043f\u043e\u0442\u043e\u0447\u043d\u043e\u0441\u0442\u044c",
-      "community": 114,
-      "community_name": "Community 114",
+      "community": 500,
+      "community_name": "ServiceProvider",
       "norm_label": "\u043c\u043d\u043e\u0433\u043e\u043f\u043e\u0442\u043e\u0447\u043d\u043e\u0441\u0442\u044c"
     },
     {
@@ -144587,8 +144587,8 @@
       "source_location": "L980",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043f\u0440\u0438\u043d\u0446\u0438\u043f_\u0440\u0430\u0431\u043e\u0442\u044b",
-      "community": 114,
-      "community_name": "Community 114",
+      "community": 500,
+      "community_name": "ServiceProvider",
       "norm_label": "\u043f\u0440\u0438\u043d\u0446\u0438\u043f \u0440\u0430\u0431\u043e\u0442\u044b"
     },
     {
@@ -144598,8 +144598,8 @@
       "source_location": "L991",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043f\u0440\u0438\u043c\u0435\u0440_\u0441_unity_jobs",
-      "community": 114,
-      "community_name": "Community 114",
+      "community": 500,
+      "community_name": "ServiceProvider",
       "norm_label": "\u043f\u0440\u0438\u043c\u0435\u0440 \u0441 unity jobs"
     },
     {
@@ -144609,8 +144609,8 @@
       "source_location": "L1038",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043e\u0442\u043b\u0430\u0434\u043a\u0430",
-      "community": 114,
-      "community_name": "Community 114",
+      "community": 500,
+      "community_name": "ServiceProvider",
       "norm_label": "\u043e\u0442\u043b\u0430\u0434\u043a\u0430"
     },
     {
@@ -144620,8 +144620,8 @@
       "source_location": "L1059",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_debug",
-      "community": 410,
-      "community_name": "IKarpikProjectInputProvider",
+      "community": 114,
+      "community_name": "Community 114",
       "norm_label": "debug"
     },
     {
@@ -144631,8 +144631,8 @@
       "source_location": "L1061",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043c\u0435\u0442\u0430_\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u044b",
-      "community": 410,
-      "community_name": "IKarpikProjectInputProvider",
+      "community": 114,
+      "community_name": "Community 114",
       "norm_label": "\u043c\u0435\u0442\u0430-\u0430\u0442\u0440\u0438\u0431\u0443\u0442\u044b"
     },
     {
@@ -144642,8 +144642,8 @@
       "source_location": "L1134",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_ecsdebug",
-      "community": 410,
-      "community_name": "IKarpikProjectInputProvider",
+      "community": 114,
+      "community_name": "Community 114",
       "norm_label": "ecsdebug"
     },
     {
@@ -144653,8 +144653,8 @@
       "source_location": "L1155",
       "_origin": "ast",
       "id": "third_parties_dragonecs_readme_ru_\u043f\u0440\u043e\u0444\u0438\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435",
-      "community": 410,
-      "community_name": "IKarpikProjectInputProvider",
+      "community": 114,
+      "community_name": "Community 114",
       "norm_label": "\u043f\u0440\u043e\u0444\u0438\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435"
     },
     {
@@ -146116,8 +146116,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "poolcache",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": "poolcache"
     },
     {
@@ -146138,8 +146138,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "wherequerycache",
-      "community": 231,
-      "community_name": "Community 231",
+      "community": 155,
+      "community_name": "Community 155",
       "norm_label": "wherequerycache"
     },
     {
@@ -390334,5 +390334,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d34e34eb6925e0cdc99b1469717dd83e508d15e9"
+  "built_at_commit": "6743be0f5a01e3e7fadd0b8cacc72d6b6d6a0d82"
 }
