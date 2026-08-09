@@ -1,7 +1,7 @@
 using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 

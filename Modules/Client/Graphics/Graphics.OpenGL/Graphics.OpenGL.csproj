@@ -8,16 +8,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
-        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
         <KarpikModuleDependency Include="ECS" />
         <KarpikModuleDependency Include="Graphics" />
-        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
-        <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <Folder Include="AssetManagement\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
     </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using Veldrid;
+﻿using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core.Sets;
 

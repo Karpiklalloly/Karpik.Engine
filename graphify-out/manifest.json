@@ -2115,9 +2115,9 @@
     "semantic_hash": "194b61e1c9a48b1742a8b63eb1ba369e"
   },
   ".codex/skills/karpik-dragon-ecs/SKILL.md": {
-    "mtime": 1785261923.4966955,
-    "ast_hash": "a53b926d0b0d51b79c79e3dee3609e31",
-    "semantic_hash": "a53b926d0b0d51b79c79e3dee3609e31"
+    "mtime": 1786303826.0225945,
+    "ast_hash": "d805fb40b6e8fb587d4e2fe1686df476",
+    "semantic_hash": ""
   },
   ".codex/skills/karpik-dragon-ecs/agents/openai.yaml": {
     "mtime": 1784051215.6936662,
@@ -2250,9 +2250,9 @@
     "semantic_hash": "6095e18ee862ef6c18cbe78257f7fafc"
   },
   "docs/01_Architecture/hot-reload.md": {
-    "mtime": 1784051216.4787786,
-    "ast_hash": "34e149ad5dc071c06acf369355ff4c89",
-    "semantic_hash": "34e149ad5dc071c06acf369355ff4c89"
+    "mtime": 1786303652.4170666,
+    "ast_hash": "8c8b2786253f43d6a040a4f67665f714",
+    "semantic_hash": ""
   },
   "docs/01_Architecture/overview.md": {
     "mtime": 1786302976.282576,
@@ -2390,9 +2390,9 @@
     "semantic_hash": "2648e85d489e1c7d1586f9f0bb93e9a6"
   },
   "docs/modules/client/imgui-overlay.md": {
-    "mtime": 1784051216.5205986,
-    "ast_hash": "d5c2fea2cdb4a1de5b363b697134d68f",
-    "semantic_hash": "d5c2fea2cdb4a1de5b363b697134d68f"
+    "mtime": 1786303582.6563046,
+    "ast_hash": "08b57c5bafaad193f86c5147ece2bda7",
+    "semantic_hash": ""
   },
   "docs/modules/client/input.md": {
     "mtime": 1784051149.230711,
@@ -2480,14 +2480,14 @@
     "semantic_hash": "f9fb09f0de46cfbf3552d5fcdc5bcf23"
   },
   "docs/modules/shared/asset-management.md": {
-    "mtime": 1784051149.2568119,
-    "ast_hash": "d1e2c355ca6b4b4381f16f377239f277",
-    "semantic_hash": "d1e2c355ca6b4b4381f16f377239f277"
+    "mtime": 1786303582.6593976,
+    "ast_hash": "08f93c5f1908be04a1a7c1d277fc102d",
+    "semantic_hash": ""
   },
   "docs/modules/shared/ecs.md": {
-    "mtime": 1785261923.538902,
-    "ast_hash": "c6193743a6905475b04bc7e130630b99",
-    "semantic_hash": "c6193743a6905475b04bc7e130630b99"
+    "mtime": 1786303669.804571,
+    "ast_hash": "935650344e84dbba1c12a0b08b586d54",
+    "semantic_hash": ""
   },
   "docs/modules/shared/logger.md": {
     "mtime": 1784051149.2590566,
@@ -2495,9 +2495,9 @@
     "semantic_hash": "f0b1b29132abc3138e790fed63c86785"
   },
   "docs/modules/shared/modding.md": {
-    "mtime": 1784051149.2603528,
-    "ast_hash": "0dbfce4d952125eec0eba2d5280c2086",
-    "semantic_hash": "0dbfce4d952125eec0eba2d5280c2086"
+    "mtime": 1786303582.6604462,
+    "ast_hash": "b42a098dd09113475289df5a0258b192",
+    "semantic_hash": ""
   },
   "docs/modules/shared/network-shared.md": {
     "mtime": 1784051149.261494,
@@ -2505,9 +2505,9 @@
     "semantic_hash": "7068ca0dacde7aeefc9ad29c8ca3ee68"
   },
   "docs/modules/shared/physics-2d.md": {
-    "mtime": 1785261923.5409164,
-    "ast_hash": "d0ced2a4b93173cc258910f6188437ed",
-    "semantic_hash": "d0ced2a4b93173cc258910f6188437ed"
+    "mtime": 1786303669.432397,
+    "ast_hash": "7e6492c0b5a4a9f0c3c796518b6ced67",
+    "semantic_hash": ""
   },
   "docs/modules/shared/stat-and-abilities.md": {
     "mtime": 1784051149.2625136,

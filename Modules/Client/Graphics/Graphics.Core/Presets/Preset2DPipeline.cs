@@ -4,9 +4,9 @@ using Karpik.Engine.Client.Graphics.Core.Sets;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
-using Veldrid;
-using Veldrid.SPIRV;
-using Pipeline = Veldrid.Pipeline;
+using NeoVeldrid;
+using NeoVeldrid.SPIRV;
+using Pipeline = NeoVeldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.Core.Presets;
 

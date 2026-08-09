@@ -1,6 +1,6 @@
 using System.Composition;
 using Karpik.Engine.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 

@@ -6,8 +6,8 @@ using System.Runtime.ExceptionServices;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
-using Veldrid;
-using Pipeline = Veldrid.Pipeline;
+using NeoVeldrid;
+using Pipeline = NeoVeldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 

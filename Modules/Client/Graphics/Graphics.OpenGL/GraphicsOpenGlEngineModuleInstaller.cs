@@ -2,9 +2,9 @@
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
-using Veldrid;
-using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
+using NeoVeldrid;
+using NeoVeldrid.Sdl2;
+using NeoVeldrid.StartupUtilities;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
@@ -26,7 +26,7 @@ public class GraphicsOpenGlEngineModuleInstaller : IModuleInstaller
                     preferStandardClipSpaceYDirection: true,
                     swapchainSrgbFormat: true);
 
-                return VeldridStartup.CreateDefaultOpenGLGraphicsDevice(
+                return NeoVeldridStartup.CreateDefaultOpenGLGraphicsDevice(
                     options,
                     context.Resolve<Sdl2Window>(),
                     GraphicsBackend.OpenGL);

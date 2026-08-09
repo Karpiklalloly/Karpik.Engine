@@ -1,9 +1,3 @@
-[submodule "first-parties/Kveldrid"]
-	path = first-parties/Kveldrid
-	url = https://github.com/Karpiklalloly/Kveldrid.git
-[submodule "first-parties/Kveldrid-spirv"]
-	path = first-parties/Kveldrid-spirv
-	url = https://github.com/Karpiklalloly/Kveldrid-spirv.git
 [submodule "first-parties/Karpik.Jobs"]
 	path = first-parties/Karpik.Jobs
 	url = https://github.com/Karpiklalloly/Karpik.Jobs.git

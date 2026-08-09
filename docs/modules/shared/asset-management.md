@@ -25,7 +25,7 @@
 ```csharp
 [Export(typeof(IAssetLoader))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-public sealed class TextureLoader : BaseAssetLoader<TextureAsset, Texture>
+public sealed class RawTextLoader : BaseAssetLoader<TextAsset, string>
 {
     // ...
 }

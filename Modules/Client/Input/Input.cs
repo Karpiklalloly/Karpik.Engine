@@ -2,7 +2,7 @@ using System.Composition;
 using System.Numerics;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.InputModule;
 

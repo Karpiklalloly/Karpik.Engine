@@ -8,9 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
       <KarpikModuleDependency Include="Window" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NeoVeldrid.SDL2" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
     </ItemGroup>
 
 </Project>

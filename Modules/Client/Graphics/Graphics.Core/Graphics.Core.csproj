@@ -11,26 +11,20 @@
       <None Update="Pressstart2p.ttf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="libveldrid-spirv.dll">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid-spirv\src\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.Utilities\Veldrid.Utilities.csproj" />
       <KarpikModuleDependency Include="ECS" />
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <KarpikModuleDependency Include="AssetManagement" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid\Veldrid.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.SDL2\Veldrid.SDL2.csproj" />
-      <ProjectReference Include="..\..\..\..\first-parties\Kveldrid\src\Veldrid.ImGui\Veldrid.ImGui.csproj" />
       <KarpikModuleDependency Include="Window" />
       <ProjectReference Include="..\..\..\..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="NeoVeldrid" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.ImGui" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.SPIRV" Version="1.2.0" />
       <PackageReference Include="StbImageSharp" Version="2.30.15" />
     </ItemGroup>
 

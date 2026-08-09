@@ -1,6 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Numerics;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Modules.Window.Core;
 

@@ -1,5 +1,5 @@
 ﻿using System.Drawing;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 

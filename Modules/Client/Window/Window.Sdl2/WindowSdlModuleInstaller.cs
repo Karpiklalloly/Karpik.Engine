@@ -1,9 +1,7 @@
 ﻿using Autofac;
 using Karpik.Engine.Core;
-using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
-using Veldrid.Sdl2;
-using Veldrid.StartupUtilities;
+using NeoVeldrid;
+using NeoVeldrid.StartupUtilities;
 
 namespace Karpik.Engine.Modules.Window.Sdl2;
 
@@ -16,7 +14,7 @@ public class WindowSdlModuleInstaller : IModuleInstaller
     {
         builder.Register(x =>
         {
-            return VeldridStartup.CreateWindow(new WindowCreateInfo
+            return NeoVeldridStartup.CreateWindow(new WindowCreateInfo
             {
                 X = 100,
                 Y = 100,

@@ -26,15 +26,19 @@ public static class PayloadLayout
         if (IsPreparedPayload(sourceRoot))
         {
             CopyPreparedPayload(sourceRoot, stagingRoot);
-            return;
         }
-        if (!File.Exists(Path.Combine(sourceRoot, "KarpikEngine.slnx")))
+        else
         {
-            throw new InvalidDataException(
-                "--source must be either a prepared payload with editor/sdk/runners/modules/native directories or a KarpikEngine source root.");
+            if (!File.Exists(Path.Combine(sourceRoot, "KarpikEngine.slnx")))
+            {
+                throw new InvalidDataException(
+                    "--source must be either a prepared payload with editor/sdk/runners/modules/native directories or a KarpikEngine source root.");
+            }
+
+            MaterializeRepository(sourceRoot, stagingRoot, sdkVersion, processRunner);
         }
 
-        MaterializeRepository(sourceRoot, stagingRoot, sdkVersion, processRunner);
+        StageModuleNativeAssetsForRunners(stagingRoot);
     }
 
     private static bool IsPreparedPayload(string root) =>
@@ -59,6 +63,25 @@ public static class PayloadLayout
         {
             string relative = relativeDirectory.Replace('/', Path.DirectorySeparatorChar);
             CopyDirectory(Path.Combine(sourceRoot, relative), Path.Combine(stagingRoot, relative));
+        }
+    }
+
+    private static void StageModuleNativeAssetsForRunners(string stagingRoot)
+    {
+        string modulesRoot = Path.Combine(stagingRoot, ModulesDirectory);
+        string clientRunner = Path.Combine(stagingRoot, ClientRunnerDirectory.Replace('/', Path.DirectorySeparatorChar));
+        string serverRunner = Path.Combine(stagingRoot, ServerRunnerDirectory.Replace('/', Path.DirectorySeparatorChar));
+        foreach (EngineModuleCatalogEntry module in EngineModuleCatalog.Read(modulesRoot))
+        {
+            string moduleRoot = Path.Combine(modulesRoot, module.ModuleId);
+            if (module.Side is EngineModuleSide.Shared or EngineModuleSide.Client)
+            {
+                CopyNativeRuntimeFiles(moduleRoot, clientRunner);
+            }
+            if (module.Side is EngineModuleSide.Shared or EngineModuleSide.Server)
+            {
+                CopyNativeRuntimeFiles(moduleRoot, serverRunner);
+            }
         }
     }
 

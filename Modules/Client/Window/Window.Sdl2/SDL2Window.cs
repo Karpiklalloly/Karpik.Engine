@@ -1,8 +1,8 @@
 ﻿using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
-using Veldrid.Sdl2;
+using NeoVeldrid;
+using NeoVeldrid.Sdl2;
 
 namespace Karpik.Engine.Modules.Window.Sdl2;
 

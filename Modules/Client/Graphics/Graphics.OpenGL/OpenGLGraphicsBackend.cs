@@ -5,7 +5,7 @@ using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
@@ -23,7 +23,6 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly Time _time;
     private readonly ClientFrameMetrics _clientFrameMetrics;
     private bool _sceneSubmittedForPresent;
-    private int _lastGpuTimestampSequence;
 
     public OpenGLGraphicsBackend(
         GraphicsDevice device,
@@ -88,10 +87,6 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         {
             _clientFrameMetrics.PublishMergeAvailability(isReady: true);
             _device.ResetFence(submitFence);
-            if (_device is IGpuTimestampProvider provider)
-            {
-                provider.TryRequestGpuTimestamp(commandList);
-            }
             _device.SubmitCommands(commandList, submitFence);
             _sceneSubmittedForPresent = true;
         }
@@ -131,24 +126,10 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         long startedAt = Stopwatch.GetTimestamp();
         _device.SwapBuffers();
         _clientFrameMetrics.PublishPresent(Stopwatch.GetTimestamp() - startedAt);
-        PublishGpuTimestampIfAvailable();
         _sceneSubmittedForPresent = false;
     }
 
     public void Dispose()
     {
-    }
-
-    private void PublishGpuTimestampIfAvailable()
-    {
-        if (_device is not IGpuTimestampProvider provider
-            || !provider.TryGetLatestGpuTimestamp(out GpuTimestampSample sample)
-            || sample.Sequence == _lastGpuTimestampSequence)
-        {
-            return;
-        }
-
-        _lastGpuTimestampSequence = sample.Sequence;
-        _clientFrameMetrics.PublishGpuCommandNanoseconds(sample.Nanoseconds);
     }
 }

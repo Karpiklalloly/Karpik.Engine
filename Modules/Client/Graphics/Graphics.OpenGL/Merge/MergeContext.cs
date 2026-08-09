@@ -1,4 +1,4 @@
-﻿using Veldrid;
+﻿using NeoVeldrid;
 
 using Karpik.Engine.Client.Graphics.Core;
 
