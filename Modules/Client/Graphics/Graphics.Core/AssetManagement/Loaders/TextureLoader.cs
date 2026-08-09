@@ -65,7 +65,7 @@ public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
 
     protected override TextureAsset EmptyAsset() => new();
 
-    protected override void SetValue(TextureAsset asset, ITexture2D value)
+    protected override void SetValue(IAssetLoadContext context, TextureAsset asset, ITexture2D value)
     {
         asset.Texture = value;
     }

@@ -18,5 +18,5 @@ public class RawTextLoader : BaseAssetLoader<TextAsset, string>
 
     protected override TextAsset EmptyAsset() => new();
 
-    protected override void SetValue(TextAsset asset, string value) => asset.Text = value;
+    protected override void SetValue(IAssetLoadContext context, TextAsset asset, string value) => asset.Text = value;
 }

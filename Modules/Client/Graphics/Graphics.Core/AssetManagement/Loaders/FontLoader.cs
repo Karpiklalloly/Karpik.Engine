@@ -34,10 +34,13 @@ public class FontLoader : BaseAssetLoader<FontAsset, FontLoader.LoadedFont>
 
     protected override FontAsset EmptyAsset() => new();
 
-    protected override void SetValue(FontAsset asset, LoadedFont value)
+    protected override void SetValue(IAssetLoadContext context, FontAsset asset, LoadedFont value)
     {
         asset.Font = value.Font;
-        asset.AddDependency(value.TextureAsset);
+        if (!context.Manager.TryAddDependency(asset, value.TextureAsset))
+        {
+            throw new InvalidOperationException($"Could not add dependency from {asset.Path} to {asset.Path}");
+        }
         value.TextureHandle.Dispose();
     }
 

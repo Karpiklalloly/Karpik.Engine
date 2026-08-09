@@ -1,31 +1,34 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
-using Karpik.Engine.Shared.Log;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace Karpik.Engine.Shared.ECS;
 
-public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
+public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : JsonConverter<IEcsComponentMember[]>
 {
     private const string TypePropertyName = "$type";
 
-    private MethodInfo _genericToObjectMethodInfo;
+    private MethodInfo? _genericToObjectMethodInfo;
     private readonly Lock _methodInfoLock = new();
-    private readonly ConcurrentDictionary<Type, MethodInfo> ClosedToObjectMethodCache = new();
+    private readonly ConcurrentDictionary<Type, MethodInfo> _closedToObjectMethodCache = new();
     
-    public override void WriteJson(JsonWriter writer, IEcsComponentMember[] value, JsonSerializer serializer)
+    public override void WriteJson(JsonWriter writer, IEcsComponentMember[]? value, JsonSerializer serializer)
     {
         writer.WriteStartArray();
-        foreach (var component in value)
+        if (value is not null)
         {
-            var obj = JObject.FromObject(component, serializer);
-            obj.WriteTo(writer);
+            foreach (var component in value)
+            {
+                var obj = JObject.FromObject(component, serializer);
+                obj.WriteTo(writer);
+            }
         }
         writer.WriteEndArray();
     }
 
-    public override IEcsComponentMember[] ReadJson(JsonReader reader, Type objectType, IEcsComponentMember[] existingValue, bool hasExistingValue, JsonSerializer serializer)
+    public override IEcsComponentMember[]? ReadJson(JsonReader reader, Type objectType, IEcsComponentMember[]? existingValue, bool hasExistingValue, JsonSerializer serializer)
     {
         if (reader.TokenType == JsonToken.Null) return null;
 
@@ -43,52 +46,57 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
             if (token.Type != JTokenType.Object) continue;
             JObject obj = (JObject)token;
 
-            JToken typeToken = obj[TypePropertyName];
-            if (typeToken is not { Type: JTokenType.String })
+            JToken? typeToken = obj[TypePropertyName];
+            if (typeToken?.Type is not JTokenType.String)
             {
-                Logger.Instance.Log(nameof(ComponentArrayConverter), $"Error: Missing or invalid '{TypePropertyName}' property. Skipping object: {obj.ToString(Formatting.None)}", LogLevel.Error);
-                 continue;
+                logger.LogError("Missing or invalid '{TypePropertyName}' property. Skipping object: {obj}", TypePropertyName, obj.ToString(Formatting.None));
+                continue;
             }
-            string typeName = typeToken.Value<string>();
-            var type = typeName.Split(',');
-            obj.Remove(TypePropertyName);
-
-            IEcsComponentMember deserializedComponent = null;
-            try
+            
+            IEcsComponentMember? deserializedComponent = null;
+            
+            string? typeName = typeToken.Value<string>();
+            if (typeName is not null)
             {
-                Type? componentType;
-                if (type.Length > 1)
+                string[] type = typeName.Split(',');
+                obj.Remove(TypePropertyName);
+            
+                try
                 {
-                    componentType = serializer.SerializationBinder.BindToType(type[1].Trim(), type[0].Trim());
-                }
-                else
-                {
-                    componentType = serializer.SerializationBinder.BindToType(null, typeName);;
-                }
+                    Type componentType;
+                    if (type.Length > 1)
+                    {
+                        componentType = serializer.SerializationBinder.BindToType(type[1].Trim(), type[0].Trim());
+                    }
+                    else
+                    {
+                        componentType = serializer.SerializationBinder.BindToType(null, typeName);
+                    }
                 
 
-                if (componentType is not null && typeof(IEcsComponentMember).IsAssignableFrom(componentType))
-                {
-                    if (!ClosedToObjectMethodCache.TryGetValue(componentType, out var closedMethod))
+                    if (typeof(IEcsComponentMember).IsAssignableFrom(componentType))
                     {
-                        closedMethod = _genericToObjectMethodInfo.MakeGenericMethod(componentType);
-                        ClosedToObjectMethodCache.TryAdd(componentType, closedMethod);
-                    }
+                        if (!_closedToObjectMethodCache.TryGetValue(componentType, out var closedMethod))
+                        {
+                            closedMethod = _genericToObjectMethodInfo.MakeGenericMethod(componentType);
+                            _closedToObjectMethodCache.TryAdd(componentType, closedMethod);
+                        }
 
-                    deserializedComponent = (IEcsComponentMember)closedMethod.Invoke(obj, [serializer]);
+                        deserializedComponent = (IEcsComponentMember?)closedMethod.Invoke(obj, [serializer]);
+                    }
+                    else
+                    {
+                        logger.LogError("Error: Could not find or assignable type for name '{TypeName}'.", typeName);
+                    }
                 }
-                else
+                catch (TargetInvocationException tie)
                 {
-                     Console.WriteLine($"[ComponentArrayConverter] Error: Could not find or assignable type for name '{typeName}'.");
+                    logger.LogError("Error invoking ToObject<{TypeName}>: {InnerExceptionMessage}\nJSON: {obj}", typeName, tie.InnerException?.Message ?? tie.Message, obj.ToString(Formatting.None));
                 }
-            }
-            catch (TargetInvocationException tie)
-            {
-                 Console.WriteLine($"[ComponentArrayConverter] Error invoking ToObject<{typeName}>: {tie.InnerException?.Message ?? tie.Message}\nJSON: {obj.ToString(Formatting.None)}");
-            }
-            catch (Exception ex)
-            {
-                 Console.WriteLine($"[ComponentArrayConverter] Error deserializing component type '{typeName}' using reflection: {ex.Message}\nJSON: {obj.ToString(Formatting.None)}");
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error deserializing component type '{TypeName}' using reflection: {Exception}\nJSON: {obj}", typeName, ex.Message, obj.ToString(Formatting.None));
+                }
             }
 
             if (deserializedComponent != null)
@@ -108,7 +116,7 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
         {
             if (_genericToObjectMethodInfo != null) return;
 
-            MethodInfo foundMethod = typeof(JObject).GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            MethodInfo? foundMethod = typeof(JObject).GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .FirstOrDefault(m =>
                     m.Name == "ToObject" &&
                     m.IsGenericMethodDefinition &&
@@ -118,30 +126,10 @@ public class ComponentArrayConverter : JsonConverter<IEcsComponentMember[]>
 
             if (foundMethod == null)
             {
-                 Console.WriteLine("[ComponentArrayConverter] CRITICAL ERROR: Could not find method info for JObject.ToObject<T>(JsonSerializer).");
+                logger.LogCritical("Could not find method info for JObject.ToObject<T>(JsonSerializer).");
             }
 
             _genericToObjectMethodInfo = foundMethod;
         }
-    }
-
-
-    private Type FindTypeByName(string typeName)
-    {
-        Type foundType = Type.GetType(typeName, throwOnError: false, ignoreCase: true);
-        if (foundType != null) return foundType;
-        foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            foundType = asm.GetType(typeName, throwOnError: false, ignoreCase: true);
-            if (foundType != null) return foundType;
-            
-            var types = asm.GetTypes().Where(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (types.Count == 1) return types[0];
-            if (types.Count > 1) {
-                Console.WriteLine($"[FindTypeByName] Ambiguous type name '{typeName}' found in assembly {asm.FullName}. Provide a more qualified name.");
-                return null;
-            }
-        }
-        return null;
     }
 }

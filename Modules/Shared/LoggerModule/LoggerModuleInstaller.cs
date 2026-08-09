@@ -1,15 +1,27 @@
 ﻿using Autofac;
 using Karpik.Engine.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.Log;
 
-[Module]
+[Module(ModuleScope.Engine)]
 public class LoggerModuleInstaller : IModuleInstaller
 {
     public string Name => "Logger";
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register<ILoggerKarpik>(Logger.Instance);
+        builder.Register(_ => LoggerFactory.Create(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddSimpleConsole();
+                logging.SetMinimumLevel(LogLevel.Debug);
+            }))
+            .As<ILoggerFactory>()
+            .SingleInstance();
+
+        builder.RegisterGeneric(typeof(Microsoft.Extensions.Logging.Logger<>))
+            .As(typeof(ILogger<>))
+            .SingleInstance();
     }
 }

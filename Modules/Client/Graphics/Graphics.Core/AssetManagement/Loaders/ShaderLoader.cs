@@ -14,7 +14,7 @@ public class ShaderLoader : BaseAssetLoader<ShaderAsset, byte[]>
     public override string[] SupportedExtensions => [".vert", ".frag"];
     protected override JobHandle<byte[]?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
-        return Job.Run(() =>
+        return Job.Run<byte[]?>(() =>
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
             return Encoding.UTF8.GetBytes(reader.ReadToEnd());
@@ -23,7 +23,7 @@ public class ShaderLoader : BaseAssetLoader<ShaderAsset, byte[]>
 
     protected override ShaderAsset EmptyAsset() => new();
 
-    protected override void SetValue(ShaderAsset asset, byte[] value)
+    protected override void SetValue(IAssetLoadContext context, ShaderAsset asset, byte[] value)
     {
         asset.ShaderBytes = value;
     }

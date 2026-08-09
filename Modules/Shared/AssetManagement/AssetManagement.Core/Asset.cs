@@ -9,8 +9,8 @@ public abstract class Asset
     public int RefCount { get; private set; } = 0;
     public abstract object RawValue { get; set; }
     internal IAssetsManager Manager { get; set; }
-    
-    private readonly List<Asset> _dependencies = new();
+
+    public List<Asset> Dependencies { get; } = new();
 
     protected internal Asset()
     {
@@ -27,44 +27,18 @@ public abstract class Asset
         RefCount--;
         return RefCount <= 0;
     }
-    
-    public void AddDependency(Asset? child)
-    {
-        if (child is null) return;
-        if (child == this) return;
-#if DEBUG
-        bool ChildHasDependencyOnParent(Asset child)
-        {
-            if (child._dependencies.Contains(this)) return true;
-            foreach (var dep in child._dependencies)
-            {
-                if (ChildHasDependencyOnParent(dep)) return true;
-            }
-            return false;
-        }
-
-        if (ChildHasDependencyOnParent(child)) throw new Exception("Cyclic dependency detected");
-#endif
-
-        if (!_dependencies.Contains(child))
-        {
-            _dependencies.Add(child);
-            child.IncrementRef();
-            Logger.Instance.Log(Type.Name, $"Added dependency: {Path} -> {child.Path}", LogLevel.Debug);
-        }
-    }
 
     internal void Unload()
     {
         OnUnload();
         
-        if (_dependencies.Count > 0 && Manager != null)
+        if (Dependencies.Count > 0 && Manager != null)
         {
-            foreach (var child in _dependencies)
+            foreach (var child in Dependencies)
             {
                 Manager.ReleaseAsset(child);
             }
-            _dependencies.Clear();
+            Dependencies.Clear();
         }
     }
 

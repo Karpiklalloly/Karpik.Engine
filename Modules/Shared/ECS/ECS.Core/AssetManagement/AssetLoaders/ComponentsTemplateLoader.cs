@@ -2,6 +2,7 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.ECS;
 
@@ -13,10 +14,10 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     
     private readonly IFileSystem _fileSystem;
     
-    public ComponentsTemplateLoader(IFileSystem fileSystem)
+    public ComponentsTemplateLoader(IFileSystem fileSystem, ILogger<ComponentArrayConverter> converterLogger)
     {
         _fileSystem = fileSystem;
-        Serializer.Converters.Add(new ComponentArrayConverter());
+        Serializer.Converters.Add(new ComponentArrayConverter(converterLogger));
     }
 
     protected override async JobHandle OnAssetLoadedAsync(ComponentsTemplateAsset asset, IAssetLoadContext context)
@@ -35,7 +36,7 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
 
                     if (handle.IsValid)
                     {
-                        asset.AddDependency(handle.Asset);
+                        context.Manager.TryAddDependency(asset, handle.Asset);
                     }
                 }
             }
@@ -44,5 +45,5 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     
     protected override ComponentsTemplateAsset EmptyAsset() => new();
 
-    protected override void SetValue(ComponentsTemplateAsset asset, ComponentsTemplate value) => asset.Template = value;
+    protected override void SetValue(IAssetLoadContext context, ComponentsTemplateAsset asset, ComponentsTemplate value) => asset.Template = value;
 }

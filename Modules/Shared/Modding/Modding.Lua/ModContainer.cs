@@ -1,7 +1,7 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
-using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
@@ -32,7 +32,8 @@ public class ModContainer : IModContainer
     public IReadOnlyList<DynValue> StartFunctions => _startFunction;
     public IReadOnlyList<DynValue> LoadFunctions => _loadFunction;
     public IReadOnlyList<DynValue> UnloadFunctions => _unloadFunction;
-    
+
+    private readonly ILogger<ModContainer> _logger;
     private readonly IAssetsManager _assetsManager;
     private readonly Time _time;
     private readonly List<DynValue> _updateFunction = new();
@@ -45,8 +46,9 @@ public class ModContainer : IModContainer
     private bool _disposed = false;
     private AssetHandle<ModMetaDataAsset> _metaDataHandle;
     
-    internal ModContainer(IAssetsManager assetsManager, Time time, string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
+    internal ModContainer(ILogger<ModContainer> logger, IAssetsManager assetsManager, Time time, string directoryPath, AssetHandle<ModMetaDataAsset> metaDataHandle)
     {
+        _logger = logger;
         _assetsManager = assetsManager;
         _time = time;
         DirectoryPath = directoryPath;
@@ -56,9 +58,9 @@ public class ModContainer : IModContainer
         Script.Options.DebugPrint = s => Log(s);
     }
 
-    internal async JobHandle Initialize()
+    internal async JobHandle Initialize(ILogger<GameAPI> gameApiLogger)
     {
-        Script.Globals["G"] = new GameAPI(MetaData?.Id ?? throw new NullReferenceException(), this);
+        Script.Globals["G"] = new GameAPI(gameApiLogger, MetaData?.Id ?? throw new NullReferenceException(), this);
         await LoadRootScripts();
     }
 
@@ -78,7 +80,7 @@ public class ModContainer : IModContainer
         }
         catch (Exception ex)
         {
-            Log($"Error loading module {moduleName}: {ex}", LogLevel.Error).GetAwaiter().GetResult();
+            Log($"Error loading module {moduleName}", LogLevel.Error, ex);
             return DynValue.Nil;
         }
     }
@@ -95,7 +97,7 @@ public class ModContainer : IModContainer
             }
             catch (Exception e)
             {
-                Log($"Update error: {e}", LogLevel.Error).GetAwaiter().GetResult();
+                Log($"Update error", LogLevel.Error, e);
             }
         }
     }
@@ -114,7 +116,7 @@ public class ModContainer : IModContainer
             }
             catch (Exception e)
             {
-                Log($"Start error: {e}", LogLevel.Error).GetAwaiter().GetResult();
+                Log($"Start error", LogLevel.Error, e);
             }
         }
     }
@@ -129,7 +131,7 @@ public class ModContainer : IModContainer
             }
             catch (Exception e)
             {
-                Log($"Load error: {e}", LogLevel.Error).GetAwaiter().GetResult();
+                Log($"Load error: {e}", LogLevel.Error);
             }
         }
     }
@@ -144,7 +146,7 @@ public class ModContainer : IModContainer
             }
             catch (Exception e)
             {
-                Log($"Unload error: {e}", LogLevel.Error).GetAwaiter().GetResult();
+                Log($"Unload error", LogLevel.Error, e);
             }
         }
     }
@@ -167,45 +169,45 @@ public class ModContainer : IModContainer
                     if (updateFunction.IsNotNil() && updateFunction.Type == DataType.Function)
                     {
                         _updateFunction.Add(updateFunction);
-                        await Log($"Registered update for {fileName}");
+                        Log($"Registered update for {fileName}");
                     }
                     
                     var startFunction = Script.Globals.Get(EventModMethods.OnStart);
                     if (startFunction.IsNotNil() && startFunction.Type == DataType.Function)
                     {
                         _startFunction.Add(startFunction);
-                        await Log($"Registered start for {fileName}");
+                        Log($"Registered start for {fileName}");
                     }
                     
                     var loadFunction = Script.Globals.Get(EventModMethods.OnLoad);
                     if (loadFunction.IsNotNil() && loadFunction.Type == DataType.Function)
                     {
                         _loadFunction.Add(loadFunction);
-                        await Log($"Registered load for {fileName}");
+                        Log($"Registered load for {fileName}");
                     }
                     
                     var unloadFunction = Script.Globals.Get(EventModMethods.OnUnload);
                     if (unloadFunction.IsNotNil() && unloadFunction.Type == DataType.Function)
                     {
                         _unloadFunction.Add(unloadFunction);
-                        await Log($"Registered unload for {fileName}");
+                        Log($"Registered unload for {fileName}");
                     }
                 }
                 catch (Exception e)
                 {
-                    await Log($"Error loading {fileName}: {e}", LogLevel.Error);
+                    Log($"Error loading {fileName}", LogLevel.Error, e);
                 }
             }
         }
         catch (Exception e)
         {
-            await Log($"Error loading root scripts: {e}", LogLevel.Error);
+            Log($"Error loading root scripts", LogLevel.Error, e);
         }
     }
 
-    private async JobHandle Log(string message, LogLevel level = LogLevel.Debug)
+    private void Log(string message, LogLevel level = LogLevel.Debug, Exception? ex = null)
     {
-        await Logger.Instance.Log($"[Mod: {MetaData?.Name}] {message}", level);
+        _logger.Log(level, "[Mod: {Name}] {Message}", MetaData?.Name, message);
     }
 
     public void Dispose()

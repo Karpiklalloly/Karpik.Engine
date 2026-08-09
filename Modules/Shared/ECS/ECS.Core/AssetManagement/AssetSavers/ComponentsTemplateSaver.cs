@@ -1,6 +1,7 @@
 ﻿using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.ECS;
 
@@ -8,8 +9,8 @@ namespace Karpik.Engine.Shared.ECS;
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class ComponentsTemplateSaver : JsonSaver<ComponentsTemplateAsset>
 {
-    public ComponentsTemplateSaver()
+    public ComponentsTemplateSaver(ILogger<ComponentArrayConverter> logger)
     {
-        Serializer.Converters.Add(new ComponentArrayConverter());
+        Serializer.Converters.Add(new ComponentArrayConverter(logger));
     }
 }

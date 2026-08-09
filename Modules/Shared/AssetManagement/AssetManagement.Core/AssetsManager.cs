@@ -2,6 +2,7 @@
 using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
@@ -23,12 +24,14 @@ internal class AssetsManager : IAssetsManager
     
     // [Asset Type] -> [Saver]
     private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
-    
+
+    private readonly ILogger<AssetsManager> _logger;
     private readonly IFileSystem _fileSystem;
     private readonly AssetLoadContext _assetLoadContext;
 
-    public AssetsManager(IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
+    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
     {
+        _logger = logger;
         _fileSystem = fileSystem;
         _assetLoadContext = new AssetLoadContext(this);
         RegisterSavers(savers);
@@ -131,7 +134,7 @@ internal class AssetsManager : IAssetsManager
         if (!_fileSystem.Exists(targetPath))
         {
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
-            await Logger.Instance.Log(nameof(AssetsManager), $"Not found {targetPath}, loading default asset {loader.DefaultPath}.", LogLevel.Warning);
+            _logger.LogWarning("Not found {TargetPath}, loading default asset {LoaderDefaultPath}.", targetPath, loader.DefaultPath);
             targetPath = loader.DefaultPath;
         }
         
@@ -206,7 +209,7 @@ internal class AssetsManager : IAssetsManager
             {
                 _loadedAssets.TryAdd(newKey, asset);
 
-                await Logger.Instance.Log(nameof(AssetsManager), $"Cache updated: moved from {oldId} to {newId}");
+                _logger.LogDebug("Cache updated: moved from {OldId} to {NewId}", oldId, newId);
             }
             else
             {
@@ -218,8 +221,34 @@ internal class AssetsManager : IAssetsManager
             asset.Type = assetType;
         }
 
-        await Logger.Instance.Log($"{asset} saved to {targetPath}");
+        _logger.LogDebug("{Asset} saved to {TargetPath}", asset, targetPath);
         return new AssetHandle<T>(asset, this);
+    }
+
+    public bool TryAddDependency(Asset? parent, Asset? child)
+    {
+        if (parent is null || child is null) return false;
+        
+#if DEBUG
+        bool ChildHasDependencyOnParent(Asset parent, Asset child)
+        {
+            if (child.Dependencies.Contains(parent)) return true;
+            foreach (var dep in child.Dependencies)
+            {
+                if (ChildHasDependencyOnParent(parent, dep)) return true;
+            }
+            return false;
+        }
+        if (ChildHasDependencyOnParent(parent, child)) return false;
+        #endif
+
+        if (parent.Dependencies.Contains(child)) return false;
+        
+        parent.Dependencies.Add(child);
+        child.IncrementRef();
+        _logger.LogDebug("Added dependency: {ParentPath} -> {ChildPath}", parent.Path, child.Path);
+        return true;
+
     }
 
     void IAssetsManager.ReleaseAsset(Asset asset)

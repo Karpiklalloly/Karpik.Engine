@@ -23,14 +23,14 @@ public abstract class BaseAssetLoader<TAsset, TValue>
             return asset;
         }
         
-        SetValue(asset, value);
+        SetValue(context, asset, value);
         await OnAssetLoadedAsync(asset, context);
         return asset;
     }
     
     protected abstract JobHandle<TValue?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName);
     protected abstract TAsset EmptyAsset();
-    protected abstract void SetValue(TAsset asset, TValue value);
+    protected abstract void SetValue(IAssetLoadContext context, TAsset asset, TValue value);
     
     protected virtual JobHandle OnAssetLoadedAsync(TAsset asset, IAssetLoadContext context) => JobHandle.Completed;
 }
