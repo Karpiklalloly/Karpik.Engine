@@ -18,18 +18,19 @@ public sealed class HeadlessWindowInputIntegrationTests
         {
             UpdateSchedulerMode = EcsUpdateSchedulerMode.Deterministic
         };
-        var headlessWindow = new WindowHeadlessInstaller();
-
-        runner.RegisterModule(new WindowCoreInstaller());
-        runner.RegisterModule(headlessWindow);
-        runner.RegisterModule(new InputInstaller());
+        Type[] moduleTypes = typeof(WindowCoreModuleInstaller).Assembly.GetTypes()
+            .Concat(typeof(WindowHeadlessModuleInstaller).Assembly.GetTypes())
+            .Concat(typeof(InputModuleInstaller).Assembly.GetTypes())
+            .Distinct()
+            .ToArray();
+        runner.RegisterTypes(moduleTypes);
         runner.RegisterModule(new CaptureInputInstaller());
         runner.Setup(new Application(Side.Client), scheduler);
         scheduler.Execute();
 
         GameplayLoopDriver driver = runner.CreateGameplayLoopDriver();
 
-        headlessWindow.Controller.PressKey(Key.A);
+        CaptureInputSystem.Controller!.PressKey(Key.A);
         runner.RunMainThreadBegin();
         driver.StepBegin();
 
@@ -42,7 +43,7 @@ public sealed class HeadlessWindowInputIntegrationTests
         Assert.False(CaptureInputSystem.Input.IsPressed(Key.A));
         Assert.True(CaptureInputSystem.Input.IsDown(Key.A));
 
-        headlessWindow.Controller.ReleaseKey(Key.A);
+        CaptureInputSystem.Controller.ReleaseKey(Key.A);
         runner.RunMainThreadBegin();
         driver.StepBegin();
 
@@ -53,37 +54,34 @@ public sealed class HeadlessWindowInputIntegrationTests
         CaptureInputSystem.Clear();
     }
 
-    private sealed class CaptureInputInstaller : IInstallerConfiguratable
+    [Module(ModuleScope.Simulation)]
+    private sealed class CaptureInputInstaller : IModuleInstaller
     {
         public string Name => nameof(CaptureInputInstaller);
 
-        public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
-        {
-        }
-
-        public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
-        {
-            module = new CaptureInputModule();
-        }
-
-        public void OnConfigureComplete(IServiceContainer services)
-        {
-        }
+        public IModule CreateModule() => new CaptureInputModule();
     }
 
     private sealed class CaptureInputModule : IModule
     {
-        public void Import(IBuilder builder)
+        public void Add(ISystemRegistry systems)
         {
-            builder.Add(new CaptureInputSystem(), CustomLayers.BEGIN_PROGRAM_LAYER, -900);
+            systems.Add<CaptureInputSystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -900);
         }
     }
 
     private sealed class CaptureInputSystem : ISystemBegin
     {
-        [DI] private Input _input = null!;
+        private readonly Input _input;
 
         public static Input? Input { get; private set; }
+        public static HeadlessInputController? Controller { get; private set; }
+
+        public CaptureInputSystem(Input input, HeadlessInputController controller)
+        {
+            _input = input;
+            Controller = controller;
+        }
 
         public void Begin()
         {
@@ -93,6 +91,7 @@ public sealed class HeadlessWindowInputIntegrationTests
         public static void Clear()
         {
             Input = null;
+            Controller = null;
         }
     }
 }

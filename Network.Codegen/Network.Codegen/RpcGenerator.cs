@@ -151,7 +151,12 @@ public class RpcGenerator : IIncrementalGenerator
             {
                 public partial class {{ServerDispatcherClass}}
                 {
-                    [DI] private EcsEventWorld _eventWorld;
+                    private readonly EcsEventWorld _eventWorld;
+
+                    public {{ServerDispatcherClass}}(EcsEventWorld eventWorld)
+                    {
+                        _eventWorld = eventWorld;
+                    }
 
                     public void Dispatch(int playerEntity, IReader reader)
                     {

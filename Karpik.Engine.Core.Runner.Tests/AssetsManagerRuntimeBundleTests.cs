@@ -1,5 +1,6 @@
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.AssetManagement.Core.Physical;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Collection(nameof(CurrentDirectoryCollection))]
@@ -17,7 +18,11 @@ public sealed class AssetsManagerRuntimeBundleTests
         {
             Environment.CurrentDirectory = bundleRoot;
 
-            var manager = new AssetsManager(new PhysicalFileSystem());
+            var manager = new AssetsManager(
+                NullLogger<AssetsManager>.Instance,
+                new PhysicalFileSystem(),
+                [],
+                []);
 
             Assert.Equal(bundleRoot, manager.RootPath);
             Assert.Equal(Path.Combine(bundleRoot, "Content"), manager.ContentPath);

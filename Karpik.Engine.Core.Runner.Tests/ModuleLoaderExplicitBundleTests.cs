@@ -1,9 +1,31 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.ModuleManagement;
+using System.Composition;
 using Xunit;
 
 public sealed class ModuleLoaderExplicitBundleTests
 {
+    [Fact]
+    public void PluginContext_IdentitySharesExportAttributeAssemblyWithRunner()
+    {
+        System.Reflection.Assembly contractAssembly = typeof(ExportAttribute).Assembly;
+        string dependencyDirectory = Path.GetDirectoryName(contractAssembly.Location)!;
+        var context = new PluginLoadContext(
+            dependencyDirectory,
+            dependencyDirectory,
+            dependencyDirectories: [dependencyDirectory]);
+        try
+        {
+            System.Reflection.Assembly loaded = context.LoadFromAssemblyName(contractAssembly.GetName());
+
+            Assert.Same(contractAssembly, loaded);
+        }
+        finally
+        {
+            context.Unload();
+        }
+    }
+
     [Fact]
     public void ExplicitLoader_LoadsEngineAndGamePrimariesIntoOneCollectibleContext()
     {

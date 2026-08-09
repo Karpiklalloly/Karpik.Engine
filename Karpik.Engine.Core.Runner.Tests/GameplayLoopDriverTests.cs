@@ -1,8 +1,6 @@
-using Autofac;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
 using Karpik.Engine.Shared.ECS.Scheduling;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 public sealed class GameplayLoopDriverTests
@@ -56,7 +54,7 @@ public sealed class GameplayLoopDriverTests
         driver.StepRun();
         runner.Destroy();
 
-        Assert.Equal(["Run", "Destroy"], ManualGameplayTrace.Items);
+        Assert.Equal(["Destroy"], ManualGameplayTrace.Items);
     }
 
     [Fact]
@@ -69,7 +67,7 @@ public sealed class GameplayLoopDriverTests
         driver.StepFrame(Application.TICK_DT, fixedTicks: 2);
         runner.Destroy();
 
-        Assert.Equal(["Begin", "Run", "Fixed", "Fixed", "Update", "Late", "Destroy"], ManualGameplayTrace.Items);
+        Assert.Equal(["Begin", "Fixed", "Fixed", "Update", "Late", "Destroy"], ManualGameplayTrace.Items);
     }
 
     [Fact]
@@ -114,30 +112,19 @@ internal static class ManualGameplayTrace
     }
 }
 
-internal sealed class ManualGameplayModuleInstaller : IModuleInstallerConfiguratable
+[Module(ModuleScope.Simulation)]
+internal sealed class ManualGameplayModuleInstaller : IModuleInstaller
 {
     public string Name => nameof(ManualGameplayModuleInstaller);
 
-    public void OnRegisterServices(ContainerBuilder builder)
-    {
-    }
-
-    public void OnConfigure(IServiceResolver services, out IModule? module)
-    {
-        module = new ManualGameplayModule();
-    }
-
-    public void OnConfigureComplete(IServiceResolver services)
-    {
-    }
+    public IModule CreateModule() => new ManualGameplayModule();
 }
 
 internal sealed class ManualGameplayModule : IModule
 {
-    public void Import(IBuilder builder, IServiceResolver services)
+    public void Add(ISystemRegistry systems)
     {
-        builder.Add((object)new ManualGameplaySystem());
-        builder.Add((object)new ManualGameplayRunSystem());
+        systems.Add<ManualGameplaySystem>();
     }
 }
 
@@ -183,13 +170,5 @@ internal sealed class ManualGameplaySystem :
     public void Destroy()
     {
         ManualGameplayTrace.Add("Destroy");
-    }
-}
-
-internal sealed class ManualGameplayRunSystem : DCFApixels.DragonECS.IEcsRun
-{
-    public void Run()
-    {
-        ManualGameplayTrace.Add("Run");
     }
 }

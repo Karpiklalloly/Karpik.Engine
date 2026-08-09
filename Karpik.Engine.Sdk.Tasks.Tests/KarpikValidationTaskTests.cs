@@ -50,6 +50,22 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
+    public void SdkProvidesAutofacFromInstalledEngineToRuntimeProjects()
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+        XElement target = targets.Root!.Elements("Target")
+            .Single(element => (string?)element.Attribute("Name") ==
+                               "_KarpikResolveEngineReferenceAssemblies");
+        XElement reference = target.Descendants("Reference")
+            .Single(element => (string?)element.Attribute("Include") == "Autofac");
+
+        Assert.Equal(
+            @"$(KarpikEngineRoot)\runners\server\Autofac.dll",
+            reference.Element("HintPath")?.Value);
+        Assert.Equal("false", reference.Element("Private")?.Value);
+    }
+
+    [Fact]
     public void SdkWiresRuntimeBundleOnlyForClientAndServerRuntimeProjects()
     {
         var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));

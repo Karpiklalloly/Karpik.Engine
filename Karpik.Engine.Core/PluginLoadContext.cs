@@ -20,6 +20,7 @@ public class PluginLoadContext : AssemblyLoadContext
         "Karpik.Engine.Core",
         "Dragon",
         "Karpik.Jobs",
+        "System.Composition.AttributedModel",
     };
 
     public PluginLoadContext(

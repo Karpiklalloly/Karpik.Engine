@@ -1,11 +1,12 @@
+using Autofac;
 using Karpik.Engine.Core;
 
-[Module]
-public class GameInstaller : IInstaller
+[Module(ModuleScope.Simulation)]
+public class GameInstaller : IModuleInstaller
 {
     public string Name => "KarpikGame.Shared";
 
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer container)
+    public void OnRegisterServices(ContainerBuilder builder)
     {
         Console.WriteLine($"[Game] {nameof(GameInstaller)} registered");
     }

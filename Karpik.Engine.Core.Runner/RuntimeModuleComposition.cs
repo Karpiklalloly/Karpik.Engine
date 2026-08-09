@@ -31,13 +31,12 @@ public static class RuntimeModuleComposition
         ArgumentNullException.ThrowIfNull(types);
         bool hasEcsInstaller = types.Any(type =>
             type.Assembly.GetName().Name == "ECS.Core" &&
-            type.Name == "ECSInstaller" &&
             !type.IsAbstract &&
             typeof(IModuleInstaller).IsAssignableFrom(type) &&
             type.GetCustomAttributes(typeof(ModuleAttribute), inherit: false).Length == 1);
         if (!hasEcsInstaller)
         {
-            throw new InvalidDataException("Engine runtime composition is missing the ECS.Core ECSInstaller.");
+            throw new InvalidDataException("Engine runtime composition is missing an ECS.Core module installer.");
         }
     }
 }

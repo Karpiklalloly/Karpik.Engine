@@ -137,8 +137,13 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             {
                 public partial class {{ClientDispatcherClass}}
                 {
-                    [DI] private EcsEventWorld _eventWorld;
-            
+                    private readonly EcsEventWorld _eventWorld;
+
+                    public {{ClientDispatcherClass}}(EcsEventWorld eventWorld)
+                    {
+                        _eventWorld = eventWorld;
+                    }
+
                     public void Dispatch(IReader reader)
                     {
                         var commandId = reader.GetUShort();

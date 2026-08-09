@@ -2,7 +2,6 @@ using Autofac;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 public sealed class EditorSnapshotTests
@@ -111,12 +110,13 @@ internal readonly struct EditorSnapshotThrowingGetter : IEcsComponent
     public int Value => throw new InvalidOperationException("broken getter");
 }
 
+[Module(ModuleScope.Simulation)]
 internal sealed class EditorSnapshotWorldModuleInstaller(EcsDefaultWorld world) : IModuleInstaller
 {
     public string Name => nameof(EditorSnapshotWorldModuleInstaller);
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register(world);
+        builder.RegisterInstance(world).AsSelf().SingleInstance();
     }
 }

@@ -31,6 +31,10 @@
       <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
     </ResolveKarpikEngineRootTask>
     <ItemGroup>
+      <Reference Include="Autofac">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Autofac.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
       <Reference Include="DragonECS">
         <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.dll</HintPath>
         <Private>false</Private>

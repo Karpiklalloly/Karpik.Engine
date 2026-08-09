@@ -1,5 +1,6 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
+using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Tooling;
 using Xunit;
 
@@ -40,6 +41,12 @@ public sealed class RuntimeModuleCompositionTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             RuntimeModuleComposition.ValidateRequiredInstallers([typeof(RuntimeModuleCompositionTests)]));
 
-        Assert.Contains("ECSInstaller", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ECS.Core module installer", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateRequiredInstallers_AcceptsCurrentEcsCoreInstaller()
+    {
+        RuntimeModuleComposition.ValidateRequiredInstallers([typeof(EcsModuleInstaller)]);
     }
 }

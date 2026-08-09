@@ -2,21 +2,26 @@ using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using KarpikGame.Shared;
 
-[Module]
-public class ClientGameInstaller : IInstallerConfiguratable
+[Module(ModuleScope.Simulation)]
+public class ClientGameInstaller : IModuleInstaller
 {
     public string Name => "KarpikGame.Client";
 
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer container) { }
+    public IModule CreateModule() => new ClientGameModule();
+}
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
+internal sealed class ClientGameModule : IModule
+{
+    public void Add(ISystemRegistry systems)
     {
-        module = null;
+        systems.Add<ClientGameInitSystem>();
     }
+}
 
-    public void OnConfigureComplete(IServiceContainer services)
+internal sealed class ClientGameInitSystem(EcsDefaultWorld world) : ISystemInit
+{
+    public void Init()
     {
-        var world = (EcsDefaultWorld)services.GetService(typeof(EcsDefaultWorld))!;
         Console.WriteLine($"[ClientGame] World has {world.Count} entities. Client initialized.");
 
         string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");

@@ -3,6 +3,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Collection(nameof(CurrentDirectoryCollection))]
@@ -27,11 +28,11 @@ public sealed class ShaderAssetLoadingTests
             Environment.CurrentDirectory = bundleRoot;
             Job.Initialize(jobs);
 
-            var services = new ServiceProvider();
-            var manager = new AssetsManager(new PhysicalFileSystem());
-            services.Register<IAssetsManager>(manager);
-            services.Inject(manager);
-            manager.RegisterLoader(new ShaderLoader());
+            var manager = new AssetsManager(
+                NullLogger<AssetsManager>.Instance,
+                new PhysicalFileSystem(),
+                [],
+                [new ShaderLoader()]);
 
             JobHandle<AssetHandle<ShaderAsset>> fragmentPreload =
                 manager.LoadAssetAsync<ShaderAsset>("Shaders/2D.frag");

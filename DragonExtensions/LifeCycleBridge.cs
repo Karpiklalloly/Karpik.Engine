@@ -2,176 +2,86 @@
 
 namespace DragonExtensions;
 
-public class InitSystem(ISystemInit system) : IEcsInit, IOnInjectedDI
+public class InitSystem(ISystemInit system) : IEcsInit
 {
-    [DI] private IServiceContainer _container = null!;
-    
     public void Init()
     {
         system.Init();
     }
-
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class BeginSystem(ISystemBegin system) : IBeginRunSystem, IOnInjectedDI
+public class BeginSystem(ISystemBegin system) : IBeginRunSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void BeginRun()
     {
         system.Begin();
     }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class MainThreadBeginSystem(ISystemMainThreadBegin system) : IMainThreadBeginRunSystem, IOnInjectedDI
+public class MainThreadBeginSystem(ISystemMainThreadBegin system) : IMainThreadBeginRunSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void MainThreadBegin()
     {
         system.MainThreadBegin();
     }
-
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class MainThreadFrameBeginSystem(ISystemMainThreadFrameBegin system) : IMainThreadFrameBeginRunSystem, IOnInjectedDI
+public class MainThreadFrameBeginSystem(ISystemMainThreadFrameBegin system) : IMainThreadFrameBeginRunSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void MainThreadFrameBegin()
     {
         system.MainThreadFrameBegin();
     }
-
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun, IOnInjectedDI
+public class FixedUpdateSystem(ISystemFixedUpdate system) : IEcsFixedRun
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void FixedRun()
     {
         system.FixedUpdate();
     }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class UpdateSystem(ISystemUpdate system) : IUpdateSystem, IOnInjectedDI
+public class UpdateSystem(ISystemUpdate system) : IUpdateSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public ISystemUpdate System => system;
 
     public void Update()
     {
         system.Update();
     }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class LateSystem(ISystemLateUpdate system) : ILateRunSystem, IOnInjectedDI
+public class LateSystem(ISystemLateUpdate system) : ILateRunSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void LateRun()
     {
         system.LateUpdate();
     }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class RenderSystem(ISystemRender system) : IRenderSystem, IOnInjectedDI
+public class RenderSystem(ISystemRender system) : IRenderSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void Render()
     {
         system.Render();
     }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class RenderPrepareSystem(ISystemRenderPrepare system) : IRenderPrepareSystem, IOnInjectedDI
+public class RenderPrepareSystem(ISystemRenderPrepare system) : IRenderPrepareSystem
 {
-    [DI] private IServiceContainer _container = null!;
-
     public ISystemRenderPrepare System => system;
 
     public void RenderPrepare()
     {
         system.RenderPrepare();
     }
-
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
-    }
 }
 
-public class DestroySystem(ISystemDestroy system) : IEcsDestroy, IOnInjectedDI
+public class DestroySystem(ISystemDestroy system) : IEcsDestroy
 {
-    [DI] private IServiceContainer _container = null!;
-
     public void Destroy()
     {
         system.Destroy();
-    }
-    
-    public void OnInjected()
-    {
-        Injector injector = _container.Get<Injector>()!;
-        _container.Inject(system);
-        injector.Inject(system);
     }
 }
