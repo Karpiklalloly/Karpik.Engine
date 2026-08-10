@@ -4,10 +4,6 @@
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/first-parties/DragonECS.Karpik.Extensions" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/first-parties/Karpik.Jobs" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid-spirv" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid-spirv/ext/SPIRV-Cross" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/first-parties/Kveldrid-spirv/ext/shaderc" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/third-parties/DragonECS" vcs="Git" />
   </component>
 </project>
