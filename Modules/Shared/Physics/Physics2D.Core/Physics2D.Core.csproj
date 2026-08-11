@@ -13,5 +13,6 @@
       <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <KarpikModuleDependency Include="ECS" />
       <KarpikModuleDependency Include="Network.Shared" />
+      <KarpikModuleDependency Include="Spatial2D" />
     </ItemGroup>
 </Project>

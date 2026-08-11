@@ -78,6 +78,9 @@
     <KarpikModuleDependency Update="Physics2D.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
+    <KarpikModuleDependency Update="Spatial2D">
+      <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Spatial2D\Spatial2D.csproj</ResolvedProjectPath>
+    </KarpikModuleDependency>
     <KarpikModuleDependency Update="StatAndAbilities">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\StatAndAbilities\StatAndAbilities.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>

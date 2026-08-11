@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Karpik.Engine.Shared.Spatial2D</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\third-parties\DragonECS\DragonECS.csproj" />
+        <KarpikModuleDependency Include="ECS" />
+        <KarpikModuleDependency Include="Network.Shared" />
+    </ItemGroup>
+
+</Project>

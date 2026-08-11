@@ -24,6 +24,7 @@
     <Project Path="Modules/Client/Network.Client/Network.Client.Core/Network.Client.Core.csproj" />
     <Project Path="Modules/Client/Network.Client/Network.Client.LiteNetLib/Network.Client.LiteNetLib.csproj" />
   </Folder>
+  <Folder Name="/Modules/Client/Render/" />
   <Folder Name="/Modules/Client/Window/">
     <Project Path="Modules/Client/Window/Window.Core/Window.Core.csproj" />
     <Project Path="Modules/Client/Window/Window.Headless/Window.Headless.csproj" />
@@ -37,6 +38,7 @@
   <Folder Name="/Modules/Shared/">
     <Project Path="Modules/Shared/DebugModule/DebugModule.csproj" />
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
+    <Project Path="Modules/Shared/Spatial2D/Spatial2D.csproj" />
     <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
     <Project Path="Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
   </Folder>

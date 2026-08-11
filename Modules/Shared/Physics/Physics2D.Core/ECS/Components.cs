@@ -111,17 +111,6 @@ public readonly struct PhysicsLayerMask : IEquatable<PhysicsLayerMask>
     public bool Equals(PhysicsLayerMask other) => Value == other.Value;
 }
 
-[NetworkedComponent]
-public struct Transform2D : IEcsComponent 
-{
-    [NetworkedField]
-    public Vector2 Position;
-    [NetworkedField]
-    public float Rotation;
-        
-    public Vector2 Forward => new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
-}
-
 public struct Velocity2D : IEcsComponent 
 {
     public Vector2 Linear;

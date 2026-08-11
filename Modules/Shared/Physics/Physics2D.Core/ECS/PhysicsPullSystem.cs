@@ -2,6 +2,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.Spatial2D;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 

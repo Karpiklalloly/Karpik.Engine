@@ -57,6 +57,7 @@
         <KarpikModuleSelection Include="Network.Server" Enabled="true" Implementation="LiteNetLib" />
         <KarpikModuleSelection Include="Network.Shared" Enabled="true" Implementation="LiteNetLib" />
         <KarpikModuleSelection Include="Physics2D" Enabled="true" Implementation="Aether2D" />
+        <KarpikModuleSelection Include="Spatial2D" Enabled="true" />
         <KarpikModuleSelection Include="StatAndAbilities" Enabled="true" />
         <KarpikModuleSelection Include="Tween" Enabled="true" />
         <KarpikModuleSelection Include="UnsafeUtilities" Enabled="true" />
