@@ -6,6 +6,7 @@ using nkast.Aether.Physics2D.Collision.Shapes;
 using nkast.Aether.Physics2D.Common;
 using nkast.Aether.Physics2D.Dynamics;
 using nkast.Aether.Physics2D.Dynamics.Contacts;
+using OpenTK.Mathematics;
 using ShapeType = Karpik.Engine.Shared.Physics.Core.ShapeType;
 using Vector2 = System.Numerics.Vector2;
 
@@ -49,8 +50,8 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
     private int _currentOverlapCount;
     private PhysicsLayerMask _currentOverlapMask;
     
-    private readonly CircleShape _cachedQueryCircle = new CircleShape(1f, 1f);
-    private Transform _cachedQueryTransform = new Transform();
+    private readonly CircleShape _cachedQueryCircle = new(1f, 1f);
+    private Transform _cachedQueryTransform;
 
     public AetherPhysicsWorld(World world)
     {
@@ -60,13 +61,13 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         _cachedOverlapDelegate = AetherOverlapCallback;
     }
 
-    public void Step(float deltaTime)
+    public void Step(double deltaTime)
     {
         _collisionCount = 0;
-        _world.Step(deltaTime);
+        _world.Step((float)deltaTime);
     }
 
-    public PhysicsBodyHandle CreateBody(int entityId, Vector2 position, float rotation, in BodyConfig bodyCfg, in ShapeConfig shapeCfg)
+    public PhysicsBodyHandle CreateBody(int entityId, Vector2d position, float rotation, in BodyConfig bodyCfg, in ShapeConfig shapeCfg)
     {
         // Создаем тело в Aether2D
         var aetherBodyType = bodyCfg.Type.Aether;
@@ -77,20 +78,20 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         // Настраиваем форму
         Fixture fixture = shapeCfg.Type switch
         {
-            ShapeType.Box => body.CreateRectangle(shapeCfg.BoxSize.X, shapeCfg.BoxSize.Y, 1f, Vector2.Zero.Aether),
-            ShapeType.Circle => body.CreateCircle(shapeCfg.CircleRadius, 1f, Vector2.Zero.Aether),
+            ShapeType.Box => body.CreateRectangle((float)shapeCfg.BoxSize.X, (float)shapeCfg.BoxSize.Y, 1f, Vector2.Zero.Aether),
+            ShapeType.Circle => body.CreateCircle((float)shapeCfg.CircleRadius, 1f, Vector2.Zero.Aether),
             _ => throw new ArgumentOutOfRangeException(nameof(shapeCfg.Type), shapeCfg.Type, null)
         };
 
         if (fixture != null) {
-            fixture.Friction = bodyCfg.Friction;
-            fixture.Restitution = bodyCfg.Restitution;
+            fixture.Friction = (float)bodyCfg.Friction;
+            fixture.Restitution = (float)bodyCfg.Restitution;
             fixture.IsSensor = bodyCfg.IsSensor;
             fixture.CollisionCategories = (Category)bodyCfg.CategoryBits;
             fixture.CollidesWith = (Category)bodyCfg.MaskBits;
         }
 
-        body.Mass = bodyCfg.Mass;
+        body.Mass = (float)bodyCfg.Mass;
         
         // Подписываемся на коллизии без выделения памяти (используем закешированный делегат)
         body.OnCollision += _cachedCollisionHandler;
@@ -128,49 +129,49 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         _freeHandles[_freeHandleCount++] = handle.Value;
     }
 
-    public void GetTransforms(ReadOnlySpan<PhysicsBodyHandle> handles, Span<Vector2> outPositions, Span<float> outRotations)
+    public void GetTransforms(ReadOnlySpan<PhysicsBodyHandle> handles, Span<Vector2d> outPositions, Span<float> outRotations)
     {
         for (int i = 0; i < handles.Length; i++)
         {
             var body = _bodies[handles[i].Value];
-            outPositions[i] = new Vector2(body.Position.X, body.Position.Y);
+            outPositions[i] = body.Position.OpenTK;
             outRotations[i] = body.Rotation;
         }
     }
     
-    public void GetVelocities(ReadOnlySpan<PhysicsBodyHandle> handles, Span<Vector2> outLinear, Span<float> outAngular)
+    public void GetVelocities(ReadOnlySpan<PhysicsBodyHandle> handles, Span<Vector2d> outLinear, Span<double> outAngular)
     {
         // Максимально плотный цикл. Без проверок на null для скорости.
         for (int i = 0; i < handles.Length; i++)
         {
             var body = _bodies[handles[i].Value];
-            outLinear[i] = new Vector2(body.LinearVelocity.X, body.LinearVelocity.Y);
+            outLinear[i] = body.LinearVelocity.OpenTK;
             outAngular[i] = body.AngularVelocity;
         }
     }
     
-    public void SetTransforms(ReadOnlySpan<PhysicsBodyHandle> handles, ReadOnlySpan<Vector2> positions, ReadOnlySpan<float> rotations)
+    public void SetTransforms(ReadOnlySpan<PhysicsBodyHandle> handles, ReadOnlySpan<Vector2d> positions, ReadOnlySpan<float> rotations)
     {
         for (int i = 0; i < handles.Length; i++)
         {
             var body = _bodies[handles[i].Value];
             // SetTransform в Aether2D автоматически обновляет BroadPhase (AABB)
-            body.SetTransform(new Vector2(positions[i].X, positions[i].Y).Aether, rotations[i]);
+            body.SetTransform(positions[i].Aether, rotations[i]);
         }
     }
     
-    public void SetVelocities(ReadOnlySpan<PhysicsBodyHandle> handles, ReadOnlySpan<Vector2> linear, ReadOnlySpan<float> angular)
+    public void SetVelocities(ReadOnlySpan<PhysicsBodyHandle> handles, ReadOnlySpan<Vector2d> linear, ReadOnlySpan<double> angular)
     {
         // Максимально плотный C-style цикл
         for (int i = 0; i < handles.Length; i++)
         {
             var body = _bodies[handles[i].Value];
-            body.LinearVelocity = new Vector2(linear[i].X, linear[i].Y).Aether;
-            body.AngularVelocity = angular[i];
+            body.LinearVelocity = linear[i].Aether;
+            body.AngularVelocity = (float)angular[i];
         }
     }
 
-    public unsafe int Raycast(Vector2 start, Vector2 end, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
+    public unsafe int Raycast(Vector2d start, Vector2d end, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
     {
         if (results.Length == 0) return 0;
 
@@ -207,8 +208,8 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         {
             Entity = link?.EntityId ?? -1,
             Body = link?.Handle ?? PhysicsBodyHandle.Invalid,
-            Point = point.Numeric,
-            Normal = normal.Numeric,
+            Point = point.OpenTK,
+            Normal = normal.OpenTK,
             Fraction = fraction
         };
 
@@ -223,19 +224,16 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         return _collisionBuffer.AsSpan(0, _collisionCount);
     }
 
-    public void ApplyForce(PhysicsBodyHandle handle, Vector2 force, Vector2 point)
+    public void ApplyForce(PhysicsBodyHandle handle, Vector2d force, Vector2d point)
     {
         var body = _bodies[handle.Value];
-        body.ApplyForce(
-            new Vector2(force.X, force.Y).Aether, 
-            new Vector2(point.X, point.Y).Aether
-        );
+        body.ApplyForce(force.Aether, point.Aether);
     }
 
-    public void ApplyLinearImpulse(PhysicsBodyHandle handle, Vector2 impulse)
+    public void ApplyLinearImpulse(PhysicsBodyHandle handle, Vector2d impulse)
     {
         var body = _bodies[handle.Value];
-        body.ApplyLinearImpulse(new Vector2(impulse.X, impulse.Y).Aether);
+        body.ApplyLinearImpulse(impulse.Aether);
     }
 
     public float GetMass(PhysicsBodyHandle handle)
@@ -243,19 +241,19 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         return _bodies[handle.Value].Mass;
     }
     
-    public Vector2 GetVelocity(PhysicsBodyHandle handle)
+    public Vector2d GetVelocity(PhysicsBodyHandle handle)
     {
         var body = _bodies[handle.Value];
-        return new Vector2(body.LinearVelocity.X, body.LinearVelocity.Y);
+        return body.LinearVelocity.OpenTK;
     }
     
-    public void SetVelocity(PhysicsBodyHandle handle, Vector2 linear)
+    public void SetVelocity(PhysicsBodyHandle handle, Vector2d linear)
     {
         var body = _bodies[handle.Value];
-        body.LinearVelocity = new Vector2(linear.X, linear.Y).Aether;
+        body.LinearVelocity = linear.Aether;
     }
     
-    public unsafe int OverlapCircle(Vector2 center, float radius, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
+    public unsafe int OverlapCircle(Vector2d center, double radius, PhysicsLayerMask layerMask, Span<RaycastHit2D> results)
     {
         if (results.Length == 0) return 0;
 
@@ -264,15 +262,15 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         _currentOverlapBufferLength = results.Length;
 
         // Настраиваем фигуру
-        _cachedQueryCircle.Radius = radius;
-        _cachedQueryTransform.p = new Vector2(center.X, center.Y).Aether;
+        _cachedQueryCircle.Radius = (float)radius;
+        _cachedQueryTransform.p = center.Aether;
             
         // FIX: Вращение в Aether2D (Complex). Угол 0 градусов = Cos(0)=1, Sin(0)=0.
         _cachedQueryTransform.q = new Complex(1f, 0f);
 
         AABB aabb;
-        aabb.LowerBound = new Vector2(center.X - radius, center.Y - radius).Aether;
-        aabb.UpperBound = new Vector2(center.X + radius, center.Y + radius).Aether;
+        aabb.LowerBound = new Vector2d(center.X - radius, center.Y - radius).Aether;
+        aabb.UpperBound = new Vector2d(center.X + radius, center.Y + radius).Aether;
 
         fixed (RaycastHit2D* ptr = results)
         {
@@ -308,8 +306,8 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
             {
                 Entity = link?.EntityId ?? -1,
                 Body = link?.Handle ?? PhysicsBodyHandle.Invalid,
-                Point = new Vector2(fixtureTransform.p.X, fixtureTransform.p.Y),
-                Normal = Vector2.Zero,
+                Point = fixtureTransform.p.OpenTK,
+                Normal = Vector2d.Zero,
                 Fraction = 0f
             };
         }
@@ -332,7 +330,7 @@ public sealed class AetherPhysicsWorld : IPhysicsWorld2D
         {
             EntityA = entityA.EntityId,
             EntityB = entityB.EntityId,
-            Normal = new Vector2(manifoldNormal.X, manifoldNormal.Y),
+            Normal = manifoldNormal.OpenTK,
             // В Aether импульс рассчитывается в PostSolve, но мы можем сохранить базовые данные
             Impulse = 0 
         };

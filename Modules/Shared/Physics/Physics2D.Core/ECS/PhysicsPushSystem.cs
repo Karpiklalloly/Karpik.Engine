@@ -2,6 +2,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
+using OpenTK.Mathematics;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -20,8 +21,9 @@ public class PhysicsPushSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
     }
 
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[1024];
-    private Vector2[] _vecBuf = new Vector2[1024];
+    private Vector2d[] _vecBuf = new Vector2d[1024];
     private float[] _floatBuf = new float[1024];
+    private double[] _doubleBuf = new double[1024];
 
     public void Begin()
     {
@@ -71,7 +73,7 @@ public class PhysicsPushSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
             
             ref var req = ref aspect.VelocityRequests.Get(entity);
             _vecBuf[i] = req.Linear;
-            _floatBuf[i] = req.Angular;
+            _doubleBuf[i] = req.Angular;
 
             aspect.VelocityRequests.Del(entity);
         }
@@ -79,7 +81,7 @@ public class PhysicsPushSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
         physics.SetVelocities(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
-            _floatBuf.AsSpan(0, count)
+            _doubleBuf.AsSpan(0, count)
         );
     }
     
@@ -91,6 +93,7 @@ public class PhysicsPushSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
             Array.Resize(ref _handlesBuf, newSize);
             Array.Resize(ref _vecBuf, newSize);
             Array.Resize(ref _floatBuf, newSize);
+            Array.Resize(ref _doubleBuf, newSize);
         }
     }
 }

@@ -1,5 +1,6 @@
-﻿using System.Numerics;
-using Karpik.Engine.Shared.Physics.Core;
+﻿using Karpik.Engine.Shared.Physics.Core;
+using OpenTK.Mathematics;
+using Vector2 = System.Numerics.Vector2;
 
 namespace Karpik.Engine.Shared.Physics.Aether2D;
 
@@ -8,11 +9,19 @@ public static class SystemAetherConverters
     extension(Vector2 vector)
     {
         public nkast.Aether.Physics2D.Common.Vector2 Aether => new(vector.X, vector.Y);
+        public Vector2d OpenTK => new(vector.X, vector.Y);
     }
     
     extension(nkast.Aether.Physics2D.Common.Vector2 vector)
     {
         public Vector2 Numeric => new(vector.X, vector.Y);
+        public Vector2d OpenTK => new(vector.X, vector.Y);
+    }
+
+    extension(Vector2d vector)
+    {
+        public Vector2 Numeric => new((float)vector.X, (float)vector.Y);
+        public nkast.Aether.Physics2D.Common.Vector2 Aether => new((float)vector.X, (float)vector.Y);
     }
 }
 

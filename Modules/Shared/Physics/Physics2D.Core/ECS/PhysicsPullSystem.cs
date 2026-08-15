@@ -1,8 +1,8 @@
-﻿using System.Numerics;
-using DCFApixels.DragonECS;
+﻿using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Spatial2D;
+using OpenTK.Mathematics;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -21,8 +21,9 @@ public class PhysicsPullSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
     }
 
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[2048];
-    private Vector2[] _vecBuf = new Vector2[2048];
+    private Vector2d[] _vecBuf = new Vector2d[2048];
     private float[] _floatBuf = new float[2048];
+    private double[] _doubleBuf = new double[2048];
 
     public void LateUpdate()
     {
@@ -73,14 +74,14 @@ public class PhysicsPullSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
         physics.GetVelocities(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
-            _floatBuf.AsSpan(0, count)
+            _doubleBuf.AsSpan(0, count)
         );
 
         for (int i = 0; i < count; i++) 
         {
             ref var velocity = ref aspect.Velocities.Get(span[i]);
             velocity.Linear = _vecBuf[i];
-            velocity.Angular = _floatBuf[i];
+            velocity.Angular = _doubleBuf[i];
         }
     }
 
@@ -92,6 +93,7 @@ public class PhysicsPullSystem(IPhysicsWorld2D physics, DefaultWorld world) : IS
             Array.Resize(ref _handlesBuf, newSize);
             Array.Resize(ref _vecBuf, newSize);
             Array.Resize(ref _floatBuf, newSize);
+            Array.Resize(ref _doubleBuf, newSize);
         }
     }
 }
