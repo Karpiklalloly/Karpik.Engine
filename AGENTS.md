@@ -73,15 +73,16 @@ Use `docs/knowledge` for compact reusable notes that are not active plans and no
 
 After a large task, investigation, or architectural discussion, propose 3-7 short learnings that may be worth recording in `docs/knowledge`. Do not write them automatically unless the developer confirms.
 
-## graphify
+## Code and documentation context
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+For non-trivial debugging, feature work, refactoring, or behavioral changes in existing code, load and follow the `bridging-code-and-docs` skill.
 
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+Use Superpowers for the development workflow.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Use CBM for structural and semantic understanding of the current source code.
+
+Use QMD only when project documentation, ADRs, specifications, previous design decisions, architecture, ownership/lifetime, public contracts, or other documented intent may affect the correct implementation.
+
+Do not use QMD as a second code search engine.
+
+Do not perform redundant grep/read repository exploration when CBM can answer the structural question directly.
