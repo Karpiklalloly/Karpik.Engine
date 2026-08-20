@@ -23,6 +23,14 @@
     <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
   </PropertyGroup>
 
+  <Target Name="ValidateKarpikCompositionMode"
+          BeforeTargets="PrepareForBuild;Restore"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(KarpikCompositionMode)' != 'Dynamic' And '$(KarpikCompositionMode)' != 'Static'"
+           Code="KARPIK010"
+           Text="KARPIK010: KarpikCompositionMode must be exactly 'Dynamic' or 'Static'; actual value: '$(KarpikCompositionMode)'." />
+  </Target>
+
   <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
           Condition="'$(KarpikProjectKind)' == 'Runtime'">
     <ResolveKarpikEngineRootTask SdkVersion="$(_KarpikMsBuildSdkVersion)"

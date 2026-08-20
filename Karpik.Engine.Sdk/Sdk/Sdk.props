@@ -1,6 +1,13 @@
 <Project>
   <PropertyGroup>
     <KarpikRuntimeBundleDirectoryName>karpik-bundle</KarpikRuntimeBundleDirectoryName>
+    <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Dynamic</KarpikCompositionMode>
+    <KarpikEnableNativeAotValidation Condition="'$(KarpikEnableNativeAotValidation)' == ''">false</KarpikEnableNativeAotValidation>
   </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="KarpikSide" />
+    <CompilerVisibleProperty Include="KarpikProjectKind" />
+    <CompilerVisibleProperty Include="KarpikCompositionMode" />
+  </ItemGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 </Project>
