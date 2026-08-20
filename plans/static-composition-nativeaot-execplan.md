@@ -17,7 +17,7 @@
 
 ## Progress
 
-- [ ] Milestone 1: implementation contract completed; NativeAOT publish/run evidence is blocked by the local missing Windows C++ linker, and the full Runner suite has unrelated named-pipe access failures.
+- [x] Milestone 1: evaluated SDK composition contract, minimal Autofac NativeAOT publish/run proof, and parent Runner compile-glob exclusion are verified.
 - [ ] Milestone 2: добавить side-safe compile-time references модулей через SDK.
 - [ ] Milestone 3: упаковать Network.Codegen в SDK и генерировать самостоятельный snapshot registry.
 - [ ] Milestone 4: генерировать статическую композицию module installers.
@@ -52,11 +52,11 @@
 - Observation: существующий `ModuleRegistratorGenerator` не является основой готового Static runtime: он ищет `IModule`, генерирует устаревший вызов `Bootstrap`, а `context.AddSource(...)` закомментирован.
   Evidence: `Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/ModuleRegistratorGenerator.cs`.
 
-- Observation: the minimal Autofac factory-registration smoke project builds its managed `win-x64` output, but local NativeAOT publishing stops before link because `link.exe` is unavailable.
-  Evidence: `dotnet publish Karpik.Engine.Core.Runner.Tests/NativeAotSmoke/NativeAotSmoke.csproj -c Release -r win-x64 -p:PublishAot=true -m:1 -nr:false` produced `Platform linker not found`; `where.exe link` found no linker. The publish emitted only `NU1900` vulnerability-feed warnings before the linker error, with no `IL2xxx`, `IL3xxx`, or `IL3050` warnings.
+- Observation: the minimal Autofac factory-registration smoke host publishes and runs under NativeAOT when executed outside the sandbox in the Visual Studio C++ developer environment.
+  Evidence: `vcvars64.bat -vcvars_ver=14.44` plus `C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64` on `PATH` allowed the exact publish command to exit 0; `publish\NativeAotSmoke.exe` printed exactly `STATIC_AOT_OK` and exited 0. The publish reported only `NU1900`; no `IL2xxx`, `IL3xxx`, or `IL3050` warnings occurred.
 
-- Observation: excluding `NativeAotSmoke\**\*.cs` from the parent Runner test project prevents the nested smoke project's generated `obj/Release/net10.0/win-x64/*.AssemblyInfo.cs` from being compiled by the parent; the Runner test assembly built and execution started.
-  Evidence: the full Runner command reached VSTest and reported 107 tests. It then failed 20 named-pipe/process-lifecycle tests with `UnauthorizedAccessException` in `IpcClient.ConnectAsync` and consequent `OperationCanceledException` timeouts; 87 tests passed.
+- Observation: excluding `NativeAotSmoke\**\*.cs` from the parent Runner test project prevents the nested smoke project's generated `obj/Release/net10.0/win-x64/*.AssemblyInfo.cs` from being compiled by the parent; all Runner tests execute when they have normal Windows pipe/process permissions.
+  Evidence: the sandboxed run reached VSTest but failed 20 pipe/process tests with `UnauthorizedAccessException`; rerunning the identical command outside the sandbox passed all 107 tests with no skips or failures.
 
 ## Decision Log
 
@@ -85,7 +85,7 @@
   Date/Author: 2026-08-15 / Codex.
 
 - Decision: do not require a generated lightweight DI container from this milestone's smoke result.
-  Rationale: the Autofac probe did not reach trimming/AOT analysis or execution; the failure is the missing local platform linker, not an intrinsic Autofac trimming/AOT incompatibility. Re-evaluate the container boundary after publishing on a machine with the Desktop C++ NativeAOT prerequisites.
+  Rationale: the Autofac factory-registration probe completed NativeAOT publish and execution without intrinsic trimming/AOT diagnostics. Future Milestone 5 scope remains governed by its full three-scope and reflection-boundary tests.
   Date/Author: 2026-08-20 / Codex.
 
 ## Outcomes & Retrospective
@@ -283,18 +283,18 @@ NativeAOT risk: Autofac, System.Composition, SDL/Silk.NET/NeoVeldrid и native b
 
 **Interfaces produced:** `KarpikCompositionMode`, `KarpikEnableNativeAotValidation`, visible compiler properties.
 
-- [x] Написать XML/unit test, требующий default `Dynamic`, строгую валидацию `Dynamic|Static` и три `CompilerVisibleProperty`.
-- [x] Запустить `dotnet test Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false --filter FullyQualifiedName~CompositionMode` и подтвердить RED из-за отсутствующих SDK declarations.
-- [x] Добавить свойства и target `ValidateKarpikCompositionMode` до `PrepareForBuild` и `Restore`; invalid value выдаёт стабильный build error `KARPIK010`.
-- [x] Повторить targeted test и получить GREEN.
+- [x] Написать evaluated SDK-consumer test, требующий default `Dynamic`, empty normalization, strict `Dynamic|Static` acceptance, `KARPIK010` for invalid input, and compiler-visible properties in generated analyzer config.
+- [x] Запустить `dotnet test Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false --filter FullyQualifiedName~CompositionModeBehaviorTests` и подтвердить RED: empty input reached compiler evaluation empty and invalid input did not fail.
+- [x] Добавить properties и target `ValidateKarpikCompositionMode` до `PrepareForBuild` и `Restore`; target normalizes an evaluated empty value and invalid value выдаёт стабильный build error `KARPIK010`.
+- [x] Повторить targeted test и получить GREEN (5 passed, 0 failed, 0 skipped).
 - [x] Создать минимальный smoke host, который использует Autofac factory registration без scanning и печатает `STATIC_AOT_OK`.
-- [ ] Выполнить из корня репозитория:
+- [x] Выполнить из корня репозитория:
 
   `dotnet publish Karpik.Engine.Core.Runner.Tests/NativeAotSmoke/NativeAotSmoke.csproj -c Release -r win-x64 -p:PublishAot=true -m:1 -nr:false`
 
-  Result: blocked before link by the missing local `link.exe`; no executable was produced to run. Warning inventory is `NU1900` only; no `IL2xxx`, `IL3xxx`, or `IL3050` were emitted.
-- [x] Determine whether the failed Autofac probe requires a generated lightweight-container boundary: it does not, because the failure is the local NativeAOT linker prerequisite rather than a trimming/AOT diagnostic. No broad reflection roots were added.
-- [x] Run `dotnet test Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false` (48 passed, 3 skipped) and `dotnet test Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false` (87 passed, 20 named-pipe/process tests failed after successful compilation; 0 skipped).
+  Result: exit 0 in the Visual Studio C++ developer environment; the published executable printed `STATIC_AOT_OK` with exit code 0. Warning inventory is `NU1900` only; no `IL2xxx`, `IL3xxx`, or `IL3050` were emitted.
+- [x] Determine whether the Autofac probe requires a generated lightweight-container boundary: it does not, because publish and execution completed without intrinsic trimming/AOT diagnostics. No broad reflection roots were added.
+- [x] Run `dotnet test Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj -m:1 -nr:false` (52 passed, 3 skipped) and `dotnet test Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false` (107 passed, 0 failed, 0 skipped outside the sandbox).
 - [x] Update `Progress` and record the actual AOT command/result.
 
 ### Milestone 2: Side-safe compile-time module references из SDK

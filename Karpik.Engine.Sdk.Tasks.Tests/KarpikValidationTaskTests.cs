@@ -9,33 +9,6 @@ using Xunit;
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
-    public void SdkDeclaresAndValidatesTheCompositionModeContract()
-    {
-        var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));
-        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
-
-        XElement compositionMode = Assert.Single(props.Root!.Descendants("KarpikCompositionMode"));
-        XElement nativeAotValidation = Assert.Single(props.Root.Descendants("KarpikEnableNativeAotValidation"));
-        XElement[] visibleProperties = props.Root.Descendants("CompilerVisibleProperty").ToArray();
-        XElement validationTarget = targets.Root!.Elements("Target")
-            .Single(target => (string?)target.Attribute("Name") == "ValidateKarpikCompositionMode");
-        XElement error = Assert.Single(validationTarget.Elements("Error"));
-
-        Assert.Equal("Dynamic", compositionMode.Value);
-        Assert.Equal("'$(KarpikCompositionMode)' == ''", (string?)compositionMode.Attribute("Condition"));
-        Assert.Equal("false", nativeAotValidation.Value);
-        Assert.Equal("'$(KarpikEnableNativeAotValidation)' == ''", (string?)nativeAotValidation.Attribute("Condition"));
-        Assert.Equal(
-            ["KarpikSide", "KarpikProjectKind", "KarpikCompositionMode"],
-            visibleProperties.Select(property => (string?)property.Attribute("Include")));
-        Assert.Equal("PrepareForBuild;Restore", (string?)validationTarget.Attribute("BeforeTargets"));
-        Assert.Equal(
-            "'$(KarpikCompositionMode)' != 'Dynamic' And '$(KarpikCompositionMode)' != 'Static'",
-            (string?)error.Attribute("Condition"));
-        Assert.Equal("KARPIK010", (string?)error.Attribute("Code"));
-    }
-
-    [Fact]
     public void SdkWiresCoreCodegenAnalyzerIntoExternalProjects()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
