@@ -90,10 +90,8 @@ public sealed class ExternalGameCliTests
 
         string[] forbiddenNames = [".karpik", "Directory.Build.props", "Directory.Build.targets"];
         Assert.DoesNotContain(
-            Directory.EnumerateFiles(templateRoot, "*", SearchOption.AllDirectories),
+            EnumerateTemplateSourceFiles(templateRoot),
             path => forbiddenNames.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase));
-        Assert.Empty(Directory.EnumerateDirectories(templateRoot, "bin", SearchOption.AllDirectories));
-        Assert.Empty(Directory.EnumerateDirectories(templateRoot, "obj", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -194,7 +192,7 @@ public sealed class ExternalGameCliTests
         Assert.True(metadata.RootElement.GetProperty("preferNameDirectory").GetBoolean());
 
         string repositoryRoot = GetRepositoryRoot();
-        foreach (string path in Directory.EnumerateFiles(templateRoot, "*", SearchOption.AllDirectories))
+        foreach (string path in EnumerateTemplateSourceFiles(templateRoot))
         {
             string content = File.ReadAllText(path);
             Assert.DoesNotContain(repositoryRoot, content, PathComparison);
@@ -325,6 +323,11 @@ public sealed class ExternalGameCliTests
             AssertRuntimeBundles(secondRoot, engineRoot, "SecondGame");
             await AssertMultiWorkerEcsCycleAsync(secondRoot, engineRoot, "SecondGame");
 
+            await AssertStaticSharedProjectCompilesAgainstInstalledModulesAsync(
+                secondRoot,
+                "SecondGame",
+                commonEnvironment);
+
             ProcessResult test = await RunAsync(
                 validRoot,
                 ["test", "KarpikGame.slnx", "-m:1", "-nr:false", "--no-build"],
@@ -336,6 +339,17 @@ public sealed class ExternalGameCliTests
                 commonEnvironment);
             AssertSuccess(publish, "publish the generated client");
             AssertOutputsAreExternalAndPortable(validRoot, repositoryRoot);
+
+            await AssertDynamicSharedProjectDoesNotReceiveStaticModuleReferencesAsync(
+                validRoot,
+                "KarpikGame",
+                commonEnvironment);
+            await AssertStaticSideBoundariesAsync(
+                temporaryRoot,
+                hive,
+                packageFeed,
+                offlinePackageFeed,
+                commonEnvironment);
 
             await AssertMissingSdkFailsBeforeCompilationAsync(
                 invalidSdkRoot, packageFeed, offlinePackageFeed, commonEnvironment);
@@ -370,6 +384,113 @@ public sealed class ExternalGameCliTests
             environment);
         AssertSuccess(materialize, "materialize the Karpik game template");
         Assert.True(File.Exists(Path.Combine(gameRoot, $"{gameName}.slnx")), materialize.CombinedOutput);
+    }
+
+    private async Task AssertStaticSharedProjectCompilesAgainstInstalledModulesAsync(
+        string gameRoot,
+        string gameName,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        string project = Path.Combine(gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
+        SetCompositionMode(project, "Static");
+        File.WriteAllText(
+            Path.Combine(gameRoot, "Source", $"{gameName}.Shared", "StaticTransform2DProbe.cs"),
+            """
+            using Karpik.Engine.Shared.Spatial2D;
+
+            namespace StaticCompositionProbe;
+
+            public struct Transform2DProbe
+            {
+                public Transform2D Value;
+            }
+            """);
+
+        ProcessResult build = await RunAsync(
+            gameRoot,
+            ["build", project, "-m:1", "-nr:false", "--no-restore"],
+            environment);
+        AssertSuccess(build, "compile a Static Shared project against Karpik.Engine.Shared.Spatial2D.Transform2D without a manual reference");
+    }
+
+    private async Task AssertDynamicSharedProjectDoesNotReceiveStaticModuleReferencesAsync(
+        string gameRoot,
+        string gameName,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        string project = Path.Combine(gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
+        File.WriteAllText(
+            Path.Combine(gameRoot, "Source", $"{gameName}.Shared", "DynamicTransform2DProbe.cs"),
+            """
+            using Karpik.Engine.Shared.Spatial2D;
+
+            namespace DynamicCompositionProbe;
+
+            public struct Transform2DProbe
+            {
+                public Transform2D Value;
+            }
+            """);
+
+        ProcessResult build = await RunAsync(
+            gameRoot,
+            ["build", project, "-m:1", "-nr:false", "--no-restore"],
+            environment);
+        AssertMissingReference(build);
+    }
+
+    private async Task AssertStaticSideBoundariesAsync(
+        string temporaryRoot,
+        string hive,
+        string packageFeed,
+        string offlinePackageFeed,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        (string side, string source)[] fixtures =
+        [
+            ("Shared", "using Karpik.Engine.Client.InputModule; public class SideProbe { private Input Value = null!; }"),
+            ("Client", "using Network.Server.LiteNetLib; public class SideProbe { private NetworkServerModuleInstaller Value = null!; }"),
+            ("Server", "using Karpik.Engine.Client.InputModule; public class SideProbe { private Input Value = null!; }")
+        ];
+
+        foreach ((string side, string source) in fixtures)
+        {
+            string gameName = $"Static{side}Boundary";
+            string gameRoot = Path.Combine(temporaryRoot, "static-boundaries", gameName);
+            await MaterializeAsync(temporaryRoot, hive, gameRoot, gameName, environment);
+            WriteNuGetConfig(gameRoot, packageFeed, offlinePackageFeed);
+            string project = Path.Combine(gameRoot, "Source", $"{gameName}.{side}", $"{gameName}.{side}.csproj");
+            SetCompositionMode(project, "Static");
+            File.WriteAllText(Path.Combine(Path.GetDirectoryName(project)!, "ForbiddenSideProbe.cs"), source);
+
+            ProcessResult restore = await RunAsync(
+                gameRoot,
+                ["restore", project, "-m:1", "-nr:false"],
+                environment);
+            AssertSuccess(restore, $"restore the Static {side} side-boundary fixture");
+            ProcessResult build = await RunAsync(
+                gameRoot,
+                ["build", project, "-m:1", "-nr:false", "--no-restore"],
+                environment);
+            AssertMissingReference(build);
+        }
+    }
+
+    private static void SetCompositionMode(string projectPath, string mode)
+    {
+        XDocument document = XDocument.Load(projectPath, LoadOptions.PreserveWhitespace);
+        XElement root = Assert.IsType<XElement>(document.Root);
+        XElement propertyGroup = root.Elements("PropertyGroup").First();
+        propertyGroup.Add(new XElement("KarpikCompositionMode", mode));
+        document.Save(projectPath);
+    }
+
+    private static void AssertMissingReference(ProcessResult result)
+    {
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("error CS", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("KARPIK011", result.CombinedOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unhandled exception", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertRenamedMaterializationsAreDeterministic(
@@ -1062,6 +1183,12 @@ public sealed class ExternalGameCliTests
         Assert.Single(root.Elements("PropertyGroup").Elements(propertyName)).Value.Trim();
 
     private static string GetTemplateRoot() => Path.Combine(GetRepositoryRoot(), "templates", "Karpik.Game");
+
+    private static IEnumerable<string> EnumerateTemplateSourceFiles(string templateRoot) =>
+        Directory.EnumerateFiles(templateRoot, "*", SearchOption.AllDirectories)
+            .Where(path => !Path.GetRelativePath(templateRoot, path)
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(part => part is "bin" or "obj"));
 
     private static string GetRepositoryRoot() =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));

@@ -14,6 +14,8 @@
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikEngineRootTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikStaticReferencesTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
@@ -51,6 +53,28 @@
       </Reference>
       <Reference Include="Karpik.Engine.Core">
         <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_KarpikResolveStaticModuleReferences"
+          BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="_KarpikResolveEngineReferenceAssemblies"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
+    <ResolveKarpikEngineRootTask Condition="'$(KarpikProjectKind)' == 'Tool'"
+                                 SdkVersion="$(_KarpikMsBuildSdkVersion)"
+                                 ExplicitRoot="$(KarpikEngineRoot)"
+                                 LocalApplicationDataRoot="$(KarpikLocalApplicationDataRoot)">
+      <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
+    </ResolveKarpikEngineRootTask>
+    <ResolveKarpikStaticReferencesTask EngineRoot="$(KarpikEngineRoot)"
+                                       Side="$(KarpikSide)">
+      <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
+    </ResolveKarpikStaticReferencesTask>
+    <ItemGroup>
+      <Reference Include="%(_KarpikStaticModuleReference.Filename)">
+        <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
         <Private>false</Private>
       </Reference>
     </ItemGroup>
