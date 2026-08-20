@@ -17,13 +17,9 @@
 
 ## Progress
 
-- [x] (2026-08-15) Исследованы текущие SDK, Configurator, module catalog, runtime bundle, `ModuleLoader`, `PluginLoadContext`, reflection-регистрация, launcher-проекты и Network.Codegen.
-- [x] (2026-08-15) Согласована стратегия: переходный `Dynamic|Static`, затем Static становится основным режимом.
-- [x] (2026-08-15) Первоначальный ExecPlan создан.
-- [x] Milestone 1: зафиксировать build contract и доказать минимальную NativeAOT-совместимость Server host.
-- [x] Milestone 2: добавить side-safe compile-time references модулей через SDK.
-- [x] Milestone 3: упаковать Network.Codegen в SDK и генерировать самостоятельный snapshot registry.
-  Evidence: NetworkGenerator updated to generate typed NetworkSnapshotRegistry; ProjectTypeDetector updated with KarpikSide support; SDK targets updated to package Network.Codegen.dll.
+- [ ] Milestone 1: зафиксировать build contract и доказать минимальную NativeAOT-совместимость Server host.
+- [ ] Milestone 2: добавить side-safe compile-time references модулей через SDK.
+- [ ] Milestone 3: упаковать Network.Codegen в SDK и генерировать самостоятельный snapshot registry.
 - [ ] Milestone 4: генерировать статическую композицию module installers.
 - [ ] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
 - [ ] Milestone 6: превратить launcher-проекты в game-specific Static hosts.

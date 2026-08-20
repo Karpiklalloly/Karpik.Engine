@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "fae2bf1eb8372a680ac059a29913b9cb0b2b59a2",
-    "indexed_at": "2026-08-16T09:35:24Z",
+    "commit": "5506156a92eef2c8072aaa00cc74a1f014530d1e",
+    "indexed_at": "2026-08-20T18:41:56Z",
     "project": "C-Users-artem-RiderProjects-KarpikEngine",
     "nodes": 15586,
     "edges": 52918,
     "original_size": 54394880,
-    "compressed_size": 7844159,
+    "compressed_size": 7846747,
     "compression_level": 3
 }
