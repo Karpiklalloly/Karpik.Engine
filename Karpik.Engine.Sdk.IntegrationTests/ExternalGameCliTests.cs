@@ -577,7 +577,8 @@ public sealed class ExternalGameCliTests
         {
             $"Autofac|{Path.Combine(runner, "Autofac.dll")}",
             $"DragonECS|{Path.Combine(runner, "DragonECS.dll")}",
-            $"Karpik.Engine.Core|{Path.Combine(runner, "Karpik.Engine.Core.dll")}"
+            $"Karpik.Engine.Core|{Path.Combine(runner, "Karpik.Engine.Core.dll")}",
+            $"System.Composition.AttributedModel|{Path.Combine(runner, "System.Composition.AttributedModel.dll")}"
         }.Order(StringComparer.Ordinal).ToArray();
         Assert.True(
             expectedEngineReferences.SequenceEqual(engineReferences, StringComparer.Ordinal),
@@ -835,6 +836,13 @@ public sealed class ExternalGameCliTests
     {
         string runnerProject = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "Karpik.Engine.Core.Runner.csproj");
         string spatialProject = Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "Spatial2D.csproj");
+        string networkCoreProject = Path.Combine(
+            repositoryRoot,
+            "Modules",
+            "Shared",
+            "Network.Shared",
+            "Network.Shared.Core",
+            "Network.Shared.Core.csproj");
         string ownedBuildRoot = Path.Combine(temporaryRoot, "runner-build");
         string artifacts = Path.Combine(ownedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
         string props = Path.Combine(ownedBuildRoot, "Directory.Build.props");
@@ -854,6 +862,9 @@ public sealed class ExternalGameCliTests
         Dictionary<string, FileStamp> spatialBefore = SnapshotFiles(
             Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "bin"),
             Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj"));
+        Dictionary<string, FileStamp> networkCoreBefore = SnapshotFiles(
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Network.Shared", "Network.Shared.Core", "bin"),
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Network.Shared", "Network.Shared.Core", "obj"));
         string[] ownedProperties =
         [
             $"-p:RestoreConfigFile={nugetConfig}",
@@ -880,12 +891,25 @@ public sealed class ExternalGameCliTests
             ["build", spatialProject, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
             environment);
         AssertSuccess(spatialBuild, "build the current Spatial2D module into transaction-owned state");
+        ProcessResult networkCoreRestore = await RunAsync(
+            repositoryRoot,
+            ["restore", networkCoreProject, "-m:1", "-nr:false", .. ownedProperties],
+            environment);
+        AssertSuccess(networkCoreRestore, "restore the current Network.Shared.Core module into transaction-owned state");
+        ProcessResult networkCoreBuild = await RunAsync(
+            repositoryRoot,
+            ["build", networkCoreProject, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
+            environment);
+        AssertSuccess(networkCoreBuild, "build the current Network.Shared.Core module into transaction-owned state");
         Assert.Equal(runnerBefore, SnapshotFiles(
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "obj")));
         Assert.Equal(spatialBefore, SnapshotFiles(
             Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "bin"),
             Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj")));
+        Assert.Equal(networkCoreBefore, SnapshotFiles(
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Network.Shared", "Network.Shared.Core", "bin"),
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Network.Shared", "Network.Shared.Core", "obj")));
 
         string prepared = Path.Combine(temporaryRoot, "prepared-task5-engine");
         foreach (string directory in new[] { "editor", "sdk", "modules", "native" })
@@ -897,6 +921,20 @@ public sealed class ExternalGameCliTests
             $"Spatial2D transaction output is missing: {spatialOutput}");
         Assert.True(IsWithinRoot(spatialOutput, ownedBuildRoot));
         CopySpatial2DModulePayload(spatialOutput, Path.Combine(prepared, "modules", "Spatial2D"));
+        string networkCoreOutput = Path.Combine(artifacts, "bin", "Network.Shared.Core", "release");
+        string networkCoreAssembly = Path.Combine(networkCoreOutput, "Network.Shared.Core.dll");
+        Assert.True(File.Exists(networkCoreAssembly),
+            $"Network.Shared.Core transaction output is missing: {networkCoreOutput}");
+        Assert.True(IsWithinRoot(networkCoreOutput, ownedBuildRoot));
+        string[] installedNetworkCoreCopies = Directory.GetFiles(
+            Path.Combine(prepared, "modules"),
+            "Network.Shared.Core.dll",
+            SearchOption.AllDirectories);
+        Assert.NotEmpty(installedNetworkCoreCopies);
+        foreach (string installedNetworkCoreCopy in installedNetworkCoreCopies)
+        {
+            File.Copy(networkCoreAssembly, installedNetworkCoreCopy, overwrite: true);
+        }
         WriteEngineModuleCatalog(repositoryRoot, Path.Combine(prepared, "modules"));
         string runnerOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Core.Runner", "release");
         Assert.True(IsWithinRoot(runnerOutput, ownedBuildRoot));

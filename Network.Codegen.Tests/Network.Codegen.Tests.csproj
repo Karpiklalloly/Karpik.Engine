@@ -22,6 +22,8 @@
     <ProjectReference Include="..\Modules\Shared\Spatial2D\Spatial2D.csproj" />
     <ProjectReference Include="..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
     <ProjectReference Include="..\Modules\Shared\Network.Shared.LiteNetLib\Network.Shared.LiteNetLib.csproj" />
+    <ProjectReference Include="..\Modules\Client\Network.Client\Network.Client.LiteNetLib\Network.Client.LiteNetLib.csproj" />
+    <ProjectReference Include="..\Modules\Server\Network.Server\Network.Server.LiteNetLib\Network.Server.LiteNetLib.csproj" />
     <ProjectReference Include="..\third-parties\DragonECS\DragonECS.csproj" />
   </ItemGroup>
 

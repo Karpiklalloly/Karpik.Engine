@@ -3,11 +3,14 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Network.Server.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem(INetworkManager manager, NetworkConfig config) : ISystemInit
+internal class InitNetworkClientSystem(
+    INetworkManager manager,
+    INetworkProtocolSchema protocolSchema,
+    NetworkConfig config) : ISystemInit
 {
     public void Init()
     {
-        manager.ConfigureProtocolSchema(config.ProtocolSchemaHash);
+        manager.ConfigureProtocolSchema(protocolSchema.ProtocolSchemaHash);
         manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
         manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
         manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;

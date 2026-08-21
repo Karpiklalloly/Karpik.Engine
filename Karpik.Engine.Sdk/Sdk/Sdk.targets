@@ -58,6 +58,10 @@
         <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.dll</HintPath>
         <Private>false</Private>
       </Reference>
+      <Reference Include="System.Composition.AttributedModel">
+        <HintPath>$(KarpikEngineRoot)\runners\server\System.Composition.AttributedModel.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
     </ItemGroup>
   </Target>
 

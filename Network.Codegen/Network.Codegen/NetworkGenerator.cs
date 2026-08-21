@@ -15,6 +15,7 @@ public sealed class NetworkGenerator : IIncrementalGenerator
 {
     private const string NetworkedComponentAttribute = "Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute";
     private const string NetworkedFieldAttribute = "Karpik.Engine.Shared.Network.Core.NetworkedFieldAttribute";
+    private const string EcsComponentInterface = "DCFApixels.DragonECS.IEcsComponent";
 
     private static readonly DiagnosticDescriptor UnsupportedNetworkedField = new(
         "KNET002", "Unsupported networked field type",
@@ -24,6 +25,11 @@ public sealed class NetworkGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor DuplicateComponentId = new(
         "KNET003", "Duplicate network component ID",
         "Network components '{0}' and '{1}' produce the same deterministic ID 0x{2}",
+        "Network.Codegen", DiagnosticSeverity.Error, isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor InvalidNetworkedComponent = new(
+        "KNET004", "Invalid networked component",
+        "Networked component '{0}' must be an unmanaged struct implementing IEcsComponent",
         "Network.Codegen", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -58,16 +64,17 @@ public sealed class NetworkGenerator : IIncrementalGenerator
     {
         var componentAttribute = compilation.GetTypeByMetadataName(NetworkedComponentAttribute);
         var fieldAttribute = compilation.GetTypeByMetadataName(NetworkedFieldAttribute);
-        if (componentAttribute is null || fieldAttribute is null)
+        var ecsComponentInterface = compilation.GetTypeByMetadataName(EcsComponentInterface);
+        if (componentAttribute is null || fieldAttribute is null || ecsComponentInterface is null)
         {
             return [];
         }
 
         var discovered = new List<ComponentModel>();
-        ProcessNamespace(compilation.Assembly.GlobalNamespace, componentAttribute, fieldAttribute, discovered, context);
+        ProcessNamespace(compilation.Assembly.GlobalNamespace, componentAttribute, fieldAttribute, ecsComponentInterface, discovered, context);
         foreach (var assembly in compilation.SourceModule.ReferencedAssemblySymbols)
         {
-            ProcessNamespace(assembly.GlobalNamespace, componentAttribute, fieldAttribute, discovered, context);
+            ProcessNamespace(assembly.GlobalNamespace, componentAttribute, fieldAttribute, ecsComponentInterface, discovered, context);
         }
 
         var hasError = false;
@@ -98,17 +105,18 @@ public sealed class NetworkGenerator : IIncrementalGenerator
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol componentAttribute,
         INamedTypeSymbol fieldAttribute,
+        INamedTypeSymbol ecsComponentInterface,
         List<ComponentModel> discovered,
         SourceProductionContext context)
     {
         context.CancellationToken.ThrowIfCancellationRequested();
         foreach (var type in namespaceSymbol.GetTypeMembers())
         {
-            ProcessType(type, componentAttribute, fieldAttribute, discovered, context);
+            ProcessType(type, componentAttribute, fieldAttribute, ecsComponentInterface, discovered, context);
         }
         foreach (var child in namespaceSymbol.GetNamespaceMembers())
         {
-            ProcessNamespace(child, componentAttribute, fieldAttribute, discovered, context);
+            ProcessNamespace(child, componentAttribute, fieldAttribute, ecsComponentInterface, discovered, context);
         }
     }
 
@@ -116,6 +124,7 @@ public sealed class NetworkGenerator : IIncrementalGenerator
         INamedTypeSymbol type,
         INamedTypeSymbol componentAttribute,
         INamedTypeSymbol fieldAttribute,
+        INamedTypeSymbol ecsComponentInterface,
         List<ComponentModel> discovered,
         SourceProductionContext context)
     {
@@ -123,7 +132,16 @@ public sealed class NetworkGenerator : IIncrementalGenerator
         if (HasAttribute(type, componentAttribute))
         {
             var members = new List<MemberModel>();
-            var hasUnsupportedMember = false;
+            var hasUnsupportedMember = type.TypeKind != TypeKind.Struct ||
+                                       !type.IsUnmanagedType ||
+                                       !type.AllInterfaces.Contains(ecsComponentInterface, SymbolEqualityComparer.Default);
+            if (hasUnsupportedMember)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    InvalidNetworkedComponent,
+                    type.Locations.FirstOrDefault() ?? Location.None,
+                    type.ToDisplayString()));
+            }
             foreach (var symbol in type.GetMembers())
             {
                 ITypeSymbol? memberType = symbol switch
@@ -166,7 +184,7 @@ public sealed class NetworkGenerator : IIncrementalGenerator
 
         foreach (var nested in type.GetTypeMembers())
         {
-            ProcessType(nested, componentAttribute, fieldAttribute, discovered, context);
+            ProcessType(nested, componentAttribute, fieldAttribute, ecsComponentInterface, discovered, context);
         }
     }
 
@@ -181,7 +199,6 @@ public sealed class NetworkGenerator : IIncrementalGenerator
             SpecialType.System_Int32 => CodecKind.Int,
             SpecialType.System_Int64 => CodecKind.Long,
             SpecialType.System_Boolean => CodecKind.Bool,
-            SpecialType.System_String => CodecKind.String,
             SpecialType.System_Byte => CodecKind.Byte,
             SpecialType.System_UInt16 => CodecKind.UShort,
             SpecialType.System_Double => CodecKind.Double,
@@ -251,10 +268,17 @@ public sealed class NetworkGenerator : IIncrementalGenerator
 
             namespace Karpik.Engine.Generated
             {
-                public sealed class NetworkSnapshotRegistry
+                [global::System.Composition.Export(typeof(NetworkSnapshotRegistry))]
+                [global::System.Composition.Export(typeof(INetworkProtocolSchema))]
+                [global::Karpik.Engine.Core.ServiceRegistration(
+                    global::Karpik.Engine.Core.ModuleScope.Simulation,
+                    global::Karpik.Engine.Core.ServiceLifetime.Singleton)]
+                public sealed class NetworkSnapshotRegistry : INetworkProtocolSchema
                 {
                     public const long ProtocolSchemaHash = unchecked((long)0x{{schemaHash:X16}}UL);
             {{componentConstants}}
+
+                    long INetworkProtocolSchema.ProtocolSchemaHash => ProtocolSchemaHash;
 
                     private sealed class NetworkEntityAspect : EcsAspect
                     {
@@ -366,7 +390,6 @@ public sealed class NetworkGenerator : IIncrementalGenerator
             CodecKind.Int => "reader.GetInt()",
             CodecKind.Long => "reader.GetLong()",
             CodecKind.Bool => "reader.GetBool()",
-            CodecKind.String => "reader.GetString()",
             CodecKind.Byte => "reader.GetByte()",
             CodecKind.UShort => "reader.GetUShort()",
             CodecKind.Double => "reader.GetDouble()",
@@ -425,7 +448,7 @@ public sealed class NetworkGenerator : IIncrementalGenerator
 
     private enum CodecKind
     {
-        Unsupported, Float, Int, Long, Bool, String, Byte, UShort, Double, Color,
+        Unsupported, Float, Int, Long, Bool, Byte, UShort, Double, Color,
         NumericsVector2, NumericsVector3, OpenTkVector2, OpenTkVector2d,
     }
 

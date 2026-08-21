@@ -25,6 +25,7 @@ public class LiteNetLibNetworkManager : INetworkManager
     private readonly ConcurrentDictionary<NetPeer, IPeer> _peers = new();
     private readonly ConcurrentDictionary<NetPeer, byte> _schemaValidatedPeers = new();
     private long _protocolSchemaHash;
+    private bool _protocolSchemaConfigured;
     private bool _disposed = false;
 
     public LiteNetLibNetworkManager()
@@ -57,6 +58,11 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     public void Start(int port)
     {
+        if (!_protocolSchemaConfigured)
+        {
+            throw new InvalidOperationException("A nonzero protocol schema must be configured before the network manager starts.");
+        }
+
         bool started = port == 0
             ? Manager.Start()
             : Manager.Start(port);
@@ -71,12 +77,20 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     public void ConfigureProtocolSchema(long schemaHash)
     {
+        if (schemaHash == 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(schemaHash),
+                "Protocol schema hash zero is reserved for an unconfigured manager.");
+        }
+
         if (Manager.IsRunning)
         {
             throw new InvalidOperationException("The protocol schema must be configured before the network manager starts.");
         }
 
         _protocolSchemaHash = schemaHash;
+        _protocolSchemaConfigured = true;
     }
 
     public void Connect(string address, int port, string key)
@@ -129,6 +143,13 @@ public class LiteNetLibNetworkManager : INetworkManager
         if ((PacketType)reader.PeekByte() == PacketType.Handshake)
         {
             reader.GetByte();
+            if (reader.AvailableBytes != sizeof(long))
+            {
+                peer.Disconnect();
+                reader.Recycle();
+                return;
+            }
+
             var handshakeResult = NetworkSchemaHandshake.ValidatePayload(
                 new LiteNetLibReader(reader),
                 _protocolSchemaHash,

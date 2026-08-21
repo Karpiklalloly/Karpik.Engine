@@ -117,6 +117,89 @@ public sealed class NetworkSnapshotGeneratorTests
     }
 
     [Fact]
+    public void Managed_string_snapshot_field_reports_error_at_field()
+    {
+        const string source = """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Shared.Network.Core;
+            namespace TestGame;
+            [NetworkedComponent]
+            public struct BadComponent : IEcsComponent
+            {
+                [NetworkedField]
+                public string Name;
+            }
+            """;
+        var result = GeneratorTestHarness.Run(
+            new NetworkGenerator(),
+            source,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute>(),
+                GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.EcsWorld>(),
+            ]);
+
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "KNET002"));
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("Name", diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
+    }
+
+    [Fact]
+    public void Managed_class_snapshot_component_reports_error_at_component()
+    {
+        const string source = """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Shared.Network.Core;
+            namespace TestGame;
+            [NetworkedComponent]
+            public sealed class BadComponent : IEcsComponent
+            {
+                [NetworkedField]
+                public int Value;
+            }
+            """;
+        var result = GeneratorTestHarness.Run(
+            new NetworkGenerator(),
+            source,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute>(),
+                GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.EcsWorld>(),
+            ]);
+
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "KNET004"));
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("BadComponent", diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
+    }
+
+    [Fact]
+    public void Snapshot_struct_without_ecs_component_contract_reports_error_at_component()
+    {
+        const string source = """
+            using Karpik.Engine.Shared.Network.Core;
+            namespace TestGame;
+            [NetworkedComponent]
+            public struct BadComponent
+            {
+                [NetworkedField]
+                public int Value;
+            }
+            """;
+        var result = GeneratorTestHarness.Run(
+            new NetworkGenerator(),
+            source,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute>(),
+                GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.EcsWorld>(),
+            ]);
+
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "KNET004"));
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("BadComponent", diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
+    }
+
+    [Fact]
     public void Duplicate_component_metadata_name_reports_component_id_collision()
     {
         const string component = """
@@ -151,6 +234,8 @@ public sealed class NetworkSnapshotGeneratorTests
         {
             GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute>(),
             GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.EcsWorld>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.ServiceRegistrationAttribute>(),
+            GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
         };
 
         var forward = GeneratorTestHarness.Run(new NetworkGenerator(), additionalReferences: shared.Concat([alpha, omega]));

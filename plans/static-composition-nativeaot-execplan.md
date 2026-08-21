@@ -99,6 +99,10 @@
   Rationale: это наименьшая exact integration в текущую transport architecture, сохраняющая delivery method и authority. Изменение deterministic component IDs/schema является protocol-incompatible и должно выкатываться/откатываться одновременно на Client и Server.
   Date/Author: 2026-08-21 / Codex.
 
+- Decision: generated `NetworkSnapshotRegistry` экспортируется как `INetworkProtocolSchema` и как concrete Simulation singleton; реальные Client/Server init systems получают этот Shared contract через обычный service resolution и передают generated nonzero hash в `INetworkManager` до `Start`. Hash `0` зарезервирован как unconfigured и отклоняется; exact handshake payload после `PacketType` содержит ровно один `Int64` без trailing bytes.
+  Rationale: schema должен попадать в normal runtime автоматически из generated closed schema, а не из mutable `NetworkConfig`, process-global state или runtime lookup типа/hash. Shared interface не создаёт Client↔Server dependency; существующий service registration path и будущая compile-time composition используют один и тот же generated service metadata.
+  Date/Author: 2026-08-21 / Codex, Task 3 Fix Round 1.
+
 - Decision: произвольные managed DLL-моды не поддерживаются в Static/NativeAOT; Lua и другие data/script mods остаются runtime-динамическими. Managed-мод должен быть включён до публикации.
   Rationale: NativeAOT не поддерживает общий сценарий загрузки и компиляции ранее неизвестного managed кода.
   Date/Author: 2026-08-15 / Codex.

@@ -84,6 +84,23 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
+    public void SdkProvidesCompositionAttributesRequiredByGeneratedRuntimeServices()
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+        XElement target = targets.Root!.Elements("Target")
+            .Single(element => (string?)element.Attribute("Name") ==
+                               "_KarpikResolveEngineReferenceAssemblies");
+        XElement reference = target.Descendants("Reference")
+            .Single(element => (string?)element.Attribute("Include") ==
+                               "System.Composition.AttributedModel");
+
+        Assert.Equal(
+            @"$(KarpikEngineRoot)\runners\server\System.Composition.AttributedModel.dll",
+            reference.Element("HintPath")?.Value);
+        Assert.Equal("false", reference.Element("Private")?.Value);
+    }
+
+    [Fact]
     public void SdkWiresRuntimeBundleOnlyForClientAndServerRuntimeProjects()
     {
         var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));

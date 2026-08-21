@@ -82,6 +82,8 @@ internal static class GeneratorTestHarness
         AssemblyReference<Karpik.Engine.Shared.Network.Core.NetworkedComponentAttribute>(),
         AssemblyReference<DCFApixels.DragonECS.EcsWorld>(),
         AssemblyReference<OpenTK.Mathematics.Vector2d>(),
+        AssemblyReference<Karpik.Engine.Core.ServiceRegistrationAttribute>(),
+        AssemblyReference<System.Composition.ExportAttribute>(),
     ];
 
     private static readonly ImmutableArray<MetadataReference> FrameworkReferences =
