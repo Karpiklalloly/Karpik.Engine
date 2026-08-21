@@ -72,6 +72,7 @@
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />
   <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
+  <Project Path="Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
   <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
   <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
   <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
