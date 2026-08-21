@@ -73,7 +73,7 @@
       <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
     </ResolveKarpikStaticReferencesTask>
     <ItemGroup>
-      <Reference Include="%(_KarpikStaticModuleReference.Filename)">
+      <Reference Include="%(_KarpikStaticModuleReference.AssemblyIdentity)">
         <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
         <Private>false</Private>
       </Reference>

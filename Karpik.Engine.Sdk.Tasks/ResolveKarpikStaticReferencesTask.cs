@@ -1,6 +1,7 @@
 using Karpik.Engine.Tooling;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
+using System.Reflection;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
@@ -23,8 +24,8 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             References = Resolve();
             return true;
         }
-        catch (Exception exception) when (exception is ArgumentException or IOException or InvalidDataException or
-                                           UnauthorizedAccessException or NotSupportedException)
+        catch (Exception exception) when (exception is ArgumentException or BadImageFormatException or IOException or
+                                           InvalidDataException or UnauthorizedAccessException or NotSupportedException)
         {
             Log.LogError($"KARPIK011: Static module reference resolution failed: {exception.Message}");
             return false;
@@ -53,10 +54,35 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             ? catalog.Where(entry => entry.Side == EngineModuleSide.Shared)
             : EngineModuleCatalog.ForSide(catalog, side);
 
-        return selected
-            .Select(entry => ResolvePrimaryAssembly(modulesRoot, entry.ModuleId))
-            .Select(path => (ITaskItem)new TaskItem(path))
-            .ToArray();
+        var references = new List<ITaskItem>();
+        var identities = new HashSet<string>(StringComparer.Ordinal);
+        var simpleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (EngineModuleCatalogEntry entry in selected)
+        {
+            string path = ResolvePrimaryAssembly(modulesRoot, entry.ModuleId);
+            AssemblyName assemblyName = AssemblyName.GetAssemblyName(path);
+            string simpleName = assemblyName.Name
+                ?? throw new InvalidDataException($"Engine module assembly has no simple identity: {path}");
+            string identity = assemblyName.FullName
+                ?? throw new InvalidDataException($"Engine module assembly has no full identity: {path}");
+            if (!identities.Add(identity))
+            {
+                continue;
+            }
+            if (simpleNames.TryGetValue(simpleName, out string? existingIdentity))
+            {
+                throw new InvalidDataException(
+                    $"Engine modules expose conflicting CLR assembly identities for '{simpleName}': " +
+                    $"'{existingIdentity}' and '{identity}'.");
+            }
+
+            simpleNames.Add(simpleName, identity);
+            var reference = new TaskItem(path);
+            reference.SetMetadata("AssemblyIdentity", identity);
+            references.Add(reference);
+        }
+
+        return [.. references];
     }
 
     private static EngineModuleSide ParseSide(string side) => side switch

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -267,7 +268,7 @@ public sealed class ExternalGameCliTests
             ProcessResult pack = await RunAsync(
                 repositoryRoot,
                 ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-c", "Debug", "-m:1", "-nr:false",
-                    "--no-restore", "--no-build", $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
+                    "--no-restore", $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
                 commonEnvironment);
             AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
             Assert.True(File.Exists(Path.Combine(packageFeed, $"Karpik.Engine.Sdk.{PackageVersion}.nupkg")));
@@ -326,6 +327,7 @@ public sealed class ExternalGameCliTests
             await AssertStaticSharedProjectCompilesAgainstInstalledModulesAsync(
                 secondRoot,
                 "SecondGame",
+                engineRoot,
                 commonEnvironment);
 
             ProcessResult test = await RunAsync(
@@ -343,6 +345,7 @@ public sealed class ExternalGameCliTests
             await AssertDynamicSharedProjectDoesNotReceiveStaticModuleReferencesAsync(
                 validRoot,
                 "KarpikGame",
+                engineRoot,
                 commonEnvironment);
             await AssertStaticSideBoundariesAsync(
                 temporaryRoot,
@@ -371,6 +374,80 @@ public sealed class ExternalGameCliTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task External_static_composition_references_are_side_safe_and_dynamic_remains_unchanged()
+    {
+        Assert.SkipUnless(
+            Environment.GetEnvironmentVariable("KARPIK_RUN_EXTERNAL_SDK_INTEGRATION") == "1",
+            "Set KARPIK_RUN_EXTERNAL_SDK_INTEGRATION=1 to run the external SDK subprocess suite.");
+
+        _startedProcesses.Clear();
+        string repositoryRoot = GetRepositoryRoot();
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikStaticSdk_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        try
+        {
+            string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
+            string packageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
+            Directory.CreateDirectory(packageFeed);
+            string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
+            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
+            string hive = Path.Combine(temporaryRoot, "template-hive");
+            string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
+            WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
+            var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
+                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+                ["DOTNET_NOLOGO"] = "1",
+                ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
+                ["MSBUILDDISABLENODEREUSE"] = "1",
+                ["NUGET_PACKAGES"] = Path.Combine(temporaryRoot, "nuget-packages"),
+                ["NUGET_HTTP_CACHE_PATH"] = Path.Combine(temporaryRoot, "nuget-http-cache"),
+                ["NuGetAudit"] = "false",
+                ["RestoreDisableParallel"] = "true",
+                ["KarpikEngineRoot"] = retainedEngineRoot
+            };
+            string engineRoot = await CreateUpdatedEngineInstallationAsync(
+                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment);
+            environment.Remove("KarpikEngineRoot");
+            environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
+
+            ProcessResult pack = await RunAsync(
+                repositoryRoot,
+                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-c", "Debug", "-m:1", "-nr:false",
+                    "--no-restore", $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
+                environment);
+            AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
+            ProcessResult install = await RunAsync(
+                temporaryRoot,
+                ["new", "--debug:custom-hive", hive, "install", GetTemplateRoot()],
+                environment);
+            AssertSuccess(install, "install the Karpik game template into an isolated hive");
+
+            string staticRoot = Path.Combine(temporaryRoot, "static", "StaticGame");
+            await MaterializeAsync(temporaryRoot, hive, staticRoot, "StaticGame", environment);
+            WriteNuGetConfig(staticRoot, packageFeed, offlinePackageFeed);
+            ProcessResult staticRestore = await RunAsync(staticRoot, ["restore", "StaticGame.slnx", "-m:1", "-nr:false"], environment);
+            AssertSuccess(staticRestore, "restore the Static positive fixture");
+            await AssertStaticSharedProjectCompilesAgainstInstalledModulesAsync(staticRoot, "StaticGame", engineRoot, environment);
+
+            string dynamicRoot = Path.Combine(temporaryRoot, "dynamic", "DynamicGame");
+            await MaterializeAsync(temporaryRoot, hive, dynamicRoot, "DynamicGame", environment);
+            WriteNuGetConfig(dynamicRoot, packageFeed, offlinePackageFeed);
+            ProcessResult dynamicRestore = await RunAsync(dynamicRoot, ["restore", "DynamicGame.slnx", "-m:1", "-nr:false"], environment);
+            AssertSuccess(dynamicRestore, "restore the Dynamic fixture");
+            await AssertDynamicSharedProjectDoesNotReceiveStaticModuleReferencesAsync(dynamicRoot, "DynamicGame", engineRoot, environment);
+            await AssertStaticSideBoundariesAsync(temporaryRoot, hive, packageFeed, offlinePackageFeed, environment);
+            AssertAllSubprocessesUseOwnedState(temporaryRoot);
+        }
+        finally
+        {
+            DeleteOwnedTemporaryRoot(temporaryRoot);
+        }
+    }
+
     private async Task MaterializeAsync(
         string workingDirectory,
         string hive,
@@ -389,10 +466,33 @@ public sealed class ExternalGameCliTests
     private async Task AssertStaticSharedProjectCompilesAgainstInstalledModulesAsync(
         string gameRoot,
         string gameName,
+        string engineRoot,
         IReadOnlyDictionary<string, string?> environment)
     {
         string project = Path.Combine(gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
-        SetCompositionMode(project, "Static");
+        string diagnostics = Path.Combine(Path.GetDirectoryName(project)!, "static-reference-diagnostics.txt");
+        string catalog = Path.Combine(engineRoot, "modules", EngineModuleCatalog.FileName);
+        string spatialAssembly = Path.Combine(engineRoot, "modules", "Spatial2D", "Spatial2D.dll");
+        SetCompositionMode(project, "Static", engineRoot);
+        XDocument document = XDocument.Load(project, LoadOptions.PreserveWhitespace);
+        document.Root!.Add(
+            new XElement("Target",
+                new XAttribute("Name", "CaptureStaticModuleReferences"),
+                new XAttribute("AfterTargets", "_KarpikResolveStaticModuleReferences"),
+                new XAttribute("BeforeTargets", "ResolveAssemblyReferences"),
+                new XElement("WriteLinesToFile",
+                    new XAttribute("File", diagnostics),
+                    new XAttribute("Lines", "mode=$(KarpikCompositionMode);kind=$(KarpikProjectKind);side=$(KarpikSide);root=$(KarpikEngineRoot)"),
+                    new XAttribute("Overwrite", "true")),
+                new XElement("WriteLinesToFile",
+                    new XAttribute("File", diagnostics),
+                    new XAttribute("Lines", "@(_KarpikStaticModuleReference->'%(Identity)|%(AssemblyIdentity)')"),
+                    new XAttribute("Overwrite", "false")),
+                new XElement("WriteLinesToFile",
+                    new XAttribute("File", diagnostics),
+                    new XAttribute("Lines", "@(Reference->'%(Identity)|%(HintPath)')"),
+                    new XAttribute("Overwrite", "false"))));
+        document.Save(project);
         File.WriteAllText(
             Path.Combine(gameRoot, "Source", $"{gameName}.Shared", "StaticTransform2DProbe.cs"),
             """
@@ -410,15 +510,37 @@ public sealed class ExternalGameCliTests
             gameRoot,
             ["build", project, "-m:1", "-nr:false", "--no-restore"],
             environment);
-        AssertSuccess(build, "compile a Static Shared project against Karpik.Engine.Shared.Spatial2D.Transform2D without a manual reference");
+        string captured = File.Exists(diagnostics) ? File.ReadAllText(diagnostics) : "<diagnostic target did not run>";
+        string spatialIdentity = File.Exists(spatialAssembly)
+            ? AssemblyName.GetAssemblyName(spatialAssembly).FullName ?? "<no full identity>"
+            : "<missing>";
+        Assert.True(build.ExitCode == 0,
+            $"Failed to compile a Static Shared project against Karpik.Engine.Shared.Spatial2D.Transform2D without a manual reference.{Environment.NewLine}" +
+            $"Catalog:{Environment.NewLine}{File.ReadAllText(catalog)}{Environment.NewLine}" +
+            $"Spatial2D DLL: {spatialAssembly} ({spatialIdentity}){Environment.NewLine}" +
+            $"MSBuild diagnostic:{Environment.NewLine}{captured}{Environment.NewLine}{build.CombinedOutput}");
     }
 
     private async Task AssertDynamicSharedProjectDoesNotReceiveStaticModuleReferencesAsync(
         string gameRoot,
         string gameName,
+        string engineRoot,
         IReadOnlyDictionary<string, string?> environment)
     {
         string project = Path.Combine(gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
+        string references = Path.Combine(Path.GetDirectoryName(project)!, "dynamic-references.txt");
+        XDocument document = XDocument.Load(project, LoadOptions.PreserveWhitespace);
+        document.Root!.Elements("PropertyGroup").First().Add(new XElement("KarpikEngineRoot", engineRoot));
+        document.Root!.Add(
+            new XElement("Target",
+                new XAttribute("Name", "CaptureDynamicReferences"),
+                new XAttribute("AfterTargets", "_KarpikResolveEngineReferenceAssemblies"),
+                new XAttribute("BeforeTargets", "ResolveAssemblyReferences"),
+                new XElement("WriteLinesToFile",
+                    new XAttribute("File", references),
+                    new XAttribute("Lines", "@(Reference->'%(Identity)|%(HintPath)')"),
+                    new XAttribute("Overwrite", "true"))));
+        document.Save(project);
         File.WriteAllText(
             Path.Combine(gameRoot, "Source", $"{gameName}.Shared", "DynamicTransform2DProbe.cs"),
             """
@@ -437,6 +559,11 @@ public sealed class ExternalGameCliTests
             ["build", project, "-m:1", "-nr:false", "--no-restore"],
             environment);
         AssertMissingReference(build);
+
+        string[] evaluatedReferences = File.ReadAllLines(references);
+        Assert.NotEmpty(evaluatedReferences);
+        Assert.DoesNotContain(evaluatedReferences, reference =>
+            reference.Contains(Path.Combine(engineRoot, "modules"), PathComparison));
     }
 
     private async Task AssertStaticSideBoundariesAsync(
@@ -476,12 +603,16 @@ public sealed class ExternalGameCliTests
         }
     }
 
-    private static void SetCompositionMode(string projectPath, string mode)
+    private static void SetCompositionMode(string projectPath, string mode, string? engineRoot = null)
     {
         XDocument document = XDocument.Load(projectPath, LoadOptions.PreserveWhitespace);
         XElement root = Assert.IsType<XElement>(document.Root);
         XElement propertyGroup = root.Elements("PropertyGroup").First();
         propertyGroup.Add(new XElement("KarpikCompositionMode", mode));
+        if (engineRoot is not null)
+        {
+            propertyGroup.Add(new XElement("KarpikEngineRoot", engineRoot));
+        }
         document.Save(projectPath);
     }
 
@@ -680,18 +811,31 @@ public sealed class ExternalGameCliTests
         IReadOnlyDictionary<string, string?> environment)
     {
         string runnerProject = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "Karpik.Engine.Core.Runner.csproj");
+        string spatialProject = Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "Spatial2D.csproj");
         string ownedBuildRoot = Path.Combine(temporaryRoot, "runner-build");
         string artifacts = Path.Combine(ownedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
-        string extensions = Path.Combine(ownedBuildRoot, "obj") + Path.DirectorySeparatorChar +
-                            "$(MSBuildProjectName)" + Path.DirectorySeparatorChar;
-        Dictionary<string, FileStamp> before = SnapshotFiles(
+        string props = Path.Combine(ownedBuildRoot, "Directory.Build.props");
+        Directory.CreateDirectory(ownedBuildRoot);
+        File.WriteAllText(props, $$"""
+            <Project>
+              <Import Project="{{Path.Combine(repositoryRoot, "Directory.Build.props")}}" />
+              <PropertyGroup>
+                <BaseIntermediateOutputPath>{{Path.Combine(ownedBuildRoot, "obj")}}{{Path.DirectorySeparatorChar}}$(MSBuildProjectName){{Path.DirectorySeparatorChar}}</BaseIntermediateOutputPath>
+                <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+              </PropertyGroup>
+            </Project>
+            """);
+        Dictionary<string, FileStamp> runnerBefore = SnapshotFiles(
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "obj"));
+        Dictionary<string, FileStamp> spatialBefore = SnapshotFiles(
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "bin"),
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj"));
         string[] ownedProperties =
         [
             $"-p:RestoreConfigFile={nugetConfig}",
             $"-p:ArtifactsPath={artifacts}",
-            $"-p:MSBuildProjectExtensionsPath={extensions}"
+            $"-p:DirectoryBuildPropsPath={props}"
         ];
         ProcessResult runnerRestore = await RunAsync(
             repositoryRoot,
@@ -703,22 +847,35 @@ public sealed class ExternalGameCliTests
             ["build", runnerProject, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
             environment);
         AssertSuccess(runnerBuild, "build the current engine-owned runner");
-        Assert.Equal(before, SnapshotFiles(
+        ProcessResult spatialRestore = await RunAsync(
+            repositoryRoot,
+            ["restore", spatialProject, "-m:1", "-nr:false", .. ownedProperties],
+            environment);
+        AssertSuccess(spatialRestore, "restore the current Spatial2D module into transaction-owned state");
+        ProcessResult spatialBuild = await RunAsync(
+            repositoryRoot,
+            ["build", spatialProject, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
+            environment);
+        AssertSuccess(spatialBuild, "build the current Spatial2D module into transaction-owned state");
+        Assert.Equal(runnerBefore, SnapshotFiles(
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "bin"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "obj")));
+        Assert.Equal(spatialBefore, SnapshotFiles(
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "bin"),
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj")));
 
         string prepared = Path.Combine(temporaryRoot, "prepared-task5-engine");
         foreach (string directory in new[] { "editor", "sdk", "modules", "native" })
         {
             CopyDirectory(Path.Combine(retainedEngineRoot, directory), Path.Combine(prepared, directory));
         }
+        string spatialOutput = Path.Combine(artifacts, "bin", "Spatial2D", "release");
+        Assert.True(File.Exists(Path.Combine(spatialOutput, "Spatial2D.dll")),
+            $"Spatial2D transaction output is missing: {spatialOutput}");
+        Assert.True(IsWithinRoot(spatialOutput, ownedBuildRoot));
+        CopySpatial2DModulePayload(spatialOutput, Path.Combine(prepared, "modules", "Spatial2D"));
         WriteEngineModuleCatalog(repositoryRoot, Path.Combine(prepared, "modules"));
-        string runnerOutput = Assert.Single(Directory.EnumerateFiles(
-                artifacts,
-                "Karpik.Engine.Core.Runner.runtimeconfig.json",
-                SearchOption.AllDirectories)
-            .Select(Path.GetDirectoryName)
-            .OfType<string>());
+        string runnerOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Core.Runner", "release");
         Assert.True(IsWithinRoot(runnerOutput, ownedBuildRoot));
         Assert.True(File.Exists(Path.Combine(runnerOutput, "Karpik.Engine.Core.Runner.dll")));
         CopyDirectory(runnerOutput, Path.Combine(prepared, "runners", "client"));
@@ -736,6 +893,17 @@ public sealed class ExternalGameCliTests
         Assert.True(validation.IsValid, validation.Message);
         Assert.False(IsWithinRoot(published.DestinationDirectory, retainedEngineRoot));
         return published.DestinationDirectory;
+    }
+
+    private static void CopySpatial2DModulePayload(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (string fileName in new[] { "Spatial2D.dll", "OpenTK.Mathematics.dll" })
+        {
+            string source = Path.Combine(sourceDirectory, fileName);
+            Assert.True(File.Exists(source), $"Spatial2D module payload is missing required assembly: {source}");
+            File.Copy(source, Path.Combine(destinationDirectory, fileName), overwrite: true);
+        }
     }
 
     private static async Task AssertRunnerHotReloadAndCleanShutdownAsync(
@@ -981,7 +1149,10 @@ public sealed class ExternalGameCliTests
         [
             Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.IntegrationTests", "obj", "project.assets.json"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.Tasks", "obj", "project.assets.json"),
-            Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "obj", "project.assets.json")
+            Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "obj", "project.assets.json"),
+            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj", "project.assets.json"),
+            Path.Combine(repositoryRoot, "Karpik.Engine.Core.Generator", "Karpik.Engine.Core.Codegen", "obj", "project.assets.json"),
+            Path.Combine(repositoryRoot, "Tools", "StaticAnalyzer", "obj", "project.assets.json")
         ];
         foreach (string assetsPath in assetsPaths)
         {
@@ -1153,7 +1324,7 @@ public sealed class ExternalGameCliTests
         Assert.Equal(2, runnerBuildProcesses.Length);
         foreach (StartedProcess process in runnerBuildProcesses)
         {
-            foreach (string property in new[] { "RestoreConfigFile", "ArtifactsPath", "MSBuildProjectExtensionsPath" })
+            foreach (string property in new[] { "RestoreConfigFile", "ArtifactsPath", "DirectoryBuildPropsPath" })
             {
                 string prefix = $"-p:{property}=";
                 string argument = Assert.Single(process.Arguments,
@@ -1163,6 +1334,9 @@ public sealed class ExternalGameCliTests
                     $"Runner build received non-owned {property}: {value}");
             }
         }
+        string intermediateProps = Path.Combine(temporaryRoot, "runner-build", "Directory.Build.props");
+        Assert.True(File.Exists(intermediateProps));
+        Assert.Contains("$(MSBuildProjectName)", File.ReadAllText(intermediateProps), StringComparison.Ordinal);
         foreach (StartedProcess process in _startedProcesses)
         {
             foreach (string key in new[] { "DOTNET_CLI_HOME", "NUGET_PACKAGES", "NUGET_HTTP_CACHE_PATH" })
