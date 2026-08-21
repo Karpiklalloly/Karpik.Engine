@@ -15,6 +15,7 @@ public interface INetworkManager : IDisposable
     public IPeer? FirstPeer { get; }
     
     public int GetFreePort();
+    public void ConfigureProtocolSchema(long schemaHash);
     public void Start(int port);
     public void Connect(string address, int port, string key);
     public void PollEvents();

@@ -2,12 +2,15 @@
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
     <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
+    <_KarpikNetworkCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Network.Codegen.dll</_KarpikNetworkCodegenAssembly>
     <_KarpikMsBuildSdkVersion>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildThisFileDirectory)'))))))</_KarpikMsBuildSdkVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <Analyzer Include="$(_KarpikCoreCodegenAssembly)"
               Condition="Exists('$(_KarpikCoreCodegenAssembly)')" />
+    <Analyzer Include="$(_KarpikNetworkCodegenAssembly)"
+              Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(_KarpikNetworkCodegenAssembly)')" />
   </ItemGroup>
 
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
@@ -75,6 +78,11 @@
     <ItemGroup>
       <Reference Include="%(_KarpikStaticModuleReference.AssemblyIdentity)">
         <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
+        <Private>false</Private>
+      </Reference>
+      <Reference Include="OpenTK.Mathematics"
+                 Condition="Exists('$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll')">
+        <HintPath>$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll</HintPath>
         <Private>false</Private>
       </Reference>
     </ItemGroup>

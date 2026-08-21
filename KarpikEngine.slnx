@@ -92,6 +92,7 @@
   <Project Path="Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
   <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
   <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
+  <Project Path="Network.Codegen.Tests/Network.Codegen.Tests.csproj" />
   <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
   <Project Path="Tools/StaticAnalyzer/StaticAnalyzer.csproj" />
 </Solution>

@@ -7,6 +7,7 @@ internal class InitNetworkClientSystem(INetworkManager manager, NetworkConfig co
 {
     public void Init()
     {
+        manager.ConfigureProtocolSchema(config.ProtocolSchemaHash);
         manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
         manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
         manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;

@@ -17,7 +17,16 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
         XElement target = targets.Root!.Elements("Target").Single(x => (string?)x.Attribute("Name") == "_KarpikResolveStaticModuleReferences");
-        Assert.Equal("%(_KarpikStaticModuleReference.AssemblyIdentity)", (string?)Assert.Single(target.Descendants("Reference")).Attribute("Include"));
+        XElement catalogReference = target.Descendants("Reference")
+            .Single(reference => (string?)reference.Attribute("Include") == "%(_KarpikStaticModuleReference.AssemblyIdentity)");
+        XElement openTkReference = target.Descendants("Reference")
+            .Single(reference => (string?)reference.Attribute("Include") == "OpenTK.Mathematics");
+
+        Assert.Equal("%(_KarpikStaticModuleReference.Identity)", catalogReference.Element("HintPath")?.Value);
+        Assert.Equal(
+            @"$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll",
+            openTkReference.Element("HintPath")?.Value);
+        Assert.Equal("false", openTkReference.Element("Private")?.Value);
     }
 
     [Fact]

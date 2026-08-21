@@ -12,6 +12,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <KarpikSdkTasksOutputPath Condition="'$(KarpikSdkTasksOutputPath)' == ''">..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\</KarpikSdkTasksOutputPath>
         <KarpikCoreCodegenOutputPath Condition="'$(KarpikCoreCodegenOutputPath)' == ''">..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikCoreCodegenOutputPath>
+        <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikNetworkCodegenOutputPath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -38,10 +39,16 @@
         <None Include="$(KarpikCoreCodegenOutputPath)Karpik.Engine.Core.Codegen.dll"
               Pack="true"
               PackagePath="analyzers/dotnet/cs/" />
+        <None Include="$(KarpikNetworkCodegenOutputPath)Network.Codegen.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
+        <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
     </ItemGroup>
 
 </Project>

@@ -23,6 +23,8 @@ public class LiteNetLibNetworkManager : INetworkManager
 
     private readonly EventBasedNetListener _listener;
     private readonly ConcurrentDictionary<NetPeer, IPeer> _peers = new();
+    private readonly ConcurrentDictionary<NetPeer, byte> _schemaValidatedPeers = new();
+    private long _protocolSchemaHash;
     private bool _disposed = false;
 
     public LiteNetLibNetworkManager()
@@ -67,6 +69,16 @@ public class LiteNetLibNetworkManager : INetworkManager
         }
     }
 
+    public void ConfigureProtocolSchema(long schemaHash)
+    {
+        if (Manager.IsRunning)
+        {
+            throw new InvalidOperationException("The protocol schema must be configured before the network manager starts.");
+        }
+
+        _protocolSchemaHash = schemaHash;
+    }
+
     public void Connect(string address, int port, string key)
     {
         Manager.Connect(address, port, key);
@@ -86,6 +98,7 @@ public class LiteNetLibNetworkManager : INetworkManager
         }
 
         _peers.Clear();
+        _schemaValidatedPeers.Clear();
     }
 
     public void SendToAll(IWriter writer, DeliveryMethod deliveryMethod)
@@ -105,6 +118,43 @@ public class LiteNetLibNetworkManager : INetworkManager
             wrappedPeer = new LiteNetLibPeer(peer);
             _peers.TryAdd(peer, wrappedPeer);
         }
+
+        if (reader.AvailableBytes == 0)
+        {
+            peer.Disconnect();
+            reader.Recycle();
+            return;
+        }
+
+        if ((PacketType)reader.PeekByte() == PacketType.Handshake)
+        {
+            reader.GetByte();
+            var handshakeResult = NetworkSchemaHandshake.ValidatePayload(
+                new LiteNetLibReader(reader),
+                _protocolSchemaHash,
+                out _);
+            if (handshakeResult != NetworkSchemaHandshakeResult.Accepted)
+            {
+                peer.Disconnect();
+                reader.Recycle();
+                return;
+            }
+
+            if (_schemaValidatedPeers.TryAdd(peer, 0))
+            {
+                PeerConnectedEvent?.Invoke(wrappedPeer);
+            }
+            reader.Recycle();
+            return;
+        }
+
+        if (!_schemaValidatedPeers.ContainsKey(peer))
+        {
+            peer.Disconnect();
+            reader.Recycle();
+            return;
+        }
+
         NetworkReceiveEvent?.Invoke(wrappedPeer, new LiteNetLibReader(reader), channel, (DeliveryMethod)deliveryMethod);
     }
     
@@ -112,13 +162,16 @@ public class LiteNetLibNetworkManager : INetworkManager
     {
         var wrappedPeer = new LiteNetLibPeer(peer);
         _peers.TryAdd(peer, wrappedPeer);
-        PeerConnectedEvent?.Invoke(wrappedPeer);
+        var writer = new LiteNetLibWriter(new NetDataWriter());
+        NetworkSchemaHandshake.Write(writer, _protocolSchemaHash);
+        wrappedPeer.Send(writer, DeliveryMethod.ReliableOrdered);
     }
     
     private void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
     {
         if (_peers.TryRemove(peer, out var wrappedPeer))
         {
+            _schemaValidatedPeers.TryRemove(peer, out _);
             PeerDisconnectedEvent?.Invoke(wrappedPeer, new LiteNetLibDisconnectInfo(disconnectInfo));
         }
     }

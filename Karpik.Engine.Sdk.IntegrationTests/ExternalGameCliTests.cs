@@ -987,10 +987,15 @@ public sealed class ExternalGameCliTests
         }
         string codegenOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Core.Codegen", "debug") +
                                Path.DirectorySeparatorChar;
+        string networkCodegenOutput = Path.Combine(artifacts, "bin", "Network.Codegen", "debug") +
+                                      Path.DirectorySeparatorChar;
         Assert.True(File.Exists(Path.Combine(codegenOutput, "Karpik.Engine.Core.Codegen.dll")),
             $"Transaction-owned codegen output is missing: {codegenOutput}");
+        Assert.True(File.Exists(Path.Combine(networkCodegenOutput, "Network.Codegen.dll")),
+            $"Transaction-owned network codegen output is missing: {networkCodegenOutput}");
         Assert.True(IsWithinRoot(tasksOutput, ownedBuildRoot));
         Assert.True(IsWithinRoot(codegenOutput, ownedBuildRoot));
+        Assert.True(IsWithinRoot(networkCodegenOutput, ownedBuildRoot));
 
         ProcessResult pack = await RunAsync(
             repositoryRoot,
@@ -999,6 +1004,7 @@ public sealed class ExternalGameCliTests
                 $"-p:PackageVersion={PackageVersion}",
                 $"-p:KarpikSdkTasksOutputPath={tasksOutput}",
                 $"-p:KarpikCoreCodegenOutputPath={codegenOutput}",
+                $"-p:KarpikNetworkCodegenOutputPath={networkCodegenOutput}",
                 .. ownedProperties,
                 "-o", packageFeed
             ],

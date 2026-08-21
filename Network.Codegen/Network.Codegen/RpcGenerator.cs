@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Network.Codegen;
@@ -24,14 +25,25 @@ public class RpcGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterSourceOutput(context.CompilationProvider, Execute);
+        var input = context.CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider);
+        context.RegisterSourceOutput(input, static (productionContext, pair) =>
+            Execute(productionContext, pair.Left, pair.Right));
     }
 
-    private void Execute(SourceProductionContext context, Compilation compilation)
+    private static void Execute(
+        SourceProductionContext context,
+        Compilation compilation,
+        AnalyzerConfigOptionsProvider optionsProvider)
     {
-        var assemblyName = compilation.AssemblyName ?? "Shared";
+        if (!ProjectTypeDetector.TryGetProjectProperties(optionsProvider, context, out var properties) ||
+            !properties.IsRuntime)
+        {
+            return;
+        }
+
+        var assemblyName = compilation.AssemblyName ?? "GeneratedAssembly";
         var safeAssemblyName = assemblyName.Replace(".", "_");
-        var projectType = ProjectTypeDetector.DetectProjectType(assemblyName);
+        var projectType = properties.Side;
 
         // 1. Ищем локальные команды (для генерации Extensions в текущем проекте)
         var localEvent = FindCommands(compilation, context.CancellationToken, EventCommandInterface, true);
@@ -46,19 +58,25 @@ public class RpcGenerator : IIncrementalGenerator
         // --- ГЕНЕРАЦИЯ ---
 
         // A. Requests (Структуры для State команд - всегда генерируем рядом)
-        context.AddSource("CommandRequests.g.cs", SourceText.From(GenerateRequests(localState), Encoding.UTF8));
+        if (localState.Count != 0)
+        {
+            context.AddSource("CommandRequests.g.cs", SourceText.From(GenerateRequests(localState), Encoding.UTF8));
+        }
 
         // B. Extensions (В ЛЮБОМ проекте). Позволяет писать _rpc.Command()
-        context.AddSource($"RpcExtensions_{safeAssemblyName}.g.cs", SourceText.From(GenerateExtensions(safeAssemblyName, localAll), Encoding.UTF8));
+        if (localAll.Count != 0)
+        {
+            context.AddSource($"RpcExtensions_{safeAssemblyName}.g.cs", SourceText.From(GenerateExtensions(safeAssemblyName, localAll), Encoding.UTF8));
+        }
 
         // C. Server Dispatcher (Только в ServerApp). Наполняет partial class.
-        if (projectType == ProjectTypeDetector.ProjectType.Server)
+        if (projectType == ProjectTypeDetector.ProjectType.Server && allTotal.Count != 0)
         {
             context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(GenerateServerDispatcher(allTotal), Encoding.UTF8));
         }
     }
 
-    private string GenerateRequests(List<CommandInfo> infos)
+    private static string GenerateRequests(List<CommandInfo> infos)
     {
         var sb = new StringBuilder();
         foreach (var cmd in infos)
@@ -83,7 +101,7 @@ public class RpcGenerator : IIncrementalGenerator
             """;
     }
 
-    private string GenerateExtensions(string safeAsmName, List<CommandInfo> infos)
+    private static string GenerateExtensions(string safeAsmName, List<CommandInfo> infos)
     {
         var sb = new StringBuilder();
         foreach (var cmd in infos)
@@ -121,7 +139,7 @@ public class RpcGenerator : IIncrementalGenerator
             """;
     }
 
-    private string GenerateServerDispatcher(List<CommandInfo> infos)
+    private static string GenerateServerDispatcher(List<CommandInfo> infos)
     {
         var cases = new StringBuilder();
         foreach (var cmd in infos.OrderBy(x => x.Id))
@@ -172,7 +190,7 @@ public class RpcGenerator : IIncrementalGenerator
     }
 
     // --- Helpers ---
-    private List<CommandInfo> FindCommands(Compilation c, CancellationToken ct, string ifaceName, bool local)
+    private static List<CommandInfo> FindCommands(Compilation c, CancellationToken ct, string ifaceName, bool local)
     {
         var iface = c.GetTypeByMetadataName(ifaceName);
         if (iface == null) return new List<CommandInfo>();
@@ -183,7 +201,7 @@ public class RpcGenerator : IIncrementalGenerator
         for(int i=0; i<dist.Count; i++) dist[i] = dist[i] with { Id = CommandIdManager.GetOrAssignId(dist[i].FullName) };
         return dist;
     }
-    private void ProcessNs(INamespaceSymbol ns, INamedTypeSymbol iface, List<CommandInfo> list, CancellationToken ct)
+    private static void ProcessNs(INamespaceSymbol ns, INamedTypeSymbol iface, List<CommandInfo> list, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         foreach(var t in ns.GetTypeMembers()) {
