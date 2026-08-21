@@ -20,7 +20,7 @@
 - [x] Milestone 1: evaluated SDK composition contract, minimal Autofac NativeAOT publish/run proof, and parent Runner compile-glob exclusion are verified.
 - [x] Milestone 2: side-safe compile-time references модулей через SDK и transaction-owned external fixture реализованы; task suite, normal integration suite и focused opt-in acceptance зелёные.
 - [x] Milestone 3: Network.Codegen упакован в SDK; typed snapshot registry, deterministic schema и pre-payload handshake проверены generator, transport и external SDK tests.
-- [ ] Milestone 4: генерировать статическую композицию module installers.
+- [x] Milestone 4: генерировать статическую композицию module installers.
 - [ ] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
 - [ ] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [ ] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
@@ -73,6 +73,9 @@
 - Observation: repository-local `templates/Karpik.Game/bin` and `obj` contamination must not change template-source assertions.
   Evidence: filtering build-output paths lets the source-template checks pass without treating generated PDBs or intermediate files as template content.
 
+- Observation: system assemblies are excluded from Static composition scanning without name-prefix heuristics: a candidate assembly is scanned only if one of its modules references `Karpik.Engine.Core` by assembly identity.
+  Evidence: `RuntimeCompositionGenerator.EnumerateCandidateAssemblies`/`ReferencesAssembly`; generator tests cover discovery from current + referenced assemblies with no System/Microsoft enumeration.
+
 ## Decision Log
 
 - Decision: сохранить `KarpikCompositionMode=Dynamic|Static` на период миграции, первоначально с default `Dynamic`.
@@ -118,6 +121,18 @@
 - Decision: focused external SDK packing restores and builds the SDK task graph and Core code generator under one transaction-owned, per-project intermediate/output tree, then packs with `--no-build --no-restore` and explicit trailing-separator input paths.
   Rationale: the fixture must test the current SDK package without reading or writing repository package feeds, `bin`, `obj`, or default `artifacts`; explicit owned inputs make that isolation observable and repeatable.
   Date/Author: 2026-08-21 / Codex.
+
+- Decision: отключённый `ModuleRegistratorGenerator.cs` удалён полностью, без файла-переадресатора.
+  Rationale: генератор никогда не выпускал source (`context.AddSource` закомментирован), проект не является packable отдельно — в SDK упаковывается целиком `Karpik.Engine.Core.Codegen.dll`, поэтому ни один потребитель не мог зависеть от типа. RuntimeCompositionGenerator полностью заменяет его контракт.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 4).
+
+- Decision: «несколько выбранных implementations одного module contract» детектируется статически как attributed installer, наследующий другой attributed installer (diagnostic KCORE004).
+  Rationale: выбор `KarpikModuleSelection.Implementation` недоступен Roslyn во время generation; наследование attributed installer от attributed installer — единственная компиляторно видимая форма регистрации одного модуля через несколько реализаций. Выбор реализаций остаётся ответственностью SDK/build.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 4).
+
+- Decision: контракт `IStaticServiceRegistry` создан уже в Milestone 4, а не Milestone 5; generated `RegisterServices` пока пустой.
+  Rationale: `IStaticRuntimeComposition` (Milestone 4) ссылается на `IStaticServiceRegistry`, поэтому generated класс не может скомпилироваться без контракта. Тело заполняется в Milestone 5 без изменения API.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 4).
 
 ## Outcomes & Retrospective
 
@@ -411,15 +426,15 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
 **Interfaces produced:** `IStaticModuleRegistry.Add(IModuleInstaller)` и `GeneratedRuntimeComposition.RegisterModules(IStaticModuleRegistry registry)`, плюс diagnostics for invalid installers.
 
-- [ ] Написать failing generator tests для discovery installers из current + referenced assemblies, side filtering, deterministic ordering и direct constructor emission.
-- [ ] Добавить failing diagnostics tests для abstract/internal/open-generic installer, отсутствующего public parameterless constructor, duplicate module identity и нескольких выбранных implementations одного module contract.
-- [ ] Подтвердить RED targeted generator tests.
-- [ ] Реализовать incremental syntax/symbol pipeline; не перечислять system assemblies и не использовать runtime reflection.
-- [ ] Добавить в `EngineRunner` публичную Static registration boundary, принимающую прямые installer instances до `Setup` и сохраняющую существующие проверки порядка/дубликатов.
-- [ ] Получить GREEN generator tests.
-- [ ] Добавить runner parity test: Dynamic list installers и generated Static installers дают одинаковый упорядоченный набор module IDs для текущих Client и Server selections.
-- [ ] После GREEN удалить отключённый `ModuleRegistratorGenerator.cs` либо оставить файл-переадресатор только если это требуется package compatibility; решение записать в `Decision Log`.
-- [ ] Выполнить Core generator tests и Runner tests, затем обновить `Progress`.
+- [x] Написать failing generator tests для discovery installers из current + referenced assemblies, side filtering, deterministic ordering и direct constructor emission.
+- [x] Добавить failing diagnostics tests для abstract/internal/open-generic installer, отсутствующего public parameterless constructor, duplicate module identity и нескольких выбранных implementations одного module contract.
+- [x] Подтвердить RED targeted generator tests.
+- [x] Реализовать incremental syntax/symbol pipeline; не перечислять system assemblies и не использовать runtime reflection.
+- [x] Добавить в `EngineRunner` публичную Static registration boundary, принимающую прямые installer instances до `Setup` и сохраняющую существующие проверки порядка/дубликатов.
+- [x] Получить GREEN generator tests.
+- [x] Добавить runner parity test: Dynamic list installers и generated Static installers дают одинаковый упорядоченный набор module IDs для текущих Client и Server selections.
+- [x] После GREEN удалить отключённый `ModuleRegistratorGenerator.cs` либо оставить файл-переадресатор только если это требуется package compatibility; решение записать в `Decision Log`.
+- [x] Выполнить Core generator tests и Runner tests, затем обновить `Progress`.
 
 ### Milestone 5: Generated DI и ECS activation без reflection
 
