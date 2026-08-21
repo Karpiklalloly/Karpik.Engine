@@ -19,7 +19,7 @@
 
 - [x] Milestone 1: evaluated SDK composition contract, minimal Autofac NativeAOT publish/run proof, and parent Runner compile-glob exclusion are verified.
 - [x] Milestone 2: side-safe compile-time references модулей через SDK и transaction-owned external fixture реализованы; task suite, normal integration suite и focused opt-in acceptance зелёные.
-- [ ] Milestone 3: упаковать Network.Codegen в SDK и генерировать самостоятельный snapshot registry.
+- [x] Milestone 3: Network.Codegen упакован в SDK; typed snapshot registry, deterministic schema и pre-payload handshake проверены generator, transport и external SDK tests.
 - [ ] Milestone 4: генерировать статическую композицию module installers.
 - [ ] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
 - [ ] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
@@ -31,17 +31,23 @@
 - Observation: `Network.Codegen` сейчас подключается из корневого `Directory.Build.props` только к проектам, имя которых содержит `Karpik.Engine`, поэтому не запускается ни для `Spatial2D`, ни для шаблонного `KarpikGame.Shared`.
   Evidence: `Directory.Build.props` содержит соответствующий `ItemGroup Condition`; сборка `Modules/Shared/Spatial2D/Spatial2D.csproj` не строит `Network.Codegen` как analyzer.
 
-- Observation: `ProjectTypeDetector` обновлен для поддержки build-свойств `KarpikSide`, `KarpikProjectKind` и `KarpikCompositionMode`; определение типа проекта теперь prioritizes SDK-свойства перед определением по имени сборки.
-  Evidence: `Network.Codegen/Network.Codegen/ProjectTypeDetector.cs` теперь читает `KarpikSide` из compilation symbols, установленных SDK через `CompilerVisibleProperty`.
+- Observation: все три network generators теперь считают compiler-visible `KarpikSide`, `KarpikProjectKind` и `KarpikCompositionMode` единственным источником routing; assembly-name fallback удалён. Полностью отсутствующий набор намеренно подавляет internal generation, а частичный/invalid набор выдаёт `KNET001`.
+  Evidence: `ProjectTypeDetector.TryGetProjectProperties` читает exact `build_property.*` keys из `AnalyzerConfigOptionsProvider`; parity tests используют намеренно вводящие в заблуждение assembly names.
 
-- Observation: `NetworkGenerator` теперь генерирует два source файла: `NetworkManager.g.cs` (старый формат для Dynamic-режима) и `NetworkSnapshotRegistry.g.cs` (новый NativeAOT-safe формат сTyped serializer'ами и без `object`/dictionary).
-  Evidence: `Network.Codegen/Network.Codegen/NetworkGenerator.cs` теперь содержит метод `GenerateSnapshotRegistrySource` создающий `NetworkSnapshotRegistry` с typed Write/Read methods, deterministic component IDs и без boxing/allocations в горячем пути.
+- Observation: `NetworkGenerator` полностью заменил hardcoded `MyGame.Shared.NetworkManager` одним самостоятельным `Karpik.Engine.Generated.NetworkSnapshotRegistry`; generated hot methods используют прямые typed Dragon ECS pools и primitive/vector codecs без serializer dictionary/interface dispatch.
+  Evidence: semantic generator suite компилирует emitted source против реального `Spatial2D.Transform2D`, round-trip сохраняет fractional `Vector2d`, а warmed loop из 1,000 generated writes измеряет ровно 0 managed bytes.
 
-- Observation: SDK `Sdk.csproj` обновлен для включения `Network.Codegen.dll` как analyzers/dotnet/cs package, что обеспечивает его автоматическое подключение к проектам с `KarpikSide=Shared|Client|Server`.
-  Evidence: `Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj` теперь ссылается на `Network.Codegen` project и упаковывает его DLL в SDK package.
+- Observation: SDK package содержит ровно один `analyzers/dotnet/cs/Network.Codegen.dll`, а `Sdk.targets` подключает его только к `KarpikProjectKind=Runtime`; Client/Server запускают generator, но snapshot output подавляется build-property routing.
+  Evidence: package inspection вернул `NetworkCodegenEntryCount=1`; SDK XML tests проверяют exact analyzer Include/Condition.
 
-- Observation: snapshot generator жёстко дописывает partial-класс `Karpik.Engine.MyGame.Shared.Main.NetworkManager` и сериализует компонент через `object`, что боксит struct на каждую запись.
-  Evidence: `Network.Codegen/Network.Codegen/NetworkGenerator.cs`, методы `GenerateSource` и сгенерированный `IComponentSerializer.Write(IWriter, object)`.
+- Observation: после включения analyzer во внешнем Static Shared fixture пустые RPC generators всё ещё испускали scaffolding с отсутствующими dependency namespaces, хотя команд не было.
+  Evidence: первый opt-in RED падал на generated RPC source; генераторы теперь не добавляют requests/extensions/dispatchers при пустом command set, сохраняя существующее поведение при наличии команд.
+
+- Observation: публичные networked поля установленного `Spatial2D.Transform2D` используют `OpenTK.Mathematics.Vector2/Vector2d`, поэтому compile reference только на `Spatial2D.dll` недостаточна для generated typed code.
+  Evidence: второй opt-in RED содержал `CS0012`/`CS0400`; exact colocated `modules/Spatial2D/OpenTK.Mathematics.dll` reference сделал transaction-owned external fixture GREEN без wildcard discovery.
+
+- Observation: до Milestone 3 snapshot generator жёстко дописывал partial-класс `Karpik.Engine.MyGame.Shared.Main.NetworkManager` и сериализовал компонент через `object`, что боксило struct на каждую запись.
+  Evidence: base commit `fff492afda66018753470413373534f52f1ed103`, `Network.Codegen/Network.Codegen/NetworkGenerator.cs`, generated `IComponentSerializer.Write(IWriter, object)`.
 
 - Observation: установленный `modules.catalog` уже содержит канонические пары `EngineModuleSide + ModuleId` и валидируется `EngineModuleCatalog`; его можно безопасно использовать как build-time вход без сканирования произвольных директорий.
   Evidence: `Karpik.Engine.Tooling/EngineModuleCatalog.cs` и `Karpik.Engine.Tooling/EngineInstallationValidator.cs`.
@@ -88,6 +94,10 @@
 - Decision: Static snapshot code не использует `object`, reflection или interface dispatch на каждый компонент; генератор испускает прямые typed read/write blocks.
   Rationale: snapshot serialization является горячим сетевым путём; boxing, словари serializers и pointer chasing неприемлемы.
   Date/Author: 2026-08-15 / Codex.
+
+- Decision: protocol schema handshake использует существующий Shared `PacketType.Handshake` и LiteNetLib peer connect/receive path, отправляет hash через `ReliableOrdered`, и публикует `PeerConnectedEvent`/entity payload только после equality; mismatch disconnects peer до consumer payload access.
+  Rationale: это наименьшая exact integration в текущую transport architecture, сохраняющая delivery method и authority. Изменение deterministic component IDs/schema является protocol-incompatible и должно выкатываться/откатываться одновременно на Client и Server.
+  Date/Author: 2026-08-21 / Codex.
 
 - Decision: произвольные managed DLL-моды не поддерживаются в Static/NativeAOT; Lua и другие data/script mods остаются runtime-динамическими. Managed-мод должен быть включён до публикации.
   Rationale: NativeAOT не поддерживает общий сценарий загрузки и компиляции ранее неизвестного managed кода.
@@ -367,18 +377,18 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
 **Interfaces produced:** `Karpik.Engine.Generated.NetworkSnapshotRegistry` as defined above; build-property based side detection shared by all network generators.
 
-- [ ] Создать Roslyn harness, который передаёт `build_property.KarpikSide`, `build_property.KarpikProjectKind` и `build_property.KarpikCompositionMode` через custom `AnalyzerConfigOptionsProvider` и компилирует generated source.
-- [ ] Написать failing generator test: assembly name `AnyGame.Shared`, `KarpikSide=Shared`, referenced component assembly содержит `Transform2D`; output должен содержать `NetworkSnapshotRegistry`, два `Put(double)` для Position, `Put(float)` для Rotation и два `Put(float)` для Scale.
-- [ ] Написать failing tests для `Client`/`Server` snapshot suppression, RPC generator side selection, unsupported managed field diagnostic, duplicate component ID diagnostic и stable ordering независимо от reference enumeration.
-- [ ] Написать syntax/semantic assertions, запрещающие `object`, cast компонента из object, `Dictionary<long, IComponentSerializer>`, LINQ и reflection в generated snapshot hot path.
-- [ ] Запустить `dotnet test Network.Codegen.Tests/Network.Codegen.Tests.csproj -m:1 -nr:false` и подтвердить RED по ожидаемым причинам.
-- [ ] Перевести generators с `CompilationProvider` на `CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider)` и читать side/mode из build properties. Удалить assembly-name classification после прохождения parity tests.
-- [ ] Реализовать symbol-based field codec map для primitive types, `System.Numerics.Vector2/Vector3`, `OpenTK.Mathematics.Vector2/Vector2d` и существующего `System.Drawing.Color`. Unsupported types получают diagnostic с component/field location.
-- [ ] Реализовать deterministic FNV-1a IDs и schema hash. Добавить handshake API в Shared network protocol так, чтобы mismatch обнаруживался до entity payload; exact transport integration покрыть round-trip test без изменения delivery method.
-- [ ] Упаковать `Network.Codegen.dll` в `analyzers/dotnet/cs/` SDK package и подключать к Runtime projects. Не подключать второй экземпляр через `Directory.Build.props`; внутренние module builds сохраняют только Core codegen, пока network component manifests не потребуются отдельно.
-- [ ] Получить GREEN generator tests и выполнить snapshot round-trip для `Transform2D` с нецелыми double position values.
-- [ ] Добавить allocation test: после warm-up 1,000 snapshot writes фиксированного world не выделяют managed bytes в цикле; сам writer и world создаются до измерения.
-- [ ] Обновить `Progress`; при wire format изменении записать protocol compatibility decision.
+- [x] Создать Roslyn harness, который передаёт `build_property.KarpikSide`, `build_property.KarpikProjectKind` и `build_property.KarpikCompositionMode` через custom `AnalyzerConfigOptionsProvider` и компилирует generated source.
+- [x] Написать failing generator test: assembly name `AnyGame.Shared`, `KarpikSide=Shared`, referenced component assembly содержит `Transform2D`; output должен содержать `NetworkSnapshotRegistry`, два `Put(double)` для Position, `Put(float)` для Rotation и два `Put(float)` для Scale.
+- [x] Написать failing tests для `Client`/`Server` snapshot suppression, RPC generator side selection, unsupported managed field diagnostic, duplicate component ID diagnostic и stable ordering независимо от reference enumeration.
+- [x] Написать syntax/semantic assertions, запрещающие `object`, cast компонента из object, `Dictionary<long, IComponentSerializer>`, LINQ и reflection в generated snapshot hot path.
+- [x] Запустить `dotnet test Network.Codegen.Tests/Network.Codegen.Tests.csproj -m:1 -nr:false` и подтвердить RED: 9 failed, 2 passed до production changes.
+- [x] Перевести generators с `CompilationProvider` на `CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider)` и читать side/mode из build properties. Удалить assembly-name classification после прохождения parity tests.
+- [x] Реализовать symbol-based field codec map для primitive types, `System.Numerics.Vector2/Vector3`, `OpenTK.Mathematics.Vector2/Vector2d` и существующего `System.Drawing.Color`. Unsupported types получают diagnostic с component/field location.
+- [x] Реализовать deterministic FNV-1a IDs и schema hash. Добавить handshake API в Shared network protocol так, чтобы mismatch обнаруживался до entity payload; exact LiteNetLib integration покрыта live round-trip/mismatch tests и сохраняет `ReliableOrdered`.
+- [x] Упаковать `Network.Codegen.dll` в `analyzers/dotnet/cs/` SDK package и подключать к Runtime projects. Package inspection: exact count 1; root `Directory.Build.props` не расширялся.
+- [x] Получить GREEN generator tests (14/14) и выполнить snapshot round-trip для `Transform2D` с нецелыми double position values.
+- [x] Добавить allocation test: после warm-up 1,000 writes реального emitted registry фиксированного world измерили 0 managed bytes; writer/registry/world/pools/buffer созданы до measurement.
+- [x] Обновить `Progress` и записать protocol compatibility/handshake decision.
 
 ### Milestone 4: Generated module installer composition
 
