@@ -10,7 +10,7 @@ using Karpik.Engine.Shared.DragonECS;
 
 namespace Karpik.Engine.Core;
 
-public class EngineRunner : IEngineRunner
+public class EngineRunner : IEngineRunner, IStaticModuleRegistry
 {
     private readonly List<IModuleInstaller> _modules = new();
     private readonly HashSet<Type> _registeredTypes = [];
@@ -405,6 +405,20 @@ public class EngineRunner : IEngineRunner
     {
         return _modules;
     }
+
+    public void RegisterStaticComposition(IStaticRuntimeComposition composition)
+    {
+        ArgumentNullException.ThrowIfNull(composition);
+
+        if (_setupPending || _engineContainer is not null)
+        {
+            throw new InvalidOperationException("Modules cannot be registered after setup has started.");
+        }
+
+        composition.RegisterModules(this);
+    }
+
+    void IStaticModuleRegistry.Add(IModuleInstaller installer) => RegisterModule(installer);
 
     public void RegisterModule(IModuleInstaller moduleInstaller)
     {
