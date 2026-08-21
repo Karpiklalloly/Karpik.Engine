@@ -18,7 +18,7 @@
 ## Progress
 
 - [x] Milestone 1: evaluated SDK composition contract, minimal Autofac NativeAOT publish/run proof, and parent Runner compile-glob exclusion are verified.
-- [ ] Milestone 2: side-safe compile-time references модулей через SDK реализованы и task tests зелёные; внешний fixture пока блокирован pre-existing runner restore/build isolation failure (`NETSDK1005`).
+- [x] Milestone 2: side-safe compile-time references модулей через SDK и transaction-owned external fixture реализованы; task suite, normal integration suite и focused opt-in acceptance зелёные.
 - [ ] Milestone 3: упаковать Network.Codegen в SDK и генерировать самостоятельный snapshot registry.
 - [ ] Milestone 4: генерировать статическую композицию module installers.
 - [ ] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
@@ -58,8 +58,11 @@
 - Observation: excluding `NativeAotSmoke\**\*.cs` from the parent Runner test project prevents the nested smoke project's generated `obj/Release/net10.0/win-x64/*.AssemblyInfo.cs` from being compiled by the parent; all Runner tests execute when they have normal Windows pipe/process permissions.
   Evidence: the sandboxed run reached VSTest but failed 20 pipe/process tests with `UnauthorizedAccessException`; rerunning the identical command outside the sandbox passed all 107 tests with no skips or failures.
 
-- Observation: the opt-in external SDK fixture cannot reach Static compilation because its existing isolated Runner build shares one literal `MSBuildProjectExtensionsPath` across project target frameworks; `DragonECS` then reads a `project.assets.json` without its `netstandard2.1` target and fails `NETSDK1005` before package/fixture creation.
-  Evidence: `KARPIK_RUN_EXTERNAL_SDK_INTEGRATION=1 dotnet test Karpik.Engine.Sdk.IntegrationTests/Karpik.Engine.Sdk.IntegrationTests.csproj -m:1 -nr:false --no-restore --filter FullyQualifiedName~RuntimeBundle_external_template_supports_ordinary_cli_workflow_and_validation_precedence` failed in `CreateUpdatedEngineInstallationAsync` before `dotnet pack`.
+- Observation: the focused external SDK fixture must build every package input inside its transaction; merely redirecting the `.nupkg` output still consumes repository `bin` outputs and can mutate shared `obj` state during restore/build.
+  Evidence: `External_static_composition_references_are_side_safe_and_dynamic_remains_unchanged` now restores/builds `Karpik.Engine.Sdk.csproj` and `Karpik.Engine.Core.Codegen.csproj` with a transaction `Directory.Build.props`, per-project intermediate paths, and transaction `ArtifactsPath`, then packs with explicit owned task/codegen output paths and verifies repository build-output snapshots are unchanged.
+
+- Observation: an MSBuild diagnostic target declared only with `AfterTargets="_KarpikResolveEngineReferenceAssemblies"` did not force that target to execute before capturing `@(Reference)`; the capture contained framework identities with empty `HintPath` and omitted the three Dynamic engine references.
+  Evidence: the focused opt-in RED reported zero engine-owned references and printed the captured framework set; adding `DependsOnTargets="_KarpikResolveEngineReferenceAssemblies"` made the exact Autofac, DragonECS, and `Karpik.Engine.Core` identity/absolute-HintPath contract GREEN.
 
 - Observation: repository-local `templates/Karpik.Game/bin` and `obj` contamination must not change template-source assertions.
   Evidence: filtering build-output paths lets the source-template checks pass without treating generated PDBs or intermediate files as template content.
@@ -97,6 +100,10 @@
 - Decision: `ResolveKarpikStaticReferencesTask` uses `EngineModuleCatalog.ForSide` for Client/Server and filters already validated `EngineModuleCatalog.Read` output for Shared.
   Rationale: `ForSide` intentionally rejects `Shared`; filtering canonical validated catalog entries preserves that runtime API invariant without duplicating parser or module-ID validation.
   Date/Author: 2026-08-20 / Codex.
+
+- Decision: focused external SDK packing restores and builds the SDK task graph and Core code generator under one transaction-owned, per-project intermediate/output tree, then packs with `--no-build --no-restore` and explicit trailing-separator input paths.
+  Rationale: the fixture must test the current SDK package without reading or writing repository package feeds, `bin`, `obj`, or default `artifacts`; explicit owned inputs make that isolation observable and repeatable.
+  Date/Author: 2026-08-21 / Codex.
 
 ## Outcomes & Retrospective
 
@@ -336,9 +343,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 - [x] Реализовать task через `EngineModuleCatalog.Read`/`ForSide` и `ModuleLayoutPolicy`; не дублировать parser и path policy.
 - [x] Получить GREEN для task tests.
 - [x] Добавить target `_KarpikResolveStaticModuleReferences` до `ResolveAssemblyReferences`, только при `KarpikProjectKind=Runtime|Tool` и `KarpikCompositionMode=Static`. Преобразовать output в `<Reference HintPath=... Private=false>` и дедуплицировать по assembly identity.
-- [x] Написать integration fixture, где внешний Shared project использует `Karpik.Engine.Shared.Spatial2D.Transform2D` без ручного `<Reference>`; RED подтверждён на отсутствии task/hook, а fixture будет GREEN после исправления pre-existing Runner isolation failure.
+- [x] Написать integration fixture, где внешний Shared project использует `Karpik.Engine.Shared.Spatial2D.Transform2D` без ручного `<Reference>`; RED подтверждён на отсутствии task/hook, а focused transaction-owned fixture теперь GREEN.
 - [x] Добавить отрицательные compile tests: Shared не может импортировать Client/Server type; Client не может импортировать Server type.
-- [ ] Запустить task tests и relevant external SDK integration tests. Task suite is GREEN (62 passed, 4 link-capability skips); normal external suite is GREEN (4 passed, 2 environment-gated skips), but the opt-in subprocess fixture is blocked before Static fixture execution by the recorded `NETSDK1005`.
+- [x] Запустить task tests и relevant external SDK integration tests. Task suite: 64 passed, 4 link-capability skips. Normal `ExternalGameCliTests`: 4 passed, 3 environment-gated skips. Focused opt-in Static/Dynamic/side-boundary fixture: 1 passed, 0 failed, 0 skipped, including transaction-owned SDK packing and exact Dynamic reference projection.
 - [x] Обновить `Progress` и `Surprises & Discoveries`.
 
 ### Milestone 3: Network.Codegen в SDK и typed snapshot registry

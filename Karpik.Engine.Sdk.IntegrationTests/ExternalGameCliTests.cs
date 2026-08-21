@@ -223,7 +223,7 @@ public sealed class ExternalGameCliTests
         try
         {
             string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
-            string packageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
+            string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
             SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
@@ -389,7 +389,7 @@ public sealed class ExternalGameCliTests
         try
         {
             string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
-            string packageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
+            string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
             SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
@@ -414,12 +414,8 @@ public sealed class ExternalGameCliTests
             environment.Remove("KarpikEngineRoot");
             environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
 
-            ProcessResult pack = await RunAsync(
-                repositoryRoot,
-                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-c", "Debug", "-m:1", "-nr:false",
-                    "--no-restore", $"-p:PackageVersion={PackageVersion}", $"-p:RestoreConfigFile={nugetConfig}", "-o", packageFeed],
-                environment);
-            AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package");
+            await PackSdkIntoOwnedFeedAsync(
+                repositoryRoot, temporaryRoot, nugetConfig, packageFeed, environment);
             ProcessResult install = await RunAsync(
                 temporaryRoot,
                 ["new", "--debug:custom-hive", hive, "install", GetTemplateRoot()],
@@ -536,6 +532,7 @@ public sealed class ExternalGameCliTests
                 new XAttribute("Name", "CaptureDynamicReferences"),
                 new XAttribute("AfterTargets", "_KarpikResolveEngineReferenceAssemblies"),
                 new XAttribute("BeforeTargets", "ResolveAssemblyReferences"),
+                new XAttribute("DependsOnTargets", "_KarpikResolveEngineReferenceAssemblies"),
                 new XElement("WriteLinesToFile",
                     new XAttribute("File", references),
                     new XAttribute("Lines", "@(Reference->'%(Identity)|%(HintPath)')"),
@@ -562,8 +559,34 @@ public sealed class ExternalGameCliTests
 
         string[] evaluatedReferences = File.ReadAllLines(references);
         Assert.NotEmpty(evaluatedReferences);
-        Assert.DoesNotContain(evaluatedReferences, reference =>
-            reference.Contains(Path.Combine(engineRoot, "modules"), PathComparison));
+        string projectDirectory = Path.GetDirectoryName(project)!;
+        (string Identity, string HintPath)[] hintedReferences = evaluatedReferences
+            .Select(reference => reference.Split('|', 2))
+            .Where(parts => parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1]))
+            .Select(parts => (
+                Identity: parts[0],
+                HintPath: Path.GetFullPath(parts[1], projectDirectory)))
+            .ToArray();
+        string runner = Path.GetFullPath(Path.Combine(engineRoot, "runners", "server"));
+        string[] engineReferences = hintedReferences
+            .Where(reference => IsWithinRoot(reference.HintPath, engineRoot))
+            .Select(reference => $"{reference.Identity}|{reference.HintPath}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        string[] expectedEngineReferences = new[]
+        {
+            $"Autofac|{Path.Combine(runner, "Autofac.dll")}",
+            $"DragonECS|{Path.Combine(runner, "DragonECS.dll")}",
+            $"Karpik.Engine.Core|{Path.Combine(runner, "Karpik.Engine.Core.dll")}"
+        }.Order(StringComparer.Ordinal).ToArray();
+        Assert.True(
+            expectedEngineReferences.SequenceEqual(engineReferences, StringComparer.Ordinal),
+            $"Dynamic engine references changed.{Environment.NewLine}" +
+            $"Expected:{Environment.NewLine}{string.Join(Environment.NewLine, expectedEngineReferences)}{Environment.NewLine}" +
+            $"Actual engine-owned:{Environment.NewLine}{string.Join(Environment.NewLine, engineReferences)}{Environment.NewLine}" +
+            $"Captured:{Environment.NewLine}{string.Join(Environment.NewLine, evaluatedReferences)}");
+        string modulesRoot = Path.Combine(engineRoot, "modules");
+        Assert.DoesNotContain(hintedReferences, reference => IsWithinRoot(reference.HintPath, modulesRoot));
     }
 
     private async Task AssertStaticSideBoundariesAsync(
@@ -893,6 +916,97 @@ public sealed class ExternalGameCliTests
         Assert.True(validation.IsValid, validation.Message);
         Assert.False(IsWithinRoot(published.DestinationDirectory, retainedEngineRoot));
         return published.DestinationDirectory;
+    }
+
+    private async Task PackSdkIntoOwnedFeedAsync(
+        string repositoryRoot,
+        string temporaryRoot,
+        string nugetConfig,
+        string packageFeed,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        string sdkProject = Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "Karpik.Engine.Sdk.csproj");
+        string codegenProject = Path.Combine(
+            repositoryRoot,
+            "Karpik.Engine.Core.Generator",
+            "Karpik.Engine.Core.Codegen",
+            "Karpik.Engine.Core.Codegen.csproj");
+        string ownedBuildRoot = Path.Combine(temporaryRoot, "sdk-build");
+        string artifacts = Path.Combine(ownedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
+        string props = Path.Combine(ownedBuildRoot, "Directory.Build.props");
+        Directory.CreateDirectory(ownedBuildRoot);
+        File.WriteAllText(props, $$"""
+            <Project>
+              <Import Project="{{Path.Combine(repositoryRoot, "Directory.Build.props")}}" />
+              <PropertyGroup>
+                <BaseIntermediateOutputPath>{{Path.Combine(ownedBuildRoot, "obj")}}{{Path.DirectorySeparatorChar}}$(MSBuildProjectName){{Path.DirectorySeparatorChar}}</BaseIntermediateOutputPath>
+                <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+              </PropertyGroup>
+            </Project>
+            """);
+
+        Dictionary<string, FileStamp> repositoryOutputsBefore = SnapshotSdkRepositoryBuildOutputs(repositoryRoot);
+        string[] ownedProperties =
+        [
+            $"-p:RestoreConfigFile={nugetConfig}",
+            $"-p:ArtifactsPath={artifacts}",
+            $"-p:DirectoryBuildPropsPath={props}"
+        ];
+        ProcessResult sdkRestore = await RunAsync(
+            repositoryRoot,
+            ["restore", sdkProject, "-m:1", "-nr:false", .. ownedProperties],
+            environment);
+        AssertSuccess(sdkRestore, "restore the SDK and its task project into transaction-owned state");
+        ProcessResult sdkBuild = await RunAsync(
+            repositoryRoot,
+            ["build", sdkProject, "-c", "Debug", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
+            environment);
+        AssertSuccess(sdkBuild, "build the SDK and its task project into transaction-owned outputs");
+        ProcessResult codegenRestore = await RunAsync(
+            repositoryRoot,
+            ["restore", codegenProject, "-m:1", "-nr:false", .. ownedProperties],
+            environment);
+        AssertSuccess(codegenRestore, "restore Karpik.Engine.Core.Codegen into transaction-owned state");
+        ProcessResult codegenBuild = await RunAsync(
+            repositoryRoot,
+            ["build", codegenProject, "-c", "Debug", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
+            environment);
+        AssertSuccess(codegenBuild, "build Karpik.Engine.Core.Codegen into transaction-owned outputs");
+
+        string tasksOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Sdk.Tasks", "debug") +
+                             Path.DirectorySeparatorChar;
+        foreach (string fileName in new[]
+                 {
+                     "Karpik.Engine.Sdk.Tasks.dll",
+                     "Karpik.Engine.ProjectModel.dll",
+                     "Karpik.Engine.Tooling.dll"
+                 })
+        {
+            string output = Path.Combine(tasksOutput, fileName);
+            Assert.True(File.Exists(output), $"Transaction-owned SDK task output is missing: {output}");
+        }
+        string codegenOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Core.Codegen", "debug") +
+                               Path.DirectorySeparatorChar;
+        Assert.True(File.Exists(Path.Combine(codegenOutput, "Karpik.Engine.Core.Codegen.dll")),
+            $"Transaction-owned codegen output is missing: {codegenOutput}");
+        Assert.True(IsWithinRoot(tasksOutput, ownedBuildRoot));
+        Assert.True(IsWithinRoot(codegenOutput, ownedBuildRoot));
+
+        ProcessResult pack = await RunAsync(
+            repositoryRoot,
+            [
+                "pack", sdkProject, "-c", "Debug", "-m:1", "-nr:false", "--no-build", "--no-restore",
+                $"-p:PackageVersion={PackageVersion}",
+                $"-p:KarpikSdkTasksOutputPath={tasksOutput}",
+                $"-p:KarpikCoreCodegenOutputPath={codegenOutput}",
+                .. ownedProperties,
+                "-o", packageFeed
+            ],
+            environment);
+        AssertSuccess(pack, "pack the current Karpik.Engine.Sdk package from transaction-owned outputs");
+        Assert.True(File.Exists(Path.Combine(packageFeed, $"Karpik.Engine.Sdk.{PackageVersion}.nupkg")));
+        Assert.True(IsWithinRoot(packageFeed, temporaryRoot));
+        Assert.Equal(repositoryOutputsBefore, SnapshotSdkRepositoryBuildOutputs(repositoryRoot));
     }
 
     private static void CopySpatial2DModulePayload(string sourceDirectory, string destinationDirectory)
@@ -1411,6 +1525,60 @@ public sealed class ExternalGameCliTests
                 var info = new FileInfo(file);
                 using FileStream stream = File.OpenRead(file);
                 string key = Path.Combine(rootName, Path.GetRelativePath(root, file));
+                snapshot.Add(key, new FileStamp(
+                    info.Length,
+                    info.LastWriteTimeUtc.Ticks,
+                    Convert.ToHexString(SHA256.HashData(stream))));
+            }
+        }
+        return snapshot;
+    }
+
+    private static Dictionary<string, FileStamp> SnapshotSdkRepositoryBuildOutputs(string repositoryRoot)
+    {
+        string[] projectDirectories =
+        [
+            "Karpik.Engine.Sdk",
+            "Karpik.Engine.Sdk.Tasks",
+            "Karpik.Engine.ProjectModel",
+            "Karpik.Engine.Tooling",
+            Path.Combine("Karpik.Engine.Core.Generator", "Karpik.Engine.Core.Codegen")
+        ];
+        var snapshot = new Dictionary<string, FileStamp>(StringComparer.OrdinalIgnoreCase);
+        foreach (string projectDirectory in projectDirectories)
+        {
+            string projectName = Path.GetFileName(projectDirectory);
+            string[] roots =
+            [
+                Path.Combine(repositoryRoot, projectDirectory, "bin"),
+                Path.Combine(repositoryRoot, projectDirectory, "obj"),
+                Path.Combine(repositoryRoot, "artifacts", "bin", projectName),
+                Path.Combine(repositoryRoot, "artifacts", "obj", projectName)
+            ];
+            foreach (string root in roots.Where(Directory.Exists))
+            {
+                foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                             .Order(StringComparer.Ordinal))
+                {
+                    var info = new FileInfo(file);
+                    using FileStream stream = File.OpenRead(file);
+                    string key = Path.GetRelativePath(repositoryRoot, file);
+                    snapshot.Add(key, new FileStamp(
+                        info.Length,
+                        info.LastWriteTimeUtc.Ticks,
+                        Convert.ToHexString(SHA256.HashData(stream))));
+                }
+            }
+        }
+        string repositoryPackageFeed = Path.Combine(repositoryRoot, "artifacts", "nuget");
+        if (Directory.Exists(repositoryPackageFeed))
+        {
+            foreach (string file in Directory.EnumerateFiles(repositoryPackageFeed, "*", SearchOption.AllDirectories)
+                         .Order(StringComparer.Ordinal))
+            {
+                var info = new FileInfo(file);
+                using FileStream stream = File.OpenRead(file);
+                string key = Path.GetRelativePath(repositoryRoot, file);
                 snapshot.Add(key, new FileStamp(
                     info.Length,
                     info.LastWriteTimeUtc.Ticks,
