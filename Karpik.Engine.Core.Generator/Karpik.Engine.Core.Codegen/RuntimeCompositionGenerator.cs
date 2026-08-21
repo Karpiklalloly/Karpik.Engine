@@ -149,7 +149,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                     type,
                     fullName,
                     Convert.ToInt32(attribute.ConstructorArguments[0].Value),
-                    Convert.ToInt32(attribute.ConstructorArguments.Length > 1 ? attribute.ConstructorArguments[1].Value : 0),
+                    ReadPriority(attribute),
                     assembly.Identity.GetDisplayName());
                 installers.Add(installer);
             }
@@ -157,6 +157,29 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         ReportDuplicates(installers, context);
         return installers;
+    }
+
+    private static int ReadPriority(AttributeData attribute)
+    {
+        // Metadata-decoded constructor arguments include defaulted parameters,
+        // so a named argument must be applied after them, mirroring runtime
+        // semantics where the property setter runs after the constructor.
+        int priority = attribute.ConstructorArguments.Length > 1
+            ? Convert.ToInt32(attribute.ConstructorArguments[1].Value)
+            : 0;
+
+        ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments = attribute.NamedArguments;
+        for (int index = 0; index < namedArguments.Length; index++)
+        {
+            KeyValuePair<string, TypedConstant> named = namedArguments[index];
+            if (named.Key == "Priority")
+            {
+                priority = Convert.ToInt32(named.Value.Value);
+                break;
+            }
+        }
+
+        return priority;
     }
 
     private static IEnumerable<IAssemblySymbol> EnumerateCandidateAssemblies(

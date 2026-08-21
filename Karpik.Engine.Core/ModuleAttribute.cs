@@ -3,7 +3,7 @@
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ModuleAttribute : Attribute
 {
-    public int Priority { get; }
+    public int Priority { get; set; }
     public ModuleScope Scope { get; }
     
     public ModuleAttribute(ModuleScope scope, int priority = 0)

@@ -227,6 +227,49 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_HonorsNamedPriorityArgument_WhenOrdering()
+    {
+        var first = GeneratorTestHarness.CompileModuleAssembly("NamedP1", """
+            using Karpik.Engine.Core;
+
+            namespace N1;
+
+            [Module(ModuleScope.Engine, Priority = 5)]
+            public class AaaInstaller : IModuleInstaller
+            {
+                public string Name => "Aaa";
+            }
+            """);
+        var second = GeneratorTestHarness.CompileModuleAssembly("NamedP2", """
+            using Karpik.Engine.Core;
+
+            namespace N2;
+
+            [Module(ModuleScope.Engine)]
+            public class ZzzInstaller : IModuleInstaller
+            {
+                public string Name => "Zzz";
+            }
+            """);
+
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                first,
+                second,
+            ]);
+
+        result.AssertNoErrors();
+        var registrations = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+
+        Assert.Equal(["N2.ZzzInstaller", "N1.AaaInstaller"], registrations);
+    }
+
+    [Fact]
     public void Run_EmptyGraph_EmitsCompilableEmptyComposition()
     {
         var result = GeneratorTestHarness.Run(
