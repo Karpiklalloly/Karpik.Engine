@@ -13,7 +13,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 - [x] (2026-08-09) Built deterministic Engine, ModSet, and Simulation registrations and resolved systems before pipeline initialization.
 - [x] (2026-08-09) Moved restart-worker state capture/restore to `IRestartWorkerStateProvider` services.
 - [x] (2026-08-09) Updated lifecycle, scope, system-resolution, disposal, ECS, Input, asset, and template callers.
-- [x] (2026-08-09) Ran targeted verification, updated graphify, and recorded the outcome.
+- [x] (2026-08-09) Ran targeted verification, refreshed the codebase-memory index, and recorded the outcome.
 
 ## Surprises & Discoveries
 
@@ -49,7 +49,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 The migration also removed the obsolete container implementations and Dragon lifecycle field injection, updated affected ECS/Input/asset tests and game templates, and changed RPC code generation to constructor-inject `EcsEventWorld`.
 
-Targeted Runner tests pass 17/17, ECS tests pass 34/34, and Input tests pass 7/7. Core, Runner, Network.Codegen, and both publish projects build. Configurator module-graph validation passes. The full solution compiles all engine/module projects but is not green inside the sandbox because Avalonia telemetry cannot write `%LocalAppData%`; the unfiltered Runner suite is likewise blocked by sandbox denial of named-pipe access in unrelated IPC/process tests. Graphify was updated successfully after granting the required local process/file access.
+Targeted Runner tests pass 17/17, ECS tests pass 34/34, and Input tests pass 7/7. Core, Runner, Network.Codegen, and both publish projects build. Configurator module-graph validation passes. The full solution compiles all engine/module projects but is not green inside the sandbox because Avalonia telemetry cannot write `%LocalAppData%`; the unfiltered Runner suite is likewise blocked by sandbox denial of named-pipe access in unrelated IPC/process tests. The codebase-memory index was refreshed successfully after granting the required local process/file access.
 
 ## Context and Orientation
 
@@ -78,7 +78,7 @@ Update Runner tests to use scoped module attributes, `CreateModule`, and `ISyste
 1. Core compiles without `IServiceContainer`, `ServiceProvider`, or lifecycle bridge injection. Validate with `dotnet build Karpik.Engine.Core/Karpik.Engine.Core.csproj --no-restore -m:1 -nr:false` and `dotnet build DragonExtensions/DragonExtensions.csproj --no-restore -m:1 -nr:false`.
 2. Runner composes all scopes, exports, installers, systems, and restart state. Validate with `dotnet build Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj --no-restore -m:1 -nr:false`.
 3. Runner lifecycle and DI tests pass. Validate with `dotnet test Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj --no-restore -m:1 -nr:false`.
-4. Directly affected ECS and Input tests compile or pass, followed by `graphify update .`. Record all results and remaining unrelated failures here.
+4. Directly affected ECS and Input tests compile or pass, followed by a codebase-memory index refresh. Record all results and remaining unrelated failures here.
 
 ## Concrete Steps
 
@@ -87,7 +87,7 @@ All commands run from `C:\Users\artem\RiderProjects\KarpikEngine`.
 1. Inspect diffs before every edit with `git diff -- <paths>` to preserve the developer's in-progress module migration.
 2. Edit files only through `apply_patch`.
 3. Run each milestone command exactly as listed above and record its result in `Progress` before moving on.
-4. Run `graphify update .` after code changes succeed.
+4. Refresh the codebase-memory index after code changes succeed.
 
 ## Validation and Acceptance
 

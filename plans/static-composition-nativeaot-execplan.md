@@ -534,7 +534,7 @@ public static class StaticEngineHost
 
 ## Concrete Steps
 
-Все команды выполняются из `C:\Users\artem\RiderProjects\KarpikEngine` в PowerShell. После изменений кода обновлять graphify командой `graphify update .`.
+Все команды выполняются из `C:\Users\artem\RiderProjects\KarpikEngine` в PowerShell. После изменений кода обновлять индекс codebase-memory.
 
 Основная последовательность targeted checks:
 
@@ -593,7 +593,7 @@ docs: make static composition the default
 8. Server NativeAOT publish/run проходит без необъяснённых trim/AOT warnings.
 9. Client NativeAOT publish/run с production window/graphics backend создаёт окно, выполняет хотя бы один render frame и завершается чисто.
 10. Dynamic и Static при одинаковой selection регистрируют одинаковые module IDs, services, ECS systems и network schema hash.
-11. `graphify update .` успешно обновляет knowledge graph после финальных code changes.
+11. Индекс codebase-memory успешно обновлён после финальных изменений кода.
 
 ## Idempotence and Recovery
 

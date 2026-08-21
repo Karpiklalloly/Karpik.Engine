@@ -81,7 +81,7 @@ kanban-plugin: board
 	  - Сохранить engine module catalog для SDK payload и вынести оставшиеся исторические `MyGame.*.Main` assumptions из `Network.Codegen` в отдельную будущую работу.
 	  - Не менять уже завершённую engine-only генерацию `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` иначе чем через Configurator.
 - [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
-	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, `graphify update .`.
+	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, обновление индекса кода.
 	  - Desktop smoke: Launcher → project A → server + два clients → switch → project B → compatible editor.
 	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles; ExecPlan можно закрыть.
 

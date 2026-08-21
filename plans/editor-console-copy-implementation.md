@@ -116,7 +116,7 @@ Expected: zero errors, and no unresolved XAML event handlers.
 ### Task 3: Acceptance and cache
 
 **Files:**
-- Update: `graphify-out/` through Graphify.
+- Update: code-graph artifacts through codebase-memory.
 
 - [x] **Step 1: Run the full editor suite**
 
@@ -130,8 +130,8 @@ Run: `git diff --check`.
 
 Expected: exit code 0; line-ending notices are acceptable.
 
-- [x] **Step 3: Update Graphify**
+- [x] **Step 3: Refresh code graph**
 
-Run: `graphify update .`.
+Refresh the codebase-memory index.
 
 Expected: graph and report rebuild successfully and include `ConsoleMessageCopy`.

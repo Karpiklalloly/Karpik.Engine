@@ -15,7 +15,7 @@ An external game created from `templates/Karpik.Game` must build with an ordinar
 - [x] (2026-07-31) Packaged the task's tooling dependency; the fake repository package test passed and a direct package inspection contained `Karpik.Engine.Tooling.dll`.
 - [x] (2026-07-31) Extended the external template integration fixture to remove `KarpikEngineRoot` and use an isolated local application-data store.
 - [x] (2026-07-31) Published SDK `0.6.0-local` and engine payload `0.6.0-dev-b7644f363d5858243edc8d4acb97cdf3601bf3e26c38998893d691cf58f82b53`; `D:\Games\MyFirstGame` built with an empty process-scoped `KarpikEngineRoot`, zero warnings, and zero errors.
-- [x] (2026-07-31) Updated graphify after the code changes and recorded final targeted verification evidence.
+- [x] (2026-07-31) Updated the codebase-memory index after the code changes and recorded final targeted verification evidence.
 
 ## Surprises & Discoveries
 
@@ -65,7 +65,7 @@ Fresh verification on 2026-07-31 produced:
 - `Karpik.Engine.Packager.Tests`: 19 passed, 0 failed; this includes the real PowerShell user-environment behavior check and package dependency surface.
 - `Update-KarpikSdk.ps1`: exited successfully and published `C:\Users\artem\AppData\Local\Karpik\Engines\0.6.0-dev-b7644f363d5858243edc8d4acb97cdf3601bf3e26c38998893d691cf58f82b53`; the prior payload was archived.
 - `D:\Games\MyFirstGame`: with `ProcessKarpikEngineRoot=` empty, all Shared, Client, Server, launcher, and test projects built successfully with 0 warnings and 0 errors.
-- `graphify update .`: completed, rebuilding a graph of 10,502 nodes and 18,726 edges.
+- Code-graph refresh: completed, rebuilding a graph of 10,502 nodes and 18,726 edges.
 
 One broader integration fixture remains red for the unrelated runner intermediate-path issue recorded above. It does not invalidate the direct reproduction, but that fixture must be repaired before claiming the entire opt-in CLI suite is green. The publish script still updates the process and user environment variables for backward compatibility; correctness of ordinary SDK builds no longer depends on either update becoming visible to an already-running shell.
 
@@ -142,7 +142,7 @@ All commands run from `C:\Users\artem\RiderProjects\KarpikEngine` unless a comma
 5. Add the no-environment external integration assertions and run the opt-in test RED against the old packed target behavior if needed, then GREEN against the new package.
 6. Run all three targeted test projects using single-node MSBuild with node reuse disabled.
 7. Publish the local SDK, clear the process variable, and build `D:\Games\MyFirstGame`.
-8. Run `graphify update .` and record final evidence in this plan.
+8. Refresh the codebase-memory index and record final evidence in this plan.
 
 ## Validation and Acceptance
 

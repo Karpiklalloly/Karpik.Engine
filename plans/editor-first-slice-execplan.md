@@ -14,7 +14,7 @@
 - [x] (2026-07-13 23:49 +04:00) IPC расширен snapshot request/response без остановки worker; одновременные запросы сериализованы.
 - [x] (2026-07-14 00:12 +04:00) Создан русскоязычный Avalonia/Dock/ReactiveUI editor shell.
 - [x] (2026-07-14 00:28 +04:00) Реализованы project state, полное сохранение Dock layout, preview lifecycle, console, hierarchy и read-only inspector.
-- [x] (2026-07-14 00:47 +04:00) Выполнены финальные полные тесты, build, desktop/process smoke, `git diff --check` и обновление graphify.
+- [x] (2026-07-14 00:47 +04:00) Выполнены финальные полные тесты, build, desktop/process smoke, `git diff --check` и обновление индекса codebase-memory.
 - [x] (2026-07-14 08:40 +04:00) Первый срез продолжен multi-session orchestration; детали находятся в `plans/editor-multisession-launch-execplan.md`.
 
 ## Surprises & Discoveries
@@ -134,7 +134,7 @@ Record actual manual result in Progress. If GUI cannot be launched in agent sand
 5. Создать editor test project, написать failing model tests, реализовать model services.
 6. Создать Avalonia project, XAML/views/view-models/docking и собрать.
 7. Связать end-to-end flow, выполнить targeted и full relevant validation.
-8. Запустить `graphify update .` и обновить этот ExecPlan.
+8. Обновить индекс codebase-memory и этот ExecPlan.
 
 ## Validation and Acceptance
 
@@ -144,7 +144,7 @@ Record actual manual result in Progress. If GUI cannot be launched in agent sand
 
 ## Idempotence and Recovery
 
-Build/test команды безопасны для повтора. Project/history/layout writes используют temp file + atomic replace, поэтому прерванная запись не портит последний валидный JSON. При неудачном worker start controller очищает pipe/process и переходит в Faulted; Stop безопасен из Stopped/Faulted. Не удалять пользовательские `.obsidian` или graphify changes. Rollback ограничивается новыми editor files и отдельно перечисленными Core IPC/capture edits; не использовать `git reset --hard`.
+Build/test команды безопасны для повтора. Project/history/layout writes используют temp file + atomic replace, поэтому прерванная запись не портит последний валидный JSON. При неудачном worker start controller очищает pipe/process и переходит в Faulted; Stop безопасен из Stopped/Faulted. Не удалять пользовательские `.obsidian` или изменения индекса кода. Rollback ограничивается новыми editor files и отдельно перечисленными Core IPC/capture edits; не использовать `git reset --hard`.
 
 ## Artifacts and Notes
 

@@ -116,7 +116,7 @@ All commands run from `C:\Users\artem\RiderProjects\KarpikEngine`.
 6. Regenerate artifacts with Configurator.
 7. Update `docs/02_ADR/module-graph.md`.
 8. Run the milestone validation commands and record exact results in `Progress` and `Outcomes & Retrospective`.
-9. Run `graphify update .` after code changes and confirm completion.
+9. Refresh the codebase-memory index after code changes and confirm completion.
 
 ## Validation and Acceptance
 
@@ -134,7 +134,7 @@ Acceptance requires all of the following observable conditions:
 
 ## Idempotence and Recovery
 
-Configurator generation and graphify update are safe to rerun. Project-file migration is mechanical but must preserve existing metadata and user changes. Do not reset or restore the dirty tree. If a generated-artifact comparison fails, fix the source model or project declarations and rerun Configurator rather than editing generated files manually. If a migrated reference is wrong, use the previous `KarpikModuleCatalog.props` mapping and the target project's path in `KarpikEngine.slnx` to reconstruct the correct relative `ProjectReference`.
+Configurator generation and code-graph refresh are safe to rerun. Project-file migration is mechanical but must preserve existing metadata and user changes. Do not reset or restore the dirty tree. If a generated-artifact comparison fails, fix the source model or project declarations and rerun Configurator rather than editing generated files manually. If a migrated reference is wrong, use the previous `KarpikModuleCatalog.props` mapping and the target project's path in `KarpikEngine.slnx` to reconstruct the correct relative `ProjectReference`.
 
 ## Artifacts and Notes
 

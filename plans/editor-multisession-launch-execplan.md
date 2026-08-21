@@ -15,7 +15,7 @@
 - [x] (2026-07-14 08:10 +04:00) Добавлена сборка раздельных side-pure client/server runtime-пакетов рядом с редактором.
 - [x] (2026-07-14 08:18 +04:00) Через TDD реализован менеджер одной серверной и нескольких клиентских сессий с каскадным shutdown.
 - [x] (2026-07-14 08:27 +04:00) Добавлены панель «Сессии», команды, prefixed logs и изоляция snapshot выбранного backend.
-- [x] (2026-07-14 18:45 +04:00) Выполнены финальные unit/integration tests, независимое ревью, bundle build, desktop smoke, `git diff --check` и `graphify update .`.
+- [x] (2026-07-14 18:45 +04:00) Выполнены финальные unit/integration tests, независимое ревью, bundle build, desktop smoke, `git diff --check` и обновление индекса codebase-memory.
 - [x] (2026-07-14 19:25 +04:00) Исправлена миграция Dock-пропорций: сохранённые нулевые и legacy pixel-значения больше не скрывают панель «Сессии».
 - [x] (2026-07-14 19:44 +04:00) Добавлен Dock data template для отображения `Context` у leaf-вкладок; desktop smoke подтвердил карточку запущенного сервера в панели «Сессии».
 
@@ -65,7 +65,7 @@
 
 Независимое ревью дополнительно выявило и помогло закрыть гонку резервирования simulation frame, частичный cascade shutdown, гонку публикации состояния `Running`, остановку snapshot polling после единичной ошибки и падение IPC на исключении component getter. Публикация runtime-пакетов теперь атомарна: новый пакет сначала полностью собирается и проверяется в staging-каталоге, затем заменяет рабочий каталог с rollback при неудаче.
 
-Финальные результаты: `Karpik.Engine.Core.Runner.Tests` — 43/43; `Karpik.Editor.Tests` — 26/26; opt-in multi-session integration — 1/1 с двумя подтверждёнными server connections; editor bundle build и desktop smoke прошли; после teardown процессов `Karpik.Editor`/`Karpik.Engine.Core.Runner` не осталось. Повреждённые Dock-пропорции покрыты тремя регрессионными тестами и визуальной проверкой на реальном workspace с `LeftPanelWidth = 0`. Отображение `Context` leaf-вкладок покрыто отдельным регрессионным тестом; повторный desktop smoke показал в панели «Сессии» запущенный сервер с PID и 17 сущностями выбранного backend. `graphify update .` перестроил граф до 8,793 nodes и 13,180 edges. В build сохраняются существующие package/compiler warnings, включая известный `Newtonsoft.Json 9.0.1` advisory; новых ошибок сборки нет.
+Финальные результаты: `Karpik.Engine.Core.Runner.Tests` — 43/43; `Karpik.Editor.Tests` — 26/26; opt-in multi-session integration — 1/1 с двумя подтверждёнными server connections; editor bundle build и desktop smoke прошли; после teardown процессов `Karpik.Editor`/`Karpik.Engine.Core.Runner` не осталось. Повреждённые Dock-пропорции покрыты тремя регрессионными тестами и визуальной проверкой на реальном workspace с `LeftPanelWidth = 0`. Отображение `Context` leaf-вкладок покрыто отдельным регрессионным тестом; повторный desktop smoke показал в панели «Сессии» запущенный сервер с PID и 17 сущностями выбранного backend. Обновление локального графа кода дало 8,793 nodes и 13,180 edges. В build сохраняются существующие package/compiler warnings, включая известный `Newtonsoft.Json 9.0.1` advisory; новых ошибок сборки нет.
 
 ## Context and Orientation
 
@@ -103,7 +103,7 @@ Lifecycle operations сериализуются одним асинхронны�
 
 Переделать snapshot loop в `EditorShellViewModel`: каждый tick получает текущую выбранную сессию, запрашивает snapshot только если она `Running`, и после await проверяет session id плюс selection generation. При любом изменении выбора сразу очищать `Hierarchy.Entities`, `Hierarchy.SelectedEntity` и `Inspector.Components`; первый применённый snapshot заполняет их только данными нового backend. При остановке выбранной сессии оставить строку выбранной, но очистить ECS UI. После старта сервера автоматически выбрать сервер, после добавления клиента — новый клиент; дальнейший ручной выбор не переопределять.
 
-Наконец выполнить unit tests на fake backends, opt-in integration test с настоящим сервером и двумя клиентами, build и desktop smoke. Обновить `docs/02_ADR/editor-desktop-stack.md` новым process topology, `plans/editor-first-slice-execplan.md` короткой ссылкой на продолжение и `graphify update .`.
+Наконец выполнить unit tests на fake backends, opt-in integration test с настоящим сервером и двумя клиентами, build и desktop smoke. Обновить `docs/02_ADR/editor-desktop-stack.md` новым process topology, `plans/editor-first-slice-execplan.md` короткой ссылкой на продолжение и индекс codebase-memory.
 
 ## Milestones
 
@@ -165,7 +165,7 @@ Validation в PowerShell:
     dotnet test Karpik.Editor.Tests\Karpik.Editor.Tests.csproj -m:1 -nr:false
     dotnet build Karpik.Editor\Karpik.Editor.csproj -m:1 -nr:false
     git diff --check
-    graphify update .
+    # refresh the codebase-memory index
 
 Manual smoke: открыть editor, запустить server, добавить два clients, переключаться между тремя строками и наблюдать полную замену сущностей; остановить один client; перезапустить его; остановить server и убедиться, что оба clients остановлены и кнопка добавления client недоступна.
 
@@ -178,7 +178,7 @@ Manual smoke: открыть editor, запустить server, добавить
 3. Написать failing manager tests на fake controllers; реализовать session model, lifecycle gate и cascade; повторить targeted tests.
 4. Написать failing selection/stale snapshot tests; реализовать panel, commands, prefixed logs и single-backend polling; собрать editor.
 5. Выполнить opt-in integration и manual desktop smoke; при sandbox-ограничениях запросить запуск вне sandbox, не подменять smoke предположением.
-6. Выполнить полный релевантный test/build набор, `git diff --check`, обновить ADR, ExecPlan progress и graphify.
+6. Выполнить полный релевантный test/build набор, `git diff --check`, обновить ADR, ExecPlan progress и индекс codebase-memory.
 
 ## Validation and Acceptance
 
