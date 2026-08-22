@@ -9,6 +9,9 @@ internal class Bootstrap : IClientSimulationLoop
     private Application _application;
     private readonly ClientFrameMetrics _clientFrameMetrics = new();
     private IEngineRunner _runner = null!;
+
+    /// <summary>Runner-assembly seam for static composition registration.</summary>
+    internal IEngineRunner Runner => _runner;
     [Obsolete("Legacy in-process compatibility only. Runtime hosts must inject an IEngineRunner.")]
     public Bootstrap(Side side)
     {

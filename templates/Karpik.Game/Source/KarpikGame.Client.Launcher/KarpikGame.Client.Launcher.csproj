@@ -1,4 +1,4 @@
-<Project Sdk="Karpik.Engine.Sdk">
+﻿<Project Sdk="Karpik.Engine.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,12 +6,38 @@
     <Nullable>enable</Nullable>
     <KarpikProjectKind>Tool</KarpikProjectKind>
     <KarpikSide>Client</KarpikSide>
+    <!-- The Dynamic and Static entry points each carry top-level statements;
+         only one of them may be part of the compilation. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\KarpikGame.Launcher\EngineLauncher.cs" Link="EngineLauncher.cs" />
+    <Compile Include="Program.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="..\KarpikGame.Launcher\EngineLauncher.cs" Link="EngineLauncher.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="StaticEntry.cs"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
     <ProjectReference Include="..\KarpikGame.Client\KarpikGame.Client.csproj"
                       ReferenceOutputAssembly="false"
                       Private="false" />
+    <ProjectReference Include="..\KarpikGame.Shared\KarpikGame.Shared.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
   </ItemGroup>
+
+  <!-- Static composition turns the launcher into the game-specific host executable:
+       the whole side graph is compiled in and copied next to the host so the
+       generated host can reach every installer and service. In Dynamic mode the
+       references stay build-only and the external runner path is used unchanged. -->
+  <Target Name="_KarpikEnableStaticRuntimeReference"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <ItemGroup>
+      <ProjectReference>
+        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+        <Private>true</Private>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
 </Project>
