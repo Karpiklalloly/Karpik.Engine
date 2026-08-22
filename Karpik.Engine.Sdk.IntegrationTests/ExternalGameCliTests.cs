@@ -125,10 +125,17 @@ public sealed class ExternalGameCliTests
             Assert.Equal("Tool", ReadTopLevelProperty(root, "KarpikProjectKind"));
             Assert.Equal(side, ReadTopLevelProperty(root, "KarpikSide"));
 
-            XElement reference = Assert.Single(root.Elements("ItemGroup").Elements("ProjectReference"));
+            XElement[] projectReferences = root.Elements("ItemGroup").Elements("ProjectReference").ToArray();
+            Assert.Equal(2, projectReferences.Length);
+            XElement reference = Assert.Single(projectReferences, item =>
+                (string?)item.Attribute("Include") == runtimeReference);
             Assert.Equal(runtimeReference, (string?)reference.Attribute("Include"));
             Assert.Equal("false", (string?)reference.Attribute("ReferenceOutputAssembly"));
             Assert.Equal("false", (string?)reference.Attribute("Private"));
+            XElement sharedReference = Assert.Single(projectReferences, item =>
+                ((string?)item.Attribute("Include") ?? string.Empty).EndsWith(".Shared.csproj", StringComparison.Ordinal));
+            Assert.Equal("false", (string?)sharedReference.Attribute("ReferenceOutputAssembly"));
+            Assert.Equal("false", (string?)sharedReference.Attribute("Private"));
         }
     }
 
@@ -226,6 +233,14 @@ public sealed class ExternalGameCliTests
             string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
+            foreach (string moduleProject in GetCatalogModuleProjects(repositoryRoot))
+            {
+                ProcessResult seedRestore = await RunAsync(
+                    repositoryRoot,
+                    ["restore", moduleProject, "-m:1", "-nr:false"],
+                    new Dictionary<string, string?>());
+                AssertSuccess(seedRestore, $"restore {Path.GetFileName(moduleProject)} for offline feed seeding");
+            }
             SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
             string hive = Path.Combine(temporaryRoot, "template-hive");
             string dotnetHome = Path.Combine(temporaryRoot, "dotnet-home");
@@ -251,7 +266,10 @@ public sealed class ExternalGameCliTests
                 retainedEngineRoot,
                 temporaryRoot,
                 nugetConfig,
-                commonEnvironment);
+                commonEnvironment,
+                // Stale payloads are incompatible with the current Core contracts;
+                // every catalog module must be rebuilt from current sources.
+                GetCatalogModuleProjects(repositoryRoot));
             commonEnvironment.Remove("KarpikEngineRoot");
             commonEnvironment["KarpikLocalApplicationDataRoot"] =
                 Path.Combine(temporaryRoot, "local");
@@ -410,7 +428,14 @@ public sealed class ExternalGameCliTests
                 ["KarpikEngineRoot"] = retainedEngineRoot
             };
             string engineRoot = await CreateUpdatedEngineInstallationAsync(
-                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment);
+                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment,
+                // Fresh payloads keep every module directory internally consistent:
+                // referencing one fresh assembly makes RAR resolve its dependencies
+                // from the same directory, so stale siblings must not survive.
+                GetCatalogModuleProjects(repositoryRoot).Where(path =>
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                    .ToList());
             environment.Remove("KarpikEngineRoot");
             environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
 
@@ -559,6 +584,9 @@ public sealed class ExternalGameCliTests
 
         string[] evaluatedReferences = File.ReadAllLines(references);
         Assert.NotEmpty(evaluatedReferences);
+        string modulesRoot = Path.Combine(engineRoot, "modules");
+        string networkSharedCore = Path.Combine(modulesRoot, "Network.Shared.Core", "Network.Shared.Core.dll");
+        Assert.True(File.Exists(networkSharedCore), $"Network.Shared.Core contract assembly is missing: {networkSharedCore}");
         string projectDirectory = Path.GetDirectoryName(project)!;
         (string Identity, string HintPath)[] hintedReferences = evaluatedReferences
             .Select(reference => reference.Split('|', 2))
@@ -577,6 +605,7 @@ public sealed class ExternalGameCliTests
         {
             $"Autofac|{Path.Combine(runner, "Autofac.dll")}",
             $"DragonECS|{Path.Combine(runner, "DragonECS.dll")}",
+            $"Network.Shared.Core|{networkSharedCore}",
             $"Karpik.Engine.Core|{Path.Combine(runner, "Karpik.Engine.Core.dll")}",
             $"System.Composition.AttributedModel|{Path.Combine(runner, "System.Composition.AttributedModel.dll")}"
         }.Order(StringComparer.Ordinal).ToArray();
@@ -586,8 +615,11 @@ public sealed class ExternalGameCliTests
             $"Expected:{Environment.NewLine}{string.Join(Environment.NewLine, expectedEngineReferences)}{Environment.NewLine}" +
             $"Actual engine-owned:{Environment.NewLine}{string.Join(Environment.NewLine, engineReferences)}{Environment.NewLine}" +
             $"Captured:{Environment.NewLine}{string.Join(Environment.NewLine, evaluatedReferences)}");
-        string modulesRoot = Path.Combine(engineRoot, "modules");
-        Assert.DoesNotContain(hintedReferences, reference => IsWithinRoot(reference.HintPath, modulesRoot));
+        // Dynamic projects must not receive module references beyond the shared
+        // network contract that the generated snapshot registry requires.
+        Assert.DoesNotContain(hintedReferences, reference =>
+            IsWithinRoot(reference.HintPath, modulesRoot) &&
+            !reference.HintPath.Equals(networkSharedCore, PathComparison));
     }
 
     private async Task AssertStaticSideBoundariesAsync(
@@ -827,12 +859,41 @@ public sealed class ExternalGameCliTests
         }
     }
 
+    /// <summary>
+    /// Module projects declared by AutoGenerated.targets, filtered to the given
+    /// side folders (Shared/Server/Client). The static composition generator can
+    /// only discover current-shape installers, so transaction engines must carry
+    /// freshly built payloads instead of the retained historical ones.
+    /// </summary>
+    internal static List<string> GetCatalogModuleProjects(string repositoryRoot)
+    {
+        XDocument targets = XDocument.Load(Path.Combine(repositoryRoot, "AutoGenerated.targets"));
+        List<string> projects = targets.Descendants()
+            .Where(element => element.Name.LocalName == "PluginReference")
+            .Select(element => (string?)element.Attribute("Include"))
+            .OfType<string>()
+            .Select(include => include.Replace('/', Path.DirectorySeparatorChar))
+            .Select(include =>
+            {
+                int marker = include.IndexOf("Modules" + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+                return marker < 0 ? include : include[marker..];
+            })
+            .Select(relative => Path.GetFullPath(Path.Combine(repositoryRoot, relative)))
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        Assert.NotEmpty(projects);
+        return projects;
+    }
+
     internal async Task<string> CreateUpdatedEngineInstallationAsync(
         string repositoryRoot,
         string retainedEngineRoot,
         string temporaryRoot,
         string nugetConfig,
-        IReadOnlyDictionary<string, string?> environment)
+        IReadOnlyDictionary<string, string?> environment,
+        IReadOnlyList<string>? extraModuleProjects = null)
     {
         string runnerProject = Path.Combine(repositoryRoot, "Karpik.Engine.Core.Runner", "Karpik.Engine.Core.Runner.csproj");
         string spatialProject = Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "Spatial2D.csproj");
@@ -935,6 +996,16 @@ public sealed class ExternalGameCliTests
         {
             File.Copy(networkCoreAssembly, installedNetworkCoreCopy, overwrite: true);
         }
+        if (extraModuleProjects is { Count: > 0 })
+        {
+            await BuildExtraModulesIntoPreparedPayloadAsync(
+                repositoryRoot,
+                extraModuleProjects,
+                Path.Combine(prepared, "modules"),
+                nugetConfig,
+                ownedBuildRoot,
+                environment);
+        }
         WriteEngineModuleCatalog(repositoryRoot, Path.Combine(prepared, "modules"));
         string runnerOutput = Path.Combine(artifacts, "bin", "Karpik.Engine.Core.Runner", "release");
         Assert.True(IsWithinRoot(runnerOutput, ownedBuildRoot));
@@ -954,6 +1025,96 @@ public sealed class ExternalGameCliTests
         Assert.True(validation.IsValid, validation.Message);
         Assert.False(IsWithinRoot(published.DestinationDirectory, retainedEngineRoot));
         return published.DestinationDirectory;
+    }
+
+    /// <summary>
+    /// Rebuilds engine module projects into transaction-owned outputs and replaces the
+    /// corresponding prepared module payloads with fresh binaries. Needed when the
+    /// retained installation predates current module contracts (for example static
+    /// composition discovery requires current IModuleInstaller shapes).
+    /// </summary>
+    private async Task BuildExtraModulesIntoPreparedPayloadAsync(
+        string repositoryRoot,
+        IReadOnlyList<string> moduleProjects,
+        string preparedModulesRoot,
+        string nugetConfig,
+        string ownedBuildRoot,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        string artifacts = Path.Combine(ownedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
+        string[] ownedProperties =
+        [
+            $"-p:RestoreConfigFile={nugetConfig}",
+            $"-p:ArtifactsPath={artifacts}",
+            $"-p:DirectoryBuildPropsPath={Path.Combine(ownedBuildRoot, "Directory.Build.props")}"
+        ];
+        foreach (string project in moduleProjects)
+        {
+            Assert.True(File.Exists(project), $"Module project is missing: {project}");
+            ProcessResult restore = await RunAsync(
+                repositoryRoot,
+                ["restore", project, "-m:1", "-nr:false", .. ownedProperties],
+                environment);
+            AssertSuccess(restore, $"restore {Path.GetFileName(project)} into transaction-owned state");
+            ProcessResult build = await RunAsync(
+                repositoryRoot,
+                ["build", project, "-c", "Release", "-m:1", "-nr:false", "--no-restore", .. ownedProperties],
+                environment);
+            AssertSuccess(build, $"build {Path.GetFileName(project)} into transaction-owned outputs");
+
+            string moduleId = Path.GetFileNameWithoutExtension(project);
+            string output = Path.Combine(artifacts, "bin", moduleId, "release");
+            Assert.True(IsWithinRoot(output, ownedBuildRoot), $"Module output escaped the transaction: {output}");
+            ReplaceModulePayload(output, Path.Combine(preparedModulesRoot, moduleId), moduleId);
+            PropagatePayloadAssemblies(Path.Combine(preparedModulesRoot, moduleId), preparedModulesRoot);
+        }
+    }
+
+    /// <summary>
+    /// Overwrites every same-named assembly copy across all module payloads so the
+    /// staged engine never holds byte-distinct assemblies with one identity.
+    /// </summary>
+    private static void PropagatePayloadAssemblies(string freshModuleDirectory, string preparedModulesRoot)
+    {
+        foreach (string freshAssembly in Directory.EnumerateFiles(freshModuleDirectory, "*.dll", SearchOption.TopDirectoryOnly))
+        {
+            string fileName = Path.GetFileName(freshAssembly);
+            foreach (string staleCopy in Directory.EnumerateFiles(
+                preparedModulesRoot, fileName, SearchOption.AllDirectories))
+            {
+                if (!string.Equals(Path.GetFullPath(staleCopy), Path.GetFullPath(freshAssembly), StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(freshAssembly, staleCopy, overwrite: true);
+                }
+            }
+        }
+    }
+
+    private static void ReplaceModulePayload(string sourceDirectory, string destinationDirectory, string moduleId)
+    {
+        Assert.True(File.Exists(Path.Combine(sourceDirectory, moduleId + ".dll")),
+            $"Fresh module payload is missing its primary assembly: {sourceDirectory}");
+        if (Directory.Exists(destinationDirectory))
+        {
+            Directory.Delete(destinationDirectory, recursive: true);
+        }
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (string file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            string fileName = Path.GetFileName(file);
+            if (fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                || fileName.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase)
+                || fileName.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            if (!fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+                && !fileName.Equals(moduleId + ".deps.json", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            File.Copy(file, Path.Combine(destinationDirectory, fileName));
+        }
     }
 
     internal async Task PackSdkIntoOwnedFeedAsync(
@@ -1242,6 +1403,15 @@ public sealed class ExternalGameCliTests
             Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
                 "Clean stop must remove all bundle-owned worker shadow directories.");
         }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                $"Multi-worker ECS cycle failed.{Environment.NewLine}" +
+                $"--- server ---{Environment.NewLine}{string.Join(Environment.NewLine, serverOutput)}{Environment.NewLine}" +
+                $"--- client1 ---{Environment.NewLine}{string.Join(Environment.NewLine, client1Output)}{Environment.NewLine}" +
+                $"--- client2 ---{Environment.NewLine}{string.Join(Environment.NewLine, client2Output)}",
+                exception);
+        }
         finally
         {
             await Task.WhenAll(
@@ -1315,6 +1485,15 @@ public sealed class ExternalGameCliTests
         foreach (string assetsPath in assetsPaths)
         {
             SeedOfflinePackageFeedFromAssets(assetsPath, destination);
+        }
+        string modulesRoot = Path.Combine(repositoryRoot, "Modules");
+        if (Directory.Exists(modulesRoot))
+        {
+            foreach (string assetsPath in Directory.EnumerateFiles(
+                modulesRoot, "project.assets.json", SearchOption.AllDirectories))
+            {
+                SeedOfflinePackageFeedFromAssets(assetsPath, destination);
+            }
         }
         Assert.NotEmpty(Directory.EnumerateFiles(destination, "*.nupkg", SearchOption.TopDirectoryOnly));
     }

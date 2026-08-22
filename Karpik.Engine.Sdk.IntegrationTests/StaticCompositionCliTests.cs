@@ -32,54 +32,64 @@ public sealed class StaticCompositionCliTests
             XDocument document = XDocument.Load(projectPath);
             XElement root = Assert.IsType<XElement>(document.Root);
 
-            XElement reference = Assert.Single(root.Elements("ItemGroup").Elements("ProjectReference"));
+            XElement[] projectReferences = root.Elements("ItemGroup").Elements("ProjectReference").ToArray();
+            Assert.Equal(2, projectReferences.Length);
+            XElement reference = Assert.Single(projectReferences, item =>
+                (string?)item.Attribute("Include") == runtimeReference);
             Assert.Equal(runtimeReference, (string?)reference.Attribute("Include"));
             Assert.Null(reference.Attribute("Condition"));
             Assert.Equal("false", (string?)reference.Attribute("ReferenceOutputAssembly"));
             Assert.Equal("false", (string?)reference.Attribute("Private"));
+            XElement sharedReference = Assert.Single(projectReferences, item =>
+                ((string?)item.Attribute("Include") ?? string.Empty).EndsWith("KarpikGame.Shared.csproj", StringComparison.Ordinal));
+            Assert.Null(sharedReference.Attribute("Condition"));
+            Assert.Equal("false", (string?)sharedReference.Attribute("ReferenceOutputAssembly"));
+            Assert.Equal("false", (string?)sharedReference.Attribute("Private"));
 
             XElement launcherCompile = Assert.Single(
                 root.Elements("ItemGroup").Elements("Compile"),
-                item => (string?)item.Attribute("Include") == "..\\KarpikGame.Launcher\\EngineLauncher.cs");
+                item => ((string?)item.Attribute("Include") ?? string.Empty).EndsWith("EngineLauncher.cs", StringComparison.Ordinal));
             Assert.Equal("'$(KarpikCompositionMode)' != 'Static'", (string?)launcherCompile.Attribute("Condition"));
+
+            XElement staticEntryCompile = Assert.Single(
+                root.Elements("ItemGroup").Elements("Compile"),
+                item => (string?)item.Attribute("Include") == "StaticEntry.cs");
+            Assert.Equal("'$(KarpikCompositionMode)' == 'Static'", (string?)staticEntryCompile.Attribute("Condition"));
+            Assert.Equal("false",
+                ReadTopLevelProperty(root, "EnableDefaultCompileItems"));
+            XElement programCompile = Assert.Single(
+                root.Elements("ItemGroup").Elements("Compile"),
+                item => (string?)item.Attribute("Include") == "Program.cs");
+            Assert.Equal("'$(KarpikCompositionMode)' != 'Static'", (string?)programCompile.Attribute("Condition"));
 
             XElement staticTarget = Assert.Single(root.Elements("Target"), target =>
                 (string?)target.Attribute("Name") == "_KarpikEnableStaticRuntimeReference");
             Assert.Equal("'$(KarpikCompositionMode)' == 'Static'", (string?)staticTarget.Attribute("Condition"));
-            Assert.Equal("ResolveProjectReferences", (string?)staticTarget.Attribute("BeforeTargets"));
+            Assert.Equal("AssignProjectConfiguration", (string?)staticTarget.Attribute("BeforeTargets"));
 
             XElement metadataItemGroup = Assert.Single(staticTarget.Elements("ItemGroup"));
             XElement flippedReference = Assert.Single(metadataItemGroup.Elements("ProjectReference"));
-            Assert.Equal("true", (string?)flippedReference.Attribute("ReferenceOutputAssembly"));
-            Assert.Equal("true", (string?)flippedReference.Attribute("Private"));
+            Assert.Null(flippedReference.Attribute("Include"));
+            Assert.Equal("true", (string?)flippedReference.Element("ReferenceOutputAssembly"));
+            Assert.Equal("true", (string?)flippedReference.Element("Private"));
 
-            XElement constantsGroup = Assert.Single(root.Elements("PropertyGroup"), group =>
-                group.Elements("DefineConstants").Any());
-            Assert.Equal("'$(KarpikCompositionMode)' == 'Static'", (string?)constantsGroup.Attribute("Condition"));
-            Assert.Contains("KARPIK_COMPOSITION_STATIC",
-                (string?)constantsGroup.Element("DefineConstants") ?? string.Empty,
-                StringComparison.Ordinal);
+            // dotnet new strips C# preprocessor directives from template sources, so the
+            // Static entry is a dedicated file selected by conditional Compile items.
+            string staticEntry = File.ReadAllText(Path.Combine(
+                templateRoot,
+                Normalize($"Source/KarpikGame.{side}.Launcher/StaticEntry.cs")));
+            Assert.DoesNotContain("#if", staticEntry, StringComparison.Ordinal);
+            Assert.Contains($"StaticEngineHost.RunAsync(", staticEntry, StringComparison.Ordinal);
+            Assert.Contains("new GeneratedRuntimeComposition()", staticEntry, StringComparison.Ordinal);
+            Assert.Contains($"Side.{side}", staticEntry, StringComparison.Ordinal);
 
             string program = File.ReadAllText(Path.Combine(
                 templateRoot,
                 Normalize($"Source/KarpikGame.{side}.Launcher/Program.cs")));
-            Assert.Contains("#if KARPIK_COMPOSITION_STATIC", program, StringComparison.Ordinal);
-            Assert.Contains("#else", program, StringComparison.Ordinal);
-            Assert.Contains("#endif", program, StringComparison.Ordinal);
-
-            int staticBranchStart = program.IndexOf("#if", StringComparison.Ordinal);
-            int dynamicBranchStart = program.IndexOf("#else", StringComparison.Ordinal);
-            int end = program.IndexOf("#endif", StringComparison.Ordinal);
-            string staticBranch = program[staticBranchStart..dynamicBranchStart];
-            string dynamicBranch = program[dynamicBranchStart..end];
-
-            Assert.Contains($"StaticEngineHost.RunAsync(", staticBranch, StringComparison.Ordinal);
-            Assert.Contains("new GeneratedRuntimeComposition()", staticBranch, StringComparison.Ordinal);
-            Assert.Contains($"Side.{side}", staticBranch, StringComparison.Ordinal);
-
-            Assert.Contains("EngineLauncher.RunAsync(", dynamicBranch, StringComparison.Ordinal);
-            Assert.Contains(side, dynamicBranch, StringComparison.Ordinal);
-            Assert.Contains($"KarpikGame.{side}", dynamicBranch, StringComparison.Ordinal);
+            Assert.DoesNotContain("#if", program, StringComparison.Ordinal);
+            Assert.Contains("EngineLauncher.RunAsync(", program, StringComparison.Ordinal);
+            Assert.Contains(side, program, StringComparison.Ordinal);
+            Assert.Contains($"KarpikGame.{side}", program, StringComparison.Ordinal);
         }
     }
 
@@ -98,6 +108,23 @@ public sealed class StaticCompositionCliTests
         {
             ExternalGameCliTests harness = new(_output);
             string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
+
+            // Restore every server-graph module with default package settings so its
+            // project.assets.json can seed the offline feed with module-owned packages.
+            List<string> catalogModuleProjects = GetCatalogModuleProjects(repositoryRoot)
+                .Where(path =>
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                .ToList();
+            foreach (string moduleProject in catalogModuleProjects)
+            {
+                ProcessResult seedRestore = await harness.RunAsync(
+                    repositoryRoot,
+                    ["restore", moduleProject, "-m:1", "-nr:false"],
+                    new Dictionary<string, string?>());
+                AssertSuccess(seedRestore, $"restore {Path.GetFileName(moduleProject)} for offline feed seeding");
+            }
+
             string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
@@ -118,8 +145,12 @@ public sealed class StaticCompositionCliTests
                 ["RestoreDisableParallel"] = "true",
                 ["KarpikEngineRoot"] = retainedEngineRoot
             };
+            // The static composition generator can only discover current-shape module
+            // installers, so every module of the launched side's graph must be rebuilt
+            // from current sources. Client-only modules are out of the Server graph.
             string engineRoot = await harness.CreateUpdatedEngineInstallationAsync(
-                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment);
+                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment,
+                catalogModuleProjects);
             environment.Remove("KarpikEngineRoot");
             environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
 
@@ -298,6 +329,9 @@ public sealed class StaticCompositionCliTests
 
     private static string GetTemplateRoot() =>
         Path.Combine(GetRepositoryRoot(), "templates", "Karpik.Game");
+
+    private static string ReadTopLevelProperty(XElement root, string propertyName) =>
+        Assert.Single(root.Elements("PropertyGroup").Elements(propertyName)).Value.Trim();
 
     private static string GetRepositoryRoot() =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
