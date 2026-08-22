@@ -175,10 +175,9 @@ public sealed class KarpikValidationTaskTests
             (string?)item.Attribute("Include") == "@(NativeCopyLocalItems)");
         Assert.Equal("'$(KarpikCompositionMode)' == 'Static'", (string?)nativeInclude.Attribute("Condition"));
         XElement nativeUpdate = Assert.Single(bundleTarget.Descendants("_KarpikBundleNative"), item =>
-            (string?)item.Attribute("Update") == "@(_KarpikBundleNative)");
-        Assert.Equal(
-            "%(_KarpikBundleNative.DestinationSubPath)",
-            (string?)nativeUpdate.Attribute("TargetPath"));
+            (string?)item.Attribute("Update") == "@(_KarpikBundleNative)" &&
+            (string?)item.Attribute("TargetPath") == "%(_KarpikBundleNative.DestinationSubPath)");
+        Assert.Null(nativeUpdate.Attribute("Condition"));
         XElement flatNativeUpdate = Assert.Single(bundleTarget.Descendants("_KarpikBundleNative"), item =>
             (string?)item.Attribute("Update") == "@(_KarpikBundleNative)" &&
             ((string?)item.Attribute("Condition") ?? string.Empty).Contains("== ''", StringComparison.Ordinal));

@@ -142,8 +142,10 @@
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
     <ItemGroup>
+      <!-- Dynamic mode stages managed module payloads; Static output never
+           carries managed modules or a module manifest, so staging is skipped. -->
       <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
-                             Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+                             Condition="'$(KarpikCompositionMode)' != 'Static' And '%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
       <_KarpikBundleContent Include="$(TargetDir)Content\**\*" />
       <_KarpikBundleMod Include="$(TargetDir)Mods\**\*" />
       <_KarpikBundleContent Update="@(_KarpikBundleContent)"
@@ -151,12 +153,23 @@
       <_KarpikBundleMod Update="@(_KarpikBundleMod)"
                         TargetPath="%(_KarpikBundleMod.RecursiveDir)%(_KarpikBundleMod.Filename)%(_KarpikBundleMod.Extension)" />
     </ItemGroup>
+    <ItemGroup>
+      <_KarpikBundleNative Include="@(NativeCopyLocalItems)"
+                           Condition="'$(KarpikCompositionMode)' == 'Static'" />
+      <_KarpikBundleNative Update="@(_KarpikBundleNative)"
+                           TargetPath="%(_KarpikBundleNative.DestinationSubPath)" />
+      <_KarpikBundleNative Update="@(_KarpikBundleNative)"
+                           Condition="'%(_KarpikBundleNative.TargetPath)' == ''"
+                           TargetPath="native\%(_KarpikBundleNative.Filename)%(_KarpikBundleNative.Extension)" />
+    </ItemGroup>
     <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
+                                  CompositionMode="$(KarpikCompositionMode)"
                                   PrimaryAssembly="$(TargetPath)"
                                   BundlePath="$(KarpikRuntimeBundlePath)"
                                   Assemblies="@(_KarpikBundleAssembly)"
                                   Content="@(_KarpikBundleContent)"
-                                  Mods="@(_KarpikBundleMod)" />
+                                  Mods="@(_KarpikBundleMod)"
+                                  NativeFiles="@(_KarpikBundleNative)" />
   </Target>
 
   <Target Name="ValidateKarpikProjectReferencesBeforeBuild"

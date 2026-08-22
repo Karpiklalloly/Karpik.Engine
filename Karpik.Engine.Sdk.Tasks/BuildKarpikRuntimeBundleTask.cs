@@ -32,6 +32,13 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
     [Required]
     public string Side { get; set; } = string.Empty;
 
+    /// <summary>
+    /// "Dynamic" (default) keeps the versioned managed module staging layout;
+    /// "Static" stages executable payload inputs only: content, mods and native
+    /// files — never a managed module manifest or module DLLs.
+    /// </summary>
+    public string CompositionMode { get; set; } = "Dynamic";
+
     [Required]
     public string PrimaryAssembly { get; set; } = string.Empty;
 
@@ -44,10 +51,25 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
     public ITaskItem[] Mods { get; set; } = [];
 
+    public ITaskItem[] NativeFiles { get; set; } = [];
+
+    private bool IsStaticMode => IsStaticCompositionMode(CompositionMode);
+
+    private static bool IsStaticCompositionMode(string? compositionMode) =>
+        string.Equals(compositionMode ?? "Dynamic", "Static", StringComparison.Ordinal);
+
     public override bool Execute()
     {
         try
         {
+            if (!IsStaticCompositionMode(CompositionMode)
+                && !string.Equals(CompositionMode, "Dynamic", StringComparison.Ordinal)
+                && !string.IsNullOrEmpty(CompositionMode))
+            {
+                throw new ArgumentException(
+                    $"KarpikCompositionMode must be exactly 'Dynamic' or 'Static'; actual value: '{CompositionMode}'.");
+            }
+
             Publish();
             return true;
         }
@@ -68,18 +90,6 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             throw new ArgumentException("KarpikRuntimeBundlePath must be absolute.");
         }
-        if (!Path.IsPathFullyQualified(PrimaryAssembly) || !File.Exists(PrimaryAssembly))
-        {
-            throw new FileNotFoundException("The primary game assembly must be an existing absolute path.", PrimaryAssembly);
-        }
-        if (IsReparsePoint(PrimaryAssembly))
-        {
-            throw new InvalidDataException($"The primary game assembly is a link or reparse point: {PrimaryAssembly}");
-        }
-        if (Content.Length == 0)
-        {
-            throw new InvalidDataException("A runtime bundle must contain at least one content item.");
-        }
 
         string destination = TrimRoot(Path.GetFullPath(BundlePath));
         string? parent = Path.GetDirectoryName(destination);
@@ -94,7 +104,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         string backup = destination + ".previous";
         RecoverBackup(destination, backup);
         RecoverOwnedStaging(parent, Path.GetFileName(destination));
-        if (Directory.Exists(destination) && !IsCompleteBundle(destination, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
+        if (Directory.Exists(destination) && !IsProvenBundleOutput(destination))
         {
             throw new InvalidDataException($"Refusing to replace unproven directory '{destination}'.");
         }
@@ -104,10 +114,21 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         File.WriteAllText(Path.Combine(staging, ".karpik-owned-staging"), OwnedStagingMarker);
         try
         {
-            Materialize(staging);
-            if (!IsCompleteBundle(staging, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly))
+            if (IsStaticMode)
             {
-                throw new InvalidDataException("The staged runtime bundle did not pass completion validation.");
+                MaterializeStatic(staging);
+                if (!IsCompleteStaticBundle(staging, Side, allowOwnershipMarker: true))
+                {
+                    throw new InvalidDataException("The staged static runtime bundle did not pass completion validation.");
+                }
+            }
+            else
+            {
+                MaterializeDynamic(staging);
+                if (!IsCompleteBundle(staging, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly))
+                {
+                    throw new InvalidDataException("The staged runtime bundle did not pass completion validation.");
+                }
             }
 
             bool hadDestination = Directory.Exists(destination);
@@ -123,14 +144,14 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             catch
             {
                 DeleteOwnedPublishedBundle(destination);
-                if (!Directory.Exists(destination) && Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
+                if (!Directory.Exists(destination) && Directory.Exists(backup) && IsProvenBundleOutput(backup))
                 {
                     _fileSystem.MoveDirectory(backup, destination);
                 }
                 throw;
             }
 
-            if (Directory.Exists(backup) && IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
+            if (Directory.Exists(backup) && IsProvenBundleOutput(backup))
             {
                 Directory.Delete(backup, recursive: true);
             }
@@ -141,8 +162,20 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
-    private void Materialize(string staging)
+    private void MaterializeDynamic(string staging)
     {
+        if (!Path.IsPathFullyQualified(PrimaryAssembly) || !File.Exists(PrimaryAssembly))
+        {
+            throw new FileNotFoundException("The primary game assembly must be an existing absolute path.", PrimaryAssembly);
+        }
+        if (IsReparsePoint(PrimaryAssembly))
+        {
+            throw new InvalidDataException($"The primary game assembly is a link or reparse point: {PrimaryAssembly}");
+        }
+        if (Content.Length == 0)
+        {
+            throw new InvalidDataException("A runtime bundle must contain at least one content item.");
+        }
         if (Assemblies.Length + 1 > MaxManifestEntries)
         {
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxManifestEntries} assemblies.");
@@ -225,6 +258,93 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
         File.WriteAllText(Path.Combine(staging, "runtime-bundle.side"), SideMarkerPrefix + Side + "\n");
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
+    }
+
+    private void MaterializeStatic(string staging)
+    {
+        if (Content.Length == 0)
+        {
+            throw new InvalidDataException("A static runtime bundle must contain at least one content item.");
+        }
+        if (Mods.Length > MaxTreeEntries || Content.Length > MaxTreeEntries - Mods.Length)
+        {
+            throw new InvalidDataException($"Static runtime bundle exceeds the maximum of {MaxTreeEntries} asset items.");
+        }
+
+        var sources = new List<(string Source, string Destination)>();
+        var directories = new HashSet<string>(BundleIdentityComparer);
+        long totalInputBytes = Encoding.UTF8.GetByteCount(BundleCompletionMarker)
+                               + Encoding.UTF8.GetByteCount(SideMarkerPrefix + Side + "\n")
+                               + Encoding.UTF8.GetByteCount(OwnedStagingMarker);
+        PrepareAssetRoot(Content, "Content", Path.Combine(staging, "Content"), directories, sources, ref totalInputBytes);
+        if (Mods.Length > 0)
+        {
+            PrepareAssetRoot(
+                Mods,
+                "Mods",
+                Path.Combine(staging, "Mods"),
+                directories,
+                sources,
+                ref totalInputBytes);
+        }
+        foreach (ITaskItem item in NativeFiles.OrderBy(item => item.GetMetadata("TargetPath"), StringComparer.Ordinal))
+        {
+            string source = Path.GetFullPath(item.ItemSpec);
+            string relative = item.GetMetadata("TargetPath");
+            if (string.IsNullOrWhiteSpace(relative))
+            {
+                throw new InvalidDataException(
+                    $"A static runtime bundle native input requires a relative TargetPath: {item.ItemSpec}");
+            }
+            relative = relative.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            if (!IsNativeRelativePath(relative))
+            {
+                throw new InvalidDataException(
+                    $"A static runtime bundle native TargetPath must stay under native/ or runtimes/: {relative}");
+            }
+            string destination = Path.GetFullPath(Path.Combine(staging, relative));
+            if (!IsContained(staging, destination))
+            {
+                throw new InvalidDataException($"A static runtime bundle native target escapes the bundle root: {relative}");
+            }
+            long length = new FileInfo(source).Length;
+            if (!File.Exists(source) || IsReparsePoint(source) || length > MaxIndividualFileBytes
+                || totalInputBytes > MaxBundleBytes - length)
+            {
+                throw new InvalidDataException(
+                    $"Static runtime bundle native input is missing, linked, or exceeds bundle limits: {item.ItemSpec}");
+            }
+            totalInputBytes += length;
+            for (string? directory = Path.GetDirectoryName(destination);
+                 directory is not null && IsContained(staging, directory);
+                 directory = Path.GetDirectoryName(directory))
+            {
+                directories.Add(directory);
+            }
+            sources.Add((source, destination));
+        }
+
+        int fixedEntries = 3; // completion marker, side marker, staging ownership marker
+        if (fixedEntries + directories.Count + sources.Count
+            > MaxTreeEntries)
+        {
+            throw new InvalidDataException($"Static runtime bundle exceeds the maximum of {MaxTreeEntries} tree entries.");
+        }
+
+        foreach ((string source, string destination) in sources)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(source, destination, overwrite: false);
+        }
+
+        File.WriteAllText(Path.Combine(staging, "runtime-bundle.side"), SideMarkerPrefix + Side + "\n");
+        File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
+    }
+
+    private static bool IsNativeRelativePath(string relativePath)
+    {
+        string firstSegment = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries)[0];
+        return firstSegment is "native" or "runtimes";
     }
 
     private static void PrepareAssetRoot(
@@ -317,13 +437,99 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         sources[fileName] = fullPath;
     }
 
+    private bool IsProvenBundleOutput(string path)
+    {
+        return Directory.Exists(path) && (
+            IsCompleteBundle(path, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null)
+            || IsCompleteStaticBundle(path, Side, allowOwnershipMarker: false));
+    }
+
+    private bool IsCompleteStaticBundle(string root, string side, bool allowOwnershipMarker)
+    {
+        try
+        {
+            if (!Directory.Exists(root) || !IsBoundedTreeWithoutLinks(root))
+            {
+                return false;
+            }
+            if (!HasExactUtf8File(Path.Combine(root, ".complete"), BundleCompletionMarker)
+                || !HasExactUtf8File(Path.Combine(root, "runtime-bundle.side"), SideMarkerPrefix + side + "\n"))
+            {
+                return false;
+            }
+
+            var allowedRootFiles = new HashSet<string>(StringComparer.Ordinal)
+            {
+                ".complete", "runtime-bundle.side"
+            };
+            if (allowOwnershipMarker)
+            {
+                allowedRootFiles.Add(".karpik-owned-staging");
+                if (!HasExactUtf8File(Path.Combine(root, ".karpik-owned-staging"), OwnedStagingMarker))
+                {
+                    return false;
+                }
+            }
+            else if (File.Exists(Path.Combine(root, ".karpik-owned-staging")))
+            {
+                return false;
+            }
+
+            // A static runtime bundle never carries managed module staging, a
+            // module manifest or a shadow directory. Native payload inputs live
+            // only under native/ or runtimes/.
+            var allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Content", "Mods", "reload", "native", "runtimes"
+            };
+            foreach (string entry in Directory.EnumerateFileSystemEntries(root, "*", SearchOption.TopDirectoryOnly))
+            {
+                string name = Path.GetFileName(entry);
+                if (Directory.Exists(entry) ? !allowedRootDirectories.Contains(name) : !allowedRootFiles.Contains(name))
+                {
+                    return false;
+                }
+            }
+            if (!ValidateReloadShape(Path.Combine(root, "reload")))
+            {
+                return false;
+            }
+
+            string content = Path.Combine(root, "Content");
+            long totalBytes = 0;
+            bool hasContent = false;
+            foreach (string file in EnumerateFilesBounded(root))
+            {
+                string name = Path.GetFileName(file);
+                if (name == "modules.list")
+                {
+                    // A static runtime output never carries or reads a managed module manifest.
+                    return false;
+                }
+                var info = new FileInfo(file);
+                if (info.Length > MaxIndividualFileBytes
+                    || totalBytes > MaxBundleBytes - info.Length)
+                {
+                    return false;
+                }
+                totalBytes += info.Length;
+                hasContent |= IsContained(content, file);
+            }
+            return hasContent;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or DecoderFallbackException or InvalidDataException)
+        {
+            return false;
+        }
+    }
+
     private void RecoverBackup(string destination, string backup)
     {
         if (!Directory.Exists(backup))
         {
             return;
         }
-        if (IsReparsePoint(backup) || !IsCompleteBundle(backup, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
+        if (IsReparsePoint(backup) || !IsProvenBundleOutput(backup))
         {
             throw new InvalidDataException($"Refusing to move or delete unproven interrupted backup '{backup}'.");
         }
@@ -332,7 +538,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             _fileSystem.MoveDirectory(backup, destination);
             return;
         }
-        if (!IsCompleteBundle(destination, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null))
+        if (!IsProvenBundleOutput(destination))
         {
             throw new InvalidDataException($"Interrupted bundle state contains an invalid destination '{destination}'.");
         }
@@ -372,8 +578,10 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             return;
         }
         string marker = Path.Combine(path, ".karpik-owned-staging");
-        if (IsCompleteBundle(path, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly)
-            && HasExactUtf8File(marker, OwnedStagingMarker))
+        bool complete = IsStaticMode
+            ? IsCompleteStaticBundle(path, Side, allowOwnershipMarker: true)
+            : IsCompleteBundle(path, Side, allowOwnershipMarker: true, requiredPrimaryAssembly: PrimaryAssembly);
+        if (complete && HasExactUtf8File(marker, OwnedStagingMarker))
         {
             Directory.Delete(path, recursive: true);
         }
