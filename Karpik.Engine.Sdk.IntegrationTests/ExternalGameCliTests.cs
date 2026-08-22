@@ -233,15 +233,14 @@ public sealed class ExternalGameCliTests
             string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
-            foreach (string moduleProject in GetCatalogModuleProjects(repositoryRoot))
-            {
-                ProcessResult seedRestore = await RunAsync(
-                    repositoryRoot,
-                    ["restore", moduleProject, "-m:1", "-nr:false"],
-                    new Dictionary<string, string?>());
-                AssertSuccess(seedRestore, $"restore {Path.GetFileName(moduleProject)} for offline feed seeding");
-            }
-            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
+            // Restore every catalog module with transaction-owned intermediates so its
+            // project.assets.json can seed the offline feed without touching any
+            // repository Modules/**/bin|obj state.
+            string moduleSeedAssetsRoot = await SeedModuleRestoresIntoOwnedStateAsync(
+                repositoryRoot,
+                GetCatalogModuleProjects(repositoryRoot),
+                temporaryRoot);
+            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed, [moduleSeedAssetsRoot]);
             string hive = Path.Combine(temporaryRoot, "template-hive");
             string dotnetHome = Path.Combine(temporaryRoot, "dotnet-home");
             string nugetPackages = Path.Combine(temporaryRoot, "nuget-packages");
@@ -410,7 +409,16 @@ public sealed class ExternalGameCliTests
             string packageFeed = Path.Combine(temporaryRoot, "package-feed");
             Directory.CreateDirectory(packageFeed);
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
-            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
+            // The engine transaction below resolves module-owned packages from the
+            // offline feed only; seed it through transaction-owned module restores
+            // so no repository Modules/**/bin|obj state is touched.
+            List<string> sideGraphModuleProjects = GetCatalogModuleProjects(repositoryRoot).Where(path =>
+                path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                .ToList();
+            string moduleSeedAssetsRoot = await SeedModuleRestoresIntoOwnedStateAsync(
+                repositoryRoot, sideGraphModuleProjects, temporaryRoot);
+            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed, [moduleSeedAssetsRoot]);
             string hive = Path.Combine(temporaryRoot, "template-hive");
             string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
             WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
@@ -432,10 +440,7 @@ public sealed class ExternalGameCliTests
                 // Fresh payloads keep every module directory internally consistent:
                 // referencing one fresh assembly makes RAR resolve its dependencies
                 // from the same directory, so stale siblings must not survive.
-                GetCatalogModuleProjects(repositoryRoot).Where(path =>
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                    .ToList());
+                sideGraphModuleProjects);
             environment.Remove("KarpikEngineRoot");
             environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
 
@@ -1028,6 +1033,48 @@ public sealed class ExternalGameCliTests
     }
 
     /// <summary>
+    /// Restores repository module projects with transaction-owned intermediates
+    /// (<c>-p:ArtifactsPath</c> under <paramref name="temporaryRoot"/>), mirroring
+    /// <see cref="BuildExtraModulesIntoPreparedPayloadAsync"/>, so the resulting
+    /// project.assets.json files can seed the offline feed while repository
+    /// Modules/**/bin|obj stay untouched. Default package feeds remain in effect
+    /// on purpose: the seed must harvest exactly what a plain developer restore
+    /// resolves, so no NuGet cache/feed environment is redirected.
+    /// Returns the owned root holding the seeded project.assets.json files.
+    /// </summary>
+    internal async Task<string> SeedModuleRestoresIntoOwnedStateAsync(
+        string repositoryRoot,
+        IReadOnlyList<string> moduleProjects,
+        string temporaryRoot)
+    {
+        string seedBuildRoot = Path.Combine(temporaryRoot, "module-seed-build");
+        string artifacts = Path.Combine(seedBuildRoot, "artifacts") + Path.DirectorySeparatorChar;
+        Dictionary<string, FileStamp>[] repositoriesBefore = new Dictionary<string, FileStamp>[moduleProjects.Count];
+        for (int index = 0; index < moduleProjects.Count; index++)
+        {
+            string moduleProject = moduleProjects[index];
+            Assert.True(File.Exists(moduleProject), $"Module project is missing: {moduleProject}");
+            string projectDirectory = Path.GetDirectoryName(moduleProject)!;
+            repositoriesBefore[index] = SnapshotFiles(
+                Path.Combine(projectDirectory, "bin"),
+                Path.Combine(projectDirectory, "obj"));
+            ProcessResult seedRestore = await RunAsync(
+                repositoryRoot,
+                ["restore", moduleProject, "-m:1", "-nr:false", $"-p:ArtifactsPath={artifacts}"],
+                new Dictionary<string, string?>());
+            AssertSuccess(seedRestore, $"restore {Path.GetFileName(moduleProject)} into transaction-owned seeding state");
+        }
+        for (int index = 0; index < moduleProjects.Count; index++)
+        {
+            string projectDirectory = Path.GetDirectoryName(moduleProjects[index])!;
+            Assert.Equal(repositoriesBefore[index], SnapshotFiles(
+                Path.Combine(projectDirectory, "bin"),
+                Path.Combine(projectDirectory, "obj")));
+        }
+        return Path.Combine(seedBuildRoot, "artifacts", "obj");
+    }
+
+    /// <summary>
     /// Rebuilds engine module projects into transaction-owned outputs and replaces the
     /// corresponding prepared module payloads with fresh binaries. Needed when the
     /// retained installation predates current module contracts (for example static
@@ -1470,7 +1517,10 @@ public sealed class ExternalGameCliTests
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
-    internal static void SeedOfflinePackageFeed(string repositoryRoot, string destination)
+    internal static void SeedOfflinePackageFeed(
+        string repositoryRoot,
+        string destination,
+        IReadOnlyCollection<string>? additionalAssetRoots = null)
     {
         Directory.CreateDirectory(destination);
         string[] assetsPaths =
@@ -1478,7 +1528,6 @@ public sealed class ExternalGameCliTests
             Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.IntegrationTests", "obj", "project.assets.json"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Sdk.Tasks", "obj", "project.assets.json"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "obj", "project.assets.json"),
-            Path.Combine(repositoryRoot, "Modules", "Shared", "Spatial2D", "obj", "project.assets.json"),
             Path.Combine(repositoryRoot, "Karpik.Engine.Core.Generator", "Karpik.Engine.Core.Codegen", "obj", "project.assets.json"),
             Path.Combine(repositoryRoot, "Tools", "StaticAnalyzer", "obj", "project.assets.json")
         ];
@@ -1486,11 +1535,15 @@ public sealed class ExternalGameCliTests
         {
             SeedOfflinePackageFeedFromAssets(assetsPath, destination);
         }
-        string modulesRoot = Path.Combine(repositoryRoot, "Modules");
-        if (Directory.Exists(modulesRoot))
+        // Module-owned packages come from transaction-owned restore intermediates
+        // (see SeedModuleRestoresIntoOwnedStateAsync); repository Modules/**/obj is
+        // never read or written here.
+        foreach (string additionalRoot in additionalAssetRoots ?? [])
         {
+            Assert.True(Directory.Exists(additionalRoot),
+                $"Transaction-owned module seeding root is missing: {additionalRoot}");
             foreach (string assetsPath in Directory.EnumerateFiles(
-                modulesRoot, "project.assets.json", SearchOption.AllDirectories))
+                additionalRoot, "project.assets.json", SearchOption.AllDirectories))
             {
                 SeedOfflinePackageFeedFromAssets(assetsPath, destination);
             }
@@ -1641,7 +1694,7 @@ public sealed class ExternalGameCliTests
         return result;
     }
 
-    private void AssertAllSubprocessesUseOwnedState(string temporaryRoot)
+    internal void AssertAllSubprocessesUseOwnedState(string temporaryRoot)
     {
         Assert.NotEmpty(_startedProcesses);
         StartedProcess pack = Assert.Single(
@@ -1676,6 +1729,20 @@ public sealed class ExternalGameCliTests
         Assert.Contains("$(MSBuildProjectName)", File.ReadAllText(intermediateProps), StringComparison.Ordinal);
         foreach (StartedProcess process in _startedProcesses)
         {
+            if (IsDefaultFeedSeedRestore(process, out string? project))
+            {
+                // Seed restores deliberately keep the default package feeds and caches,
+                // but their intermediates must stay inside the transaction.
+                Assert.True(!IsWithinRoot(project!, temporaryRoot),
+                    $"Seed restore project must live outside the transaction root: {project}");
+                string prefix = "-p:ArtifactsPath=";
+                string artifactsArgument = Assert.Single(process.Arguments,
+                    value => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                string artifactsPath = artifactsArgument[prefix.Length..];
+                Assert.True(IsWithinRoot(artifactsPath, temporaryRoot),
+                    $"dotnet restore {project} seeded the offline feed with non-owned intermediates: {artifactsPath}");
+                continue;
+            }
             foreach (string key in new[] { "DOTNET_CLI_HOME", "NUGET_PACKAGES", "NUGET_HTTP_CACHE_PATH" })
             {
                 Assert.True(process.Environment.TryGetValue(key, out string? value),
@@ -1685,6 +1752,36 @@ public sealed class ExternalGameCliTests
                     $"dotnet {string.Join(' ', process.Arguments)} received non-owned {key}: {value}");
             }
         }
+    }
+
+    /// <summary>
+    /// Offline-feed seed restores: a plain <c>restore</c> of an absolute module
+    /// project path with default package settings and owned
+    /// <c>-p:ArtifactsPath</c> intermediates instead of repository bin/obj.
+    /// </summary>
+    private static bool IsDefaultFeedSeedRestore(
+        StartedProcess process,
+        out string? restoredProject)
+    {
+        restoredProject = null;
+        if (process.Arguments.FirstOrDefault() != "restore")
+        {
+            return false;
+        }
+        if (process.Arguments.Any(argument =>
+                argument.StartsWith("-p:RestoreConfigFile=", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+        if (!process.Arguments.Any(argument =>
+                argument.StartsWith("-p:ArtifactsPath=", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+        restoredProject = process.Arguments
+            .Skip(1)
+            .FirstOrDefault(argument => !argument.StartsWith("-", StringComparison.Ordinal));
+        return !string.IsNullOrWhiteSpace(restoredProject);
     }
 
     internal static void AssertSuccess(ProcessResult result, string operation) =>

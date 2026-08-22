@@ -109,29 +109,6 @@ public sealed class StaticCompositionCliTests
             ExternalGameCliTests harness = new(_output);
             string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
 
-            // Restore every server-graph module with default package settings so its
-            // project.assets.json can seed the offline feed with module-owned packages.
-            List<string> catalogModuleProjects = GetCatalogModuleProjects(repositoryRoot)
-                .Where(path =>
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                .ToList();
-            foreach (string moduleProject in catalogModuleProjects)
-            {
-                ProcessResult seedRestore = await harness.RunAsync(
-                    repositoryRoot,
-                    ["restore", moduleProject, "-m:1", "-nr:false"],
-                    new Dictionary<string, string?>());
-                AssertSuccess(seedRestore, $"restore {Path.GetFileName(moduleProject)} for offline feed seeding");
-            }
-
-            string packageFeed = Path.Combine(temporaryRoot, "package-feed");
-            Directory.CreateDirectory(packageFeed);
-            string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
-            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed);
-            string hive = Path.Combine(temporaryRoot, "template-hive");
-            string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
-            WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
             var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
                 ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
@@ -142,9 +119,28 @@ public sealed class StaticCompositionCliTests
                 ["NUGET_PACKAGES"] = Path.Combine(temporaryRoot, "nuget-packages"),
                 ["NUGET_HTTP_CACHE_PATH"] = Path.Combine(temporaryRoot, "nuget-http-cache"),
                 ["NuGetAudit"] = "false",
-                ["RestoreDisableParallel"] = "true",
-                ["KarpikEngineRoot"] = retainedEngineRoot
+                ["RestoreDisableParallel"] = "true"
             };
+
+            // Restore every server-graph module with default package settings and
+            // transaction-owned intermediates so its project.assets.json can seed the
+            // offline feed without writing into repository Modules/**/obj.
+            List<string> catalogModuleProjects = GetCatalogModuleProjects(repositoryRoot)
+                .Where(path =>
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                .ToList();
+            string moduleSeedAssetsRoot = await harness.SeedModuleRestoresIntoOwnedStateAsync(
+                repositoryRoot, catalogModuleProjects, temporaryRoot);
+
+            string packageFeed = Path.Combine(temporaryRoot, "package-feed");
+            Directory.CreateDirectory(packageFeed);
+            string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
+            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed, [moduleSeedAssetsRoot]);
+            string hive = Path.Combine(temporaryRoot, "template-hive");
+            string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
+            WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
+            environment["KarpikEngineRoot"] = retainedEngineRoot;
             // The static composition generator can only discover current-shape module
             // installers, so every module of the launched side's graph must be rebuilt
             // from current sources. Client-only modules are out of the Server graph.
@@ -190,6 +186,7 @@ public sealed class StaticCompositionCliTests
 
             await RunAndObserveStaticHostAsync(gameName, gameRoot, engineRoot);
             AssertNoOrphanHostProcesses(gameName);
+            harness.AssertAllSubprocessesUseOwnedState(temporaryRoot);
         }
         finally
         {
