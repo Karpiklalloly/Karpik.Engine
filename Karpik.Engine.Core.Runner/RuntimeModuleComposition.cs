@@ -2,6 +2,12 @@ using Karpik.Engine.Tooling;
 
 namespace Karpik.Engine.Core.Runner;
 
+/// <summary>
+/// Dynamic composition path only: resolves the installed module catalog for the
+/// universal reflection-based runner. Static hosts use generated
+/// <c>GeneratedRuntimeComposition</c> instead and must never call this API.
+/// Kept until the default composition mode flips to Static.
+/// </summary>
 public static class RuntimeModuleComposition
 {
     public static ModuleLoader.EngineModuleDescriptor[] Resolve(string engineRoot, Side side)

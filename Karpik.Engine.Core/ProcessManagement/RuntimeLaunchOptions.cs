@@ -16,7 +16,7 @@ public sealed record RuntimeLaunchOptions
             throw new ArgumentOutOfRangeException(nameof(side), side, "Runtime side must be Client or Server.");
         }
         RunnerExecutablePath = ValidateExistingAbsoluteFile(runnerExecutablePath, nameof(runnerExecutablePath));
-        BundlePath = RuntimeBundleLayout.Validate(bundlePath, side);
+        BundlePath = RuntimeBundleLayout.ValidateAny(bundlePath, side);
         EngineRoot = ValidateExistingAbsoluteDirectory(engineRoot, nameof(engineRoot));
         Side = side;
     }
@@ -96,6 +96,129 @@ public static class RuntimeBundleLayout
         string modules = ResolveModuleDirectory(root);
         ReadCanonicalModuleManifest(modules);
         return root;
+    }
+
+    /// <summary>
+    /// Validates a Dynamic or Static bundle by its layout shape: bundles that carry
+    /// the versioned managed module directory keep the canonical manifest rules,
+    /// manifest-free bundles are validated as static runtime outputs.
+    /// </summary>
+    public static string ValidateAny(string bundlePath, Side side)
+    {
+        if (string.IsNullOrWhiteSpace(bundlePath) || !Path.IsPathFullyQualified(bundlePath))
+        {
+            throw new ArgumentException("Runtime bundle path must be absolute.", nameof(bundlePath));
+        }
+        string root = Path.GetFullPath(bundlePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(root))
+        {
+            throw new DirectoryNotFoundException($"Runtime bundle does not exist: {root}");
+        }
+
+        foreach (string directory in Directory.EnumerateDirectories(root, "modules.version.*", SearchOption.TopDirectoryOnly))
+        {
+            if (PathComparer.Equals(Path.GetFileName(directory), "modules.version.1"))
+            {
+                return Validate(root, side);
+            }
+
+            throw new InvalidDataException(
+                $"Runtime bundle must contain only the exact module directory modules.version.1; found '{Path.GetFileName(directory)}'.");
+        }
+
+        return ValidateStatic(root, side);
+    }
+
+    /// <summary>
+    /// Validates a manifest-free Static bundle layout: executable payload inputs
+    /// only — content, mods, reload state and native files under native/ or
+    /// runtimes/. Managed module staging and manifests are rejected.
+    /// </summary>
+    public static string ValidateStatic(string bundlePath, Side side)
+    {
+        if (string.IsNullOrWhiteSpace(bundlePath) || !Path.IsPathFullyQualified(bundlePath))
+        {
+            throw new ArgumentException("Runtime bundle path must be absolute.", nameof(bundlePath));
+        }
+        string root = Path.GetFullPath(bundlePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(root))
+        {
+            throw new DirectoryNotFoundException($"Runtime bundle does not exist: {root}");
+        }
+
+        EnsureExistingPathHasNoReparsePoints(root);
+        EnsureTreeIsBoundedAndHasNoReparsePoints(root);
+        RequireExact(Path.Combine(root, ".complete"), BundleCompletionMarker, "bundle completion marker");
+        RequireExact(Path.Combine(root, "runtime-bundle.side"), SideMarkerPrefix + side + "\n", "runtime side marker");
+
+        foreach (string entry in Directory.EnumerateFileSystemEntries(root))
+        {
+            string name = Path.GetFileName(entry);
+            bool allowed = File.Exists(entry)
+                ? name is ".complete" or "runtime-bundle.side"
+                : name is "Content" or "Mods" or "reload" or "native" or "runtimes";
+            if (!allowed)
+            {
+                throw new InvalidDataException(
+                    $"Static runtime bundle contains an unexpected root entry: {name}");
+            }
+        }
+
+        ValidateReloadDirectoryShape(root);
+
+        foreach (string file in EnumerateFilesBounded(root))
+        {
+            if (Path.GetFileName(file) == "modules.list")
+            {
+                throw new InvalidDataException("A static runtime bundle must not contain a managed module manifest.");
+            }
+        }
+
+        string content = Path.Combine(root, "Content");
+        if (!Directory.Exists(content) || !Directory.EnumerateFiles(content, "*", SearchOption.AllDirectories).Any())
+        {
+            throw new InvalidDataException("Static runtime bundle Content is missing or empty.");
+        }
+
+        return root;
+    }
+
+    private static void ValidateReloadDirectoryShape(string root)
+    {
+        string reload = Path.Combine(root, "reload");
+        if (!Directory.Exists(reload))
+        {
+            return;
+        }
+        foreach (string entry in Directory.EnumerateFileSystemEntries(reload))
+        {
+            string name = Path.GetFileName(entry);
+            if (!Directory.Exists(entry) || name is not ("state" or "shadow"))
+            {
+                throw new InvalidDataException($"Static runtime bundle reload directory contains an unexpected entry: {name}");
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateFilesBounded(string root)
+    {
+        var pending = new Stack<(string Directory, int Depth)>();
+        pending.Push((root, 0));
+        while (pending.Count > 0)
+        {
+            (string directory, int depth) = pending.Pop();
+            foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+            {
+                if (Directory.Exists(entry))
+                {
+                    pending.Push((entry, depth + 1));
+                }
+                else
+                {
+                    yield return entry;
+                }
+            }
+        }
     }
 
     public static string ResolveModuleDirectory(string bundleRoot)

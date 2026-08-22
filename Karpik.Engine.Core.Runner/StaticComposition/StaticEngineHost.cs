@@ -5,7 +5,8 @@ namespace Karpik.Engine.Core.Runner;
 /// <summary>
 /// Game-specific Static host entry point. The launcher executable that owns the
 /// generated <c>GeneratedRuntimeComposition</c> calls <see cref="RunAsync"/> with
-/// a direct instance — no ModuleLoader, no PluginLoadContext, no reflection.
+/// a direct instance — no dynamic module loader, no plugin load context, no
+/// reflection. See the Dynamic-only boundary contract test in Runner tests.
 /// </summary>
 public static class StaticEngineHost
 {
@@ -44,10 +45,9 @@ public static class StaticEngineHost
         }
     }
 
-    private static string ResolveModuleDirectory(string bundlePath) =>
-        string.IsNullOrEmpty(bundlePath)
-            ? AppContext.BaseDirectory
-            : RuntimeBundleLayout.ResolveModuleDirectory(bundlePath);
+    // A static runtime output carries no managed module staging directory, so the
+    // worker reports its own base directory; game modules are compiled into the host.
+    private static string ResolveModuleDirectory(string bundlePath) => AppContext.BaseDirectory;
 }
 
 file static class StaticLaunchArguments
@@ -109,7 +109,7 @@ file static class StaticLaunchArguments
         values.TryGetValue("--bundle", out string? bundle);
         string validatedBundle = bundle is null
             ? string.Empty
-            : RuntimeBundleLayout.Validate(bundle, hostSide);
+            : RuntimeBundleLayout.ValidateStatic(bundle, hostSide);
 
         values.TryGetValue("--engine-root", out string? engineRoot);
         string validatedEngineRoot = ValidateOptionalEngineRoot(engineRoot);

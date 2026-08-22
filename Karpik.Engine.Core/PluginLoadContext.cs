@@ -5,6 +5,12 @@ using System.Security.Cryptography;
 
 namespace Karpik.Engine.Core.ModuleManagement;
 
+/// <summary>
+/// Dynamic composition path only: collectible load context for shadow-copied
+/// managed modules. Static hosts must never reference this type — game modules
+/// are compiled into the host executable. Kept until the default composition
+/// mode flips to Static; do not call from static composition code.
+/// </summary>
 public class PluginLoadContext : AssemblyLoadContext
 {
     private readonly string _shadowCopyDirectory;

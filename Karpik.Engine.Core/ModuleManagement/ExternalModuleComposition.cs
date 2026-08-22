@@ -2,6 +2,12 @@ using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.ModuleManagement;
 
+/// <summary>
+/// Dynamic composition path only: reflection-based loader for staged managed
+/// module assemblies. Static hosts must never reference <see cref="ModuleLoader"/> —
+/// their module graph is compiled in via generated composition. Kept until the
+/// default composition mode flips to Static.
+/// </summary>
 public sealed partial class ModuleLoader
 {
     private readonly EngineModuleDescriptor[] _engineModules = [];
