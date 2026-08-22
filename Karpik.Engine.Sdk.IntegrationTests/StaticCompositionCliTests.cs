@@ -184,7 +184,8 @@ public sealed class StaticCompositionCliTests
                 environment);
             AssertSuccess(build, "build the Static Server host executable");
 
-            await RunAndObserveStaticHostAsync(gameName, gameRoot, engineRoot);
+            await RunAndObserveStaticHostAsync(
+                harness, environment, gameName, gameRoot, engineRoot);
             AssertNoOrphanHostProcesses(gameName);
             harness.AssertAllSubprocessesUseOwnedState(temporaryRoot);
         }
@@ -194,7 +195,12 @@ public sealed class StaticCompositionCliTests
         }
     }
 
-    private async Task RunAndObserveStaticHostAsync(string gameName, string gameRoot, string engineRoot)
+    private async Task RunAndObserveStaticHostAsync(
+        ExternalGameCliTests harness,
+        IReadOnlyDictionary<string, string?> environment,
+        string gameName,
+        string gameRoot,
+        string engineRoot)
     {
         string launcherExecutable = Path.Combine(
             gameRoot,
@@ -213,70 +219,151 @@ public sealed class StaticCompositionCliTests
         using var controller = new EditorPreviewController(
             new RuntimeLaunchOptions(Side.Server, launcherExecutable, bundle, engineRoot));
         controller.OutputReceived += output.Enqueue;
-        using var timeout = new CancellationTokenSource(RunPhaseTimeout);
 
-        try
+        // Phase 1: baseline generation. The host runs the unmutated game assembly.
+        using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
         {
-            await controller.StartAsync(timeout.Token);
-        }
-        catch (Exception exception)
-        {
-            throw new InvalidOperationException(
-                $"Static Server host did not reach worker-ready.{Environment.NewLine}" +
-                string.Join(Environment.NewLine, output),
-                exception);
-        }
-
-        try
-        {
-            Assert.Equal(EditorPreviewState.Running, controller.State);
-            EditorRuntimeSnapshot? snapshot = await controller.RequestSnapshotAsync(
-                TimeSpan.FromSeconds(5), timeout.Token);
-            Assert.NotNull(snapshot);
-            Assert.True(snapshot.TotalEntityCount > 0,
-                $"Expected a non-empty ECS world in the Static host.{Environment.NewLine}" +
-                string.Join(Environment.NewLine, output));
-            Assert.Contains(output,
-                line => line.Contains("[ServerGame] Created entity", StringComparison.Ordinal));
-            Assert.Contains(output,
-                line => line.Contains("[ServerGame] Content: server runtime content", StringComparison.Ordinal));
-
-            AssertDiagnosticTraceIsFreeOfDynamicLoading(output);
-            AssertAllSubprocessArgumentsAreOwned(controller, output);
-
-            int firstProcessId = Assert.IsType<int>(controller.ProcessId);
-            await controller.HotReloadAsync(timeout.Token);
-            Assert.Equal(EditorPreviewState.Running, controller.State);
-            int secondProcessId = Assert.IsType<int>(controller.ProcessId);
-            Assert.NotEqual(firstProcessId, secondProcessId);
-
-            string stateRoot = Path.Combine(bundle, "reload", "state");
-            Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
-                "Hot reload state must be consumed by the restarted Static worker.");
-            Assert.Contains(output,
-                line => line.Contains("Total modules with state: 1", StringComparison.Ordinal));
-
-            EditorRuntimeSnapshot? snapshotAfter = await controller.RequestSnapshotAsync(
-                TimeSpan.FromSeconds(5), timeout.Token);
-            Assert.NotNull(snapshotAfter);
-            Assert.Equal(snapshot.TotalEntityCount + 1, snapshotAfter.TotalEntityCount);
-
-            await controller.StopAsync(timeout.Token);
-            Assert.Equal(EditorPreviewState.Stopped, controller.State);
-            Assert.Null(controller.ProcessId);
-            Assert.DoesNotContain(output,
-                line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
-            string shadowRoot = Path.Combine(bundle, "reload", "shadow");
-            Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
-                "Clean stop must not leave shadow directories behind for a Static host run.");
-        }
-        finally
-        {
-            if (controller.State != EditorPreviewState.Stopped)
+            try
             {
-                try { await controller.StopAsync(CancellationToken.None); } catch { }
+                await controller.StartAsync(timeout.Token);
+            }
+            catch (Exception exception)
+            {
+                throw new InvalidOperationException(
+                    $"Static Server host did not reach worker-ready.{Environment.NewLine}" +
+                    string.Join(Environment.NewLine, output),
+                    exception);
+            }
+
+            EditorRuntimeSnapshot? baselineSnapshot;
+            try
+            {
+                Assert.Equal(EditorPreviewState.Running, controller.State);
+                baselineSnapshot = await controller.RequestSnapshotAsync(
+                    TimeSpan.FromSeconds(5), timeout.Token);
+                Assert.NotNull(baselineSnapshot);
+                Assert.True(baselineSnapshot.TotalEntityCount > 0,
+                    $"Expected a non-empty ECS world in the Static host.{Environment.NewLine}" +
+                    string.Join(Environment.NewLine, output));
+                Assert.Contains(output,
+                    line => line.Contains("[ServerGame] Created entity", StringComparison.Ordinal));
+                Assert.Contains(output,
+                    line => line.Contains("[ServerGame] Content: server runtime content", StringComparison.Ordinal));
+
+                AssertDiagnosticTraceIsFreeOfDynamicLoading(output);
+                AssertAllSubprocessArgumentsAreOwned(controller, output);
+
+                // Clean shutdown releases the host executable so the transaction can
+                // rebuild it with a mutated game assembly.
+                await controller.StopAsync(timeout.Token);
+                Assert.Equal(EditorPreviewState.Stopped, controller.State);
+            }
+            finally
+            {
+                if (controller.State != EditorPreviewState.Stopped)
+                {
+                    try { await controller.StopAsync(CancellationToken.None); } catch { }
+                }
             }
         }
+
+        // Phase 2: mutate the game assembly inside the transaction-owned materialized
+        // game copy and rebuild the Static host from it. The worker is launched
+        // directly from its build output (ProcessManager.StartWorkerCoreAsync), so the
+        // rebuild must happen while no host process locks the executable.
+        string serverProjectDirectory = Path.Combine(gameRoot, "Source", $"{gameName}.Server");
+        string serverSystemSource = Path.Combine(serverProjectDirectory, "ServerGameInstaller.cs");
+        const string mutationMarker = "[ServerGame] Reloaded game assembly marker";
+        PatchStaticGameSource(serverSystemSource, mutationMarker);
+        ProcessResult rebuild = await harness.RunAsync(
+            gameRoot,
+            ["build", Path.Combine(
+                gameRoot, "Source", $"{gameName}.Server.Launcher", $"{gameName}.Server.Launcher.csproj"),
+                "-m:1", "-nr:false"],
+            environment);
+        ExternalGameCliTests.AssertSuccess(rebuild, "rebuild the mutated Static Server host executable");
+
+        // Phase 3: launch the rebuilt host and drive an IPC restart through it so
+        // IRestartWorkerStateProvider state must survive across the mutated binary.
+        using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
+        {
+            try
+            {
+                await controller.StartAsync(timeout.Token);
+            }
+            catch (Exception exception)
+            {
+                throw new InvalidOperationException(
+                    $"Rebuilt Static Server host did not reach worker-ready.{Environment.NewLine}" +
+                    string.Join(Environment.NewLine, output),
+                    exception);
+            }
+
+            try
+            {
+                Assert.Equal(EditorPreviewState.Running, controller.State);
+                Assert.Contains(output,
+                    line => line.Contains(mutationMarker, StringComparison.Ordinal));
+
+                int rebuiltProcessId = Assert.IsType<int>(controller.ProcessId);
+                EditorRuntimeSnapshot? rebuiltSnapshot = await controller.RequestSnapshotAsync(
+                    TimeSpan.FromSeconds(5), timeout.Token);
+                Assert.NotNull(rebuiltSnapshot);
+                Assert.True(rebuiltSnapshot.TotalEntityCount > 0,
+                    $"Expected a non-empty ECS world in the rebuilt Static host.{Environment.NewLine}" +
+                    string.Join(Environment.NewLine, output));
+
+                await controller.HotReloadAsync(timeout.Token);
+                Assert.Equal(EditorPreviewState.Running, controller.State);
+                int reloadedProcessId = Assert.IsType<int>(controller.ProcessId);
+                Assert.NotEqual(rebuiltProcessId, reloadedProcessId);
+
+                string stateRoot = Path.Combine(bundle, "reload", "state");
+                Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
+                    "Hot reload state must be consumed by the restarted Static worker.");
+                Assert.Contains(output,
+                    line => line.Contains("Total modules with state: 1", StringComparison.Ordinal));
+
+                EditorRuntimeSnapshot? snapshotAfterReload = await controller.RequestSnapshotAsync(
+                    TimeSpan.FromSeconds(5), timeout.Token);
+                Assert.NotNull(snapshotAfterReload);
+                Assert.Equal(rebuiltSnapshot.TotalEntityCount + 1, snapshotAfterReload.TotalEntityCount);
+
+                await controller.StopAsync(timeout.Token);
+                Assert.Equal(EditorPreviewState.Stopped, controller.State);
+                Assert.Null(controller.ProcessId);
+                Assert.DoesNotContain(output,
+                    line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+                string shadowRoot = Path.Combine(bundle, "reload", "shadow");
+                Assert.True(!Directory.Exists(shadowRoot) || !Directory.EnumerateFileSystemEntries(shadowRoot).Any(),
+                    "Clean stop must not leave shadow directories behind for a Static host run.");
+            }
+            finally
+            {
+                if (controller.State != EditorPreviewState.Stopped)
+                {
+                    try { await controller.StopAsync(CancellationToken.None); } catch { }
+                }
+            }
+        }
+
+        AssertDiagnosticTraceIsFreeOfDynamicLoading(output);
+    }
+
+    private static void PatchStaticGameSource(string serverSystemSourcePath, string mutationMarker)
+    {
+        string source = File.ReadAllText(serverSystemSourcePath);
+        const string anchor =
+            "[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}\");";
+        Assert.True(source.Contains(anchor, StringComparison.Ordinal),
+            $"Mutation anchor was not found in the materialized game source: {serverSystemSourcePath}");
+        string mutated = source.Replace(
+            anchor,
+            anchor + Environment.NewLine +
+            $"        Console.WriteLine(\"{mutationMarker}: rebuilt static host\");",
+            StringComparison.Ordinal);
+        Assert.NotEqual(source, mutated);
+        File.WriteAllText(serverSystemSourcePath, mutated);
     }
 
     private void AssertDiagnosticTraceIsFreeOfDynamicLoading(ConcurrentQueue<string> output)
