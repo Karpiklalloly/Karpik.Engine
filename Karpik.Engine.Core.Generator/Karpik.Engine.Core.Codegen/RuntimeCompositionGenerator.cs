@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
@@ -46,6 +46,48 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         "KCORE004",
         "Ambiguous module implementation",
         "Module installers '{0}' and '{1}' register the same module contract through inheritance; select exactly one implementation",
+        "Karpik.Engine.Core.Codegen",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private const string ServiceRegistrationAttributeName = "Karpik.Engine.Core.ServiceRegistrationAttribute";
+    private const string ExportAttributeName = "System.Composition.ExportAttribute";
+    private const string SystemInterfaceName = "Karpik.Engine.Core.ISystem";
+    private const string StartableInterfaceName = "Autofac.IStartable";
+
+    // Stable numeric values of the Karpik.Engine.Core contracts; this generator
+    // project intentionally does not reference the runtime assembly.
+    private const int SimulationScopeValue = 2;
+    private const int TransientLifetimeValue = 1;
+
+    private static readonly DiagnosticDescriptor MissingExportAttribute = new(
+        "KE304",
+        "Service registration without export",
+        "Service '{0}' has [ServiceRegistration] but no [Export] contract; add at least one [Export] or remove [ServiceRegistration]",
+        "Karpik.Engine.Core.Codegen",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor InvalidServiceImplementation = new(
+        "KE305",
+        "Invalid service implementation for static composition",
+        "Service '{0}' must be a concrete class visible from the host assembly with an accessible constructor to participate in static composition",
+        "Karpik.Engine.Core.Codegen",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor AmbiguousServiceConstructor = new(
+        "KE306",
+        "Ambiguous service constructor",
+        "Service '{0}' declares more than one accessible constructor; static composition requires exactly one",
+        "Karpik.Engine.Core.Codegen",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor UnresolvableDependency = new(
+        "KE307",
+        "Definitely unresolvable constructor dependency",
+        "Constructor parameter {1} of '{0}' has scalar type '{2}' which cannot be resolved through IServiceResolver; register it as a service or change the parameter type",
         "Karpik.Engine.Core.Codegen",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -116,9 +158,25 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 : string.CompareOrdinal(left.FullName, right.FullName);
         });
 
+        INamedTypeSymbol? systemInterface = compilation.GetTypeByMetadataName(SystemInterfaceName);
+        List<ServiceModel> registrations = CollectServiceRegistrations(
+            compilation,
+            installerInterface,
+            context);
+
+        if (systemInterface is not null)
+        {
+            registrations.AddRange(CollectSystemRegistrations(
+                compilation,
+                installerInterface,
+                systemInterface,
+                registrations,
+                context));
+        }
+
         context.AddSource(
             "GeneratedRuntimeComposition.g.cs",
-            SourceText.From(GenerateSource(installers), Encoding.UTF8));
+            SourceText.From(GenerateSource(installers, registrations), Encoding.UTF8));
     }
 
     private static List<ModuleInstaller> CollectInstallers(
@@ -353,7 +411,396 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     private static Location GetLocation(INamedTypeSymbol type) =>
         type.Locations.Length > 0 ? type.Locations[0] : Location.None;
 
-    private static string GenerateSource(List<ModuleInstaller> installers)
+    private static List<ServiceModel> CollectServiceRegistrations(
+        Compilation compilation,
+        INamedTypeSymbol installerInterface,
+        SourceProductionContext context)
+    {
+        var services = new List<ServiceModel>();
+        INamedTypeSymbol? serviceAttribute = compilation.GetTypeByMetadataName(ServiceRegistrationAttributeName);
+        INamedTypeSymbol? exportAttribute = compilation.GetTypeByMetadataName(ExportAttributeName);
+        INamedTypeSymbol? startableInterface = compilation.GetTypeByMetadataName(StartableInterfaceName);
+        if (serviceAttribute is null || exportAttribute is null)
+        {
+            return services;
+        }
+
+        foreach (IAssemblySymbol assembly in EnumerateCandidateAssemblies(compilation, installerInterface))
+        {
+            foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
+            {
+                AttributeData? registration = FindAttribute(type, serviceAttribute);
+                if (registration is null || type.TypeKind != TypeKind.Class)
+                {
+                    continue;
+                }
+
+                string fullName = ToFullName(type);
+                ImmutableArray<AttributeData> attributes = type.GetAttributes();
+                int exportCount = 0;
+                for (int index = 0; index < attributes.Length; index++)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(attributes[index].AttributeClass, exportAttribute))
+                    {
+                        exportCount++;
+                    }
+                }
+
+                if (exportCount == 0)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(MissingExportAttribute, GetLocation(type), fullName));
+                    continue;
+                }
+
+                if (type.IsAbstract
+                    || type.IsGenericType
+                    || !IsAccessibleFromHost(type, compilation.Assembly))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(InvalidServiceImplementation, GetLocation(type), fullName));
+                    continue;
+                }
+
+                List<IMethodSymbol> constructors = SelectVisibleConstructors(type, compilation.Assembly);
+                if (constructors.Count == 0)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(InvalidServiceImplementation, GetLocation(type), fullName));
+                    continue;
+                }
+
+                if (constructors.Count > 1)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(AmbiguousServiceConstructor, GetLocation(type), fullName));
+                    continue;
+                }
+
+                IMethodSymbol constructor = constructors[0];
+                bool unresolvable = false;
+                for (int index = 0; index < constructor.Parameters.Length; index++)
+                {
+                    IParameterSymbol parameter = constructor.Parameters[index];
+                    if (!IsDefinitelyUnresolvable(parameter))
+                    {
+                        continue;
+                    }
+
+                    unresolvable = true;
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        UnresolvableDependency,
+                        GetLocation(type),
+                        fullName,
+                        index,
+                        ToFullName(parameter.Type)));
+                }
+
+                services.Add(new ServiceModel(
+                    type,
+                    fullName,
+                    assembly.Identity.GetDisplayName(),
+                    ReadScope(registration),
+                    ReadLifetime(registration),
+                    CollectContracts(exportAttribute, startableInterface, attributes, type),
+                    constructor,
+                    unresolvable));
+            }
+        }
+
+        services.Sort(static (left, right) =>
+        {
+            int comparison = left.Scope.CompareTo(right.Scope);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+
+            comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+            return comparison != 0
+                ? comparison
+                : string.CompareOrdinal(left.FullName, right.FullName);
+        });
+        return services;
+    }
+
+    private static IEnumerable<ServiceModel> CollectSystemRegistrations(
+        Compilation compilation,
+        INamedTypeSymbol installerInterface,
+        INamedTypeSymbol systemInterface,
+        List<ServiceModel> existingServices,
+        SourceProductionContext context)
+    {
+        var serviceTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        foreach (ServiceModel service in existingServices)
+        {
+            serviceTypes.Add(service.Type);
+        }
+
+        var systems = new List<ServiceModel>();
+        foreach (IAssemblySymbol assembly in EnumerateCandidateAssemblies(compilation, installerInterface))
+        {
+            foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
+            {
+                if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.IsGenericType)
+                {
+                    continue;
+                }
+
+                if (serviceTypes.Contains(type) || !ImplementsInterface(type, systemInterface))
+                {
+                    continue;
+                }
+
+                if (!IsAccessibleFromHost(type, compilation.Assembly))
+                {
+                    // Systems are discovered without an explicit marker attribute; types that could
+                    // never be activated from generated code are skipped silently because modules
+                    // may also provide them through metadata-invisible registrations.
+                    continue;
+                }
+
+                List<IMethodSymbol> constructors = SelectVisibleConstructors(type, compilation.Assembly);
+                if (constructors.Count == 0)
+                {
+                    continue;
+                }
+
+                if (constructors.Count > 1)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(AmbiguousServiceConstructor, GetLocation(type), ToFullName(type)));
+                    continue;
+                }
+
+                IMethodSymbol constructor = constructors[0];
+                for (int index = 0; index < constructor.Parameters.Length; index++)
+                {
+                    IParameterSymbol parameter = constructor.Parameters[index];
+                    if (!IsDefinitelyUnresolvable(parameter))
+                    {
+                        continue;
+                    }
+
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        UnresolvableDependency,
+                        GetLocation(type),
+                        ToFullName(type),
+                        index,
+                        ToFullName(parameter.Type)));
+                }
+
+                systems.Add(new ServiceModel(
+                    type,
+                    ToFullName(type),
+                    assembly.Identity.GetDisplayName(),
+                    SimulationScopeValue,
+                    TransientLifetimeValue,
+                    [type],
+                    constructor,
+                    HasUnresolvableParameter(constructor)));
+            }
+        }
+
+        systems.Sort(static (left, right) =>
+        {
+            int comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+            return comparison != 0
+                ? comparison
+                : string.CompareOrdinal(left.FullName, right.FullName);
+        });
+        return systems;
+    }
+
+    private static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol interfaceSymbol)
+    {
+        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(implemented, interfaceSymbol))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAccessibleFromHost(INamedTypeSymbol type, IAssemblySymbol hostAssembly)
+    {
+        for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
+        {
+            if (!IsAccessibleFromHostSymbol(current.DeclaredAccessibility, current.ContainingAssembly, hostAssembly))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAccessibleFromHostSymbol(
+        Accessibility accessibility,
+        IAssemblySymbol declaringAssembly,
+        IAssemblySymbol hostAssembly)
+    {
+        return SymbolEqualityComparer.Default.Equals(declaringAssembly, hostAssembly)
+            ? accessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal
+            : accessibility == Accessibility.Public;
+    }
+
+    private static List<IMethodSymbol> SelectVisibleConstructors(INamedTypeSymbol type, IAssemblySymbol hostAssembly)
+    {
+        var candidates = new List<IMethodSymbol>();
+        foreach (IMethodSymbol candidate in type.Constructors)
+        {
+            if (candidate.IsStatic || !IsAccessibleFromHostSymbol(candidate.DeclaredAccessibility, candidate.ContainingAssembly, hostAssembly))
+            {
+                continue;
+            }
+
+            candidates.Add(candidate);
+        }
+
+        return candidates;
+    }
+
+    private static bool IsDefinitelyUnresolvable(IParameterSymbol parameter)
+    {
+        if (parameter.RefKind != RefKind.None)
+        {
+            return true;
+        }
+
+        return IsDefinitelyUnresolvable(parameter.Type);
+    }
+
+    private static bool IsDefinitelyUnresolvable(ITypeSymbol type)
+    {
+        if (type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer)
+        {
+            return true;
+        }
+
+        if (type.SpecialType != SpecialType.None)
+        {
+            return true;
+        }
+
+        return type.TypeKind == TypeKind.Enum;
+    }
+
+    private static bool HasUnresolvableParameter(IMethodSymbol constructor)
+    {
+        for (int index = 0; index < constructor.Parameters.Length; index++)
+        {
+            if (IsDefinitelyUnresolvable(constructor.Parameters[index]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol attributeClass)
+    {
+        ImmutableArray<AttributeData> attributes = type.GetAttributes();
+        for (int index = 0; index < attributes.Length; index++)
+        {
+            if (SymbolEqualityComparer.Default.Equals(attributes[index].AttributeClass, attributeClass))
+            {
+                return attributes[index];
+            }
+        }
+
+        return null;
+    }
+
+    private static int ReadScope(AttributeData registration)
+    {
+        int scope = registration.ConstructorArguments.Length > 0
+            ? Convert.ToInt32(registration.ConstructorArguments[0].Value)
+            : 0;
+
+        ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments = registration.NamedArguments;
+        for (int index = 0; index < namedArguments.Length; index++)
+        {
+            KeyValuePair<string, TypedConstant> named = namedArguments[index];
+            if (named.Key == "Scope")
+            {
+                scope = Convert.ToInt32(named.Value.Value);
+                break;
+            }
+        }
+
+        return scope;
+    }
+
+    private static int ReadLifetime(AttributeData registration)
+    {
+        int lifetime = registration.ConstructorArguments.Length > 1
+            ? Convert.ToInt32(registration.ConstructorArguments[1].Value)
+            : 0;
+
+        ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments = registration.NamedArguments;
+        for (int index = 0; index < namedArguments.Length; index++)
+        {
+            KeyValuePair<string, TypedConstant> named = namedArguments[index];
+            if (named.Key == "Lifetime")
+            {
+                lifetime = Convert.ToInt32(named.Value.Value);
+                break;
+            }
+        }
+
+        return lifetime;
+    }
+
+    private static List<INamedTypeSymbol> CollectContracts(
+        INamedTypeSymbol exportAttribute,
+        INamedTypeSymbol? startableInterface,
+        ImmutableArray<AttributeData> attributes,
+        INamedTypeSymbol implementation)
+    {
+        var contracts = new List<INamedTypeSymbol>();
+        for (int index = 0; index < attributes.Length; index++)
+        {
+            AttributeData attribute = attributes[index];
+            if (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, exportAttribute))
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length > 0
+                && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract)
+            {
+                contracts.Add(contract);
+            }
+            else
+            {
+                contracts.Add(implementation);
+            }
+        }
+
+        contracts.Sort(static (left, right) => string.CompareOrdinal(ToFullName(left), ToFullName(right)));
+
+        if (startableInterface is not null && ImplementsInterface(implementation, startableInterface))
+        {
+            contracts.Add(startableInterface);
+        }
+
+        // Deduplicate identical contracts while keeping deterministic ordering.
+        var unique = new List<INamedTypeSymbol>(contracts.Count);
+        for (int index = 0; index < contracts.Count; index++)
+        {
+            if (index == 0 || !SymbolEqualityComparer.Default.Equals(contracts[index], contracts[index - 1]))
+            {
+                unique.Add(contracts[index]);
+            }
+        }
+
+        return unique;
+    }
+
+    private static string ToFullName(ITypeSymbol type) =>
+        type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty);
+
+    private static string GenerateSource(List<ModuleInstaller> installers, List<ServiceModel> registrations)
     {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
@@ -374,11 +821,70 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         builder.AppendLine();
         builder.AppendLine("        public void RegisterServices(global::Karpik.Engine.Core.IStaticServiceRegistry registry)");
         builder.AppendLine("        {");
+        foreach (ServiceModel model in registrations)
+        {
+            string factory = BuildFactory(model);
+            foreach (INamedTypeSymbol contract in model.Contracts)
+            {
+                builder.Append("            registry.Register<global::").Append(ToFullName(contract));
+                builder.Append(", global::").Append(model.FullName).Append('>');
+                builder.Append("(global::Karpik.Engine.Core.ModuleScope.").Append(ScopeName(model.Scope));
+                builder.Append(", global::Karpik.Engine.Core.ServiceLifetime.").Append(LifetimeName(model.Lifetime));
+                builder.Append(", ").Append(factory).AppendLine(");");
+            }
+        }
         builder.AppendLine("        }");
         builder.AppendLine("    }");
         builder.AppendLine("}");
         return builder.ToString();
     }
+
+    private static string BuildFactory(ServiceModel model)
+    {
+        var factory = new StringBuilder();
+        factory.Append("static resolver => new global::").Append(model.FullName).Append('(');
+        ImmutableArray<IParameterSymbol> parameters = model.Constructor.Parameters;
+        for (int index = 0; index < parameters.Length; index++)
+        {
+            if (index > 0)
+            {
+                factory.Append(", ");
+            }
+
+            factory.Append(BuildArgument(parameters[index]));
+        }
+
+        factory.Append(')');
+        return factory.ToString();
+    }
+
+    private static string BuildArgument(IParameterSymbol parameter)
+    {
+        ITypeSymbol type = parameter.Type;
+        if (type is IArrayTypeSymbol arrayType)
+        {
+            // Autofac resolves element arrays natively; IServiceResolver exposes
+            // the same capability through the non-generic Resolve(Type) overload.
+            return $"(global::{ToFullName(type)})resolver.Resolve(typeof(global::{ToFullName(arrayType.ElementType)}[]))";
+        }
+
+        return $"resolver.Resolve<global::{ToFullName(type)}>()";
+    }
+
+    private static string ScopeName(int scope) => scope switch
+    {
+        0 => "Engine",
+        1 => "ModSet",
+        2 => "Simulation",
+        _ => scope.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
+
+    private static string LifetimeName(int lifetime) => lifetime switch
+    {
+        0 => "Singleton",
+        1 => "Transient",
+        _ => lifetime.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
 
     private sealed class ModuleInstaller
     {
@@ -401,6 +907,38 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         internal int Scope { get; }
         internal int Priority { get; }
         internal string AssemblyDisplayName { get; }
+    }
+
+    private sealed class ServiceModel
+    {
+        internal ServiceModel(
+            INamedTypeSymbol type,
+            string fullName,
+            string assemblyDisplayName,
+            int scope,
+            int lifetime,
+            List<INamedTypeSymbol> contracts,
+            IMethodSymbol constructor,
+            bool hasUnresolvableParameter)
+        {
+            Type = type;
+            FullName = fullName;
+            AssemblyDisplayName = assemblyDisplayName;
+            Scope = scope;
+            Lifetime = lifetime;
+            Contracts = contracts;
+            Constructor = constructor;
+            HasUnresolvableParameter = hasUnresolvableParameter;
+        }
+
+        internal INamedTypeSymbol Type { get; }
+        internal string FullName { get; }
+        internal string AssemblyDisplayName { get; }
+        internal int Scope { get; }
+        internal int Lifetime { get; }
+        internal List<INamedTypeSymbol> Contracts { get; }
+        internal IMethodSymbol Constructor { get; }
+        internal bool HasUnresolvableParameter { get; }
     }
 
     internal readonly struct CompositionProperties

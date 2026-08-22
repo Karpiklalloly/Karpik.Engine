@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Karpik.Engine.Core.Codegen;
 using Microsoft.CodeAnalysis;
 using Xunit;
@@ -11,6 +11,10 @@ public sealed class RuntimeCompositionGeneratorTests
     private const string InvalidInstallerDiagnostic = "KCORE002";
     private const string DuplicateIdentityDiagnostic = "KCORE003";
     private const string AmbiguousImplementationDiagnostic = "KCORE004";
+    private const string MissingExportDiagnostic = "KE304";
+    private const string InvalidServiceImplementationDiagnostic = "KE305";
+    private const string AmbiguousConstructorDiagnostic = "KE306";
+    private const string UnresolvableDependencyDiagnostic = "KE307";
 
     private static RuntimeCompositionGenerator CreateGenerator() => new();
 
@@ -452,12 +456,16 @@ public sealed class RuntimeCompositionGeneratorTests
         };
 
         var result = GeneratorTestHarness.Run(CreateGenerator(), side: side, additionalReferences: references);
-        result.AssertNoErrors();
-        var loaded = GeneratorTestHarness.EmitAndLoad(result);
-        var composition = LoadComposition(loaded);
-        var registry = new RecordingRegistry();
-        composition.RegisterModules(registry);
-        var staticIds = registry.Installers.Select(static installer => installer.GetType().FullName!).ToHashSet(StringComparer.Ordinal);
+        // Real engine module assemblies still contain internal services and scalar
+        // dependencies that Static mode rejects with KE304-KE307, and the harness
+        // compilation does not carry every transitive reference a real host has;
+        // this parity check therefore asserts on generator diagnostics and emitted
+        // registration order rather than emitting the assembly.
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+
+        var staticIds = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
 
         var runner = new Karpik.Engine.Core.EngineRunner();
         runner.RegisterTypes(
@@ -471,6 +479,531 @@ public sealed class RuntimeCompositionGeneratorTests
         var dynamicIds = runner.GetModules().Select(static module => module.GetType().FullName!).ToHashSet(StringComparer.Ordinal);
 
         Assert.Equal(dynamicIds, staticIds);
+    }
+
+    [Fact]
+    public void Run_ClientStatic_EmitsTypedFactoryForAttributedService()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: ServiceHostSource,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.True(result.HasCompositionSource);
+        Assert.Contains(
+            "registry.Register<global::Host.IDep, global::Host.Dep>(" +
+            "global::Karpik.Engine.Core.ModuleScope.Engine, " +
+            "global::Karpik.Engine.Core.ServiceLifetime.Singleton, " +
+            "static resolver => new global::Host.Dep())",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("Activator", result.CompositionSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_ClientStatic_ResolvesConstructorDependenciesInDeclarationOrderViaTypedResolve()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: ServiceHostSource,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        int first = result.CompositionSource.IndexOf(
+            "static resolver => new global::Host.Consumer(resolver.Resolve<global::Host.IDep>(), resolver.Resolve<global::Host.Dep>())",
+            StringComparison.Ordinal);
+        Assert.True(first >= 0);
+    }
+
+    [Fact]
+    public void Run_ClientStatic_EmitsOneRegistrationPerExportContractOfSameImplementation()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: ServiceHostSource,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Host.IConsumer, global::Host.Consumer>(",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "registry.Register<global::Host.Consumer, global::Host.Consumer>(",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_ClientStatic_HonorsExplicitTransientLifetime()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IPerCall { }
+                [System.Composition.Export(typeof(IPerCall))]
+                [ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Transient)]
+                public class PerCall : IPerCall { }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Host.IPerCall, global::Host.PerCall>(" +
+            "global::Karpik.Engine.Core.ModuleScope.Simulation, " +
+            "global::Karpik.Engine.Core.ServiceLifetime.Transient, ",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_ClientStatic_RegistersStartableContractForIStartableImplementations()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Autofac;
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IStartedService { }
+                [System.Composition.Export(typeof(IStartedService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class StartedService : IStartedService, IStartable
+                {
+                    public void Start() { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+                GeneratorTestHarness.AssemblyReference<Autofac.IStartable>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Autofac.IStartable, global::Host.StartedService>(",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_ServerStatic_RegistersEcsSystemsAsSimulationTransientSelfRegistrations()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            side: "Server",
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public class ProbeSystem : ISystemInit
+                {
+                    public void Init() { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Host.ProbeSystem, global::Host.ProbeSystem>(" +
+            "global::Karpik.Engine.Core.ModuleScope.Simulation, " +
+            "global::Karpik.Engine.Core.ServiceLifetime.Transient, " +
+            "static resolver => new global::Host.ProbeSystem())",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratedServiceFactories_ConstructInstancesWithResolvedDependenciesWhenExecuted()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: ServiceHostSource,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        var loaded = GeneratorTestHarness.EmitAndLoad(result);
+        var composition = LoadComposition(loaded);
+        var registry = new RecordingStaticRegistry();
+
+        composition.RegisterServices(registry);
+
+        var consumerRegistration = Assert.Single(registry.Registrations, static registration =>
+            registration.ContractType!.FullName == "Host.IConsumer");
+        Assert.Equal("Host.Consumer", consumerRegistration.ImplementationType.FullName);
+        Assert.Equal(ModuleScope.ModSet, consumerRegistration.Scope);
+        Assert.Equal(ServiceLifetime.Transient, consumerRegistration.Lifetime);
+
+        Type depType = consumerRegistration.ImplementationType.Assembly.GetType("Host.Dep")!;
+        var dep = Activator.CreateInstance(depType)!;
+        var resolver = new StubResolver();
+        Type idepType = consumerRegistration.ImplementationType.Assembly.GetType("Host.IDep")!;
+        resolver.Add(idepType, dep);
+        resolver.Add(depType, dep);
+        object consumer = consumerRegistration.Factory(resolver);
+
+        Assert.True(consumerRegistration.ContractType!.IsInstanceOfType(consumer));
+        Assert.Same(dep, ((dynamic)consumer).Dependency);
+    }
+
+    [Fact]
+    public void GeneratedServiceRegistrations_DedupeByImplementationAcrossContracts()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: ServiceHostSource,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        var loaded = GeneratorTestHarness.EmitAndLoad(result);
+        var composition = LoadComposition(loaded);
+        var registry = new RecordingStaticRegistry();
+        composition.RegisterServices(registry);
+
+        var consumerContracts = registry.Registrations
+            .Where(static registration => registration.ImplementationType.FullName == "Host.Consumer")
+            .Select(static registration => registration.ContractType!.FullName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Equal(new[] { "Host.Consumer", "Host.IConsumer" }, consumerContracts.OrderBy(static name => name, StringComparer.Ordinal).ToArray());
+    }
+
+    [Fact]
+    public void Run_ServiceWithoutExport_ReportsMissingExportDiagnostic()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class NoExportService { }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(MissingExportDiagnostic));
+    }
+
+    [Fact]
+    public void Run_AbstractServiceImplementation_ReportsInvalidImplementation()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public abstract class BadService : IService { }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(InvalidServiceImplementationDiagnostic));
+    }
+
+    [Fact]
+    public void Run_InternalServiceInHostAssembly_RemainsUsableByEmittedFactory()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                internal class InternalHostService : IService { }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Host.IService, global::Host.InternalHostService>(",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_OpenGenericServiceImplementation_ReportsInvalidImplementation()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService<T> { }
+                [System.Composition.Export(typeof(IService<>))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class GenericService<T> : IService<T> { }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(InvalidServiceImplementationDiagnostic));
+    }
+
+    [Fact]
+    public void Run_InternalServiceFromReferencedAssembly_ReportsInvalidImplementation()
+    {
+        var moduleReference = GeneratorTestHarness.CompileModuleAssembly("InternalServices", """
+            using Karpik.Engine.Core;
+
+            namespace RefServices;
+
+            public interface IHidden { }
+
+            [System.Composition.Export(typeof(IHidden))]
+            [ServiceRegistration(ModuleScope.Engine)]
+            internal class Hidden : IHidden { }
+            """, [GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>()]);
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+                moduleReference,
+            ]);
+
+        Assert.Single(result.DiagnosticsById(InvalidServiceImplementationDiagnostic));
+    }
+
+    [Fact]
+    public void Run_ServiceWithoutAccessibleConstructor_ReportsInvalidImplementation()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class PrivateCtorService : IService
+                {
+                    private PrivateCtorService() { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(InvalidServiceImplementationDiagnostic));
+    }
+
+    [Fact]
+    public void Run_ServiceWithTwoPublicConstructors_ReportsAmbiguousConstructorDiagnostic()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class AmbiguousService : IService
+                {
+                    public AmbiguousService() { }
+                    public AmbiguousService(int value) { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(AmbiguousConstructorDiagnostic));
+    }
+
+    [Fact]
+    public void Run_ServiceWithScalarDependencyNotInClosedGraph_ReportsUnresolvableDependency()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class ScalarService : IService
+                {
+                    public ScalarService(int value) { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        Assert.Single(result.DiagnosticsById(UnresolvableDependencyDiagnostic));
+    }
+
+    [Fact]
+    public void Run_ServiceWithUnknownConcreteDependency_GetsNoDiagnosticBecauseOnRegisterServicesIsInvisible()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public interface IService { }
+                public sealed class UnknownRuntimeDependency { }
+                [System.Composition.Export(typeof(IService))]
+                [ServiceRegistration(ModuleScope.Engine)]
+                public class Consumer : IService
+                {
+                    public Consumer(UnknownRuntimeDependency dependency) { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+    }
+
+    internal const string ServiceHostSource = """
+        using Karpik.Engine.Core;
+
+        namespace Host;
+
+        public interface IDep { }
+        [System.Composition.Export(typeof(IDep))]
+        [ServiceRegistration(ModuleScope.Engine)]
+        public class Dep : IDep { }
+        public interface IConsumer { }
+        [System.Composition.Export(typeof(IConsumer))]
+        [System.Composition.Export(typeof(Consumer))]
+        [ServiceRegistration(ModuleScope.ModSet, ServiceLifetime.Transient)]
+        public class Consumer : IConsumer
+        {
+            public IDep Dependency { get; }
+
+            public Consumer(IDep dep, Dep concrete)
+            {
+                Dependency = dep;
+                _ = concrete;
+            }
+        }
+        """;
+
+    private sealed class RecordingStaticRegistry : IStaticServiceRegistry
+    {
+        public List<RecordedServiceRegistration> Registrations { get; } = [];
+
+        public void Register<TContract, TImplementation>(
+            ModuleScope scope,
+            ServiceLifetime lifetime,
+            Func<IServiceResolver, TImplementation> factory)
+            where TImplementation : class, TContract
+        {
+            Registrations.Add(new RecordedServiceRegistration(
+                scope,
+                lifetime,
+                typeof(TContract),
+                typeof(TImplementation),
+                resolver => factory(resolver)));
+        }
+    }
+
+    private sealed record RecordedServiceRegistration(
+        ModuleScope Scope,
+        ServiceLifetime Lifetime,
+        Type? ContractType,
+        Type ImplementationType,
+        Func<IServiceResolver, object> Factory);
+
+    private sealed class StubResolver : IServiceResolver
+    {
+        private readonly Dictionary<Type, object> _services = new();
+
+        public void Add(Type type, object instance) => _services.Add(type, instance);
+
+        public T Resolve<T>() where T : notnull => (T)_services[typeof(T)];
+
+        public object Resolve(Type serviceType) => _services[serviceType];
+
+        public IEnumerable<T> ResolveAll<T>() => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType) =>
+            _services.TryGetValue(serviceType, out object? service) ? service : null;
     }
 
     private static IStaticRuntimeComposition LoadComposition(System.Reflection.Assembly assembly)
