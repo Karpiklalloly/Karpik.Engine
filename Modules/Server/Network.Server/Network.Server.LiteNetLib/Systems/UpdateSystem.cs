@@ -3,7 +3,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Network.Server.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem(
+public class InitNetworkClientSystem(
     INetworkManager manager,
     INetworkProtocolSchema protocolSchema,
     NetworkConfig config) : ISystemInit
@@ -39,7 +39,7 @@ internal class InitNetworkClientSystem(
     }
 }
 
-internal class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
+public class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
 {
     public void Begin()
     {
@@ -47,7 +47,7 @@ internal class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
     }
 }
 
-internal class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
+public class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
 {
     public void Destroy()
     {
@@ -58,3 +58,4 @@ internal class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDest
         manager.Stop();
     }
 }
+

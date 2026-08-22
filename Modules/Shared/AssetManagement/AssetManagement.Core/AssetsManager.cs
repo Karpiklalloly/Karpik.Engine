@@ -9,7 +9,9 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 [Export(typeof(IAssetsManager))]
 [Export(typeof(AssetsManager))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-internal class AssetsManager : IAssetsManager
+// Public: static composition emits direct factories for attributed services, so the
+// implementation must be visible from the host assembly.
+public class AssetsManager : IAssetsManager
 {
     public string RootPath => FileSystem.RootPath;
     public string ContentPath => FileSystem.ContentPath;

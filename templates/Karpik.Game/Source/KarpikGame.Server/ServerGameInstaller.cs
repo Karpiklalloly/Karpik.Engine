@@ -18,7 +18,9 @@ internal sealed class ServerGameModule : IModule
     }
 }
 
-internal sealed class ServerGameInitSystem(EcsDefaultWorld world) : ISystemInit
+// Public: static composition emits direct factories for module systems, so every
+// ECS system must be visible from the host launcher assembly.
+public sealed class ServerGameInitSystem(EcsDefaultWorld world) : ISystemInit
 {
     public void Init()
     {

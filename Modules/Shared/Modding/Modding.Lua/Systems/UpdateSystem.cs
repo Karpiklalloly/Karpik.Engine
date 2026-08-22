@@ -3,7 +3,9 @@ using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-internal sealed class InitSystem(
+// Public: static composition emits direct factories for module systems, so every
+// ECS system must be visible from the host assembly.
+public sealed class InitSystem(
     IModManager modManager,
     IAssetsManager assetsManager,
     Application application)
@@ -23,7 +25,7 @@ internal sealed class InitSystem(
     }
 }
 
-internal class UpdateSystem(IModManager modManager) : ISystemLateUpdate
+public class UpdateSystem(IModManager modManager) : ISystemLateUpdate
 {
     public void LateUpdate()
     {
