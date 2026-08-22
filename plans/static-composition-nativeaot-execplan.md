@@ -21,7 +21,7 @@
 - [x] Milestone 2: side-safe compile-time references модулей через SDK и transaction-owned external fixture реализованы; task suite, normal integration suite и focused opt-in acceptance зелёные.
 - [x] Milestone 3: Network.Codegen упакован в SDK; typed snapshot registry, deterministic schema и pre-payload handshake проверены generator, transport и external SDK tests.
 - [x] Milestone 4: генерировать статическую композицию module installers.
-- [ ] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
+- [x] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
 - [ ] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [ ] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [ ] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
@@ -75,6 +75,15 @@
 
 - Observation: system assemblies are excluded from Static composition scanning without name-prefix heuristics: a candidate assembly is scanned only if one of its modules references `Karpik.Engine.Core` by assembly identity.
   Evidence: `RuntimeCompositionGenerator.EnumerateCandidateAssemblies`/`ReferencesAssembly`; generator tests cover discovery from current + referenced assemblies with no System/Microsoft enumeration.
+
+- Observation: `dotnet publish -p:PublishAot=true` протекает глобальное свойство во все ProjectReference builds; netstandard2.1 DragonECS отклоняется с NETSDK1207, и ни `Properties="PublishAot=false"`, ни `GlobalPropertiesToRemove="PublishAot"`, ни `BuildProjectReferences=false` не предотвращают outer metadata builds зависимостей.
+  Evidence: три варианта publish упали с одной и той же ошибкой `FrameworkReferenceResolution.targets(120,5)` в DragonECS.csproj; publish прошёл только после перевода NativeAotSmoke на прямые `Reference HintPath`.
+
+- Observation: emitted service factories требуют полной transitive reference closure хоста (например, `InputCaptureState` из Window.Core в аргументах конструктора системы Graphics), поэтому harness-based parity тесты сверяют текст generated source, а не выполняют emit-and-load над реальными module graph.
+  Evidence: CS0012/CS0234 в parity тесте при отсутствии Window.Core/Autofac references; synthetic-graph execution tests остаются на emit-and-load.
+
+- Observation: startup allocations Debug-сборки Runner.Tests: Dynamic ≈ 554 KB, Static (hand-written composition c 6 сервисами) ≈ 605 KB; reflection exceptions отсутствуют, per-frame allocations не добавлены.
+  Evidence: `StaticCompositionTests.StartupAllocations_DynamicVersusStatic_AreMeasuredAndDocumented`, GC.GetAllocatedBytesForCurrentThread после warm-up.
 
 ## Decision Log
 
@@ -133,6 +142,26 @@
 - Decision: контракт `IStaticServiceRegistry` создан уже в Milestone 4, а не Milestone 5; generated `RegisterServices` пока пустой.
   Rationale: `IStaticRuntimeComposition` (Milestone 4) ссылается на `IStaticServiceRegistry`, поэтому generated класс не может скомпилироваться без контракта. Тело заполняется в Milestone 5 без изменения API.
   Date/Author: 2026-08-22 / ox-alpha (Milestone 4).
+
+- Decision: KE307 «definitely-unresolvable» реализован как scalar/special-type dependency (примитивы, enum, string, decimal, указатели/ref), отсутствующей в closed graph; обычный reference-type, просто отсутствующий в графе, diagnostic НЕ получает.
+  Rationale: регистрации из `OnRegisterServices` невидимы Roslyn (resolved decision #3), поэтому отсутствие reference-типа в графе не является доказательством неразрешимости; скалярные зависимости ни одним существующим модулем не предоставляются, и typed factory `IServiceResolver.Resolve<T>()` их разрешить не может.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
+
+- Decision: Autofac остаётся DI-контейнером Static-режима; generated factories применяются через переходный `AutofacStaticServiceRegistry` поверх Autofac для всех трёх scopes. Generated static container не требуется.
+  Rationale: AOT smoke с реальным `EngineRunner` setup/destroy (Engine + ModSet + Simulation scopes, factory-based DI, ECS system activation) публикуется и выполняется под NativeAOT без intrinsic trim/AOT ошибок; предупреждения IL2104/IL3053 агрегированы существующими Dynamic-path кодом Core/Runner/DragonECS и относятся к Milestone 8.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
+
+- Decision: ECS systems в Static mode регистрируются как `Register<TSystem,TSystem>(ModuleScope.Simulation, ServiceLifetime.Transient)` через typed factory; `SystemRegistry.SuppressTypeRegistrations()` отключает только Autofac type registration, сохраняя descriptors layer/order из `IModule.Add` для pipeline ordering.
+  Rationale: resolved decision #2; reflection-free активация при сохранении детерминированного порядка пайплайна.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
+
+- Decision: NativeAotSmoke ссылается на prebuilt engine assemblies (`Reference HintPath`) вместо ProjectReference.
+  Rationale: глобальное свойство `PublishAot=true` протекает во все ProjectReference builds включая netstandard2.1 DragonECS, и SDK отклоняет это с NETSDK1207; `Properties="PublishAot=false"`, `GlobalPropertiesToRemove` и `BuildProjectReferences=false` не предотвращают outer metadata builds. Прямые references соответствуют Static-модели installed-engine consumption.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
+
+- Decision: reflection guard реализован структурно — internal event `EngineRunner.AttributedServiceRegistrationProbe` вызывается только на Dynamic path; Static setup test фиксирует ноль вызовов.
+  Rationale: resolved decision #4 требует recording/structural подход вместо runtime profiling; event-шов не влияет на production поведение.
+  Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
 
 ## Outcomes & Retrospective
 
@@ -453,15 +482,15 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
 **Interfaces produced:** typed factory registration for Engine, ModSet and Simulation scopes; generated ECS system factories.
 
-- [ ] Написать failing generator tests для `[Export] + [ServiceRegistration]`: constructor dependency order, multiple export contracts, `IStartable`, Singleton и Transient.
-- [ ] Написать failing diagnostics tests для missing `[Export]`, abstract/open generic implementation, неоднозначного constructor и зависимости, отсутствующей в closed graph.
-- [ ] Написать failing runner test, который устанавливает reflection guard и подтверждает, что Static startup не вызывает `AttributedServiceRegistrar.Register(IEnumerable<Type>)` или `Activator.CreateInstance`.
-- [ ] Реализовать generated `Func<IServiceResolver,TImplementation>` factories. Constructor arguments разрешать через `IServiceResolver.Resolve<T>()`; factory не должна захватывать mutable closure.
-- [ ] Для ECS systems расширить `ISystemRegistry`/`SystemRegistry` typed factory overload так, чтобы Static mode регистрировал factory, а не `Type`. Dynamic overload сохранить без изменения.
-- [ ] Получить GREEN unit tests и повторить Milestone 1 AOT smoke с реальным `EngineRunner` setup/destroy.
-- [ ] Измерить startup allocations Dynamic vs Static; цель milestone — отсутствие reflection exceptions и отсутствие новых per-frame allocations, а не нулевая startup allocation.
-- [ ] Если Autofac остаётся, выполнить trimmed+AOT run test всех трёх scopes. Если не проходит, реализовать заранее выбранный generated static container и повторить те же tests.
-- [ ] Обновить `Progress` и зафиксировать DI решение в `Decision Log`.
+- [x] Написать failing generator tests для `[Export] + [ServiceRegistration]`: constructor dependency order, multiple export contracts, `IStartable`, Singleton и Transient.
+- [x] Написать failing diagnostics tests для missing `[Export]`, abstract/open generic implementation, неоднозначного constructor и зависимости, отсутствующей в closed graph.
+- [x] Написать failing runner test, который устанавливает reflection guard и подтверждает, что Static startup не вызывает `AttributedServiceRegistrar.Register(IEnumerable<Type>)` или `Activator.CreateInstance`.
+- [x] Реализовать generated `Func<IServiceResolver,TImplementation>` factories. Constructor arguments разрешать через `IServiceResolver.Resolve<T>()`; factory не должна захватывать mutable closure.
+- [x] Для ECS systems расширить `ISystemRegistry`/`SystemRegistry` typed factory overload так, чтобы Static mode регистрировал factory, а не `Type`. Dynamic overload сохранить без изменения.
+- [x] Получить GREEN unit tests и повторить Milestone 1 AOT smoke с реальным `EngineRunner` setup/destroy.
+- [x] Измерить startup allocations Dynamic vs Static; цель milestone — отсутствие reflection exceptions и отсутствие новых per-frame allocations, а не нулевая startup allocation.
+- [x] Если Autofac остаётся, выполнить trimmed+AOT run test всех трёх scopes. Если не проходит, реализовать заранее выбранный generated static container и повторить те же tests.
+- [x] Обновить `Progress` и зафиксировать DI решение в `Decision Log`.
 
 ### Milestone 6: Game-specific Static Client/Server hosts
 

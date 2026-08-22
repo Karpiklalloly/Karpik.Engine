@@ -6,7 +6,43 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- The smoke host references prebuilt engine assemblies instead of project
+         references: a PublishAot global property must never flow into the
+         netstandard2.1 DragonECS build (the SDK rejects that with NETSDK1207).
+         Build the engine first:
+         dotnet build Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj -c Release -m:1 -nr:false -->
+    <EngineBin>$(MSBuildThisFileDirectory)..\..\Karpik.Engine.Core.Runner\bin\$(Configuration)\net10.0\</EngineBin>
+    <DragonEcsBin>$(MSBuildThisFileDirectory)..\..\third-parties\DragonECS\bin\Release\netstandard2.1\</DragonEcsBin>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Autofac" Version="9.3.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="System.Composition" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Karpik.Engine.Core">
+      <HintPath>$(EngineBin)Karpik.Engine.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Engine.Core.Runner">
+      <HintPath>$(EngineBin)Karpik.Engine.Core.Runner.dll</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Engine.Tooling">
+      <HintPath>$(EngineBin)Karpik.Engine.Tooling.dll</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Jobs">
+      <HintPath>$(EngineBin)Karpik.Jobs.dll</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Memory">
+      <HintPath>$(EngineBin)Karpik.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="DragonECS.Karpik.Extensions">
+      <HintPath>$(EngineBin)DragonECS.Karpik.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="DragonECS">
+      <HintPath>$(DragonEcsBin)DragonECS.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
