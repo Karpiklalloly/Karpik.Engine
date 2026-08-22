@@ -37,8 +37,16 @@ public class TextureResources : IDisposable
     
     public void Dispose()
     {
+        if (WhiteRectResourceSet is null)
+        {
+            return;
+        }
+
         WhiteRectResourceSet.Dispose();
         WhiteTextureView.Dispose();
         WhiteTexture.Dispose();
+        WhiteRectResourceSet = null!;
+        WhiteTextureView = null!;
+        WhiteTexture = null!;
     }
 }
