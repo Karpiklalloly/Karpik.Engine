@@ -22,7 +22,7 @@
 - [x] Milestone 3: Network.Codegen упакован в SDK; typed snapshot registry, deterministic schema и pre-payload handshake проверены generator, transport и external SDK tests.
 - [x] Milestone 4: генерировать статическую композицию module installers.
 - [x] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
-- [ ] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
+- [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [ ] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [ ] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
 
@@ -162,6 +162,23 @@
 - Decision: reflection guard реализован структурно — internal event `EngineRunner.AttributedServiceRegistrationProbe` вызывается только на Dynamic path; Static setup test фиксирует ноль вызовов.
   Rationale: resolved decision #4 требует recording/structural подход вместо runtime profiling; event-шов не влияет на production поведение.
   Date/Author: 2026-08-22 / ox-alpha (Milestone 5).
+
+- Decision: Static host argument parsing is a dedicated tolerant parser (all watcher arguments optional, unknown/duplicated rejected, --side must match the built side) instead of RunnerLaunchArguments.Parse, because game hosts live outside the engine runners directory and must run standalone without --bundle/--engine-root.
+  Rationale: reusing Parse would require the runner ownership check to be bypassed and mandatory bundle arguments relaxed; a separate parser keeps the Dynamic CLI contract untouched. Recorded as resolved design point deviation #1-adjacent.
+  Date/Author: 2026-08-22 / ox-alpha.
+
+- Decision: dotnet new strips C# preprocessor directives from template sources, so the Static launcher entry is a separate StaticEntry.cs selected by conditional Compile items (EnableDefaultCompileItems=false) instead of #if KARPIK_COMPOSITION_STATIC branches.
+  Evidence: materialized games lost every #if/#else/#endif line during dotnet new; the dynamic branch compiled alone and CS8802/CS0246 followed.
+  Date/Author: 2026-08-22 / ox-alpha.
+
+- Decision: launchers declare the Shared runtime project as a second unconditional build-only ProjectReference; the static flip target switches both references to ReferenceOutputAssembly=true/Private=true at AssignProjectConfiguration time.
+  Rationale: KARPIK004 requires literal unconditional Include entries that exactly match evaluated items, and generated hosts need installers/services from Shared.dll which ResolveAssemblyReferences does not propagate transitively from the runtime project output.
+  Date/Author: 2026-08-22 / ox-alpha.
+
+- Decision: Tool kind receives Core+Runner engine references only at KarpikCompositionMode=Static, module payload directories are referenced wholesale via the new ResolveKarpikStaticReferencesTask PayloadAssemblies output (plus Microsoft.Extensions.Logging and DragonECS.Karpik.Extensions from the runner payload), and Dynamic Runtime projects gain one Network.Shared.Core reference because the generated snapshot registry always implements INetworkProtocolSchema.
+  Rationale: emitted factories mention transitive service constructor types; Private stays false for Runtime so installation payloads are unchanged, while Static Tool launchers copy their graph local to become self-contained executables. The Network.Shared.Core addition repairs a pre-existing Dynamic compile break introduced by 3696153 (schema enforcement without a reference path).
+  Date/Author: 2026-08-22 / ox-alpha.
+
 
 ## Outcomes & Retrospective
 
@@ -520,15 +537,24 @@ public static class StaticEngineHost
 }
 ```
 
-- [ ] Написать template XML tests: Dynamic launcher сохраняет `ReferenceOutputAssembly=false`; Static launcher evaluates runtime project reference as true and receives side-compatible modules.
-- [ ] Написать failing process integration test, который запускает Static Server host, ждёт ready marker/IPC response и проверяет отсутствие строк `PluginLoadContext`, `modules.list` и `shadow` в diagnostic trace.
-- [ ] Подтвердить RED до появления `StaticEngineHost`.
-- [ ] Извлечь общий loop/IPC lifecycle из `Program.cs` в reusable host API без изменения Dynamic CLI behavior.
-- [ ] Обновить template entry points: compile-time condition выбирает Dynamic external runner или generated Static host. Не вычислять режим через runtime environment variable.
-- [ ] Получить GREEN template и process tests.
-- [ ] Проверить process-isolated reload: изменить game assembly, пересобрать host, запросить restart, подтвердить сохранение `IRestartWorkerStateProvider` state и отсутствие orphan processes.
-- [ ] Запустить полный `Karpik.Engine.Sdk.IntegrationTests` набор, кроме explicitly environment-gated installed-runtime tests; отдельно записать skipped tests.
-- [ ] Обновить `Progress`.
+- [x] Написать template XML tests: Dynamic launcher сохраняет `ReferenceOutputAssembly=false`; Static launcher evaluates runtime project reference as true and receives side-compatible modules.
+- [x] Написать failing process integration test, который запускает Static Server host, ждёт ready marker/IPC response и проверяет отсутствие строк `PluginLoadContext`, `modules.list` и `shadow` в diagnostic trace.
+- [x] Подтвердить RED до появления `StaticEngineHost`.
+- [x] Извлечь общий loop/IPC lifecycle из `Program.cs` в reusable host API без изменения Dynamic CLI behavior.
+- [x] Обновить template entry points: compile-time condition выбирает Dynamic external runner или generated Static host. Не вычислять режим через runtime environment variable.
+- [x] Получить GREEN template и process tests.
+- [x] Проверить process-isolated reload: изменить game assembly, пересобрать host, запросить restart, подтвердить сохранение `IRestartWorkerStateProvider` state и отсутствие orphan processes.
+- [x] Запустить полный `Karpik.Engine.Sdk.IntegrationTests` набор, кроме explicitly environment-gated installed-runtime tests; отдельно записать skipped tests.
+- [x] Обновить `Progress`.
+
+
+Executed (2026-08-22, branch open-code-ai): WorkerHost extraction keeps Dynamic CLI byte-compatible (Runner suite 115/115).
+StaticEngineHost.RunAsync reuses Bootstrap+IPC with a tolerant argument parser (no runners-directory ownership check; unknown args rejected).
+Template launchers: EnableDefaultCompileItems=false, conditional Program.cs/EngineLauncher/StaticEntry Compile items, _KarpikEnableStaticRuntimeReference target (BeforeTargets=AssignProjectConfiguration) flips ProjectReference metadata to ReferenceOutputAssembly=true/Private=true for both runtime and Shared references.
+dotnet new strips C# preprocessor directives from template sources - Static entry is a dedicated file selected by conditional Compile items (recorded below).
+SDK: Tool kind receives Core+Runner engine references only at KarpikCompositionMode=Static; module payload directories are referenced wholesale (PayloadAssemblies) because generated factories mention transitive service constructor types.
+Integration tests rebuild every catalog module of the exercised side graph inside their transaction: retained installations predate current IModuleInstaller contracts and silently produce empty static graphs.
+Known pre-existing defect (out of M6 scope): Graphics.Core TextureResources.Dispose throws NRE during DI build-failure unwind when fresh client modules initialize the real window/graphics stack; blocks only the multi-worker phase of the gated dynamic workflow test.
 
 ### Milestone 7: Static publish layout без managed module manifest
 
