@@ -57,7 +57,9 @@ public sealed class KarpikValidationTaskTests
 
         Assert.Equal("$(_KarpikSdkTaskAssembly)", (string?)usingTask.Attribute("AssemblyFile"));
         Assert.Equal("ResolveAssemblyReferences", (string?)target.Attribute("BeforeTargets"));
-        Assert.Equal("'$(KarpikProjectKind)' == 'Runtime'", (string?)target.Attribute("Condition"));
+        Assert.Equal(
+            "'$(KarpikProjectKind)' == 'Runtime' Or ('$(KarpikProjectKind)' == 'Tool' And '$(KarpikCompositionMode)' == 'Static')",
+            (string?)target.Attribute("Condition"));
         Assert.Equal("$(_KarpikMsBuildSdkVersion)", (string?)resolve.Attribute("SdkVersion"));
         Assert.Equal("$(KarpikEngineRoot)", (string?)resolve.Attribute("ExplicitRoot"));
         Assert.Equal(

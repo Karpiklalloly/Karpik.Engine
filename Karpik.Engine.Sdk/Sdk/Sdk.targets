@@ -39,7 +39,7 @@
   </Target>
 
   <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
-          Condition="'$(KarpikProjectKind)' == 'Runtime'">
+          Condition="'$(KarpikProjectKind)' == 'Runtime' Or ('$(KarpikProjectKind)' == 'Tool' And '$(KarpikCompositionMode)' == 'Static')">
     <ResolveKarpikEngineRootTask SdkVersion="$(_KarpikMsBuildSdkVersion)"
                                  ExplicitRoot="$(KarpikEngineRoot)"
                                  LocalApplicationDataRoot="$(KarpikLocalApplicationDataRoot)">
@@ -48,18 +48,30 @@
     <ItemGroup>
       <Reference Include="Autofac">
         <HintPath>$(KarpikEngineRoot)\runners\server\Autofac.dll</HintPath>
-        <Private>false</Private>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <Reference Include="DragonECS">
         <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.dll</HintPath>
-        <Private>false</Private>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <Reference Include="Karpik.Engine.Core">
         <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.dll</HintPath>
-        <Private>false</Private>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="Karpik.Engine.Core.Runner"
+                 Condition="'$(KarpikProjectKind)' == 'Tool'">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.Runner.dll</HintPath>
       </Reference>
       <Reference Include="System.Composition.AttributedModel">
         <HintPath>$(KarpikEngineRoot)\runners\server\System.Composition.AttributedModel.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <!-- The generated network snapshot registry always implements
+           Karpik.Engine.Shared.Network.Core.INetworkProtocolSchema, so every Dynamic
+           Runtime compilation needs the shared network contract assembly. -->
+      <Reference Include="Network.Shared.Core"
+                 Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(KarpikEngineRoot)\modules\Network.Shared.Core\Network.Shared.Core.dll')">
+        <HintPath>$(KarpikEngineRoot)\modules\Network.Shared.Core\Network.Shared.Core.dll</HintPath>
         <Private>false</Private>
       </Reference>
     </ItemGroup>
@@ -78,16 +90,43 @@
     <ResolveKarpikStaticReferencesTask EngineRoot="$(KarpikEngineRoot)"
                                        Side="$(KarpikSide)">
       <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
+      <Output TaskParameter="PayloadAssemblies" ItemName="_KarpikStaticModulePayloadAssembly" />
     </ResolveKarpikStaticReferencesTask>
+    <!-- Runtime projects keep the assemblies out of the bundle payload; a Static
+         Tool launcher is the executable itself, so its graph must be copy-local. -->
     <ItemGroup>
       <Reference Include="%(_KarpikStaticModuleReference.AssemblyIdentity)">
         <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
-        <Private>false</Private>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <Reference Include="OpenTK.Mathematics"
                  Condition="Exists('$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll')">
         <HintPath>$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll</HintPath>
-        <Private>false</Private>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="@(_KarpikStaticModulePayloadAssembly)">
+        <!-- Third-party payload DLLs ship inside each module directory; generated
+             static composition factories mention their types transitively. -->
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <!-- Generated static composition factories mention every service constructor
+           parameter type (for example Microsoft.Extensions.Logging.ILogger<T>), so
+           Static compilations need the logging contract assemblies that ship with
+           the installed runner payload. -->
+      <Reference Include="Microsoft.Extensions.Logging"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="Microsoft.Extensions.Logging.Abstractions"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="DragonECS.Karpik.Extensions"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\DragonECS.Karpik.Extensions.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.Karpik.Extensions.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
     </ItemGroup>
   </Target>
