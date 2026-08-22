@@ -7,10 +7,11 @@ internal class SystemRegistry : ISystemRegistry
 {
     private readonly List<SystemDescriptor> _descriptors = [];
     private readonly HashSet<Type> _registeredTypes = [];
-    
+
     private bool _registrationsApplied;
     private bool _systemsResolved;
-    
+    private bool _typeRegistrationsSuppressed;
+
     public void Add<TSystem>(string layer = "BASIC_LAYER", int order = 0) where TSystem : class, ISystem
     {
         if (_registrationsApplied)
@@ -32,7 +33,23 @@ internal class SystemRegistry : ISystemRegistry
             layer,
             order));
     }
-    
+
+    /// <summary>
+    /// Static mode: systems are activated through generated typed factories instead of
+    /// Autofac reflection-based type registration. Descriptors are kept for pipeline
+    /// ordering; the Dynamic overload behavior remains unchanged when this is not set.
+    /// </summary>
+    public void SuppressTypeRegistrations()
+    {
+        if (_registrationsApplied)
+        {
+            throw new InvalidOperationException(
+                "System registrations were already applied.");
+        }
+
+        _typeRegistrationsSuppressed = true;
+    }
+
     public void RegisterTypes(ContainerBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -43,11 +60,14 @@ internal class SystemRegistry : ISystemRegistry
                 "System registrations were already applied.");
         }
 
-        for (int i = 0; i < _descriptors.Count; i++)
+        if (!_typeRegistrationsSuppressed)
         {
-            builder.RegisterType(_descriptors[i].SystemType)
-                .AsSelf()
-                .InstancePerLifetimeScope();
+            for (int i = 0; i < _descriptors.Count; i++)
+            {
+                builder.RegisterType(_descriptors[i].SystemType)
+                    .AsSelf()
+                    .InstancePerLifetimeScope();
+            }
         }
 
         _registrationsApplied = true;

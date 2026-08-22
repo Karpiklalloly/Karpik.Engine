@@ -26,7 +26,15 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private ILifetimeScope? _modSetScope;
     private ILifetimeScope? _simulationScope;
     private IServiceResolver? _serviceResolver;
+    private IStaticRuntimeComposition? _staticComposition;
+    private AutofacStaticServiceRegistry? _staticServices;
     private bool _setupPending;
+
+    /// <summary>
+    /// Test-only seam: invoked immediately before the Dynamic-mode attributed
+    /// registration path runs. Static startup must never trigger it.
+    /// </summary>
+    internal event Action<ContainerBuilder, IReadOnlyList<Type>, ModuleScope>? AttributedServiceRegistrationProbe;
     
     // Runners
     private EcsMainThreadBeginRunner _mainThreadBeginRunner = null!;
@@ -116,7 +124,17 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     {
         _modules.Sort(CompareModules);
 
+        bool isStatic = _staticServices is not null;
+
         var systemRegistry = new SystemRegistry();
+        if (isStatic)
+        {
+            // Static mode registers ECS systems through generated typed factories
+            // in the simulation scope (resolved decision #2); module Add-time
+            // descriptors are still recorded, but Autofac type registration is skipped.
+            systemRegistry.SuppressTypeRegistrations();
+        }
+
         foreach (IModuleInstaller installer in _modules)
         {
             IModule? module = installer.CreateModule();
@@ -134,21 +152,45 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         engineBuilder.RegisterInstance(_time).AsSelf().SingleInstance();
         engineBuilder.RegisterInstance(clientFrameMetrics).AsSelf().SingleInstance();
         RegisterResolver(engineBuilder);
-        AttributedServiceRegistrar.Register(engineBuilder, orderedTypes, ModuleScope.Engine);
+        if (isStatic)
+        {
+            _staticServices.Apply(engineBuilder, ModuleScope.Engine);
+        }
+        else
+        {
+            AttributedServiceRegistrationProbe?.Invoke(engineBuilder, orderedTypes, ModuleScope.Engine);
+            AttributedServiceRegistrar.Register(engineBuilder, orderedTypes, ModuleScope.Engine);
+        }
         RegisterInstallerServices(engineBuilder, ModuleScope.Engine);
         _engineContainer = engineBuilder.Build();
 
         _modSetScope = _engineContainer.BeginLifetimeScope(builder =>
         {
             RegisterResolver(builder);
-            AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.ModSet);
+            if (isStatic)
+            {
+                _staticServices.Apply(builder, ModuleScope.ModSet);
+            }
+            else
+            {
+                AttributedServiceRegistrationProbe?.Invoke(builder, orderedTypes, ModuleScope.ModSet);
+                AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.ModSet);
+            }
             RegisterInstallerServices(builder, ModuleScope.ModSet);
         });
 
         _simulationScope = _modSetScope.BeginLifetimeScope(builder =>
         {
             RegisterResolver(builder);
-            AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
+            if (isStatic)
+            {
+                _staticServices.Apply(builder, ModuleScope.Simulation);
+            }
+            else
+            {
+                AttributedServiceRegistrationProbe?.Invoke(builder, orderedTypes, ModuleScope.Simulation);
+                AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
+            }
             RegisterInstallerServices(builder, ModuleScope.Simulation);
             systemRegistry.RegisterTypes(builder);
         });
@@ -415,6 +457,10 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             throw new InvalidOperationException("Modules cannot be registered after setup has started.");
         }
 
+        _staticComposition = composition;
+        var services = new AutofacStaticServiceRegistry();
+        composition.RegisterServices(services);
+        _staticServices = services;
         composition.RegisterModules(this);
     }
 
@@ -606,6 +652,8 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             _registeredTypes.Clear();
             _moduleRegistrations.Clear();
             _assemblyLoadRanks.Clear();
+            _staticComposition = null;
+            _staticServices = null;
             _nextAssemblyLoadRank = 0;
             _nextRegistrationRank = 0;
         }

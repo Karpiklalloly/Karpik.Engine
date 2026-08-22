@@ -4,6 +4,11 @@ using Autofac;
 
 namespace Karpik.Engine.Core.Runner;
 
+/// <summary>
+/// Dynamic-mode only: registers attributed services by scanning <see cref="Type"/>
+/// metadata at runtime. Static composition must never enter this path; generated
+/// factories are applied through <see cref="AutofacStaticServiceRegistry"/> instead.
+/// </summary>
 internal static class AttributedServiceRegistrar
 {
     public static void Register(
