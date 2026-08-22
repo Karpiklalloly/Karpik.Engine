@@ -36,4 +36,10 @@
       <Compile Remove="NativeAotSmoke\**\*.cs" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Include="..\Karpik.Engine.Core.Runner\StaticComposition\**\*.cs"
+            LinkBase="StaticCompositionSources"
+            CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>
