@@ -23,7 +23,7 @@
 - [x] Milestone 4: генерировать статическую композицию module installers.
 - [x] Milestone 5: исключить reflection activation из DI и регистрации ECS-систем Static-режима.
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
-- [ ] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
+- [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [ ] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
 
 ## Surprises & Discoveries
@@ -178,6 +178,14 @@
 - Decision: Tool kind receives Core+Runner engine references only at KarpikCompositionMode=Static, module payload directories are referenced wholesale via the new ResolveKarpikStaticReferencesTask PayloadAssemblies output (plus Microsoft.Extensions.Logging and DragonECS.Karpik.Extensions from the runner payload), and Dynamic Runtime projects gain one Network.Shared.Core reference because the generated snapshot registry always implements INetworkProtocolSchema.
   Rationale: emitted factories mention transitive service constructor types; Private stays false for Runtime so installation payloads are unchanged, while Static Tool launchers copy their graph local to become self-contained executables. The Network.Shared.Core addition repairs a pre-existing Dynamic compile break introduced by 3696153 (schema enforcement without a reference path).
   Date/Author: 2026-08-22 / ox-alpha.
+
+- Decision: static runtime bundle layout stages Content/Mods plus native inputs only under native/ or runtimes/ TargetPaths, and completion validation rejects any modules.list anywhere in the output; launch validation sniffs layout shape (ValidateAny routes bundles containing modules.version.1 to the canonical dynamic rules, everything else through ValidateStatic).
+  Rationale: a Static output must neither contain nor read a managed module manifest, but RuntimeLaunchOptions is mode-agnostic on the editor/watcher side; shape sniffing keeps Dynamic validation byte-identical while accepting manifest-free bundles. Proven-output recovery accepts either layout so switching a project between modes atomically replaces complete outputs (rollback stays functional). A stale dynamic-layout bundle handed to a static host is rejected loudly by ValidateStatic.
+  Date/Author: 2026-08-23 / ox-alpha (Milestone 7).
+
+- Decision: a Static host worker reports AppContext.BaseDirectory (not a bundle subdirectory) as its module directory in the IPC ready message.
+  Rationale: manifest-free static outputs have no managed module staging directory; game modules are compiled into the host executable. Deviation from M6 ready-message wording is observable only when --bundle is supplied.
+  Date/Author: 2026-08-23 / ox-alpha (Milestone 7).
 
 
 ## Outcomes & Retrospective
@@ -572,14 +580,17 @@ Known pre-existing defect (out of M6 scope): Graphics.Core TextureResources.Disp
 
 **Behavior produced:** Dynamic keeps current bundle; Static publish contains executable, assets, configuration and native libraries only.
 
-- [ ] Написать failing Static bundle layout tests: output не содержит `modules.version.1/modules.list`, managed shadow directory или loose primary module DLL при single-file/AOT publish; Content и required native files присутствуют.
-- [ ] Добавить Dynamic regression test, подтверждающий прежний canonical manifest и validation rules.
-- [ ] Подтвердить RED Static test и GREEN Dynamic regression до implementation.
-- [ ] Разделить `BuildKarpikRuntimeBundle` по composition mode. Static branch использует publish output/assets/native inputs и не вызывает managed module staging.
-- [ ] Ограничить `RuntimeModuleComposition`, `ModuleLoader` и `PluginLoadContext` compile/runtime usage Dynamic path. Не удалять их до смены default mode.
-- [ ] Получить GREEN bundle tests и повторить Static Server process test из Milestone 6.
-- [ ] Проверить recoverability: прерванная Static publish не заменяет предыдущий complete output; повторный publish идемпотентен.
-- [ ] Обновить `Progress`.
+- [x] Написать failing Static bundle layout tests: output не содержит `modules.version.1/modules.list`, managed shadow directory или loose primary module DLL при single-file/AOT publish; Content и required native files присутствуют.
+- [x] Добавить Dynamic regression test, подтверждающий прежний canonical manifest и validation rules.
+- [x] Подтвердить RED Static test и GREEN Dynamic regression до implementation.
+- [x] Разделить `BuildKarpikRuntimeBundle` по composition mode. Static branch использует publish output/assets/native inputs и не вызывает managed module staging.
+- [x] Ограничить `RuntimeModuleComposition`, `ModuleLoader` и `PluginLoadContext` compile/runtime usage Dynamic path. Не удалять их до смены default mode.
+- [x] Получить GREEN bundle tests и повторить Static Server process test из Milestone 6.
+- [x] Проверить recoverability: прерванная Static publish не заменяет предыдущий complete output; повторный publish идемпотентен.
+- [x] Обновить `Progress`.
+
+
+Executed (2026-08-23, branch open-code-ai): BuildKarpikRuntimeBundleTask gained CompositionMode (empty→Dynamic) and NativeFiles inputs; Static staging copies Content/Mods plus native items only under native/ or runtimes/ TargetPaths — never managed assemblies, no modules.version.1/modules.list/shadow; completion validation rejects any modules.list anywhere in the output. Proven-output/backup recovery accepts either layout so mode switches replace complete outputs atomically (rollback to Dynamic keeps working). RuntimeBundleLayout.ValidateStatic validates manifest-free bundles; ValidateAny sniffs modules.version.1 presence and is used by RuntimeLaunchOptions so the editor launches both layouts. Static hosts validate --bundle with ValidateStatic and report AppContext.BaseDirectory as the worker module directory (no module staging dir exists). Dynamic-only types (RuntimeModuleComposition, ModuleLoader, PluginLoadContext) are annotated and pinned by a source-boundary test over the Static host surface. Gated M6 Static Server process test re-run: PASS (6m49s) with the new static bundle; side-safety suite PASS.
 
 ### Milestone 8: NativeAOT acceptance и смена default
 
