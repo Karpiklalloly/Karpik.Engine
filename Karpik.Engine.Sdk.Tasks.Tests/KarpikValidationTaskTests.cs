@@ -158,6 +158,36 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
+    public void SdkWiresStaticCompositionModeIntoRuntimeBundling()
+    {
+        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
+        XElement bundleTarget = targets.Root!.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "BuildKarpikRuntimeBundle");
+        XElement bundleTask = Assert.Single(bundleTarget.Elements("BuildKarpikRuntimeBundleTask"));
+
+        Assert.Equal("$(KarpikCompositionMode)", (string?)bundleTask.Attribute("CompositionMode"));
+
+        XElement assemblyStaging = bundleTarget.Descendants("_KarpikBundleAssembly")
+            .Single(item => item.Attribute("Include") is not null);
+        Assert.Contains("'$(KarpikCompositionMode)' != 'Static'", (string?)assemblyStaging.Attribute("Condition"));
+
+        XElement nativeInclude = Assert.Single(bundleTarget.Descendants("_KarpikBundleNative"), item =>
+            (string?)item.Attribute("Include") == "@(NativeCopyLocalItems)");
+        Assert.Equal("'$(KarpikCompositionMode)' == 'Static'", (string?)nativeInclude.Attribute("Condition"));
+        XElement nativeUpdate = Assert.Single(bundleTarget.Descendants("_KarpikBundleNative"), item =>
+            (string?)item.Attribute("Update") == "@(_KarpikBundleNative)");
+        Assert.Equal(
+            "%(_KarpikBundleNative.DestinationSubPath)",
+            (string?)nativeUpdate.Attribute("TargetPath"));
+        XElement flatNativeUpdate = Assert.Single(bundleTarget.Descendants("_KarpikBundleNative"), item =>
+            (string?)item.Attribute("Update") == "@(_KarpikBundleNative)" &&
+            ((string?)item.Attribute("Condition") ?? string.Empty).Contains("== ''", StringComparison.Ordinal));
+        Assert.Equal(
+            @"native\%(_KarpikBundleNative.Filename)%(_KarpikBundleNative.Extension)",
+            (string?)flatNativeUpdate.Attribute("TargetPath"));
+    }
+
+    [Fact]
     public void SdkTargetsUseDistinctRestoreAndLateBuildGates()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));

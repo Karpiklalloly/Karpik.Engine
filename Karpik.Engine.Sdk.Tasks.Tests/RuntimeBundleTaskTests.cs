@@ -68,6 +68,47 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Fact]
+    public void Execute_DynamicModeKeepsCanonicalManifestContract()
+    {
+        using var tree = new TemporaryTree();
+        string primary = tree.Write("output/Game.Server.dll", "game");
+        string shared = tree.Write("output/Aaa.Shared.dll", "shared");
+        string content = tree.Write("assets/content.txt", "content");
+        string bundle = Path.Combine(tree.Root, "karpik-bundle");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Server",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(shared)],
+            Content = [ContentItem(content, "content.txt")]
+        };
+
+        Assert.True(task.Execute());
+
+        string manifestPath = Path.Combine(bundle, "modules.version.1", "modules.list");
+        byte[] manifestBytes = File.ReadAllBytes(manifestPath);
+        Assert.False(manifestBytes.AsSpan().StartsWith(Encoding.UTF8.Preamble));
+        Assert.Equal("Aaa.Shared.dll\nGame.Server.dll\n", Encoding.UTF8.GetString(manifestBytes));
+        Assert.Equal(
+            "karpik-module-staging-v1\n",
+            File.ReadAllText(Path.Combine(bundle, "modules.version.1", ".complete")));
+        Assert.Equal(
+            ["Aaa.Shared.dll", "Game.Server.dll"],
+            Karpik.Engine.Core.RuntimeBundleLayout.ReadCanonicalModuleManifest(
+                Path.Combine(bundle, "modules.version.1")));
+        Assert.Equal(bundle, Karpik.Engine.Core.RuntimeBundleLayout.Validate(
+            bundle,
+            Karpik.Engine.Core.Side.Server));
+
+        File.WriteAllText(manifestPath, "Aaa.Shared.dll\r\nGame.Server.dll\r\n", new UTF8Encoding(false));
+        Assert.Throws<InvalidDataException>(() => Karpik.Engine.Core.RuntimeBundleLayout.Validate(
+            bundle,
+            Karpik.Engine.Core.Side.Server));
+    }
+
+    [Fact]
     public void Execute_RejectsRelativeDestinationAndMissingRequiredInputs()
     {
         var engine = new FakeBuildEngine();
@@ -541,6 +582,212 @@ public sealed class RuntimeBundleTaskTests
         File.WriteAllText(Path.Combine(bundle, "Content", "sentinel.txt"), sentinel);
         return bundle;
     }
+
+    [Theory]
+    [InlineData("Client")]
+    [InlineData("Server")]
+    public void Execute_StaticModePublishesManifestFreeLayout(string side)
+    {
+        using var tree = new TemporaryTree();
+        string primary = tree.Write($"output/Game.{side}.dll", side);
+        string shared = tree.Write("output/Game.Shared.dll", "shared");
+        string content = tree.Write("assets/settings.json", "{}");
+        string native = tree.Write("native-payload/SDL.dll", "native");
+        string bundle = Path.Combine(tree.Root, "publish", "karpik-bundle");
+        var engine = new FakeBuildEngine();
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = engine,
+            Side = side,
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(shared), new TaskItem(primary)],
+            Content = [ContentItem(content, "Config/settings.json")],
+            NativeFiles = [ContentItem(native, @"runtimes\win-x64\native\SDL.dll")]
+        };
+
+        Assert.True(task.Execute());
+        Assert.Empty(engine.Errors);
+        Assert.Equal($"karpik-runtime-side-v1:{side}\n", File.ReadAllText(Path.Combine(bundle, "runtime-bundle.side")));
+        Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
+        Assert.Equal("{}", File.ReadAllText(Path.Combine(bundle, "Content", "Config", "settings.json")));
+        Assert.Equal("native", File.ReadAllText(Path.Combine(bundle, "runtimes", "win-x64", "native", "SDL.dll")));
+        Assert.False(Directory.Exists(Path.Combine(bundle, "modules.version.1")));
+        Assert.DoesNotContain(
+            Directory.EnumerateFiles(bundle, "*", SearchOption.AllDirectories),
+            path => Path.GetFileName(path) == "modules.list");
+        Assert.DoesNotContain(
+            Directory.EnumerateDirectories(bundle, "*", SearchOption.AllDirectories),
+            path => Path.GetFileName(path).Contains("shadow", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            Directory.EnumerateFiles(bundle, "*", SearchOption.TopDirectoryOnly),
+            path => path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
+        Assert.False(File.Exists(Path.Combine(bundle, ".karpik-owned-staging")));
+        Assert.False(File.Exists(Path.Combine(bundle, "modules.version.1", $"Game.{side}.dll")));
+    }
+
+    [Fact]
+    public void Execute_StaticModeRejectsNativeItemsWithoutTargetPath()
+    {
+        using var tree = new TemporaryTree();
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        string native = tree.Write("native-payload/SDL.dll", "native");
+        string bundle = Path.Combine(tree.Root, "bundle");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Content = [ContentItem(tree.Write("assets/content.txt", "content"), "content.txt")],
+            NativeFiles = [new TaskItem(native)]
+        };
+
+        Assert.False(task.Execute());
+        Assert.False(Directory.Exists(bundle));
+        Assert.Empty(Directory.EnumerateDirectories(tree.Root, "bundle.staging.*"));
+    }
+
+    [Fact]
+    public void Execute_FailurePreservesLastCompleteStaticBundle()
+    {
+        using var tree = new TemporaryTree();
+        string bundle = CreateCompleteStaticBundle(tree, "preserve");
+        string primary = tree.Write("output/Game.Client.dll", "new-game");
+        var task = new BuildKarpikRuntimeBundleTask(new FailingPublishFileSystem())
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")]
+        };
+
+        Assert.False(task.Execute());
+        Assert.Equal("preserve", File.ReadAllText(Path.Combine(bundle, "Content", "sentinel.txt")));
+        Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
+        Assert.False(File.Exists(Path.Combine(bundle, ".previous")));
+    }
+
+    [Fact]
+    public void Execute_RepeatedStaticPublicationIsIdempotentAndLeavesNoInterruptedState()
+    {
+        using var tree = new TemporaryTree();
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        string content = tree.Write("assets/content.txt", "content");
+        string native = tree.Write("native-payload/SDL.dll", "native");
+        string bundle = Path.Combine(tree.Root, "publish", "karpik-bundle");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Content = [ContentItem(content, "content.txt")],
+            NativeFiles = [ContentItem(native, @"runtimes\win-x64\native\SDL.dll")]
+        };
+
+        Assert.True(task.Execute());
+        string[] first = SnapshotTree(bundle);
+        Assert.True(task.Execute());
+
+        Assert.Equal(first, SnapshotTree(bundle));
+        Assert.False(Directory.Exists(bundle + ".previous"));
+        Assert.Empty(Directory.GetDirectories(Path.GetDirectoryName(bundle)!, "karpik-bundle.staging.*"));
+    }
+
+    [Fact]
+    public void Execute_InterruptedStaticStagingIsRecoveredWithoutReplacingCompleteOutput()
+    {
+        using var tree = new TemporaryTree();
+        string bundle = CreateCompleteStaticBundle(tree, "preserve");
+        string interruptedStaging = bundle + ".staging.deadbeef";
+        Directory.CreateDirectory(interruptedStaging);
+        File.WriteAllText(Path.Combine(interruptedStaging, ".karpik-owned-staging"), "karpik-runtime-owned-staging-v1\n");
+        File.WriteAllText(Path.Combine(interruptedStaging, "half-written.bin"), "junk");
+        string primary = tree.Write("output/Game.Client.dll", "new-game");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Content = [ContentItem(tree.Write("assets/content.txt", "new-content"), "content.txt")]
+        };
+
+        Assert.True(task.Execute());
+        Assert.False(Directory.Exists(interruptedStaging));
+        Assert.Equal("new-content", File.ReadAllText(Path.Combine(bundle, "Content", "content.txt")));
+        Assert.Equal("karpik-runtime-bundle-v1\n", File.ReadAllText(Path.Combine(bundle, ".complete")));
+    }
+
+    [Fact]
+    public void Execute_CompositionModeSwitchReplacesPreviousCompleteOutput()
+    {
+        using var tree = new TemporaryTree();
+        string dynamicBundle = Path.Combine(tree.Root, "publish", "karpik-bundle");
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        var dynamicTask = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = dynamicBundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(tree.Write("assets/dynamic.txt", "dynamic"), "dynamic.txt")]
+        };
+        Assert.True(dynamicTask.Execute());
+
+        var staticTask = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            CompositionMode = "Static",
+            PrimaryAssembly = primary,
+            BundlePath = dynamicBundle,
+            Content = [ContentItem(tree.Write("assets/static.txt", "static"), "static.txt")]
+        };
+        Assert.True(staticTask.Execute());
+        Assert.False(Directory.Exists(Path.Combine(dynamicBundle, "modules.version.1")));
+        Assert.True(File.Exists(Path.Combine(dynamicBundle, "Content", "static.txt")));
+
+        var rollbackTask = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = dynamicBundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(tree.Write("assets/rolled-back.txt", "rollback"), "rollback.txt")]
+        };
+        Assert.True(rollbackTask.Execute());
+        Assert.Equal("Game.Client.dll\n", File.ReadAllText(
+            Path.Combine(dynamicBundle, "modules.version.1", "modules.list")));
+        Assert.True(File.Exists(Path.Combine(dynamicBundle, "Content", "rollback.txt")));
+    }
+
+    private static string CreateCompleteStaticBundle(TemporaryTree tree, string sentinel)
+    {
+        string bundle = Path.Combine(tree.Root, "complete-static-bundle");
+        Directory.CreateDirectory(Path.Combine(bundle, "Content"));
+        Directory.CreateDirectory(Path.Combine(bundle, "runtimes", "win-x64", "native"));
+        File.WriteAllText(Path.Combine(bundle, "runtime-bundle.side"), "karpik-runtime-side-v1:Client\n");
+        File.WriteAllText(Path.Combine(bundle, ".complete"), "karpik-runtime-bundle-v1\n");
+        File.WriteAllText(Path.Combine(bundle, "Content", "content.txt"), "old-content");
+        File.WriteAllText(Path.Combine(bundle, "Content", "sentinel.txt"), sentinel);
+        File.WriteAllText(Path.Combine(bundle, "runtimes", "win-x64", "native", "SDL.dll"), "old-native");
+        return bundle;
+    }
+
+    private static string[] SnapshotTree(string root) => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+        .Select(path => $"{Path.GetRelativePath(root, path).Replace('\\', '/')}:{File.ReadAllText(path)}")
+        .Order(StringComparer.Ordinal)
+        .ToArray();
 
     private static string CreateOversizedFile(TemporaryTree tree, string relativePath)
     {

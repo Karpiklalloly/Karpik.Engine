@@ -214,10 +214,102 @@ public sealed class RuntimeLaunchOptionsTests
         }
     }
 
+    [Theory]
+    [InlineData(Side.Client)]
+    [InlineData(Side.Server)]
+    public void Constructor_AcceptsManifestFreeStaticBundle(Side side)
+    {
+        using var tree = new StaticRuntimeTree(side);
+
+        var options = new RuntimeLaunchOptions(side, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
+
+        Assert.Equal(tree.BundlePath, options.BundlePath);
+    }
+
+    [Fact]
+    public void Constructor_RejectsStaticBundleContainingModuleStaging()
+    {
+        using var tree = new StaticRuntimeTree(Side.Server);
+        Directory.CreateDirectory(Path.Combine(tree.BundlePath, "modules.version.1"));
+
+        Assert.Throws<InvalidDataException>(
+            () => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
+    }
+
+    [Fact]
+    public void Constructor_RejectsStaticBundleListingManagedModules()
+    {
+        using var tree = new StaticRuntimeTree(Side.Client);
+        string nativeRoot = Path.Combine(tree.BundlePath, "runtimes", "win-x64", "native");
+        Directory.CreateDirectory(nativeRoot);
+        File.WriteAllText(Path.Combine(nativeRoot, "modules.list"), "Game.dll\n");
+
+        Assert.Throws<InvalidDataException>(
+            () => new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
+    }
+
+    [Theory]
+    [InlineData("missing-completion-marker")]
+    [InlineData("wrong-side")]
+    [InlineData("empty-content")]
+    [InlineData("unexpected-root-entry")]
+    public void Constructor_RejectsIncompleteOrForeignStaticBundleLayout(string mutation)
+    {
+        using var tree = new StaticRuntimeTree(Side.Server);
+        switch (mutation)
+        {
+            case "missing-completion-marker":
+                File.Delete(Path.Combine(tree.BundlePath, ".complete"));
+                break;
+            case "wrong-side":
+                File.WriteAllText(
+                    Path.Combine(tree.BundlePath, "runtime-bundle.side"),
+                    $"karpik-runtime-side-v1:{Side.Client}\n");
+                break;
+            case "empty-content":
+                File.Delete(Path.Combine(tree.BundlePath, "Content", "content.txt"));
+                break;
+            case "unexpected-root-entry":
+                File.WriteAllText(Path.Combine(tree.BundlePath, "Game.Server.dll"), "loose managed module");
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+
+        Assert.Throws<InvalidDataException>(
+            () => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot));
+    }
+
     private static void CompleteModuleDirectory(string directory)
     {
         Directory.CreateDirectory(directory);
         File.WriteAllText(Path.Combine(directory, ".complete"), RuntimeBundleLayout.ModuleCompletionMarker);
+    }
+
+    private sealed class StaticRuntimeTree : IDisposable
+    {
+        public string Root { get; } = Path.Combine(Path.GetTempPath(), "KarpikLaunchTests", Guid.NewGuid().ToString("N"));
+        public string RunnerPath { get; }
+        public string BundlePath { get; }
+        public string EngineRoot { get; }
+
+        public StaticRuntimeTree(Side side)
+        {
+            EngineRoot = Path.Combine(Root, "engine");
+            RunnerPath = Path.Combine(EngineRoot, OperatingSystem.IsWindows() ? "runner.exe" : "runner");
+            BundlePath = Path.Combine(Root, "game", "karpik-bundle");
+            Directory.CreateDirectory(Path.GetDirectoryName(RunnerPath)!);
+            File.WriteAllText(RunnerPath, "runner");
+            Directory.CreateDirectory(Path.Combine(BundlePath, "Content"));
+            File.WriteAllText(Path.Combine(BundlePath, "Content", "content.txt"), "content");
+            string native = Path.Combine(BundlePath, "runtimes", "win-x64", "native");
+            Directory.CreateDirectory(native);
+            File.WriteAllText(Path.Combine(native, "libgame.dll"), "native");
+            File.WriteAllText(Path.Combine(BundlePath, "runtime-bundle.side"), $"karpik-runtime-side-v1:{side}\n");
+            File.WriteAllText(Path.Combine(BundlePath, ".complete"), "karpik-runtime-bundle-v1\n");
+        }
+
+        public void Dispose() => Directory.Delete(Root, recursive: true);
     }
 
     private sealed class RuntimeTree : IDisposable
