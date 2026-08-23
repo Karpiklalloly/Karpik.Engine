@@ -426,3 +426,6 @@ FodyWeavers.xsd
 kilo.json
 .kilo
 .obsidian
+
+# Graphify generated index output
+graphify-out/
