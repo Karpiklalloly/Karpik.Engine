@@ -10,6 +10,10 @@ namespace Karpik.Engine.Sdk.IntegrationTests;
 public sealed class StaticCompositionCliTests
 {
     private static readonly TimeSpan RunPhaseTimeout = TimeSpan.FromSeconds(60);
+
+    // NativeAOT hosts start and restart measurably slower than JIT hosts, so the
+    // gated AOT acceptance runs get a dedicated overall budget.
+    private static readonly TimeSpan AotRunPhaseTimeout = TimeSpan.FromMinutes(10);
     private readonly ITestOutputHelper _output;
 
     public StaticCompositionCliTests(ITestOutputHelper output) => _output = output;
@@ -308,7 +312,7 @@ public sealed class StaticCompositionCliTests
             using var controller = new EditorPreviewController(
                 new RuntimeLaunchOptions(Side.Server, executable, bundle, game.EngineRoot));
             controller.OutputReceived += output.Enqueue;
-            using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
+            using (var timeout = new CancellationTokenSource(AotRunPhaseTimeout))
             {
                 await StartOrThrowAsync(controller, timeout.Token, output, "published NativeAOT Server host");
                 EditorRuntimeSnapshot? snapshot;
@@ -344,19 +348,42 @@ public sealed class StaticCompositionCliTests
                 foreach (int cycle in Enumerable.Range(1, 10))
                 {
                     int beforeProcessId = Assert.IsType<int>(controller.ProcessId);
-                    await controller.HotReloadAsync(timeout.Token);
+                    try
+                    {
+                        await controller.HotReloadAsync(timeout.Token);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new InvalidOperationException(
+                            $"Reload cycle {cycle}: hot reload did not reach worker-ready.{Environment.NewLine}" +
+                            string.Join(Environment.NewLine, output),
+                            exception);
+                    }
                     int afterProcessId = Assert.IsType<int>(controller.ProcessId);
                     Assert.NotEqual(beforeProcessId, afterProcessId);
 
                     string stateRoot = Path.Combine(bundle, "reload", "state");
                     Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
-                        $"Reload cycle {cycle}: state payload must be consumed by the restarted worker.");
+                        $"Reload cycle {cycle}: state payload must be consumed by the restarted worker.{Environment.NewLine}" +
+                        string.Join(Environment.NewLine, output));
 
-                    EditorRuntimeSnapshot? reloaded = await controller.RequestSnapshotAsync(TimeSpan.FromSeconds(20), timeout.Token);
+                    EditorRuntimeSnapshot? reloaded;
+                    try
+                    {
+                        reloaded = await controller.RequestSnapshotAsync(TimeSpan.FromSeconds(20), timeout.Token);
+                    }
+                    catch (Exception exception)
+                    {
+                        throw new InvalidOperationException(
+                            $"Reload cycle {cycle}: snapshot request failed.{Environment.NewLine}" +
+                            string.Join(Environment.NewLine, output),
+                            exception);
+                    }
                     Assert.NotNull(reloaded);
                     expectedEntities++;
                     Assert.True(reloaded.TotalEntityCount == expectedEntities,
-                        $"Reload cycle {cycle}: expected {expectedEntities} entities, got {reloaded.TotalEntityCount}.");
+                        $"Reload cycle {cycle}: expected {expectedEntities} entities, got {reloaded.TotalEntityCount}.{Environment.NewLine}" +
+                        string.Join(Environment.NewLine, output));
                 }
 
                 await controller.StopAsync(timeout.Token);
@@ -452,7 +479,7 @@ public sealed class StaticCompositionCliTests
             using var controller = new EditorPreviewController(
                 new RuntimeLaunchOptions(Side.Client, executable, bundle, game.EngineRoot));
             controller.OutputReceived += output.Enqueue;
-            using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
+            using (var timeout = new CancellationTokenSource(AotRunPhaseTimeout))
             {
                 await StartOrThrowAsync(controller, timeout.Token, output, "published NativeAOT Client host");
                 Assert.Contains(output,
