@@ -31,7 +31,7 @@
   <Target Name="ValidateKarpikCompositionMode"
           BeforeTargets="PrepareForBuild;Restore">
     <PropertyGroup>
-      <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Dynamic</KarpikCompositionMode>
+      <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Static</KarpikCompositionMode>
     </PropertyGroup>
     <Error Condition="'$(KarpikCompositionMode)' != 'Dynamic' And '$(KarpikCompositionMode)' != 'Static'"
            Code="KARPIK010"

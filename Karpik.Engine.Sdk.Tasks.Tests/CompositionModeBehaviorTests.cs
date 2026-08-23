@@ -5,8 +5,8 @@ using Xunit;
 public sealed class CompositionModeBehaviorTests
 {
     [Theory]
-    [InlineData(null, "Dynamic")]
-    [InlineData("", "Dynamic")]
+    [InlineData(null, "Static")]
+    [InlineData("", "Static")]
     [InlineData("Dynamic", "Dynamic")]
     [InlineData("Static", "Static")]
     public async Task SdkConsumerNormalizesAndExposesAcceptedCompositionModes(string? requestedMode, string expectedMode)

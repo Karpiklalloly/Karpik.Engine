@@ -1,7 +1,10 @@
 <Project>
   <PropertyGroup>
     <KarpikRuntimeBundleDirectoryName>karpik-bundle</KarpikRuntimeBundleDirectoryName>
-    <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Dynamic</KarpikCompositionMode>
+    <!-- Default composition mode since Milestone 8 (docs/02_ADR/static-runtime-composition.md).
+         Empty normalizes to Static; explicit KarpikCompositionMode=Dynamic remains the
+         supported rollback opt-in for one release cycle. -->
+    <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Static</KarpikCompositionMode>
     <KarpikEnableNativeAotValidation Condition="'$(KarpikEnableNativeAotValidation)' == ''">false</KarpikEnableNativeAotValidation>
   </PropertyGroup>
   <ItemGroup>
