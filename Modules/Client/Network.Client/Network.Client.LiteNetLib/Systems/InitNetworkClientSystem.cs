@@ -3,7 +3,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem(
+public class InitNetworkClientSystem(
     INetworkManager manager,
     INetworkProtocolSchema protocolSchema,
     NetworkConfig config) : ISystemInit
