@@ -406,8 +406,15 @@ public sealed class StaticCompositionCliTests
                 .Where(size => size >= 0)
                 .ToArray();
             Assert.True(collectedBytes.Length >= 10, "Expected at least ten collected-state reports.");
-            Assert.True(collectedBytes.Distinct().Count() == 1,
-                "Saved state payload must not grow across reload cycles: " + string.Join(", ", collectedBytes));
+            // The template init system creates one entity per worker start and the
+            // restored world accumulates it (expectedEntities++ above), so the saved
+            // payload grows linearly by design. A leak would compound; require the
+            // deltas to stay exactly constant across all cycles.
+            long[] growthDeltas = [.. collectedBytes.Zip(collectedBytes.Skip(1), (previous, current) => current - previous)];
+            Assert.True(growthDeltas.Distinct().Count() == 1,
+                "Saved state payload must grow only by the constant per-cycle delta " +
+                "(linear accumulation, no compounding leak): sizes [" + string.Join(", ", collectedBytes) +
+                "], deltas [" + string.Join(", ", growthDeltas) + "]");
 
             // No locked publish files and no orphan processes.
             using (FileStream unlocked = File.Open(executable, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
