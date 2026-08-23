@@ -60,3 +60,40 @@ Supported project kinds are `Runtime`, `Test`, `Tool`, `Generator`, and `Assets`
 Solution builds validate every project declared in the raw `.slnx` through `Directory.Solution.targets`. Every game graph edge must be declared as an unconditional, literal, top-level `<ProjectReference Include="..." />` in the referencing `.csproj`. References introduced by imports, properties, item expressions, globs, conditions, or target-time mutation are unsupported.
 
 Every Karpik SDK project compares its normalized evaluated direct `@(ProjectReference)` set with that static raw set. Any difference fails with `KARPIK004`; otherwise the complete raw transitive graph is validated for membership, side boundaries, and cycles. Distinct task invocations run before NuGet's recursive restore walk and at the final point before `AssignProjectConfiguration`. Both gates are declared after the underlying SDK targets: the restore gate observes `Directory.Build.targets`/consumer restore-walk mutations, and the late gate observes consumer/imported build mutations before reference resolution. Cold, incremental, and `--no-restore` builds therefore share the same contract without evaluating child projects or loading game assemblies. Invalid projects fail before compilation with stable `KARPIK...` diagnostics.
+
+## Composition modes
+
+`KarpikCompositionMode` selects how the runtime graph is composed. Accepted values are exactly
+`Dynamic` and `Static`; any other value fails with `KARPIK010`. Since Milestone 8 the default is
+**Static**: an unset or empty property normalizes to `Static`.
+
+### Static (default)
+
+The game launcher (`*.Server.Launcher` / `*.Client.Launcher`) becomes the self-contained game
+executable. A source generator emits the module/service/system composition into the launcher, so
+static outputs contain no managed module manifest and load no plugin assemblies at runtime.
+
+```powershell
+# ordinary build
+dotnet build src/MyGame.Server.Launcher/MyGame.Server.Launcher.csproj -m:1 -nr:false
+
+# NativeAOT publish (requires the Visual Studio C++ toolchain)
+dotnet publish src/MyGame.Server.Launcher/MyGame.Server.Launcher.csproj -c Release -r win-x64 `
+  -p:PublishAot=true -p:InvariantGlobalization=true -m:1 -nr:false
+```
+
+Constraints:
+
+- ECS systems and cross-assembly services must be public; internal members are invisible to the
+  generated composition.
+- Static+AOT publishes root first-party module metadata for the hot-reload state pipeline; see
+  `docs/02_ADR/static-runtime-composition.md` for the documented warning inventory
+  (IL2104/IL3053, IL3000/IL3002) and trade-offs.
+
+### Dynamic (rollback opt-in)
+
+Set `<KarpikCompositionMode>Dynamic</KarpikCompositionMode>` in every runtime project of the game
+graph. The universal runner loads module DLLs from a manifest-bearing bundle at startup. Dynamic
+remains fully supported this release cycle; its removal is a separate future plan.
+
+See `docs/02_ADR/static-runtime-composition.md` for the full decision record.
