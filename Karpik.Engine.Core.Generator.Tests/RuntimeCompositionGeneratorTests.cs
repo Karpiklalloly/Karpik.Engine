@@ -19,6 +19,53 @@ public sealed class RuntimeCompositionGeneratorTests
     private static RuntimeCompositionGenerator CreateGenerator() => new();
 
     [Fact]
+    public void GeneratedStaticComposition_EmitsAotComponentTemplateRoots()
+    {
+        // NativeAOT cannot compile MakeGenericType results at runtime; the
+        // generated composition must statically touch one ComponentTemplate<T> /
+        // TagComponentTemplate<T> instantiation per discovered ECS component so
+        // the hot-reload state pipeline keeps working under AOT.
+        var references = new[]
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.IEcsComponent>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.ComponentTemplateBase>(),
+        };
+
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using DCFApixels.DragonECS;
+
+                public struct ProbeComponent : IEcsComponent
+                {
+                    public int Value;
+                }
+
+                public struct ProbeTagComponent : IEcsTagComponent { }
+
+                [Karpik.Engine.Core.Module(Karpik.Engine.Core.ModuleScope.Simulation)]
+                public sealed class ProbeInstaller : Karpik.Engine.Core.IModuleInstaller
+                {
+                    public string Name => nameof(ProbeInstaller);
+                    public Karpik.Engine.Core.IModule CreateModule() => null!;
+                }
+                """,
+            side: "Server",
+            additionalReferences: references);
+
+        Assert.True(result.HasCompositionSource);
+        Assert.Contains(
+            "typeof(global::Karpik.Engine.Shared.ECS.ComponentTemplate<global::ProbeComponent>)",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "typeof(global::Karpik.Engine.Shared.ECS.TagComponentTemplate<global::ProbeTagComponent>)",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_WithoutBuildProperties_EmitsNoSource()
     {
         var result = GeneratorTestHarness.Run(

@@ -174,9 +174,16 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 context));
         }
 
+        INamedTypeSymbol? ecsComponentInterface = compilation.GetTypeByMetadataName(EcsComponentInterfaceName);
+        INamedTypeSymbol? ecsTagComponentInterface = compilation.GetTypeByMetadataName(EcsTagComponentInterfaceName);
+        List<string> aotComponentTemplateRoots = CollectAotComponentTemplateRoots(
+            compilation,
+            ecsComponentInterface,
+            ecsTagComponentInterface);
+
         context.AddSource(
             "GeneratedRuntimeComposition.g.cs",
-            SourceText.From(GenerateSource(installers, registrations), Encoding.UTF8));
+            SourceText.From(GenerateSource(installers, registrations, aotComponentTemplateRoots), Encoding.UTF8));
     }
 
     private static List<ModuleInstaller> CollectInstallers(
@@ -800,7 +807,107 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     private static string ToFullName(ITypeSymbol type) =>
         type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty);
 
-    private static string GenerateSource(List<ModuleInstaller> installers, List<ServiceModel> registrations)
+    private const string EcsComponentInterfaceName = "DCFApixels.DragonECS.IEcsComponent";
+    private const string EcsTagComponentInterfaceName = "DCFApixels.DragonECS.IEcsTagComponent";
+    private const string ComponentTemplateDefinitionName = "Karpik.Engine.Shared.ECS.ComponentTemplate`1";
+    private const string TagComponentTemplateDefinitionName = "Karpik.Engine.Shared.ECS.TagComponentTemplate`1";
+
+    /// <summary>
+    /// NativeAOT cannot compile generic instantiations created by runtime
+    /// MakeGenericType calls. The hot-reload state pipeline builds
+    /// ComponentTemplate&lt;T&gt;/TagComponentTemplate&lt;T&gt; instances through
+    /// reflection for every ECS component in the graph, so the generated
+    /// composition statically touches one instantiation per discovered component
+    /// type, forcing the native compiler to emit them.
+    /// </summary>
+    private static List<string> CollectAotComponentTemplateRoots(
+        Compilation compilation,
+        INamedTypeSymbol? componentInterface,
+        INamedTypeSymbol? tagComponentInterface)
+    {
+        var roots = new SortedSet<string>(StringComparer.Ordinal);
+        if (componentInterface is null && tagComponentInterface is null)
+        {
+            return [];
+        }
+
+        foreach (INamedTypeSymbol type in EnumerateAllTypes(compilation))
+        {
+            if (!type.IsValueType || type.IsStatic)
+            {
+                continue;
+            }
+
+            if (componentInterface is not null &&
+                Implements(type, componentInterface) &&
+                compilation.GetTypeByMetadataName(ComponentTemplateDefinitionName) is not null)
+            {
+                roots.Add($"typeof(global::Karpik.Engine.Shared.ECS.ComponentTemplate<global::{ToFullName(type)}>)");
+            }
+            else if (tagComponentInterface is not null &&
+                     Implements(type, tagComponentInterface) &&
+                     compilation.GetTypeByMetadataName(TagComponentTemplateDefinitionName) is not null)
+            {
+                roots.Add($"typeof(global::Karpik.Engine.Shared.ECS.TagComponentTemplate<global::{ToFullName(type)}>)");
+            }
+        }
+
+        return [.. roots];
+    }
+
+    private static bool Implements(INamedTypeSymbol type, INamedTypeSymbol interfaceSymbol)
+    {
+        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(implemented, interfaceSymbol))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> EnumerateAllTypes(Compilation compilation)
+    {
+        var roots = new List<INamespaceSymbol> { compilation.Assembly.GlobalNamespace };
+        foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
+        {
+            roots.Add(reference.GlobalNamespace);
+        }
+
+        foreach (INamespaceSymbol root in roots)
+        {
+            foreach (INamedTypeSymbol type in EnumerateTypesRecursive(root))
+            {
+                yield return type;
+            }
+        }
+    }
+
+    private static IEnumerable<INamedTypeSymbol> EnumerateTypesRecursive(INamespaceOrTypeSymbol container)
+    {
+        foreach (ISymbol member in container.GetMembers())
+        {
+            if (member is INamedTypeSymbol namedType)
+            {
+                yield return namedType;
+                foreach (INamedTypeSymbol nested in EnumerateTypesRecursive(namedType))
+                {
+                    yield return nested;
+                }
+            }
+            else if (member is INamespaceSymbol namespaceSymbol)
+            {
+                foreach (INamedTypeSymbol type in EnumerateTypesRecursive(namespaceSymbol))
+                {
+                    yield return type;
+                }
+            }
+        }
+    }
+
+    private static string GenerateSource(List<ModuleInstaller> installers, List<ServiceModel> registrations, List<string> aotComponentTemplateRoots)
     {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
@@ -834,6 +941,20 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             }
         }
         builder.AppendLine("        }");
+        if (aotComponentTemplateRoots.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("        // NativeAOT: statically touch the ComponentTemplate<T> / TagComponentTemplate<T>");
+            builder.AppendLine("        // instantiations the reflection-based state pipeline builds at runtime, so the");
+            builder.AppendLine("        // native compiler emits their generic code.");
+            builder.AppendLine("        internal static readonly global::System.Type[] AotComponentTemplateRoots = new global::System.Type[]");
+            builder.AppendLine("        {");
+            foreach (string root in aotComponentTemplateRoots)
+            {
+                builder.Append("            ").Append(root).AppendLine(",");
+            }
+            builder.AppendLine("        };");
+        }
         builder.AppendLine("    }");
         builder.AppendLine("}");
         return builder.ToString();
