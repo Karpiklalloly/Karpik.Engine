@@ -1162,6 +1162,27 @@ public sealed class ExternalGameCliTests
             }
             File.Copy(file, Path.Combine(destinationDirectory, fileName));
         }
+
+        // Package-native payloads must keep their runtimes/<rid>/native layout:
+        // the dynamic PluginLoadContext probes exactly these subdirectories, and
+        // NeoVeldrid.SPIRV (shaderc/spirv-cross) fails its type initializer
+        // without them.
+        foreach (string nativeRootName in new[] { "runtimes", "native" })
+        {
+            string nativeRoot = Path.Combine(sourceDirectory, nativeRootName);
+            if (!Directory.Exists(nativeRoot))
+            {
+                continue;
+            }
+            foreach (string file in Directory.EnumerateFiles(nativeRoot, "*", SearchOption.AllDirectories))
+            {
+                string destination = Path.Combine(
+                    destinationDirectory,
+                    Path.GetRelativePath(sourceDirectory, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(file, destination);
+            }
+        }
     }
 
     internal async Task PackSdkIntoOwnedFeedAsync(
