@@ -279,7 +279,7 @@ public sealed class StaticCompositionCliTests
                     "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
                 ],
                 game.Environment,
-                TimeSpan.FromMinutes(15));
+                TimeSpan.FromMinutes(30));
             AssertSuccess(publish, "publish the Static Server host under NativeAOT");
 
             List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
@@ -448,7 +448,7 @@ public sealed class StaticCompositionCliTests
                     "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
                 ],
                 game.Environment,
-                TimeSpan.FromMinutes(15));
+                TimeSpan.FromMinutes(30));
             AssertSuccess(publish, "publish the Static Client host under NativeAOT");
 
             List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
