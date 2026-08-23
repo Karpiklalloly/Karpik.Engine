@@ -70,4 +70,6 @@ internal sealed class SmokeComposition : IStaticRuntimeComposition
             ServiceLifetime.Transient,
             static resolver => new SmokeSystem(resolver.Resolve<ISmokeService>()));
     }
+
+    public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
 }

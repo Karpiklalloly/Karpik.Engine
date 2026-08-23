@@ -38,4 +38,41 @@ public sealed class StaticCompositionSourceBoundaryTests
             }
         }
     }
+
+    [Fact]
+    public void RunnerSource_StaticExecutionPath_NeverUsesReflectionActivation()
+    {
+        // Milestone 9 corrective contract: the Static startup path must receive
+        // ECS registry providers through the composition contract instead of
+        // enumerating assemblies reflectively. The runner source itself must be
+        // free of reflection activation tokens; Dynamic-only discovery lives in
+        // its own file and is never entered on the Static path.
+        string runnerSource = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "Karpik.Engine.Core.Runner", "Runner.cs"));
+
+        string[] forbiddenTokens =
+        [
+            "Assembly.GetTypes",
+            "Activator.CreateInstance",
+            "Type.GetType"
+        ];
+        foreach (string token in forbiddenTokens)
+        {
+            Assert.True(
+                !runnerSource.Contains(token, StringComparison.Ordinal),
+                $"Runner.cs must not use '{token}': the Static execution path receives generated providers via IStaticRuntimeComposition.");
+        }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? current = new(AppContext.BaseDirectory);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Karpik.Engine.Core.Runner", "Runner.cs")))
+        {
+            current = current.Parent;
+        }
+
+        Assert.NotNull(current);
+        return current!.FullName;
+    }
 }

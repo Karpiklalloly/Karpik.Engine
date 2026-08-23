@@ -283,6 +283,8 @@ internal sealed class ProbeStaticComposition : IStaticRuntimeComposition
                 resolver.Resolve<ISimTransient>(),
                 resolver.Resolve<IServiceResolver>()));
     }
+
+    public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
 }
 
 internal sealed class ModuleOnlyComposition : IStaticRuntimeComposition
@@ -291,6 +293,8 @@ internal sealed class ModuleOnlyComposition : IStaticRuntimeComposition
         registry.Add(new StaticProbeModuleInstaller());
 
     public void RegisterServices(IStaticServiceRegistry registry) { }
+
+    public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
 }
 
 [Module(ModuleScope.Simulation)]

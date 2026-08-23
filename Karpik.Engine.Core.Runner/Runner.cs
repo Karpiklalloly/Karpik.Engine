@@ -27,6 +27,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private ILifetimeScope? _simulationScope;
     private IServiceResolver? _serviceResolver;
     private IStaticRuntimeComposition? _staticComposition;
+    private StaticEcsRegistryProviders? _staticEcsProviders;
     private AutofacStaticServiceRegistry? _staticServices;
     private bool _setupPending;
 
@@ -71,9 +72,8 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             }
         }
 
-        foreach (var type in FilterTypesToModules(types))
+        foreach (IModuleInstaller moduleInstance in DynamicCompositionDiscovery.ActivateModuleInstallers(types))
         {
-            var moduleInstance = (IModuleInstaller)Activator.CreateInstance(type)!;
             RegisterModule(moduleInstance);
         }
     }
@@ -461,6 +461,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         var services = new AutofacStaticServiceRegistry();
         composition.RegisterServices(services);
         _staticServices = services;
+        var providers = new StaticEcsRegistryProviders();
+        composition.RegisterEcsRegistryProviders(providers);
+        _staticEcsProviders = providers;
         composition.RegisterModules(this);
     }
 
@@ -494,14 +497,6 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             _nextRegistrationRank++));
     }
 
-    private Type[] FilterTypesToModules(Type[] types)
-    {
-        var classTypes = types.Where(t => t.IsClass && !t.IsAbstract);
-        var moduleTypes = classTypes.Where(t => typeof(IModuleInstaller).IsAssignableFrom(t) || typeof(IModuleInstaller).IsAssignableTo(t));
-        var withAttr = moduleTypes.Where(t => t.GetCustomAttribute<ModuleAttribute>() != null);
-        return withAttr.ToArray();
-    }
-    
     private static ModuleAttribute GetModuleAttribute(IModuleInstaller moduleInstaller)
     {
         return moduleInstaller.GetType().GetCustomAttribute<ModuleAttribute>()
@@ -682,7 +677,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private void ConfigureEcsUpdateScheduler(EcsUpdateRunner updateRunner)
     {
         ISystemUpdate[] systems = ExtractUpdateSystems(updateRunner);
-        EcsUpdateSystemDescriptor[] descriptors = CollectEcsUpdateDescriptors(systems);
+        EcsUpdateSystemDescriptor[] descriptors = _staticEcsProviders is not null
+            ? _staticEcsProviders.CollectUpdateDescriptors()
+            : DynamicCompositionDiscovery.CollectUpdateDescriptors(systems);
         _ecsUpdateScheduler.Initialize(systems, descriptors, UpdateSchedulerMode);
     }
 
@@ -707,7 +704,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private void ConfigureEcsRenderPrepareScheduler(EcsRenderPrepareRunner renderPrepareRunner)
     {
         ISystemRenderPrepare[] systems = ExtractRenderPrepareSystems(renderPrepareRunner);
-        EcsUpdateSystemDescriptor[] descriptors = CollectRenderPrepareDescriptors(systems);
+        EcsUpdateSystemDescriptor[] descriptors = _staticEcsProviders is not null
+            ? _staticEcsProviders.CollectRenderPrepareDescriptors()
+            : DynamicCompositionDiscovery.CollectRenderPrepareDescriptors(systems);
         _ecsRenderPrepareScheduler.Initialize(systems, descriptors, UpdateSchedulerMode);
     }
 
@@ -729,95 +728,4 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         return systems;
     }
 
-    private static EcsUpdateSystemDescriptor[] CollectEcsUpdateDescriptors(ReadOnlySpan<ISystemUpdate> systems)
-    {
-        if (systems.Length == 0)
-        {
-            return [];
-        }
-
-        var assemblies = new HashSet<Assembly>();
-        for (int i = 0; i < systems.Length; i++)
-        {
-            assemblies.Add(systems[i].GetType().Assembly);
-        }
-
-        var descriptors = new List<EcsUpdateSystemDescriptor>();
-        foreach (Assembly assembly in assemblies)
-        {
-            AddProviderDescriptors(assembly, descriptors);
-        }
-
-        return descriptors.ToArray();
-    }
-
-    private static EcsUpdateSystemDescriptor[] CollectRenderPrepareDescriptors(
-        ReadOnlySpan<ISystemRenderPrepare> systems)
-    {
-        if (systems.Length == 0)
-        {
-            return [];
-        }
-
-        var assemblies = new HashSet<Assembly>();
-        for (int i = 0; i < systems.Length; i++)
-        {
-            assemblies.Add(systems[i].GetType().Assembly);
-        }
-
-        var descriptors = new List<EcsUpdateSystemDescriptor>();
-        foreach (Assembly assembly in assemblies)
-        {
-            Type providerInterface = typeof(IEcsRenderPrepareRegistryProvider);
-            foreach (Type type in assembly.GetTypes())
-            {
-                if (type.IsAbstract || !providerInterface.IsAssignableFrom(type))
-                {
-                    continue;
-                }
-
-                var provider = (IEcsRenderPrepareRegistryProvider?)Activator.CreateInstance(type, nonPublic: true);
-                if (provider is null)
-                {
-                    throw new InvalidOperationException(
-                        $"Unable to create ECS render-prepare registry provider '{type.FullName}'.");
-                }
-
-                ReadOnlySpan<EcsUpdateSystemDescriptor> providerDescriptors = provider.GetRenderPrepareSystems();
-                for (int i = 0; i < providerDescriptors.Length; i++)
-                {
-                    descriptors.Add(providerDescriptors[i]);
-                }
-            }
-        }
-
-        return descriptors.ToArray();
-    }
-
-    private static void AddProviderDescriptors(
-        Assembly assembly,
-        List<EcsUpdateSystemDescriptor> descriptors)
-    {
-        Type providerInterface = typeof(IEcsUpdateRegistryProvider);
-        foreach (Type type in assembly.GetTypes())
-        {
-            if (type.IsAbstract || !providerInterface.IsAssignableFrom(type))
-            {
-                continue;
-            }
-
-            var provider = (IEcsUpdateRegistryProvider?)Activator.CreateInstance(type, nonPublic: true);
-            if (provider is null)
-            {
-                throw new InvalidOperationException(
-                    $"Unable to create ECS update registry provider '{type.FullName}'.");
-            }
-
-            ReadOnlySpan<EcsUpdateSystemDescriptor> providerDescriptors = provider.GetUpdateSystems();
-            for (int i = 0; i < providerDescriptors.Length; i++)
-            {
-                descriptors.Add(providerDescriptors[i]);
-            }
-        }
-    }
 }

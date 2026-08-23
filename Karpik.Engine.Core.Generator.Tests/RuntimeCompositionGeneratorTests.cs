@@ -822,6 +822,54 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_ServerStatic_EmitsConcreteEcsRegistryProvidersViaCompositionContract()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            side: "Server",
+            source: """
+                using Karpik.Engine.Core;
+
+                namespace Host;
+
+                public class ProbeUpdateSystem : ISystemUpdate
+                {
+                    public void Update() { }
+                }
+
+                public class ProbeSystem
+                {
+                    public void Init() { }
+                }
+                """,
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        string source = result.CompositionSource;
+        // The composition hands over generated provider instances; the runner's
+        // Static path never enumerates assemblies reflectively.
+        Assert.Contains(
+            "public void RegisterEcsRegistryProviders(global::Karpik.Engine.Core.IStaticEcsRegistryProviders registry)",
+            source,
+            StringComparison.Ordinal);
+        Assert.Contains("registry.AddUpdate(new GeneratedEcsUpdateRegistryProvider());", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("registry.AddRenderPrepare(", source, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "internal sealed class GeneratedEcsUpdateRegistryProvider : global::Karpik.Engine.Shared.ECS.Scheduling.IEcsUpdateRegistryProvider",
+            source,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "new global::Karpik.Engine.Shared.ECS.Scheduling.EcsUpdateSystemDescriptor(typeof(global::Host.ProbeUpdateSystem), IsSequential: false, Host_ProbeUpdateSystemAccesses, Host_ProbeUpdateSystemOrders)",
+            source,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GeneratedServiceFactories_ConstructInstancesWithResolvedDependenciesWhenExecuted()
     {
         var result = GeneratorTestHarness.Run(
@@ -1214,3 +1262,4 @@ public sealed class RuntimeCompositionGeneratorTests
 
     private sealed class NotAModuleType;
 }
+

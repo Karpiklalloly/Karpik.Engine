@@ -54,6 +54,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     private const string ExportAttributeName = "System.Composition.ExportAttribute";
     private const string SystemInterfaceName = "Karpik.Engine.Core.ISystem";
     private const string StartableInterfaceName = "Autofac.IStartable";
+    private const string SystemUpdateInterfaceName = "Karpik.Engine.Core.ISystemUpdate";
+    private const string SystemRenderPrepareInterfaceName = "Karpik.Engine.Core.ISystemRenderPrepare";
 
     // Stable numeric values of the Karpik.Engine.Core contracts; this generator
     // project intentionally does not reference the runtime assembly.
@@ -181,9 +183,24 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             ecsComponentInterface,
             ecsTagComponentInterface);
 
+        INamedTypeSymbol? systemUpdateInterface = compilation.GetTypeByMetadataName(SystemUpdateInterfaceName);
+        INamedTypeSymbol? systemRenderPrepareInterface = compilation.GetTypeByMetadataName(SystemRenderPrepareInterfaceName);
+        List<EcsSchedulingSystem> updateSchedulingSystems = systemUpdateInterface is null
+            ? []
+            : CollectEcsSchedulingSystems(registrations, systemUpdateInterface);
+        List<EcsSchedulingSystem> renderPrepareSchedulingSystems = systemRenderPrepareInterface is null
+            ? []
+            : CollectEcsSchedulingSystems(registrations, systemRenderPrepareInterface);
+
         context.AddSource(
             "GeneratedRuntimeComposition.g.cs",
-            SourceText.From(GenerateSource(installers, registrations, aotComponentTemplateRoots), Encoding.UTF8));
+            SourceText.From(GenerateSource(
+                installers,
+                registrations,
+                aotComponentTemplateRoots,
+                updateSchedulingSystems,
+                renderPrepareSchedulingSystems),
+                Encoding.UTF8));
     }
 
     private static List<ModuleInstaller> CollectInstallers(
@@ -627,6 +644,98 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         return false;
     }
 
+    /// <summary>
+    /// Extracts ECS scheduling descriptor metadata (sequential flag, component
+    /// accesses, ordering constraints) from attributes of every discovered
+    /// system that participates in the given scheduling role, so the generated
+    /// composition can emit concrete registry providers with direct descriptor
+    /// enumeration instead of runtime assembly scanning.
+    /// </summary>
+    private static List<EcsSchedulingSystem> CollectEcsSchedulingSystems(
+        List<ServiceModel> registrations,
+        INamedTypeSymbol schedulingInterface)
+    {
+        var systems = new List<EcsSchedulingSystem>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ServiceModel model in registrations)
+        {
+            if (!ImplementsInterface(model.Type, schedulingInterface))
+            {
+                continue;
+            }
+
+            if (!seen.Add(model.FullName))
+            {
+                continue;
+            }
+
+            bool isSequential = false;
+            var accesses = new List<(string TypeName, string Mode)>();
+            var orders = new List<(string TargetTypeName, string Kind)>();
+            foreach (AttributeData attribute in model.Type.GetAttributes())
+            {
+                INamedTypeSymbol? attributeType = attribute.AttributeClass;
+                if (attributeType is null || attributeType.TypeArguments.Length != 1)
+                {
+                    if (attributeType is not null && attributeType.Name == "SequentialSystemAttribute")
+                    {
+                        isSequential = true;
+                    }
+
+                    continue;
+                }
+
+                string argument = ToFullName(attributeType.TypeArguments[0]);
+                switch (attributeType.Name)
+                {
+                    case "ReadsAttribute":
+                        accesses.Add((argument, "Read"));
+                        break;
+                    case "WritesAttribute":
+                        accesses.Add((argument, "Write"));
+                        break;
+                    case "RunsAfterAttribute":
+                        orders.Add((argument, "After"));
+                        break;
+                    case "RunsBeforeAttribute":
+                        orders.Add((argument, "Before"));
+                        break;
+                }
+            }
+
+            accesses.Sort(static (left, right) => string.CompareOrdinal(left.TypeName, right.TypeName));
+            orders.Sort(static (left, right) => string.CompareOrdinal(left.TargetTypeName, right.TargetTypeName));
+
+            systems.Add(new EcsSchedulingSystem(
+                model.FullName,
+                SanitizeIdentifier(model.FullName),
+                model.AssemblyDisplayName,
+                isSequential,
+                accesses,
+                orders));
+        }
+
+        systems.Sort(static (left, right) =>
+        {
+            int comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+            return comparison != 0
+                ? comparison
+                : string.CompareOrdinal(left.FullName, right.FullName);
+        });
+        return systems;
+    }
+
+    private static string SanitizeIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (char character in value)
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
+        }
+
+        return builder.ToString();
+    }
+
     private static bool IsAccessibleFromHost(INamedTypeSymbol type, IAssemblySymbol hostAssembly)
     {
         for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
@@ -907,7 +1016,12 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         }
     }
 
-    private static string GenerateSource(List<ModuleInstaller> installers, List<ServiceModel> registrations, List<string> aotComponentTemplateRoots)
+    private static string GenerateSource(
+        List<ModuleInstaller> installers,
+        List<ServiceModel> registrations,
+        List<string> aotComponentTemplateRoots,
+        List<EcsSchedulingSystem> updateSchedulingSystems,
+        List<EcsSchedulingSystem> renderPrepareSchedulingSystems)
     {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
@@ -941,6 +1055,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             }
         }
         builder.AppendLine("        }");
+        AppendEcsRegistryProviders(builder, updateSchedulingSystems, renderPrepareSchedulingSystems);
         if (aotComponentTemplateRoots.Count > 0)
         {
             builder.AppendLine();
@@ -958,6 +1073,95 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         builder.AppendLine("    }");
         builder.AppendLine("}");
         return builder.ToString();
+    }
+
+    private static void AppendEcsRegistryProviders(
+        StringBuilder builder,
+        List<EcsSchedulingSystem> updateSchedulingSystems,
+        List<EcsSchedulingSystem> renderPrepareSchedulingSystems)
+    {
+        // The Static execution path receives fully constructed registry providers
+        // through the composition contract; the runner never enumerates assemblies
+        // reflectively in Static mode.
+        builder.AppendLine();
+        builder.AppendLine("        public void RegisterEcsRegistryProviders(global::Karpik.Engine.Core.IStaticEcsRegistryProviders registry)");
+        builder.AppendLine("        {");
+        if (updateSchedulingSystems.Count > 0)
+        {
+            builder.AppendLine("            registry.AddUpdate(new GeneratedEcsUpdateRegistryProvider());");
+        }
+        if (renderPrepareSchedulingSystems.Count > 0)
+        {
+            builder.AppendLine("            registry.AddRenderPrepare(new GeneratedEcsRenderPrepareRegistryProvider());");
+        }
+        builder.AppendLine("        }");
+
+        if (updateSchedulingSystems.Count > 0)
+        {
+            AppendProviderClass(
+                builder,
+                "GeneratedEcsUpdateRegistryProvider",
+                "IEcsUpdateRegistryProvider",
+                "GetUpdateSystems",
+                updateSchedulingSystems);
+        }
+
+        if (renderPrepareSchedulingSystems.Count > 0)
+        {
+            AppendProviderClass(
+                builder,
+                "GeneratedEcsRenderPrepareRegistryProvider",
+                "IEcsRenderPrepareRegistryProvider",
+                "GetRenderPrepareSystems",
+                renderPrepareSchedulingSystems);
+        }
+    }
+
+    private static void AppendProviderClass(
+        StringBuilder builder,
+        string className,
+        string providerInterfaceName,
+        string methodName,
+        List<EcsSchedulingSystem> systems)
+    {
+        const string descriptorNamespace = "global::Karpik.Engine.Shared.ECS.Scheduling";
+        builder.AppendLine();
+        builder.AppendLine($"    internal sealed class {className} : {descriptorNamespace}.{providerInterfaceName}");
+        builder.AppendLine("    {");
+
+        foreach (EcsSchedulingSystem system in systems)
+        {
+            builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsComponentAccessDescriptor[] {system.Identifier}Accesses =");
+            builder.AppendLine("        {");
+            foreach ((string componentTypeName, string mode) in system.Accesses)
+            {
+                builder.AppendLine($"            new {descriptorNamespace}.EcsComponentAccessDescriptor(typeof(global::{componentTypeName}), {descriptorNamespace}.EcsAccessMode.{mode}),");
+            }
+            builder.AppendLine("        };");
+            builder.AppendLine();
+            builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsSystemOrderDescriptor[] {system.Identifier}Orders =");
+            builder.AppendLine("        {");
+            foreach ((string targetTypeName, string kind) in system.Orders)
+            {
+                builder.AppendLine($"            new {descriptorNamespace}.EcsSystemOrderDescriptor(typeof(global::{targetTypeName}), {descriptorNamespace}.EcsOrderKind.{kind}),");
+            }
+            builder.AppendLine("        };");
+            builder.AppendLine();
+        }
+
+        builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsUpdateSystemDescriptor[] Systems =");
+        builder.AppendLine("        {");
+        foreach (EcsSchedulingSystem system in systems)
+        {
+            builder.AppendLine($"            new {descriptorNamespace}.EcsUpdateSystemDescriptor(typeof(global::{system.FullName}), IsSequential: {system.IsSequential.ToString().ToLowerInvariant()}, {system.Identifier}Accesses, {system.Identifier}Orders),");
+        }
+        builder.AppendLine("        };");
+        builder.AppendLine();
+        builder.AppendLine($"        public global::System.ReadOnlySpan<{descriptorNamespace}.EcsUpdateSystemDescriptor> {methodName}()");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return Systems;");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
     }
 
     private static string BuildFactory(ServiceModel model)
@@ -1030,9 +1234,34 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         internal string AssemblyDisplayName { get; }
     }
 
-    private sealed class ServiceModel
+    private sealed class EcsSchedulingSystem
     {
-        internal ServiceModel(
+        internal EcsSchedulingSystem(
+            string fullName,
+            string identifier,
+            string assemblyDisplayName,
+            bool isSequential,
+            List<(string TypeName, string Mode)> accesses,
+            List<(string TargetTypeName, string Kind)> orders)
+        {
+            FullName = fullName;
+            Identifier = identifier;
+            AssemblyDisplayName = assemblyDisplayName;
+            IsSequential = isSequential;
+            Accesses = accesses;
+            Orders = orders;
+        }
+
+        internal string FullName { get; }
+        internal string Identifier { get; }
+        internal string AssemblyDisplayName { get; }
+        internal bool IsSequential { get; }
+        internal List<(string TypeName, string Mode)> Accesses { get; }
+        internal List<(string TargetTypeName, string Kind)> Orders { get; }
+    }
+
+    private sealed class ServiceModel
+    {        internal ServiceModel(
             INamedTypeSymbol type,
             string fullName,
             string assemblyDisplayName,
