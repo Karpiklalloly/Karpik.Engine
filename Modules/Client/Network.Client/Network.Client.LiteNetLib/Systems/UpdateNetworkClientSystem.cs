@@ -3,7 +3,7 @@ using Karpik.Engine.Shared.Network.Core;
 
 namespace Karpik.Engine.Client.Network.LiteNetLib.Systems;
 
-internal class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
+public class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
 {
     public void Begin()
     {

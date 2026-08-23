@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Client.InputModule;
 
-internal class PublishInputSystem(Input input) : ISystemMainThreadBegin
+public class PublishInputSystem(Input input) : ISystemMainThreadBegin
 {
     public void MainThreadBegin()
     {
@@ -10,7 +10,7 @@ internal class PublishInputSystem(Input input) : ISystemMainThreadBegin
     }
 }
 
-internal class ConsumeInputSystem(Input input) : ISystemBegin
+public class ConsumeInputSystem(Input input) : ISystemBegin
 {
     public void Begin()
     {
@@ -18,7 +18,7 @@ internal class ConsumeInputSystem(Input input) : ISystemBegin
     }
 }
 
-internal class DestroySystem(Input input) : ISystemDestroy
+public class DestroySystem(Input input) : ISystemDestroy
 {
     public void Destroy()
     {

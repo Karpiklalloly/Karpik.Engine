@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Modules.Window.Core;
 
-internal class UpdateSystem(IInputSource inputSource) : ISystemMainThreadBegin
+public class UpdateSystem(IInputSource inputSource) : ISystemMainThreadBegin
 {
     public void MainThreadBegin()
     {

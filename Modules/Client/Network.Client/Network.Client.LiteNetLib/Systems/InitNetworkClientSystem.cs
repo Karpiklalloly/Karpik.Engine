@@ -34,7 +34,7 @@ internal class InitNetworkClientSystem(
     }
 }
 
-internal class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
+public class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
 {
     public void Destroy()
     {
