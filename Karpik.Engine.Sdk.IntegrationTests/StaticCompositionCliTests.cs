@@ -136,7 +136,7 @@ public sealed class StaticCompositionCliTests
         }
         finally
         {
-            DeleteOwnedTemporaryRoot(temporaryRoot);
+            if (Environment.GetEnvironmentVariable("KARPIK_KEEP_TEST_TEMP") == "1") { Console.WriteLine("KEEPING TEMP ROOT: " + temporaryRoot); } else { DeleteOwnedTemporaryRoot(temporaryRoot); }
         }
     }
 
@@ -426,7 +426,7 @@ public sealed class StaticCompositionCliTests
         }
         finally
         {
-            DeleteOwnedTemporaryRoot(temporaryRoot);
+            if (Environment.GetEnvironmentVariable("KARPIK_KEEP_TEST_TEMP") == "1") { Console.WriteLine("KEEPING TEMP ROOT: " + temporaryRoot); } else { DeleteOwnedTemporaryRoot(temporaryRoot); }
         }
     }
 
@@ -506,7 +506,7 @@ public sealed class StaticCompositionCliTests
         }
         finally
         {
-            DeleteOwnedTemporaryRoot(temporaryRoot);
+            if (Environment.GetEnvironmentVariable("KARPIK_KEEP_TEST_TEMP") == "1") { Console.WriteLine("KEEPING TEMP ROOT: " + temporaryRoot); } else { DeleteOwnedTemporaryRoot(temporaryRoot); }
         }
     }
 

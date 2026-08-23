@@ -187,21 +187,26 @@
          application directory succeed. -->
     <ItemGroup>
       <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\**\*" />
-      <None Include="@(_KarpikStaticLauncherNative)"
-            Link="native\%(_KarpikStaticLauncherNative.RecursiveDir)%(_KarpikStaticLauncherNative.Filename)%(_KarpikStaticLauncherNative.Extension)"
-            CopyToOutputDirectory="PreserveNewest"
-            CopyToPublishDirectory="PreserveNewest"
-            Visible="false" />
 
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native', '*.dll'))" Condition="Exists('$(KarpikEngineRoot)\native')" />
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\win-x64', '*.dll'))" Condition="Exists('$(KarpikEngineRoot)\native\win-x64')" />
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\runtimes\win-x64\native', '*'))" Condition="Exists('$(KarpikEngineRoot)\native\runtimes\win-x64\native')" />
-      <None Include="@(_KarpikStaticLauncherNativeFlat)"
-            Link="%(_KarpikStaticLauncherNativeFlat.Filename)%(_KarpikStaticLauncherNativeFlat.Extension)"
-            CopyToOutputDirectory="PreserveNewest"
-            CopyToPublishDirectory="PreserveNewest"
-            Visible="false" />
+      <!-- win-x64 host: flatten every current-RID native next to the executable -->
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native', '*.dll'))"
+                                       Condition="'$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == ''" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\win-x64', '*.dll'))"
+                                       Condition="Exists('$(KarpikEngineRoot)\native\win-x64')" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\runtimes\win-x64\native', '*'))"
+                                       Condition="Exists('$(KarpikEngineRoot)\native\runtimes\win-x64\native')" />
     </ItemGroup>
+    <ItemGroup>
+      <!-- ContentWithTargetPath is consumed by GetCopyToPublishDirectoryItems;
+           plain None items added this late would miss AssignTargetPaths. -->
+      <ContentWithTargetPath Include="@(_KarpikStaticLauncherNativeFlat)"
+                             TargetPath="%(_KarpikStaticLauncherNativeFlat.Filename)%(_KarpikStaticLauncherNativeFlat.Extension)"
+                             CopyToPublishDirectory="PreserveNewest"
+                             Visible="false" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_KarpikStaticLauncherNativeFlat)"
+          DestinationFiles="@(_KarpikStaticLauncherNativeFlat->'$(TargetDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="BuildKarpikRuntimeBundle"

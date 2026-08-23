@@ -1114,6 +1114,42 @@ public sealed class ExternalGameCliTests
             Assert.True(IsWithinRoot(output, ownedBuildRoot), $"Module output escaped the transaction: {output}");
             ReplaceModulePayload(output, Path.Combine(preparedModulesRoot, moduleId), moduleId);
             PropagatePayloadAssemblies(Path.Combine(preparedModulesRoot, moduleId), preparedModulesRoot);
+            CopyModuleNativeAssets(output, Path.GetFullPath(Path.Combine(preparedModulesRoot, "..", "native")));
+        }
+    }
+
+    /// <summary>
+    /// Copies native runtime assets (NuGet runtimes/&lt;rid&gt;/native and module
+    /// native/ layouts) from a freshly built module output into the prepared
+    /// installation's flat native root, mirroring the packager's own collection
+    /// so rebuilt modules keep their native dependencies loadable.
+    /// </summary>
+    private static void CopyModuleNativeAssets(string sourceDirectory, string preparedNativeRoot)
+    {
+        foreach (string file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(sourceDirectory, file);
+            string[] segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string destination;
+            if (segments.Length >= 3 &&
+                segments[0].Equals("runtimes", StringComparison.OrdinalIgnoreCase) &&
+                segments[^2].Equals("native", StringComparison.OrdinalIgnoreCase))
+            {
+                destination = Path.Combine([preparedNativeRoot, .. segments]);
+            }
+            else if (segments.Contains("native", StringComparer.OrdinalIgnoreCase))
+            {
+                int nativeIndex = Array.FindIndex(segments, segment =>
+                    segment.Equals("native", StringComparison.OrdinalIgnoreCase));
+                destination = Path.Combine([preparedNativeRoot, .. segments[(nativeIndex + 1)..]]);
+            }
+            else
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
         }
     }
 
@@ -1121,8 +1157,7 @@ public sealed class ExternalGameCliTests
     /// Overwrites every same-named assembly copy across all module payloads so the
     /// staged engine never holds byte-distinct assemblies with one identity.
     /// </summary>
-    private static void PropagatePayloadAssemblies(string freshModuleDirectory, string preparedModulesRoot)
-    {
+    private static void PropagatePayloadAssemblies(string freshModuleDirectory, string preparedModulesRoot)    {
         foreach (string freshAssembly in Directory.EnumerateFiles(freshModuleDirectory, "*.dll", SearchOption.TopDirectoryOnly))
         {
             string fileName = Path.GetFileName(freshAssembly);
