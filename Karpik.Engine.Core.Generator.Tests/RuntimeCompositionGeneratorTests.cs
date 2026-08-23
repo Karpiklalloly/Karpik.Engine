@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Reflection;
+using System.Text.RegularExpressions;
 using Karpik.Engine.Core.Codegen;
 using Microsoft.CodeAnalysis;
 using Xunit;
@@ -486,6 +487,137 @@ public sealed class RuntimeCompositionGeneratorTests
             ]);
 
         Assert.Single(result.DiagnosticsById(AmbiguousImplementationDiagnostic));
+    }
+
+    /// <summary>
+    /// Dynamic↔Static parity (acceptance 10): for one selection, the generated
+    /// static service registrations must name exactly the implementations that
+    /// runtime attribute discovery ([ServiceRegistration] + [Export]) and public
+    /// ECS system interfaces produce - same implementation types, scopes,
+    /// lifetimes, and export contracts.
+    /// </summary>
+    [Fact]
+    public void GeneratedStaticRegistration_MatchesAttributeDiscovery_ServiceAndSystemSets()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            side: "Server",
+            additionalReferences: CreateParityReferences());
+
+        Assert.True(result.HasCompositionSource);
+
+        var generatedRegistrations = new HashSet<string>(StringComparer.Ordinal);
+        var generatedContractsByImpl = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (Match match in Regex.Matches(
+                     result.CompositionSource,
+                     @"registry\.Register<global::(?<contract>[^,]+), global::(?<impl>[^>]+)>\(\s*global::Karpik\.Engine\.Core\.ModuleScope\.(?<scope>\w+),\s*global::Karpik\.Engine\.Core\.ServiceLifetime\.(?<lifetime>\w+)"))
+        {
+            string impl = match.Groups["impl"].Value;
+            generatedRegistrations.Add($"{impl}|{match.Groups["scope"].Value}|{match.Groups["lifetime"].Value}");
+            if (!generatedContractsByImpl.TryGetValue(impl, out HashSet<string>? contracts))
+            {
+                contracts = [];
+                generatedContractsByImpl.Add(impl, contracts);
+            }
+            contracts.Add(match.Groups["contract"].Value);
+        }
+
+        Assert.NotEmpty(generatedRegistrations);
+
+        var dynamicRegistrations = new HashSet<string>(StringComparer.Ordinal);
+        var dynamicContractsByImpl = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (Type type in GetParityAssemblies().SelectMany(static assembly => assembly.GetTypes()))
+        {
+            // Internal services stay Dynamic-only: static composition emits direct
+            // factories into the host launcher assembly, which cannot see them.
+            // This mirrors the ECS-system visibility contract.
+            if (type.IsAbstract || type.IsGenericTypeDefinition || !type.IsVisible)
+            {
+                continue;
+            }
+
+            Karpik.Engine.Core.ServiceRegistrationAttribute? registration =
+                type.GetCustomAttribute<Karpik.Engine.Core.ServiceRegistrationAttribute>();
+            bool isSystem = type.GetInterfaces().Any(static implemented =>
+                implemented.Namespace == "Karpik.Engine.Core" &&
+                implemented.Name.StartsWith("ISystem", StringComparison.Ordinal));
+            if (registration is null && !isSystem)
+            {
+                continue;
+            }
+
+            string scope = registration?.Scope.ToString() ?? "Simulation";
+            string lifetime = registration?.Lifetime.ToString() ?? "Transient";
+            dynamicRegistrations.Add($"{type.FullName}|{scope}|{lifetime}");
+            Type systemType = type;
+            var exportedContracts = new HashSet<string>(StringComparer.Ordinal);
+            foreach (System.Composition.ExportAttribute export in systemType.GetCustomAttributes<System.Composition.ExportAttribute>())
+            {
+                exportedContracts.Add(export.ContractType?.FullName ?? systemType.FullName!);
+            }
+            dynamicContractsByImpl[type.FullName!] = exportedContracts;
+        }
+
+        Assert.Empty(generatedRegistrations.Except(dynamicRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal));
+
+        // Dynamic-only entries must each be explained: either the implementation
+        // stays invisible to the launcher assembly (documented Dynamic-only
+        // restriction) or the generator rejected it with an explicit KE3xx
+        // diagnostic. A silent drop of a visible service would crash a static
+        // host at startup.
+        string diagnosticText = string.Join(
+            "\n",
+            result.Diagnostics.Select(static diagnostic => diagnostic.ToString()));
+        foreach (string missing in dynamicRegistrations.Except(generatedRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal))
+        {
+            string implName = missing.Split('|')[0];
+            Type implType = GetParityAssemblies()
+                .SelectMany(static assembly => assembly.GetTypes())
+                .First(type => type.FullName == implName);
+            // A public service may only be dropped when the harness cannot even
+            // name one of its constructor dependencies (KE3xx diagnostics then
+            // reference the parameter type, not the service).
+            bool hasHarnessUnresolvableDependency = implType
+                .GetConstructors()
+                .SelectMany(static constructor => constructor.GetParameters())
+                .Any(static parameter => parameter.ParameterType.Name == "ErrorType" || parameter.ParameterType.FullName is null);
+            Assert.True(
+                !implType.IsVisible
+                || diagnosticText.Contains(implName, StringComparison.Ordinal)
+                || hasHarnessUnresolvableDependency,
+                $"Public service {implName} is missing from the generated static composition without a diagnostic. " +
+                $"Source mentions impl: {result.CompositionSource.Contains(implName.Replace("+", "."), StringComparison.Ordinal)}; " +
+                $"diagnostics: {diagnosticText}");
+        }
+
+        foreach ((string impl, HashSet<string> contracts) in generatedContractsByImpl)
+        {
+            if (!dynamicContractsByImpl.TryGetValue(impl, out HashSet<string>? expected) || expected.Count == 0)
+            {
+                // System factories register only the concrete system type.
+                Assert.Equal([impl], contracts.OrderBy(static entry => entry, StringComparer.Ordinal).ToArray());
+                continue;
+            }
+
+            Assert.True(
+                contracts.SetEquals(expected),
+                $"Contract mismatch for {impl}: generated [{string.Join(", ", contracts.Order())}] vs exported [{string.Join(", ", expected.Order())}]");
+        }
+    }
+
+    private static MetadataReference[] CreateParityReferences() =>
+    [
+        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
+        GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
+    ];
+
+    private static IEnumerable<Assembly> GetParityAssemblies()
+    {
+        yield return typeof(Karpik.Engine.Core.IModuleInstaller).Assembly;
+        yield return typeof(Karpik.Engine.Shared.ECS.EcsRestartWorkerStateProvider).Assembly;
+        yield return typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller).Assembly;
     }
 
     [Theory]
