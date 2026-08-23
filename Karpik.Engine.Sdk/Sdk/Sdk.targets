@@ -154,14 +154,19 @@
   <Target Name="_KarpikRootStaticGraphReflectionMetadata"
           BeforeTargets="PrepareForILLink"
           Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true') And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
-    <!-- Static hosts keep full reflection metadata for the composed graph: the
-         hot-reload state pipeline (ECS restart-worker state via Newtonsoft
-         TypeNameHandling) and the editor snapshot formatter reflect over game
-         component types at runtime. Rooting every referenced assembly preserves
-         that metadata under trimming/AOT; binary size is traded for correctness
-         until a source-generated state serializer replaces the reflection path. -->
+    <!-- Static hosts keep reflection metadata for the assemblies the runtime
+         reflects over: the hot-reload state pipeline (ECS restart-worker state
+         via Newtonsoft TypeNameHandling) serializes ECS.Core snapshot records
+         and DragonECS world internals, and the editor snapshot formatter reads
+         public members of game component types. Everything else stays trimmed;
+         binary size is traded for correctness until a source-generated state
+         serializer replaces the reflection path. -->
     <ItemGroup>
-      <TrimmerRootAssembly Include="@(ReferencePath->'%(Filename)')" />
+      <TrimmerRootAssembly Include="@(_KarpikStaticModuleReference->'%(AssemblyIdentity)')"
+                           Condition="'%(_KarpikStaticModuleReference.AssemblyIdentity)' == 'ECS.Core'" />
+      <TrimmerRootAssembly Include="DragonECS" />
+      <TrimmerRootAssembly Include="Newtonsoft.Json" />
+      <TrimmerRootAssembly Include="@(ProjectReference->'%(Filename)')" />
     </ItemGroup>
   </Target>
 
