@@ -330,10 +330,14 @@ public sealed class StaticCompositionCliTests
                     $"Snapshot was null.{Environment.NewLine}{string.Join(Environment.NewLine, output)}");
                 Assert.True(snapshot.TotalEntityCount > 0,
                     $"Expected a non-empty ECS world.{Environment.NewLine}{string.Join(Environment.NewLine, output)}");
-                Assert.Contains(snapshot.Entities, entity =>
-                    entity.Components.Any(component =>
-                        component.TypeName.Contains("GameComponent", StringComparison.Ordinal) &&
-                        component.DisplayValue.Contains("42", StringComparison.Ordinal)));
+                Assert.True(
+                    snapshot.Entities.Any(entity =>
+                        entity.Components.Any(component =>
+                            component.TypeName.Contains("GameComponent", StringComparison.Ordinal) &&
+                            component.DisplayValue.Contains("42", StringComparison.Ordinal))),
+                    string.Join(Environment.NewLine, snapshot.Entities.Select(e =>
+                        $"{e.EntityId}: [{string.Join("; ", e.Components.Select(c => $"{c.TypeName} = {c.DisplayValue}"))}]")) +
+                        Environment.NewLine + string.Join(Environment.NewLine, output));
 
                 // Gate 3: ten process-isolated reload cycles with state round-trip.
                 int expectedEntities = snapshot.TotalEntityCount;
