@@ -92,6 +92,41 @@ public sealed class EditorSnapshotTests
         Assert.True(component.DisplayValue.Length <= EditorSnapshotLimits.MaxDisplayValueLength);
         runner.Destroy();
     }
+
+    [Fact]
+    public void EditorSnapshotSerialization_RoundTripsThroughSourceGeneratedContext()
+    {
+        // NativeAOT hosts disable reflection-based System.Text.Json; the IPC
+        // snapshot channel must serialize through the source-generated context.
+        var snapshot = new EditorRuntimeSnapshot
+        {
+            CapturedAtUnixMilliseconds = 1234,
+            TotalEntityCount = 1,
+            Entities =
+            [
+                new EditorEntitySnapshot
+                {
+                    EntityId = 7,
+                    Components = [new EditorComponentSnapshot { TypeName = "GameComponent", DisplayValue = "42" }]
+                }
+            ]
+        };
+
+        byte[] payload = snapshot.Serialize();
+
+        Assert.Equal(
+            payload,
+            global::System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+                snapshot, typeof(EditorRuntimeSnapshot), EditorSnapshotJsonContext.Default));
+        EditorRuntimeSnapshot restored = EditorRuntimeSnapshot.Deserialize(payload);
+        Assert.Equal(snapshot.CapturedAtUnixMilliseconds, restored.CapturedAtUnixMilliseconds);
+        Assert.Equal(snapshot.TotalEntityCount, restored.TotalEntityCount);
+        EditorEntitySnapshot entity = Assert.Single(restored.Entities);
+        Assert.Equal(7, entity.EntityId);
+        EditorComponentSnapshot component = Assert.Single(entity.Components);
+        Assert.Equal("GameComponent", component.TypeName);
+        Assert.Equal("42", component.DisplayValue);
+    }
 }
 
 internal readonly struct EditorSnapshotPosition : IEcsComponent
