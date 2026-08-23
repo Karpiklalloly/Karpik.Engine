@@ -151,6 +151,20 @@
     <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
   </PropertyGroup>
 
+  <Target Name="_KarpikRootStaticGraphReflectionMetadata"
+          BeforeTargets="PrepareForILLink"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true') And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
+    <!-- Static hosts keep full reflection metadata for the composed graph: the
+         hot-reload state pipeline (ECS restart-worker state via Newtonsoft
+         TypeNameHandling) and the editor snapshot formatter reflect over game
+         component types at runtime. Rooting every referenced assembly preserves
+         that metadata under trimming/AOT; binary size is traded for correctness
+         until a source-generated state serializer replaces the reflection path. -->
+    <ItemGroup>
+      <TrimmerRootAssembly Include="@(ReferencePath->'%(Filename)')" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="BuildKarpikRuntimeBundle"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
