@@ -40,6 +40,9 @@
       <None Include="..\Karpik.Engine.Core.Runner\StaticComposition\**\*.cs"
             LinkBase="StaticCompositionSources"
             CopyToOutputDirectory="PreserveNewest" />
+      <None Include="..\Modules\Shared\ECS\ECS.Core\AssetManagement\Converters\**\*.cs"
+            LinkBase="EcsCoreSources"
+            CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>

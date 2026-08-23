@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -10,10 +9,11 @@ public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : 
 {
     private const string TypePropertyName = "$type";
 
-    private MethodInfo? _genericToObjectMethodInfo;
-    private readonly Lock _methodInfoLock = new();
-    private readonly ConcurrentDictionary<Type, MethodInfo> _closedToObjectMethodCache = new();
-    
+    // Deserialization must stay on the non-generic ToObject(Type, JsonSerializer)
+    // overload: runtime generic-method instantiation has no native code under AOT,
+    // and published static hosts restore hot-reload state through this converter.
+    private readonly ConcurrentDictionary<Type, byte> _verifiedComponentTypes = new();
+
     public override void WriteJson(JsonWriter writer, IEcsComponentMember[]? value, JsonSerializer serializer)
     {
         writer.WriteStartArray();
@@ -35,12 +35,6 @@ public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : 
         JArray jArray = JArray.Load(reader);
         var components = new List<IEcsComponentMember>(jArray.Count);
 
-        InitializeGenericToObjectMethodInfo();
-        if (_genericToObjectMethodInfo == null)
-        {
-             throw new InvalidOperationException("Could not find the generic method JObject.ToObject<T>(JsonSerializer).");
-        }
-        
         foreach (JToken token in jArray)
         {
             if (token.Type != JTokenType.Object) continue;
@@ -52,15 +46,15 @@ public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : 
                 logger.LogError("Missing or invalid '{TypePropertyName}' property. Skipping object: {obj}", TypePropertyName, obj.ToString(Formatting.None));
                 continue;
             }
-            
+
             IEcsComponentMember? deserializedComponent = null;
-            
+
             string? typeName = typeToken.Value<string>();
             if (typeName is not null)
             {
                 string[] type = typeName.Split(',');
                 obj.Remove(TypePropertyName);
-            
+
                 try
                 {
                     Type componentType;
@@ -72,26 +66,17 @@ public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : 
                     {
                         componentType = serializer.SerializationBinder.BindToType(null, typeName);
                     }
-                
+
 
                     if (typeof(IEcsComponentMember).IsAssignableFrom(componentType))
                     {
-                        if (!_closedToObjectMethodCache.TryGetValue(componentType, out var closedMethod))
-                        {
-                            closedMethod = _genericToObjectMethodInfo.MakeGenericMethod(componentType);
-                            _closedToObjectMethodCache.TryAdd(componentType, closedMethod);
-                        }
-
-                        deserializedComponent = (IEcsComponentMember?)closedMethod.Invoke(obj, [serializer]);
+                        _verifiedComponentTypes.TryAdd(componentType, 0);
+                        deserializedComponent = obj.ToObject(componentType, serializer) as IEcsComponentMember;
                     }
                     else
                     {
                         logger.LogError("Error: Could not find or assignable type for name '{TypeName}'.", typeName);
                     }
-                }
-                catch (TargetInvocationException tie)
-                {
-                    logger.LogError("Error invoking ToObject<{TypeName}>: {InnerExceptionMessage}\nJSON: {obj}", typeName, tie.InnerException?.Message ?? tie.Message, obj.ToString(Formatting.None));
                 }
                 catch (Exception ex)
                 {
@@ -106,30 +91,5 @@ public class ComponentArrayConverter(ILogger<ComponentArrayConverter> logger) : 
         }
 
         return components.ToArray();
-    }
-    
-    private void InitializeGenericToObjectMethodInfo()
-    {
-        if (_genericToObjectMethodInfo != null) return;
-
-        lock (_methodInfoLock)
-        {
-            if (_genericToObjectMethodInfo != null) return;
-
-            MethodInfo? foundMethod = typeof(JObject).GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(m =>
-                    m.Name == "ToObject" &&
-                    m.IsGenericMethodDefinition &&
-                    m.GetParameters().Length == 1 &&
-                    m.GetParameters()[0].ParameterType == typeof(JsonSerializer)
-                );
-
-            if (foundMethod == null)
-            {
-                logger.LogCritical("Could not find method info for JObject.ToObject<T>(JsonSerializer).");
-            }
-
-            _genericToObjectMethodInfo = foundMethod;
-        }
     }
 }
