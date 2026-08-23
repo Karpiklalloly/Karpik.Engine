@@ -465,6 +465,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         composition.RegisterEcsRegistryProviders(providers);
         _staticEcsProviders = providers;
         composition.RegisterModules(this);
+        // Freeze the generated installer order immediately so consumers of
+        // GetModules() observe it before Setup runs.
+        _modules.Sort(CompareModules);
     }
 
     void IStaticModuleRegistry.Add(IModuleInstaller installer) => RegisterModule(installer);
@@ -490,11 +493,17 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         }
 
         Console.WriteLine($"Register module {moduleInstaller.Name}");
+        bool isStatic = _staticServices is not null;
         _modules.Add(moduleInstaller);
         _moduleRegistrations.Add(moduleInstaller, new ModuleRegistration(
-            _assemblyLoadRanks.GetValueOrDefault(moduleInstaller.GetType().Assembly, int.MaxValue),
+            isStatic
+                // Real generated insertion rank (Scope asc -> Priority asc ->
+                // assembly identity -> full name); never int.MaxValue filler.
+                ? _nextRegistrationRank++
+                : _assemblyLoadRanks.GetValueOrDefault(moduleInstaller.GetType().Assembly, int.MaxValue),
             moduleInstaller.GetType().FullName ?? moduleInstaller.GetType().Name,
-            _nextRegistrationRank++));
+            _nextRegistrationRank++,
+            isStatic));
     }
 
     private static ModuleAttribute GetModuleAttribute(IModuleInstaller moduleInstaller)
@@ -506,14 +515,20 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
     private int CompareModules(IModuleInstaller left, IModuleInstaller right)
     {
+        var leftRegistration = _moduleRegistrations[left];
+        var rightRegistration = _moduleRegistrations[right];
+        if (leftRegistration.IsStaticInsertion && rightRegistration.IsStaticInsertion)
+        {
+            // Static mode: preserve the generated insertion order exactly.
+            return leftRegistration.RegistrationRank.CompareTo(rightRegistration.RegistrationRank);
+        }
+
         var comparison = GetModuleAttribute(left).Priority.CompareTo(GetModuleAttribute(right).Priority);
         if (comparison != 0)
         {
             return comparison;
         }
 
-        var leftRegistration = _moduleRegistrations[left];
-        var rightRegistration = _moduleRegistrations[right];
         comparison = leftRegistration.AssemblyLoadRank.CompareTo(rightRegistration.AssemblyLoadRank);
         if (comparison != 0)
         {
@@ -659,7 +674,11 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         }
     }
 
-    private readonly record struct ModuleRegistration(int AssemblyLoadRank, string TypeFullName, int RegistrationRank);
+    private readonly record struct ModuleRegistration(
+        int AssemblyLoadRank,
+        string TypeFullName,
+        int RegistrationRank,
+        bool IsStaticInsertion = false);
 
     private static EcsPipeline BuildPipeline(EcsPipeline.Builder newBuilder)
     {

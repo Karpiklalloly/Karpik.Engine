@@ -120,6 +120,69 @@ public sealed class StaticCompositionTests
         Assert.True(staticBytes > 0);
     }
 
+    [Fact]
+    public void Setup_Static_KeepsGeneratedInstallerSequenceAcrossScopePriorityInversion()
+    {
+        StaticTrace.Clear();
+        var order = new List<string>();
+        var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+        var runner = new EngineRunner();
+        runner.RegisterStaticComposition(new OrderedComposition(
+            [
+                // Generated emission order (Scope asc -> Priority asc): the
+                // Engine-scope installer comes first even though its Priority is
+                // higher than the Simulation installer's.
+                new HighPriorityEngineInstaller(order),
+                new LowPrioritySimulationInstaller(order),
+            ]));
+        runner.Setup(new Application(Side.Server), scheduler);
+        scheduler.Execute();
+
+        // The legacy Priority-first comparer would have ordered the Simulation
+        // module (-50) before the Engine module (+50); the static insertion rank
+        // must win so OnRegisterServices keeps the generated sequence.
+        Assert.Equal(
+            [nameof(HighPriorityEngineInstaller), nameof(LowPrioritySimulationInstaller)],
+            runner.GetModules().Select(static module => module.GetType().Name).ToArray());
+
+        runner.Destroy();
+
+        Assert.Equal(
+            [nameof(HighPriorityEngineInstaller), nameof(LowPrioritySimulationInstaller)],
+            order);
+    }
+
+    private sealed class OrderedComposition(IModuleInstaller[] installers) : IStaticRuntimeComposition
+    {
+        public void RegisterModules(IStaticModuleRegistry registry)
+        {
+            foreach (IModuleInstaller installer in installers)
+            {
+                registry.Add(installer);
+            }
+        }
+
+        public void RegisterServices(IStaticServiceRegistry registry) { }
+
+        public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
+    }
+
+    [Module(ModuleScope.Engine, 50)]
+    private sealed class HighPriorityEngineInstaller(List<string> order) : IModuleInstaller
+    {
+        public string Name => nameof(HighPriorityEngineInstaller);
+
+        public void OnRegisterServices(ContainerBuilder builder) => order.Add(Name);
+    }
+
+    [Module(ModuleScope.Simulation, -50)]
+    private sealed class LowPrioritySimulationInstaller(List<string> order) : IModuleInstaller
+    {
+        public string Name => nameof(LowPrioritySimulationInstaller);
+
+        public void OnRegisterServices(ContainerBuilder builder) => order.Add(Name);
+    }
+
     private long MeasureSetupBytes(bool dynamicMode)
     {
         long before = GC.GetAllocatedBytesForCurrentThread();

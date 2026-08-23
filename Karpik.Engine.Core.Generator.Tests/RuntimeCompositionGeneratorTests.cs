@@ -623,6 +623,71 @@ public sealed class RuntimeCompositionGeneratorTests
     [Theory]
     [InlineData("Client")]
     [InlineData("Server")]
+    public void GeneratedStaticRegistration_PreservesGeneratedInstallerSequenceThroughRunner(string side)
+    {
+        var references = new[]
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
+        };
+
+        var result = GeneratorTestHarness.Run(CreateGenerator(), side: side, additionalReferences: references);
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+
+        // The generated emission sequence is the canonical Static registration
+        // order: Scope asc -> Priority asc -> assembly identity -> full name.
+        string[] generatedSequence = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+        Assert.NotEmpty(generatedSequence);
+
+        // Registering through the static composition boundary must yield exactly
+        // the generated sequence - EngineRunner keeps a real per-installer rank
+        // (Scope asc -> Priority asc -> assembly identity -> full name) instead
+        // of reordering by full type name.
+        var runner = new Karpik.Engine.Core.EngineRunner();
+        runner.RegisterStaticComposition(new SequencedComposition(
+            [.. generatedSequence.Select(ResolveInstaller)]));
+
+        Assert.Equal(
+            generatedSequence,
+            runner.GetModules().Select(static module => module.GetType().FullName!).ToArray());
+    }
+
+    private static IModuleInstaller ResolveInstaller(string fullName) => fullName switch
+    {
+        "Karpik.Engine.Shared.ECS.EcsModuleInstaller" =>
+            new Karpik.Engine.Shared.ECS.EcsModuleInstaller(),
+        "Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller" =>
+            new Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller(),
+        "Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller" =>
+            new Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller(),
+        "Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller" =>
+            new Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller(),
+        _ => throw new InvalidOperationException($"Unexpected installer in generated source: {fullName}")
+    };
+
+    private sealed class SequencedComposition(IModuleInstaller[] installers) : IStaticRuntimeComposition
+    {
+        public void RegisterModules(IStaticModuleRegistry registry)
+        {
+            foreach (IModuleInstaller installer in installers)
+            {
+                registry.Add(installer);
+            }
+        }
+
+        public void RegisterServices(IStaticServiceRegistry registry) { }
+
+        public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
+    }
+
+    [Theory]
+    [InlineData("Client")]
+    [InlineData("Server")]
     public void GeneratedStaticRegistration_MatchesDynamicDiscovery_ModuleIdSets(string side)
     {
         var references = new[]
