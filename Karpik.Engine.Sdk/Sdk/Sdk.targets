@@ -162,8 +162,9 @@
          binary size is traded for correctness until a source-generated state
          serializer replaces the reflection path. -->
     <ItemGroup>
-      <!-- AssemblyIdentity is a full assembly name ("ECS.Core, Version=..."). -->
-      <TrimmerRootAssembly Include="@(_KarpikStaticModuleReference->'%(AssemblyIdentity)')"
+      <!-- AssemblyIdentity is a full assembly name; TrimmerRootAssembly wants
+           the simple name, so strip everything after the ',' -->
+      <TrimmerRootAssembly Include="$([System.String]::Copy('%(_KarpikStaticModuleReference.AssemblyIdentity)').Split(',')[0])"
                            Condition="$([System.String]::Copy('%(_KarpikStaticModuleReference.AssemblyIdentity)').StartsWith('ECS.Core,'))" />
       <TrimmerRootAssembly Include="DragonECS" />
       <TrimmerRootAssembly Include="Newtonsoft.Json" />
