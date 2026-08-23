@@ -180,12 +180,24 @@
           BeforeTargets="GetCopyToPublishDirectoryItems;CopyFilesToOutputDirectory"
           Condition="'$(KarpikCompositionMode)' == 'Static' And '$(KarpikProjectKind)' == 'Tool' And '$(KarpikEngineRoot)' != '' And Exists('$(KarpikEngineRoot)\native')">
     <!-- A Static Tool launcher is the self-contained game executable: native
-         dependencies staged by the engine installation (shaderc, SDL2, ...)
-         must sit next to it, both for local runs and inside publish output. -->
+         dependencies staged by the engine installation must be reachable from
+         it. The installation keeps them under native\<rid>\ and native\
+         runtimes\<rid>\native\; stage the full tree AND flatten the current
+         RID's binaries into the output root so loaders that only probe the
+         application directory succeed. -->
     <ItemGroup>
-      <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\*" />
+      <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\**\*" />
       <None Include="@(_KarpikStaticLauncherNative)"
-            Link="%(_KarpikStaticLauncherNative.Filename)%(_KarpikStaticLauncherNative.Extension)"
+            Link="native\%(_KarpikStaticLauncherNative.RecursiveDir)%(_KarpikStaticLauncherNative.Filename)%(_KarpikStaticLauncherNative.Extension)"
+            CopyToOutputDirectory="PreserveNewest"
+            CopyToPublishDirectory="PreserveNewest"
+            Visible="false" />
+
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native', '*.dll'))" Condition="Exists('$(KarpikEngineRoot)\native')" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\win-x64', '*.dll'))" Condition="Exists('$(KarpikEngineRoot)\native\win-x64')" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\runtimes\win-x64\native', '*'))" Condition="Exists('$(KarpikEngineRoot)\native\runtimes\win-x64\native')" />
+      <None Include="@(_KarpikStaticLauncherNativeFlat)"
+            Link="%(_KarpikStaticLauncherNativeFlat.Filename)%(_KarpikStaticLauncherNativeFlat.Extension)"
             CopyToOutputDirectory="PreserveNewest"
             CopyToPublishDirectory="PreserveNewest"
             Visible="false" />
