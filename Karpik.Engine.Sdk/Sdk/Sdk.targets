@@ -142,13 +142,17 @@
     <!-- Documented NativeAOT warning inventory (docs/02_ADR/static-runtime-composition.md):
          installed engine payload assemblies (Aether.Physics2D, MoonSharp.Interpreter,
          Newtonsoft.Json, DragonECS, ImGui.NET) ship without trim/AOT annotations and
-         produce aggregate IL2104/IL3053. The reflection code inside
-         Karpik.Engine.Core/Karpik.Engine.Core.Runner that motivates those warnings is
-         the Dynamic composition path, which generated static hosts never execute -
-         proven by the source-boundary test and the no-reflection runtime tests.
+         produce aggregate IL2104/IL3053. Client hosts additionally see IL3000/IL3002
+         from Silk.NET's DefaultPathResolver: it probes native dependency paths via
+         Assembly.Location, which is empty for AOT/single-file outputs; native
+         dependencies are staged next to the executable so resolution succeeds
+         regardless. The reflection code inside Karpik.Engine.Core /
+         Karpik.Engine.Core.Runner that motivates IL2104/IL3053 is the Dynamic
+         composition path, which generated static hosts never execute - proven by
+         the source-boundary test and the no-reflection runtime tests.
          Any OTHER IL2xxx/IL3xxx/IL3050 code is an unexplained regression and must be
          fixed or narrowly annotated before shipping. -->
-    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
+    <NoWarn>$(NoWarn);IL2104;IL3053;IL3000;IL3002</NoWarn>
   </PropertyGroup>
 
   <Target Name="_KarpikRootStaticGraphReflectionMetadata"

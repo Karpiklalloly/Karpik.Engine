@@ -463,7 +463,7 @@ public sealed class StaticCompositionCliTests
 
             List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
             // Same documented inventory as the Server gate (Sdk.targets NoWarn rationale).
-            string[] clientDocumentedCodes = ["IL2104", "IL3053"];
+            string[] clientDocumentedCodes = ["IL2104", "IL3053", "IL3000", "IL3002"];
             List<string> clientUnexplained = aotWarnings.Where(code => !clientDocumentedCodes.Contains(code)).ToList();
             Assert.True(clientUnexplained.Count == 0,
                 "NativeAOT publish emitted warnings outside the documented inventory " +
