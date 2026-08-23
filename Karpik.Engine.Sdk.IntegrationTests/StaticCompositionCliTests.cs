@@ -408,13 +408,16 @@ public sealed class StaticCompositionCliTests
             Assert.True(collectedBytes.Length >= 10, "Expected at least ten collected-state reports.");
             // The template init system creates one entity per worker start and the
             // restored world accumulates it (expectedEntities++ above), so the saved
-            // payload grows linearly by design (plus occasional digit-growth bytes).
-            // A leak would compound; require monotonic growth that stays under 1.5x.
-            long initial = collectedBytes[0];
-            long final = collectedBytes[^1];
-            Assert.True(final > 0 && final <= initial * 3 / 2,
-                "Saved state payload must grow only linearly with accumulated state " +
-                "(no compounding leak): sizes [" + string.Join(", ", collectedBytes) + "]");
+            // payload grows by a constant per-cycle amount plus occasional digit
+            // bytes when entity ids roll over a power of ten. A compounding leak
+            // would make later deltas visibly larger; require every per-cycle delta
+            // to stay within a small jitter window around the median delta.
+            long[] deltas = [.. collectedBytes.Zip(collectedBytes.Skip(1), (previous, current) => current - previous)];
+            long medianDelta = deltas.Order().ElementAt(deltas.Length / 2);
+            Assert.True(deltas.All(delta => Math.Abs(delta - medianDelta) <= 16),
+                "Saved state payload must grow only by the constant accumulated-state " +
+                "delta (no compounding leak): sizes [" + string.Join(", ", collectedBytes) +
+                "], deltas [" + string.Join(", ", deltas) + "]");
 
             // No locked publish files and no orphan processes.
             using (FileStream unlocked = File.Open(executable, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
