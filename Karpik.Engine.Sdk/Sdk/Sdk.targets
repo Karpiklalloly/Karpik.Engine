@@ -138,6 +138,19 @@
                                          ProjectReferences="@(ProjectReference->'%(FullPath)')" />
   </Target>
 
+  <PropertyGroup Condition="'$(KarpikCompositionMode)' == 'Static' And '$(PublishAot)' == 'true'">
+    <!-- Documented NativeAOT warning inventory (docs/02_ADR/static-runtime-composition.md):
+         installed engine payload assemblies (Aether.Physics2D, MoonSharp.Interpreter,
+         Newtonsoft.Json, DragonECS, ImGui.NET) ship without trim/AOT annotations and
+         produce aggregate IL2104/IL3053. The reflection code inside
+         Karpik.Engine.Core/Karpik.Engine.Core.Runner that motivates those warnings is
+         the Dynamic composition path, which generated static hosts never execute -
+         proven by the source-boundary test and the no-reflection runtime tests.
+         Any OTHER IL2xxx/IL3xxx/IL3050 code is an unexplained regression and must be
+         fixed or narrowly annotated before shipping. -->
+    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
+  </PropertyGroup>
+
   <Target Name="BuildKarpikRuntimeBundle"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">

@@ -15,6 +15,7 @@ internal sealed class ClientGameModule : IModule
     public void Add(ISystemRegistry systems)
     {
         systems.Add<ClientGameInitSystem>();
+        systems.Add<ClientGameRenderSystem>();
     }
 }
 
@@ -30,6 +31,20 @@ public sealed class ClientGameInitSystem(EcsDefaultWorld world) : ISystemInit
         if (File.Exists(contentPath))
         {
             Console.WriteLine($"[ClientGame] Content: {File.ReadAllText(contentPath).Trim()}");
+        }
+    }
+}
+
+// Emits the acceptance evidence for the NativeAOT client gate: one rendered frame.
+public sealed class ClientGameRenderSystem : ISystemRender
+{
+    private int _renderedFrames;
+
+    public void Render()
+    {
+        if (Interlocked.Increment(ref _renderedFrames) == 1)
+        {
+            Console.WriteLine("[ClientGame] First frame rendered.");
         }
     }
 }

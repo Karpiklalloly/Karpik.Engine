@@ -1612,40 +1612,57 @@ public sealed class ExternalGameCliTests
         }
     }
 
-    internal static void WriteNuGetConfig(string gameRoot, string packageFeed, string offlinePackageFeed)
+    internal static void WriteNuGetConfig(
+        string gameRoot,
+        string packageFeed,
+        string offlinePackageFeed,
+        IReadOnlyList<string>? onlinePackagePatterns = null)
     {
-        string escapedFeed = System.Security.SecurityElement.Escape(Path.GetFullPath(packageFeed))!;
-        string escapedOfflinePackageFeed =
-            System.Security.SecurityElement.Escape(Path.GetFullPath(offlinePackageFeed))!;
-        string content = $$"""
-            <?xml version="1.0" encoding="utf-8"?>
-            <configuration>
-              <config>
-                <add key="globalPackagesFolder" value=".packages" />
-              </config>
-              <packageSources>
-                <clear />
-                <add key="Karpik local" value="{{escapedFeed}}" />
-                <add key="Offline package cache" value="{{escapedOfflinePackageFeed}}" />
-              </packageSources>
-              <packageSourceMapping>
-                <packageSource key="Karpik local">
-                  <package pattern="Karpik.Engine.Sdk" />
-                </packageSource>
-                <packageSource key="Offline package cache">
-                  <package pattern="*" />
-                </packageSource>
-              </packageSourceMapping>
-            </configuration>
-            """;
-        File.WriteAllText(Path.Combine(gameRoot, "NuGet.Config"), content, new UTF8Encoding(false));
+        var configuration = new XElement("configuration",
+            new XElement("config",
+                new XElement("add",
+                    new XAttribute("key", "globalPackagesFolder"),
+                    new XAttribute("value", ".packages"))),
+            new XElement("packageSources",
+                new XElement("clear"),
+                new XElement("add",
+                    new XAttribute("key", "Karpik local"),
+                    new XAttribute("value", Path.GetFullPath(packageFeed))),
+                new XElement("add",
+                    new XAttribute("key", "Offline package cache"),
+                    new XAttribute("value", Path.GetFullPath(offlinePackageFeed))),
+                onlinePackagePatterns is { Count: > 0 }
+                    ? new XElement("add",
+                        new XAttribute("key", "nuget.org"),
+                        new XAttribute("value", "https://api.nuget.org/v3/index.json"))
+                    : null),
+            new XElement("packageSourceMapping",
+                new XElement("packageSource",
+                    new XAttribute("key", "Karpik local"),
+                    new XElement("package", new XAttribute("pattern", "Karpik.Engine.Sdk"))),
+                new XElement("packageSource",
+                    new XAttribute("key", "Offline package cache"),
+                    new XElement("package", new XAttribute("pattern", "*"))),
+                onlinePackagePatterns is { Count: > 0 }
+                    ? new XElement("packageSource",
+                        new XAttribute("key", "nuget.org"),
+                        onlinePackagePatterns.Select(pattern =>
+                            new XElement("package", new XAttribute("pattern", pattern))))
+                    : null));
+
+        File.WriteAllText(
+            Path.Combine(gameRoot, "NuGet.Config"),
+            configuration.ToString(),
+            new UTF8Encoding(false));
     }
 
     internal async Task<ProcessResult> RunAsync(
         string workingDirectory,
         IReadOnlyList<string> arguments,
-        IReadOnlyDictionary<string, string?> environment)
+        IReadOnlyDictionary<string, string?> environment,
+        TimeSpan? timeout = null)
     {
+        TimeSpan effectiveTimeout = timeout ?? CommandTimeout;
         var startInfo = new ProcessStartInfo("dotnet")
         {
             WorkingDirectory = workingDirectory,
@@ -1676,9 +1693,9 @@ public sealed class ExternalGameCliTests
         try
         {
             Task exit = process.WaitForExitAsync();
-            if (await Task.WhenAny(exit, Task.Delay(CommandTimeout)) != exit)
+            if (await Task.WhenAny(exit, Task.Delay(effectiveTimeout)) != exit)
             {
-                throw new TimeoutException($"dotnet {string.Join(' ', arguments)} exceeded {CommandTimeout}.");
+                throw new TimeoutException($"dotnet {string.Join(' ', arguments)} exceeded {effectiveTimeout}.");
             }
             await exit;
         }

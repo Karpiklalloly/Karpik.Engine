@@ -107,92 +107,434 @@ public sealed class StaticCompositionCliTests
         try
         {
             ExternalGameCliTests harness = new(_output);
-            string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
-
-            var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
-                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
-                ["DOTNET_NOLOGO"] = "1",
-                ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
-                ["MSBUILDDISABLENODEREUSE"] = "1",
-                ["NUGET_PACKAGES"] = Path.Combine(temporaryRoot, "nuget-packages"),
-                ["NUGET_HTTP_CACHE_PATH"] = Path.Combine(temporaryRoot, "nuget-http-cache"),
-                ["NuGetAudit"] = "false",
-                ["RestoreDisableParallel"] = "true"
-            };
-
-            // Restore every server-graph module with default package settings and
-            // transaction-owned intermediates so its project.assets.json can seed the
-            // offline feed without writing into repository Modules/**/obj.
-            List<string> catalogModuleProjects = GetCatalogModuleProjects(repositoryRoot)
-                .Where(path =>
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
-                    path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                .ToList();
-            string moduleSeedAssetsRoot = await harness.SeedModuleRestoresIntoOwnedStateAsync(
-                repositoryRoot, catalogModuleProjects, temporaryRoot);
-
-            string packageFeed = Path.Combine(temporaryRoot, "package-feed");
-            Directory.CreateDirectory(packageFeed);
-            string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
-            SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed, [moduleSeedAssetsRoot]);
-            string hive = Path.Combine(temporaryRoot, "template-hive");
-            string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
-            WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
-            environment["KarpikEngineRoot"] = retainedEngineRoot;
-            // The static composition generator can only discover current-shape module
-            // installers, so every module of the launched side's graph must be rebuilt
-            // from current sources. Client-only modules are out of the Server graph.
-            string engineRoot = await harness.CreateUpdatedEngineInstallationAsync(
-                repositoryRoot, retainedEngineRoot, temporaryRoot, nugetConfig, environment,
-                catalogModuleProjects);
-            environment.Remove("KarpikEngineRoot");
-            environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
-
-            await harness.PackSdkIntoOwnedFeedAsync(
-                repositoryRoot, temporaryRoot, nugetConfig, packageFeed, environment);
-            ProcessResult install = await harness.RunAsync(
+            StaticTemplateGame game = await PrepareStaticTemplateGameAsync(
+                harness,
+                repositoryRoot,
                 temporaryRoot,
-                ["new", "--debug:custom-hive", hive, "install", GetTemplateRoot()],
-                environment);
-            AssertSuccess(install, "install the Karpik game template into an isolated hive");
-
-            string gameName = "StaticHostGame";
-            string gameRoot = Path.Combine(temporaryRoot, "game", gameName);
-            await harness.MaterializeAsync(temporaryRoot, hive, gameRoot, gameName, environment);
-            WriteNuGetConfig(gameRoot, packageFeed, offlinePackageFeed);
-
-            string sharedProject = Path.Combine(
-                gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
-            string serverProject = Path.Combine(
-                gameRoot, "Source", $"{gameName}.Server", $"{gameName}.Server.csproj");
-            string serverLauncherProject = Path.Combine(
-                gameRoot, "Source", $"{gameName}.Server.Launcher", $"{gameName}.Server.Launcher.csproj");
-            SetCompositionMode(sharedProject, "Static", engineRoot);
-            SetCompositionMode(serverProject, "Static", engineRoot);
-            SetCompositionMode(serverLauncherProject, "Static", engineRoot);
+                path => path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Shared{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+                        path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}Server{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
 
             ProcessResult restore = await harness.RunAsync(
-                gameRoot,
-                ["restore", serverLauncherProject, "-m:1", "-nr:false"],
-                environment);
+                game.GameRoot,
+                ["restore", game.ServerLauncherProject, "-m:1", "-nr:false"],
+                game.Environment);
             AssertSuccess(restore, "restore the Static Server host graph");
             ProcessResult build = await harness.RunAsync(
-                gameRoot,
-                ["build", serverLauncherProject, "-m:1", "-nr:false", "--no-restore"],
-                environment);
+                game.GameRoot,
+                ["build", game.ServerLauncherProject, "-m:1", "-nr:false", "--no-restore"],
+                game.Environment);
             AssertSuccess(build, "build the Static Server host executable");
 
             await RunAndObserveStaticHostAsync(
-                harness, environment, gameName, gameRoot, engineRoot);
-            AssertNoOrphanHostProcesses(gameName);
+                harness, game.Environment, game.GameName, game.GameRoot, game.EngineRoot);
+            AssertNoOrphanHostProcesses(game.GameName);
             harness.AssertAllSubprocessesUseOwnedState(temporaryRoot);
         }
         finally
         {
             DeleteOwnedTemporaryRoot(temporaryRoot);
         }
+    }
+
+    private static readonly string[] NativeAotOnlinePackagePatterns =
+    [
+        "Microsoft.DotNet.*",
+        "Microsoft.NET.ILLink.Tasks",
+        "Microsoft.NETCore.App.Runtime.*",
+        "Microsoft.WindowsDesktop.App.Runtime.*",
+        "Microsoft.AspNetCore.App.Runtime.*",
+        "runtime.win-*"
+    ];
+
+    internal sealed record StaticTemplateGame(
+        ExternalGameCliTests Harness,
+        Dictionary<string, string?> Environment,
+        string GameName,
+        string GameRoot,
+        string EngineRoot,
+        string ServerLauncherProject,
+        string ClientLauncherProject);
+
+    /// <summary>
+    /// Shared transaction-owned preparation for the gated Static host tests:
+    /// owned module seeding, offline feed, rebuilt engine installation of the
+    /// filtered side graph, SDK pack, template install and materialization with
+    /// every project switched to KarpikCompositionMode=Static.
+    /// </summary>
+    private async Task<StaticTemplateGame> PrepareStaticTemplateGameAsync(
+        ExternalGameCliTests harness,
+        string repositoryRoot,
+        string temporaryRoot,
+        Func<string, bool> catalogModuleProjectFilter,
+        bool allowNativeAotOnlineFeed = false)
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
+            ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+            ["DOTNET_NOLOGO"] = "1",
+            ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
+            ["MSBUILDDISABLENODEREUSE"] = "1",
+            ["NUGET_PACKAGES"] = Path.Combine(temporaryRoot, "nuget-packages"),
+            ["NUGET_HTTP_CACHE_PATH"] = Path.Combine(temporaryRoot, "nuget-http-cache"),
+            ["NuGetAudit"] = "false",
+            ["RestoreDisableParallel"] = "true"
+        };
+
+        // Restore every module of the exercised graph with default package settings
+        // and transaction-owned intermediates so its project.assets.json can seed the
+        // offline feed without writing into repository Modules/**/obj.
+        List<string> catalogModuleProjects = GetCatalogModuleProjects(repositoryRoot)
+            .Where(catalogModuleProjectFilter)
+            .ToList();
+        string moduleSeedAssetsRoot = await harness.SeedModuleRestoresIntoOwnedStateAsync(
+            repositoryRoot, catalogModuleProjects, temporaryRoot);
+
+        string packageFeed = Path.Combine(temporaryRoot, "package-feed");
+        Directory.CreateDirectory(packageFeed);
+        string offlinePackageFeed = Path.Combine(temporaryRoot, "offline-packages");
+        SeedOfflinePackageFeed(repositoryRoot, offlinePackageFeed, [moduleSeedAssetsRoot]);
+        string hive = Path.Combine(temporaryRoot, "template-hive");
+        string nugetConfig = Path.Combine(temporaryRoot, "NuGet.Config");
+        WriteNuGetConfig(temporaryRoot, packageFeed, offlinePackageFeed);
+        environment["KarpikEngineRoot"] = ResolveRetainedEngineRoot(repositoryRoot);
+        // The static composition generator can only discover current-shape module
+        // installers, so every module of the exercised graphs must be rebuilt
+        // from current sources inside the transaction.
+        string engineRoot = await harness.CreateUpdatedEngineInstallationAsync(
+            repositoryRoot, environment["KarpikEngineRoot"]!, temporaryRoot, nugetConfig, environment,
+            catalogModuleProjects);
+        environment.Remove("KarpikEngineRoot");
+        environment["KarpikLocalApplicationDataRoot"] = Path.Combine(temporaryRoot, "local");
+
+        await harness.PackSdkIntoOwnedFeedAsync(
+            repositoryRoot, temporaryRoot, nugetConfig, packageFeed, environment);
+        ProcessResult install = await harness.RunAsync(
+            temporaryRoot,
+            ["new", "--debug:custom-hive", hive, "install", GetTemplateRoot()],
+            environment);
+        AssertSuccess(install, "install the Karpik game template into an isolated hive");
+
+        string gameName = "StaticHostGame";
+        string gameRoot = Path.Combine(temporaryRoot, "game", gameName);
+        await harness.MaterializeAsync(temporaryRoot, hive, gameRoot, gameName, environment);
+        WriteNuGetConfig(
+            gameRoot,
+            packageFeed,
+            offlinePackageFeed,
+            allowNativeAotOnlineFeed ? NativeAotOnlinePackagePatterns : null);
+
+        string sharedProject = Path.Combine(
+            gameRoot, "Source", $"{gameName}.Shared", $"{gameName}.Shared.csproj");
+        string serverProject = Path.Combine(
+            gameRoot, "Source", $"{gameName}.Server", $"{gameName}.Server.csproj");
+        string clientProject = Path.Combine(
+            gameRoot, "Source", $"{gameName}.Client", $"{gameName}.Client.csproj");
+        string serverLauncherProject = Path.Combine(
+            gameRoot, "Source", $"{gameName}.Server.Launcher", $"{gameName}.Server.Launcher.csproj");
+        string clientLauncherProject = Path.Combine(
+            gameRoot, "Source", $"{gameName}.Client.Launcher", $"{gameName}.Client.Launcher.csproj");
+        SetCompositionMode(sharedProject, "Static", engineRoot);
+        SetCompositionMode(serverProject, "Static", engineRoot);
+        SetCompositionMode(clientProject, "Static", engineRoot);
+        SetCompositionMode(serverLauncherProject, "Static", engineRoot);
+        SetCompositionMode(clientLauncherProject, "Static", engineRoot);
+
+        return new StaticTemplateGame(
+            harness, environment, gameName, gameRoot, engineRoot,
+            serverLauncherProject, clientLauncherProject);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Static_server_host_publishes_and_runs_under_NativeAot_with_ten_reload_cycles()
+    {
+        Assert.SkipUnless(
+            Environment.GetEnvironmentVariable("KARPIK_RUN_EXTERNAL_SDK_INTEGRATION") == "1" &&
+            Environment.GetEnvironmentVariable("KARPIK_RUN_AOT_ACCEPTANCE") == "1",
+            "Set KARPIK_RUN_EXTERNAL_SDK_INTEGRATION=1 and KARPIK_RUN_AOT_ACCEPTANCE=1 to run the NativeAOT acceptance gates.");
+
+        string repositoryRoot = GetRepositoryRoot();
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikStaticAot_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        try
+        {
+            StaticTemplateGame game = await PrepareStaticTemplateGameAsync(
+                new(_output),
+                repositoryRoot,
+                temporaryRoot,
+                path => path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal),
+                allowNativeAotOnlineFeed: true);
+
+            // Gate 1: production-shaped Server publish (win-x64, AOT + trimming +
+            // invariant globalization; the template prints no culture-formatted data).
+            ProcessResult publish = await game.Harness.RunAsync(
+                game.GameRoot,
+                [
+                    "publish", game.ServerLauncherProject, "-c", "Release", "-r", "win-x64",
+                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
+                ],
+                game.Environment,
+                TimeSpan.FromMinutes(15));
+            AssertSuccess(publish, "publish the Static Server host under NativeAOT");
+
+            List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
+            // Documented inventory: aggregate IL2104/IL3053 from unannotated engine
+            // payload assemblies (see Sdk.targets NoWarn rationale and the ADR).
+            string[] documentedCodes = ["IL2104", "IL3053"];
+            List<string> unexplained = aotWarnings.Where(code => !documentedCodes.Contains(code)).ToList();
+            Assert.True(unexplained.Count == 0,
+                "NativeAOT publish emitted warnings outside the documented inventory " +
+                "(IL2104/IL3053): " + string.Join(", ", unexplained) + Environment.NewLine + publish.StandardOutput);
+
+            string gameName = game.GameName;
+            string publishDirectory = Path.Combine(
+                game.GameRoot, "Source", $"{gameName}.Server.Launcher",
+                "bin", "Release", "net10.0", "win-x64", "publish");
+            string executable = Path.Combine(publishDirectory, OperatingSystem.IsWindows()
+                ? $"{gameName}.Server.Launcher.exe"
+                : gameName + ".Server.Launcher");
+            Assert.True(File.Exists(executable), $"Published Server host is missing: {executable}");
+
+            // The published output must be manifest-free: no managed module staging.
+            // Configuration/assets live in the static bundle validated below; the
+            // headless Server graph carries no third-party native payloads.
+            AssertDoesNotContainManagedManifest(publishDirectory);
+            // The Release bundle built by the runtime project must be valid static layout.
+            string bundle = FindReleaseStaticBundle(game.GameRoot, gameName, "Server", Side.Server);
+
+            // Gate 1 run evidence: startup, fixed ticks, snapshot round-trip, clean shutdown.
+            var output = new ConcurrentQueue<string>();
+            using var controller = new EditorPreviewController(
+                new RuntimeLaunchOptions(Side.Server, executable, bundle, game.EngineRoot));
+            controller.OutputReceived += output.Enqueue;
+            using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
+            {
+                await StartOrThrowAsync(controller, timeout.Token, output, "published NativeAOT Server host");
+                EditorRuntimeSnapshot? snapshot;
+                try
+                {
+                    // AOT startup is slower than JIT: give the first snapshot a
+                    // longer window before declaring the gate failed.
+                    snapshot = await controller.RequestSnapshotAsync(TimeSpan.FromSeconds(20), timeout.Token);
+                }
+                catch (Exception exception)
+                {
+                    throw new InvalidOperationException(
+                        $"Snapshot request against the published NativeAOT Server host failed.{Environment.NewLine}" +
+                        string.Join(Environment.NewLine, output),
+                        exception);
+                }
+
+                Assert.True(snapshot is not null,
+                    $"Snapshot was null.{Environment.NewLine}{string.Join(Environment.NewLine, output)}");
+                Assert.True(snapshot.TotalEntityCount > 0,
+                    $"Expected a non-empty ECS world.{Environment.NewLine}{string.Join(Environment.NewLine, output)}");
+                Assert.Contains(snapshot.Entities, entity =>
+                    entity.Components.Any(component =>
+                        component.TypeName.Contains("GameComponent", StringComparison.Ordinal) &&
+                        component.DisplayValue.Contains("42", StringComparison.Ordinal)));
+
+                // Gate 3: ten process-isolated reload cycles with state round-trip.
+                int expectedEntities = snapshot.TotalEntityCount;
+                foreach (int cycle in Enumerable.Range(1, 10))
+                {
+                    int beforeProcessId = Assert.IsType<int>(controller.ProcessId);
+                    await controller.HotReloadAsync(timeout.Token);
+                    int afterProcessId = Assert.IsType<int>(controller.ProcessId);
+                    Assert.NotEqual(beforeProcessId, afterProcessId);
+
+                    string stateRoot = Path.Combine(bundle, "reload", "state");
+                    Assert.True(!Directory.Exists(stateRoot) || !Directory.EnumerateFileSystemEntries(stateRoot).Any(),
+                        $"Reload cycle {cycle}: state payload must be consumed by the restarted worker.");
+
+                    EditorRuntimeSnapshot? reloaded = await controller.RequestSnapshotAsync(TimeSpan.FromSeconds(20), timeout.Token);
+                    Assert.NotNull(reloaded);
+                    expectedEntities++;
+                    Assert.True(reloaded.TotalEntityCount == expectedEntities,
+                        $"Reload cycle {cycle}: expected {expectedEntities} entities, got {reloaded.TotalEntityCount}.");
+                }
+
+                await controller.StopAsync(timeout.Token);
+                Assert.Equal(EditorPreviewState.Stopped, controller.State);
+                Assert.Null(controller.ProcessId);
+            }
+
+            Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+            int stateCollections = output.Count(line => line.Contains("Total modules with state:", StringComparison.Ordinal));
+            Assert.True(stateCollections >= 10,
+                $"Expected at least ten state round-trips, got {stateCollections}.{Environment.NewLine}{string.Join(Environment.NewLine, output)}");
+            long[] collectedBytes = output
+                .Where(line => line.Contains("Collected state from module", StringComparison.Ordinal))
+                .Select(line =>
+                {
+                    int open = line.LastIndexOf('(');
+                    int close = line.IndexOf(" bytes)", StringComparison.Ordinal);
+                    return open > 0 && close > open ? long.Parse(line[(open + 1)..close]) : -1L;
+                })
+                .Where(size => size >= 0)
+                .ToArray();
+            Assert.True(collectedBytes.Length >= 10, "Expected at least ten collected-state reports.");
+            Assert.True(collectedBytes.Distinct().Count() == 1,
+                "Saved state payload must not grow across reload cycles: " + string.Join(", ", collectedBytes));
+
+            // No locked publish files and no orphan processes.
+            using (FileStream unlocked = File.Open(executable, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+            AssertNoOrphanHostProcesses(gameName);
+            game.Harness.AssertAllSubprocessesUseOwnedState(temporaryRoot);
+        }
+        finally
+        {
+            DeleteOwnedTemporaryRoot(temporaryRoot);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Static_client_host_publishes_and_runs_under_NativeAot()
+    {
+        Assert.SkipUnless(
+            Environment.GetEnvironmentVariable("KARPIK_RUN_EXTERNAL_SDK_INTEGRATION") == "1" &&
+            Environment.GetEnvironmentVariable("KARPIK_RUN_AOT_ACCEPTANCE") == "1",
+            "Set KARPIK_RUN_EXTERNAL_SDK_INTEGRATION=1 and KARPIK_RUN_AOT_ACCEPTANCE=1 to run the NativeAOT acceptance gates.");
+
+        string repositoryRoot = GetRepositoryRoot();
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikStaticAotClient_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        try
+        {
+            StaticTemplateGame game = await PrepareStaticTemplateGameAsync(
+                new(_output),
+                repositoryRoot,
+                temporaryRoot,
+                path => path.Contains($"{Path.DirectorySeparatorChar}Modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal),
+                allowNativeAotOnlineFeed: true);
+
+            ProcessResult publish = await game.Harness.RunAsync(
+                game.GameRoot,
+                [
+                    "publish", game.ClientLauncherProject, "-c", "Release", "-r", "win-x64",
+                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
+                ],
+                game.Environment,
+                TimeSpan.FromMinutes(15));
+            AssertSuccess(publish, "publish the Static Client host under NativeAOT");
+
+            List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
+            // Same documented inventory as the Server gate (Sdk.targets NoWarn rationale).
+            string[] clientDocumentedCodes = ["IL2104", "IL3053"];
+            List<string> clientUnexplained = aotWarnings.Where(code => !clientDocumentedCodes.Contains(code)).ToList();
+            Assert.True(clientUnexplained.Count == 0,
+                "NativeAOT publish emitted warnings outside the documented inventory " +
+                "(IL2104/IL3053): " + string.Join(", ", clientUnexplained) + Environment.NewLine + publish.StandardOutput);
+
+            string gameName = game.GameName;
+            string publishDirectory = Path.Combine(
+                game.GameRoot, "Source", $"{gameName}.Client.Launcher",
+                "bin", "Release", "net10.0", "win-x64", "publish");
+            string executable = Path.Combine(publishDirectory, OperatingSystem.IsWindows()
+                ? $"{gameName}.Client.Launcher.exe"
+                : gameName + ".Client.Launcher");
+            Assert.True(File.Exists(executable), $"Published Client host is missing: {executable}");
+            AssertDoesNotContainManagedManifest(publishDirectory);
+
+            string bundle = FindReleaseStaticBundle(game.GameRoot, gameName, "Client", Side.Client);
+
+            // Gate 2 run evidence: window creation, graphics backend initialization,
+            // one rendered frame, input initialization and clean shutdown. All four
+            // subsystems resolve through the DI graph during startup, so any failure
+            // surfaces as an activation/crash line instead of these markers.
+            var output = new ConcurrentQueue<string>();
+            using var controller = new EditorPreviewController(
+                new RuntimeLaunchOptions(Side.Client, executable, bundle, game.EngineRoot));
+            controller.OutputReceived += output.Enqueue;
+            using (var timeout = new CancellationTokenSource(RunPhaseTimeout))
+            {
+                await StartOrThrowAsync(controller, timeout.Token, output, "published NativeAOT Client host");
+                Assert.Contains(output,
+                    line => line.Contains("[ClientGame] World has", StringComparison.Ordinal));
+                await WaitForOutputLineAsync(output, "[ClientGame] First frame rendered.", timeout.Token);
+                await controller.StopAsync(timeout.Token);
+                Assert.Equal(EditorPreviewState.Stopped, controller.State);
+                Assert.Null(controller.ProcessId);
+            }
+
+            Assert.DoesNotContain(output, line => line.Contains("Engine crashed", StringComparison.OrdinalIgnoreCase));
+            AssertNoOrphanHostProcesses(gameName);
+            game.Harness.AssertAllSubprocessesUseOwnedState(temporaryRoot);
+        }
+        finally
+        {
+            DeleteOwnedTemporaryRoot(temporaryRoot);
+        }
+    }
+
+    private static string FindReleaseStaticBundle(string gameRoot, string gameName, string sideProject, Side side)
+    {
+        // With a global RID the inner runtime project output (and its bundle) may
+        // live under bin/Release/net10.0/win-x64; without it, bin/Release/net10.0.
+        string releaseRoot = Path.Combine(gameRoot, "Source", $"{gameName}.{sideProject}", "bin", "Release");
+        string[] candidates = [Path.Combine(releaseRoot, "net10.0", "karpik-bundle")];
+        candidates = [.. candidates,
+            .. Directory.EnumerateDirectories(releaseRoot, "karpik-bundle", SearchOption.AllDirectories)];
+        string bundle = candidates.FirstOrDefault(Directory.Exists)
+            ?? throw new InvalidOperationException($"Release static bundle is missing under: {releaseRoot}");
+        Assert.Equal(bundle, RuntimeBundleLayout.ValidateStatic(bundle, side));
+        return bundle;
+    }
+
+    private static async Task StartOrThrowAsync(
+        EditorPreviewController controller,
+        CancellationToken token,
+        ConcurrentQueue<string> output,
+        string description)
+    {
+        try
+        {
+            await controller.StartAsync(token);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                $"{description} did not reach worker-ready.{Environment.NewLine}" +
+                string.Join(Environment.NewLine, output),
+                exception);
+        }
+    }
+
+    private static async Task WaitForOutputLineAsync(
+        ConcurrentQueue<string> output,
+        string marker,
+        CancellationToken token)
+    {
+        while (!output.Any(line => line.Contains(marker, StringComparison.Ordinal)))
+        {
+            token.ThrowIfCancellationRequested();
+            await Task.Delay(100, token);
+        }
+    }
+
+    private static void AssertDoesNotContainManagedManifest(string rootDirectory)
+    {
+        Assert.False(Directory.EnumerateFiles(rootDirectory, "modules.list", SearchOption.AllDirectories).Any(),
+            $"Published output must not contain a managed module manifest: {rootDirectory}");
+        Assert.False(Directory.EnumerateDirectories(rootDirectory, "modules.version.*", SearchOption.AllDirectories).Any(),
+            $"Published output must not contain managed module staging: {rootDirectory}");
+        Assert.DoesNotContain(
+            Directory.EnumerateFileSystemEntries(rootDirectory, "*", SearchOption.AllDirectories),
+            entry => Path.GetFileName(entry).Contains("shadow", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static List<string> AotWarningCodes(string publishLog)
+    {
+        var codes = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (System.Text.RegularExpressions.Match match in
+                 System.Text.RegularExpressions.Regex.Matches(publishLog, @"\bIL\d{4}\b"))
+        {
+            codes.Add(match.Value);
+        }
+
+        return [.. codes];
     }
 
     private async Task RunAndObserveStaticHostAsync(
