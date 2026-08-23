@@ -344,7 +344,9 @@ public sealed class StaticCompositionCliTests
                         Environment.NewLine + string.Join(Environment.NewLine, output));
 
                 // Gate 3: ten process-isolated reload cycles with state round-trip.
-                int expectedEntities = snapshot.TotalEntityCount;
+                // The template init system is idempotent on a restored world, so
+                // after the warm-up cycle every restart must observe a stable world.
+                int warmUpEntities = -1;
                 foreach (int cycle in Enumerable.Range(1, 10))
                 {
                     int beforeProcessId = Assert.IsType<int>(controller.ProcessId);
@@ -380,9 +382,15 @@ public sealed class StaticCompositionCliTests
                             exception);
                     }
                     Assert.NotNull(reloaded);
-                    expectedEntities++;
-                    Assert.True(reloaded.TotalEntityCount == expectedEntities,
-                        $"Reload cycle {cycle}: expected {expectedEntities} entities, got {reloaded.TotalEntityCount}.{Environment.NewLine}" +
+                    if (cycle == 1)
+                    {
+                        // Warm-up cycle: absorbs any first-restart state-shape
+                        // effects; every later cycle must be byte-stable.
+                        warmUpEntities = reloaded.TotalEntityCount;
+                        continue;
+                    }
+                    Assert.True(reloaded.TotalEntityCount == warmUpEntities,
+                        $"Reload cycle {cycle}: world must stay stable after the warm-up reload; expected {warmUpEntities} entities, got {reloaded.TotalEntityCount}.{Environment.NewLine}" +
                         string.Join(Environment.NewLine, output));
                 }
 
@@ -406,18 +414,17 @@ public sealed class StaticCompositionCliTests
                 .Where(size => size >= 0)
                 .ToArray();
             Assert.True(collectedBytes.Length >= 10, "Expected at least ten collected-state reports.");
-            // The template init system creates one entity per worker start and the
-            // restored world accumulates it (expectedEntities++ above), so the saved
-            // payload grows by a constant per-cycle amount plus occasional digit
-            // bytes when entity ids roll over a power of ten. A compounding leak
-            // would make later deltas visibly larger; require every per-cycle delta
-            // to stay within a small jitter window around the median delta.
-            long[] deltas = [.. collectedBytes.Zip(collectedBytes.Skip(1), (previous, current) => current - previous)];
-            long medianDelta = deltas.Order().ElementAt(deltas.Length / 2);
-            Assert.True(deltas.All(delta => Math.Abs(delta - medianDelta) <= 16),
-                "Saved state payload must grow only by the constant accumulated-state " +
-                "delta (no compounding leak): sizes [" + string.Join(", ", collectedBytes) +
-                "], deltas [" + string.Join(", ", deltas) + "]");
+            // The template init system is idempotent on a restored world, so the
+            // saved payload must be byte-stable after the first warm-up reload.
+            // ANY sustained growth (linear included) is a leak and fails the gate;
+            // only tiny digit-jitter around identical sizes is tolerated.
+            long warmUpBytes = collectedBytes[0];
+            for (int i = 1; i < collectedBytes.Length; i++)
+            {
+                Assert.True(Math.Abs(collectedBytes[i] - warmUpBytes) <= 16,
+                    "Saved state payload must stay stable after the warm-up reload (no linear growth): sizes [" +
+                    string.Join(", ", collectedBytes) + "]");
+            }
 
             // No locked publish files and no orphan processes.
             using (FileStream unlocked = File.Open(executable, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
@@ -710,7 +717,9 @@ public sealed class StaticCompositionCliTests
                 EditorRuntimeSnapshot? snapshotAfterReload = await controller.RequestSnapshotAsync(
                     TimeSpan.FromSeconds(5), timeout.Token);
                 Assert.NotNull(snapshotAfterReload);
-                Assert.Equal(rebuiltSnapshot.TotalEntityCount + 1, snapshotAfterReload.TotalEntityCount);
+                // The template init system is idempotent on a restored world, so a
+                // reload must not add entities: the world stays byte-stable.
+                Assert.Equal(rebuiltSnapshot.TotalEntityCount, snapshotAfterReload.TotalEntityCount);
 
                 await controller.StopAsync(timeout.Token);
                 Assert.Equal(EditorPreviewState.Stopped, controller.State);

@@ -24,9 +24,15 @@ public sealed class ServerGameInitSystem(EcsDefaultWorld world) : ISystemInit
 {
     public void Init()
     {
-        int entity = world.NewEntity();
-        world.GetPool<GameComponent>().Add(entity) = new GameComponent { Value = 42 };
-        Console.WriteLine($"[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}");
+        // Idempotent under hot-reload state restoration: the restored world
+        // already contains the baseline entity, so creating another one on every
+        // worker restart would grow the saved state payload linearly.
+        if (world.Count == 0)
+        {
+            int entity = world.NewEntity();
+            world.GetPool<GameComponent>().Add(entity) = new GameComponent { Value = 42 };
+            Console.WriteLine($"[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}");
+        }
 
         string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
         if (File.Exists(contentPath))
