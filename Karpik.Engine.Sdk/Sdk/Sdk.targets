@@ -176,6 +176,22 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="_KarpikStageStaticLauncherNatives"
+          BeforeTargets="GetCopyToPublishDirectoryItems;CopyFilesToOutputDirectory"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And '$(KarpikProjectKind)' == 'Tool' And '$(KarpikEngineRoot)' != '' And Exists('$(KarpikEngineRoot)\native')">
+    <!-- A Static Tool launcher is the self-contained game executable: native
+         dependencies staged by the engine installation (shaderc, SDL2, ...)
+         must sit next to it, both for local runs and inside publish output. -->
+    <ItemGroup>
+      <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\*" />
+      <None Include="@(_KarpikStaticLauncherNative)"
+            Link="%(_KarpikStaticLauncherNative.Filename)%(_KarpikStaticLauncherNative.Extension)"
+            CopyToOutputDirectory="PreserveNewest"
+            CopyToPublishDirectory="PreserveNewest"
+            Visible="false" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="BuildKarpikRuntimeBundle"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
