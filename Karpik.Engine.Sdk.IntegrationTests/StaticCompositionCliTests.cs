@@ -575,6 +575,13 @@ public sealed class StaticCompositionCliTests
         new(@"\b(?<code>IL\d{4}):\s+(?<aggregate>Assembly\s+)?'(?<origin>[^']+)'",
             System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    // ilc single-file analysis emits UNQUOTED member origins:
+    // "IL3000: Ns.Type.Method(Args): message". Quoted forms contain a quote before
+    // any parenthesis, so the negated class keeps the two patterns disjoint.
+    private static readonly System.Text.RegularExpressions.Regex AotUnquotedMemberWarningRegex =
+        new(@"\b(?<code>IL\d{4}):\s+(?<origin>[^\r\n'""`]+?\([^)]*\)):\s+\S",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
     /// <summary>
     /// Exact (code -> origin) warning inventory documented in
     /// docs/02_ADR/static-runtime-composition.md. Third-party payload origins only;
@@ -627,11 +634,16 @@ public sealed class StaticCompositionCliTests
             inventory.Add(warning);
         }
 
-        // Silk.NET probes native dependency paths via Assembly.Location, which is
-        // empty under single-file AOT; natives are staged next to the executable
-        // so resolution succeeds regardless - justified empirically by this gate.
-        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.ResolvePath()"));
-        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.ResolvePath()"));
+        // Silk.NET probes native dependency paths via Assembly.Location/CodeBase and
+        // DependencyContext, which are empty/unsupported under single-file AOT;
+        // natives are staged next to the executable so resolution succeeds
+        // regardless - justified empirically by this passing runtime gate.
+        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"));
+        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"));
+        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"));
+        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"));
+        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetInRuntimesFolder(String,String,String&)"));
+        inventory.Add(new("IL3002", "member:Microsoft.Extensions.DependencyModel.DependencyContext..cctor()"));
         return inventory;
     }
 
@@ -653,6 +665,11 @@ public sealed class StaticCompositionCliTests
             }
 
             emitted.Add(new AotWarning(match.Groups["code"].Value, origin));
+        }
+
+        foreach (System.Text.RegularExpressions.Match match in AotUnquotedMemberWarningRegex.Matches(publishLog))
+        {
+            emitted.Add(new AotWarning(match.Groups["code"].Value, "member:" + match.Groups["origin"].Value));
         }
 
         static string Format(IEnumerable<AotWarning> warnings) =>
