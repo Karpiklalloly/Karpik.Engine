@@ -25,7 +25,7 @@
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [x] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
-- [x] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state.
+- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state. ВТОРОЙ аудит (2026-08-24): возвращён в in_progress — блокеры: end-to-end ordered parity (Dynamic CompareModules не совпадает с генераторным контрактом), fingerprint referenced cache не покрывает `PortableExecutableReference`, launcher-level `NoWarn` остаётся project-wide, parity проверяется только на малой selection.
 
 ## Surprises & Discoveries
 
@@ -204,14 +204,14 @@
 - [ ] Создать отдельный ExecPlan на source-generated сериализацию ECS restart-state (замена Newtonsoft TypeNameHandling inner world snapshots) с удалением последних узких trim roots (ECS.Core, DragonECS, Newtonsoft.Json, game assemblies на reload path). Владелец: план plans/ecs-state-serialization-execplan.md, создать до следующего изменения hot-reload pipeline.
 - [ ] Зафиксировать в ADR: Dynamic CompareModules по-прежнему Priority-first; end-to-end равенство последовательностей OnRegisterServices Dynamic↔Static опирается на корреляцию Scope/Priority и прямого теста не имеет.
 
-ExecPlan завершён 2026-08-23 (branch `open-code-ai`); corrective Milestone 9 закрыт 2026-08-24 после пост-приёмочного аудита. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
+ExecPlan завершался 2026-08-23 (branch `open-code-ai`); corrective Milestone 9 выполнен 2026-08-24, НО возвращён в in_progress вторым пост-аудитом разработчика (2026-08-24): ordered Dynamic↔Static parity не доказана end-to-end, referenced-scan cache не покрывает бинарные reference-обновления, launcher-level NoWarn остаётся project-wide. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
 
 ### Milestone 9 (corrective) — фактические результаты (2026-08-24)
 
 - Reflection activation в Static ECS startup устранён: generated `IEcsUpdateRegistryProvider`/`IEcsRenderPrepareRegistryProvider` доставляются через `IStaticRuntimeComposition.RegisterEcsRegistryProviders`; Runner Static path не содержит `Assembly.GetTypes`/`Activator.CreateInstance`/`Type.GetType` (source-boundary test).
-- Порядок installers Static совпадает с Dynamic: generated insertion order сохраняется; parity-тесты сравнивают последовательности, а не множества, для Client и Server selections.
+- Порядок installers Static сохраняет generated insertion order (перетасовка Static runner устранена); НО end-to-end равенство с Dynamic `CompareModules` НЕ доказано — Dynamic по-прежнему Priority-first без Scope, тест сравнивает generated sequence только через Static runner (второй аудит 2026-08-24).
 - Полная Dynamic/Static parity без исключений: внутренние `[ServiceRegistration]` сервисы публичизированы; equality по множествам И последовательностям.
-- Project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` удалён из Sdk.targets; узкие обоснованные suppressions перенесены в csproj template launchers (условие Static+AOT, комментарий-инвентарь).
+- Project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` удалён из Sdk.targets, НО перенесён как project-level в csproj template launchers — это по-прежнему подавляет все предупреждения этих кодов во всём host build (второй аудит 2026-08-24: не соответствует критерию «тип/member или конкретная сборка»).
 - Blanket trim root всех module payload assemblies удалён; остались узкие roots reflection-поверхности state pipeline (`ECS.Core`, `DragonECS`, `Newtonsoft.Json`, game ProjectReferences). Generated instantiation roots подключены к retained-коду (`TouchAotComponentTemplateRoots` из RegisterServices) — первый прогон Server gate без этого упал на `ComponentTemplate<GameComponent>` missing native code, что подтвердило необходимость вызова.
 - Envelope hot-reload state переведён на source-generated `HotReloadInfoJsonContext`; внутренний world-snapshot остаётся Newtonsoft-based — задокументированное ограничение, полная source-generated замена отслеживается отдельно.
 - Reload gate: стабильный state payload после warm-up reload; линейный рост = fail. ServerGameInitSystem idempotent на восстановленном world.
@@ -223,7 +223,7 @@ ExecPlan завершён 2026-08-23 (branch `open-code-ai`); corrective Milesto
 - Server NativeAOT (Gate 1 + Gate 3): gated test `Static_server_host_publishes_and_runs_under_NativeAot_with_ten_reload_cycles` PASS (9m28s). Publish win-x64 `PublishAot=true` + `InvariantGlobalization=true`; startup, editor-snapshot round-trip (GameComponent=42), clean shutdown; 10 process-isolated reload cycles, каждый с новым pid, entity count prev+1, рост payload линейный (+398 B/cycle — спроектированное накопление сущностей), publish exe разблокирован после stop, orphan-процессов нет.
 - Client NativeAOT (Gate 2 + Gate 4): gated test `Static_client_host_publishes_and_runs_under_NativeAot` PASS (6m54s) на production window/graphics/input backends: создание окна, инициализация graphics backend и input, маркер `[ClientGame] First frame rendered.`, чистое завершение, publish dir без managed manifests/shadow dirs.
 - Warning inventory: только документированные IL2104/IL3053 (агрегат от неаннотированных payload-сборок) и IL3000/IL3002 (Silk.NET loader probing); оба задокументированы в комментарии Sdk.targets + ADR и исчерпывающе проверяются обоими AOT gate'ами — любой иной warning валит gate.
-- Dynamic↔Static parity (Gate 5): generator-level parity test подтверждает, что emitted `registry.Register<Contract,Impl>(scope,lifetime,factory)` для одной selection равен independent runtime attribute discovery + публичный ECS-system scan (те же impls, scopes, lifetimes, export contracts); generated — строго подмножество dynamic. Module-ID parity Client/Server закреплён существующим тестом. Snapshot schema hash детерминирован из одинаковых inputs в обоих режимах.
+- Dynamic↔Static parity (Gate 5): [УСТАРЕЛО — состояние до Milestone 9, сохранено для истории] generator-level parity test подтверждает, что emitted `registry.Register<Contract,Impl>(scope,lifetime,factory)` для одной selection равен independent runtime attribute discovery + публичный ECS-system scan; generated — строго подмножество dynamic. Актуальное состояние parity см. в результатах Milestone 9 и втором аудите. Snapshot schema hash детерминирован из одинаковых inputs в обоих режимах.
 
 ### Дефекты, найденные и исправленные во время acceptance
 
@@ -240,7 +240,7 @@ ExecPlan завершён 2026-08-23 (branch `open-code-ai`); corrective Milesto
 ### Задокументированные отклонения
 
 - Internal `[ServiceRegistration]` services остаются Dynamic-only (static hosts не могут на них ссылаться); вперёд закреплено EcsSystemVisibilitySourceTests.
-- Все first-party module assemblies trim-rooted для Static+AOT publishes; сторонние payload-сборки остаются trimmed.
+- [УСТАРЕЛО после Milestone 9 — blanket root удалён, остались узкие state-pipeline roots; запись сохранена для истории M8] Все first-party module assemblies trim-rooted для Static+AOT publishes; сторонние payload-сборки остаются trimmed.
 
 ### Оставшиеся ограничения
 
