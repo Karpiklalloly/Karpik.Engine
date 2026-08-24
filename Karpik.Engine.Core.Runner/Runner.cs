@@ -497,11 +497,6 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         _modules.Add(moduleInstaller);
         Type installerType = moduleInstaller.GetType();
         _moduleRegistrations.Add(moduleInstaller, new ModuleRegistration(
-            isStatic
-                // Real generated insertion rank (Scope asc -> Priority asc ->
-                // assembly identity -> full name); never int.MaxValue filler.
-                ? _nextRegistrationRank++
-                : _assemblyLoadRanks.GetValueOrDefault(installerType.Assembly, int.MaxValue),
             installerType.FullName ?? installerType.Name,
             // Same term the generator's InstallerOrder compares:
             // IAssemblyIdentity.GetDisplayName() on the compile side,
@@ -702,7 +697,6 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     }
 
     private readonly record struct ModuleRegistration(
-        int AssemblyLoadRank,
         string TypeFullName,
         string AssemblyIdentity,
         int RegistrationRank,
