@@ -647,7 +647,9 @@ public sealed class StaticCompositionCliTests
         return inventory;
     }
 
-    private static void AssertAotWarningsMatchDocumentedInventory(
+    // Internal so the same assembly can unit-test the gate against synthetic
+    // publish logs without running a NativeAOT publish.
+    internal static void AssertAotWarningsMatchDocumentedInventory(
         ProcessResult publish, HashSet<AotWarning> documented)
     {
         string publishLog = publish.StandardOutput + publish.StandardError;
@@ -691,6 +693,28 @@ public sealed class StaticCompositionCliTests
             Environment.NewLine +
             "stale: " + Format(stale) + Environment.NewLine +
             "emitted: " + Format(emitted));
+    }
+
+    // The gate parses warnings via exact-tuple regexes. A publish warning
+    // emitted in an unrecognized textual shape must still fail the gate -
+    // neither 'unexplained' nor 'stale' would catch it on their own.
+    [Fact]
+    public void Aot_gate_fails_when_publish_log_contains_unparseable_il_warning_code()
+    {
+        const string log = """
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 2 warnings.
+            IL2153: Unrecognized textual warning shape without quotes or parentheses
+            """;
+        var documented = new HashSet<AotWarning>
+        {
+            new("IL2104", "assembly:MoonSharp.Interpreter")
+        };
+
+        Xunit.Sdk.TrueException failure = Assert.Throws<Xunit.Sdk.TrueException>(() =>
+            AssertAotWarningsMatchDocumentedInventory(
+                new ProcessResult(0, log, string.Empty),
+                documented));
+        Assert.Contains("IL2153", failure.Message, StringComparison.Ordinal);
     }
 
     private async Task RunAndObserveStaticHostAsync(
