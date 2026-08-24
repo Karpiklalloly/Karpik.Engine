@@ -670,6 +670,18 @@ public sealed class RuntimeCompositionGeneratorTests
             .ToArray();
         Assert.Equal(dynamicOrdered, generatedOrdered);
 
+        // Comparator pin (review finding): the RAW emitted regex order must
+        // already BE the canonical comparator order. Unlike the check above,
+        // this never re-sorts the generated side, so any drift between the
+        // emission path and the production ServiceOrder/SystemOrder comparators
+        // fails fast instead of being masked by sorting both sequences.
+        string[] rawEmittedOrder = generatedSequence
+            .GroupBy(static entry => $"{entry.Impl}|{entry.Lifetime}", StringComparer.Ordinal)
+            .Select(static group => group.First())
+            .Select(static entry => $"{entry.Impl}|{entry.Lifetime}")
+            .ToArray();
+        Assert.Equal(dynamicOrdered, rawEmittedOrder);
+
         foreach ((string impl, HashSet<string> contracts) in generatedContractsByImpl)
         {
             if (!dynamicContractsByImpl.TryGetValue(impl, out HashSet<string>? expected) || expected.Count == 0)
