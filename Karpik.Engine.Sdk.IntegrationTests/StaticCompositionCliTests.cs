@@ -639,7 +639,7 @@ public sealed class StaticCompositionCliTests
         ProcessResult publish, HashSet<AotWarning> documented)
     {
         string publishLog = publish.StandardOutput + publish.StandardError;
-        var emitted = new SortedSet<AotWarning>();
+        var emitted = new HashSet<AotWarning>();
         foreach (System.Text.RegularExpressions.Match match in AotWarningRegex.Matches(publishLog))
         {
             string origin = match.Groups["origin"].Value;
@@ -656,7 +656,10 @@ public sealed class StaticCompositionCliTests
         }
 
         static string Format(IEnumerable<AotWarning> warnings) =>
-            "{ " + string.Join("; ", warnings.Select(w => $"({w.Code} -> {w.Origin})")) + " }";
+            "{ " + string.Join("; ", warnings
+                .OrderBy(w => w.Code, StringComparer.Ordinal)
+                .ThenBy(w => w.Origin, StringComparer.Ordinal)
+                .Select(w => $"({w.Code} -> {w.Origin})")) + " }";
 
         List<AotWarning> unexplained = [.. emitted.Where(w => !documented.Contains(w))];
         Assert.True(unexplained.Count == 0,
