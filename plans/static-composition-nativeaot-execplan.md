@@ -199,6 +199,11 @@
   Date/Author: 2026-08-23 / разработчик.
 ## Outcomes & Retrospective
 
+### Follow-ups после Milestone 9 (обязательные)
+
+- [ ] Создать отдельный ExecPlan на source-generated сериализацию ECS restart-state (замена Newtonsoft TypeNameHandling inner world snapshots) с удалением последних узких trim roots (ECS.Core, DragonECS, Newtonsoft.Json, game assemblies на reload path). Владелец: план plans/ecs-state-serialization-execplan.md, создать до следующего изменения hot-reload pipeline.
+- [ ] Зафиксировать в ADR: Dynamic CompareModules по-прежнему Priority-first; end-to-end равенство последовательностей OnRegisterServices Dynamic↔Static опирается на корреляцию Scope/Priority и прямого теста не имеет.
+
 ExecPlan завершён 2026-08-23 (branch `open-code-ai`); corrective Milestone 9 закрыт 2026-08-24 после пост-приёмочного аудита. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
 
 ### Milestone 9 (corrective) — фактические результаты (2026-08-24)
