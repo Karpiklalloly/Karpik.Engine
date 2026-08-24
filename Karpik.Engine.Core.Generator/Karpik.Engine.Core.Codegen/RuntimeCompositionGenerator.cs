@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
@@ -96,17 +100,62 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // Incremental pipeline: candidate discovery for the compilation's OWN
+        // sources runs through syntax/symbol providers whose results Roslyn
+        // caches per declaration, so editing one file never rescans unrelated
+        // code. Only the referenced-assembly scan still needs Compilation; it
+        // is memoized behind an assembly-identity key so unchanged references
+        // cost one dictionary lookup per edit instead of a full symbol walk.
         var properties = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _) => CompositionProperties.Read(provider.GlobalOptions));
+
+        var ownInstallers = context.SyntaxProvider.ForAttributeWithMetadataName(
+            ModuleAttributeName,
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (ctx, _) => AnalyzeInstallerCandidate(ctx));
+
+        var ownServices = context.SyntaxProvider.ForAttributeWithMetadataName(
+            ServiceRegistrationAttributeName,
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (ctx, _) => AnalyzeServiceCandidate(ctx));
+
+        var ownSystems = context.SyntaxProvider.CreateSyntaxProvider(
+            static (node, _) => IsSystemLikeDeclaration(node),
+            static (ctx, _) => AnalyzeSystemCandidate(ctx));
+
+        var ownComponents = context.SyntaxProvider.CreateSyntaxProvider(
+            static (node, _) => IsComponentLikeDeclaration(node),
+            static (ctx, _) => AnalyzeComponentCandidate(ctx));
+
+        var referenced = context.CompilationProvider.Select(static (compilation, _) =>
+            ReferencedScan.Scan(compilation));
+
+        var own = ownInstallers
+            .Collect()
+            .Combine(ownServices.Collect())
+            .Combine(ownSystems.Collect())
+            .Combine(ownComponents.Collect());
+
         context.RegisterSourceOutput(
-            properties.Combine(context.CompilationProvider),
-            static (context, state) => Execute(context, state.Left, state.Right));
+            properties.Combine(own.Combine(referenced)),
+            static (context, state) => Execute(
+                context,
+                state.Left,
+                state.Right.Left.Left.Left.Left,
+                state.Right.Left.Left.Left.Right,
+                state.Right.Left.Left.Right,
+                state.Right.Left.Right,
+                state.Right.Right));
     }
 
     private static void Execute(
         SourceProductionContext context,
         CompositionProperties properties,
-        Compilation compilation)
+        ImmutableArray<InstallerModel> ownInstallers,
+        ImmutableArray<ServiceModel> ownServices,
+        ImmutableArray<SystemModel> ownSystems,
+        ImmutableArray<ComponentRootModel> ownComponents,
+        ReferencedModels referenced)
     {
         if (!properties.AnyPresent)
         {
@@ -130,67 +179,39 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             return;
         }
 
-        INamedTypeSymbol? installerInterface = compilation.GetTypeByMetadataName(InstallerInterfaceName);
-        INamedTypeSymbol? moduleAttribute = compilation.GetTypeByMetadataName(ModuleAttributeName);
-        if (installerInterface is null || moduleAttribute is null)
+        List<InstallerModel> installers = MergeInstallers(ownInstallers, referenced.Installers, context);
+        installers.Sort(InstallerOrder);
+
+        List<ServiceModel> services = MergeServices(ownServices, referenced.Services);
+        services.Sort(ServiceOrder);
+        List<SystemModel> systemModels = MergeSystems(ownSystems, referenced.Systems, services);
+        systemModels.Sort(static (left, right) => SystemOrder(left.Model!, right.Model!));
+        List<ServiceModel> systems = systemModels
+            .Select(static model => model.Model!)
+            .ToList();
+
+        List<ServiceModel> registrations = [.. services, .. systems];
+
+        foreach (ServiceModel registration in registrations)
         {
-            return;
+            registration.ReportDiagnostics(context);
         }
 
-        List<ModuleInstaller> installers = CollectInstallers(compilation, installerInterface, moduleAttribute, context);
-        ReportAmbiguousImplementations(installers, context);
+        List<string> aotComponentTemplateRoots = ownComponents
+            .Concat(referenced.Components)
+            .Select(static component => component.RootExpression)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static root => root, StringComparer.Ordinal)
+            .ToList();
 
-        installers.Sort(static (left, right) =>
-        {
-            int comparison = left.Scope.CompareTo(right.Scope);
-            if (comparison != 0)
-            {
-                return comparison;
-            }
-
-            comparison = left.Priority.CompareTo(right.Priority);
-            if (comparison != 0)
-            {
-                return comparison;
-            }
-
-            comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
-            return comparison != 0
-                ? comparison
-                : string.CompareOrdinal(left.FullName, right.FullName);
-        });
-
-        INamedTypeSymbol? systemInterface = compilation.GetTypeByMetadataName(SystemInterfaceName);
-        List<ServiceModel> registrations = CollectServiceRegistrations(
-            compilation,
-            installerInterface,
-            context);
-
-        if (systemInterface is not null)
-        {
-            registrations.AddRange(CollectSystemRegistrations(
-                compilation,
-                installerInterface,
-                systemInterface,
-                registrations,
-                context));
-        }
-
-        INamedTypeSymbol? ecsComponentInterface = compilation.GetTypeByMetadataName(EcsComponentInterfaceName);
-        INamedTypeSymbol? ecsTagComponentInterface = compilation.GetTypeByMetadataName(EcsTagComponentInterfaceName);
-        List<string> aotComponentTemplateRoots = CollectAotComponentTemplateRoots(
-            compilation,
-            ecsComponentInterface,
-            ecsTagComponentInterface);
-
-        INamedTypeSymbol? systemUpdateInterface = compilation.GetTypeByMetadataName(SystemUpdateInterfaceName);
-        INamedTypeSymbol? systemRenderPrepareInterface = compilation.GetTypeByMetadataName(SystemRenderPrepareInterfaceName);
-        List<EcsSchedulingSystem> updateSchedulingSystems = systemUpdateInterface is null
-            ? []
-            : CollectEcsSchedulingSystems(registrations, systemUpdateInterface);
-        List<EcsSchedulingSystem> renderPrepareSchedulingSystems = systemRenderPrepareInterface is null
-            ? []
-            : CollectEcsSchedulingSystems(registrations, systemRenderPrepareInterface);
+        List<SchedulingModel> updateSchedulingSystems = systemModels
+            .Where(static system => system.IsUpdateSystem)
+            .Select(static system => system.Scheduling)
+            .ToList();
+        List<SchedulingModel> renderPrepareSchedulingSystems = systemModels
+            .Where(static system => system.IsRenderPrepareSystem)
+            .Select(static system => system.Scheduling)
+            .ToList();
 
         context.AddSource(
             "GeneratedRuntimeComposition.g.cs",
@@ -203,42 +224,435 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 Encoding.UTF8));
     }
 
-    private static List<ModuleInstaller> CollectInstallers(
-        Compilation compilation,
-        INamedTypeSymbol installerInterface,
-        INamedTypeSymbol moduleAttribute,
+    private static int InstallerOrder(InstallerModel left, InstallerModel right)
+    {
+        int comparison = left.Scope.CompareTo(right.Scope);
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        comparison = left.Priority.CompareTo(right.Priority);
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+        return comparison != 0
+            ? comparison
+            : string.CompareOrdinal(left.FullName, right.FullName);
+    }
+
+    private static int ServiceOrder(ServiceModel left, ServiceModel right)
+    {
+        int comparison = left.Scope.CompareTo(right.Scope);
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+        return comparison != 0
+            ? comparison
+            : string.CompareOrdinal(left.FullName, right.FullName);
+    }
+
+    private static int SystemOrder(ServiceModel left, ServiceModel right)
+    {
+        int comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
+        return comparison != 0
+            ? comparison
+            : string.CompareOrdinal(left.FullName, right.FullName);
+    }
+
+    private static List<InstallerModel> MergeInstallers(
+        ImmutableArray<InstallerModel> own,
+        ImmutableArray<InstallerModel> referenced,
         SourceProductionContext context)
     {
-        var installers = new List<ModuleInstaller>();
-        foreach (IAssemblySymbol assembly in EnumerateCandidateAssemblies(compilation, installerInterface))
+        var merged = new List<InstallerModel>(own.Length + referenced.Length);
+        var unique = new Dictionary<string, InstallerModel>(StringComparer.Ordinal);
+        foreach (InstallerModel installer in own.Concat(referenced))
         {
-            foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
+            if (unique.TryGetValue(installer.FullName, out InstallerModel? existing))
             {
-                if (!IsAttributedInstaller(type, installerInterface, moduleAttribute))
-                {
-                    continue;
-                }
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DuplicateModuleIdentity,
+                    installer.Location ?? Location.None,
+                    installer.FullName,
+                    existing.AssemblyDisplayName,
+                    installer.AssemblyDisplayName));
+                continue;
+            }
 
-                string fullName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                    .Replace("global::", string.Empty);
-                if (!IsValidInstallerShape(type, fullName, context))
-                {
-                    continue;
-                }
+            unique.Add(installer.FullName, installer);
+            merged.Add(installer);
+        }
 
-                AttributeData attribute = type.GetAttributes()[GetModuleAttributeIndex(type, moduleAttribute)];
-                var installer = new ModuleInstaller(
-                    type,
-                    fullName,
-                    Convert.ToInt32(attribute.ConstructorArguments[0].Value),
-                    ReadPriority(attribute),
-                    assembly.Identity.GetDisplayName());
-                installers.Add(installer);
+        foreach (InstallerModel installer in merged)
+        {
+            foreach (InstallerModel other in merged)
+            {
+                if (!ReferenceEquals(installer, other) && installer.DerivesFrom(other))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        AmbiguousModuleImplementation,
+                        installer.Location ?? Location.None,
+                        installer.FullName,
+                        other.FullName));
+                }
             }
         }
 
-        ReportDuplicates(installers, context);
-        return installers;
+        foreach (InstallerModel installer in merged)
+        {
+            installer.ReportTo(context);
+        }
+
+        return merged;
+    }
+
+    private static List<ServiceModel> MergeServices(
+        ImmutableArray<ServiceModel> own,
+        ImmutableArray<ServiceModel> referenced)
+    {
+        var merged = new List<ServiceModel>(own.Length + referenced.Length);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ServiceModel service in own.Concat(referenced))
+        {
+            if (seen.Add(service.FullName))
+            {
+                merged.Add(service);
+            }
+        }
+
+        return merged;
+    }
+
+    private static List<SystemModel> MergeSystems(
+        ImmutableArray<SystemModel> own,
+        ImmutableArray<SystemModel> referenced,
+        List<ServiceModel> services)
+    {
+        var serviceNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ServiceModel service in services)
+        {
+            serviceNames.Add(service.FullName);
+        }
+
+        var merged = new List<SystemModel>(own.Length + referenced.Length);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (SystemModel system in own.Concat(referenced))
+        {
+            if (system.Model is null || serviceNames.Contains(system.Model.FullName) || !seen.Add(system.Model.FullName))
+            {
+                continue;
+            }
+
+            merged.Add(system);
+        }
+
+        return merged;
+    }
+
+    // ---------------------------------------------------------------------
+    // Own-assembly candidate analysis (syntax/symbol provider transforms)
+    // ---------------------------------------------------------------------
+
+    private static InstallerModel AnalyzeInstallerCandidate(GeneratorAttributeSyntaxContext ctx)
+    {
+        Location? location = GetSymbolLocation(ctx.TargetSymbol);
+        if (ctx.TargetSymbol is not INamedTypeSymbol type
+            || type.TypeKind != TypeKind.Class
+            || type.ContainingType is not null)
+        {
+            return InstallerModel.Empty(location);
+        }
+
+        return AnalyzeInstaller(type, ctx.Attributes[0], AssemblyDisplayName(type), location);
+    }
+
+    private static ServiceModel AnalyzeServiceCandidate(GeneratorAttributeSyntaxContext ctx)
+    {
+        Location? location = GetSymbolLocation(ctx.TargetSymbol);
+        if (ctx.TargetSymbol is not INamedTypeSymbol type
+            || type.TypeKind != TypeKind.Class
+            || type.ContainingType is not null)
+        {
+            return ServiceModel.Empty(location);
+        }
+
+        INamedTypeSymbol? exportAttribute =
+            ctx.SemanticModel.Compilation.GetTypeByMetadataName(ExportAttributeName);
+        INamedTypeSymbol? startableInterface =
+            ctx.SemanticModel.Compilation.GetTypeByMetadataName(StartableInterfaceName);
+        if (exportAttribute is null)
+        {
+            // Without the export-contract attribute type no service can ever be
+            // analyzed; mirror the legacy behaviour of emitting nothing.
+            return ServiceModel.Empty(location);
+        }
+
+        return AnalyzeService(
+            type,
+            ctx.Attributes[0],
+            exportAttribute,
+            startableInterface,
+            ctx.SemanticModel.Compilation.Assembly,
+            AssemblyDisplayName(type),
+            location);
+    }
+
+    private static bool IsSystemLikeDeclaration(SyntaxNode node) =>
+        node is ClassDeclarationSyntax { BaseList: not null } declaration
+        && declaration.BaseList.Types.Any(static baseType =>
+            baseType.Type is SimpleNameSyntax simple
+            && simple.Identifier.Text.StartsWith("ISystem", StringComparison.Ordinal));
+
+    private static SystemModel AnalyzeSystemCandidate(GeneratorSyntaxContext ctx)
+    {
+        var type = (INamedTypeSymbol)ctx.SemanticModel.GetDeclaredSymbol(ctx.Node)!;
+        Location? location = GetSymbolLocation(type);
+        Compilation compilation = ctx.SemanticModel.Compilation;
+        INamedTypeSymbol? systemInterface = compilation.GetTypeByMetadataName(SystemInterfaceName);
+        if (type.ContainingType is not null
+            || systemInterface is null
+            || !ImplementsInterface(type, systemInterface))
+        {
+            return SystemModel.Empty;
+        }
+
+        INamedTypeSymbol? updateInterface = compilation.GetTypeByMetadataName(SystemUpdateInterfaceName);
+        INamedTypeSymbol? renderPrepareInterface = compilation.GetTypeByMetadataName(SystemRenderPrepareInterfaceName);
+        bool isUpdate = updateInterface is not null && ImplementsInterface(type, updateInterface);
+        bool isRenderPrepare = renderPrepareInterface is not null && ImplementsInterface(type, renderPrepareInterface);
+        ServiceModel? model = AnalyzeSystem(
+            type,
+            compilation.Assembly,
+            AssemblyDisplayName(type),
+            location);
+        return new SystemModel(model, isUpdate, isRenderPrepare, ExtractScheduling(type));
+    }
+
+    private static bool IsComponentLikeDeclaration(SyntaxNode node) =>
+        node is StructDeclarationSyntax { BaseList: not null } declaration
+        && declaration.BaseList.Types.Any(static baseType =>
+            baseType.Type is SimpleNameSyntax simple
+            && (simple.Identifier.Text.StartsWith("IEcsComponent", StringComparison.Ordinal)
+                || simple.Identifier.Text.StartsWith("IEcsTagComponent", StringComparison.Ordinal)));
+
+    private static ComponentRootModel AnalyzeComponentCandidate(GeneratorSyntaxContext ctx)
+    {
+        if (ctx.SemanticModel.GetDeclaredSymbol(ctx.Node) is not INamedTypeSymbol type
+            || type.ContainingType is not null)
+        {
+            return ComponentRootModel.Empty;
+        }
+
+        string? root = CollectComponentRoot(type, ctx.SemanticModel.Compilation);
+        return root is null ? ComponentRootModel.Empty : new ComponentRootModel(root);
+    }
+
+    // ---------------------------------------------------------------------
+    // Referenced-assembly scan (memoized by assembly identities)
+    // ---------------------------------------------------------------------
+
+    private static readonly object ReferencedCacheGate = new();
+
+    private static readonly ConcurrentDictionary<string, ReferencedModels> ReferencedCache = new(StringComparer.Ordinal);
+
+    private sealed class ReferencedScan
+    {
+        internal static ReferencedModels Scan(Compilation compilation)
+        {
+            var identityParts = new List<string>();
+            foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                identityParts.Add(reference.Identity.GetDisplayName());
+            }
+
+            string key = string.Join("|", identityParts);
+            lock (ReferencedCacheGate)
+            {
+                if (!ReferencedCache.TryGetValue(key, out ReferencedModels cached))
+                {
+                    cached = ScanCore(compilation);
+                    ReferencedCache[key] = cached;
+                }
+
+                return cached;
+            }
+        }
+
+        private static ReferencedModels ScanCore(Compilation compilation)
+        {
+            INamedTypeSymbol? installerInterface = compilation.GetTypeByMetadataName(InstallerInterfaceName);
+            INamedTypeSymbol? moduleAttribute = compilation.GetTypeByMetadataName(ModuleAttributeName);
+            INamedTypeSymbol? serviceAttribute = compilation.GetTypeByMetadataName(ServiceRegistrationAttributeName);
+            INamedTypeSymbol? exportAttribute = compilation.GetTypeByMetadataName(ExportAttributeName);
+            INamedTypeSymbol? startableInterface = compilation.GetTypeByMetadataName(StartableInterfaceName);
+            INamedTypeSymbol? systemInterface = compilation.GetTypeByMetadataName(SystemInterfaceName);
+            INamedTypeSymbol? updateInterface = compilation.GetTypeByMetadataName(SystemUpdateInterfaceName);
+            INamedTypeSymbol? renderPrepareInterface = compilation.GetTypeByMetadataName(SystemRenderPrepareInterfaceName);
+
+            var installers = ImmutableArray.CreateBuilder<InstallerModel>();
+            var services = ImmutableArray.CreateBuilder<ServiceModel>();
+            var systems = ImmutableArray.CreateBuilder<SystemModel>();
+            var components = ImmutableArray.CreateBuilder<ComponentRootModel>();
+
+            foreach (IAssemblySymbol assembly in EnumerateReferencedAssemblies(compilation, installerInterface))
+            {
+                string assemblyDisplayName = assembly.Identity.GetDisplayName();
+                foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
+                {
+                    AttributeData? moduleAttributeData = moduleAttribute is null
+                        ? null
+                        : FindAttribute(type, moduleAttribute);
+                    if (moduleAttributeData is not null
+                        && type.TypeKind == TypeKind.Class
+                        && ImplementsInterface(type, installerInterface!))
+                    {
+                        installers.Add(AnalyzeInstaller(type, moduleAttributeData, assemblyDisplayName, GetSymbolLocation(type)));
+                    }
+
+                    AttributeData? registration = serviceAttribute is null
+                        ? null
+                        : FindAttribute(type, serviceAttribute);
+                    if (registration is not null
+                        && type.TypeKind == TypeKind.Class
+                        && exportAttribute is not null)
+                    {
+                        services.Add(AnalyzeService(
+                            type,
+                            registration,
+                            exportAttribute,
+                            startableInterface,
+                            compilation.Assembly,
+                            assemblyDisplayName,
+                            GetSymbolLocation(type)));
+                    }
+
+                    if (systemInterface is not null
+                        && type.TypeKind == TypeKind.Class
+                        && !type.IsAbstract
+                        && !type.IsGenericType
+                        && ImplementsInterface(type, systemInterface))
+                    {
+                        bool isUpdate = updateInterface is not null && ImplementsInterface(type, updateInterface);
+                        bool isRenderPrepare = renderPrepareInterface is not null && ImplementsInterface(type, renderPrepareInterface);
+                        systems.Add(new SystemModel(
+                            AnalyzeSystem(type, compilation.Assembly, assemblyDisplayName, GetSymbolLocation(type)),
+                            isUpdate,
+                            isRenderPrepare,
+                            ExtractScheduling(type)));
+                    }
+
+                    string? componentRoot = CollectComponentRoot(type, compilation);
+                    if (componentRoot is not null)
+                    {
+                        components.Add(new ComponentRootModel(componentRoot));
+                    }
+                }
+            }
+
+            return new ReferencedModels(
+                installers.ToImmutable(),
+                services.ToImmutable(),
+                systems.ToImmutable(),
+                components.ToImmutable());
+        }
+
+        private static IEnumerable<IAssemblySymbol> EnumerateReferencedAssemblies(
+            Compilation compilation,
+            INamedTypeSymbol? installerInterface)
+        {
+            foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                if (installerInterface is null || ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity))
+                {
+                    yield return reference;
+                }
+            }
+        }
+
+        private static bool ReferencesAssembly(IAssemblySymbol assembly, AssemblyIdentity target)
+        {
+            foreach (IModuleSymbol module in assembly.Modules)
+            {
+                foreach (IAssemblySymbol referenced in module.ReferencedAssemblySymbols)
+                {
+                    if (referenced.Identity.Equals(target))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Per-symbol analysis shared by both pipelines
+    // ---------------------------------------------------------------------
+
+    private static string AssemblyDisplayName(INamedTypeSymbol type) =>
+        type.ContainingAssembly?.Identity.GetDisplayName() ?? string.Empty;
+
+    private static Location? GetSymbolLocation(ISymbol symbol) =>
+        symbol.Locations.Length > 0 ? symbol.Locations[0] : null;
+
+    private static InstallerModel AnalyzeInstaller(
+        INamedTypeSymbol type,
+        AttributeData attribute,
+        string assemblyDisplayName,
+        Location? location)
+    {
+        string fullName = ToFullName(type);
+        var baseChain = new List<string>();
+        for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)
+        {
+            baseChain.Add(ToFullName(current));
+        }
+
+        var diagnostics = new List<DiagnosticSpec>();
+        bool valid = true;
+        if (type.IsAbstract || type.DeclaredAccessibility != Accessibility.Public || type.IsGenericType)
+        {
+            diagnostics.Add(DiagnosticSpec.Create(InvalidModuleInstaller, fullName));
+            valid = false;
+        }
+        else if (!HasPublicParameterlessConstructor(type))
+        {
+            diagnostics.Add(DiagnosticSpec.Create(InvalidModuleInstaller, fullName));
+            valid = false;
+        }
+
+        return new InstallerModel(
+            fullName,
+            Convert.ToInt32(attribute.ConstructorArguments[0].Value),
+            ReadPriority(attribute),
+            assemblyDisplayName,
+            baseChain.ToArray(),
+            valid,
+            diagnostics.ToArray(),
+            location);
+    }
+
+    private static bool HasPublicParameterlessConstructor(INamedTypeSymbol type)
+    {
+        foreach (IMethodSymbol constructor in type.Constructors)
+        {
+            if (!constructor.IsStatic
+                && constructor.Parameters.Length == 0
+                && constructor.DeclaredAccessibility == Accessibility.Public)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int ReadPriority(AttributeData attribute)
@@ -264,483 +678,189 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         return priority;
     }
 
-    private static IEnumerable<IAssemblySymbol> EnumerateCandidateAssemblies(
-        Compilation compilation,
-        INamedTypeSymbol installerInterface)
-    {
-        yield return compilation.Assembly;
-        foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
-        {
-            if (ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity))
-            {
-                yield return reference;
-            }
-        }
-    }
-
-    private static bool ReferencesAssembly(IAssemblySymbol assembly, AssemblyIdentity target)
-    {
-        foreach (IModuleSymbol module in assembly.Modules)
-        {
-            foreach (IAssemblySymbol referenced in module.ReferencedAssemblySymbols)
-            {
-                if (referenced.Identity.Equals(target))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static IEnumerable<INamedTypeSymbol> GetTopLevelTypes(INamespaceSymbol namespaceSymbol)
-    {
-        foreach (INamespaceOrTypeSymbol member in namespaceSymbol.GetMembers())
-        {
-            if (member is INamespaceSymbol nested)
-            {
-                foreach (INamedTypeSymbol type in GetTopLevelTypes(nested))
-                {
-                    yield return type;
-                }
-            }
-            else if (member is INamedTypeSymbol type)
-            {
-                yield return type;
-            }
-        }
-    }
-
-    private static bool IsAttributedInstaller(
+    private static ServiceModel AnalyzeService(
         INamedTypeSymbol type,
-        INamedTypeSymbol installerInterface,
-        INamedTypeSymbol moduleAttribute)
+        AttributeData registration,
+        INamedTypeSymbol exportAttribute,
+        INamedTypeSymbol? startableInterface,
+        IAssemblySymbol hostAssembly,
+        string assemblyDisplayName,
+        Location? location)
     {
-        if (type.TypeKind != TypeKind.Class)
-        {
-            return false;
-        }
-
-        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(implemented, installerInterface))
-            {
-                return GetModuleAttributeIndex(type, moduleAttribute) >= 0;
-            }
-        }
-
-        return false;
-    }
-
-    private static int GetModuleAttributeIndex(INamedTypeSymbol type, INamedTypeSymbol moduleAttribute)
-    {
+        string fullName = ToFullName(type);
         ImmutableArray<AttributeData> attributes = type.GetAttributes();
+        int exportCount = 0;
         for (int index = 0; index < attributes.Length; index++)
         {
-            if (SymbolEqualityComparer.Default.Equals(attributes[index].AttributeClass, moduleAttribute))
+            if (SymbolEqualityComparer.Default.Equals(attributes[index].AttributeClass, exportAttribute))
             {
-                return index;
+                exportCount++;
             }
         }
 
-        return -1;
-    }
-
-    private static bool IsValidInstallerShape(INamedTypeSymbol type, string fullName, SourceProductionContext context)
-    {
-        if (type.IsAbstract
-            || type.DeclaredAccessibility != Accessibility.Public
-            || type.IsGenericType)
+        if (exportCount == 0)
         {
-            context.ReportDiagnostic(Diagnostic.Create(InvalidModuleInstaller, GetLocation(type), fullName));
-            return false;
+            return ServiceModel.Invalid(
+                location,
+                DiagnosticSpec.Create(MissingExportAttribute, fullName));
         }
 
-        foreach (IMethodSymbol constructor in type.Constructors)
+        if (type.IsAbstract || type.IsGenericType || !IsAccessibleFromHost(type, hostAssembly))
         {
-            if (!constructor.IsStatic
-                && constructor.Parameters.Length == 0
-                && constructor.DeclaredAccessibility == Accessibility.Public)
+            return ServiceModel.Invalid(
+                location,
+                DiagnosticSpec.Create(InvalidServiceImplementation, fullName));
+        }
+
+        ConstructorAnalysis constructor = AnalyzeConstructors(type, hostAssembly, reportAccessibility: true, location);
+        if (constructor.Diagnostic is not null)
+        {
+            return ServiceModel.Invalid(location, constructor.Diagnostic);
+        }
+
+        List<ParameterSpec> parameters = constructor.Parameters;
+        var diagnostics = new List<DiagnosticSpec>();
+        for (int index = 0; index < parameters.Count; index++)
+        {
+            if (parameters[index].IsDefinitelyUnresolvable)
             {
-                return true;
-            }
-        }
-
-        context.ReportDiagnostic(Diagnostic.Create(InvalidModuleInstaller, GetLocation(type), fullName));
-        return false;
-    }
-
-    private static void ReportDuplicates(List<ModuleInstaller> installers, SourceProductionContext context)
-    {
-        var unique = new Dictionary<string, ModuleInstaller>(StringComparer.Ordinal);
-        var kept = new List<ModuleInstaller>(installers.Count);
-        foreach (ModuleInstaller installer in installers)
-        {
-            if (unique.TryGetValue(installer.FullName, out ModuleInstaller? existing))
-            {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    DuplicateModuleIdentity,
-                    GetLocation(installer.Type),
-                    installer.FullName,
-                    existing.AssemblyDisplayName,
-                    installer.AssemblyDisplayName));
-                continue;
-            }
-
-            unique.Add(installer.FullName, installer);
-            kept.Add(installer);
-        }
-
-        installers.Clear();
-        installers.AddRange(kept);
-    }
-
-    private static void ReportAmbiguousImplementations(List<ModuleInstaller> installers, SourceProductionContext context)
-    {
-        for (int outer = 0; outer < installers.Count; outer++)
-        {
-            for (int inner = 0; inner < installers.Count; inner++)
-            {
-                if (outer == inner)
-                {
-                    continue;
-                }
-
-                if (DerivesFrom(installers[inner].Type, installers[outer].Type))
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        AmbiguousModuleImplementation,
-                        GetLocation(installers[inner].Type),
-                        installers[inner].FullName,
-                        installers[outer].FullName));
-                }
-            }
-        }
-    }
-
-    private static bool DerivesFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
-    {
-        for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static Location GetLocation(INamedTypeSymbol type) =>
-        type.Locations.Length > 0 ? type.Locations[0] : Location.None;
-
-    private static List<ServiceModel> CollectServiceRegistrations(
-        Compilation compilation,
-        INamedTypeSymbol installerInterface,
-        SourceProductionContext context)
-    {
-        var services = new List<ServiceModel>();
-        INamedTypeSymbol? serviceAttribute = compilation.GetTypeByMetadataName(ServiceRegistrationAttributeName);
-        INamedTypeSymbol? exportAttribute = compilation.GetTypeByMetadataName(ExportAttributeName);
-        INamedTypeSymbol? startableInterface = compilation.GetTypeByMetadataName(StartableInterfaceName);
-        if (serviceAttribute is null || exportAttribute is null)
-        {
-            return services;
-        }
-
-        foreach (IAssemblySymbol assembly in EnumerateCandidateAssemblies(compilation, installerInterface))
-        {
-            foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
-            {
-                AttributeData? registration = FindAttribute(type, serviceAttribute);
-                if (registration is null || type.TypeKind != TypeKind.Class)
-                {
-                    continue;
-                }
-
-                string fullName = ToFullName(type);
-                ImmutableArray<AttributeData> attributes = type.GetAttributes();
-                int exportCount = 0;
-                for (int index = 0; index < attributes.Length; index++)
-                {
-                    if (SymbolEqualityComparer.Default.Equals(attributes[index].AttributeClass, exportAttribute))
-                    {
-                        exportCount++;
-                    }
-                }
-
-                if (exportCount == 0)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(MissingExportAttribute, GetLocation(type), fullName));
-                    continue;
-                }
-
-                if (type.IsAbstract
-                    || type.IsGenericType
-                    || !IsAccessibleFromHost(type, compilation.Assembly))
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(InvalidServiceImplementation, GetLocation(type), fullName));
-                    continue;
-                }
-
-                List<IMethodSymbol> constructors = SelectVisibleConstructors(type, compilation.Assembly);
-                if (constructors.Count == 0)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(InvalidServiceImplementation, GetLocation(type), fullName));
-                    continue;
-                }
-
-                if (constructors.Count > 1)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(AmbiguousServiceConstructor, GetLocation(type), fullName));
-                    continue;
-                }
-
-                IMethodSymbol constructor = constructors[0];
-                bool unresolvable = false;
-                for (int index = 0; index < constructor.Parameters.Length; index++)
-                {
-                    IParameterSymbol parameter = constructor.Parameters[index];
-                    if (!IsDefinitelyUnresolvable(parameter))
-                    {
-                        continue;
-                    }
-
-                    unresolvable = true;
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        UnresolvableDependency,
-                        GetLocation(type),
-                        fullName,
-                        index,
-                        ToFullName(parameter.Type)));
-                }
-
-                services.Add(new ServiceModel(
-                    type,
+                diagnostics.Add(DiagnosticSpec.Create(
+                    UnresolvableDependency,
                     fullName,
-                    assembly.Identity.GetDisplayName(),
-                    ReadScope(registration),
-                    ReadLifetime(registration),
-                    CollectContracts(exportAttribute, startableInterface, attributes, type),
-                    constructor,
-                    unresolvable));
+                    index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    parameters[index].TypeFullName));
             }
         }
 
-        services.Sort(static (left, right) =>
-        {
-            int comparison = left.Scope.CompareTo(right.Scope);
-            if (comparison != 0)
-            {
-                return comparison;
-            }
-
-            comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
-            return comparison != 0
-                ? comparison
-                : string.CompareOrdinal(left.FullName, right.FullName);
-        });
-        return services;
+        return new ServiceModel(
+            fullName,
+            assemblyDisplayName,
+            ReadScope(registration),
+            ReadLifetime(registration),
+            CollectContractNames(exportAttribute, startableInterface, attributes, type),
+            parameters.ToArray(),
+            false,
+            true,
+            diagnostics.ToArray(),
+            location);
     }
 
-    private static IEnumerable<ServiceModel> CollectSystemRegistrations(
-        Compilation compilation,
-        INamedTypeSymbol installerInterface,
-        INamedTypeSymbol systemInterface,
-        List<ServiceModel> existingServices,
-        SourceProductionContext context)
+    private static ServiceModel? AnalyzeSystem(
+        INamedTypeSymbol type,
+        IAssemblySymbol hostAssembly,
+        string assemblyDisplayName,
+        Location? location)
     {
-        var serviceTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-        foreach (ServiceModel service in existingServices)
+        string fullName = ToFullName(type);
+        if (type.IsAbstract || type.IsGenericType || !IsAccessibleFromHost(type, hostAssembly))
         {
-            serviceTypes.Add(service.Type);
+            // Systems are discovered without an explicit marker attribute; types
+            // that could never be activated from generated code are skipped
+            // silently because modules may also provide them through
+            // metadata-invisible registrations.
+            return null;
         }
 
-        var systems = new List<ServiceModel>();
-        foreach (IAssemblySymbol assembly in EnumerateCandidateAssemblies(compilation, installerInterface))
+        ConstructorAnalysis constructor = AnalyzeConstructors(type, hostAssembly, reportAccessibility: false, location);
+        if (constructor.Diagnostic is not null || !constructor.HasAccessibleConstructor)
         {
-            foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
+            return constructor.Diagnostic is not null
+                ? ServiceModel.Invalid(location, constructor.Diagnostic)
+                : null;
+        }
+
+        List<ParameterSpec> parameters = constructor.Parameters;
+        var diagnostics = new List<DiagnosticSpec>();
+        for (int index = 0; index < parameters.Count; index++)
+        {
+            if (parameters[index].IsDefinitelyUnresolvable)
             {
-                if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.IsGenericType)
-                {
-                    continue;
-                }
-
-                if (serviceTypes.Contains(type) || !ImplementsInterface(type, systemInterface))
-                {
-                    continue;
-                }
-
-                if (!IsAccessibleFromHost(type, compilation.Assembly))
-                {
-                    // Systems are discovered without an explicit marker attribute; types that could
-                    // never be activated from generated code are skipped silently because modules
-                    // may also provide them through metadata-invisible registrations.
-                    continue;
-                }
-
-                List<IMethodSymbol> constructors = SelectVisibleConstructors(type, compilation.Assembly);
-                if (constructors.Count == 0)
-                {
-                    continue;
-                }
-
-                if (constructors.Count > 1)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(AmbiguousServiceConstructor, GetLocation(type), ToFullName(type)));
-                    continue;
-                }
-
-                IMethodSymbol constructor = constructors[0];
-                for (int index = 0; index < constructor.Parameters.Length; index++)
-                {
-                    IParameterSymbol parameter = constructor.Parameters[index];
-                    if (!IsDefinitelyUnresolvable(parameter))
-                    {
-                        continue;
-                    }
-
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        UnresolvableDependency,
-                        GetLocation(type),
-                        ToFullName(type),
-                        index,
-                        ToFullName(parameter.Type)));
-                }
-
-                systems.Add(new ServiceModel(
-                    type,
-                    ToFullName(type),
-                    assembly.Identity.GetDisplayName(),
-                    SimulationScopeValue,
-                    TransientLifetimeValue,
-                    [type],
-                    constructor,
-                    HasUnresolvableParameter(constructor)));
+                diagnostics.Add(DiagnosticSpec.Create(
+                    UnresolvableDependency,
+                    fullName,
+                    index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    parameters[index].TypeFullName));
             }
         }
 
-        systems.Sort(static (left, right) =>
-        {
-            int comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
-            return comparison != 0
-                ? comparison
-                : string.CompareOrdinal(left.FullName, right.FullName);
-        });
-        return systems;
+        return new ServiceModel(
+            fullName,
+            assemblyDisplayName,
+            SimulationScopeValue,
+            TransientLifetimeValue,
+            [fullName],
+            parameters.ToArray(),
+            false,
+            true,
+            diagnostics.ToArray(),
+            location);
     }
 
-    private static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol interfaceSymbol)
+    private sealed class ConstructorAnalysis
     {
-        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(implemented, interfaceSymbol))
-            {
-                return true;
-            }
-        }
+        internal List<ParameterSpec> Parameters { get; } = [];
 
-        return false;
+        internal bool HasAccessibleConstructor { get; set; }
+
+        internal DiagnosticSpec? Diagnostic { get; set; }
     }
 
-    /// <summary>
-    /// Extracts ECS scheduling descriptor metadata (sequential flag, component
-    /// accesses, ordering constraints) from attributes of every discovered
-    /// system that participates in the given scheduling role, so the generated
-    /// composition can emit concrete registry providers with direct descriptor
-    /// enumeration instead of runtime assembly scanning.
-    /// </summary>
-    private static List<EcsSchedulingSystem> CollectEcsSchedulingSystems(
-        List<ServiceModel> registrations,
-        INamedTypeSymbol schedulingInterface)
+    private static ConstructorAnalysis AnalyzeConstructors(
+        INamedTypeSymbol type,
+        IAssemblySymbol hostAssembly,
+        bool reportAccessibility,
+        Location? location)
     {
-        var systems = new List<EcsSchedulingSystem>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (ServiceModel model in registrations)
+        var result = new ConstructorAnalysis();
+        List<IMethodSymbol> candidates = SelectVisibleConstructors(type, hostAssembly);
+        if (candidates.Count == 0)
         {
-            if (!ImplementsInterface(model.Type, schedulingInterface))
+            if (reportAccessibility)
             {
-                continue;
+                result.Diagnostic = DiagnosticSpec.Create(InvalidServiceImplementation, ToFullName(type));
             }
 
-            if (!seen.Add(model.FullName))
-            {
-                continue;
-            }
-
-            bool isSequential = false;
-            var accesses = new List<(string TypeName, string Mode)>();
-            var orders = new List<(string TargetTypeName, string Kind)>();
-            foreach (AttributeData attribute in model.Type.GetAttributes())
-            {
-                INamedTypeSymbol? attributeType = attribute.AttributeClass;
-                if (attributeType is null || attributeType.TypeArguments.Length != 1)
-                {
-                    if (attributeType is not null && attributeType.Name == "SequentialSystemAttribute")
-                    {
-                        isSequential = true;
-                    }
-
-                    continue;
-                }
-
-                string argument = ToFullName(attributeType.TypeArguments[0]);
-                switch (attributeType.Name)
-                {
-                    case "ReadsAttribute":
-                        accesses.Add((argument, "Read"));
-                        break;
-                    case "WritesAttribute":
-                        accesses.Add((argument, "Write"));
-                        break;
-                    case "RunsAfterAttribute":
-                        orders.Add((argument, "After"));
-                        break;
-                    case "RunsBeforeAttribute":
-                        orders.Add((argument, "Before"));
-                        break;
-                }
-            }
-
-            accesses.Sort(static (left, right) => string.CompareOrdinal(left.TypeName, right.TypeName));
-            orders.Sort(static (left, right) => string.CompareOrdinal(left.TargetTypeName, right.TargetTypeName));
-
-            systems.Add(new EcsSchedulingSystem(
-                model.FullName,
-                SanitizeIdentifier(model.FullName),
-                model.AssemblyDisplayName,
-                isSequential,
-                accesses,
-                orders));
+            return result;
         }
 
-        systems.Sort(static (left, right) =>
+        if (candidates.Count > 1)
         {
-            int comparison = string.CompareOrdinal(left.AssemblyDisplayName, right.AssemblyDisplayName);
-            return comparison != 0
-                ? comparison
-                : string.CompareOrdinal(left.FullName, right.FullName);
-        });
-        return systems;
+            result.Diagnostic = DiagnosticSpec.Create(AmbiguousServiceConstructor, ToFullName(type));
+            return result;
+        }
+
+        IMethodSymbol constructor = candidates[0];
+        result.HasAccessibleConstructor = true;
+        foreach (IParameterSymbol parameter in constructor.Parameters)
+        {
+            bool unresolvable = IsDefinitelyUnresolvable(parameter);
+            result.Parameters.Add(CreateParameterSpec(parameter, unresolvable));
+        }
+
+        return result;
     }
 
-    private static string SanitizeIdentifier(string value)
+    private static ParameterSpec CreateParameterSpec(IParameterSymbol parameter, bool unresolvable)
     {
-        var builder = new StringBuilder(value.Length);
-        foreach (char character in value)
+        if (parameter.Type is IArrayTypeSymbol arrayType)
         {
-            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
+            return new ParameterSpec(ToFullName(arrayType), ToFullName(arrayType.ElementType), unresolvable);
         }
 
-        return builder.ToString();
+        return new ParameterSpec(ToFullName(parameter.Type), null, unresolvable);
     }
 
-    private static bool IsAccessibleFromHost(INamedTypeSymbol type, IAssemblySymbol hostAssembly)
+    private static bool IsAccessibleFromHost(INamedTypeSymbol type, IAssemblySymbol? hostAssembly)
     {
         for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
         {
-            if (!IsAccessibleFromHostSymbol(current.DeclaredAccessibility, current.ContainingAssembly, hostAssembly))
+            bool sameAssembly = hostAssembly is not null
+                && SymbolEqualityComparer.Default.Equals(current.ContainingAssembly, hostAssembly);
+            Accessibility accessibility = current.DeclaredAccessibility;
+            bool visible = sameAssembly
+                ? accessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal
+                : accessibility == Accessibility.Public;
+            if (!visible)
             {
                 return false;
             }
@@ -749,27 +869,25 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static bool IsAccessibleFromHostSymbol(
-        Accessibility accessibility,
-        IAssemblySymbol declaringAssembly,
-        IAssemblySymbol hostAssembly)
-    {
-        return SymbolEqualityComparer.Default.Equals(declaringAssembly, hostAssembly)
-            ? accessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal
-            : accessibility == Accessibility.Public;
-    }
-
-    private static List<IMethodSymbol> SelectVisibleConstructors(INamedTypeSymbol type, IAssemblySymbol hostAssembly)
+    private static List<IMethodSymbol> SelectVisibleConstructors(INamedTypeSymbol type, IAssemblySymbol? hostAssembly)
     {
         var candidates = new List<IMethodSymbol>();
         foreach (IMethodSymbol candidate in type.Constructors)
         {
-            if (candidate.IsStatic || !IsAccessibleFromHostSymbol(candidate.DeclaredAccessibility, candidate.ContainingAssembly, hostAssembly))
+            if (candidate.IsStatic)
             {
                 continue;
             }
 
-            candidates.Add(candidate);
+            bool sameAssembly = hostAssembly is not null
+                && SymbolEqualityComparer.Default.Equals(candidate.ContainingAssembly, hostAssembly);
+            bool visible = sameAssembly
+                ? candidate.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal
+                : candidate.DeclaredAccessibility == Accessibility.Public;
+            if (visible)
+            {
+                candidates.Add(candidate);
+            }
         }
 
         return candidates;
@@ -798,19 +916,6 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         }
 
         return type.TypeKind == TypeKind.Enum;
-    }
-
-    private static bool HasUnresolvableParameter(IMethodSymbol constructor)
-    {
-        for (int index = 0; index < constructor.Parameters.Length; index++)
-        {
-            if (IsDefinitelyUnresolvable(constructor.Parameters[index]))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol attributeClass)
@@ -867,13 +972,13 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         return lifetime;
     }
 
-    private static List<INamedTypeSymbol> CollectContracts(
+    private static List<string> CollectContractNames(
         INamedTypeSymbol exportAttribute,
         INamedTypeSymbol? startableInterface,
         ImmutableArray<AttributeData> attributes,
         INamedTypeSymbol implementation)
     {
-        var contracts = new List<INamedTypeSymbol>();
+        var contracts = new List<string>();
         for (int index = 0; index < attributes.Length; index++)
         {
             AttributeData attribute = attributes[index];
@@ -885,26 +990,26 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             if (attribute.ConstructorArguments.Length > 0
                 && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract)
             {
-                contracts.Add(contract);
+                contracts.Add(ToFullName(contract));
             }
             else
             {
-                contracts.Add(implementation);
+                contracts.Add(ToFullName(implementation));
             }
         }
 
-        contracts.Sort(static (left, right) => string.CompareOrdinal(ToFullName(left), ToFullName(right)));
+        contracts.Sort(static (left, right) => string.CompareOrdinal(left, right));
 
         if (startableInterface is not null && ImplementsInterface(implementation, startableInterface))
         {
-            contracts.Add(startableInterface);
+            contracts.Add(ToFullName(startableInterface));
         }
 
         // Deduplicate identical contracts while keeping deterministic ordering.
-        var unique = new List<INamedTypeSymbol>(contracts.Count);
+        var unique = new List<string>(contracts.Count);
         for (int index = 0; index < contracts.Count; index++)
         {
-            if (index == 0 || !SymbolEqualityComparer.Default.Equals(contracts[index], contracts[index - 1]))
+            if (index == 0 || contracts[index] != contracts[index - 1])
             {
                 unique.Add(contracts[index]);
             }
@@ -915,6 +1020,41 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private static string ToFullName(ITypeSymbol type) =>
         type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty);
+
+    private static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol interfaceSymbol)
+    {
+        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(implemented, interfaceSymbol))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> GetTopLevelTypes(INamespaceSymbol namespaceSymbol)
+    {
+        foreach (INamespaceOrTypeSymbol member in namespaceSymbol.GetMembers())
+        {
+            if (member is INamespaceSymbol nested)
+            {
+                foreach (INamedTypeSymbol type in GetTopLevelTypes(nested))
+                {
+                    yield return type;
+                }
+            }
+            else if (member is INamedTypeSymbol type)
+            {
+                yield return type;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // AOT component template roots
+    // -----------------------------------------------------------------
 
     private const string EcsComponentInterfaceName = "DCFApixels.DragonECS.IEcsComponent";
     private const string EcsTagComponentInterfaceName = "DCFApixels.DragonECS.IEcsTagComponent";
@@ -929,99 +1069,109 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     /// composition statically touches one instantiation per discovered component
     /// type, forcing the native compiler to emit them.
     /// </summary>
-    private static List<string> CollectAotComponentTemplateRoots(
-        Compilation compilation,
-        INamedTypeSymbol? componentInterface,
-        INamedTypeSymbol? tagComponentInterface)
+    private static string? CollectComponentRoot(INamedTypeSymbol type, Compilation compilation)
     {
-        var roots = new SortedSet<string>(StringComparer.Ordinal);
-        if (componentInterface is null && tagComponentInterface is null)
+        if (!type.IsValueType || type.IsStatic)
         {
-            return [];
+            return null;
         }
 
-        foreach (INamedTypeSymbol type in EnumerateAllTypes(compilation))
+        INamedTypeSymbol? componentInterface = compilation.GetTypeByMetadataName(EcsComponentInterfaceName);
+        INamedTypeSymbol? tagComponentInterface = compilation.GetTypeByMetadataName(EcsTagComponentInterfaceName);
+        if (componentInterface is not null
+            && ImplementsInterface(type, componentInterface)
+            && compilation.GetTypeByMetadataName(ComponentTemplateDefinitionName) is not null)
         {
-            if (!type.IsValueType || type.IsStatic)
+            return $"typeof(global::Karpik.Engine.Shared.ECS.ComponentTemplate<global::{ToFullName(type)}>)";
+        }
+
+        if (tagComponentInterface is not null
+            && ImplementsInterface(type, tagComponentInterface)
+            && compilation.GetTypeByMetadataName(TagComponentTemplateDefinitionName) is not null)
+        {
+            return $"typeof(global::Karpik.Engine.Shared.ECS.TagComponentTemplate<global::{ToFullName(type)}>)";
+        }
+
+        return null;
+    }
+
+    // -----------------------------------------------------------------
+    // ECS scheduling descriptor metadata
+    // -----------------------------------------------------------------
+
+    private static SchedulingModel ExtractScheduling(INamedTypeSymbol type)
+    {
+        bool isSequential = false;
+        var accesses = new List<SchedulingAccess>();
+        var orders = new List<SchedulingOrder>();
+
+        foreach (AttributeData attribute in type.GetAttributes())
+        {
+            INamedTypeSymbol? attributeType = attribute.AttributeClass;
+            if (attributeType is null)
             {
                 continue;
             }
 
-            if (componentInterface is not null &&
-                Implements(type, componentInterface) &&
-                compilation.GetTypeByMetadataName(ComponentTemplateDefinitionName) is not null)
+            if (attributeType.Name == "SequentialSystemAttribute")
             {
-                roots.Add($"typeof(global::Karpik.Engine.Shared.ECS.ComponentTemplate<global::{ToFullName(type)}>)");
+                isSequential = true;
+                continue;
             }
-            else if (tagComponentInterface is not null &&
-                     Implements(type, tagComponentInterface) &&
-                     compilation.GetTypeByMetadataName(TagComponentTemplateDefinitionName) is not null)
+
+            if (attributeType.TypeArguments.Length != 1)
             {
-                roots.Add($"typeof(global::Karpik.Engine.Shared.ECS.TagComponentTemplate<global::{ToFullName(type)}>)");
+                continue;
+            }
+
+            string argument = ToFullName(attributeType.TypeArguments[0]);
+            switch (attributeType.Name)
+            {
+                case "ReadsAttribute":
+                    accesses.Add(new SchedulingAccess(argument, "Read"));
+                    break;
+                case "WritesAttribute":
+                    accesses.Add(new SchedulingAccess(argument, "Write"));
+                    break;
+                case "RunsAfterAttribute":
+                    orders.Add(new SchedulingOrder(argument, "After"));
+                    break;
+                case "RunsBeforeAttribute":
+                    orders.Add(new SchedulingOrder(argument, "Before"));
+                    break;
             }
         }
 
-        return [.. roots];
+        accesses.Sort(static (left, right) => string.CompareOrdinal(left.TypeName, right.TypeName));
+        orders.Sort(static (left, right) => string.CompareOrdinal(left.TargetTypeName, right.TargetTypeName));
+        return new SchedulingModel(
+            SanitizeIdentifier(ToFullName(type)),
+            isSequential,
+            accesses.ToArray(),
+            orders.ToArray());
     }
 
-    private static bool Implements(INamedTypeSymbol type, INamedTypeSymbol interfaceSymbol)
+    private static string SanitizeIdentifier(string value)
     {
-        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
+        var builder = new StringBuilder(value.Length);
+        foreach (char character in value)
         {
-            if (SymbolEqualityComparer.Default.Equals(implemented, interfaceSymbol))
-            {
-                return true;
-            }
+            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
         }
 
-        return false;
+        return builder.ToString();
     }
 
-    private static IEnumerable<INamedTypeSymbol> EnumerateAllTypes(Compilation compilation)
-    {
-        var roots = new List<INamespaceSymbol> { compilation.Assembly.GlobalNamespace };
-        foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
-        {
-            roots.Add(reference.GlobalNamespace);
-        }
-
-        foreach (INamespaceSymbol root in roots)
-        {
-            foreach (INamedTypeSymbol type in EnumerateTypesRecursive(root))
-            {
-                yield return type;
-            }
-        }
-    }
-
-    private static IEnumerable<INamedTypeSymbol> EnumerateTypesRecursive(INamespaceOrTypeSymbol container)
-    {
-        foreach (ISymbol member in container.GetMembers())
-        {
-            if (member is INamedTypeSymbol namedType)
-            {
-                yield return namedType;
-                foreach (INamedTypeSymbol nested in EnumerateTypesRecursive(namedType))
-                {
-                    yield return nested;
-                }
-            }
-            else if (member is INamespaceSymbol namespaceSymbol)
-            {
-                foreach (INamedTypeSymbol type in EnumerateTypesRecursive(namespaceSymbol))
-                {
-                    yield return type;
-                }
-            }
-        }
-    }
+    // -----------------------------------------------------------------
+    // Emission
+    // -----------------------------------------------------------------
 
     private static string GenerateSource(
-        List<ModuleInstaller> installers,
+        List<InstallerModel> installers,
         List<ServiceModel> registrations,
         List<string> aotComponentTemplateRoots,
-        List<EcsSchedulingSystem> updateSchedulingSystems,
-        List<EcsSchedulingSystem> renderPrepareSchedulingSystems)
+        List<SchedulingModel> updateSchedulingSystems,
+        List<SchedulingModel> renderPrepareSchedulingSystems)
     {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
@@ -1032,8 +1182,13 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         builder.AppendLine("    {");
         builder.AppendLine("        public void RegisterModules(global::Karpik.Engine.Core.IStaticModuleRegistry registry)");
         builder.AppendLine("        {");
-        foreach (ModuleInstaller installer in installers)
+        foreach (InstallerModel installer in installers)
         {
+            if (!installer.Valid)
+            {
+                continue;
+            }
+
             builder.Append("            registry.Add(new global::");
             builder.Append(installer.FullName);
             builder.AppendLine("());");
@@ -1045,9 +1200,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         foreach (ServiceModel model in registrations)
         {
             string factory = BuildFactory(model);
-            foreach (INamedTypeSymbol contract in model.Contracts)
+            foreach (string contract in model.Contracts)
             {
-                builder.Append("            registry.Register<global::").Append(ToFullName(contract));
+                builder.Append("            registry.Register<global::").Append(contract);
                 builder.Append(", global::").Append(model.FullName).Append('>');
                 builder.Append("(global::Karpik.Engine.Core.ModuleScope.").Append(ScopeName(model.Scope));
                 builder.Append(", global::Karpik.Engine.Core.ServiceLifetime.").Append(LifetimeName(model.Lifetime));
@@ -1077,8 +1232,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private static void AppendEcsRegistryProviders(
         StringBuilder builder,
-        List<EcsSchedulingSystem> updateSchedulingSystems,
-        List<EcsSchedulingSystem> renderPrepareSchedulingSystems)
+        List<SchedulingModel> updateSchedulingSystems,
+        List<SchedulingModel> renderPrepareSchedulingSystems)
     {
         // The Static execution path receives fully constructed registry providers
         // through the composition contract; the runner never enumerates assemblies
@@ -1122,28 +1277,28 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         string className,
         string providerInterfaceName,
         string methodName,
-        List<EcsSchedulingSystem> systems)
+        List<SchedulingModel> systems)
     {
         const string descriptorNamespace = "global::Karpik.Engine.Shared.ECS.Scheduling";
         builder.AppendLine();
         builder.AppendLine($"    internal sealed class {className} : {descriptorNamespace}.{providerInterfaceName}");
         builder.AppendLine("    {");
 
-        foreach (EcsSchedulingSystem system in systems)
+        foreach (SchedulingModel system in systems)
         {
             builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsComponentAccessDescriptor[] {system.Identifier}Accesses =");
             builder.AppendLine("        {");
-            foreach ((string componentTypeName, string mode) in system.Accesses)
+            foreach (SchedulingAccess access in system.Accesses)
             {
-                builder.AppendLine($"            new {descriptorNamespace}.EcsComponentAccessDescriptor(typeof(global::{componentTypeName}), {descriptorNamespace}.EcsAccessMode.{mode}),");
+                builder.AppendLine($"            new {descriptorNamespace}.EcsComponentAccessDescriptor(typeof(global::{access.TypeName}), {descriptorNamespace}.EcsAccessMode.{access.Mode}),");
             }
             builder.AppendLine("        };");
             builder.AppendLine();
             builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsSystemOrderDescriptor[] {system.Identifier}Orders =");
             builder.AppendLine("        {");
-            foreach ((string targetTypeName, string kind) in system.Orders)
+            foreach (SchedulingOrder order in system.Orders)
             {
-                builder.AppendLine($"            new {descriptorNamespace}.EcsSystemOrderDescriptor(typeof(global::{targetTypeName}), {descriptorNamespace}.EcsOrderKind.{kind}),");
+                builder.AppendLine($"            new {descriptorNamespace}.EcsSystemOrderDescriptor(typeof(global::{order.TargetTypeName}), {descriptorNamespace}.EcsOrderKind.{order.Kind}),");
             }
             builder.AppendLine("        };");
             builder.AppendLine();
@@ -1151,9 +1306,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         builder.AppendLine($"        private static readonly {descriptorNamespace}.EcsUpdateSystemDescriptor[] Systems =");
         builder.AppendLine("        {");
-        foreach (EcsSchedulingSystem system in systems)
+        foreach (SchedulingModel system in systems)
         {
-            builder.AppendLine($"            new {descriptorNamespace}.EcsUpdateSystemDescriptor(typeof(global::{system.FullName}), IsSequential: {system.IsSequential.ToString().ToLowerInvariant()}, {system.Identifier}Accesses, {system.Identifier}Orders),");
+            builder.AppendLine($"            new {descriptorNamespace}.EcsUpdateSystemDescriptor(typeof(global::{system.SystemTypeName}), IsSequential: {system.IsSequential.ToString().ToLowerInvariant()}, {system.Identifier}Accesses, {system.Identifier}Orders),");
         }
         builder.AppendLine("        };");
         builder.AppendLine();
@@ -1168,7 +1323,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     {
         var factory = new StringBuilder();
         factory.Append("static resolver => new global::").Append(model.FullName).Append('(');
-        ImmutableArray<IParameterSymbol> parameters = model.Constructor.Parameters;
+        ParameterSpec[] parameters = model.Parameters;
         for (int index = 0; index < parameters.Length; index++)
         {
             if (index > 0)
@@ -1183,17 +1338,16 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         return factory.ToString();
     }
 
-    private static string BuildArgument(IParameterSymbol parameter)
+    private static string BuildArgument(ParameterSpec parameter)
     {
-        ITypeSymbol type = parameter.Type;
-        if (type is IArrayTypeSymbol arrayType)
+        if (parameter.ArrayElementTypeName is not null)
         {
             // Autofac resolves element arrays natively; IServiceResolver exposes
             // the same capability through the non-generic Resolve(Type) overload.
-            return $"(global::{ToFullName(type)})resolver.Resolve(typeof(global::{ToFullName(arrayType.ElementType)}[]))";
+            return $"(global::{parameter.TypeFullName})resolver.Resolve(typeof(global::{parameter.ArrayElementTypeName}[]))";
         }
 
-        return $"resolver.Resolve<global::{ToFullName(type)}>()";
+        return $"resolver.Resolve<global::{parameter.TypeFullName}>()";
     }
 
     private static string ScopeName(int scope) => scope switch
@@ -1211,85 +1365,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         _ => lifetime.ToString(System.Globalization.CultureInfo.InvariantCulture),
     };
 
-    private sealed class ModuleInstaller
-    {
-        internal ModuleInstaller(
-            INamedTypeSymbol type,
-            string fullName,
-            int scope,
-            int priority,
-            string assemblyDisplayName)
-        {
-            Type = type;
-            FullName = fullName;
-            Scope = scope;
-            Priority = priority;
-            AssemblyDisplayName = assemblyDisplayName;
-        }
-
-        internal INamedTypeSymbol Type { get; }
-        internal string FullName { get; }
-        internal int Scope { get; }
-        internal int Priority { get; }
-        internal string AssemblyDisplayName { get; }
-    }
-
-    private sealed class EcsSchedulingSystem
-    {
-        internal EcsSchedulingSystem(
-            string fullName,
-            string identifier,
-            string assemblyDisplayName,
-            bool isSequential,
-            List<(string TypeName, string Mode)> accesses,
-            List<(string TargetTypeName, string Kind)> orders)
-        {
-            FullName = fullName;
-            Identifier = identifier;
-            AssemblyDisplayName = assemblyDisplayName;
-            IsSequential = isSequential;
-            Accesses = accesses;
-            Orders = orders;
-        }
-
-        internal string FullName { get; }
-        internal string Identifier { get; }
-        internal string AssemblyDisplayName { get; }
-        internal bool IsSequential { get; }
-        internal List<(string TypeName, string Mode)> Accesses { get; }
-        internal List<(string TargetTypeName, string Kind)> Orders { get; }
-    }
-
-    private sealed class ServiceModel
-    {        internal ServiceModel(
-            INamedTypeSymbol type,
-            string fullName,
-            string assemblyDisplayName,
-            int scope,
-            int lifetime,
-            List<INamedTypeSymbol> contracts,
-            IMethodSymbol constructor,
-            bool hasUnresolvableParameter)
-        {
-            Type = type;
-            FullName = fullName;
-            AssemblyDisplayName = assemblyDisplayName;
-            Scope = scope;
-            Lifetime = lifetime;
-            Contracts = contracts;
-            Constructor = constructor;
-            HasUnresolvableParameter = hasUnresolvableParameter;
-        }
-
-        internal INamedTypeSymbol Type { get; }
-        internal string FullName { get; }
-        internal string AssemblyDisplayName { get; }
-        internal int Scope { get; }
-        internal int Lifetime { get; }
-        internal List<INamedTypeSymbol> Contracts { get; }
-        internal IMethodSymbol Constructor { get; }
-        internal bool HasUnresolvableParameter { get; }
-    }
+    // -----------------------------------------------------------------
+    // Equatable pipeline models
+    // -----------------------------------------------------------------
 
     internal readonly struct CompositionProperties
     {
@@ -1310,6 +1388,352 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             bool hasMode = options.TryGetValue(CompositionModeProperty, out string? mode);
             return new CompositionProperties(hasSide || hasMode, side ?? string.Empty, mode ?? string.Empty);
         }
+    }
+
+    internal sealed class DiagnosticSpec : IEquatable<DiagnosticSpec>
+    {
+        private DiagnosticSpec(string id, string[] args)
+        {
+            Id = id;
+            Args = args;
+        }
+
+        internal string Id { get; }
+
+        internal string[] Args { get; }
+
+        internal static DiagnosticSpec Create(DiagnosticDescriptor descriptor, params string[] args) =>
+            new(descriptor.Id, args);
+
+        internal void ReportTo(SourceProductionContext context, Location? location)
+        {
+            DiagnosticDescriptor? descriptor = FindDescriptor(Id);
+            if (descriptor is null)
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(descriptor, location ?? Location.None, Args));
+        }
+
+        private static DiagnosticDescriptor? FindDescriptor(string id) => id switch
+        {
+            "KCORE002" => InvalidModuleInstaller,
+            "KE304" => MissingExportAttribute,
+            "KE305" => InvalidServiceImplementation,
+            "KE306" => AmbiguousServiceConstructor,
+            "KE307" => UnresolvableDependency,
+            _ => null,
+        };
+
+        public bool Equals(DiagnosticSpec? other) =>
+            other is not null && Id == other.Id && Args.SequenceEqual(other.Args, StringComparer.Ordinal);
+
+        public override bool Equals(object? obj) => Equals(obj as DiagnosticSpec);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = Id.GetHashCode();
+                foreach (string arg in Args)
+                {
+                    hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(arg);
+                }
+
+                return hash;
+            }
+        }
+    }
+
+    internal sealed class InstallerModel : IEquatable<InstallerModel>
+    {
+        internal InstallerModel(
+            string fullName,
+            int scope,
+            int priority,
+            string assemblyDisplayName,
+            string[] baseChain,
+            bool valid,
+            DiagnosticSpec[] diagnostics,
+            Location? location)
+        {
+            FullName = fullName;
+            Scope = scope;
+            Priority = priority;
+            AssemblyDisplayName = assemblyDisplayName;
+            BaseChain = baseChain;
+            Valid = valid;
+            Diagnostics = diagnostics;
+            Location = location;
+        }
+
+        internal string FullName { get; }
+        internal int Scope { get; }
+        internal int Priority { get; }
+        internal string AssemblyDisplayName { get; }
+        internal string[] BaseChain { get; }
+        internal bool Valid { get; }
+        internal DiagnosticSpec[] Diagnostics { get; }
+        internal Location? Location { get; }
+
+        internal static InstallerModel Empty(Location? location) => new(
+            string.Empty, 0, 0, string.Empty, [], valid: false, [], location);
+
+        internal bool DerivesFrom(InstallerModel other) => BaseChain.Contains(other.FullName);
+
+        internal void ReportTo(SourceProductionContext context)
+        {
+            foreach (DiagnosticSpec diagnostic in Diagnostics)
+            {
+                diagnostic.ReportTo(context, Location);
+            }
+        }
+
+        public bool Equals(InstallerModel? other) =>
+            other is not null
+            && FullName == other.FullName
+            && Scope == other.Scope
+            && Priority == other.Priority
+            && AssemblyDisplayName == other.AssemblyDisplayName
+            && Valid == other.Valid
+            && BaseChain.SequenceEqual(other.BaseChain, StringComparer.Ordinal)
+            && Diagnostics.SequenceEqual(other.Diagnostics);
+
+        public override bool Equals(object? obj) => Equals(obj as InstallerModel);
+
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(FullName);
+    }
+
+    internal sealed class ParameterSpec : IEquatable<ParameterSpec>
+    {
+        internal ParameterSpec(string typeFullName, string? arrayElementTypeName, bool isDefinitelyUnresolvable)
+        {
+            TypeFullName = typeFullName;
+            ArrayElementTypeName = arrayElementTypeName;
+            IsDefinitelyUnresolvable = isDefinitelyUnresolvable;
+        }
+
+        internal string TypeFullName { get; }
+        internal string? ArrayElementTypeName { get; }
+        internal bool IsDefinitelyUnresolvable { get; }
+
+        public bool Equals(ParameterSpec? other) =>
+            other is not null
+            && TypeFullName == other.TypeFullName
+            && ArrayElementTypeName == other.ArrayElementTypeName
+            && IsDefinitelyUnresolvable == other.IsDefinitelyUnresolvable;
+
+        public override bool Equals(object? obj) => Equals(obj as ParameterSpec);
+
+        public override int GetHashCode() => TypeFullName.GetHashCode();
+    }
+
+    internal sealed class ServiceModel : IEquatable<ServiceModel>
+    {
+        internal ServiceModel(
+            string fullName,
+            string assemblyDisplayName,
+            int scope,
+            int lifetime,
+            List<string> contracts,
+            ParameterSpec[] parameters,
+            bool isStartable,
+            bool emitted,
+            DiagnosticSpec[] diagnostics,
+            Location? location)
+        {
+            FullName = fullName;
+            AssemblyDisplayName = assemblyDisplayName;
+            Scope = scope;
+            Lifetime = lifetime;
+            Contracts = contracts;
+            Parameters = parameters;
+            IsStartable = isStartable;
+            Emitted = emitted;
+            Diagnostics = diagnostics;
+            Location = location;
+        }
+
+        internal string FullName { get; }
+        internal string AssemblyDisplayName { get; }
+        internal int Scope { get; }
+        internal int Lifetime { get; }
+        internal List<string> Contracts { get; }
+        internal ParameterSpec[] Parameters { get; }
+        internal bool IsStartable { get; }
+        internal bool Emitted { get; }
+        internal DiagnosticSpec[] Diagnostics { get; }
+        internal Location? Location { get; }
+
+        internal static ServiceModel Empty(Location? location) => new(
+            string.Empty, string.Empty, 0, 0, [], [], false, false, [], location);
+
+        internal static ServiceModel Invalid(Location? location, params DiagnosticSpec[] diagnostics) => new(
+            string.Empty, string.Empty, 0, 0, [], [], false, false, diagnostics, location);
+
+        internal void ReportDiagnostics(SourceProductionContext context)
+        {
+            foreach (DiagnosticSpec diagnostic in Diagnostics)
+            {
+                diagnostic.ReportTo(context, Location);
+            }
+        }
+
+        public bool Equals(ServiceModel? other) =>
+            other is not null
+            && FullName == other.FullName
+            && AssemblyDisplayName == other.AssemblyDisplayName
+            && Scope == other.Scope
+            && Lifetime == other.Lifetime
+            && IsStartable == other.IsStartable
+            && Emitted == other.Emitted
+            && Contracts.SequenceEqual(other.Contracts, StringComparer.Ordinal)
+            && Parameters.SequenceEqual(other.Parameters)
+            && Diagnostics.SequenceEqual(other.Diagnostics);
+
+        public override bool Equals(object? obj) => Equals(obj as ServiceModel);
+
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(FullName);
+    }
+
+    internal sealed class SystemModel : IEquatable<SystemModel>
+    {
+        internal SystemModel(ServiceModel? model, bool isUpdate, bool isRenderPrepare, SchedulingModel scheduling)
+        {
+            Model = model;
+            IsUpdateSystem = isUpdate;
+            IsRenderPrepareSystem = isRenderPrepare;
+            Scheduling = scheduling;
+        }
+
+        internal ServiceModel? Model { get; }
+        internal bool IsUpdateSystem { get; }
+        internal bool IsRenderPrepareSystem { get; }
+        internal SchedulingModel Scheduling { get; }
+
+        internal static SystemModel Empty => new(null, false, false, SchedulingModel.Empty);
+
+        public bool Equals(SystemModel? other) =>
+            other is not null
+            && IsUpdateSystem == other.IsUpdateSystem
+            && IsRenderPrepareSystem == other.IsRenderPrepareSystem
+            && Scheduling.Equals(other.Scheduling)
+            && (Model is null ? other.Model is null : Model.Equals(other.Model));
+
+        public override bool Equals(object? obj) => Equals(obj as SystemModel);
+
+        public override int GetHashCode() => Model?.GetHashCode() ?? 0;
+    }
+
+    internal sealed class SchedulingModel : IEquatable<SchedulingModel>
+    {
+        internal SchedulingModel(
+            string identifier,
+            bool isSequential,
+            SchedulingAccess[] accesses,
+            SchedulingOrder[] orders)
+        {
+            Identifier = identifier;
+            IsSequential = isSequential;
+            Accesses = accesses;
+            Orders = orders;
+        }
+
+        internal string Identifier { get; }
+        internal bool IsSequential { get; }
+        internal SchedulingAccess[] Accesses { get; }
+        internal SchedulingOrder[] Orders { get; }
+
+        internal string SystemTypeName => Identifier.Replace('_', '.');
+
+        internal static SchedulingModel Empty => new(string.Empty, false, [], []);
+
+        public bool Equals(SchedulingModel? other) =>
+            other is not null
+            && Identifier == other.Identifier
+            && IsSequential == other.IsSequential
+            && Accesses.SequenceEqual(other.Accesses)
+            && Orders.SequenceEqual(other.Orders);
+
+        public override bool Equals(object? obj) => Equals(obj as SchedulingModel);
+
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Identifier);
+    }
+
+    internal readonly struct SchedulingAccess : IEquatable<SchedulingAccess>
+    {
+        internal SchedulingAccess(string typeName, string mode)
+        {
+            TypeName = typeName;
+            Mode = mode;
+        }
+
+        internal string TypeName { get; }
+        internal string Mode { get; }
+
+        public bool Equals(SchedulingAccess other) => TypeName == other.TypeName && Mode == other.Mode;
+
+        public override bool Equals(object? obj) => obj is SchedulingAccess other && Equals(other);
+
+        public override int GetHashCode() => TypeName.GetHashCode();
+    }
+
+    internal readonly struct SchedulingOrder : IEquatable<SchedulingOrder>
+    {
+        internal SchedulingOrder(string targetTypeName, string kind)
+        {
+            TargetTypeName = targetTypeName;
+            Kind = kind;
+        }
+
+        internal string TargetTypeName { get; }
+        internal string Kind { get; }
+
+        public bool Equals(SchedulingOrder other) => TargetTypeName == other.TargetTypeName && Kind == other.Kind;
+
+        public override bool Equals(object? obj) => obj is SchedulingOrder other && Equals(other);
+
+        public override int GetHashCode() => TargetTypeName.GetHashCode();
+    }
+
+    internal sealed class ReferencedModels
+    {
+        internal ReferencedModels(
+            ImmutableArray<InstallerModel> installers,
+            ImmutableArray<ServiceModel> services,
+            ImmutableArray<SystemModel> systems,
+            ImmutableArray<ComponentRootModel> components)
+        {
+            Installers = installers;
+            Services = services;
+            Systems = systems;
+            Components = components;
+        }
+
+        internal ImmutableArray<InstallerModel> Installers { get; }
+        internal ImmutableArray<ServiceModel> Services { get; }
+        internal ImmutableArray<SystemModel> Systems { get; }
+        internal ImmutableArray<ComponentRootModel> Components { get; }
+    }
+
+    internal sealed class ComponentRootModel : IEquatable<ComponentRootModel>
+    {
+        internal ComponentRootModel(string rootExpression)
+        {
+            RootExpression = rootExpression;
+        }
+
+        internal string RootExpression { get; }
+
+        internal static ComponentRootModel Empty => new(string.Empty);
+
+        public bool Equals(ComponentRootModel? other) =>
+            other is not null && RootExpression == other.RootExpression;
+
+        public override bool Equals(object? obj) => Equals(obj as ComponentRootModel);
+
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(RootExpression);
     }
 }
 #pragma warning restore RS2008
