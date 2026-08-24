@@ -213,6 +213,93 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_SamePeReferencePathButRebuiltBinary_RegeneratesFromFreshScan()
+    {
+        // Production hosts reference modules as PortableExecutableReference.
+        // The referenced-scan cache key must include the binary's file
+        // fingerprint (path + last write time + length): a rebuilt DLL keeps
+        // its assembly identity, so an identity-only key serves the previous
+        // generation's models from the compiler server cache.
+        const string moduleSourceV1 = """
+            using Karpik.Engine.Core;
+
+            namespace PeMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.Engine)]
+            public class ProbeService : IProbe { }
+            """;
+        const string moduleSourceV2 = """
+            using Karpik.Engine.Core;
+
+            namespace PeMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.ModSet)]
+            public class ProbeService : IProbe
+            {
+                public int ExtraMember => 42;
+            }
+            """;
+        var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
+        string directory = Path.Combine(Path.GetTempPath(), "PeFingerprint_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string dllPath = Path.Combine(directory, "PeFingerprintModules.dll");
+
+        try
+        {
+            File.WriteAllBytes(
+                dllPath,
+                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV1, [exportReference]).Image);
+
+            GeneratorResult first = GeneratorTestHarness.Run(
+                CreateGenerator(),
+                additionalReferences:
+                [
+                    GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                    exportReference,
+                    MetadataReference.CreateFromFile(dllPath),
+                ]);
+
+            first.AssertNoErrors();
+            Assert.Contains(
+                "registry.Register<global::PeMods.IProbe, global::PeMods.ProbeService>(" +
+                "global::Karpik.Engine.Core.ModuleScope.Engine, ",
+                first.CompositionSource,
+                StringComparison.Ordinal);
+
+            // Rebuild in place: same path, same identity, different content.
+            File.WriteAllBytes(
+                dllPath,
+                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV2, [exportReference]).Image);
+
+            GeneratorResult second = GeneratorTestHarness.Run(
+                CreateGenerator(),
+                additionalReferences:
+                [
+                    GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                    exportReference,
+                    MetadataReference.CreateFromFile(dllPath),
+                ]);
+
+            second.AssertNoErrors();
+            Assert.Contains(
+                "registry.Register<global::PeMods.IProbe, global::PeMods.ProbeService>(" +
+                "global::Karpik.Engine.Core.ModuleScope.ModSet, ",
+                second.CompositionSource,
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Run_ServerStatic_GeneratesComposition()
     {
         var moduleReference = ReferencedInstallerAssembly("RefModules");

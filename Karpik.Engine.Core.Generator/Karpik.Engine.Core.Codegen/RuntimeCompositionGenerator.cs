@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -495,23 +496,48 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             }
         }
 
+        // RS1035 forbids file IO in analyzers because unbounded IO breaks
+        // determinism. This is a deliberate, bounded exception required by the
+        // Milestone 9 audit: stat-only metadata (last write time + length) of
+        // referenced module binaries feeds the referenced-scan cache key so a
+        // rebuilt DLL invalidates stale models. Contents are never read or
+        // hashed.
+        #pragma warning disable RS1035
         private static void AppendSourceFingerprints(Compilation compilation, List<string> parts)
         {
             foreach (MetadataReference reference in compilation.References)
             {
-                if (reference is not CompilationReference compilationReference)
+                if (reference is CompilationReference compilationReference)
                 {
+                    parts.Add("src:");
+                    foreach (SyntaxTree tree in compilationReference.Compilation.SyntaxTrees)
+                    {
+                        parts.Add(tree.FilePath);
+                        parts.Add(HashSyntaxTree(tree).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    }
+
                     continue;
                 }
 
-                parts.Add("src:");
-                foreach (SyntaxTree tree in compilationReference.Compilation.SyntaxTrees)
+                // Production hosts reference modules as
+                // PortableExecutableReference. A rebuilt DLL keeps its assembly
+                // identity, so fingerprint the binary file itself - path, last
+                // write time and length; hashing PE contents per generation
+                // would be too expensive for an IDE session.
+                if (reference is PortableExecutableReference peReference
+                    && peReference.FilePath is { Length: > 0 } pePath
+                    && File.Exists(pePath))
                 {
-                    parts.Add(tree.FilePath);
-                    parts.Add(HashSyntaxTree(tree).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    parts.Add("pe:");
+                    parts.Add(pePath);
+                    parts.Add(File.GetLastWriteTimeUtc(pePath)
+                        .Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    parts.Add(new FileInfo(pePath).Length
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
         }
+        #pragma warning restore RS1035
 
         private static ulong HashSyntaxTree(SyntaxTree tree)
         {
