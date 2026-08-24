@@ -584,16 +584,37 @@ public sealed class StaticCompositionCliTests
     /// inventory (and its justifications) to be revisited.
     /// </summary>
     // Record equality is ordinal per component, so exact-pairs matching is deterministic.
+    // Inventory below = EXACTLY what the un-suppressed Server AOT publish emits
+    // (verified 2026-08-24); every entry's justification lives in
+    // docs/02_ADR/static-runtime-composition.md (Warning inventory section).
     private static readonly HashSet<AotWarning> ServerDocumentedAotWarnings = new()
     {
+        // Third-party payload assemblies shipping without trim/AOT annotations.
         new("IL2104", "assembly:Aether.Physics2D"),
-        new("IL2104", "assembly:MoonSharp.Interpreter"),
-        new("IL2104", "assembly:Newtonsoft.Json"),
-        new("IL2104", "assembly:DragonECS"),
         new("IL3053", "assembly:Aether.Physics2D"),
+        new("IL2104", "assembly:MoonSharp.Interpreter"),
         new("IL3053", "assembly:MoonSharp.Interpreter"),
+        new("IL2104", "assembly:Newtonsoft.Json"),
         new("IL3053", "assembly:Newtonsoft.Json"),
-        new("IL3053", "assembly:DragonECS")
+        new("IL2104", "assembly:DragonECS"),
+        new("IL3053", "assembly:DragonECS"),
+        // First-party, deliberately reflective (documented in the ADR):
+        // ECS.Core - Newtonsoft hot-reload state pipeline + component-template fallback.
+        new("IL2104", "assembly:ECS.Core"),
+        new("IL3053", "assembly:ECS.Core"),
+        // AssetManagement.Core - Newtonsoft JsonLoader/JsonSaver + LooseAssemblyNameBinder.
+        new("IL2104", "assembly:AssetManagement.Core"),
+        new("IL3053", "assembly:AssetManagement.Core"),
+        // Karpik.Engine.Core / .Runner - Dynamic-mode-only discovery paths,
+        // analyzed but unreachable under Static composition.
+        new("IL2104", "assembly:Karpik.Engine.Core"),
+        new("IL2104", "assembly:Karpik.Engine.Core.Runner"),
+        // BCL dynamic-code surfaces pulled in via the rooted third-party metadata;
+        // not exercised by the engine's static path (runtime gate proves it).
+        new("IL3053", "assembly:Microsoft.CSharp"),
+        new("IL3053", "assembly:System.Linq.Expressions"),
+        // LoggerModule - open-generic Autofac logger registration (Dynamic-mode path).
+        new("IL3053", "assembly:LoggerModule")
     };
 
     private static readonly HashSet<AotWarning> ClientDocumentedAotWarnings = CreateClientInventory();
