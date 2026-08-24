@@ -25,5 +25,7 @@
     <ProjectReference Include="..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
     <ProjectReference Include="..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
     <ProjectReference Include="..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\LoggerModule\LoggerModule.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />
   </ItemGroup>
 </Project>

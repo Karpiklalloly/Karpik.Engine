@@ -712,6 +712,56 @@ public sealed class RuntimeCompositionGeneratorTests
         yield return typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller).Assembly;
     }
 
+    /// <summary>
+    /// End-to-end ordered Dynamic↔Static parity (second audit, finding 1): the
+    /// DYNAMIC runner's module sequence after Sort must equal the GENERATED
+    /// emitted installer sequence exactly - same canonical contract
+    /// (Scope asc -> Priority asc -> assembly identity -> full name). The
+    /// selection spans multiple scopes with equal priorities, where a
+    /// Priority-first dynamic comparator diverges from the generator.
+    /// </summary>
+    [Fact]
+    public void DynamicRunner_ModuleSequenceAfterSort_MatchesGeneratedEmission()
+    {
+        var references = new[]
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Log.LoggerModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Modding.ModdingModuleInstaller>(),
+        };
+
+        var result = GeneratorTestHarness.Run(CreateGenerator(), side: "Client", additionalReferences: references);
+        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+
+        string[] generatedSequence = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+            .Select(match => match.Groups[1].Value)
+            .ToArray();
+        Assert.NotEmpty(generatedSequence);
+
+        var runner = new Karpik.Engine.Core.EngineRunner();
+        // Register in an order deliberately different from the canonical one so
+        // the comparator - not insertion order or load rank - decides the result.
+        runner.RegisterTypes(
+        [
+            typeof(Karpik.Engine.Shared.ECS.EcsModuleInstaller),
+            typeof(Karpik.Engine.Shared.Modding.ModdingModuleInstaller),
+            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller),
+            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller),
+            typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller),
+            typeof(Karpik.Engine.Shared.Log.LoggerModuleInstaller),
+            typeof(NotAModuleType),
+        ]);
+        runner.SortModulesForVerification();
+
+        Assert.Equal(
+            generatedSequence,
+            runner.GetModules().Select(static module => module.GetType().FullName!).ToArray());
+    }
+
     [Theory]
     [InlineData("Client")]
     [InlineData("Server")]

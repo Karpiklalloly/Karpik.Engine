@@ -122,7 +122,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData)
     {
-        _modules.Sort(CompareModules);
+        SortModulesForVerification();
 
         bool isStatic = _staticServices is not null;
 
@@ -467,7 +467,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         composition.RegisterModules(this);
         // Freeze the generated installer order immediately so consumers of
         // GetModules() observe it before Setup runs.
-        _modules.Sort(CompareModules);
+        SortModulesForVerification();
     }
 
     void IStaticModuleRegistry.Add(IModuleInstaller installer) => RegisterModule(installer);
@@ -495,13 +495,18 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         Console.WriteLine($"Register module {moduleInstaller.Name}");
         bool isStatic = _staticServices is not null;
         _modules.Add(moduleInstaller);
+        Type installerType = moduleInstaller.GetType();
         _moduleRegistrations.Add(moduleInstaller, new ModuleRegistration(
             isStatic
                 // Real generated insertion rank (Scope asc -> Priority asc ->
                 // assembly identity -> full name); never int.MaxValue filler.
                 ? _nextRegistrationRank++
-                : _assemblyLoadRanks.GetValueOrDefault(moduleInstaller.GetType().Assembly, int.MaxValue),
-            moduleInstaller.GetType().FullName ?? moduleInstaller.GetType().Name,
+                : _assemblyLoadRanks.GetValueOrDefault(installerType.Assembly, int.MaxValue),
+            installerType.FullName ?? installerType.Name,
+            // Same term the generator's InstallerOrder compares:
+            // IAssemblyIdentity.GetDisplayName() on the compile side,
+            // AssemblyName.FullName on the runtime side.
+            installerType.Assembly.GetName().FullName ?? string.Empty,
             _nextRegistrationRank++,
             isStatic));
     }
@@ -513,6 +518,15 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
                    $"Module installer '{moduleInstaller.GetType().FullName}' has no {nameof(ModuleAttribute)}.");
     }
 
+    /// <summary>
+    /// Applies the module ordering comparator. Production entry points:
+    /// <see cref="Setup"/> (Dynamic mode) and
+    /// <see cref="RegisterStaticComposition"/> (Static freeze). Internal so
+    /// parity tests can observe the Dynamic ordering without a full engine
+    /// setup.
+    /// </summary>
+    internal void SortModulesForVerification() => _modules.Sort(CompareModules);
+
     private int CompareModules(IModuleInstaller left, IModuleInstaller right)
     {
         var leftRegistration = _moduleRegistrations[left];
@@ -523,13 +537,26 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             return leftRegistration.RegistrationRank.CompareTo(rightRegistration.RegistrationRank);
         }
 
-        var comparison = GetModuleAttribute(left).Priority.CompareTo(GetModuleAttribute(right).Priority);
+        // Canonical contract (aligned with the generator's InstallerOrder):
+        // Scope asc -> Priority asc -> assembly identity -> full name. The
+        // assembly term is the identity display name - not load rank - so the
+        // Dynamic sequence equals the GENERATED emission for identical
+        // selections regardless of runtime load order.
+        var comparison = GetModuleAttribute(left).Scope.CompareTo(GetModuleAttribute(right).Scope);
         if (comparison != 0)
         {
             return comparison;
         }
 
-        comparison = leftRegistration.AssemblyLoadRank.CompareTo(rightRegistration.AssemblyLoadRank);
+        comparison = GetModuleAttribute(left).Priority.CompareTo(GetModuleAttribute(right).Priority);
+        if (comparison != 0)
+        {
+            return comparison;
+        }
+
+        comparison = StringComparer.Ordinal.Compare(
+            leftRegistration.AssemblyIdentity,
+            rightRegistration.AssemblyIdentity);
         if (comparison != 0)
         {
             return comparison;
@@ -677,6 +704,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private readonly record struct ModuleRegistration(
         int AssemblyLoadRank,
         string TypeFullName,
+        string AssemblyIdentity,
         int RegistrationRank,
         bool IsStaticInsertion = false);
 
