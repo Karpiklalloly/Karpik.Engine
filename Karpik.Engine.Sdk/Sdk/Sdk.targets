@@ -138,42 +138,31 @@
                                          ProjectReferences="@(ProjectReference->'%(FullPath)')" />
   </Target>
 
-  <PropertyGroup Condition="'$(KarpikCompositionMode)' == 'Static' And '$(PublishAot)' == 'true'">
-    <!-- Documented NativeAOT warning inventory (docs/02_ADR/static-runtime-composition.md):
-         installed engine payload assemblies (Aether.Physics2D, MoonSharp.Interpreter,
-         Newtonsoft.Json, DragonECS, ImGui.NET) ship without trim/AOT annotations and
-         produce aggregate IL2104/IL3053. Client hosts additionally see IL3000/IL3002
-         from Silk.NET's DefaultPathResolver: it probes native dependency paths via
-         Assembly.Location, which is empty for AOT/single-file outputs; native
-         dependencies are staged next to the executable so resolution succeeds
-         regardless. The reflection code inside Karpik.Engine.Core /
-         Karpik.Engine.Core.Runner that motivates IL2104/IL3053 is the Dynamic
-         composition path, which generated static hosts never execute - proven by
-         the source-boundary test and the no-reflection runtime tests.
-         Any OTHER IL2xxx/IL3xxx/IL3050 code is an unexplained regression and must be
-         fixed or narrowly annotated before shipping. -->
-    <NoWarn>$(NoWarn);IL2104;IL3053;IL3000;IL3002</NoWarn>
-  </PropertyGroup>
+  <!-- The SDK deliberately imposes NO project-wide AOT/trimming NoWarn on
+       consumers. Host projects that publish with PublishAot=true opt in to a
+       narrow, documented suppression list in their own csproj (see
+       templates/Karpik.Game launcher projects and
+       docs/02_ADR/static-runtime-composition.md for the exact inventory and
+       justification). Anything a host does not suppress fails its publish,
+       which is the acceptance contract: no unexplained IL2xxx/IL3xxx/IL3050. -->
 
   <Target Name="_KarpikRootStaticGraphReflectionMetadata"
           BeforeTargets="PrepareForILLink"
           Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true') And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
-    <!-- Static hosts keep reflection metadata for the assemblies the runtime
-         reflects over: the hot-reload state pipeline (ECS restart-worker state
-         via Newtonsoft TypeNameHandling) serializes ECS.Core snapshot records
-         and DragonECS world internals, and the editor snapshot formatter reads
-         public members of game component types. Everything else stays trimmed;
-         binary size is traded for correctness until a source-generated state
-         serializer replaces the reflection path. -->
+    <!-- Minimal trim roots for Static hosts. Everything first-party is now
+         reflection-free on the Static path: ECS scheduling registries are
+         delivered through generated composition providers, component template
+         instantiations are rooted by GeneratedRuntimeComposition.AotComponentTemplateRoots,
+         and editor snapshots use a source-generated System.Text.Json context.
+         The two remaining roots cover the third-party reflection surface of
+         the hot-reload state pipeline until a source-generated ECS state
+         serializer replaces it:
+          - Newtonsoft.Json: EcsWorldExtensions.ToSnapshot/FromSnapshot serialize
+            arbitrary component structs via TypeNameHandling.Objects.
+          - DragonECS: world/aspect internals those snapshot strings reference. -->
     <ItemGroup>
-      <!-- First-party module assemblies carry source-generated ECS scheduling
-           registries and similar embedded metadata that runtime reflection
-           reads; AssemblyIdentity is a full assembly name and
-           TrimmerRootAssembly wants the simple name, so strip after the ',' -->
-      <TrimmerRootAssembly Include="$([System.String]::Copy('%(_KarpikStaticModuleReference.AssemblyIdentity)').Split(',')[0])" />
       <TrimmerRootAssembly Include="DragonECS" />
       <TrimmerRootAssembly Include="Newtonsoft.Json" />
-      <TrimmerRootAssembly Include="@(ProjectReference->'%(Filename)')" />
     </ItemGroup>
   </Target>
 

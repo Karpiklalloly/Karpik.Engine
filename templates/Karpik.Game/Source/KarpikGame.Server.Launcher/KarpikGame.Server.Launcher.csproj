@@ -9,6 +9,13 @@
     <!-- The Dynamic and Static entry points each carry top-level statements;
          only one of them may be part of the compilation. -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Narrow Static+AOT suppression list (see docs/02_ADR/static-runtime-composition.md).
+         IL2104/IL3053: aggregate from third-party payload assemblies
+         (Aether.Physics2D, MoonSharp.Interpreter, Newtonsoft.Json, DragonECS)
+         that ship without trim/AOT annotations; the first-party Static path is
+         reflection-free and pinned by source-boundary tests. Any OTHER
+         IL2xxx/IL3xxx/IL3050 code must stay unsuppressed and fails the publish. -->
+    <NoWarn Condition="'$(KarpikCompositionMode)' == 'Static' And '$(PublishAot)' == 'true'">$(NoWarn);IL2104;IL3053</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

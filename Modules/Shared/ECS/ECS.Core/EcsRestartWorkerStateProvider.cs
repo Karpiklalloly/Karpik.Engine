@@ -1,11 +1,17 @@
-﻿using System.Composition;
+using System.Composition;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Karpik.Engine.Core;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
 namespace Karpik.Engine.Shared.ECS;
+
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(HotReloadInfo))]
+internal partial class HotReloadInfoJsonContext : JsonSerializerContext;
 
 [Export(typeof(IRestartWorkerStateProvider))]
 [ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
@@ -30,27 +36,24 @@ public class EcsRestartWorkerStateProvider(
         ToTemplateExtensions2.Clear();
         TypeMeta.ClearCache();
         EcsAspect.ClearCache();
-        string json = JsonConvert.SerializeObject(new HotReloadInfo()
+        // The envelope is source-generated (NativeAOT-safe); only the inner
+        // world-snapshot strings still travel through the Newtonsoft pipeline.
+        string json = System.Text.Json.JsonSerializer.Serialize(
+            new HotReloadInfo()
             {
                 EcsDefaultWorldJson = snapshotDefault,
                 EcsEventWorldJson = snapshotEvent,
                 EcsMetaWorldJson = snapshotMeta
             },
-            new JsonSerializerSettings()
-            {
-                Formatting = Formatting.Indented,
-                TypeNameHandling = TypeNameHandling.Objects,
-                TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-                Converters = [new ComponentArrayConverter(logger)],
-                ContractResolver = new DefaultContractResolver()
-            });
+            HotReloadInfoJsonContext.Default.HotReloadInfo);
 
         return Encoding.UTF8.GetBytes(json);
     }
 
     public void Restore(ReadOnlySpan<byte> data)
     {
-        var hotReloadData = JsonConvert.DeserializeObject<HotReloadInfo>(Encoding.UTF8.GetString(data));
+        var hotReloadData =
+            System.Text.Json.JsonSerializer.Deserialize(Encoding.UTF8.GetString(data), HotReloadInfoJsonContext.Default.HotReloadInfo)!;
         EcsWorld.FromSnapshot(world, hotReloadData!.EcsDefaultWorldJson, resolver, _converter).GetAwaiter().GetResult();
         EcsWorld.FromSnapshot(eventWorld, hotReloadData.EcsEventWorldJson, resolver, _converter).GetAwaiter().GetResult();
         EcsWorld.FromSnapshot(metaWorld, hotReloadData.EcsMetaWorldJson, resolver, _converter).GetAwaiter().GetResult();

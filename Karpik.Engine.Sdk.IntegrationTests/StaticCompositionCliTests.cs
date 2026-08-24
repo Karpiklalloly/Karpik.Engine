@@ -284,7 +284,7 @@ public sealed class StaticCompositionCliTests
 
             List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
             // Documented inventory: aggregate IL2104/IL3053 from unannotated engine
-            // payload assemblies (see Sdk.targets NoWarn rationale and the ADR).
+            // payload assemblies (see the launcher csproj NoWarn rationale and the ADR).
             string[] documentedCodes = ["IL2104", "IL3053"];
             List<string> unexplained = aotWarnings.Where(code => !documentedCodes.Contains(code)).ToList();
             Assert.True(unexplained.Count == 0,
@@ -469,7 +469,7 @@ public sealed class StaticCompositionCliTests
             AssertSuccess(publish, "publish the Static Client host under NativeAOT");
 
             List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
-            // Same documented inventory as the Server gate (Sdk.targets NoWarn rationale).
+            // Same documented inventory as the Server gate (launcher csproj NoWarn rationale).
             string[] clientDocumentedCodes = ["IL2104", "IL3053", "IL3000", "IL3002"];
             List<string> clientUnexplained = aotWarnings.Where(code => !clientDocumentedCodes.Contains(code)).ToList();
             Assert.True(clientUnexplained.Count == 0,
