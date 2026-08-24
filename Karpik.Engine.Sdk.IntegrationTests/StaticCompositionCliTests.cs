@@ -582,6 +582,13 @@ public sealed class StaticCompositionCliTests
         new(@"\b(?<code>IL\d{4}):\s+(?<origin>[^\r\n'""`]+?\([^)]*\)):\s+\S",
             System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    // Shape-agnostic catch-all: every IL code appearing anywhere in the publish
+    // log. Used only to detect codes the exact-tuple regexes above failed to
+    // parse - a warning in an unrecognized textual shape must fail the gate
+    // instead of bypassing both the 'unexplained' and 'stale' assertions.
+    private static readonly System.Text.RegularExpressions.Regex AnyIlCodeRegex =
+        new(@"\bIL\d{4}\b", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     /// <summary>
     /// Exact (code -> origin) warning inventory documented in
     /// docs/02_ADR/static-runtime-composition.md. Third-party payload origins only;
@@ -594,7 +601,11 @@ public sealed class StaticCompositionCliTests
     // Inventory below = EXACTLY what the un-suppressed Server AOT publish emits
     // (verified 2026-08-24); every entry's justification lives in
     // docs/02_ADR/static-runtime-composition.md (Warning inventory section).
-    private static readonly HashSet<AotWarning> ServerDocumentedAotWarnings = new()
+    // Warnings emitted identically by BOTH Server and Client publishes (the
+    // same third-party payloads are rooted by the shared engine core). A
+    // warning that only one side emits belongs in the side-specific set below,
+    // never here - a shared entry silently tightens the other side's gate.
+    private static readonly HashSet<AotWarning> SharedDocumentedAotWarnings = new()
     {
         // Third-party payload assemblies shipping without trim/AOT annotations.
         new("IL2104", "assembly:Aether.Physics2D"),
@@ -624,26 +635,35 @@ public sealed class StaticCompositionCliTests
         new("IL3053", "assembly:LoggerModule")
     };
 
-    private static readonly HashSet<AotWarning> ClientDocumentedAotWarnings = CreateClientInventory();
+    /// <summary>Server-publish-only warnings; currently none.</summary>
+    private static readonly HashSet<AotWarning> ServerOnlyDocumentedAotWarnings = new();
 
-    private static HashSet<AotWarning> CreateClientInventory()
+    private static readonly HashSet<AotWarning> ServerDocumentedAotWarnings =
+        CreateSideInventory(SharedDocumentedAotWarnings, ServerOnlyDocumentedAotWarnings);
+
+    // Client-publish-only warnings; each carries its own justification.
+    private static readonly HashSet<AotWarning> ClientOnlyDocumentedAotWarnings = new()
     {
-        var inventory = new HashSet<AotWarning>();
-        foreach (AotWarning warning in ServerDocumentedAotWarnings)
-        {
-            inventory.Add(warning);
-        }
-
         // Silk.NET probes native dependency paths via Assembly.Location/CodeBase and
         // DependencyContext, which are empty/unsupported under single-file AOT;
         // natives are staged next to the executable so resolution succeeds
         // regardless - justified empirically by this passing runtime gate.
-        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"));
-        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"));
-        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"));
-        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"));
-        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetInRuntimesFolder(String,String,String&)"));
-        inventory.Add(new("IL3002", "member:Microsoft.Extensions.DependencyModel.DependencyContext..cctor()"));
+        new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"),
+        new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.<>c.<.cctor>b__24_3(String)"),
+        new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"),
+        new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"),
+        new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetInRuntimesFolder(String,String,String&)"),
+        new("IL3002", "member:Microsoft.Extensions.DependencyModel.DependencyContext..cctor()")
+    };
+
+    private static readonly HashSet<AotWarning> ClientDocumentedAotWarnings =
+        CreateSideInventory(SharedDocumentedAotWarnings, ClientOnlyDocumentedAotWarnings);
+
+    private static HashSet<AotWarning> CreateSideInventory(
+        HashSet<AotWarning> shared, HashSet<AotWarning> sideOnly)
+    {
+        var inventory = new HashSet<AotWarning>(shared);
+        inventory.UnionWith(sideOnly);
         return inventory;
     }
 
@@ -693,6 +713,28 @@ public sealed class StaticCompositionCliTests
             Environment.NewLine +
             "stale: " + Format(stale) + Environment.NewLine +
             "emitted: " + Format(emitted));
+
+        // Coverage fallback: the exact-tuple regexes must account for EVERY IL
+        // code present in the log. A code found by the catch-all but absent from
+        // 'emitted' means a warning shape the parsers do not recognize slipped
+        // past both assertions above.
+        var parsedCodes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (AotWarning warning in emitted)
+        {
+            parsedCodes.Add(warning.Code);
+        }
+
+        List<string> unparseable = [.. AnyIlCodeRegex.Matches(publishLog)
+            .Select(match => match.Value)
+            .Where(code => !parsedCodes.Contains(code))
+            .Distinct()];
+        Assert.True(unparseable.Count == 0,
+            "NativeAOT publish log contains IL warning codes in a textual shape the " +
+            "gate parsers do not recognize; extend AotWarningRegex / " +
+            "AotUnquotedMemberWarningRegex (and re-justify the inventory in " +
+            "docs/02_ADR/static-runtime-composition.md)." + Environment.NewLine +
+            "unparseable codes: " + string.Join(", ", unparseable) + Environment.NewLine +
+            publishLog);
     }
 
     // The gate parses warnings via exact-tuple regexes. A publish warning
