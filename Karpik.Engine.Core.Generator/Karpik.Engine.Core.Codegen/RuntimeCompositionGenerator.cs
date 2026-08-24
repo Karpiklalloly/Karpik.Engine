@@ -104,8 +104,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         // sources runs through syntax/symbol providers whose results Roslyn
         // caches per declaration, so editing one file never rescans unrelated
         // code. Only the referenced-assembly scan still needs Compilation; it
-        // is memoized behind an assembly-identity key so unchanged references
-        // cost one dictionary lookup per edit instead of a full symbol walk.
+        // is memoized behind an assembly-identity + referenced-source-content
+        // key so unchanged references cost one dictionary lookup per edit
+        // instead of a full symbol walk.
         var properties = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _) => CompositionProperties.Read(provider.GlobalOptions));
 
@@ -455,7 +456,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     }
 
     // ---------------------------------------------------------------------
-    // Referenced-assembly scan (memoized by assembly identities)
+    // Referenced-assembly scan (memoized by assembly identities + source
+    // content fingerprints)
     // ---------------------------------------------------------------------
 
     private static readonly object ReferencedCacheGate = new();
@@ -472,6 +474,14 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 identityParts.Add(reference.Identity.GetDisplayName());
             }
 
+            // Assembly identities do not change when a referenced project's
+            // sources are edited, so an identity-only key would serve stale
+            // models for later host compilations in the same IDE session.
+            // Fingerprint every source-built reference by its syntax tree
+            // contents; SourceText is cached per tree, so unchanged references
+            // only pay a linear text scan.
+            AppendSourceFingerprints(compilation, identityParts);
+
             string key = string.Join("|", identityParts);
             lock (ReferencedCacheGate)
             {
@@ -483,6 +493,40 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
                 return cached;
             }
+        }
+
+        private static void AppendSourceFingerprints(Compilation compilation, List<string> parts)
+        {
+            foreach (MetadataReference reference in compilation.References)
+            {
+                if (reference is not CompilationReference compilationReference)
+                {
+                    continue;
+                }
+
+                parts.Add("src:");
+                foreach (SyntaxTree tree in compilationReference.Compilation.SyntaxTrees)
+                {
+                    parts.Add(tree.FilePath);
+                    parts.Add(HashSyntaxTree(tree).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+        }
+
+        private static ulong HashSyntaxTree(SyntaxTree tree)
+        {
+            // FNV-1a over the tree text; stable within a process, which is all
+            // an in-memory cache requires.
+            const ulong offsetBasis = 14695981039346656037UL;
+            const ulong prime = 1099511628211UL;
+            ulong hash = offsetBasis;
+            string text = tree.GetText().ToString();
+            foreach (char character in text)
+            {
+                hash = (hash ^ character) * prime;
+            }
+
+            return hash;
         }
 
         private static ReferencedModels ScanCore(Compilation compilation)

@@ -148,6 +148,71 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_SameReferencedIdentityButChangedModuleSource_RegeneratesFromFreshScan()
+    {
+        // The referenced-assembly scan is memoized across generations; its cache
+        // key must include the REFERENCED module's source content, not only its
+        // assembly identity. Editing a module's sources keeps its identity string
+        // unchanged, so an identity-only key would serve stale models on the
+        // next host compilation within one IDE session.
+        const string moduleSourceV1 = """
+            using Karpik.Engine.Core;
+
+            namespace FpMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.Engine)]
+            public class ProbeService : IProbe { }
+            """;
+        const string moduleSourceV2 = """
+            using Karpik.Engine.Core;
+
+            namespace FpMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.ModSet)]
+            public class ProbeService : IProbe { }
+            """;
+        var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
+
+        GeneratorResult first = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                exportReference,
+                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV1, [exportReference]).ToMetadataReference(),
+            ]);
+
+        first.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::FpMods.IProbe, global::FpMods.ProbeService>(" +
+            "global::Karpik.Engine.Core.ModuleScope.Engine, ",
+            first.CompositionSource,
+            StringComparison.Ordinal);
+
+        GeneratorResult second = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                exportReference,
+                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV2, [exportReference]).ToMetadataReference(),
+            ]);
+
+        second.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::FpMods.IProbe, global::FpMods.ProbeService>(" +
+            "global::Karpik.Engine.Core.ModuleScope.ModSet, ",
+            second.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_ServerStatic_GeneratesComposition()
     {
         var moduleReference = ReferencedInstallerAssembly("RefModules");

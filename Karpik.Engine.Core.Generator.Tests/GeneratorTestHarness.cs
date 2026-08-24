@@ -60,6 +60,18 @@ internal static class GeneratorTestHarness
 
     internal static MetadataReference AssemblyReference<T>() => MetadataReference.CreateFromFile(typeof(T).Assembly.Location);
 
+    internal static CSharpCompilation CreateModuleCompilation(
+        string assemblyName,
+        string source,
+        IEnumerable<MetadataReference>? additionalReferences = null)
+    {
+        return CSharpCompilation.Create(
+            assemblyName,
+            [CSharpSyntaxTree.ParseText(source, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest))],
+            FrameworkReferences.Concat([AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]).Concat(additionalReferences ?? []),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    }
+
     internal static CompiledModule CompileModuleAssembly(
         string assemblyName,
         string source,
