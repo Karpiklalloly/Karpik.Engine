@@ -63,12 +63,45 @@ Client/Server side boundaries must stay enforceable at compile time.
      through the generated `TouchAotComponentTemplateRoots` call, so module
      payload assemblies stay trimmed.
 
-5. **Warning inventory.** No project-wide suppressions are imposed by the SDK.
-     Host projects opt in per-csproj, conditioned on Static+`PublishAot` with a
-     written justification: IL2104/IL3053 from unannotated third-party payload
-     assemblies; client hosts additionally IL3000/IL3002 from Silk.NET's
-     native-path probing (`Assembly.Location` is empty under single-file AOT).
-     Both AOT acceptance gates fail on any other IL2xxx/IL3xxx/IL3050 code.
+5. **Warning inventory (exact, gate-enforced).** Neither the SDK nor host projects set any
+   `NoWarn`: every trim/AOT warning reaches the publish output. Both AOT acceptance gates parse
+   the publish log into exact `(code -> originating assembly[/member])` tuples and FAIL unless
+   the emitted set equals the documented set below (verified 2026-08-24) — a package update that
+   adds or removes origins fails the gate and forces this inventory to be revisited. Aggregate
+   form (`ILxxxx: Assembly 'X' produced ... warnings.`) pins the originating assembly; member
+   form (`ILxxxx: Ns.Type.Member(args): ...`) pins the member where ilc emits one.
+
+   **IL2104 + IL3053 aggregates (Server and Client):**
+
+   | Origin | Kind | Justification |
+   |---|---|---|
+   | `Aether.Physics2D` | third-party payload | ships unannotated; internal XmlSerializer world (de)serialization |
+   | `MoonSharp.Interpreter` | third-party payload | Lua interpreter is inherently reflective |
+   | `Newtonsoft.Json` | third-party payload | reflection serializer backing the hot-reload state pipeline |
+   | `DragonECS` | third-party payload | ships unannotated |
+   | `ECS.Core` | FIRST-PARTY, deliberate | Newtonsoft restart-state snapshots (`ComponentArrayConverter`, `EcsWorldExtensions`) + `ComponentTemplate<T>` `MakeGenericType` fallback; replacement tracked as the source-generated ECS state serialization follow-up ExecPlan; behavior proven by the ten reload cycles of the Server gate |
+   | `AssetManagement.Core` | FIRST-PARTY, deliberate | Newtonsoft `JsonLoader`2`/`JsonSaver`1` content pipeline + `LooseAssemblyNameBinder` loose assembly binding (`Assembly.GetTypes`, `Type.GetType`) |
+   | `Karpik.Engine.Core` | FIRST-PARTY, dead under Static | Dynamic-mode-only discovery (`Bootstrap.RegisterTypes`, `EngineRunner.FormatComponent`, `AttributedServiceRegistrar`, `SystemRegistry`) analyzed by ilc but unreachable from a generated static host |
+   | `Karpik.Engine.Core.Runner` | FIRST-PARTY, dead under Static | same: `DynamicCompositionDiscovery`, `Program.LoadDynamicModules` (`Assembly.GetTypes`, `Activator.CreateInstance`) |
+
+   **IL3053 aggregates (Server and Client, additional):** `LoggerModule` (open-generic Autofac
+   logger registration — Dynamic-mode DI path), `Microsoft.CSharp`,
+   `System.Linq.Expressions` (BCL dynamic-code surfaces reachable only through the rooted
+   third-party metadata above; not exercised on the static path).
+
+   **IL3000/IL3002 members (Client only):** `Silk.NET.Core.Loader.DefaultPathResolver`
+   (`.<>c.<.cctor>b__24_3(String)`, `.TryLocateNativeAssetFromDeps(String,String&,String&)`,
+   `.TryLocateNativeAssetInRuntimesFolder(String,String,String&)`) plus
+   `Microsoft.Extensions.DependencyModel.DependencyContext..cctor()`: Silk.NET probes native
+   dependency paths via `Assembly.Location`/`Assembly.CodeBase`/`DependencyContext`, which are
+   empty/unsupported under single-file AOT; installation natives are staged next to the
+   executable so resolution succeeds regardless — justified empirically by the passing runtime
+   gate.
+
+   The first-party entries stay whitelisted because fixing them at source means replacing the
+   Newtonsoft state pipeline or deleting the Dynamic-mode discovery code paths — both tracked,
+   ExecPlan-sized follow-ups; none is silently suppressed. Any origin outside this table fails
+   the publish gate.
 
 6. **Rollback mode.** Switching a project back to `KarpikCompositionMode=Dynamic` restores the
    canonical dynamic bundle layout and runner workflow; bundle completion/recovery machinery
@@ -105,9 +138,11 @@ Client/Server side boundaries must stay enforceable at compile time.
 
 - Gated `Static_server_host_publishes_and_runs_under_NativeAot_with_ten_reload_cycles` — win-x64
   AOT publish, startup, editor-snapshot round-trip, ten reload cycles, linear-only state growth,
-  no orphan processes or locked files.
+  no orphan processes or locked files; publish warnings must equal the Decision-5 inventory
+  exactly (code -> origin tuples).
 - Gated `Static_client_host_publishes_and_runs_under_NativeAot` — window creation, graphics backend
-  init, input init, first rendered frame marker, clean shutdown.
+  init, input init, first rendered frame marker, clean shutdown; same exact warning-inventory
+  assertion with the client additions (Silk.NET IL3000/IL3002 members).
 - Generator parity tests: `GeneratedStaticRegistration_MatchesAttributeDiscovery_ServiceAndSystemSets`,
   `GeneratedStaticRegistration_MatchesDynamicDiscovery_ModuleIdSets` (Client and Server).
 - Source-boundary tests pinning the AOT-safe serialization and system-visibility contracts.
