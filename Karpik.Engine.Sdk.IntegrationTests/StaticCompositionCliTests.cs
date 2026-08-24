@@ -282,14 +282,11 @@ public sealed class StaticCompositionCliTests
                 TimeSpan.FromMinutes(30));
             AssertSuccess(publish, "publish the Static Server host under NativeAOT");
 
-            List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
-            // Documented inventory: aggregate IL2104/IL3053 from unannotated engine
-            // payload assemblies (see the launcher csproj NoWarn rationale and the ADR).
-            string[] documentedCodes = ["IL2104", "IL3053"];
-            List<string> unexplained = aotWarnings.Where(code => !documentedCodes.Contains(code)).ToList();
-            Assert.True(unexplained.Count == 0,
-                "NativeAOT publish emitted warnings outside the documented inventory " +
-                "(IL2104/IL3053): " + string.Join(", ", unexplained) + Environment.NewLine + publish.StandardOutput);
+            // The launcher csproj carries NO NoWarn: every trim/AOT warning reaches the
+            // publish output and must classify exactly against the documented
+            // (code -> originating assembly[/member]) inventory in
+            // docs/02_ADR/static-runtime-composition.md. Anything outside it fails.
+            AssertAotWarningsMatchDocumentedInventory(publish, ServerDocumentedAotWarnings);
 
             string gameName = game.GameName;
             string publishDirectory = Path.Combine(
@@ -468,13 +465,9 @@ public sealed class StaticCompositionCliTests
                 TimeSpan.FromMinutes(30));
             AssertSuccess(publish, "publish the Static Client host under NativeAOT");
 
-            List<string> aotWarnings = AotWarningCodes(publish.StandardOutput + publish.StandardError);
-            // Same documented inventory as the Server gate (launcher csproj NoWarn rationale).
-            string[] clientDocumentedCodes = ["IL2104", "IL3053", "IL3000", "IL3002"];
-            List<string> clientUnexplained = aotWarnings.Where(code => !clientDocumentedCodes.Contains(code)).ToList();
-            Assert.True(clientUnexplained.Count == 0,
-                "NativeAOT publish emitted warnings outside the documented inventory " +
-                "(IL2104/IL3053): " + string.Join(", ", clientUnexplained) + Environment.NewLine + publish.StandardOutput);
+            // Same exact-pairs inventory contract as the Server gate; client adds
+            // Silk.NET single-file probing origins (see ADR warning inventory).
+            AssertAotWarningsMatchDocumentedInventory(publish, ClientDocumentedAotWarnings);
 
             string gameName = game.GameName;
             string publishDirectory = Path.Combine(
@@ -573,16 +566,90 @@ public sealed class StaticCompositionCliTests
             entry => Path.GetFileName(entry).Contains("shadow", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static List<string> AotWarningCodes(string publishLog)
+    /// <summary>A single trim/AOT warning classified by code and exact origin.</summary>
+    internal sealed record AotWarning(string Code, string Origin);
+
+    // Matches both aggregate form ("IL2104: Assembly 'X' produced ... warnings.")
+    // and member form ("IL3000: 'Ns.Type.Member()' ...") of ilc/ILLink diagnostics.
+    private static readonly System.Text.RegularExpressions.Regex AotWarningRegex =
+        new(@"\b(?<code>IL\d{4}):\s+(?<aggregate>Assembly\s+)?'(?<origin>[^']+)'",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Exact (code -> origin) warning inventory documented in
+    /// docs/02_ADR/static-runtime-composition.md. Third-party payload origins only;
+    /// a first-party entry here must carry a written justification in the ADR -
+    /// silent whitelisting is not allowed. Both gates assert emitted == documented,
+    /// so a package update that adds/removes origins fails the gate and forces the
+    /// inventory (and its justifications) to be revisited.
+    /// </summary>
+    // Record equality is ordinal per component, so exact-pairs matching is deterministic.
+    private static readonly HashSet<AotWarning> ServerDocumentedAotWarnings = new()
     {
-        var codes = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (System.Text.RegularExpressions.Match match in
-                 System.Text.RegularExpressions.Regex.Matches(publishLog, @"\bIL\d{4}\b"))
+        new("IL2104", "assembly:Aether.Physics2D"),
+        new("IL2104", "assembly:MoonSharp.Interpreter"),
+        new("IL2104", "assembly:Newtonsoft.Json"),
+        new("IL2104", "assembly:DragonECS"),
+        new("IL3053", "assembly:Aether.Physics2D"),
+        new("IL3053", "assembly:MoonSharp.Interpreter"),
+        new("IL3053", "assembly:Newtonsoft.Json"),
+        new("IL3053", "assembly:DragonECS")
+    };
+
+    private static readonly HashSet<AotWarning> ClientDocumentedAotWarnings = CreateClientInventory();
+
+    private static HashSet<AotWarning> CreateClientInventory()
+    {
+        var inventory = new HashSet<AotWarning>();
+        foreach (AotWarning warning in ServerDocumentedAotWarnings)
         {
-            codes.Add(match.Value);
+            inventory.Add(warning);
         }
 
-        return [.. codes];
+        // Silk.NET probes native dependency paths via Assembly.Location, which is
+        // empty under single-file AOT; natives are staged next to the executable
+        // so resolution succeeds regardless - justified empirically by this gate.
+        inventory.Add(new("IL3000", "member:Silk.NET.Core.Loader.DefaultPathResolver.ResolvePath()"));
+        inventory.Add(new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.ResolvePath()"));
+        return inventory;
+    }
+
+    private static void AssertAotWarningsMatchDocumentedInventory(
+        ProcessResult publish, HashSet<AotWarning> documented)
+    {
+        string publishLog = publish.StandardOutput + publish.StandardError;
+        var emitted = new SortedSet<AotWarning>();
+        foreach (System.Text.RegularExpressions.Match match in AotWarningRegex.Matches(publishLog))
+        {
+            string origin = match.Groups["origin"].Value;
+            if (match.Groups["aggregate"].Success)
+            {
+                origin = "assembly:" + origin;
+            }
+            else
+            {
+                origin = origin.Contains('(') ? "member:" + origin : "assembly:" + origin;
+            }
+
+            emitted.Add(new AotWarning(match.Groups["code"].Value, origin));
+        }
+
+        static string Format(IEnumerable<AotWarning> warnings) =>
+            "{ " + string.Join("; ", warnings.Select(w => $"({w.Code} -> {w.Origin})")) + " }";
+
+        List<AotWarning> unexplained = [.. emitted.Where(w => !documented.Contains(w))];
+        Assert.True(unexplained.Count == 0,
+            "NativeAOT publish emitted warnings outside the documented inventory " +
+            "(docs/02_ADR/static-runtime-composition.md)." + Environment.NewLine +
+            "unexplained: " + Format(unexplained) + Environment.NewLine +
+            "documented: " + Format(documented) + Environment.NewLine + publishLog);
+        List<AotWarning> stale = [.. documented.Where(w => !emitted.Contains(w))];
+        Assert.True(stale.Count == 0,
+            "Documented AOT warning entries were NOT emitted by this publish; update the " +
+            "inventory and its justifications in docs/02_ADR/static-runtime-composition.md." +
+            Environment.NewLine +
+            "stale: " + Format(stale) + Environment.NewLine +
+            "emitted: " + Format(emitted));
     }
 
     private async Task RunAndObserveStaticHostAsync(
