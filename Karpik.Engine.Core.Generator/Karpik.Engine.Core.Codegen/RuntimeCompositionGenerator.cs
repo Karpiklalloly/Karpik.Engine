@@ -1209,14 +1209,29 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 builder.Append(", ").Append(factory).AppendLine(");");
             }
         }
+        if (aotComponentTemplateRoots.Count > 0)
+        {
+            // RegisterServices is interface-dispatched from the static host, so
+            // touching the roots here keeps the field and the generic
+            // ComponentTemplate<T> instantiations alive through trimming/AOT.
+            builder.AppendLine("            TouchAotComponentTemplateRoots();");
+        }
         builder.AppendLine("        }");
         AppendEcsRegistryProviders(builder, updateSchedulingSystems, renderPrepareSchedulingSystems);
         if (aotComponentTemplateRoots.Count > 0)
         {
+            // NativeAOT: statically touch the ComponentTemplate<T> / TagComponentTemplate<T>
+            // instantiations the reflection-based state pipeline builds at runtime, so the
+            // native compiler emits their generic code.
             builder.AppendLine();
-            builder.AppendLine("        // NativeAOT: statically touch the ComponentTemplate<T> / TagComponentTemplate<T>");
-            builder.AppendLine("        // instantiations the reflection-based state pipeline builds at runtime, so the");
-            builder.AppendLine("        // native compiler emits their generic code.");
+            builder.AppendLine("        private static void TouchAotComponentTemplateRoots()");
+            builder.AppendLine("        {");
+            builder.AppendLine("            for (int i = 0; i < AotComponentTemplateRoots.Length; i++)");
+            builder.AppendLine("            {");
+            builder.AppendLine("                _ = AotComponentTemplateRoots[i];");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine();
             builder.AppendLine("        internal static readonly global::System.Type[] AotComponentTemplateRoots = new global::System.Type[]");
             builder.AppendLine("        {");
             foreach (string root in aotComponentTemplateRoots)

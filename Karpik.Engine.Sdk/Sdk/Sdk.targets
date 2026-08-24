@@ -149,20 +149,29 @@
   <Target Name="_KarpikRootStaticGraphReflectionMetadata"
           BeforeTargets="PrepareForILLink"
           Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true') And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
-    <!-- Minimal trim roots for Static hosts. Everything first-party is now
-         reflection-free on the Static path: ECS scheduling registries are
-         delivered through generated composition providers, component template
-         instantiations are rooted by GeneratedRuntimeComposition.AotComponentTemplateRoots,
-         and editor snapshots use a source-generated System.Text.Json context.
-         The two remaining roots cover the third-party reflection surface of
-         the hot-reload state pipeline until a source-generated ECS state
-         serializer replaces it:
-          - Newtonsoft.Json: EcsWorldExtensions.ToSnapshot/FromSnapshot serialize
-            arbitrary component structs via TypeNameHandling.Objects.
-          - DragonECS: world/aspect internals those snapshot strings reference. -->
+    <!-- Minimal trim roots for Static hosts. The blanket root over every
+         installed module payload assembly is gone: ECS scheduling registries
+         are delivered through generated composition providers, component
+         template instantiations are rooted by the generated
+         TouchAotComponentTemplateRoots call, and editor snapshots use a
+         source-generated System.Text.Json context.
+         What remains rooted is exactly the reflection surface of the
+         Newtonsoft-based hot-reload state pipeline (until a source-generated
+         ECS state serializer replaces it):
+          - ECS.Core: ComponentTemplate<T>/ToTemplateExtensions build template
+            instances via MakeGenericType at runtime, EntitySnapshot/
+            ComponentsTemplate records are deserialized by Newtonsoft.
+          - DragonECS: world/aspect internals referenced from snapshot strings.
+          - Newtonsoft.Json: TypeNameHandling.Objects over arbitrary components.
+          - Game ProjectReferences: they define the component structs that
+            travel through the snapshot with type names embedded. -->
     <ItemGroup>
+      <TrimmerRootAssembly Include="ECS.Core" />
       <TrimmerRootAssembly Include="DragonECS" />
       <TrimmerRootAssembly Include="Newtonsoft.Json" />
+      <!-- AssemblyIdentity/full simple-name handling: ProjectReference filenames
+           are already simple names. -->
+      <TrimmerRootAssembly Include="@(ProjectReference->'%(Filename)')" />
     </ItemGroup>
   </Target>
 

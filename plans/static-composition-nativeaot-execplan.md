@@ -1,4 +1,4 @@
-# Перевести runtime-композицию на compile-time граф и подготовить NativeAOT
+﻿# Перевести runtime-композицию на compile-time граф и подготовить NativeAOT
 
 > **Для agentic workers:** REQUIRED SUB-SKILL: выполняйте этот план через `superpowers:subagent-driven-development` (предпочтительно) либо `superpowers:executing-plans`, по одному milestone за раз с отдельной проверкой результата. Для каждого изменения поведения соблюдайте TDD: сначала тест, подтверждённый RED, затем минимальная реализация и GREEN.
 
@@ -25,6 +25,7 @@
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [x] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
+- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state.
 
 ## Surprises & Discoveries
 
@@ -188,6 +189,14 @@
   Date/Author: 2026-08-23 / ox-alpha (Milestone 7).
 
 
+
+- Decision: пост-приёмочный аудит разработчика (2026-08-23) переоткрыл scope Milestones 4/5/8 как corrective Milestone 9: Static ECS startup использовал Assembly.GetTypes()+Activator.CreateInstance через unconditional registry-provider enumeration в Runner.cs; порядок installers Static расходился с Dynamic (Priority→rank vs генераторный Scope→Priority→Identity→FullName) и маскировался set-based parity; project-wide NoWarn IL2104/IL3053/IL3000/IL3002 и assembly-wide trim roots противоречили решению о запрете широких roots; reload-gate допускал линейный рост payload; parity была сужена до subset-проверки. Milestones 6 и 7 приняты без изменений.
+  Rationale: перечисленные механизмы являются рабочими обходами (AOT проходит за счёт принудительного сохранения metadata), а не compile-time composition, которую обещает план.
+  Date/Author: 2026-08-23 / ox-alpha по аудиту разработчика.
+
+- Decision: внутренние [ServiceRegistration] сервисы устраняются требованием public (publicизация в модулях), а не InternalsVisibleTo или документированным исключением; полная Dynamic/Static parity становится обязательной для множеств И последовательностей.
+  Rationale: закрытая world-модель не должна иметь silent-невидимых сервисов; InternalsVisibleTo создал бы скрытый контракт между модулями и хостом и усложнил бы generator discovery.
+  Date/Author: 2026-08-23 / разработчик.
 ## Outcomes & Retrospective
 
 ExecPlan завершён 2026-08-23 (branch `open-code-ai`). Полный per-gate отчёт: `.git/sdd/task-m8-report.md`.
@@ -653,6 +662,35 @@ Executed (2026-08-23, branch open-code-ai): BuildKarpikRuntimeBundleTask gained 
 - [x] После прохождения всех gates изменить default `KarpikCompositionMode` на `Static`; оставить явный opt-in `Dynamic` на один release cycle. Удаление Dynamic — отдельный последующий ExecPlan после телеметрии/использования.
 - [x] Создать ADR с причинами closed-world решения, границами managed mods, hot reload strategy, AOT evidence и rollback mode.
 - [x] Запустить targeted full verification commands из следующего раздела, обновить `Outcomes & Retrospective` и отметить ExecPlan завершённым.
+
+### Milestone 9: Corrective — compile-time ECS descriptors, точный порядок, полная parity и узкий trimming
+
+Цель — закрыть расхождения, выявленные пост-приёмочным аудитом (2026-08-23): reflection activation в Static ECS startup, расходящийся порядок installers, широкие AOT suppressions/roots, ослабленные reload и parity контракты.
+
+**Files:**
+
+- Create: `Karpik.Engine.Core/StaticComposition/IStaticEcsRegistryProviders.cs` — контракт передачи generated provider instances.
+- Modify: `Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/RuntimeCompositionGenerator.cs`
+- Modify: `Karpik.Engine.Core.Runner/Runner.cs`
+- Modify: `Karpik.Engine.Core.Runner.Tests/StaticCompositionSourceBoundaryTests.cs`
+- Modify: `Karpik.Engine.Core.Generator.Tests/RuntimeCompositionGeneratorTests.cs`
+- Modify: `Karpik.Engine.Sdk/Sdk/Sdk.targets`
+- Modify: `templates/Karpik.Game/Source/KarpikGame.Server/ServerGameInstaller.cs`
+- Modify: `Karpik.Engine.Sdk.IntegrationTests/StaticCompositionCliTests.cs`
+- Modify: module projects — publicизация internal `[ServiceRegistration]` сервисов/систем по мере выявления.
+
+**Interfaces produced:** generated typed `IEcsUpdateRegistryProvider`/`IEcsRenderPrepareRegistryProvider` implementations, доставляемые через `IStaticRuntimeComposition`; Static startup без `Assembly.GetTypes()`/`Activator.CreateInstance()`; полный ordered parity; warning gate без project-wide `NoWarn`.
+
+- [ ] Написать failing source-boundary test, сканирующий `Runner.cs`: Static execution path не содержит `Assembly.GetTypes`, `Activator.CreateInstance`, `Type.GetType`.
+- [ ] Генератор испускает concrete provider classes с прямым перечислением system descriptors; `RegisterServices`/новый метод композиции передаёт их инстансы; Runner на Static path использует только переданные провайдеры, reflection-перечисление остаётся только в Dynamic ветке.
+- [ ] Static регистрация installers сохраняет generated insertion order (rank вместе с installer либо явное сохранение порядка); тест сравнивает последовательности, а не множества, для Client и Server selections.
+- [ ] Убрать project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` из `Sdk.targets`; каждый оставшийся warning подавляется узко (тип/член или конкретная сборка через `NoWarn` в csproj модуля с комментарием-обоснованием).
+- [ ] Заменить assembly-wide trim roots (`DragonECS`, `Newtonsoft.Json`, все module assemblies) минимальным набором: source-generated restart-state serialization вместо Newtonsoft-зависимого пути; generated descriptor/instantiation roots вместо rooting целых сборок. Gate publish обязан падать на любом необъяснённом `IL2xxx/IL3xxx/IL3050`.
+- [ ] Сделать template `ServerGameInitSystem` idempotent при восстановленном world; reload-тест требует стабильного state payload после первого warm-up reload (линейный рост = fail).
+- [ ] Публичизировать internal `[ServiceRegistration]` сервисы во всех модулях selection; parity-тесты для services/systems/installers требуют полного равенства множеств И последовательностей, без исключений кроме явно перечисленных в ADR.
+- [ ] Перевести `RuntimeCompositionGenerator` на настоящий incremental pipeline (syntax/symbol provider без полного пересканирования `Compilation` при каждой правке).
+- [ ] Повторить Server и Client NativeAOT gates и десять reload cycles на новом коде; обновить warning inventory и ADR.
+- [ ] Обновить `Progress`, `Decision Log` и `Outcomes & Retrospective`.
 
 ## Concrete Steps
 
