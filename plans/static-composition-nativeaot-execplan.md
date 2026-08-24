@@ -25,7 +25,7 @@
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [x] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
-- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state.
+- [x] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state.
 
 ## Surprises & Discoveries
 
@@ -199,7 +199,19 @@
   Date/Author: 2026-08-23 / разработчик.
 ## Outcomes & Retrospective
 
-ExecPlan завершён 2026-08-23 (branch `open-code-ai`). Полный per-gate отчёт: `.git/sdd/task-m8-report.md`.
+ExecPlan завершён 2026-08-23 (branch `open-code-ai`); corrective Milestone 9 закрыт 2026-08-24 после пост-приёмочного аудита. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
+
+### Milestone 9 (corrective) — фактические результаты (2026-08-24)
+
+- Reflection activation в Static ECS startup устранён: generated `IEcsUpdateRegistryProvider`/`IEcsRenderPrepareRegistryProvider` доставляются через `IStaticRuntimeComposition.RegisterEcsRegistryProviders`; Runner Static path не содержит `Assembly.GetTypes`/`Activator.CreateInstance`/`Type.GetType` (source-boundary test).
+- Порядок installers Static совпадает с Dynamic: generated insertion order сохраняется; parity-тесты сравнивают последовательности, а не множества, для Client и Server selections.
+- Полная Dynamic/Static parity без исключений: внутренние `[ServiceRegistration]` сервисы публичизированы; equality по множествам И последовательностям.
+- Project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` удалён из Sdk.targets; узкие обоснованные suppressions перенесены в csproj template launchers (условие Static+AOT, комментарий-инвентарь).
+- Blanket trim root всех module payload assemblies удалён; остались узкие roots reflection-поверхности state pipeline (`ECS.Core`, `DragonECS`, `Newtonsoft.Json`, game ProjectReferences). Generated instantiation roots подключены к retained-коду (`TouchAotComponentTemplateRoots` из RegisterServices) — первый прогон Server gate без этого упал на `ComponentTemplate<GameComponent>` missing native code, что подтвердило необходимость вызова.
+- Envelope hot-reload state переведён на source-generated `HotReloadInfoJsonContext`; внутренний world-snapshot остаётся Newtonsoft-based — задокументированное ограничение, полная source-generated замена отслеживается отдельно.
+- Reload gate: стабильный state payload после warm-up reload; линейный рост = fail. ServerGameInitSystem idempotent на восстановленном world.
+- Generator переведён на настоящий incremental pipeline (FAWMN/syntax providers + memoized referenced scan); диагностики KE304-KE307 репортятся через модели.
+- Финальные gates: Server NativeAOT + 10 reload cycles PASS (8m40s), Client NativeAOT PASS (9m24s). Suites: Tasks 75/0/4, Codegen 24/0/0, Generator 42/0/0, Runner 128/0/0, Integration 8/0/6.
 
 ### Фактические результаты по gate'ам
 
@@ -681,16 +693,17 @@ Executed (2026-08-23, branch open-code-ai): BuildKarpikRuntimeBundleTask gained 
 
 **Interfaces produced:** generated typed `IEcsUpdateRegistryProvider`/`IEcsRenderPrepareRegistryProvider` implementations, доставляемые через `IStaticRuntimeComposition`; Static startup без `Assembly.GetTypes()`/`Activator.CreateInstance()`; полный ordered parity; warning gate без project-wide `NoWarn`.
 
-- [ ] Написать failing source-boundary test, сканирующий `Runner.cs`: Static execution path не содержит `Assembly.GetTypes`, `Activator.CreateInstance`, `Type.GetType`.
-- [ ] Генератор испускает concrete provider classes с прямым перечислением system descriptors; `RegisterServices`/новый метод композиции передаёт их инстансы; Runner на Static path использует только переданные провайдеры, reflection-перечисление остаётся только в Dynamic ветке.
-- [ ] Static регистрация installers сохраняет generated insertion order (rank вместе с installer либо явное сохранение порядка); тест сравнивает последовательности, а не множества, для Client и Server selections.
-- [ ] Убрать project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` из `Sdk.targets`; каждый оставшийся warning подавляется узко (тип/член или конкретная сборка через `NoWarn` в csproj модуля с комментарием-обоснованием).
+- [x] Написать failing source-boundary test, сканирующий `Runner.cs`: Static execution path не содержит `Assembly.GetTypes`, `Activator.CreateInstance`, `Type.GetType`.
+- [x] Генератор испускает concrete provider classes с прямым перечислением system descriptors; `RegisterServices`/новый метод композиции передаёт их инстансы; Runner на Static path использует только переданные провайдеры, reflection-перечисление остаётся только в Dynamic ветке.
+- [x] Static регистрация installers сохраняет generated insertion order (rank вместе с installer либо явное сохранение порядка); тест сравнивает последовательности, а не множества, для Client и Server selections.
+- [x] Убрать project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` из `Sdk.targets`; каждый оставшийся warning подавляется узко (тип/член или конкретная сборка через `NoWarn` в csproj модуля с комментарием-обоснованием).
 - [ ] Заменить assembly-wide trim roots (`DragonECS`, `Newtonsoft.Json`, все module assemblies) минимальным набором: source-generated restart-state serialization вместо Newtonsoft-зависимого пути; generated descriptor/instantiation roots вместо rooting целых сборок. Gate publish обязан падать на любом необъяснённом `IL2xxx/IL3xxx/IL3050`.
-- [ ] Сделать template `ServerGameInitSystem` idempotent при восстановленном world; reload-тест требует стабильного state payload после первого warm-up reload (линейный рост = fail).
-- [ ] Публичизировать internal `[ServiceRegistration]` сервисы во всех модулях selection; parity-тесты для services/systems/installers требуют полного равенства множеств И последовательностей, без исключений кроме явно перечисленных в ADR.
-- [ ] Перевести `RuntimeCompositionGenerator` на настоящий incremental pipeline (syntax/symbol provider без полного пересканирования `Compilation` при каждой правке).
-- [ ] Повторить Server и Client NativeAOT gates и десять reload cycles на новом коде; обновить warning inventory и ADR.
-- [ ] Обновить `Progress`, `Decision Log` и `Outcomes & Retrospective`.
+  Выполнено частично (2026-08-24): blanket root по всем module payload assemblies удалён; сгенерированные instantiation roots (`TouchAotComponentTemplateRoots`) подключены к retained-коду; остались узкие обоснованные roots для reflection-поверхности state pipeline — `ECS.Core`, `DragonECS`, `Newtonsoft.Json` и game ProjectReferences (компонентные структуры). Внутренний world-snapshot сериалайз остаётся Newtonsoft-based; полная source-generated замена отложена как отдельный последующий план (см. ADR «Source-generated state serialization»). Gate publish падает на любом необъяснённом warning.
+- [x] Сделать template `ServerGameInitSystem` idempotent при восстановленном world; reload-тест требует стабильного state payload после первого warm-up reload (линейный рост = fail).
+- [x] Публичизировать internal `[ServiceRegistration]` сервисы во всех модулях selection; parity-тесты для services/systems/installers требуют полного равенства множеств И последовательностей, без исключений кроме явно перечисленных в ADR.
+- [x] Перевести `RuntimeCompositionGenerator` на настоящий incremental pipeline (syntax/symbol provider без полного пересканирования `Compilation` при каждой правке).
+- [x] Повторить Server и Client NativeAOT gates и десять reload cycles на новом коде; обновить warning inventory и ADR.
+- [x] Обновить `Progress`, `Decision Log` и `Outcomes & Retrospective`.
 
 ## Concrete Steps
 

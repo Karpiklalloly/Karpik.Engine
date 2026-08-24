@@ -53,14 +53,22 @@ Client/Server side boundaries must stay enforceable at compile time.
    - `ComponentArrayConverter` deserializes through non-generic
      `JObject.ToObject(Type, JsonSerializer)`; runtime generic-method instantiation is banned by
      `EcsStateSerializationSourceBoundaryTests`.
-   - Static+AOT publishes root all first-party module assemblies plus DragonECS and Newtonsoft.Json
-     (`_KarpikRootStaticGraphReflectionMetadata`) because the hot-reload state pipeline reflects
-     over their metadata; third-party payloads stay trimmed.
+   - Static+AOT publishes root a minimal, justified set only
+     (`_KarpikRootStaticGraphReflectionMetadata`): `ECS.Core`, `DragonECS`,
+     `Newtonsoft.Json` (the reflection surface of the hot-reload state pipeline)
+     and the game `ProjectReference` assemblies that define snapshot component
+     structs. The blanket root over every installed module payload assembly was
+     removed in Milestone 9; ECS scheduling registries are delivered through
+     generated composition providers and component template instantiations
+     through the generated `TouchAotComponentTemplateRoots` call, so module
+     payload assemblies stay trimmed.
 
-5. **Warning inventory.** Documented aggregate suppressions for Static+`PublishAot`
-   (`Sdk.targets`): IL2104/IL3053 from unannotated payload assemblies; IL3000/IL3002 from Silk.NET's
-   native-path probing (`Assembly.Location` is empty under single-file AOT). Both AOT acceptance
-   gates fail on any other IL2xxx/IL3xxx/IL3050 code.
+5. **Warning inventory.** No project-wide suppressions are imposed by the SDK.
+     Host projects opt in per-csproj, conditioned on Static+`PublishAot` with a
+     written justification: IL2104/IL3053 from unannotated third-party payload
+     assemblies; client hosts additionally IL3000/IL3002 from Silk.NET's
+     native-path probing (`Assembly.Location` is empty under single-file AOT).
+     Both AOT acceptance gates fail on any other IL2xxx/IL3xxx/IL3050 code.
 
 6. **Rollback mode.** Switching a project back to `KarpikCompositionMode=Dynamic` restores the
    canonical dynamic bundle layout and runner workflow; bundle completion/recovery machinery
