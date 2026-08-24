@@ -60,6 +60,8 @@ internal static class GeneratorTestHarness
 
     internal static MetadataReference AssemblyReference<T>() => MetadataReference.CreateFromFile(typeof(T).Assembly.Location);
 
+    internal static MetadataReference AssemblyReference(Type type) => MetadataReference.CreateFromFile(type.Assembly.Location);
+
     internal static CSharpCompilation CreateModuleCompilation(
         string assemblyName,
         string source,

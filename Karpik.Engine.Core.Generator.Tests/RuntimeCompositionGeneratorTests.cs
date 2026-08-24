@@ -649,13 +649,15 @@ public sealed class RuntimeCompositionGeneratorTests
     /// contracts, no Dynamic-only exceptions - and the emission sequence must
     /// match the canonical (scope, assembly, implementation) ordering.
     /// </summary>
-    [Fact]
-    public void GeneratedStaticRegistration_MatchesAttributeDiscovery_ServiceAndSystemSets()
+    [Theory]
+    [InlineData("Client")]
+    [InlineData("Server")]
+    public void GeneratedStaticRegistration_MatchesAttributeDiscovery_ServiceAndSystemSets(string side)
     {
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
-            side: "Server",
-            additionalReferences: CreateParityReferences());
+            side: side,
+            additionalReferences: CreateFullSelectionReferences(side));
 
         Assert.True(result.HasCompositionSource);
 
@@ -688,7 +690,7 @@ public sealed class RuntimeCompositionGeneratorTests
         var dynamicRegistrations = new HashSet<string>(StringComparer.Ordinal);
         var dynamicContractsByImpl = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var dynamicSequence = new List<(int ScopeRank, string Assembly, string Impl, string Lifetime)>();
-        foreach (Type type in GetParityAssemblies().SelectMany(static assembly => assembly.GetTypes()))
+        foreach (Type type in GetParityAssemblies(side).SelectMany(static assembly => assembly.GetTypes()))
         {
             Karpik.Engine.Core.ServiceRegistrationAttribute? registration =
                 type.GetCustomAttribute<Karpik.Engine.Core.ServiceRegistrationAttribute>();
@@ -724,7 +726,7 @@ public sealed class RuntimeCompositionGeneratorTests
                 "ModSet" => 1,
                 _ => 2,
             };
-            dynamicSequence.Add((scopeRank, type.Assembly.GetName().Name ?? string.Empty, type.FullName!, lifetime));
+            dynamicSequence.Add((scopeRank, type.Assembly.GetName().FullName ?? string.Empty, type.FullName!, lifetime));
             Type systemType = type;
             var exportedContracts = new HashSet<string>(StringComparer.Ordinal);
             foreach (System.Composition.ExportAttribute export in systemType.GetCustomAttributes<System.Composition.ExportAttribute>())
@@ -738,30 +740,19 @@ public sealed class RuntimeCompositionGeneratorTests
         Assert.Empty(generatedRegistrations.Except(dynamicRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal));
         Assert.Empty(dynamicRegistrations.Except(generatedRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal));
 
-        // Full SEQUENCE equality: the generated emission order must match the
-        // canonical (scope, assembly identity, implementation) ordering. One
+        // Full SEQUENCE equality (second audit, finding 4): the RAW emitted
+        // order must equal the canonical Dynamic discovery order
+        // (scope asc -> assembly identity -> implementation). One
         // implementation with several export contracts emits several Register
-        // calls but is a single registration entry.
-        string[] generatedOrdered = generatedSequence
-            .GroupBy(static entry => $"{entry.Impl}|{entry.Lifetime}", StringComparer.Ordinal)
-            .Select(static group => group.First())
-            .OrderBy(static entry => entry.ScopeRank)
-            .ThenBy(static entry => entry.Impl, StringComparer.Ordinal)
-            .Select(static entry => $"{entry.Impl}|{entry.Lifetime}")
-            .ToArray();
+        // calls but is a single registration entry. The generated side is
+        // never re-sorted here, so any drift between emission and the
+        // production ServiceOrder/SystemOrder comparators fails fast.
         string[] dynamicOrdered = dynamicSequence
             .OrderBy(static entry => entry.ScopeRank)
             .ThenBy(static entry => entry.Assembly, StringComparer.Ordinal)
             .ThenBy(static entry => entry.Impl, StringComparer.Ordinal)
             .Select(static entry => $"{entry.Impl}|{entry.Lifetime}")
             .ToArray();
-        Assert.Equal(dynamicOrdered, generatedOrdered);
-
-        // Comparator pin (review finding): the RAW emitted regex order must
-        // already BE the canonical comparator order. Unlike the check above,
-        // this never re-sorts the generated side, so any drift between the
-        // emission path and the production ServiceOrder/SystemOrder comparators
-        // fails fast instead of being masked by sorting both sequences.
         string[] rawEmittedOrder = generatedSequence
             .GroupBy(static entry => $"{entry.Impl}|{entry.Lifetime}", StringComparer.Ordinal)
             .Select(static group => group.First())
@@ -784,20 +775,70 @@ public sealed class RuntimeCompositionGeneratorTests
         }
     }
 
-    private static MetadataReference[] CreateParityReferences() =>
+    /// <summary>
+    /// Full production module selections (second audit, finding 4): mirror
+    /// Generated/ModuleLoader.cs ClientModules/ServerModules - the same module
+    /// sets real template hosts reference via the SDK's
+    /// _KarpikResolveStaticModuleReferences resolution. Anchor types provide
+    /// one MetadataReference per production module assembly.
+    /// </summary>
+    private static readonly Type[] SharedSelectionAnchors =
     [
-        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
-        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
-        GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
-        GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
+        typeof(DebugModule.DebugThings),
+        typeof(Karpik.Engine.Shared.Log.LoggerModuleInstaller),
+        typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller),
+        typeof(Karpik.Engine.Shared.Network.LiteNetLib.NetworkModuleInstaller),
+        typeof(Karpik.Engine.Shared.ECS.EcsModuleInstaller),
+        typeof(Karpik.Engine.Shared.Modding.ModdingModuleInstaller),
+        typeof(Karpik.Engine.Shared.Modding.Lua.ModdingLuaModuleInstaller),
+        typeof(Karpik.Engine.Shared.Network.LiteNetLib.LiteNetLibNetworkModuleInstaller),
+        typeof(Karpik.Engine.Shared.Spatial2D.Transform2D),
+        typeof(Karpik.Engine.Shared.Physics.Core.Physics2DModuleInstaller),
+        typeof(Karpik.Engine.Shared.Physics.Aether2D.Physics2DAetherModuleInstaller),
+        typeof(Karpik.Engine.Shared.StatAndAbilities.Buff),
+        typeof(Karpik.Engine.Shared.Tweening.TweenModuleInstaller),
+        typeof(Karpik.Engine.Shared.UnsafeUtilities.ResizableArray<>),
     ];
 
-    private static IEnumerable<Assembly> GetParityAssemblies()
+    private static readonly Dictionary<string, Type[]> SelectionAnchorsBySide = new()
     {
-        yield return typeof(Karpik.Engine.Core.IModuleInstaller).Assembly;
-        yield return typeof(Karpik.Engine.Shared.ECS.EcsRestartWorkerStateProvider).Assembly;
-        yield return typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller).Assembly;
+        ["Client"] =
+        [
+            ..SharedSelectionAnchors,
+            typeof(Karpik.Engine.Client.Network.LiteNetLib.NetworkClientModuleInstaller),
+            typeof(Karpik.Engine.Modules.Window.Core.WindowCoreModuleInstaller),
+            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller),
+            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller),
+            typeof(Karpik.Engine.Client.Graphics.OpenGL.GraphicsOpenGlEngineModuleInstaller),
+            typeof(Karpik.Engine.Client.InputModule.InputModuleInstaller),
+            typeof(Karpik.Engine.Modules.Window.Sdl2.WindowSdlModuleInstaller),
+        ],
+        ["Server"] =
+        [
+            ..SharedSelectionAnchors,
+            typeof(Network.Server.LiteNetLib.NetworkServerModuleInstaller),
+        ],
+    };
+
+    private static List<MetadataReference> CreateFullSelectionReferences(string side)
+    {
+        var references = new List<MetadataReference>
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+        };
+        foreach (Type anchor in SelectionAnchorsBySide[side])
+        {
+            references.Add(GeneratorTestHarness.AssemblyReference(anchor));
+        }
+
+        return references;
     }
+
+    private static IEnumerable<Assembly> GetParityAssemblies(string side) =>
+        SelectionAnchorsBySide[side]
+            .Select(static type => type.Assembly)
+            .Distinct();
 
     /// <summary>
     /// End-to-end ordered Dynamic↔Static parity (second audit, finding 1): the
@@ -854,14 +895,7 @@ public sealed class RuntimeCompositionGeneratorTests
     [InlineData("Server")]
     public void GeneratedStaticRegistration_PreservesGeneratedInstallerSequenceThroughRunner(string side)
     {
-        var references = new[]
-        {
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
-        };
+        var references = CreateFullSelectionReferences(side);
 
         var result = GeneratorTestHarness.Run(CreateGenerator(), side: side, additionalReferences: references);
         Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
@@ -879,25 +913,40 @@ public sealed class RuntimeCompositionGeneratorTests
         // of reordering by full type name.
         var runner = new Karpik.Engine.Core.EngineRunner();
         runner.RegisterStaticComposition(new SequencedComposition(
-            [.. generatedSequence.Select(ResolveInstaller)]));
+            [.. generatedSequence.Select(ResolveProductionInstaller)]));
 
         Assert.Equal(
             generatedSequence,
             runner.GetModules().Select(static module => module.GetType().FullName!).ToArray());
     }
 
-    private static IModuleInstaller ResolveInstaller(string fullName) => fullName switch
+    private static IModuleInstaller ResolveProductionInstaller(string fullName)
     {
-        "Karpik.Engine.Shared.ECS.EcsModuleInstaller" =>
-            new Karpik.Engine.Shared.ECS.EcsModuleInstaller(),
-        "Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller" =>
-            new Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller(),
-        "Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller" =>
-            new Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller(),
-        "Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller" =>
-            new Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller(),
-        _ => throw new InvalidOperationException($"Unexpected installer in generated source: {fullName}")
-    };
+        Type? installerType = SelectionAnchorsBySide.Values
+            .SelectMany(static anchors => anchors)
+            .Select(static anchor => anchor.Assembly)
+            .Distinct()
+            .SelectMany(SafeGetTypes)
+            .FirstOrDefault(type => type.FullName == fullName && !type.IsAbstract);
+        if (installerType is null || !typeof(IModuleInstaller).IsAssignableFrom(installerType))
+        {
+            throw new InvalidOperationException($"Unexpected installer in generated source: {fullName}");
+        }
+
+        return (IModuleInstaller)Activator.CreateInstance(installerType)!;
+    }
+
+    private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            return exception.Types.Where(static type => type is not null).Select(static type => type!);
+        }
+    }
 
     private sealed class SequencedComposition(IModuleInstaller[] installers) : IStaticRuntimeComposition
     {
@@ -919,14 +968,7 @@ public sealed class RuntimeCompositionGeneratorTests
     [InlineData("Server")]
     public void GeneratedStaticRegistration_MatchesDynamicDiscovery_ModuleIdSets(string side)
     {
-        var references = new[]
-        {
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
-        };
+        var references = CreateFullSelectionReferences(side);
 
         var result = GeneratorTestHarness.Run(CreateGenerator(), side: side, additionalReferences: references);
         // Real engine module assemblies still contain internal services and scalar
@@ -943,10 +985,10 @@ public sealed class RuntimeCompositionGeneratorTests
         var runner = new Karpik.Engine.Core.EngineRunner();
         runner.RegisterTypes(
         [
-            typeof(Karpik.Engine.Shared.ECS.EcsModuleInstaller),
-            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller),
-            typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller),
-            typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller),
+            ..SelectionAnchorsBySide[side].Where(static type =>
+                typeof(Karpik.Engine.Core.IModuleInstaller).IsAssignableFrom(type) &&
+                type is { IsAbstract: false, IsGenericTypeDefinition: false } &&
+                type.GetCustomAttribute<Karpik.Engine.Core.ModuleAttribute>() is not null),
             typeof(NotAModuleType),
         ]);
         var dynamicIds = runner.GetModules().Select(static module => module.GetType().FullName!).ToHashSet(StringComparer.Ordinal);

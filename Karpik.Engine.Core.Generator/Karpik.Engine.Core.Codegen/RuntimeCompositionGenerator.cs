@@ -193,6 +193,12 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             .ToList();
 
         List<ServiceModel> registrations = [.. services, .. systems];
+        // Unified canonical emission order over BOTH services and systems
+        // (scope asc -> assembly identity -> full name). Emitting all services
+        // before all systems diverges from the Dynamic discovery sequence as
+        // soon as more than one module assembly contributes Simulation-scope
+        // registrations (second Milestone 9 audit).
+        registrations.Sort(ServiceOrder);
 
         foreach (ServiceModel registration in registrations)
         {
