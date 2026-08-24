@@ -529,16 +529,28 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 // PortableExecutableReference. A rebuilt DLL keeps its assembly
                 // identity, so fingerprint the binary file itself - path, last
                 // write time and length; hashing PE contents per generation
-                // would be too expensive for an IDE session.
+                // would be too expensive for an IDE session. A single FileInfo
+                // instance snapshots both stat values from ONE refresh, so the
+                // key can never straddle a rebuild between two separate stats.
                 if (reference is PortableExecutableReference peReference
-                    && peReference.FilePath is { Length: > 0 } pePath
-                    && File.Exists(pePath))
+                    && peReference.FilePath is { Length: > 0 } pePath)
                 {
+                    var peInfo = new FileInfo(pePath);
+                    if (!peInfo.Exists)
+                    {
+                        // Explicit marker: a missing file must contribute key
+                        // parts distinct from a reference that contributes none,
+                        // otherwise both collapse to the same cache entry.
+                        parts.Add("pe-missing:");
+                        parts.Add(pePath);
+                        continue;
+                    }
+
                     parts.Add("pe:");
                     parts.Add(pePath);
-                    parts.Add(File.GetLastWriteTimeUtc(pePath)
-                        .Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    parts.Add(new FileInfo(pePath).Length
+                    parts.Add(peInfo.LastWriteTimeUtc.Ticks
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    parts.Add(peInfo.Length
                         .ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
