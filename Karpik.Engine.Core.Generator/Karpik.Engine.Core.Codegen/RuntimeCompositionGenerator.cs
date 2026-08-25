@@ -22,6 +22,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     private const string ModuleAttributeName = "Karpik.Engine.Core.ModuleAttribute";
 
     private const string SideProperty = "build_property.KarpikSide";
+    private const string ProjectKindProperty = "build_property.KarpikProjectKind";
     private const string CompositionModeProperty = "build_property.KarpikCompositionMode";
 
     private static readonly DiagnosticDescriptor InvalidBuildProperties = new(
@@ -161,6 +162,11 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         ReferencedModels referenced)
     {
         if (!properties.AnyPresent)
+        {
+            return;
+        }
+
+        if (properties.ProjectKind == "Test")
         {
             return;
         }
@@ -1541,22 +1547,29 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     internal readonly struct CompositionProperties
     {
-        internal CompositionProperties(bool anyPresent, string side, string compositionMode)
+        internal CompositionProperties(bool anyPresent, string side, string projectKind, string compositionMode)
         {
             AnyPresent = anyPresent;
             Side = side;
+            ProjectKind = projectKind;
             CompositionMode = compositionMode;
         }
 
         internal bool AnyPresent { get; }
         internal string Side { get; }
+        internal string ProjectKind { get; }
         internal string CompositionMode { get; }
 
         internal static CompositionProperties Read(AnalyzerConfigOptions options)
         {
             bool hasSide = options.TryGetValue(SideProperty, out string? side);
+            options.TryGetValue(ProjectKindProperty, out string? projectKind);
             bool hasMode = options.TryGetValue(CompositionModeProperty, out string? mode);
-            return new CompositionProperties(hasSide || hasMode, side ?? string.Empty, mode ?? string.Empty);
+            return new CompositionProperties(
+                hasSide || hasMode,
+                side ?? string.Empty,
+                projectKind ?? string.Empty,
+                mode ?? string.Empty);
         }
     }
 

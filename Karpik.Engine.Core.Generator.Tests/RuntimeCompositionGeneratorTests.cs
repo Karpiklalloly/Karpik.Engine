@@ -104,6 +104,17 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_TestProject_EmitsNoSource()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            projectKind: "Test");
+
+        Assert.False(result.HasCompositionSource);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
     public void Run_InvalidBuildProperty_ReportsDiagnosticAndEmitsNoSource()
     {
         var result = GeneratorTestHarness.Run(

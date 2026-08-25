@@ -7,7 +7,7 @@ $SdkVersion = "0.6.0-local"
 # Development engine versions are content-hash qualified by the packager.
 $EngineVersion = "0.6.0-dev"
 
-$RepositoryRoot = $PSScriptRoot
+$RepositoryRoot = $pwd
 $PackagerProject = Join-Path $RepositoryRoot "Karpik.Engine.Packager\Karpik.Engine.Packager.csproj"
 $EnvironmentModule = Join-Path $RepositoryRoot "Karpik.Sdk.Environment.psm1"
 $KarpikHome = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Karpik"
