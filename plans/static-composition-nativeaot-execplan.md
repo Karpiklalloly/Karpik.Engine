@@ -25,7 +25,7 @@
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [x] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
-- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state. ВТОРОЙ аудит (2026-08-24): возвращён в in_progress — блокеры: end-to-end ordered parity (Dynamic CompareModules не совпадает с генераторным контрактом), fingerprint referenced cache не покрывает `PortableExecutableReference`, launcher-level `NoWarn` остаётся project-wide, parity проверяется только на малой selection.
+- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state. Состояние после третьего аудита (2026-08-24): находки второго аудита закрыты (ordering end-to-end, PE fingerprint через MVID, launcher NoWarn удалён с member-level gate-инвентарём 105 кортежей, полная production parity); оба NativeAOT gate PASS на свежем HEAD; ожидает финального решения разработчика о закрытии.
 
 ## Surprises & Discoveries
 
