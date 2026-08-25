@@ -471,6 +471,16 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private static readonly ConcurrentDictionary<string, ReferencedModels> ReferencedCache = new(StringComparer.Ordinal);
 
+    // The referenced scan stays a memoized FULL scan keyed by content identity
+    // (assembly identities + source fingerprints + PE MVIDs; RS1035-documented
+    // deviation). To keep generator memory bounded across long IDE sessions,
+    // the cache holds at most this many distinct keys and evicts the OLDEST
+    // insertion first. Eviction is only a memory bound: an evicted key simply
+    // recomputes its scan on the next generation.
+    private const int MaxReferencedCacheEntries = 8;
+
+    private static readonly List<string> ReferencedCacheInsertionOrder = new();
+
     private sealed class ReferencedScan
     {
         internal static ReferencedModels Scan(Compilation compilation)
@@ -496,6 +506,14 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 {
                     cached = ScanCore(compilation);
                     ReferencedCache[key] = cached;
+                    ReferencedCacheInsertionOrder.Add(key);
+                    while (ReferencedCache.Count > MaxReferencedCacheEntries
+                           && ReferencedCacheInsertionOrder.Count > 0)
+                    {
+                        string oldest = ReferencedCacheInsertionOrder[0];
+                        ReferencedCacheInsertionOrder.RemoveAt(0);
+                        ReferencedCache.TryRemove(oldest, out _);
+                    }
                 }
 
                 return cached;
