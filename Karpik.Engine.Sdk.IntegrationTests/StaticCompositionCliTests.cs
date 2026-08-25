@@ -838,14 +838,40 @@ public sealed class StaticCompositionCliTests
             "{ " + string.Join("; ", warnings
                 .Select(w => $"({w.Code} -> {w.Origin})")) + " }";
 
+        static List<AotWarning> MultisetExcept(
+            IReadOnlyList<AotWarning> source,
+            IReadOnlyList<AotWarning> excluded)
+        {
+            var remaining = new Dictionary<AotWarning, int>();
+            foreach (AotWarning warning in excluded)
+            {
+                remaining[warning] = remaining.TryGetValue(warning, out int count) ? count + 1 : 1;
+            }
+
+            var difference = new List<AotWarning>();
+            foreach (AotWarning warning in source)
+            {
+                if (remaining.TryGetValue(warning, out int count) && count > 0)
+                {
+                    remaining[warning] = count - 1;
+                }
+                else
+                {
+                    difference.Add(warning);
+                }
+            }
+
+            return difference;
+        }
+
         Assert.True(
             emittedCanonical.SequenceEqual(documentedCanonical),
             "NativeAOT publish warning MULTISET differs from the documented inventory " +
             "(docs/02_ADR/static-runtime-composition.md). The comparison is count-sensitive " +
             "per (code, origin): a changed multiplicity means a warning appeared or vanished " +
             "inside an already-documented origin - re-justify the inventory." + Environment.NewLine +
-            "unexplained surplus: " + Format(emittedCanonical.Except(documentedCanonical)) + Environment.NewLine +
-            "stale missing:   " + Format(documentedCanonical.Except(emittedCanonical)) + Environment.NewLine +
+            "unexplained surplus: " + Format(MultisetExcept(emittedCanonical, documentedCanonical)) + Environment.NewLine +
+            "stale missing:   " + Format(MultisetExcept(documentedCanonical, emittedCanonical)) + Environment.NewLine +
             "emitted:    " + Format(emittedCanonical) + Environment.NewLine +
             "documented: " + Format(documentedCanonical) + Environment.NewLine + publishLog);
 
@@ -923,6 +949,10 @@ public sealed class StaticCompositionCliTests
                 new ProcessResult(0, log, string.Empty),
                 documented));
         Assert.Contains("multiplicity", failure.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "unexplained surplus: { (IL2104 -> assembly:MoonSharp.Interpreter) }",
+            failure.Message,
+            StringComparison.Ordinal);
     }
 
     // The coverage fallback must compare code COUNTS, not code sets: an

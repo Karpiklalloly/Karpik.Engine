@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -463,8 +464,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     }
 
     // ---------------------------------------------------------------------
-    // Referenced-assembly scan (memoized by assembly identities + source
-    // content fingerprints)
+    // Referenced-assembly scan (memoized by reference semantic identity)
     // ---------------------------------------------------------------------
 
     private static readonly object ReferencedCacheGate = new();
@@ -481,6 +481,16 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private static readonly List<string> ReferencedCacheInsertionOrder = new();
 
+    private static readonly ConditionalWeakTable<Compilation, CompilationCacheIdentity>
+        ReferencedCompilationIdentities = new();
+
+    private static long _nextReferencedCompilationIdentity;
+
+    private sealed class CompilationCacheIdentity
+    {
+        internal long Value { get; } = Interlocked.Increment(ref _nextReferencedCompilationIdentity);
+    }
+
     private sealed class ReferencedScan
     {
         internal static ReferencedModels Scan(Compilation compilation)
@@ -494,10 +504,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             // Assembly identities do not change when a referenced project's
             // sources are edited, so an identity-only key would serve stale
             // models for later host compilations in the same IDE session.
-            // Fingerprint every source-built reference by its syntax tree
-            // contents; SourceText is cached per tree, so unchanged references
-            // only pay a linear text scan.
-            AppendSourceFingerprints(compilation, identityParts);
+            // Fingerprint every reference by its complete immutable semantic
+            // snapshot (CompilationReference) or module MVID (PE reference).
+            AppendReferenceFingerprints(compilation, identityParts);
 
             string key = string.Join("|", identityParts);
             lock (ReferencedCacheGate)
@@ -531,18 +540,22 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         // compiler's metadata load and a stat. Stat values remain only as a
         // FALLBACK when the reference carries no loadable metadata.
         #pragma warning disable RS1035
-        private static void AppendSourceFingerprints(Compilation compilation, List<string> parts)
+        private static void AppendReferenceFingerprints(Compilation compilation, List<string> parts)
         {
             foreach (MetadataReference reference in compilation.References)
             {
                 if (reference is CompilationReference compilationReference)
                 {
+                    // Roslyn Compilation is immutable. Its object identity
+                    // therefore represents the complete semantic snapshot:
+                    // syntax/parse options, compilation options and transitive
+                    // references. Text hashes alone miss changes such as a new
+                    // preprocessor symbol with byte-identical source files.
                     parts.Add("src:");
-                    foreach (SyntaxTree tree in compilationReference.Compilation.SyntaxTrees)
-                    {
-                        parts.Add(tree.FilePath);
-                        parts.Add(HashSyntaxTree(tree).ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    }
+                    parts.Add(ReferencedCompilationIdentities
+                        .GetValue(compilationReference.Compilation, static _ => new CompilationCacheIdentity())
+                        .Value
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture));
 
                     continue;
                 }
@@ -626,22 +639,6 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             return builder.ToString();
         }
         #pragma warning restore RS1035
-
-        private static ulong HashSyntaxTree(SyntaxTree tree)
-        {
-            // FNV-1a over the tree text; stable within a process, which is all
-            // an in-memory cache requires.
-            const ulong offsetBasis = 14695981039346656037UL;
-            const ulong prime = 1099511628211UL;
-            ulong hash = offsetBasis;
-            string text = tree.GetText().ToString();
-            foreach (char character in text)
-            {
-                hash = (hash ^ character) * prime;
-            }
-
-            return hash;
-        }
 
         private static ReferencedModels ScanCore(Compilation compilation)
         {

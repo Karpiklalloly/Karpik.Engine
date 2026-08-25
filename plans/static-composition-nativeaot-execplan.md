@@ -25,7 +25,7 @@
 - [x] Milestone 6: превратить launcher-проекты в game-specific Static hosts.
 - [x] Milestone 7: убрать managed module manifest и PluginLoadContext из Static runtime, сохранив process-isolated reload.
 - [x] Milestone 8: пройти Server и Client NativeAOT acceptance, зафиксировать архитектуру ADR.
-- [ ] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state. Состояние после третьего аудита (2026-08-24): находки второго аудита закрыты (ordering end-to-end, PE fingerprint через MVID, launcher NoWarn удалён с member-level gate-инвентарём 105 кортежей, полная production parity); оба NativeAOT gate PASS на свежем HEAD; ожидает финального решения разработчика о закрытии.
+- [x] Milestone 9 (corrective, reopened M4/M5/M8 scope): compile-time ECS descriptors, точный порядок installers, полная Dynamic/Static parity, узкий trimming и reload без роста state. Закрыт 2026-08-25 после третьего аудита: Dynamic/Static ordering доказан end-to-end, PE references ключуются по MVID, `CompilationReference` — по полному immutable semantic snapshot, cache ограничен восемью ключами, project-wide `NoWarn` отсутствует, warning gate закрепляет member-level multiset. Полная замена Newtonsoft restart-state pipeline вынесена в `plans/ecs-state-serialization-execplan.md` как отдельная архитектурная работа и не является скрытым незавершённым пунктом M9.
 
 ## Surprises & Discoveries
 
@@ -197,26 +197,30 @@
 - Decision: внутренние [ServiceRegistration] сервисы устраняются требованием public (publicизация в модулях), а не InternalsVisibleTo или документированным исключением; полная Dynamic/Static parity становится обязательной для множеств И последовательностей.
   Rationale: закрытая world-модель не должна иметь silent-невидимых сервисов; InternalsVisibleTo создал бы скрытый контракт между модулями и хостом и усложнил бы generator discovery.
   Date/Author: 2026-08-23 / разработчик.
+
+- Decision: Milestone 9 отвечает за удаление blanket roots, generated instantiation roots и строгий warning gate; полное удаление узких roots ECS state pipeline требует смены формата/сериализатора и выполняется отдельным ExecPlan `plans/ecs-state-serialization-execplan.md`.
+  Rationale: текущие roots ограничены одной явно документированной reflection-поверхностью, а переход на типизированный restart-state format является самостоятельным совместимостным и hot-reload изменением. Смешивание его с corrective M9 скрывало бы отдельный wire-format риск.
+  Date/Author: 2026-08-25 / Codex по результатам третьего аудита.
 ## Outcomes & Retrospective
 
 ### Follow-ups после Milestone 9 (обязательные)
 
-- [ ] Создать отдельный ExecPlan на source-generated сериализацию ECS restart-state (замена Newtonsoft TypeNameHandling inner world snapshots) с удалением последних узких trim roots (ECS.Core, DragonECS, Newtonsoft.Json, game assemblies на reload path). Владелец: план plans/ecs-state-serialization-execplan.md, создать до следующего изменения hot-reload pipeline.
-- [ ] Зафиксировать в ADR: Dynamic CompareModules по-прежнему Priority-first; end-to-end равенство последовательностей OnRegisterServices Dynamic↔Static опирается на корреляцию Scope/Priority и прямого теста не имеет.
+- [x] Создан отдельный `plans/ecs-state-serialization-execplan.md` на source-generated сериализацию ECS restart-state и удаление последних узких trim roots (`ECS.Core`, `DragonECS`, `Newtonsoft.Json`, game assemblies на reload path).
+- [x] Устаревший follow-up про Priority-first удалён по фактическому коду: Dynamic `CompareModules` использует Scope→Priority→assembly identity→full name, а `DynamicRunner_ModuleSequenceAfterSort_MatchesGeneratedEmission` напрямую сравнивает Dynamic sequence с generated emission.
 
-ExecPlan завершался 2026-08-23 (branch `open-code-ai`); corrective Milestone 9 выполнен 2026-08-24, НО возвращён в in_progress вторым пост-аудитом разработчика (2026-08-24): ordered Dynamic↔Static parity не доказана end-to-end, referenced-scan cache не покрывает бинарные reference-обновления, launcher-level NoWarn остаётся project-wide. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
+ExecPlan завершён 2026-08-25 на branch `open-code-ai`. Corrective Milestone 9 был возвращён в progress вторым аудитом и закрыт только после end-to-end ordering test, MVID/semantic cache fingerprinting, удаления launcher `NoWarn`, member-level warning multiset gate и создания отдельного плана для изменения restart-state serialization. Полные отчёты: `.git/sdd/task-m8-report.md`, `.git/sdd/task-m9-report.md`.
 
 ### Milestone 9 (corrective) — фактические результаты (2026-08-24)
 
 - Reflection activation в Static ECS startup устранён: generated `IEcsUpdateRegistryProvider`/`IEcsRenderPrepareRegistryProvider` доставляются через `IStaticRuntimeComposition.RegisterEcsRegistryProviders`; Runner Static path не содержит `Assembly.GetTypes`/`Activator.CreateInstance`/`Type.GetType` (source-boundary test).
-- Порядок installers Static сохраняет generated insertion order (перетасовка Static runner устранена); НО end-to-end равенство с Dynamic `CompareModules` НЕ доказано — Dynamic по-прежнему Priority-first без Scope, тест сравнивает generated sequence только через Static runner (второй аудит 2026-08-24).
+- Порядок installers совпадает end-to-end: Dynamic `CompareModules` и generator используют Scope→Priority→assembly identity→full name; `DynamicRunner_ModuleSequenceAfterSort_MatchesGeneratedEmission` проверяет production selection, а Static runner сохраняет generated insertion rank.
 - Полная Dynamic/Static parity без исключений: внутренние `[ServiceRegistration]` сервисы публичизированы; equality по множествам И последовательностям.
-- Project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` удалён из Sdk.targets, НО перенесён как project-level в csproj template launchers — это по-прежнему подавляет все предупреждения этих кодов во всём host build (второй аудит 2026-08-24: не соответствует критерию «тип/member или конкретная сборка»).
+- Project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` удалён из SDK и обоих template launchers. Gated publishes используют `TrimmerSingleWarn=false`; точный member-level warning multiset (105 shared + 6 client-only entries) сравнивается с учётом кратности, а неизвестная textual shape обнаруживается отдельным count-sensitive fallback.
 - Blanket trim root всех module payload assemblies удалён; остались узкие roots reflection-поверхности state pipeline (`ECS.Core`, `DragonECS`, `Newtonsoft.Json`, game ProjectReferences). Generated instantiation roots подключены к retained-коду (`TouchAotComponentTemplateRoots` из RegisterServices) — первый прогон Server gate без этого упал на `ComponentTemplate<GameComponent>` missing native code, что подтвердило необходимость вызова.
 - Envelope hot-reload state переведён на source-generated `HotReloadInfoJsonContext`; внутренний world-snapshot остаётся Newtonsoft-based — задокументированное ограничение, полная source-generated замена отслеживается отдельно.
 - Reload gate: стабильный state payload после warm-up reload; линейный рост = fail. ServerGameInitSystem idempotent на восстановленном world.
-- Generator переведён на настоящий incremental pipeline (FAWMN/syntax providers + memoized referenced scan); диагностики KE304-KE307 репортятся через модели. Оговорка (второй аудит, 2026-08-24): referenced scan остаётся цельным мемоизированным пересканированием ВСЕХ source-built ссылок — правка любого модуля меняет ключ целиком и вынуждает полный rescan (не per-reference incremental); host-правка по-прежнему инвалидирует весь кэш разом. Уточнения (третий аудит, 2026-08-25): это ОСОЗНАННОЕ отклонение (RS1035-documented) — referenced scan остаётся мемоизированным полным сканом, ключенным по content identity; PE-ссылки фингерпринтятся по MVID из metadata snapshot самой ссылки (`PortableExecutableReference.GetMetadata` → `GetModuleVersionId`, content-exact), stat (mtime+length) — только fallback при недоступности metadata; память кэша ограничена — максимум 8 различных ключей с вытеснением самой старой вставки (eviction только memory bound).
-- Финальные gates: Server NativeAOT + 10 reload cycles PASS (8m40s), Client NativeAOT PASS (9m24s). Suites: Tasks 75/0/4, Codegen 24/0/0, Generator 42/0/0, Runner 128/0/0, Integration 8/0/6.
+- Generator использует FAWMN/syntax providers + memoized referenced scan; диагностики KE304-KE307 репортятся через модели. Referenced scan осознанно остаётся цельным RS1035-documented сканом: PE references ключуются по MVID metadata snapshot (stat — только fallback), `CompilationReference` — по identity полного immutable Roslyn `Compilation`, поэтому parse options, compilation options и transitive references не могут столкнуться при одинаковом source text. Cache ограничен восемью ключами с oldest-insertion eviction.
+- Финальные NativeAOT gates из committed отчёта: Server + 10 reload cycles PASS (6m18s), Client PASS (5m56s). Последний локальный целевой прогон после cache/warning-diagnostic исправлений: Generator 48/48, Runner StaticComposition 11/11, Integration 14/0/6.
 
 ### Фактические результаты по gate'ам
 
@@ -702,8 +706,8 @@ Executed (2026-08-23, branch open-code-ai): BuildKarpikRuntimeBundleTask gained 
 - [x] Генератор испускает concrete provider classes с прямым перечислением system descriptors; `RegisterServices`/новый метод композиции передаёт их инстансы; Runner на Static path использует только переданные провайдеры, reflection-перечисление остаётся только в Dynamic ветке.
 - [x] Static регистрация installers сохраняет generated insertion order (rank вместе с installer либо явное сохранение порядка); тест сравнивает последовательности, а не множества, для Client и Server selections.
 - [x] Убрать project-wide `NoWarn IL2104/IL3053/IL3000/IL3002` из `Sdk.targets`; каждый оставшийся warning подавляется узко (тип/член или конкретная сборка через `NoWarn` в csproj модуля с комментарием-обоснованием).
-- [ ] Заменить assembly-wide trim roots (`DragonECS`, `Newtonsoft.Json`, все module assemblies) минимальным набором: source-generated restart-state serialization вместо Newtonsoft-зависимого пути; generated descriptor/instantiation roots вместо rooting целых сборок. Gate publish обязан падать на любом необъяснённом `IL2xxx/IL3xxx/IL3050`.
-  Выполнено частично (2026-08-24): blanket root по всем module payload assemblies удалён; сгенерированные instantiation roots (`TouchAotComponentTemplateRoots`) подключены к retained-коду; остались узкие обоснованные roots для reflection-поверхности state pipeline — `ECS.Core`, `DragonECS`, `Newtonsoft.Json` и game ProjectReferences (компонентные структуры). Внутренний world-snapshot сериалайз остаётся Newtonsoft-based; полная source-generated замена отложена как отдельный последующий план (см. ADR «Source-generated state serialization»). Gate publish падает на любом необъяснённом warning.
+- [x] Удалить blanket assembly-wide roots всех module payload assemblies, оставить только минимальный документированный набор для существующей reflection-поверхности state pipeline, подключить generated descriptor/instantiation roots и сделать gate publish падающим на любом необъяснённом `IL2xxx/IL3xxx/IL3050`.
+  Выполнено 2026-08-24 и уточнено 2026-08-25: остались только обоснованные roots `ECS.Core`, `DragonECS`, `Newtonsoft.Json` и game component ProjectReferences. Их полное удаление требует нового типизированного restart-state формата и вынесено в `plans/ecs-state-serialization-execplan.md`; это отдельный compatibility milestone, а не незакрытая часть corrective M9.
 - [x] Сделать template `ServerGameInitSystem` idempotent при восстановленном world; reload-тест требует стабильного state payload после первого warm-up reload (линейный рост = fail).
 - [x] Публичизировать internal `[ServiceRegistration]` сервисы во всех модулях selection; parity-тесты для services/systems/installers требуют полного равенства множеств И последовательностей, без исключений кроме явно перечисленных в ADR.
 - [x] Перевести `RuntimeCompositionGenerator` на настоящий incremental pipeline (syntax/symbol provider без полного пересканирования `Compilation` при каждой правке).
@@ -796,6 +800,7 @@ Protocol schema/ID изменение является несовместимы�
 - Existing snapshot generator: `Network.Codegen/Network.Codegen/NetworkGenerator.cs`.
 - Existing process-isolation reference: `plans/process-isolation-architecture.md`.
 - Final durable decision: `docs/02_ADR/static-runtime-composition.md`, created only after evidence from Milestone 8.
+- Follow-up for removing the remaining ECS restart-state trim roots: `plans/ecs-state-serialization-execplan.md`.
 
 ## Scope Boundaries
 

@@ -213,6 +213,74 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_SameReferencedSourceButChangedParseOptions_RegeneratesFromFreshScan()
+    {
+        // Syntax text alone is not a semantic fingerprint. Changing preprocessor
+        // symbols can change the referenced assembly while every source byte and
+        // assembly identity remains identical.
+        const string moduleSource = """
+            using Karpik.Engine.Core;
+
+            namespace ParseOptionMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            #if USE_MODSET
+            [ServiceRegistration(ModuleScope.ModSet)]
+            #else
+            [ServiceRegistration(ModuleScope.Engine)]
+            #endif
+            public class ProbeService : IProbe { }
+            """;
+        var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
+        var engineCompilation = GeneratorTestHarness.CreateModuleCompilation(
+            "ParseOptionFingerprintModules",
+            moduleSource,
+            [exportReference]);
+        SyntaxTree engineTree = engineCompilation.SyntaxTrees.Single();
+        SyntaxTree modSetTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
+            moduleSource,
+            Microsoft.CodeAnalysis.CSharp.CSharpParseOptions.Default
+                .WithLanguageVersion(Microsoft.CodeAnalysis.CSharp.LanguageVersion.Latest)
+                .WithPreprocessorSymbols("USE_MODSET"),
+            engineTree.FilePath,
+            encoding: null,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var modSetCompilation = engineCompilation.ReplaceSyntaxTree(engineTree, modSetTree);
+
+        GeneratorResult first = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                exportReference,
+                engineCompilation.ToMetadataReference(),
+            ]);
+        first.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::ParseOptionMods.IProbe, global::ParseOptionMods.ProbeService>(" +
+            "global::Karpik.Engine.Core.ModuleScope.Engine, ",
+            first.CompositionSource,
+            StringComparison.Ordinal);
+
+        GeneratorResult second = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                exportReference,
+                modSetCompilation.ToMetadataReference(),
+            ]);
+        second.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::ParseOptionMods.IProbe, global::ParseOptionMods.ProbeService>(" +
+            "global::Karpik.Engine.Core.ModuleScope.ModSet, ",
+            second.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_SamePeReferencePathButRebuiltBinary_RegeneratesFromFreshScan()
     {
         // Production hosts reference modules as PortableExecutableReference.
