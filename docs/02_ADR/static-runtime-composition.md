@@ -75,28 +75,33 @@ Client/Server side boundaries must stay enforceable at compile time.
    form (`ILxxxx: Ns.Type.Member(args): ...`) pins the member where ilc emits one. A coverage
    fallback compares per-code occurrence COUNTS between the catch-all `\bIL\d{4}\b` scan and the
    parsed tuples, so a warning in an unrecognized textual shape can never slip through.
-   STATUS: the table below is still the AGGREGATE-form inventory pinned before
-   `TrimmerSingleWarn=false` was adopted; the first gated publish under the flag will surface
-   member-level warnings for these origins and this table MUST be re-pinned to that exact
-   member-level form (which also strengthens the first-party entries with concrete members).
+   STATUS: re-pinned 2026-08-25 to the exact MEMBER-level multiset emitted by the
+   first gated publishes under `-p:TrimmerSingleWarn=false` (Server and Client both
+   PASS). The authoritative list lives in `StaticCompositionCliTests`
+   (`SharedDocumentedAotWarnings` — 105 tuples shared by Server and Client;
+   `ClientOnlyDocumentedAotWarnings` — 6 Silk.NET/DependencyModel members); the
+   summary below groups those members per origin with their justification.
 
-   **IL2104 + IL3053 aggregates (Server and Client):**
+   **Third-party payload members (Server and Client):**
 
-   | Origin | Kind | Justification |
+   | Origin | Codes (multiplicity) | Justification |
    |---|---|---|
-   | `Aether.Physics2D` | third-party payload | ships unannotated; internal XmlSerializer world (de)serialization |
-   | `MoonSharp.Interpreter` | third-party payload | Lua interpreter is inherently reflective |
-   | `Newtonsoft.Json` | third-party payload | reflection serializer backing the hot-reload state pipeline |
-   | `DragonECS` | third-party payload | ships unannotated |
-   | `ECS.Core` | FIRST-PARTY, deliberate | Newtonsoft restart-state snapshots (`ComponentArrayConverter`, `EcsWorldExtensions`) + `ComponentTemplate<T>` `MakeGenericType` fallback; replacement tracked as the source-generated ECS state serialization follow-up ExecPlan; behavior proven by the ten reload cycles of the Server gate |
-   | `AssetManagement.Core` | FIRST-PARTY, deliberate | Newtonsoft `JsonLoader`2`/`JsonSaver`1` content pipeline + `LooseAssemblyNameBinder` loose assembly binding (`Assembly.GetTypes`, `Type.GetType`) |
-   | `Karpik.Engine.Core` | FIRST-PARTY, dead under Static | Dynamic-mode-only discovery (`Bootstrap.RegisterTypes`, `EngineRunner.FormatComponent`, `AttributedServiceRegistrar`, `SystemRegistry`) analyzed by ilc but unreachable from a generated static host |
-   | `Karpik.Engine.Core.Runner` | FIRST-PARTY, dead under Static | same: `DynamicCompositionDiscovery`, `Program.LoadDynamicModules` (`Assembly.GetTypes`, `Activator.CreateInstance`) |
+   | `Newtonsoft.Json` (`JToken`/`JObject`/`JValue`/`JContainer`/`Json.Schema`) | IL2026 ×7, IL3050 ×6 | reflection serializer backing the hot-reload state pipeline |
+   | `nkast.Aether.Physics2D` (`WorldXmlSerializer`/`WorldXmlDeserializer`) | IL2026 ×4, IL2057 ×1, IL3050 ×4 | ships unannotated; internal XmlSerializer world (de)serialization |
+   | `MoonSharp.Interpreter` (`TableConversions`, `FrameworkClrBase`, `ValueTypeDefaultCtorMemberDescriptor`, `ExtensionMethodsRegistry`, `StandardEnumUserDataDescriptor`) | IL2055 ×2, IL2060 ×1, IL2067 ×3, IL2072 ×2, IL2075 ×10, IL3050 ×4 | Lua interpreter is inherently reflective |
+   | `DCFApixels.DragonECS` (`TypeMeta`, `EcsDebugUtility`, `JsonDebugger`) | IL2055 ×1, IL2070 ×1, IL2075 ×2, IL2077 ×2, IL3050 ×1 | ships unannotated debug/meta reflection surface |
+   | `Microsoft.CSharp` (`ComObject.RcwToComObject`) + `System.Linq.Expressions` (`CachedReflectionInfo.DynamicObject_*.get` ×12) | IL3050 ×13 | BCL dynamic-code surfaces reachable only through the rooted third-party metadata above; not exercised on the static path |
 
-   **IL3053 aggregates (Server and Client, additional):** `LoggerModule` (open-generic Autofac
-   logger registration — Dynamic-mode DI path), `Microsoft.CSharp`,
-   `System.Linq.Expressions` (BCL dynamic-code surfaces reachable only through the rooted
-   third-party metadata above; not exercised on the static path).
+   **First-party members (Server and Client, deliberate):**
+
+   | Origin | Codes (multiplicity) | Justification |
+   |---|---|---|
+   | `Karpik.Engine.Core.Runner` / `Karpik.Engine.Core` / `ModuleLoader` (`DynamicCompositionDiscovery`, `Program.<LoadDynamicModules>`, `Bootstrap.RegisterTypes`, `AttributedServiceRegistrar`, `SystemRegistry`, `EngineRunner.FormatComponent`, `LoadPrimaryAssembly`) | IL2026 ×3, IL2062 ×1, IL2067 ×1, IL2072 ×3, IL2075 ×2 | Dynamic-mode-only discovery paths analyzed by ilc but unreachable from a generated static host; deletion is a tracked ExecPlan follow-up |
+   | ECS state pipeline (`ComponentArrayConverter`, `EcsWorldExtensions`) | IL2026 ×6, IL3050 ×6 | Newtonsoft restart-state snapshots; replacement tracked as the source-generated ECS state serialization follow-up ExecPlan; behavior proven by the ten reload cycles of the Server gate |
+   | Component-template fallback (`ToTemplateExtensions[2]`, `ComponentTemplateBase`1.DefaultValueType.get`) | IL2070 ×2, IL2076 ×2, IL2090 ×2, IL3050 ×2 | `MakeGenericType`/`GetFields` fallback of `ComponentTemplate<T>`; surfaced at member level as IL2090 trim-annotation warnings inside the same documented fallback surface — runtime behavior proven by the Server gate reload cycles |
+   | Aspect scheduling reflection (`SystemExecutionNode.GetAspectTypes`) | IL2075 ×2 | aspect-type construction over open generics, part of the documented ECS reflection surface |
+   | `AssetManagement.Core` (`LooseAssemblyNameBinder`, `JsonLoader`2`, `JsonSaver`1`) | IL2026 ×4, IL2057 ×1, IL3050 ×3 | Newtonsoft content pipeline + loose assembly binding (`Assembly.GetTypes`, `Type.GetType`) |
+   | `LoggerModuleInstaller.OnRegisterServices` | IL3050 ×1 | open-generic Autofac logger registration (Dynamic-mode DI path) |
 
    **IL3000/IL3002 members (Client only):** `Silk.NET.Core.Loader.DefaultPathResolver`
    (`.<>c.<.cctor>b__24_3(String)`, `.TryLocateNativeAssetFromDeps(String,String&,String&)`,
