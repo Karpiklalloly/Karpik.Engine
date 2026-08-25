@@ -598,13 +598,14 @@ public sealed class StaticCompositionCliTests
     /// origins - or adds a warning inside an already-documented origin - fails the
     /// gate and forces the inventory (and its justifications) to be revisited.
     /// The gated publishes run with -p:TrimmerSingleWarn=false so ILC/trimmer emit
-    /// individual warnings instead of per-assembly aggregates; NOTE: the entries
-    /// below are still the AGGREGATE form pinned before that flag was adopted.
-    /// The first gated publish after the flag will surface member-level warnings
-    /// and this inventory MUST be re-pinned to that exact member-level form.
+    /// individual warnings instead of per-assembly aggregates; the entries below are
+    /// the exact MEMBER-level form re-pinned 2026-08-25 from the first un-suppressed
+    /// gated Server/Client publishes.
     /// </summary>
-    // Inventory below = EXACTLY what the un-suppressed Server AOT publish emits
-    // (verified 2026-08-24); every entry's justification lives in
+    // Inventory below = EXACTLY what the un-suppressed (-p:TrimmerSingleWarn=false)
+    // Server AOT publish emits (verified 2026-08-25); the Client publish emits these
+    // same 85 member-level tuples plus the client-only set below and nothing else
+    // (verified same day). Every entry's justification lives in
     // docs/02_ADR/static-runtime-composition.md (Warning inventory section).
     // Warnings emitted identically by BOTH Server and Client publishes (the
     // same third-party payloads are rooted by the shared engine core). A
@@ -612,32 +613,103 @@ public sealed class StaticCompositionCliTests
     // never here - a shared entry silently tightens the other side's gate.
     private static List<AotWarning> SharedDocumentedAotWarnings =
     [
-        // Third-party payload assemblies shipping without trim/AOT annotations.
-        new("IL2104", "assembly:Aether.Physics2D"),
-        new("IL3053", "assembly:Aether.Physics2D"),
-        new("IL2104", "assembly:MoonSharp.Interpreter"),
-        new("IL3053", "assembly:MoonSharp.Interpreter"),
-        new("IL2104", "assembly:Newtonsoft.Json"),
-        new("IL3053", "assembly:Newtonsoft.Json"),
-        new("IL2104", "assembly:DragonECS"),
-        new("IL3053", "assembly:DragonECS"),
-        // First-party, deliberately reflective (documented in the ADR):
-        // ECS.Core - Newtonsoft hot-reload state pipeline + component-template fallback.
-        new("IL2104", "assembly:ECS.Core"),
-        new("IL3053", "assembly:ECS.Core"),
-        // AssetManagement.Core - Newtonsoft JsonLoader/JsonSaver + LooseAssemblyNameBinder.
-        new("IL2104", "assembly:AssetManagement.Core"),
-        new("IL3053", "assembly:AssetManagement.Core"),
-        // Karpik.Engine.Core / .Runner - Dynamic-mode-only discovery paths,
-        // analyzed but unreachable under Static composition.
-        new("IL2104", "assembly:Karpik.Engine.Core"),
-        new("IL2104", "assembly:Karpik.Engine.Core.Runner"),
-        // BCL dynamic-code surfaces pulled in via the rooted third-party metadata;
+        // Third-party payload assemblies shipping without trim/AOT annotations;
+        // members are their internal reflection/XML surfaces.
+        new("IL2026", "member:Newtonsoft.Json.Linq.JContainer.System.ComponentModel.ITypedList.GetItemProperties(PropertyDescriptor[])"),
+        new("IL2026", "member:Newtonsoft.Json.Linq.JObject.GetMetaObject(Expression)"),
+        new("IL2026", "member:Newtonsoft.Json.Linq.JToken.GetMetaObject(Expression)"),
+        new("IL2026", "member:Newtonsoft.Json.Linq.JValue.GetMetaObject(Expression)"),
+        new("IL2026", "member:Newtonsoft.Json.Linq.JValue.GetMetaObject(Expression)"),
+        new("IL2026", "member:Newtonsoft.Json.Linq.JValue.System.IConvertible.ToType(Type,IFormatProvider)"),
+        new("IL2026", "member:Newtonsoft.Json.Schema.JsonSchema.ToString()"),
+        new("IL3050", "member:Newtonsoft.Json.Linq.JObject.GetMetaObject(Expression)"),
+        new("IL3050", "member:Newtonsoft.Json.Linq.JToken.GetMetaObject(Expression)"),
+        new("IL3050", "member:Newtonsoft.Json.Linq.JValue.GetMetaObject(Expression)"),
+        new("IL3050", "member:Newtonsoft.Json.Linq.JValue.GetMetaObject(Expression)"),
+        new("IL3050", "member:Newtonsoft.Json.Linq.JValue.System.IConvertible.ToType(Type,IFormatProvider)"),
+        new("IL3050", "member:Newtonsoft.Json.Schema.JsonSchema.ToString()"),
+        new("IL2026", "member:nkast.Aether.Physics2D.Common.WorldXmlDeserializer.ReadSimpleType(XMLFragmentElement,Type,Boolean)"),
+        new("IL2026", "member:nkast.Aether.Physics2D.Common.WorldXmlDeserializer.ReadSimpleType(XMLFragmentElement,Type,Boolean)"),
+        new("IL2026", "member:nkast.Aether.Physics2D.Common.WorldXmlSerializer.WriteDynamicType(Type,Object)"),
+        new("IL2026", "member:nkast.Aether.Physics2D.Common.WorldXmlSerializer.WriteDynamicType(Type,Object)"),
+        new("IL2057", "member:nkast.Aether.Physics2D.Common.WorldXmlDeserializer.ReadSimpleType(XMLFragmentElement,Type,Boolean)"),
+        new("IL3050", "member:nkast.Aether.Physics2D.Common.WorldXmlDeserializer.ReadSimpleType(XMLFragmentElement,Type,Boolean)"),
+        new("IL3050", "member:nkast.Aether.Physics2D.Common.WorldXmlDeserializer.ReadSimpleType(XMLFragmentElement,Type,Boolean)"),
+        new("IL3050", "member:nkast.Aether.Physics2D.Common.WorldXmlSerializer.WriteDynamicType(Type,Object)"),
+        new("IL3050", "member:nkast.Aether.Physics2D.Common.WorldXmlSerializer.WriteDynamicType(Type,Object)"),
+        new("IL2055", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToDictionaryOfGenericType(Type,Type,Type,Table)"),
+        new("IL2055", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToListOfGenericType(Type,Type,Table)"),
+        new("IL2060", "member:MoonSharp.Interpreter.Interop.UserDataRegistries.ExtensionMethodsRegistry.InstantiateMethodInfo(MethodInfo,Type,Type,Type)"),
+        new("IL2067", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToArrayOfGenericType(Type,Type,Table)"),
+        new("IL2067", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToDictionaryOfGenericType(Type,Type,Type,Table)"),
+        new("IL2067", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToListOfGenericType(Type,Type,Table)"),
+        new("IL2072", "member:MoonSharp.Interpreter.Interop.ValueTypeDefaultCtorMemberDescriptor.Execute(Script,Object,ScriptExecutionContext,CallbackArguments)"),
+        new("IL2072", "member:MoonSharp.Interpreter.Interop.ValueTypeDefaultCtorMemberDescriptor.GetValue(Script,Object)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetConstructors(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetEvents(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetFields(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetInterfaces(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetMethod(Type,String)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetMethod(Type,String,Type[])"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetMethods(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetNestedTypes(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetProperties(Type)"),
+        new("IL2075", "member:MoonSharp.Interpreter.Compatibility.Frameworks.FrameworkClrBase.GetProperty(Type,String)"),
+        new("IL3050", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToDictionaryOfGenericType(Type,Type,Type,Table)"),
+        new("IL3050", "member:MoonSharp.Interpreter.Interop.Converters.TableConversions.ConvertTableToListOfGenericType(Type,Type,Table)"),
+        new("IL3050", "member:MoonSharp.Interpreter.Interop.StandardEnumUserDataDescriptor.StandardEnumUserDataDescriptor(Type,String,String[],Object[],Type)"),
+        new("IL3050", "member:MoonSharp.Interpreter.Interop.UserDataRegistries.ExtensionMethodsRegistry.InstantiateMethodInfo(MethodInfo,Type,Type,Type)"),
+        new("IL2055", "member:DCFApixels.DragonECS.TypeMeta.TypeMeta(Type)"),
+        new("IL2070", "member:DCFApixels.DragonECS.EcsDebugUtility.AutoToString(Object,Type,Boolean)"),
+        new("IL2075", "member:DCFApixels.DragonECS.Core.Internal.JsonDebugger.ToJsonLog_Internal(Int32&,Object,StringBuilder,Dictionary`2<Object,Int32>,Int32,Int32,Boolean)"),
+        new("IL2075", "member:DCFApixels.DragonECS.Core.Internal.JsonDebugger.ToJsonLog_Internal(Int32&,Object,StringBuilder,Dictionary`2<Object,Int32>,Int32,Int32,Boolean)"),
+        new("IL2077", "member:DCFApixels.DragonECS.TypeMeta.IsHasCustomMeta(Type)"),
+        new("IL2077", "member:DCFApixels.DragonECS.TypeMeta.TypeMeta(Type)"),
+        new("IL3050", "member:DCFApixels.DragonECS.TypeMeta.TypeMeta(Type)"),
+        // Microsoft.CSharp dynamic-code surface pulled in via rooted third-party metadata;
         // not exercised by the engine's static path (runtime gate proves it).
-        new("IL3053", "assembly:Microsoft.CSharp"),
-        new("IL3053", "assembly:System.Linq.Expressions"),
-        // LoggerModule - open-generic Autofac logger registration (Dynamic-mode path).
-        new("IL3053", "assembly:LoggerModule")
+        new("IL3050", "member:Microsoft.CSharp.RuntimeBinder.ComInterop.ComObject.RcwToComObject(Expression)"),
+        // First-party Dynamic-mode-only discovery paths (Assembly.GetTypes,
+        // Activator.CreateInstance, open-generic Autofac registration), analyzed but
+        // unreachable under Static composition; deleting them is a tracked follow-up.
+        new("IL2026", "member:Karpik.Engine.Core.Runner.DynamicCompositionDiscovery.AddProviderDescriptors<TProvider>(Assembly,Func`2<TProvider,ReadOnlySpan`1<EcsUpdateSystemDescriptor>>,List`1<EcsUpdateSystemDescriptor>)"),
+        new("IL2026", "member:Karpik.Engine.Core.Runner.Program.<>c.<LoadDynamicModules>b__1_0(Assembly)"),
+        new("IL2026", "member:ModuleLoader.LoadPrimaryAssembly(String,String)"),
+        new("IL2062", "member:Karpik.Engine.Core.Runner.DynamicCompositionDiscovery.AddProviderDescriptors<TProvider>(Assembly,Func`2<TProvider,ReadOnlySpan`1<EcsUpdateSystemDescriptor>>,List`1<EcsUpdateSystemDescriptor>)"),
+        new("IL2067", "member:Karpik.Engine.Core.Runner.DynamicCompositionDiscovery.<>c.<ActivateModuleInstallers>b__0_3(Type)"),
+        new("IL2072", "member:Karpik.Engine.Core.Bootstrap.RegisterTypes(Type[])"),
+        new("IL2072", "member:Karpik.Engine.Core.Runner.AttributedServiceRegistrar.Register(ContainerBuilder,IEnumerable`1<Type>,ModuleScope)"),
+        new("IL2072", "member:Karpik.Engine.Core.Runner.SystemRegistry.RegisterTypes(ContainerBuilder)"),
+        new("IL2075", "member:Karpik.Engine.Core.EngineRunner.FormatComponent(Object)"),
+        new("IL2075", "member:Karpik.Engine.Core.EngineRunner.FormatComponent(Object)"),
+        // First-party ECS hot-reload state pipeline (Newtonsoft snapshots) +
+        // ComponentTemplate MakeGenericType fallback + aspect-type reflection;
+        // replacement tracked as the source-generated ECS state serialization follow-up.
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.ComponentArrayConverter.ReadJson(JsonReader,Type,IEcsComponentMember[],Boolean,JsonSerializer)"),
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.ComponentArrayConverter.WriteJson(JsonWriter,IEcsComponentMember[],JsonSerializer)"),
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.<FromSnapshot>d__2.MoveNext()"),
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.<FromSnapshot>d__2.MoveNext()"),
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.ToSnapshot(EcsWorld,ComponentArrayConverter)"),
+        new("IL2026", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.ToSnapshot(EcsWorld,ComponentArrayConverter)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.ComponentArrayConverter.ReadJson(JsonReader,Type,IEcsComponentMember[],Boolean,JsonSerializer)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.ComponentArrayConverter.WriteJson(JsonWriter,IEcsComponentMember[],JsonSerializer)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.<FromSnapshot>d__2.MoveNext()"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.<FromSnapshot>d__2.MoveNext()"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.ToSnapshot(EcsWorld,ComponentArrayConverter)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.EcsWorldExtensions.ToSnapshot(EcsWorld,ComponentArrayConverter)"),
+        new("IL2070", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions.ToComponentTemplate(IEcsComponent)"),
+        new("IL2070", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions2.ToComponentTemplate(IEcsTagComponent)"),
+        new("IL2076", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions.ToComponentTemplate(IEcsComponent)"),
+        new("IL2076", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions2.ToComponentTemplate(IEcsTagComponent)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions.ToComponentTemplate(IEcsComponent)"),
+        new("IL3050", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions2.ToComponentTemplate(IEcsTagComponent)"),
+        new("IL2075", "member:Karpik.Engine.Shared.SystemExecutionNode.GetAspectTypes(IEcsRunParallel)"),
+        new("IL2075", "member:Karpik.Engine.Shared.SystemExecutionNode.GetAspectTypes(IEcsRunParallel)"),
+        // First-party asset pipeline: loose assembly name binding.
+        new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.LooseAssemblyNameBinder.BindToType(String,String)"),
+        new("IL2057", "member:Karpik.Engine.Shared.AssetManagement.Core.LooseAssemblyNameBinder.BindToType(String,String)"),
+        // LoggerModule - open-generic Autofac logger registration (Dynamic-mode DI path).
+        new("IL3050", "member:Karpik.Engine.Shared.Log.LoggerModuleInstaller.OnRegisterServices(ContainerBuilder)")
     ];
 
     /// <summary>Server-publish-only warnings; currently none.</summary>
