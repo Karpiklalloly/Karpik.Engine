@@ -300,6 +300,106 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_SamePeStatFingerprintButDifferentBinary_RegeneratesFromFreshScan()
+    {
+        // A stat-based PE fingerprint (path + last-write time + length) cannot
+        // distinguish two DIFFERENT binaries that share both stat values: a
+        // rebuild can restore the original timestamp while keeping the file
+        // length unchanged, and an identity+stat key then serves the previous
+        // generation's models. The key must come from metadata the reference
+        // already carries (module MVID), not from filesystem stat.
+        const string moduleSourceV1 = """
+            using Karpik.Engine.Core;
+
+            namespace PeStatMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.Engine)]
+            public class ProbeService : IProbe
+            {
+                public const int ProbeValue = 1;
+            }
+            """;
+        const string moduleSourceV2 = """
+            using Karpik.Engine.Core;
+
+            namespace PeStatMods;
+
+            public interface IProbe { }
+
+            [System.Composition.Export(typeof(IProbe))]
+            [ServiceRegistration(ModuleScope.ModSet)]
+            public class ProbeService : IProbe
+            {
+                public const int ProbeValue = 2;
+            }
+            """;
+        var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
+        string directory = Path.Combine(Path.GetTempPath(), "PeStatFingerprint_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string dllPath = Path.Combine(directory, "PeStatFingerprintModules.dll");
+        DateTime sharedTimestamp = new(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        try
+        {
+            byte[] firstImage =
+                GeneratorTestHarness.CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV1, [exportReference]).Image;
+            File.WriteAllBytes(dllPath, firstImage);
+            File.SetLastWriteTimeUtc(dllPath, sharedTimestamp);
+            Assert.Equal(sharedTimestamp, File.GetLastWriteTimeUtc(dllPath));
+
+            GeneratorResult first = GeneratorTestHarness.Run(
+                CreateGenerator(),
+                additionalReferences:
+                [
+                    GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                    exportReference,
+                    MetadataReference.CreateFromFile(dllPath),
+                ]);
+
+            first.AssertNoErrors();
+            Assert.Contains(
+                "registry.Register<global::PeStatMods.IProbe, global::PeStatMods.ProbeService>(" +
+                "global::Karpik.Engine.Core.ModuleScope.Engine, ",
+                first.CompositionSource,
+                StringComparison.Ordinal);
+
+            // Same path, different content, but FORCED identical stat values.
+            byte[] secondImage =
+                GeneratorTestHarness.CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV2, [exportReference]).Image;
+            Assert.True(
+                firstImage.Length == secondImage.Length,
+                $"Test precondition: rebuilt image must keep the file length " +
+                $"(first {firstImage.Length}, second {secondImage.Length} bytes).");
+            File.WriteAllBytes(dllPath, secondImage);
+            File.SetLastWriteTimeUtc(dllPath, sharedTimestamp);
+            Assert.Equal(sharedTimestamp, File.GetLastWriteTimeUtc(dllPath));
+
+            GeneratorResult second = GeneratorTestHarness.Run(
+                CreateGenerator(),
+                additionalReferences:
+                [
+                    GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                    exportReference,
+                    MetadataReference.CreateFromFile(dllPath),
+                ]);
+
+            second.AssertNoErrors();
+            Assert.Contains(
+                "registry.Register<global::PeStatMods.IProbe, global::PeStatMods.ProbeService>(" +
+                "global::Karpik.Engine.Core.ModuleScope.ModSet, ",
+                second.CompositionSource,
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Run_ServerStatic_GeneratesComposition()
     {
         var moduleReference = ReferencedInstallerAssembly("RefModules");

@@ -504,10 +504,14 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         // RS1035 forbids file IO in analyzers because unbounded IO breaks
         // determinism. This is a deliberate, bounded exception required by the
-        // Milestone 9 audit: stat-only metadata (last write time + length) of
-        // referenced module binaries feeds the referenced-scan cache key so a
-        // rebuilt DLL invalidates stale models. Contents are never read or
-        // hashed.
+        // Milestone 9 audit: referenced module binaries feed the referenced-scan
+        // cache key so a rebuilt DLL invalidates stale models. The PRIMARY key
+        // part is the module MVID read through Roslyn's own metadata snapshot
+        // (PortableExecutableReference.GetMetadata) - content-exact identity
+        // that survives rebuilds which restore timestamps/lengths, needs no
+        // extra filesystem stats and cannot straddle a swap between the
+        // compiler's metadata load and a stat. Stat values remain only as a
+        // FALLBACK when the reference carries no loadable metadata.
         #pragma warning disable RS1035
         private static void AppendSourceFingerprints(Compilation compilation, List<string> parts)
         {
@@ -527,14 +531,24 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
                 // Production hosts reference modules as
                 // PortableExecutableReference. A rebuilt DLL keeps its assembly
-                // identity, so fingerprint the binary file itself - path, last
-                // write time and length; hashing PE contents per generation
-                // would be too expensive for an IDE session. A single FileInfo
-                // instance snapshots both stat values from ONE refresh, so the
-                // key can never straddle a rebuild between two separate stats.
+                // identity, so fingerprint the binary itself. The primary part
+                // is the MVID from the metadata snapshot the reference already
+                // loaded - content-exact, so two different binaries can never
+                // share a cache key even when their stat values coincide. Only
+                // if that metadata cannot be obtained do we degrade to a single-
+                // FileInfo stat snapshot; generation must never crash.
                 if (reference is PortableExecutableReference peReference
                     && peReference.FilePath is { Length: > 0 } pePath)
                 {
+                    string? mvidKey = TryGetModuleVersionIdKey(peReference);
+                    if (mvidKey is not null)
+                    {
+                        parts.Add("pe-mvid:");
+                        parts.Add(pePath);
+                        parts.Add(mvidKey);
+                        continue;
+                    }
+
                     var peInfo = new FileInfo(pePath);
                     if (!peInfo.Exists)
                     {
@@ -554,6 +568,44 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                         .ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
+        }
+        // Reads the MVID from the metadata the reference ALREADY carries. The
+        // returned Metadata instance is owned and cached by the reference - it
+        // must NOT be disposed here. Any failure (missing file, unreadable
+        // image) degrades to the stat-based fallback instead of crashing
+        // generation.
+        private static string? TryGetModuleVersionIdKey(PortableExecutableReference reference)
+        {
+            try
+            {
+                return reference.GetMetadata() switch
+                {
+                    AssemblyMetadata assemblyMetadata => FormatAssemblyMvid(assemblyMetadata),
+                    ModuleMetadata moduleMetadata => moduleMetadata.GetModuleVersionId().ToString("N"),
+                    _ => null
+                };
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static string FormatAssemblyMvid(AssemblyMetadata assemblyMetadata)
+        {
+            System.Collections.Immutable.ImmutableArray<ModuleMetadata> modules = assemblyMetadata.GetModules();
+            if (modules.Length == 1)
+            {
+                return modules[0].GetModuleVersionId().ToString("N");
+            }
+
+            var builder = new System.Text.StringBuilder();
+            foreach (ModuleMetadata module in modules)
+            {
+                builder.Append(module.GetModuleVersionId().ToString("N")).Append(';');
+            }
+
+            return builder.ToString();
         }
         #pragma warning restore RS1035
 
@@ -1840,3 +1892,4 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     }
 }
 #pragma warning restore RS2008
+
