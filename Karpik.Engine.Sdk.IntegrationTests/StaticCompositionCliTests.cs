@@ -276,7 +276,7 @@ public sealed class StaticCompositionCliTests
                 game.GameRoot,
                 [
                     "publish", game.ServerLauncherProject, "-c", "Release", "-r", "win-x64",
-                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
+                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-p:TrimmerSingleWarn=false", "-m:1", "-nr:false"
                 ],
                 game.Environment,
                 TimeSpan.FromMinutes(30));
@@ -459,7 +459,7 @@ public sealed class StaticCompositionCliTests
                 game.GameRoot,
                 [
                     "publish", game.ClientLauncherProject, "-c", "Release", "-r", "win-x64",
-                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-m:1", "-nr:false"
+                    "-p:PublishAot=true", "-p:InvariantGlobalization=true", "-p:TrimmerSingleWarn=false", "-m:1", "-nr:false"
                 ],
                 game.Environment,
                 TimeSpan.FromMinutes(30));
@@ -590,14 +590,19 @@ public sealed class StaticCompositionCliTests
         new(@"\bIL\d{4}\b", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
-    /// Exact (code -> origin) warning inventory documented in
+    /// Exact (code -> origin) warning MULTISET documented in
     /// docs/02_ADR/static-runtime-composition.md. Third-party payload origins only;
     /// a first-party entry here must carry a written justification in the ADR -
-    /// silent whitelisting is not allowed. Both gates assert emitted == documented,
-    /// so a package update that adds/removes origins fails the gate and forces the
-    /// inventory (and its justifications) to be revisited.
+    /// silent whitelisting is not allowed. Both gates assert emitted == documented
+    /// as COUNT-SENSITIVE multiset equality, so a package update that adds/removes
+    /// origins - or adds a warning inside an already-documented origin - fails the
+    /// gate and forces the inventory (and its justifications) to be revisited.
+    /// The gated publishes run with -p:TrimmerSingleWarn=false so ILC/trimmer emit
+    /// individual warnings instead of per-assembly aggregates; NOTE: the entries
+    /// below are still the AGGREGATE form pinned before that flag was adopted.
+    /// The first gated publish after the flag will surface member-level warnings
+    /// and this inventory MUST be re-pinned to that exact member-level form.
     /// </summary>
-    // Record equality is ordinal per component, so exact-pairs matching is deterministic.
     // Inventory below = EXACTLY what the un-suppressed Server AOT publish emits
     // (verified 2026-08-24); every entry's justification lives in
     // docs/02_ADR/static-runtime-composition.md (Warning inventory section).
@@ -605,8 +610,8 @@ public sealed class StaticCompositionCliTests
     // same third-party payloads are rooted by the shared engine core). A
     // warning that only one side emits belongs in the side-specific set below,
     // never here - a shared entry silently tightens the other side's gate.
-    private static readonly HashSet<AotWarning> SharedDocumentedAotWarnings = new()
-    {
+    private static List<AotWarning> SharedDocumentedAotWarnings =
+    [
         // Third-party payload assemblies shipping without trim/AOT annotations.
         new("IL2104", "assembly:Aether.Physics2D"),
         new("IL3053", "assembly:Aether.Physics2D"),
@@ -633,17 +638,17 @@ public sealed class StaticCompositionCliTests
         new("IL3053", "assembly:System.Linq.Expressions"),
         // LoggerModule - open-generic Autofac logger registration (Dynamic-mode path).
         new("IL3053", "assembly:LoggerModule")
-    };
+    ];
 
     /// <summary>Server-publish-only warnings; currently none.</summary>
-    private static readonly HashSet<AotWarning> ServerOnlyDocumentedAotWarnings = new();
+    private static readonly List<AotWarning> ServerOnlyDocumentedAotWarnings = [];
 
-    private static readonly HashSet<AotWarning> ServerDocumentedAotWarnings =
+    private static List<AotWarning> ServerDocumentedAotWarnings =>
         CreateSideInventory(SharedDocumentedAotWarnings, ServerOnlyDocumentedAotWarnings);
 
     // Client-publish-only warnings; each carries its own justification.
-    private static readonly HashSet<AotWarning> ClientOnlyDocumentedAotWarnings = new()
-    {
+    private static readonly List<AotWarning> ClientOnlyDocumentedAotWarnings =
+    [
         // Silk.NET probes native dependency paths via Assembly.Location/CodeBase and
         // DependencyContext, which are empty/unsupported under single-file AOT;
         // natives are staged next to the executable so resolution succeeds
@@ -654,26 +659,33 @@ public sealed class StaticCompositionCliTests
         new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetFromDeps(String,String&,String&)"),
         new("IL3002", "member:Silk.NET.Core.Loader.DefaultPathResolver.TryLocateNativeAssetInRuntimesFolder(String,String,String&)"),
         new("IL3002", "member:Microsoft.Extensions.DependencyModel.DependencyContext..cctor()")
-    };
+    ];
 
-    private static readonly HashSet<AotWarning> ClientDocumentedAotWarnings =
+    private static List<AotWarning> ClientDocumentedAotWarnings =>
         CreateSideInventory(SharedDocumentedAotWarnings, ClientOnlyDocumentedAotWarnings);
 
-    private static HashSet<AotWarning> CreateSideInventory(
-        HashSet<AotWarning> shared, HashSet<AotWarning> sideOnly)
+    private static List<AotWarning> CreateSideInventory(
+        List<AotWarning> shared, List<AotWarning> sideOnly)
     {
-        var inventory = new HashSet<AotWarning>(shared);
-        inventory.UnionWith(sideOnly);
+        // MULTISET concat: duplicate entries are significant - the gate compares
+        // emitted vs documented warning MULTISETS exactly (count-sensitive per
+        // (code, origin)), so the inventory must preserve multiplicity too.
+        List<AotWarning> inventory = [.. shared, .. sideOnly];
         return inventory;
     }
 
     // Internal so the same assembly can unit-test the gate against synthetic
     // publish logs without running a NativeAOT publish.
     internal static void AssertAotWarningsMatchDocumentedInventory(
-        ProcessResult publish, HashSet<AotWarning> documented)
+        ProcessResult publish, IReadOnlyList<AotWarning> documented)
     {
         string publishLog = publish.StandardOutput + publish.StandardError;
-        var emitted = new HashSet<AotWarning>();
+
+        // MULTISET parse: every warning line contributes one tuple, duplicates
+        // included. Aggregate lines (IL2104/IL3053) collapse a whole assembly
+        // into one tuple, so only multiplicity can detect a NEW warning inside
+        // an ALREADY-whitelisted assembly (the tuple itself stays identical).
+        var emitted = new List<AotWarning>();
         foreach (System.Text.RegularExpressions.Match match in AotWarningRegex.Matches(publishLog))
         {
             string origin = match.Groups["origin"].Value;
@@ -694,42 +706,55 @@ public sealed class StaticCompositionCliTests
             emitted.Add(new AotWarning(match.Groups["code"].Value, "member:" + match.Groups["origin"].Value));
         }
 
+        // Canonical order for comparison: raw log emission order is not stable
+        // across ilc/ILLink versions, but the warning MULTISET is. Sorting both
+        // sides canonically turns the assertion into exact count-sensitive
+        // multiset equality: any new/removed/duplicated warning ANYWHERE -
+        // same code, same assembly, aggregate form included - breaks equality.
+        static List<AotWarning> Canonical(IEnumerable<AotWarning> warnings) =>
+            [.. warnings.OrderBy(w => w.Code, StringComparer.Ordinal)
+                .ThenBy(w => w.Origin, StringComparer.Ordinal)];
+        List<AotWarning> emittedCanonical = Canonical(emitted);
+        List<AotWarning> documentedCanonical = Canonical(documented);
+
         static string Format(IEnumerable<AotWarning> warnings) =>
             "{ " + string.Join("; ", warnings
-                .OrderBy(w => w.Code, StringComparer.Ordinal)
-                .ThenBy(w => w.Origin, StringComparer.Ordinal)
                 .Select(w => $"({w.Code} -> {w.Origin})")) + " }";
 
-        List<AotWarning> unexplained = [.. emitted.Where(w => !documented.Contains(w))];
-        Assert.True(unexplained.Count == 0,
-            "NativeAOT publish emitted warnings outside the documented inventory " +
-            "(docs/02_ADR/static-runtime-composition.md)." + Environment.NewLine +
-            "unexplained: " + Format(unexplained) + Environment.NewLine +
-            "documented: " + Format(documented) + Environment.NewLine + publishLog);
-        List<AotWarning> stale = [.. documented.Where(w => !emitted.Contains(w))];
-        Assert.True(stale.Count == 0,
-            "Documented AOT warning entries were NOT emitted by this publish; update the " +
-            "inventory and its justifications in docs/02_ADR/static-runtime-composition.md." +
-            Environment.NewLine +
-            "stale: " + Format(stale) + Environment.NewLine +
-            "emitted: " + Format(emitted));
+        Assert.True(
+            emittedCanonical.SequenceEqual(documentedCanonical),
+            "NativeAOT publish warning MULTISET differs from the documented inventory " +
+            "(docs/02_ADR/static-runtime-composition.md). The comparison is count-sensitive " +
+            "per (code, origin): a changed multiplicity means a warning appeared or vanished " +
+            "inside an already-documented origin - re-justify the inventory." + Environment.NewLine +
+            "unexplained surplus: " + Format(emittedCanonical.Except(documentedCanonical)) + Environment.NewLine +
+            "stale missing:   " + Format(documentedCanonical.Except(emittedCanonical)) + Environment.NewLine +
+            "emitted:    " + Format(emittedCanonical) + Environment.NewLine +
+            "documented: " + Format(documentedCanonical) + Environment.NewLine + publishLog);
 
-        // Coverage fallback: the exact-tuple regexes must account for EVERY IL
-        // code present in the log. A code found by the catch-all but absent from
-        // 'emitted' means a warning shape the parsers do not recognize slipped
-        // past both assertions above.
-        var parsedCodes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (AotWarning warning in emitted)
+        // Coverage fallback comparing CODE COUNTS, not code sets: an unparseable
+        // line of an already-parsed code must not hide behind correctly parsed
+        // warnings of that same code. Every catch-all occurrence must be
+        // accounted for by a parsed tuple of the same code.
+        var catchAllCounts = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        foreach (System.Text.RegularExpressions.Match match in AnyIlCodeRegex.Matches(publishLog))
         {
-            parsedCodes.Add(warning.Code);
+            catchAllCounts[match.Value] = catchAllCounts.TryGetValue(match.Value, out int count) ? count + 1 : 1;
         }
 
-        List<string> unparseable = [.. AnyIlCodeRegex.Matches(publishLog)
-            .Select(match => match.Value)
-            .Where(code => !parsedCodes.Contains(code))
-            .Distinct()];
+        var parsedCounts = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        foreach (AotWarning warning in emitted)
+        {
+            parsedCounts[warning.Code] = parsedCounts.TryGetValue(warning.Code, out int count) ? count + 1 : 1;
+        }
+
+        List<string> unparseable = [.. catchAllCounts
+            .Where(pair => !parsedCounts.TryGetValue(pair.Key, out int parsed) || parsed < pair.Value)
+            .Select(pair => pair.Value > 1
+                ? $"{pair.Key} x{pair.Value} (parsed: {(parsedCounts.TryGetValue(pair.Key, out int p) ? p : 0)})"
+                : pair.Key)];
         Assert.True(unparseable.Count == 0,
-            "NativeAOT publish log contains IL warning codes in a textual shape the " +
+            "NativeAOT publish log contains IL warning occurrences in a textual shape the " +
             "gate parsers do not recognize; extend AotWarningRegex / " +
             "AotUnquotedMemberWarningRegex (and re-justify the inventory in " +
             "docs/02_ADR/static-runtime-composition.md)." + Environment.NewLine +
@@ -747,7 +772,7 @@ public sealed class StaticCompositionCliTests
             IL2104: Assembly 'MoonSharp.Interpreter' produced 2 warnings.
             IL2153: Unrecognized textual warning shape without quotes or parentheses
             """;
-        var documented = new HashSet<AotWarning>
+        var documented = new List<AotWarning>
         {
             new("IL2104", "assembly:MoonSharp.Interpreter")
         };
@@ -757,6 +782,74 @@ public sealed class StaticCompositionCliTests
                 new ProcessResult(0, log, string.Empty),
                 documented));
         Assert.Contains("IL2153", failure.Message, StringComparison.Ordinal);
+    }
+
+    // Aggregate warnings (IL2104/IL3053) collapse every underlying warning of an
+    // assembly into ONE tuple. A NEW warning inside an ALREADY-whitelisted
+    // assembly keeps the (code, origin) tuple identical, so only the emitted
+    // MULTISET (tuple multiplicity) can detect it - a set comparison passes
+    // silently while the inventory no longer describes reality.
+    [Fact]
+    public void Aot_gate_fails_when_second_aggregate_warning_from_whitelisted_assembly_changes_multiplicity()
+    {
+        const string log = """
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 1 warnings.
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 1 warnings.
+            """;
+        var documented = new List<AotWarning>
+        {
+            new("IL2104", "assembly:MoonSharp.Interpreter")
+        };
+
+        Xunit.Sdk.TrueException failure = Assert.Throws<Xunit.Sdk.TrueException>(() =>
+            AssertAotWarningsMatchDocumentedInventory(
+                new ProcessResult(0, log, string.Empty),
+                documented));
+        Assert.Contains("multiplicity", failure.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The coverage fallback must compare code COUNTS, not code sets: an
+    // unparseable line of an ALREADY-parsed code hides behind any correctly
+    // parsed warning of that same code under a set comparison.
+    [Fact]
+    public void Aot_gate_fails_when_unparseable_line_hides_behind_parsed_code_count()
+    {
+        const string log = """
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 1 warnings.
+            IL2104 !! unrecognized textual shape !!
+            """;
+        var documented = new List<AotWarning>
+        {
+            new("IL2104", "assembly:MoonSharp.Interpreter")
+        };
+
+        Xunit.Sdk.TrueException failure = Assert.Throws<Xunit.Sdk.TrueException>(() =>
+            AssertAotWarningsMatchDocumentedInventory(
+                new ProcessResult(0, log, string.Empty),
+                documented));
+        Assert.Contains("IL2104", failure.Message, StringComparison.Ordinal);
+    }
+
+    // Count-sensitive exact equality: a documented multiset matching the emitted
+    // multiset tuple-for-tuple (including duplicate entries) must pass.
+    [Fact]
+    public void Aot_gate_passes_when_emitted_multiset_equals_documented_multiset_including_duplicates()
+    {
+        const string log = """
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 1 warnings.
+            IL2104: Assembly 'MoonSharp.Interpreter' produced 1 warnings.
+            IL3053: Assembly 'DragonECS' produced 1 warnings.
+            """;
+        var documented = new List<AotWarning>
+        {
+            new("IL3053", "assembly:DragonECS"),
+            new("IL2104", "assembly:MoonSharp.Interpreter"),
+            new("IL2104", "assembly:MoonSharp.Interpreter")
+        };
+
+        AssertAotWarningsMatchDocumentedInventory(
+            new ProcessResult(0, log, string.Empty),
+            documented);
     }
 
     private async Task RunAndObserveStaticHostAsync(
