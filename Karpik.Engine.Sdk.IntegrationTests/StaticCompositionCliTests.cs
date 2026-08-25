@@ -578,8 +578,20 @@ public sealed class StaticCompositionCliTests
     // ilc single-file analysis emits UNQUOTED member origins:
     // "IL3000: Ns.Type.Method(Args): message". Quoted forms contain a quote before
     // any parenthesis, so the negated class keeps the two patterns disjoint.
+    // Generic type names carry backtick arity suffixes BEFORE the parameter list
+    // ("AssetManagement.Core.JsonSaver`1.JsonSaver`1(): ..."), so the backtick is
+    // allowed ahead of '(' (it stays excluded from the quoted-form pattern).
     private static readonly System.Text.RegularExpressions.Regex AotUnquotedMemberWarningRegex =
-        new(@"\b(?<code>IL\d{4}):\s+(?<origin>[^\r\n'""`]+?\([^)]*\)):\s+\S",
+        new(@"\b(?<code>IL\d{4}):\s+(?<origin>[^\r\n'""]+?\([^)]*\)):\s+\S",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Property/event ACCESSOR origins have NO parameter list:
+    // "IL2090: Ns.Type`1.Member.get: message" (e.g. CachedReflectionInfo *.get,
+    // ComponentTemplateBase`1.DefaultValueType.get). Origin stops at the first
+    // ": "; quotes, parentheses and colons are excluded so this pattern cannot
+    // match the quoted or parameterized forms above.
+    private static readonly System.Text.RegularExpressions.Regex AotUnquotedAccessorWarningRegex =
+        new(@"\b(?<code>IL\d{4}):\s+(?<origin>[^\r\n"":(]+):\s+\S",
             System.Text.RegularExpressions.RegexOptions.Compiled);
 
     // Shape-agnostic catch-all: every IL code appearing anywhere in the publish
@@ -669,6 +681,21 @@ public sealed class StaticCompositionCliTests
         // Microsoft.CSharp dynamic-code surface pulled in via rooted third-party metadata;
         // not exercised by the engine's static path (runtime gate proves it).
         new("IL3050", "member:Microsoft.CSharp.RuntimeBinder.ComInterop.ComObject.RcwToComObject(Expression)"),
+        // System.Linq.Expressions dynamic call-site cache accessors (BCL dynamic-code
+        // surface reachable only through the rooted third-party metadata; not
+        // exercised on the static path - runtime gate proves it).
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryBinaryOperation.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryConvert.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryCreateInstance.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryDeleteIndex.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryDeleteMember.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryGetIndex.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryGetMember.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryInvoke.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryInvokeMember.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TrySetIndex.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TrySetMember.get"),
+        new("IL3050", "member:System.Linq.Expressions.CachedReflectionInfo.DynamicObject_TryUnaryOperation.get"),
         // First-party Dynamic-mode-only discovery paths (Assembly.GetTypes,
         // Activator.CreateInstance, open-generic Autofac registration), analyzed but
         // unreachable under Static composition; deleting them is a tracked follow-up.
@@ -705,9 +732,22 @@ public sealed class StaticCompositionCliTests
         new("IL3050", "member:Karpik.Engine.Shared.ECS.ToTemplateExtensions2.ToComponentTemplate(IEcsTagComponent)"),
         new("IL2075", "member:Karpik.Engine.Shared.SystemExecutionNode.GetAspectTypes(IEcsRunParallel)"),
         new("IL2075", "member:Karpik.Engine.Shared.SystemExecutionNode.GetAspectTypes(IEcsRunParallel)"),
-        // First-party asset pipeline: loose assembly name binding.
+        // First-party asset pipeline: Newtonsoft JsonLoader/JsonSaver content
+        // pipeline + loose assembly name binding.
+        new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1()"),
+        new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1()"),
+        new("IL3050", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1()"),
+        new("IL3050", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1()"),
+        new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonLoader`2.JsonLoader`2()"),
+        new("IL3050", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonLoader`2.JsonLoader`2()"),
         new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.LooseAssemblyNameBinder.BindToType(String,String)"),
         new("IL2057", "member:Karpik.Engine.Shared.AssetManagement.Core.LooseAssemblyNameBinder.BindToType(String,String)"),
+        // ComponentTemplateBase.DefaultValueType resolves template fields via
+        // Type.GetField on the generic parameter - part of the documented
+        // component-template reflection fallback (see ECS.Core justification);
+        // runtime behavior proven by the Server gate's reload cycles.
+        new("IL2090", "member:Karpik.Engine.Shared.ECS.ComponentTemplateBase`1.DefaultValueType.get"),
+        new("IL2090", "member:Karpik.Engine.Shared.ECS.ComponentTemplateBase`1.DefaultValueType.get"),
         // LoggerModule - open-generic Autofac logger registration (Dynamic-mode DI path).
         new("IL3050", "member:Karpik.Engine.Shared.Log.LoggerModuleInstaller.OnRegisterServices(ContainerBuilder)")
     ];
@@ -774,6 +814,11 @@ public sealed class StaticCompositionCliTests
         }
 
         foreach (System.Text.RegularExpressions.Match match in AotUnquotedMemberWarningRegex.Matches(publishLog))
+        {
+            emitted.Add(new AotWarning(match.Groups["code"].Value, "member:" + match.Groups["origin"].Value));
+        }
+
+        foreach (System.Text.RegularExpressions.Match match in AotUnquotedAccessorWarningRegex.Matches(publishLog))
         {
             emitted.Add(new AotWarning(match.Groups["code"].Value, "member:" + match.Groups["origin"].Value));
         }
@@ -917,6 +962,45 @@ public sealed class StaticCompositionCliTests
             new("IL3053", "assembly:DragonECS"),
             new("IL2104", "assembly:MoonSharp.Interpreter"),
             new("IL2104", "assembly:MoonSharp.Interpreter")
+        };
+
+        AssertAotWarningsMatchDocumentedInventory(
+            new ProcessResult(0, log, string.Empty),
+            documented);
+    }
+
+    // Generic member names carry backtick arity suffixes before the parameter
+    // list; the unquoted-member regex must accept them (regression: the origin
+    // char class used to exclude the backtick, leaving such warnings unparsed
+    // and only catchable by the coverage fallback).
+    [Fact]
+    public void Aot_gate_parses_unquoted_member_origin_with_generic_backtick_name()
+    {
+        const string log = """
+            C:\src\JsonSaver.cs(10): Trim analysis warning IL2026: Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1(): Using member 'Newtonsoft.Json.JsonSerializer.JsonSerializer()' which has 'RequiresUnreferencedCodeAttribute'.
+            """;
+        var documented = new List<AotWarning>
+        {
+            new("IL2026", "member:Karpik.Engine.Shared.AssetManagement.Core.JsonSaver`1.JsonSaver`1()")
+        };
+
+        AssertAotWarningsMatchDocumentedInventory(
+            new ProcessResult(0, log, string.Empty),
+            documented);
+    }
+
+    // Property ACCESSOR origins carry no parameter list; a dedicated regex must
+    // parse them (regression: IL2090 '...DefaultValueType.get' and the
+    // CachedReflectionInfo '*.get' surfaces were unparseable before).
+    [Fact]
+    public void Aot_gate_parses_unquoted_accessor_origin_without_parameter_list()
+    {
+        const string log = """
+            C:\src\IComponentTemplate.cs(45): Trim analysis warning IL2090: Karpik.Engine.Shared.ECS.ComponentTemplateBase`1.DefaultValueType.get: 'this' argument does not satisfy 'DynamicallyAccessedMemberTypes.PublicFields'.
+            """;
+        var documented = new List<AotWarning>
+        {
+            new("IL2090", "member:Karpik.Engine.Shared.ECS.ComponentTemplateBase`1.DefaultValueType.get")
         };
 
         AssertAotWarningsMatchDocumentedInventory(
