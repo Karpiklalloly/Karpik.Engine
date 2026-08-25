@@ -66,10 +66,19 @@ Client/Server side boundaries must stay enforceable at compile time.
 5. **Warning inventory (exact, gate-enforced).** Neither the SDK nor host projects set any
    `NoWarn`: every trim/AOT warning reaches the publish output. Both AOT acceptance gates parse
    the publish log into exact `(code -> originating assembly[/member])` tuples and FAIL unless
-   the emitted set equals the documented set below (verified 2026-08-24) — a package update that
-   adds or removes origins fails the gate and forces this inventory to be revisited. Aggregate
+   the emitted MULTISET equals the documented multiset (count-sensitive per tuple; verified
+   2026-08-24) — a package update that adds or removes origins, or adds a warning inside an
+   already-documented origin, changes the multiplicity and fails the gate, forcing this inventory
+   to be revisited. The gated publishes run with `-p:TrimmerSingleWarn=false` so ILC/trimmer emit
+   individual warnings instead of per-assembly single-warn aggregates. Aggregate
    form (`ILxxxx: Assembly 'X' produced ... warnings.`) pins the originating assembly; member
-   form (`ILxxxx: Ns.Type.Member(args): ...`) pins the member where ilc emits one.
+   form (`ILxxxx: Ns.Type.Member(args): ...`) pins the member where ilc emits one. A coverage
+   fallback compares per-code occurrence COUNTS between the catch-all `\bIL\d{4}\b` scan and the
+   parsed tuples, so a warning in an unrecognized textual shape can never slip through.
+   STATUS: the table below is still the AGGREGATE-form inventory pinned before
+   `TrimmerSingleWarn=false` was adopted; the first gated publish under the flag will surface
+   member-level warnings for these origins and this table MUST be re-pinned to that exact
+   member-level form (which also strengthens the first-party entries with concrete members).
 
    **IL2104 + IL3053 aggregates (Server and Client):**
 
