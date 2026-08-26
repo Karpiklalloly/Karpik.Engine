@@ -15,7 +15,8 @@ public sealed record MsBuildProjectEvaluation(
     string RuntimeBundlePath,
     string EngineRoot,
     string TargetPath,
-    IReadOnlyList<string> ProjectReferences);
+    IReadOnlyList<string> ProjectReferences,
+    string CompositionMode);
 
 public interface IMsBuildProjectInspector
 {
@@ -46,7 +47,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
     private const int MaximumResultBytes = 1024 * 1024;
     private const string ResultArgumentPrefix = "-getResultOutputFile:";
     private static readonly string PropertyArgument =
-        "-getProperty:MSBuildProjectFullPath,KarpikProjectKind,KarpikSide,KarpikRuntimeBundlePath,KarpikEngineRoot,TargetPath";
+        "-getProperty:MSBuildProjectFullPath,KarpikProjectKind,KarpikSide,KarpikCompositionMode,KarpikRuntimeBundlePath,KarpikEngineRoot,TargetPath";
 
     private readonly IMsBuildProcessFactory _processFactory;
     private readonly TimeSpan _evaluationTimeout;
@@ -622,7 +623,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             ReadProperty(properties, "KarpikRuntimeBundlePath"),
             ReadProperty(properties, "KarpikEngineRoot"),
             ReadProperty(properties, "TargetPath"),
-            references);
+            references,
+            ReadProperty(properties, "KarpikCompositionMode"));
     }
 
     private static FileStream OpenNonReparseResultStream(string path)

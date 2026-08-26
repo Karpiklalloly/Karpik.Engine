@@ -56,6 +56,29 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
+    public async Task OpenAsync_StaticCompositionUsesGameSpecificLaunchers()
+    {
+        using var solution = TestSolution.Create(includeLaunchers: true);
+        IReadOnlyList<MsBuildProjectEvaluation> evaluations = solution.CreateEvaluations()
+            .Select(evaluation => evaluation with { CompositionMode = "Static" })
+            .ToArray();
+        var service = new ProjectOpenService(
+            new FakeInspector(evaluations),
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory());
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        ActiveProjectContext candidate = Assert.IsType<ActiveProjectContext>(result.Candidate);
+        Assert.Equal(solution.ClientLauncher, candidate.Runtime.ClientRunnerPath);
+        Assert.Equal(solution.ServerLauncher, candidate.Runtime.ServerRunnerPath);
+    }
+
+    [Fact]
     public async Task OpenAsync_RejectsEvaluatedSideMismatch()
     {
         using var solution = TestSolution.Create();
@@ -541,7 +564,8 @@ public sealed class ProjectOpenServiceTests
                 mirrorBundle,
                 solution.EngineRoot,
                 mirrorTarget,
-                client.ProjectReferences)
+                client.ProjectReferences,
+                "Dynamic")
         ]);
 
         MsBuildProjectEvaluation result = Assert.Single(remapped);
@@ -562,7 +586,8 @@ public sealed class ProjectOpenServiceTests
                 Path.Combine(Path.GetDirectoryName(evaluationRoot)!, "escaped-bundle"),
                 solution.EngineRoot,
                 mirrorTarget,
-                client.ProjectReferences)
+                client.ProjectReferences,
+                "Dynamic")
         ]));
     }
 
@@ -754,15 +779,18 @@ public sealed class ProjectOpenServiceTests
     {
         private readonly string _clientProjectFileName;
         private readonly string _serverProjectFileName;
+        private readonly bool _includeLaunchers;
 
         private TestSolution(
             string root,
             string clientProjectFileName,
-            string serverProjectFileName)
+            string serverProjectFileName,
+            bool includeLaunchers)
         {
             Root = root;
             _clientProjectFileName = clientProjectFileName;
             _serverProjectFileName = serverProjectFileName;
+            _includeLaunchers = includeLaunchers;
             Directory.CreateDirectory(root);
         }
 
@@ -773,10 +801,14 @@ public sealed class ProjectOpenServiceTests
         public string ServerBundle => Path.Combine(Root, "Server", "bin", "karpik-bundle");
         public string ClientRunner => Path.Combine(EngineRoot, "runners", "client", RunnerName);
         public string ServerRunner => Path.Combine(EngineRoot, "runners", "server", RunnerName);
+        public string ClientLauncher => GetLauncherExecutablePath(ClientLauncherProject);
+        public string ServerLauncher => GetLauncherExecutablePath(ServerLauncherProject);
         public string ClientProjectPath => ClientProject;
         private string SharedProject => Path.Combine(Root, "Shared", "Shared.csproj");
         private string ClientProject => Path.Combine(Root, "Client", _clientProjectFileName);
         private string ServerProject => Path.Combine(Root, "Server", _serverProjectFileName);
+        private string ClientLauncherProject => Path.Combine(Root, "Client.Launcher", "Client.Launcher.csproj");
+        private string ServerLauncherProject => Path.Combine(Root, "Server.Launcher", "Server.Launcher.csproj");
         private static string RunnerName => OperatingSystem.IsWindows()
             ? "Karpik.Engine.Core.Runner.exe"
             : "Karpik.Engine.Core.Runner";
@@ -784,23 +816,47 @@ public sealed class ProjectOpenServiceTests
         public static TestSolution Create(
             bool validSdk = true,
             string clientProjectFileName = "Client.csproj",
-            string serverProjectFileName = "Server.csproj")
+            string serverProjectFileName = "Server.csproj",
+            bool includeLaunchers = false)
         {
             var solution = new TestSolution(Path.Combine(
                 Path.GetTempPath(),
                 "KarpikEditorProjectOpenTests",
                 Guid.NewGuid().ToString("N")),
                 clientProjectFileName,
-                serverProjectFileName);
+                serverProjectFileName,
+                includeLaunchers);
             Directory.CreateDirectory(solution.EngineRoot);
             WriteProject(solution.SharedProject, validSdk ? "Karpik.Engine.Sdk" : "Microsoft.NET.Sdk", "Shared");
             WriteProject(solution.ClientProject, "Karpik.Engine.Sdk", "Client", "../Shared/Shared.csproj");
             WriteProject(solution.ServerProject, "Karpik.Engine.Sdk", "Server", "../Shared/Shared.csproj");
+            if (includeLaunchers)
+            {
+                WriteProject(
+                    solution.ClientLauncherProject,
+                    "Karpik.Engine.Sdk",
+                    "Client",
+                    "../Client/Client.csproj",
+                    "Tool");
+                WriteProject(
+                    solution.ServerLauncherProject,
+                    "Karpik.Engine.Sdk",
+                    "Server",
+                    "../Server/Server.csproj",
+                    "Tool");
+            }
+            string launcherProjects = includeLaunchers
+                ? $"""
+                    <Project Path="{Path.GetRelativePath(solution.Root, solution.ClientLauncherProject)}" />
+                    <Project Path="{Path.GetRelativePath(solution.Root, solution.ServerLauncherProject)}" />
+                    """
+                : "";
             File.WriteAllText(solution.SolutionPath, $"""
                 <Solution>
                   <Project Path="{Path.GetRelativePath(solution.Root, solution.SharedProject)}" />
                   <Project Path="{Path.GetRelativePath(solution.Root, solution.ClientProject)}" />
                   <Project Path="{Path.GetRelativePath(solution.Root, solution.ServerProject)}" />
+                  {launcherProjects}
                 </Solution>
                 """);
             File.WriteAllText(Path.Combine(solution.Root, "global.json"), """
@@ -809,32 +865,54 @@ public sealed class ProjectOpenServiceTests
             return solution;
         }
 
-        public IReadOnlyList<MsBuildProjectEvaluation> CreateEvaluations() =>
-        [
-            Evaluation(ClientProject, "Client", ClientBundle, [SharedProject]),
-            Evaluation(ServerProject, "Server", ServerBundle, [SharedProject]),
-            Evaluation(SharedProject, "Shared", "", [])
-        ];
+        public IReadOnlyList<MsBuildProjectEvaluation> CreateEvaluations()
+        {
+            var evaluations = new List<MsBuildProjectEvaluation>
+            {
+                Evaluation(ClientProject, "Client", ClientBundle, [SharedProject]),
+                Evaluation(ServerProject, "Server", ServerBundle, [SharedProject]),
+                Evaluation(SharedProject, "Shared", "", [])
+            };
+            if (_includeLaunchers)
+            {
+                evaluations.Add(Evaluation(
+                    ClientLauncherProject,
+                    "Client",
+                    "",
+                    [ClientProject],
+                    "Tool"));
+                evaluations.Add(Evaluation(
+                    ServerLauncherProject,
+                    "Server",
+                    "",
+                    [ServerProject],
+                    "Tool"));
+            }
+            return evaluations;
+        }
 
         private MsBuildProjectEvaluation Evaluation(
             string projectPath,
             string side,
             string bundle,
-            IReadOnlyList<string> references) =>
+            IReadOnlyList<string> references,
+            string kind = "Runtime") =>
             new(
                 projectPath,
-                "Runtime",
+                kind,
                 side,
                 bundle,
                 EngineRoot,
                 Path.ChangeExtension(projectPath, ".dll"),
-                references);
+                references,
+                "Dynamic");
 
         private static void WriteProject(
             string path,
             string sdk,
             string side,
-            string? reference = null)
+            string? reference = null,
+            string kind = "Runtime")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             string referenceXml = reference is null
@@ -843,12 +921,22 @@ public sealed class ProjectOpenServiceTests
             File.WriteAllText(path, $"""
                 <Project Sdk="{sdk}">
                   <PropertyGroup>
-                    <KarpikProjectKind>Runtime</KarpikProjectKind>
+                    <KarpikProjectKind>{kind}</KarpikProjectKind>
                     <KarpikSide>{side}</KarpikSide>
                   </PropertyGroup>
                   {referenceXml}
                 </Project>
                 """);
+        }
+
+        private static string GetLauncherExecutablePath(string projectPath)
+        {
+            string targetPath = Path.ChangeExtension(projectPath, ".dll");
+            return OperatingSystem.IsWindows()
+                ? Path.ChangeExtension(targetPath, ".exe")
+                : Path.Combine(
+                    Path.GetDirectoryName(targetPath)!,
+                    Path.GetFileNameWithoutExtension(targetPath));
         }
 
         public void Dispose()

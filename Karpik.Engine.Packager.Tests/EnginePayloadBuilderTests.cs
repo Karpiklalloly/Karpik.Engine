@@ -1,6 +1,8 @@
 using Karpik.Engine.Packager;
 using Karpik.Engine.Tooling;
 using System.IO.Compression;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using Xunit;
 
@@ -303,6 +305,10 @@ public sealed class EnginePayloadBuilderTests
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.ProjectModel.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Tooling.dll");
         AssertPackageContains(first.DestinationDirectory, "analyzers/dotnet/cs/Karpik.Engine.Core.Codegen.dll");
+        AssertPackageAssemblyContainsType(
+            first.DestinationDirectory,
+            "analyzers/dotnet/cs/Network.Codegen.dll",
+            "NetworkCodegenFreshMarker");
         Assert.True(second.ReusedExistingInstallation,
             $"Changed payload files: {string.Join(", ", differences)}; changed package entries: {string.Join(", ", packageDifferences)}");
         Assert.Equal(first.ContentHash, second.ContentHash);
@@ -386,6 +392,29 @@ public sealed class EnginePayloadBuilderTests
         Assert.NotNull(package.GetEntry(entryName));
     }
 
+    private static void AssertPackageAssemblyContainsType(
+        string root,
+        string entryName,
+        string expectedTypeName)
+    {
+        string packagePath = Directory.EnumerateFiles(Path.Combine(root, "sdk"), "*.nupkg").Single();
+        using ZipArchive package = ZipFile.OpenRead(packagePath);
+        ZipArchiveEntry entry = Assert.IsType<ZipArchiveEntry>(package.GetEntry(entryName));
+        using Stream stream = entry.Open();
+        using var assembly = new MemoryStream();
+        stream.CopyTo(assembly);
+        assembly.Position = 0;
+        using var pe = new PEReader(assembly);
+        Assert.True(pe.HasMetadata);
+        MetadataReader metadata = pe.GetMetadataReader();
+        Assert.Contains(
+            metadata.TypeDefinitions,
+            handle => string.Equals(
+                metadata.GetString(metadata.GetTypeDefinition(handle).Name),
+                expectedTypeName,
+                StringComparison.Ordinal));
+    }
+
 }
 
 internal static class PreparedPayload
@@ -458,6 +487,11 @@ internal static class FakeRepository
             "Karpik.Engine.Core.Codegen");
         WriteProject(
             root,
+            "Network.Codegen/Network.Codegen/Network.Codegen.csproj",
+            "Network.Codegen",
+            markerSource: "public static class NetworkCodegenFreshMarker { }");
+        WriteProject(
+            root,
             "Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj",
             "Karpik.Engine.Tooling",
             "../Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj");
@@ -502,6 +536,7 @@ internal static class FakeRepository
                 <PackageVersion>0.6.0-sdk</PackageVersion>
                 <KarpikSdkTasksOutputPath Condition="'$(KarpikSdkTasksOutputPath)' == ''">..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\</KarpikSdkTasksOutputPath>
                 <KarpikCoreCodegenOutputPath Condition="'$(KarpikCoreCodegenOutputPath)' == ''">..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\bin\$(Configuration)\net10.0\</KarpikCoreCodegenOutputPath>
+                <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\net10.0\</KarpikNetworkCodegenOutputPath>
               </PropertyGroup>
               <ItemGroup>
                 <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj"
@@ -515,6 +550,11 @@ internal static class FakeRepository
                       Pack="true" PackagePath="tools/net10.0/" />
                 <None Include="$(KarpikCoreCodegenOutputPath)Karpik.Engine.Core.Codegen.dll"
                       Pack="true" PackagePath="analyzers/dotnet/cs/" />
+                <None Include="$(KarpikNetworkCodegenOutputPath)Network.Codegen.dll"
+                      Pack="true" PackagePath="analyzers/dotnet/cs/" />
+                <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+                                  PrivateAssets="all"
+                                  ReferenceOutputAssembly="false" />
               </ItemGroup>
             </Project>
             """);
@@ -540,6 +580,7 @@ internal static class FakeRepository
               <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
               <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
               <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
+              <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
               <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
               <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
               <Project Path="Dependencies/A/SharedDependencyA.csproj" />
@@ -559,6 +600,7 @@ internal static class FakeRepository
         WriteStaleFile(root, "Karpik.Engine.Client.Publish/bin/Release/net10.0/modules.version.stale/.complete");
         WriteStaleFile(root, "Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/Module.dll");
         WriteStaleFile(root, "Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/.complete");
+        WriteStaleFile(root, "Network.Codegen/Network.Codegen/bin/Release/net10.0/Network.Codegen.dll");
         return root;
     }
 

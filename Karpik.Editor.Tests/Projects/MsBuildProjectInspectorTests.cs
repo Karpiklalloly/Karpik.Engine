@@ -100,6 +100,7 @@ public sealed class MsBuildProjectInspectorTests
                     "MSBuildProjectFullPath": "{{Escape(project)}}",
                     "KarpikProjectKind": "Runtime",
                     "KarpikSide": "Client",
+                    "KarpikCompositionMode": "Static",
                     "KarpikRuntimeBundlePath": "{{Escape(Path.GetFullPath("bundle"))}}",
                     "KarpikEngineRoot": "{{Escape(Path.GetFullPath("engine"))}}",
                     "TargetPath": "{{Escape(Path.GetFullPath("Client.dll"))}}"
@@ -131,6 +132,7 @@ public sealed class MsBuildProjectInspectorTests
         Assert.Equal(project, result.ProjectPath);
         Assert.Equal("Runtime", result.Kind);
         Assert.Equal("Client", result.Side);
+        Assert.Equal("Static", result.CompositionMode);
         Assert.Equal([reference], result.ProjectReferences);
         Assert.Contains(
             process.StartInfo!.ArgumentList,

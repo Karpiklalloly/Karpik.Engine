@@ -112,6 +112,7 @@ public static class PayloadLayout
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Network.Codegen/Network.Codegen/Network.Codegen.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
 
         IReadOnlyList<SelectedModuleProject> moduleProjects = ReadSelectedModuleProjects(repositoryRoot);
         foreach (SelectedModuleProject moduleProject in moduleProjects)
@@ -120,7 +121,8 @@ public static class PayloadLayout
         }
         string sdkTasksOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj") + Path.DirectorySeparatorChar;
         string coreCodegenOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj") + Path.DirectorySeparatorChar;
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", $"-p:KarpikSdkTasksOutputPath={sdkTasksOutput}", $"-p:KarpikCoreCodegenOutputPath={coreCodegenOutput}", "-o", sdkOutput);
+        string networkCodegenOutput = GetArtifactOutput(artifacts, "Network.Codegen/Network.Codegen/Network.Codegen.csproj") + Path.DirectorySeparatorChar;
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", $"-p:KarpikSdkTasksOutputPath={sdkTasksOutput}", $"-p:KarpikCoreCodegenOutputPath={coreCodegenOutput}", $"-p:KarpikNetworkCodegenOutputPath={networkCodegenOutput}", "-o", sdkOutput);
         CanonicalizeNuGetPackages(sdkOutput);
 
         string editorOutput = GetArtifactOutput(artifacts, "Karpik.Editor/Karpik.Editor.csproj");

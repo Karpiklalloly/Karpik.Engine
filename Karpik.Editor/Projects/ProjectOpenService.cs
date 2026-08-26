@@ -181,8 +181,8 @@ public sealed class ProjectOpenService : IProjectOpenService
             engineRoot,
             Path.GetFullPath(client.RuntimeBundlePath),
             Path.GetFullPath(server.RuntimeBundlePath),
-            GetRunnerPath(engineRoot, "client"),
-            GetRunnerPath(engineRoot, "server"));
+            GetRuntimeHostPath(evaluations, client, engineRoot, "client"),
+            GetRuntimeHostPath(evaluations, server, engineRoot, "server"));
 
         ActiveProjectContext candidate;
         try
@@ -274,6 +274,8 @@ public sealed class ProjectOpenService : IProjectOpenService
         ValidateBundlePath(servers[0], gameRoot, diagnostics);
         ValidateTargetPath(clients[0], diagnostics);
         ValidateTargetPath(servers[0], diagnostics);
+        ValidateComposition(evaluations, clients[0], diagnostics);
+        ValidateComposition(evaluations, servers[0], diagnostics);
         return diagnostics;
     }
 
@@ -409,6 +411,70 @@ public sealed class ProjectOpenService : IProjectOpenService
     private static bool IsServerRuntime(MsBuildProjectEvaluation evaluation) =>
         string.Equals(evaluation.Kind, nameof(KarpikProjectKind.Runtime), StringComparison.OrdinalIgnoreCase)
         && string.Equals(evaluation.Side, nameof(KarpikProjectSide.Server), StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateComposition(
+        IReadOnlyList<MsBuildProjectEvaluation> evaluations,
+        MsBuildProjectEvaluation runtime,
+        ICollection<string> diagnostics)
+    {
+        if (string.Equals(runtime.CompositionMode, "Dynamic", StringComparison.Ordinal))
+        {
+            return;
+        }
+        if (!string.Equals(runtime.CompositionMode, "Static", StringComparison.Ordinal))
+        {
+            diagnostics.Add(
+                $"Project '{runtime.ProjectPath}' evaluated unsupported KarpikCompositionMode '{runtime.CompositionMode}'.");
+            return;
+        }
+
+        MsBuildProjectEvaluation[] launchers = evaluations
+            .Where(evaluation => IsLauncherForRuntime(evaluation, runtime))
+            .ToArray();
+        if (launchers.Length != 1)
+        {
+            diagnostics.Add(
+                $"Static Runtime project '{runtime.ProjectPath}' must have exactly one side-compatible Tool launcher that references it.");
+            return;
+        }
+        if (!string.Equals(launchers[0].CompositionMode, "Static", StringComparison.Ordinal))
+        {
+            diagnostics.Add(
+                $"Static Runtime project '{runtime.ProjectPath}' has a launcher with KarpikCompositionMode '{launchers[0].CompositionMode}'.");
+        }
+        ValidateTargetPath(launchers[0], diagnostics);
+    }
+
+    private static bool IsLauncherForRuntime(
+        MsBuildProjectEvaluation evaluation,
+        MsBuildProjectEvaluation runtime) =>
+        string.Equals(evaluation.Kind, nameof(KarpikProjectKind.Tool), StringComparison.OrdinalIgnoreCase)
+        && string.Equals(evaluation.Side, runtime.Side, StringComparison.OrdinalIgnoreCase)
+        && evaluation.ProjectReferences.Any(reference =>
+            PathComparer.Equals(Path.GetFullPath(reference), Path.GetFullPath(runtime.ProjectPath)));
+
+    private static string GetRuntimeHostPath(
+        IReadOnlyList<MsBuildProjectEvaluation> evaluations,
+        MsBuildProjectEvaluation runtime,
+        string engineRoot,
+        string side)
+    {
+        if (!string.Equals(runtime.CompositionMode, "Static", StringComparison.Ordinal))
+        {
+            return GetRunnerPath(engineRoot, side);
+        }
+
+        MsBuildProjectEvaluation launcher = evaluations.Single(evaluation =>
+            IsLauncherForRuntime(evaluation, runtime));
+        string targetPath = Path.GetFullPath(launcher.TargetPath);
+        if (!string.Equals(Path.GetExtension(targetPath), ".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            return targetPath;
+        }
+        return OperatingSystem.IsWindows()
+            ? Path.ChangeExtension(targetPath, ".exe")
+            : Path.ChangeExtension(targetPath, null);
+    }
 
     private static string GetRunnerPath(string engineRoot, string side)
     {
