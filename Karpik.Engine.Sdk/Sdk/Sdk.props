@@ -13,4 +13,15 @@
     <CompilerVisibleProperty Include="KarpikCompositionMode" />
   </ItemGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <KarpikContentOutput>$(IntermediateOutputPath)Content\</KarpikContentOutput>
+    <KarpikContentManifest>$(KarpikContentOutput)manifest.json</KarpikContentManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="**\*.json.meta" />
+    <CompilerVisibleProperty Include="KarpikContentManifest" />
+  </ItemGroup>
+  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="Exists('$(KarpikRepositoryRoot)Karpik.Content.Tool/bin/Debug/net10.0/content.dll')">
+    <Exec Command="dotnet &quot;$(KarpikRepositoryRoot)Karpik.Content.Tool/bin/Debug/net10.0/content.dll&quot; build --source &quot;$(MSBuildProjectDirectory)/Content&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace game" />
+  </Target>
 </Project>
