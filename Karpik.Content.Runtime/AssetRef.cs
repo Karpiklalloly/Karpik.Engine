@@ -46,12 +46,3 @@ public readonly struct AssetRef : IComparable<AssetRef>
 
     public int CompareTo(AssetRef other) => Id.CompareTo(other.Id);
 }
-
-// Minimal stub for Task 2 contracts — full registry with single-flight, versioned slots,
-// and TryGet/LoadAsync is implemented in Task 4. This stub provides IsAlive needed for
-// AssetRef<T>.IsAlive and AssetLease<T>.IsAlive to compile and for AssetRefTests to pass.
-public sealed class ContentRegistry
-{
-    public bool IsAlive<T>(AssetRef<T> r) => false;
-    public bool IsAlive(AssetId id, uint version) => false;
-}
