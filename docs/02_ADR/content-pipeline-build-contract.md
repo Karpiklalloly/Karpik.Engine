@@ -1,7 +1,7 @@
 ---
 title: "Content pipeline build contract"
 date: "2026-08-27"
-status: "proposed"
+status: "accepted"
 tags:
   - adr
   - architecture
@@ -10,7 +10,7 @@ tags:
 
 # Content pipeline build contract
 
-> Status: proposed
+> Status: accepted
 > Date: 2026-08-27
 > Owners: developer and Codex
 > Related ExecPlan: [[../../plans/content-pipeline-foundation-execplan]]

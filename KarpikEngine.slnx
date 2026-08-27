@@ -68,6 +68,11 @@
   <Folder Name="/third-parties/">
     <Project Path="third-parties/DragonECS/DragonECS.csproj" />
   </Folder>
+  <Folder Name="/Content/">
+    <Project Path="Karpik.Content.Core/Karpik.Content.Core.csproj" />
+    <Project Path="Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
+    <Project Path="Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
+  </Folder>
   
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
   <Project Path="Configurator/Configurator.csproj" />

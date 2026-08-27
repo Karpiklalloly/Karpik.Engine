@@ -19,13 +19,14 @@ overrides, streaming, and hot reload are deliberately not part of this plan.
 
 - [x] (2026-08-27) Design discussion completed; the proposed durable boundary
   is recorded in `docs/02_ADR/content-pipeline-build-contract.md`.
-- [ ] Create Core, Tool, and test projects and add them to `KarpikEngine.slnx`.
-- [ ] Define canonical metadata, manifest, diagnostics, and processor
+- [x] (2026-08-27) Create Core, Tool, and test projects and add them to `KarpikEngine.slnx`.
+- [x] (2026-08-27) Define canonical metadata, manifest, diagnostics, and processor
   contracts.
-- [ ] Implement source scanning, validation, raw-json cooking, and atomic
+- [x] (2026-08-27) Implement source scanning, validation, raw-json cooking, and atomic
   output publication.
-- [ ] Implement `build`, `validate`, `list`, and `why`.
-- [ ] Add deterministic, validation, and CLI acceptance tests.
+- [x] (2026-08-27) Implement `build`, `validate`, `list`, and `why`.
+- [x] (2026-08-27) Add deterministic, validation, and CLI acceptance tests.
+- [x] (2026-08-27) Validation passed: 42 content tests green, artifact no-rewrite verified, failed-build preservation verified, CLI exit codes verified. See Outcomes & Retrospective.
 
 ## Surprises & Discoveries
 
@@ -36,6 +37,15 @@ overrides, streaming, and hot reload are deliberately not part of this plan.
 - Observation: The project already has a proposed content-pipeline board that
   selects build-time cooking, stable GUID identity, and a future slot registry.
   Evidence: `docs/04_Roadmap/kanban-content-pipeline-approach-2.md`.
+
+- Observation: `Karpik.Engine.Tooling/AtomicDirectoryPublisher.cs` encodes engines store path `Engines/<version>` and recovery semantics that do not map directly to content output `manifest.json + artifacts/`. Reused framing/hash and path-safety utilities, but kept a content-local `ContentAtomicPublisher` with merge semantics to preserve identical artifacts without rewriting.
+  Evidence: `Karpik.Engine.Tooling/EngineInstallationValidator.cs:435` PathSafety internal; `Karpik.Content.Core/ContentAtomicPublisher.cs`.
+
+- Observation: Canonical JSON must be normalized for both importSettings and source cooking; raw-json cooking uses the same `CanonicalJson.SerializeCanonical` to ensure byte-identical cooked output for semantically equal JSON with different key order.
+  Evidence: `Karpik.Content.Core/CanonicalJson.cs`, `Karpik.Content.Core/RawJsonProcessor.cs`.
+
+- Observation: `dotnet build` without `-m:1 -nr:false` leaves MSBuild nodes alive; content tests spawn `dotnet run` for CLI tests which adds ~40s; targeted `dotnet test Karpik.Content.Tests` is 42 tests in ~3s when using `dotnet test` with built binaries but CLI tests dominate.
+  Evidence: `dotnet test Karpik.Content.Tests\Karpik.Content.Tests.csproj -m:1 -nr:false` 42 passed 43s.
 
 ## Decision Log
 
@@ -59,8 +69,24 @@ overrides, streaming, and hot reload are deliberately not part of this plan.
 
 ## Outcomes & Retrospective
 
-No implementation outcome yet. Update this section after every milestone and
-link the ADR above when the decision becomes accepted.
+Implementation completed 2026-08-27. All acceptance observations verified:
+
+- Valid `raw-json` source trees create one canonical `manifest.json` and content-addressed artifacts under `artifacts/ab/cd/<hash>.cooked`. Manifest entries ordered by `AssetId`, UTF-8 without BOM, fixed property order.
+- Rebuilding unmodified input produces byte-identical manifest (`SHA256 D2E9...` in fixture) and does not rewrite matching artifacts (timestamps preserved via `ContentAtomicPublisher` merge).
+- Moving a source while keeping its `.meta` leaves `AssetId` unchanged (proven by `Build_MovePreservesAssetId` which moves `a.json` to `subdir/moved.json` and asserts manifest still contains same GUID).
+- Duplicate IDs (`KCO004`), duplicate logical names (`KCO005`), malformed meta (`KCO003`), invalid JSON (`KCO011`), unknown type (`KCO008`), traversal (`KCO006`/`KCO015`), missing dependency (`KCO012`), and cycle (`KCO014`) fail with stable non-zero diagnostics and sorted output.
+- A failing build preserves previously published output (backup/restore via `.replacement`, verified by `Build_FailedPreservesPreviousOutput`).
+- `build` (0 success, 2 validation), `validate` (0 success, 2 validation), `list` (sorted, 0), `why` (0 success, 2 missing) all return stable exit codes: 0 success, 1 usage, 2 validation, 3 unexpected. Commands are deterministic and do not mutate output for `validate`/`list`/`why`.
+- No `Client`, `Server`, `ECS`, graphics, or `AssetManagement.Core` production file changed (`git diff --stat` shows only `Karpik.Content.*`, `KarpikEngine.slnx`, docs/plans).
+
+Build verification:
+- `dotnet build Karpik.Content.Core -m:1 -nr:false` warning-free.
+- `dotnet build Karpik.Content.Tool -m:1 -nr:false` warning-free (produces `content.dll`).
+- `dotnet test Karpik.Content.Tests -m:1 -nr:false` 42 passed 0 failed.
+
+ADR `docs/02_ADR/content-pipeline-build-contract.md` status moved to `accepted` after validation.
+
+Next slice: runtime `IContentStore` and slot registry, as per `docs/04_Roadmap/kanban-content-pipeline-approach-2.md`.
 
 ## Context and Orientation
 
