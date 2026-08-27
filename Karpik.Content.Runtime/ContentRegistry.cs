@@ -20,7 +20,7 @@ public sealed class ContentRegistry
             {
                 Id = e.AssetId,
                 State = SlotState.Unloaded,
-                Version = 1,
+                Version = 0,
                 ArtifactLocator = e.ArtifactLocator,
                 DeclaredType = e.DeclaredType,
                 Dependencies = e.Dependencies.ToArray()
@@ -126,13 +126,13 @@ public sealed class ContentRegistry
 
             lock (slot.Sync)
             {
-                // On success: payload lives in slot, State=Loaded, Version kept (or incremented on reload)
-                // For this slice, keep Version == 1 for first load to match AssetRef.Version==1.
-                // If we were reloading an already-Loaded slot, we would Version++ to invalidate old leases.
-                // Since fast path already handles Loaded->return, this branch only runs from Unloaded/Failed->Loading.
                 slot.Payload = payload;
+                // Version 0 -> 1 on first load, then ++ on reload (retry after Failed also increments)
+                if (slot.Version == 0)
+                    slot.Version = 1;
+                else
+                    slot.Version++;
                 slot.State = SlotState.Loaded;
-                // Version stays 1; future hot-reload would do: slot.Version++
                 slot.Inflight = null;
             }
 
@@ -170,26 +170,33 @@ public sealed class ContentRegistry
             return (T)(object)bytes;
         }
 
-        // For RawJsonPayload and other reference types, try JSON deserialize if bytes look like JSON,
-        // otherwise fallback to Activator.CreateInstance.
-        // This keeps single-flight test deterministic without requiring payload content validation.
+        // Empty payload is invalid for JSON types — fault with KCR202 (except fast paths above)
         if (bytes.Length == 0)
         {
-            return Activator.CreateInstance<T>();
+            throw new InvalidDataException($"KCR202 Empty payload for {typeof(T).Name}");
         }
 
-        // Attempt JSON deserialization for types that may have JSON content (e.g., RawJsonPayload with no props will succeed with "{}")
+        // Trivial RawJsonPayload "{}" case is allowed to succeed (deserialize returns non-null).
+        // For all other cases, JSON deserialize must succeed; failure faults with KCR202.
         try
         {
             var obj = System.Text.Json.JsonSerializer.Deserialize<T>(bytes.Span);
             if (obj != null)
                 return obj;
-        }
-        catch
-        {
-            // ignore and fallback
-        }
 
-        return Activator.CreateInstance<T>();
+            throw new InvalidDataException($"KCR202 Deserialization returned null for {typeof(T).Name}");
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            throw new InvalidDataException($"KCR202 Failed to deserialize {typeof(T).Name}", ex);
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidDataException($"KCR202 Failed to create payload {typeof(T).Name}", ex);
+        }
     }
 }

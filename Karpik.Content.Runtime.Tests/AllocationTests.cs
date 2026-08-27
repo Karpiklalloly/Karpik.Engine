@@ -9,28 +9,30 @@ public sealed class AllocationTests
     [Fact]
     public void AssetRef_Copy_ZeroAlloc()
     {
-        var r = new AssetRef<RawJsonPayload>(new AssetId(Guid.NewGuid()), "game/a");
-        // Warmup JIT to avoid one-time alloc counted in measurement
+        var r = new AssetRef<Karpik.Content.Runtime.RawJsonPayload>(new AssetId(Guid.NewGuid()), 1);
+        // Warmup JIT without per-iter boxing: use sink pattern, touch blittable fields
+        AssetRef<Karpik.Content.Runtime.RawJsonPayload> warmSink = default;
         for (int i = 0; i < 10; i++)
         {
-            var tmp = r;
-            GC.KeepAlive(tmp);
+            warmSink = r;
+            _ = warmSink.Id;
+            _ = warmSink.Version;
         }
 
         long before = GC.GetAllocatedBytesForCurrentThread();
-        AssetRef<RawJsonPayload> sink = default;
+        AssetRef<Karpik.Content.Runtime.RawJsonPayload> sink = default;
         for (int i = 0; i < 100_000; i++)
         {
             sink = r;
-            // Touch fields to prevent dead-store elimination without boxing
+            // Touch blittable fields to prevent dead-store elimination without heap access
             _ = sink.Version;
             _ = sink.Id;
-            _ = sink.LogicalName.Length;
         }
 
         long after = GC.GetAllocatedBytesForCurrentThread();
         GC.KeepAlive(sink);
         GC.KeepAlive(r);
+        GC.KeepAlive(warmSink);
         Assert.Equal(0, after - before);
     }
 }

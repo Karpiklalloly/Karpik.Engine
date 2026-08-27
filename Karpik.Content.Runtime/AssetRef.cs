@@ -7,17 +7,23 @@ public readonly struct AssetRef<T> : IEquatable<AssetRef<T>>, IComparable<AssetR
 {
     public readonly AssetId Id;
     public readonly uint Version;
-    public readonly string LogicalName;
 
-    public AssetRef(AssetId id, string logicalName, uint version = 1)
+    public AssetRef(AssetId id, uint version = 1)
     {
         Id = id;
-        LogicalName = logicalName;
         Version = version;
     }
 
+    public AssetRef(string guid, uint version = 1)
+        : this(AssetId.Parse(guid), version) { }
+
+    [Obsolete("LogicalName is not stored in AssetRef; use ContentRefs.*_Path const or registry debug map. This overload is for backward compatibility and ignores logicalName.")]
+    public AssetRef(AssetId id, string logicalName, uint version = 1)
+        : this(id, version) { }
+
+    [Obsolete("LogicalName is not stored in AssetRef; use ContentRefs.*_Path const or registry debug map. This overload is for backward compatibility and ignores logicalName.")]
     public AssetRef(string guid, string logicalName, uint version = 1)
-        : this(AssetId.Parse(guid), logicalName, version) { }
+        : this(AssetId.Parse(guid), version) { }
 
     public bool IsAlive(ContentRegistry registry) => registry != null && registry.IsAlive(this);
 

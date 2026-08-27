@@ -100,8 +100,9 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             }
             catch (Exception ex)
             {
-                // If manifest corrupt, report and fallback
-                spc.ReportDiagnostic(Diagnostic.Create(ManifestNotBuiltDescriptor, Location.None, manifestPath + ": " + ex.Message));
+                // If manifest corrupt, report and fallback — emit relative/file name only, do not leak absolute path (KCO301)
+                string display = string.IsNullOrWhiteSpace(manifestPath) ? manifestPath : Path.GetFileName(manifestPath);
+                spc.ReportDiagnostic(Diagnostic.Create(ManifestNotBuiltDescriptor, Location.None, display + ": " + ex.Message));
             }
         }
 #pragma warning restore RS1035
@@ -109,10 +110,11 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         if (entries == null)
         {
             // Fallback to AdditionalFiles .json.meta scan if manifest not found
-            // Report KCO301 only if manifestPath was expected but missing
+            // Report KCO301 only if manifestPath was expected but missing — emit file name only
             if (!string.IsNullOrWhiteSpace(manifestPath))
             {
-                spc.ReportDiagnostic(Diagnostic.Create(ManifestNotBuiltDescriptor, Location.None, manifestPath));
+                string display = Path.GetFileName(manifestPath);
+                spc.ReportDiagnostic(Diagnostic.Create(ManifestNotBuiltDescriptor, Location.None, display));
             }
 
             var metaEntries = new List<ManifestEntry>();
@@ -346,8 +348,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             // Example: AssetRef<global::MyNs.HeroConfig>
             // If clr is simple "HeroConfig", then AssetRef<HeroConfig> – but need using for HeroConfig? Assume using already includes generated namespace? For test, simple is fine.
 
-            // Generate field: public static readonly AssetRef<Clr> FieldName = new AssetRef<Clr>("guid", "logical", 1);
-            sb.AppendLine($"        public static readonly AssetRef<{clr}> {fi.FieldName} = new AssetRef<{clr}>(\"{guidStr}\", \"{EscapeString(logical)}\", 1);");
+            // Generate field: AssetRef is blittable Guid+uint (no LogicalName field); logicalName is exposed via const Path
+            sb.AppendLine($"        public static readonly AssetRef<{clr}> {fi.FieldName} = new AssetRef<{clr}>(\"{guidStr}\", 1);");
             sb.AppendLine($"        public const string {fi.FieldName}_Path = \"{EscapeString(logical)}\";");
         }
 

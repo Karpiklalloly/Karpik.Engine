@@ -120,7 +120,7 @@ public sealed class ContentRegistryTests
         var registry = new ContentRegistry();
         registry.RegisterManifest(manifest, store);
 
-        var r = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var r = new AssetRef<RawJsonPayload>(idA, 1);
         var t1 = registry.LoadAsync<RawJsonPayload>(r);
         var t2 = registry.LoadAsync<RawJsonPayload>(r);
 
@@ -143,12 +143,12 @@ public sealed class ContentRegistryTests
         registry.RegisterManifest(manifest, store);
 
         var missingId = new AssetId(Guid.NewGuid());
-        var missingRef = new AssetRef<RawJsonPayload>(missingId, "game/missing", 1);
+        var missingRef = new AssetRef<RawJsonPayload>(missingId, 1);
         Assert.False(registry.TryGet(missingRef, out var lease));
         Assert.False(registry.IsAlive(missingRef));
 
         // Also TryGet before load should be false even for known id
-        var knownRef = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var knownRef = new AssetRef<RawJsonPayload>(idA, 1);
         Assert.False(registry.TryGet(knownRef, out _));
         Assert.False(registry.IsAlive(knownRef));
     }
@@ -162,7 +162,7 @@ public sealed class ContentRegistryTests
         var registry = new ContentRegistry();
         registry.RegisterManifest(manifest, store);
 
-        var r = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var r = new AssetRef<RawJsonPayload>(idA, 1);
         await registry.LoadAsync<RawJsonPayload>(r);
 
         Assert.True(registry.TryGet(r, out var lease));
@@ -170,7 +170,7 @@ public sealed class ContentRegistryTests
         Assert.True(registry.IsAlive(r));
 
         // Create ref with mismatched version
-        var wrongVersionRef = new AssetRef<RawJsonPayload>(idA, "game/a", 999);
+        var wrongVersionRef = new AssetRef<RawJsonPayload>(idA, 999);
         Assert.False(registry.IsAlive(wrongVersionRef));
         Assert.False(registry.TryGet(wrongVersionRef, out _));
         // Also check IsAlive via non-generic helper
@@ -187,7 +187,7 @@ public sealed class ContentRegistryTests
         var registry = new ContentRegistry();
         registry.RegisterManifest(manifest, store);
 
-        var r = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var r = new AssetRef<RawJsonPayload>(idA, 1);
         Assert.False(registry.IsAlive(r));
         await registry.LoadAsync<RawJsonPayload>(r);
         Assert.True(registry.IsAlive(r));
@@ -205,7 +205,7 @@ public sealed class ContentRegistryTests
         var registry = new ContentRegistry();
         registry.RegisterManifest(manifest, flaky);
 
-        var r = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var r = new AssetRef<RawJsonPayload>(idA, 1);
 
         // First load should fail
         await Assert.ThrowsAsync<InvalidDataException>(() => registry.LoadAsync<RawJsonPayload>(r));
@@ -229,7 +229,7 @@ public sealed class ContentRegistryTests
         var registry = new ContentRegistry();
         registry.RegisterManifest(manifest, store);
 
-        var r = new AssetRef<RawJsonPayload>(idA, "game/a", 1);
+        var r = new AssetRef<RawJsonPayload>(idA, 1);
         await registry.LoadAsync<RawJsonPayload>(r);
         Assert.Equal(1, store.Calls);
 
