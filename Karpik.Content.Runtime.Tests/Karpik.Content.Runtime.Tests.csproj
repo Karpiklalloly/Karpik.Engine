@@ -17,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Content.Core\Karpik.Content.Core.csproj" />
     <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
+    <ProjectReference Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj" />
   </ItemGroup>
 </Project>
