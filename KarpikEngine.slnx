@@ -72,6 +72,9 @@
     <Project Path="Karpik.Content.Core/Karpik.Content.Core.csproj" />
     <Project Path="Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
     <Project Path="Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
+    <Project Path="Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
+    <Project Path="Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
+    <Project Path="Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj" />
   </Folder>
   
   <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
