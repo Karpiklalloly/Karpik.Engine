@@ -1,4 +1,3 @@
-#pragma warning disable RS2008, RS1032, RS1035
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -17,7 +16,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ManifestNotBuiltDescriptor = new DiagnosticDescriptor(
         "KCO301",
         "Content manifest not built",
-        "Content manifest not found at '{0}'; falling back to meta scan. Build content before compile for deterministic codegen.",
+        "Content manifest not found at '{0}'; falling back to meta scan (build content before compile for deterministic codegen)",
         "Karpik.Content.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -25,7 +24,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor NoContentTypeDescriptor = new DiagnosticDescriptor(
         "KCO304",
         "No ContentType attribute for declaredType",
-        "DeclaredType '{0}' for asset '{1}' has no matching [ContentType] in compilation; falling back to RawJsonPayload.",
+        "DeclaredType '{0}' for asset '{1}' has no matching [ContentType] in compilation; falling back to RawJsonPayload",
         "Karpik.Content.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -33,7 +32,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor DuplicateLogicalDescriptor = new DiagnosticDescriptor(
         "KCO302",
         "Duplicate logicalName",
-        "Duplicate logicalName '{0}' detected.",
+        "Duplicate logicalName '{0}' detected",
         "Karpik.Content.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -41,7 +40,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor InvalidLogicalDescriptor = new DiagnosticDescriptor(
         "KCO303",
         "Invalid logicalName",
-        "Invalid logicalName '{0}' for asset '{1}'.",
+        "Invalid logicalName '{0}' for asset '{1}'",
         "Karpik.Content.Codegen",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -88,8 +87,10 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
 
         List<ManifestEntry>? entries = null;
 
-        // Primary: try manifest file
-#pragma warning disable RS1035
+        // Primary: try manifest file — KarpikContentManifest is the primary deterministic input; file I/O is required here.
+        // RS1035 is suppressed only for this narrow manifest read because the generator must load the pre-built ContentManifest
+        // via build_property.KarpikContentManifest when available; fallback to AdditionalTexts ensures build without manifest still works.
+#pragma warning disable RS1035 // KarpikContentManifest primary path requires File.Exists / File.ReadAllText
         if (!string.IsNullOrWhiteSpace(manifestPath) && File.Exists(manifestPath))
         {
             try
@@ -102,8 +103,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
                 // If manifest corrupt, report and fallback
                 spc.ReportDiagnostic(Diagnostic.Create(ManifestNotBuiltDescriptor, Location.None, manifestPath + ": " + ex.Message));
             }
-#pragma warning restore RS1035
         }
+#pragma warning restore RS1035
 
         if (entries == null)
         {
@@ -177,7 +178,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
     }
 
     // Overload for tests that want to check diagnostics maybe
-    internal static string GenerateForTestWithDiagnostics(string manifestJson, IReadOnlyDictionary<string, string> typeMap, List<Diagnostic> diagnosticsOut)
+    public static string GenerateForTestWithDiagnostics(string manifestJson, IReadOnlyDictionary<string, string> typeMap, List<Diagnostic> diagnosticsOut)
     {
         var entries = ParseManifestEntries(manifestJson);
         entries.Sort((a, b) => a.AssetId.CompareTo(b.AssetId));
