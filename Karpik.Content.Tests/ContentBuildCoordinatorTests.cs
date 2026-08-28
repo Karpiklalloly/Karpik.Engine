@@ -95,7 +95,7 @@ public sealed class ContentBuildCoordinatorTests
         Thread.Sleep(1100);
 
         var r2 = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = "game" });
-        Assert.True(r2.Success);
+        Assert.True(r2.Success, $"Second build failed: {string.Join("\n", r2.Diagnostics.Select(d => d.ToString()))} Exception: {r2.Diagnostics.FirstOrDefault()?.Message}");
 
         byte[] manifestBytes2 = File.ReadAllBytes(manifestPath);
         DateTime lastWrite2 = File.GetLastWriteTimeUtc(artifactFile);
@@ -284,7 +284,7 @@ public sealed class ContentBuildCoordinatorTests
         File.Move(oldMeta, newPath + ".meta");
 
         var r2 = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = "game" });
-        Assert.True(r2.Success);
+        Assert.True(r2.Success, $"Second build after move failed: {string.Join("\n", r2.Diagnostics.Select(d => d.ToString()))}");
         string manifestJson2 = File.ReadAllText(Path.Combine(output, "manifest.json"));
         var manifest2 = ContentManifest.Parse(manifestJson2);
         Assert.Contains(manifest2.Entries, e => e.AssetId == guid);

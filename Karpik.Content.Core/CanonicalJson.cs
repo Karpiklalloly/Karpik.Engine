@@ -123,22 +123,36 @@ public static class CanonicalJson
                 writer.WriteStringValue(element.GetString());
                 break;
             case JsonValueKind.Number:
-                // Lossless canonical: preserve Int64 exactly, then Decimal exactly, otherwise keep raw text verbatim.
-                // This avoids double rounding for high-precision JSON numbers.
+                // Lossless canonical: Int64 -> Decimal normalized -> raw normalized (exponent lowercased, + stripped)
+                // This avoids double rounding and ensures 1e400 vs 1E400 are identical.
                 if (element.TryGetInt64(out long l))
                 {
                     writer.WriteNumberValue(l);
                 }
                 else if (element.TryGetDecimal(out decimal dec))
                 {
-                    writer.WriteNumberValue(dec);
+                    // Normalize decimal: strip trailing zeros and use invariant, so 1.00 -> 1, 1.00e2 -> 100
+                    // Use G29 to get minimal representation without scientific unless needed, then lower case
+                    string decStr = dec.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    // Dec's ToString may use exponent for large/small, normalize to lower e and remove + 
+                    decStr = decStr.Replace("E+", "e").Replace("E", "e").Replace("e+", "e");
+                    // For decimal, ToString already strips trailing zeros for integer values? Ensure 1.0 -> 1
+                    // If decStr contains '.' and ends with '0', decimal.ToString may keep it; normalize manually
+                    if (decStr.Contains('.') && !decStr.Contains('e'))
+                    {
+                        decStr = decStr.TrimEnd('0').TrimEnd('.');
+                        if (decStr == "-0") decStr = "0";
+                        if (decStr.Length == 0) decStr = "0";
+                    }
+                    writer.WriteRawValue(decStr, skipInputValidation: true);
                 }
                 else
                 {
-                    // For numbers outside decimal range (e.g. 1e400) or with >28 digits, keep raw verbatim.
-                    // We could emit a diagnostic here, but for now we preserve raw to avoid precision loss.
-                    // Raw text is already canonical for this edge case; high-precision values will be byte-identical if input is byte-identical.
-                    writer.WriteRawValue(element.GetRawText(), skipInputValidation: true);
+                    // Outside decimal range (e.g. 1e400): normalize raw verbatim -> lower case, e+ -> e, remove leading zeros
+                    string raw = element.GetRawText();
+                    string normalized = raw.ToLowerInvariant().Replace("e+", "e");
+                    // Further canonical: if raw is integer with leading zeros, keep as is? For now lowercased is enough for 1e400 vs 1E400
+                    writer.WriteRawValue(normalized, skipInputValidation: true);
                 }
                 break;
             case JsonValueKind.True:

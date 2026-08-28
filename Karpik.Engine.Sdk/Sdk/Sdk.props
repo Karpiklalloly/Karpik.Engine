@@ -18,6 +18,7 @@
     <KarpikContentSourceRoot Condition="'$(KarpikContentSourceRoot)' == ''">$(MSBuildProjectDirectory)\Content</KarpikContentSourceRoot>
     <KarpikContentOutput>$(IntermediateOutputPath)Content\</KarpikContentOutput>
     <KarpikContentManifest>$(KarpikContentOutput)manifest.json</KarpikContentManifest>
+    <KarpikContentToolDll Condition="'$(KarpikContentToolDll)' == ''">$(MSBuildThisFileDirectory)..\..\Karpik.Content.Tool\bin\$(Configuration)\net10.0\content.dll</KarpikContentToolDll>
   </PropertyGroup>
   <!-- Content codegen is opt-in: enabled only when KarpikContentEnabled=true or KarpikContentNamespace is set, and Content folder exists -->
   <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
@@ -31,7 +32,10 @@
     <CompilerVisibleProperty Include="KarpikContentNamespace" />
     <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
   </ItemGroup>
-  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikRepositoryRoot)Karpik.Content.Tool/Karpik.Content.Tool.csproj')">
-    <Exec Command="dotnet &quot;$(KarpikRepositoryRoot)Karpik.Content.Tool/bin/$(Configuration)/net10.0/content.dll&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace)" />
+  <Target Name="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and !Exists('$(KarpikContentToolDll)')">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" Targets="Build" Properties="Configuration=$(Configuration)" />
+  </Target>
+  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" DependsOnTargets="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
+    <Exec Command="dotnet &quot;$(KarpikContentToolDll)&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace)" />
   </Target>
 </Project>

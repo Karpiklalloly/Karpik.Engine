@@ -57,11 +57,10 @@ public sealed class ContentAtomicPublisher
             try
             {
                 if (File.Exists(journal)) File.Delete(journal);
+                // After successful recovery, clean up the entire wrapper (including payload) to avoid garbage
                 if (Directory.Exists(wrapper))
                 {
-                    // Cleanup wrapper if empty or contains only payload
-                    if (!Directory.EnumerateFileSystemEntries(wrapper).Any())
-                        Directory.Delete(wrapper);
+                    try { Directory.Delete(wrapper, recursive: true); } catch { }
                 }
             }
             catch { }
@@ -161,11 +160,17 @@ public sealed class ContentAtomicPublisher
                 }
             }
 
-            // Now atomically replace manifest last (File.Replace if exists, else Move)
+            // Now atomically replace manifest last (only if not byte-identical)
             if (manifestFile is not null)
             {
                 string destManifest = Path.Combine(_outputRoot, "manifest.json");
-                if (hadManifest)
+                bool manifestEqual = hadManifest && FilesEqual(manifestFile, destManifest);
+                if (manifestEqual)
+                {
+                    // No rewrite needed — keep existing timestamp
+                    File.Delete(manifestFile);
+                }
+                else if (hadManifest)
                 {
                     // Use Replace for atomic overwrite (backs up old to backupManifest already, but Replace needs backup path)
                     string tmpBackup = destManifest + ".tmpbak";

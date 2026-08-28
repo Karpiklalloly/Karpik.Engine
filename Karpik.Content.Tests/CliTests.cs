@@ -34,7 +34,16 @@ public sealed class CliTests
         // Async read both streams to avoid deadlock (VSTest hang after 10s)
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
-        proc.WaitForExit();
+        bool exited = proc.WaitForExit(10000);
+        if (!exited)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            // Ensure we still collect output
+            Task.WaitAll(new Task[] { stdoutTask, stderrTask }, TimeSpan.FromSeconds(2));
+            string so = stdoutTask.IsCompleted ? stdoutTask.Result : "";
+            string se = stderrTask.IsCompleted ? stderrTask.Result : "";
+            throw new TimeoutException($"content tool hang (args: {string.Join(' ', args)}). stdout: {so} stderr: {se}");
+        }
         // Ensure async reads completed (with timeout guard)
         Task.WaitAll(new Task[] { stdoutTask, stderrTask }, TimeSpan.FromSeconds(5));
         string stdout = stdoutTask.IsCompleted ? stdoutTask.Result : "";
