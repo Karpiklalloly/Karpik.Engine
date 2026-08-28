@@ -172,8 +172,12 @@ public static class CanonicalJson
         if (eIdx < 0) return s;
         string mant = s.Substring(0, eIdx);
         string expPart = s.Substring(eIdx + 1);
-        if (!int.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out int exp))
+        if (!long.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out long exp))
+        {
+            // Exponent outside Int64 - still need to normalize mantissa case, but keep exponent as string lowercased
+            // For very large exponent, we cannot parse, so just return lowercased raw with e+ -> e
             return s;
+        }
         bool neg = mant.StartsWith("-");
         if (neg) mant = mant.Substring(1);
         // Split mantissa into integer and fractional
@@ -189,57 +193,25 @@ public static class CanonicalJson
             intPart = mant;
             fracPart = "";
         }
+        string originalIntPart = intPart;
         intPart = intPart.TrimStart('0');
         // Combine intPart + fracPart as digits, track exponent adjustment for dot
         string digits = intPart + fracPart;
         digits = digits.TrimStart('0');
         if (digits.Length == 0) return "0";
         // Adjust exponent for fractional part and leading zeros
-        // Original mantissa = intPart.fracPart *10^exp
-        // Normalized mantissa should be d.ddd... where d is first non-zero digit
-        // digits already is all significant digits without leading zeros
-        // exponent adjustment = (intPart.Length -1) if intPart != "" else -(first non-zero in fracPart offset)
-        int intLen = intPart.Length;
-        int dotExpAdjust;
-        if (intPart.Length > 0)
+        if (originalIntPart.TrimStart('0').Length == 0)
         {
-            // intPart has no leading zeros now (trimmed), but original intPart may have been "0" or "10"
-            // digits = intPartTrimmed + fracPart, exponent = exp + (original intPart length - digits length + fracPart length?) Simpler: use original mantissa value
-            // For "10" with frac "" -> digits "1", intPart "10" length 2, digits length 1 => adjust = 1
-            // For "1.0" -> intPart "1", frac "0" -> digits "10" -> trimmed "1", intPart length 1, digits length 1 => adjust 0 but need to account for frac
-            // General: mantissa value = digits *10^(exp - fracPart.Length)
-            // Normalized exponent = exp - fracPart.Length + (digits.Length -1)
-            dotExpAdjust = -fracPart.Length + (digits.Length - 1);
-            // But we already have intPart length included in digits? Let's compute directly:
-            // mantissa = (intPart + "." + fracPart) = digits with dot at intPart.Length
-            // normalized = digits[0] + "." + digits.Substring(1) *10^(exp + (intPart.Length -1))
-            // Actually for "10" (intPart "10", frac ""), intPart.Length=2, digits="1" after trim, normalized exp = exp +1
-            // For "1.0" (intPart "1", frac "0"), intPart.Length=1, digits "1", exp=400 => normalized exp 400
-            // So formula: exp + (intPart.Length -1) ??? For "10": 399+1=400 correct. For "1.0": 400+0=400 correct.
-            // For "0.001" (intPart "0", frac "001", digits "1", intPart.Length=1 but intPart is "0" trimmed to "", need special)
-            if (intPart.TrimStart('0').Length == 0)
-            {
-                // intPart is all zeros, find first non-zero in fracPart
-                int firstNonZero = -1;
-                for (int i = 0; i < fracPart.Length; i++) if (fracPart[i] != '0') { firstNonZero = i; break; }
-                if (firstNonZero >= 0)
-                    dotExpAdjust = -(firstNonZero + 1);
-                else
-                    dotExpAdjust = 0;
-                // digits already is significant digits, exponent = exp + dotExpAdjust
-                exp = exp + dotExpAdjust;
-            }
-            else
-            {
-                // intPart non-zero
-                exp = exp + (intPart.TrimStart('0').Length - 1);
-                // But we also need to account for fracPart length? No, because digits includes fracPart, but normalized mantissa will be digits[0].digits[1..]
-                // exponent already adjusted for intPart length, fracPart is part of digits
-            }
+            // intPart is all zeros (e.g. 0.001): find first non-zero in fracPart
+            int firstNonZero = -1;
+            for (int i = 0; i < fracPart.Length; i++) if (fracPart[i] != '0') { firstNonZero = i; break; }
+            if (firstNonZero >= 0)
+                exp = exp - (firstNonZero + 1);
         }
         else
         {
-            exp = exp;
+            // intPart non-zero: normalize exponent by intPart significant length
+            exp = exp + (originalIntPart.TrimStart('0').Length - 1);
         }
         string first = digits.Substring(0, 1);
         string rest = digits.Length > 1 ? digits.Substring(1) : "";

@@ -83,5 +83,51 @@ public sealed class RecoveryAndToolTests
         string c3 = CanonicalJson.SerializeCanonical(doc3.RootElement);
         string c4 = CanonicalJson.SerializeCanonical(doc4.RootElement);
         Assert.Equal(c3, c4);
+
+        // 0.001e400 => 1e397, 0.00012e400 => 1.2e396
+        string json5 = """{"v": 0.001e400}""";
+        string json6 = """{"v": 1e397}""";
+        using var doc5 = System.Text.Json.JsonDocument.Parse(json5);
+        using var doc6 = System.Text.Json.JsonDocument.Parse(json6);
+        string c5 = CanonicalJson.SerializeCanonical(doc5.RootElement);
+        string c6 = CanonicalJson.SerializeCanonical(doc6.RootElement);
+        Assert.Equal(c5, c6);
+        Assert.Equal("""{"v":1e397}""", c5);
+
+        string json7 = """{"v": 0.00012e400}""";
+        string json8 = """{"v": 1.2e396}""";
+        using var doc7 = System.Text.Json.JsonDocument.Parse(json7);
+        using var doc8 = System.Text.Json.JsonDocument.Parse(json8);
+        string c7 = CanonicalJson.SerializeCanonical(doc7.RootElement);
+        string c8 = CanonicalJson.SerializeCanonical(doc8.RootElement);
+        Assert.Equal(c7, c8);
+        Assert.Equal("""{"v":1.2e396}""", c7);
+
+        // Negative
+        string json9 = """{"v": -0.001e400}""";
+        string json10 = """{"v": -1e397}""";
+        using var doc9 = System.Text.Json.JsonDocument.Parse(json9);
+        using var doc10 = System.Text.Json.JsonDocument.Parse(json10);
+        string c9 = CanonicalJson.SerializeCanonical(doc9.RootElement);
+        string c10 = CanonicalJson.SerializeCanonical(doc10.RootElement);
+        Assert.Equal(c9, c10);
+        Assert.Equal("""{"v":-1e397}""", c9);
+
+        // Very large exponent outside Int32: 1e2147483648 vs 10e2147483647
+        string json11 = """{"v": 1e2147483648}""";
+        string json12 = """{"v": 10e2147483647}""";
+        using var doc11 = System.Text.Json.JsonDocument.Parse(json11);
+        using var doc12 = System.Text.Json.JsonDocument.Parse(json12);
+        string c11 = CanonicalJson.SerializeCanonical(doc11.RootElement);
+        string c12 = CanonicalJson.SerializeCanonical(doc12.RootElement);
+        Assert.Equal(c11, c12);
+        Assert.Equal("""{"v":1e2147483648}""", c11);
+
+        // Also via RawJsonProcessor cooked artifact
+        var processor = new RawJsonProcessor();
+        var meta = AssetMeta.Parse("""{"schemaVersion":1,"assetId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","declaredType":"raw-json","logicalName":"game/a"}""", "a.json.meta", new List<ContentDiagnostic>());
+        var result1 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 0.001e400}"""), meta, "a.json");
+        var result2 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 1e397}"""), meta, "a.json");
+        Assert.Equal(System.Text.Encoding.UTF8.GetString(result1.CookedBytes), System.Text.Encoding.UTF8.GetString(result2.CookedBytes));
     }
 }
