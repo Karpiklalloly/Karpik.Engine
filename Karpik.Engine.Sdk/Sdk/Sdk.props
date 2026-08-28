@@ -32,7 +32,7 @@
     <CompilerVisibleProperty Include="KarpikContentNamespace" />
     <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
   </ItemGroup>
-  <Target Name="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and !Exists('$(KarpikContentToolDll)')">
+  <Target Name="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)')">
     <MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" Targets="Build" Properties="Configuration=$(Configuration)" />
   </Target>
   <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" DependsOnTargets="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">

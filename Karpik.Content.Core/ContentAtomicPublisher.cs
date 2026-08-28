@@ -25,20 +25,18 @@ public sealed class ContentAtomicPublisher
             string manifestBackup = Path.Combine(payload, "manifest.json");
             string currentManifest = Path.Combine(_outputRoot, "manifest.json");
 
+            bool restoreSucceeded = false;
+            bool needCleanup = false;
             try
             {
                 string journalContent = File.ReadAllText(journal);
-                // If journal says "started" and we have backup manifest, and current manifest is missing or is new partial, restore backup
                 if (journalContent.Contains("started") && File.Exists(manifestBackup))
                 {
-                    // If current manifest missing or its content differs from staging manifest that was being published, restore backup
-                    // For safety, if current manifest does not exist or is not valid, restore
                     bool needRestore = !File.Exists(currentManifest);
                     if (!needRestore)
                     {
                         try
                         {
-                            // Try to parse current manifest; if fails, restore
                             ContentManifest.LoadFromFile(currentManifest);
                         }
                         catch
@@ -49,21 +47,44 @@ public sealed class ContentAtomicPublisher
                     if (needRestore)
                     {
                         File.Copy(manifestBackup, currentManifest, overwrite: true);
+                        // Re-validate after copy
+                        ContentManifest.LoadFromFile(currentManifest);
+                    }
+                    restoreSucceeded = true;
+                    needCleanup = true;
+                }
+                else if (!File.Exists(manifestBackup))
+                {
+                    // No backup to restore, but journal exists — treat as stale and allow cleanup
+                    restoreSucceeded = true;
+                    needCleanup = true;
+                }
+                else
+                {
+                    // Journal says not started or other, no restore needed
+                    restoreSucceeded = true;
+                    needCleanup = true;
+                }
+            }
+            catch
+            {
+                // Copy or validation failed — keep journal and wrapper for next Recover attempt
+                restoreSucceeded = false;
+                needCleanup = false;
+            }
+
+            if (needCleanup && restoreSucceeded)
+            {
+                try
+                {
+                    if (File.Exists(journal)) File.Delete(journal);
+                    if (Directory.Exists(wrapper))
+                    {
+                        try { Directory.Delete(wrapper, recursive: true); } catch { }
                     }
                 }
+                catch { }
             }
-            catch { }
-
-            try
-            {
-                if (File.Exists(journal)) File.Delete(journal);
-                // After successful recovery, clean up the entire wrapper (including payload) to avoid garbage
-                if (Directory.Exists(wrapper))
-                {
-                    try { Directory.Delete(wrapper, recursive: true); } catch { }
-                }
-            }
-            catch { }
         }
 
         try
