@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Numerics;
 
 namespace Karpik.Content.Core;
 
@@ -125,11 +126,12 @@ public static class CanonicalJson
             case JsonValueKind.Number:
                 // Lossless canonical: Int64 -> Decimal normalized -> raw normalized (exponent lowercased, + stripped)
                 // This avoids double rounding and ensures 1e400 vs 1E400 are identical.
+                string rawNumber = element.GetRawText();
                 if (element.TryGetInt64(out long l))
                 {
                     writer.WriteNumberValue(l);
                 }
-                else if (element.TryGetDecimal(out decimal dec))
+                else if (element.TryGetDecimal(out decimal dec) && (dec != 0m || IsLexicallyZero(rawNumber)))
                 {
                     // Normalize decimal: strip trailing zeros and use invariant, so 1.00 -> 1
                     string decStr = dec.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -145,8 +147,7 @@ public static class CanonicalJson
                 else
                 {
                     // Outside decimal range (e.g. 1e400, 1.0e400, 10e399): full mantissa/exponent canonical
-                    string raw = element.GetRawText();
-                    string normalized = NormalizeLargeExponentNumber(raw);
+                    string normalized = NormalizeLargeExponentNumber(rawNumber);
                     writer.WriteRawValue(normalized, skipInputValidation: true);
                 }
                 break;
@@ -165,6 +166,16 @@ public static class CanonicalJson
         }
     }
 
+    private static bool IsLexicallyZero(string raw)
+    {
+        foreach (char c in raw)
+        {
+            if (c is >= '1' and <= '9') return false;
+        }
+
+        return true;
+    }
+
     private static string NormalizeLargeExponentNumber(string raw)
     {
         string s = raw.ToLowerInvariant().Replace("e+", "e");
@@ -172,10 +183,9 @@ public static class CanonicalJson
         if (eIdx < 0) return s;
         string mant = s.Substring(0, eIdx);
         string expPart = s.Substring(eIdx + 1);
-        if (!long.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out long exp))
+        if (!BigInteger.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out BigInteger exp))
         {
-            // Exponent outside Int64 - still need to normalize mantissa case, but keep exponent as string lowercased
-            // For very large exponent, we cannot parse, so just return lowercased raw with e+ -> e
+            // JsonDocument validates numeric syntax before this method is called; retain raw text if parsing fails.
             return s;
         }
         bool neg = mant.StartsWith("-");

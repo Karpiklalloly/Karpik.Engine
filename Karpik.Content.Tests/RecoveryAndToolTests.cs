@@ -123,6 +123,25 @@ public sealed class RecoveryAndToolTests
         Assert.Equal(c11, c12);
         Assert.Equal("""{"v":1e2147483648}""", c11);
 
+        // Int64 boundary: normalization must not wrap the exponent.
+        string json13 = """{"v": 10e9223372036854775807}""";
+        string json14 = """{"v": 1e9223372036854775808}""";
+        using var doc13 = System.Text.Json.JsonDocument.Parse(json13);
+        using var doc14 = System.Text.Json.JsonDocument.Parse(json14);
+        string c13 = CanonicalJson.SerializeCanonical(doc13.RootElement);
+        string c14 = CanonicalJson.SerializeCanonical(doc14.RootElement);
+        Assert.Equal(c14, c13);
+        Assert.Equal("""{"v":1e9223372036854775808}""", c13);
+
+        string json15 = """{"v": 0.1e-9223372036854775808}""";
+        string json16 = """{"v": 1e-9223372036854775809}""";
+        using var doc15 = System.Text.Json.JsonDocument.Parse(json15);
+        using var doc16 = System.Text.Json.JsonDocument.Parse(json16);
+        string c15 = CanonicalJson.SerializeCanonical(doc15.RootElement);
+        string c16 = CanonicalJson.SerializeCanonical(doc16.RootElement);
+        Assert.Equal(c16, c15);
+        Assert.Equal("""{"v":1e-9223372036854775809}""", c15);
+
         // Also via RawJsonProcessor cooked artifact
         var processor = new RawJsonProcessor();
         var meta = AssetMeta.Parse("""{"schemaVersion":1,"assetId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","declaredType":"raw-json","logicalName":"game/a"}""", "a.json.meta", new List<ContentDiagnostic>());
