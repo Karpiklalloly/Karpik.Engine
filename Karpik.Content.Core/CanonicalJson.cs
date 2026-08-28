@@ -123,22 +123,22 @@ public static class CanonicalJson
                 writer.WriteStringValue(element.GetString());
                 break;
             case JsonValueKind.Number:
-                // Use invariant, raw text preserved? Need to normalize number formatting.
-                // Get raw text and ensure invariant: use decimal?
-                // For canonical, we will write the raw number but normalized via GetDouble then ToString invariant? Simpler: write raw text as is, but numbers from meta are ints.
-                // We'll try to preserve canonical numeric representation: if it's integer, write as integer.
+                // Lossless canonical: preserve Int64 exactly, then Decimal exactly, otherwise keep raw text verbatim.
+                // This avoids double rounding for high-precision JSON numbers.
                 if (element.TryGetInt64(out long l))
                 {
                     writer.WriteNumberValue(l);
                 }
-                else if (element.TryGetDouble(out double d))
+                else if (element.TryGetDecimal(out decimal dec))
                 {
-                    // Use G17 invariant
-                    writer.WriteNumberValue(d);
+                    writer.WriteNumberValue(dec);
                 }
                 else
                 {
-                    writer.WriteRawValue(element.GetRawText());
+                    // For numbers outside decimal range (e.g. 1e400) or with >28 digits, keep raw verbatim.
+                    // We could emit a diagnostic here, but for now we preserve raw to avoid precision loss.
+                    // Raw text is already canonical for this edge case; high-precision values will be byte-identical if input is byte-identical.
+                    writer.WriteRawValue(element.GetRawText(), skipInputValidation: true);
                 }
                 break;
             case JsonValueKind.True:

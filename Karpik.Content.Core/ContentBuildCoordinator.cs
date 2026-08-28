@@ -149,13 +149,28 @@ public sealed class ContentBuildCoordinator
 
         diagnostics.Sort(CompareDiagnostics);
 
-        // Atomic publication
-        // Create temp sibling dir under output root
+        // Validate output vs source have no intersection before any staging
         string outputRootFull = Path.GetFullPath(options.OutputRoot);
-        Directory.CreateDirectory(outputRootFull);
+        string sourceRootForCheck;
+        try { sourceRootForCheck = Path.GetFullPath(options.SourceRoot); }
+        catch (Exception ex) { sourceRootForCheck = options.SourceRoot; diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"Invalid source root for output check: {ex.Message}")); diagnostics.Sort(CompareDiagnostics); return new ContentBuildResult { Success = false, Diagnostics = diagnostics }; }
 
-        // Check output traversal: output root must not be inside source? Not required.
-        // But also need to ensure outputRoot is not inside source causing recursion? Not needed for now.
+        string normalizedSource = sourceRootForCheck.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedOutput = outputRootFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        bool same = string.Equals(normalizedSource, normalizedOutput, PathSafety.PathComparison);
+        bool outputInsideSource = PathSafety.IsContained(sourceRootForCheck, outputRootFull) && !same;
+        bool sourceInsideOutput = PathSafety.IsContained(outputRootFull, sourceRootForCheck) && !same;
+        if (same || outputInsideSource || sourceInsideOutput)
+        {
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"OutputRoot '{outputRootFull}' must not be equal to, contain, or be contained by SourceRoot '{sourceRootForCheck}'."));
+            diagnostics.Sort(CompareDiagnostics);
+            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
+
+        // Recover from any interrupted previous publish (crash between artifact moves and manifest swap)
+        try { new ContentAtomicPublisher(outputRootFull).Recover(); } catch { }
+
+        Directory.CreateDirectory(outputRootFull);
 
         string stagingRoot = Path.Combine(outputRootFull, ".staging");
         Directory.CreateDirectory(stagingRoot);

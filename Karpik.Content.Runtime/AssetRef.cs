@@ -29,7 +29,12 @@ public readonly struct AssetRef<T> : IEquatable<AssetRef<T>>, IComparable<AssetR
 
     public bool Equals(AssetRef<T> other) => Id.Equals(other.Id) && Version == other.Version;
 
-    public int CompareTo(AssetRef<T> other) => Id.CompareTo(other.Id);
+    public int CompareTo(AssetRef<T> other)
+    {
+        int cmp = Id.CompareTo(other.Id);
+        if (cmp != 0) return cmp;
+        return Version.CompareTo(other.Version);
+    }
 
     public override bool Equals(object? obj) => obj is AssetRef<T> other && Equals(other);
 

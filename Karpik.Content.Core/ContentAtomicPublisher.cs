@@ -11,182 +11,237 @@ public sealed class ContentAtomicPublisher
         _stagingRoot = Path.Combine(_outputRoot, ".staging");
     }
 
+    public void Recover()
+    {
+        string replacementRoot = Path.Combine(_outputRoot, ".replacement");
+        if (!Directory.Exists(replacementRoot)) return;
+
+        foreach (string wrapper in Directory.EnumerateDirectories(replacementRoot, "*", SearchOption.TopDirectoryOnly))
+        {
+            string journal = Path.Combine(wrapper, ".journal");
+            if (!File.Exists(journal)) continue;
+
+            string payload = Path.Combine(wrapper, "payload");
+            string manifestBackup = Path.Combine(payload, "manifest.json");
+            string currentManifest = Path.Combine(_outputRoot, "manifest.json");
+
+            try
+            {
+                string journalContent = File.ReadAllText(journal);
+                // If journal says "started" and we have backup manifest, and current manifest is missing or is new partial, restore backup
+                if (journalContent.Contains("started") && File.Exists(manifestBackup))
+                {
+                    // If current manifest missing or its content differs from staging manifest that was being published, restore backup
+                    // For safety, if current manifest does not exist or is not valid, restore
+                    bool needRestore = !File.Exists(currentManifest);
+                    if (!needRestore)
+                    {
+                        try
+                        {
+                            // Try to parse current manifest; if fails, restore
+                            ContentManifest.LoadFromFile(currentManifest);
+                        }
+                        catch
+                        {
+                            needRestore = true;
+                        }
+                    }
+                    if (needRestore)
+                    {
+                        File.Copy(manifestBackup, currentManifest, overwrite: true);
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (File.Exists(journal)) File.Delete(journal);
+                if (Directory.Exists(wrapper))
+                {
+                    // Cleanup wrapper if empty or contains only payload
+                    if (!Directory.EnumerateFileSystemEntries(wrapper).Any())
+                        Directory.Delete(wrapper);
+                }
+            }
+            catch { }
+        }
+
+        try
+        {
+            if (Directory.Exists(replacementRoot) && !Directory.EnumerateFileSystemEntries(replacementRoot).Any())
+                Directory.Delete(replacementRoot);
+        }
+        catch { }
+    }
+
     public void Publish(string stagingDirectory)
     {
         string stagingFull = Path.GetFullPath(stagingDirectory);
         if (!PathSafety.IsContained(_stagingRoot, stagingFull) && !string.Equals(stagingFull.TrimEnd(Path.DirectorySeparatorChar), _stagingRoot.TrimEnd(Path.DirectorySeparatorChar), PathSafety.PathComparison))
         {
             if (!PathSafety.IsContained(_stagingRoot, stagingFull))
-            {
                 throw new ArgumentException($"Staging directory must be under {_stagingRoot}", nameof(stagingDirectory));
-            }
         }
 
         if (!Directory.Exists(stagingFull))
-        {
             throw new DirectoryNotFoundException($"Staging directory not found: {stagingFull}");
-        }
 
         Directory.CreateDirectory(_outputRoot);
 
         string stagingManifest = Path.Combine(stagingFull, "manifest.json");
         if (!File.Exists(stagingManifest))
-        {
             throw new InvalidDataException($"Staging manifest missing: {stagingManifest}");
-        }
 
         string replacementRoot = Path.Combine(_outputRoot, ".replacement");
         Directory.CreateDirectory(replacementRoot);
-        string backupDir = Path.Combine(replacementRoot, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(backupDir);
+        string txId = Guid.NewGuid().ToString("N");
+        string backupDir = Path.Combine(replacementRoot, txId);
+        string payloadDir = Path.Combine(backupDir, "payload");
+        Directory.CreateDirectory(payloadDir);
+        string journalPath = Path.Combine(backupDir, ".journal");
+        File.WriteAllText(journalPath, "started");
 
-        var publishedEntries = new List<string>();
-        foreach (string entry in Directory.EnumerateFileSystemEntries(_outputRoot))
+        // Backup current manifest if exists (for atomic manifest swap)
+        string currentManifest = Path.Combine(_outputRoot, "manifest.json");
+        string backupManifest = Path.Combine(payloadDir, "manifest.json");
+        bool hadManifest = File.Exists(currentManifest);
+        if (hadManifest)
         {
-            string name = Path.GetFileName(entry);
-            if (name == ".staging" || name == ".replacement") continue;
-            publishedEntries.Add(entry);
+            File.Copy(currentManifest, backupManifest, overwrite: true);
         }
 
         try
         {
-            // Move existing published entries to backup (preserve structure)
-            foreach (string entry in publishedEntries)
+            // Move artifacts first (all files except manifest.json), with FilesEqual optimization to avoid rewrite
+            // Collect backup map for reuse check (for artifacts that will be overwritten)
+            var backupArtifactMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (hadManifest)
             {
-                string dest = Path.Combine(backupDir, Path.GetFileName(entry));
-                if (Directory.Exists(entry))
+                // Build map of existing artifacts for reuse check
+                string currentArtifactsRoot = Path.Combine(_outputRoot, "artifacts");
+                if (Directory.Exists(currentArtifactsRoot))
                 {
-                    Directory.Move(entry, dest);
-                }
-                else if (File.Exists(entry))
-                {
-                    File.Move(entry, dest);
-                }
-            }
-
-            // Build map of backup files (relative -> full path)
-            var backupFiles = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (Directory.Exists(backupDir))
-            {
-                foreach (string file in Directory.EnumerateFiles(backupDir, "*", SearchOption.AllDirectories))
-                {
-                    string rel = Path.GetRelativePath(backupDir, file).Replace(Path.DirectorySeparatorChar, '/');
-                    backupFiles[rel] = file;
+                    foreach (string f in Directory.EnumerateFiles(currentArtifactsRoot, "*", SearchOption.AllDirectories))
+                    {
+                        string rel = Path.GetRelativePath(_outputRoot, f).Replace(Path.DirectorySeparatorChar, '/');
+                        backupArtifactMap[rel] = f;
+                    }
                 }
             }
 
-            // Build map of staging files
-            var stagingFiles = new List<string>();
-            foreach (string file in Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories))
-            {
-                stagingFiles.Add(file);
-            }
+            var stagingFiles = Directory.EnumerateFiles(stagingFull, "*", SearchOption.AllDirectories).ToList();
+            var manifestFile = stagingFiles.FirstOrDefault(f => string.Equals(Path.GetFileName(f), "manifest.json", StringComparison.OrdinalIgnoreCase));
+            var artifactFiles = stagingFiles.Where(f => !string.Equals(Path.GetFileName(f), "manifest.json", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            var stagedRelativeSet = new HashSet<string>(StringComparer.Ordinal);
-            foreach (string stagingFile in stagingFiles)
+            // Move artifacts (excluding manifest) first
+            foreach (string stagingFile in artifactFiles)
             {
                 string rel = Path.GetRelativePath(stagingFull, stagingFile).Replace(Path.DirectorySeparatorChar, '/');
-                stagedRelativeSet.Add(rel);
                 string dest = Path.Combine(_outputRoot, rel.Replace('/', Path.DirectorySeparatorChar));
                 string? destDir = Path.GetDirectoryName(dest);
                 if (destDir is not null) Directory.CreateDirectory(destDir);
 
-                // If backup has same relative path and content equal, reuse backup (preserve timestamp, no rewrite)
-                if (backupFiles.TryGetValue(rel, out string? backupFile) && FilesEqual(backupFile, stagingFile))
+                // If backup has same relative path and content equal, reuse (no rewrite) — keep existing file, delete staging
+                if (backupArtifactMap.TryGetValue(rel, out string? existing) && FilesEqual(existing, stagingFile))
                 {
-                    // Move from backup to output, discard staging file
-                    File.Move(backupFile, dest);
                     File.Delete(stagingFile);
-                    backupFiles.Remove(rel);
+                    backupArtifactMap.Remove(rel);
                 }
                 else
                 {
-                    // Move staging file to output (overwrites if backup file exists but not equal, we already removed backup entry? Need to delete backup if exists)
-                    if (backupFiles.TryGetValue(rel, out string? existingBackup))
+                    if (File.Exists(dest)) File.Delete(dest);
+                    // If backup had this file but not equal, remove backup entry (it will be considered stale)
+                    if (backupArtifactMap.ContainsKey(rel))
                     {
-                        // Backup file is not equal, delete it (it will be GC'd as stale)
-                        File.Delete(existingBackup);
-                        backupFiles.Remove(rel);
-                    }
-
-                    // Ensure dest not exists
-                    if (File.Exists(dest))
-                    {
-                        File.Delete(dest);
+                        try { File.Delete(backupArtifactMap[rel]); } catch { }
+                        backupArtifactMap.Remove(rel);
                     }
                     File.Move(stagingFile, dest);
                 }
             }
 
-            // Also handle staging directories that may be empty? But files already moved, need to clean staging dir
-            // Delete remaining backup files that are stale (not in new staging) - they are already in backupDir but not moved, just delete them
-            foreach (var kv in backupFiles)
+            // Now atomically replace manifest last (File.Replace if exists, else Move)
+            if (manifestFile is not null)
             {
-                try { File.Delete(kv.Value); } catch { }
+                string destManifest = Path.Combine(_outputRoot, "manifest.json");
+                if (hadManifest)
+                {
+                    // Use Replace for atomic overwrite (backs up old to backupManifest already, but Replace needs backup path)
+                    string tmpBackup = destManifest + ".tmpbak";
+                    try { if (File.Exists(tmpBackup)) File.Delete(tmpBackup); } catch { }
+                    File.Replace(manifestFile, destManifest, tmpBackup);
+                    try { if (File.Exists(tmpBackup)) File.Delete(tmpBackup); } catch { }
+                }
+                else
+                {
+                    File.Move(manifestFile, destManifest);
+                }
             }
 
-            // Clean up empty backup directories
+            // Delete remaining stale artifacts that were in backup but not in new staging (not overwritten)
+            // backupArtifactMap now contains only stale files not in new staging (or those we kept)
+            foreach (var kv in backupArtifactMap)
+            {
+                try
+                {
+                    string full = kv.Value;
+                    if (File.Exists(full)) File.Delete(full);
+                }
+                catch { }
+            }
+            // Clean empty artifact directories in output
+            TryDeleteEmptyDirectories(Path.Combine(_outputRoot, "artifacts"));
             TryDeleteEmptyDirectories(backupDir);
 
-            // Delete staging directory
+            // Cleanup staging directory (should be empty or contain only empty dirs)
             if (Directory.Exists(stagingFull))
             {
-                Directory.Delete(stagingFull, recursive: true);
+                try { Directory.Delete(stagingFull, recursive: true); } catch { }
             }
 
-            // Delete backup dir if empty
+            // Delete backup payload and journal on success
+            if (Directory.Exists(payloadDir))
+            {
+                try { Directory.Delete(payloadDir, recursive: true); } catch { }
+            }
             if (Directory.Exists(backupDir))
             {
-                // If still has directories (e.g., artifacts), delete recursively
-                Directory.Delete(backupDir, recursive: true);
+                try { Directory.Delete(backupDir, recursive: true); } catch { }
             }
+            try { if (File.Exists(journalPath)) File.Delete(journalPath); } catch { }
 
             try
             {
-                if (!Directory.EnumerateFileSystemEntries(replacementRoot).Any())
-                {
+                if (Directory.Exists(replacementRoot) && !Directory.EnumerateFileSystemEntries(replacementRoot).Any())
                     Directory.Delete(replacementRoot);
-                }
             }
             catch { }
 
-            string publishedManifest = Path.Combine(_outputRoot, "manifest.json");
-            if (!File.Exists(publishedManifest))
-            {
+            if (!File.Exists(Path.Combine(_outputRoot, "manifest.json")))
                 throw new InvalidDataException("Published manifest missing after move.");
-            }
         }
         catch (Exception)
         {
+            // Rollback manifest if we replaced it: restore from backup
             try
             {
-                // Rollback: delete any partially published output
-                foreach (string entry in Directory.EnumerateFileSystemEntries(_outputRoot))
+                if (File.Exists(backupManifest))
                 {
-                    string name = Path.GetFileName(entry);
-                    if (name == ".staging" || name == ".replacement") continue;
-                    if (Directory.Exists(entry))
+                    // If current manifest is missing or invalid, restore backup
+                    string destManifest = Path.Combine(_outputRoot, "manifest.json");
+                    try
                     {
-                        Directory.Delete(entry, recursive: true);
+                        if (!File.Exists(destManifest))
+                            File.Copy(backupManifest, destManifest, overwrite: true);
+                        else
+                        {
+                            // Try to validate current manifest; if invalid, restore
+                            try { ContentManifest.LoadFromFile(destManifest); }
+                            catch { File.Copy(backupManifest, destManifest, overwrite: true); }
+                        }
                     }
-                    else if (File.Exists(entry))
-                    {
-                        File.Delete(entry);
-                    }
-                }
-
-                // Restore backup
-                foreach (string entry in Directory.EnumerateFileSystemEntries(backupDir))
-                {
-                    string dest = Path.Combine(_outputRoot, Path.GetFileName(entry));
-                    if (Directory.Exists(entry))
-                    {
-                        Directory.Move(entry, dest);
-                    }
-                    else if (File.Exists(entry))
-                    {
-                        File.Move(entry, dest);
-                    }
+                    catch { File.Copy(backupManifest, destManifest, overwrite: true); }
                 }
             }
             catch { }
@@ -195,7 +250,9 @@ public sealed class ContentAtomicPublisher
             {
                 if (Directory.Exists(backupDir))
                 {
-                    Directory.Delete(backupDir, recursive: true);
+                    // Keep journal for next Recover
+                    if (!File.Exists(journalPath))
+                        File.WriteAllText(journalPath, "started");
                 }
             }
             catch { }
@@ -209,17 +266,11 @@ public sealed class ContentAtomicPublisher
         var leftInfo = new FileInfo(left);
         var rightInfo = new FileInfo(right);
         if (leftInfo.Length != rightInfo.Length) return false;
-
         const int bufferSize = 81920;
         using var leftStream = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan);
         using var rightStream = new FileStream(right, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan);
-        Span<byte> leftBuf = stackalloc byte[8192];
-        Span<byte> rightBuf = stackalloc byte[8192];
-
-        // Use heap buffers for larger
         byte[] leftHeap = new byte[8192];
         byte[] rightHeap = new byte[8192];
-
         int leftRead, rightRead;
         do
         {
@@ -227,12 +278,8 @@ public sealed class ContentAtomicPublisher
             rightRead = rightStream.Read(rightHeap, 0, rightHeap.Length);
             if (leftRead != rightRead) return false;
             if (leftRead == 0) break;
-            if (!leftHeap.AsSpan(0, leftRead).SequenceEqual(rightHeap.AsSpan(0, rightRead)))
-            {
-                return false;
-            }
+            if (!leftHeap.AsSpan(0, leftRead).SequenceEqual(rightHeap.AsSpan(0, rightRead))) return false;
         } while (leftRead > 0);
-
         return true;
     }
 
@@ -240,12 +287,11 @@ public sealed class ContentAtomicPublisher
     {
         try
         {
+            if (!Directory.Exists(root)) return;
             foreach (string dir in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
             {
                 if (!Directory.EnumerateFileSystemEntries(dir).Any())
-                {
                     Directory.Delete(dir);
-                }
             }
         }
         catch { }

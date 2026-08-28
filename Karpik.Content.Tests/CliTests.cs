@@ -5,23 +5,40 @@ namespace Karpik.Content.Tests;
 
 public sealed class CliTests
 {
-    private static string ToolProject => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Karpik.Content.Tool", "Karpik.Content.Tool.csproj"));
+    private static string ToolDll
+    {
+        get
+        {
+            // Prefer built content.dll next to test assembly (via ProjectReference) or fallback to Tool bin
+            string fromTestBin = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "content.dll"));
+            if (File.Exists(fromTestBin)) return fromTestBin;
+            string fromToolBin = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Karpik.Content.Tool", "bin", "Debug", "net10.0", "content.dll"));
+            if (File.Exists(fromToolBin)) return fromToolBin;
+            // Fallback to Tool project path (will trigger build, but we avoid it)
+            return fromToolBin;
+        }
+    }
 
     private static (int ExitCode, string StdOut, string StdErr) RunTool(params string[] args)
     {
         var psi = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"run --project \"{ToolProject}\" -- {string.Join(' ', args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}",
+            Arguments = $"\"{ToolDll}\" {string.Join(' ', args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
         using var proc = Process.Start(psi)!;
-        string stdout = proc.StandardOutput.ReadToEnd();
-        string stderr = proc.StandardError.ReadToEnd();
+        // Async read both streams to avoid deadlock (VSTest hang after 10s)
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
         proc.WaitForExit();
+        // Ensure async reads completed (with timeout guard)
+        Task.WaitAll(new Task[] { stdoutTask, stderrTask }, TimeSpan.FromSeconds(5));
+        string stdout = stdoutTask.IsCompleted ? stdoutTask.Result : "";
+        string stderr = stderrTask.IsCompleted ? stderrTask.Result : "";
         return (proc.ExitCode, stdout, stderr);
     }
 
