@@ -16,7 +16,7 @@ internal sealed class ContentSlot
     public SlotState State;
     public uint Version;
     public object? Payload;
-    public AssetId[] Dependencies = Array.Empty<AssetId>();
+    public AssetId[] Dependencies = [];
     public Task? Inflight;
     public object Sync = new();
     public string ArtifactLocator = "";

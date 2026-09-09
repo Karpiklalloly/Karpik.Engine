@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace Karpik.Content.Runtime;
 
 public sealed class FileContentStore(string outputRoot) : IContentStore

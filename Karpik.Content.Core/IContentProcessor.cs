@@ -1,17 +1,13 @@
 namespace Karpik.Content.Core;
 
-public sealed class ContentProcessorResult
+public sealed class ContentProcessorResult(
+    byte[] cookedBytes,
+    IReadOnlyList<AssetId> dependencies,
+    IReadOnlyList<ContentDiagnostic> diagnostics)
 {
-    public byte[] CookedBytes { get; }
-    public IReadOnlyList<AssetId> Dependencies { get; }
-    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; }
-
-    public ContentProcessorResult(byte[] cookedBytes, IReadOnlyList<AssetId> dependencies, IReadOnlyList<ContentDiagnostic> diagnostics)
-    {
-        CookedBytes = cookedBytes;
-        Dependencies = dependencies;
-        Diagnostics = diagnostics;
-    }
+    public byte[] CookedBytes { get; } = cookedBytes;
+    public IReadOnlyList<AssetId> Dependencies { get; } = dependencies;
+    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; } = diagnostics;
 }
 
 public interface IContentProcessor

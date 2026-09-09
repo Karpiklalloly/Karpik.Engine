@@ -20,29 +20,33 @@ public sealed class RawJsonProcessor : IContentProcessor
         }
         catch (Exception ex)
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidJsonContent, ContentDiagnosticSeverity.Error, relativePath, $"Source is not valid UTF-8: {ex.Message}"));
-            return new ContentProcessorResult(Array.Empty<byte>(), Array.Empty<AssetId>(), diagnostics);
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidJsonContent,
+                ContentDiagnosticSeverity.Error, relativePath, $"Source is not valid UTF-8: {ex.Message}"));
+            return new ContentProcessorResult([], [], diagnostics);
         }
 
         JsonDocument doc;
         try
         {
-            doc = JsonDocument.Parse(text, new JsonDocumentOptions { AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow });
+            doc = JsonDocument.Parse(text,
+                new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = false,
+                    CommentHandling = JsonCommentHandling.Disallow
+                });
         }
         catch (JsonException ex)
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidJsonContent, ContentDiagnosticSeverity.Error, relativePath, $"Invalid JSON: {ex.Message}"));
-            return new ContentProcessorResult(Array.Empty<byte>(), Array.Empty<AssetId>(), diagnostics);
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidJsonContent,
+                ContentDiagnosticSeverity.Error, relativePath, $"Invalid JSON: {ex.Message}"));
+            return new ContentProcessorResult([], [], diagnostics);
         }
 
         using (doc)
         {
-            // Canonicalize JSON for cooked artifact: fixed property order, invariant.
-            string canonical = CanonicalJson.SerializeCanonical(doc.RootElement);
-            byte[] cooked = Encoding.UTF8.GetBytes(canonical);
-
             // No automatic dependencies; explicit dependencies are validated at higher level.
-            return new ContentProcessorResult(cooked, Array.Empty<AssetId>(), diagnostics);
+            return new ContentProcessorResult(Encoding.UTF8.GetBytes(CanonicalJson.SerializeCanonical(doc.RootElement)),
+                [], diagnostics);
         }
     }
 }

@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace Karpik.Content.Core;
 
 public sealed class ContentBuildOptions
@@ -12,7 +10,7 @@ public sealed class ContentBuildOptions
 public sealed class ContentBuildResult
 {
     public bool Success { get; init; }
-    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = Array.Empty<ContentDiagnostic>();
+    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = [];
     public ContentManifest? Manifest { get; init; }
 }
 
@@ -22,7 +20,7 @@ public sealed class SourceEntry
     public string AbsolutePath { get; init; } = string.Empty;
     public string MetaRelativePath { get; init; } = string.Empty;
     public string MetaAbsolutePath { get; init; } = string.Empty;
-    public byte[] SourceBytes { get; init; } = Array.Empty<byte>();
+    public byte[] SourceBytes { get; init; } = [];
     public AssetMeta Meta { get; init; } = null!;
 }
 
@@ -32,7 +30,7 @@ public sealed class ContentBuildCoordinator
 
     public ContentBuildCoordinator(IEnumerable<IContentProcessor>? processors = null)
     {
-        var list = processors ?? new IContentProcessor[] { new RawJsonProcessor() };
+        var list = processors ?? [new RawJsonProcessor()];
         _processors = list.ToDictionary(p => p.DeclaredType, StringComparer.Ordinal);
     }
 
@@ -62,7 +60,10 @@ public sealed class ContentBuildCoordinator
         if (hasError)
         {
             diagnostics.Sort(CompareDiagnostics);
-            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+            return new ContentBuildResult
+            {
+                Success = false, Diagnostics = diagnostics
+            };
         }
 
         diagnostics.Sort(CompareDiagnostics);
@@ -96,7 +97,9 @@ public sealed class ContentBuildCoordinator
         {
             if (!_processors.TryGetValue(entry.Meta.DeclaredType, out IContentProcessor? processor))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnsupportedDeclaredType, ContentDiagnosticSeverity.Error, entry.RelativePath, $"Unsupported declared type '{entry.Meta.DeclaredType}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnsupportedDeclaredType,
+                    ContentDiagnosticSeverity.Error, entry.RelativePath,
+                    $"Unsupported declared type '{entry.Meta.DeclaredType}'."));
                 continue;
             }
 
@@ -116,7 +119,8 @@ public sealed class ContentBuildCoordinator
 
             string sourceHash = ContentHashing.HashSourceBytes(entry.SourceBytes);
             string importSettingsHash = ContentHashing.HashImportSettings(entry.Meta.RawImportSettingsJson);
-            string artifactHash = ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version);
+            string artifactHash =
+                ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version);
             string locator = ContentHashing.ComputeArtifactLocator(artifactHash);
             long size = result.CookedBytes.Length;
 
@@ -126,7 +130,8 @@ public sealed class ContentBuildCoordinator
             foreach (AssetId dep in result.Dependencies) deps.Add(dep);
             var sortedDeps = deps.OrderBy(d => d.Value).ToList();
 
-            manifestEntries.Add(new ContentManifestEntry(entry.Meta.AssetId, entry.Meta.DeclaredType, entry.Meta.LogicalName, importSettingsHash, sourceHash, locator, size, sortedDeps));
+            manifestEntries.Add(new ContentManifestEntry(entry.Meta.AssetId, entry.Meta.DeclaredType,
+                entry.Meta.LogicalName, importSettingsHash, sourceHash, locator, size, sortedDeps));
 
             // Only add artifact if not already present (deduplicate by locator)
             if (!artifactMap.ContainsKey(locator))
@@ -152,23 +157,42 @@ public sealed class ContentBuildCoordinator
         // Validate output vs source have no intersection before any staging
         string outputRootFull = Path.GetFullPath(options.OutputRoot);
         string sourceRootForCheck;
-        try { sourceRootForCheck = Path.GetFullPath(options.SourceRoot); }
-        catch (Exception ex) { sourceRootForCheck = options.SourceRoot; diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"Invalid source root for output check: {ex.Message}")); diagnostics.Sort(CompareDiagnostics); return new ContentBuildResult { Success = false, Diagnostics = diagnostics }; }
+        try
+        {
+            sourceRootForCheck = Path.GetFullPath(options.SourceRoot);
+        }
+        catch (Exception ex)
+        {
+            sourceRootForCheck = options.SourceRoot;
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null, $"Invalid source root for output check: {ex.Message}"));
+            diagnostics.Sort(CompareDiagnostics);
+            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
 
-        string normalizedSource = sourceRootForCheck.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedSource =
+            sourceRootForCheck.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string normalizedOutput = outputRootFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         bool same = string.Equals(normalizedSource, normalizedOutput, PathSafety.PathComparison);
         bool outputInsideSource = PathSafety.IsContained(sourceRootForCheck, outputRootFull) && !same;
         bool sourceInsideOutput = PathSafety.IsContained(outputRootFull, sourceRootForCheck) && !same;
         if (same || outputInsideSource || sourceInsideOutput)
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"OutputRoot '{outputRootFull}' must not be equal to, contain, or be contained by SourceRoot '{sourceRootForCheck}'."));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null,
+                $"OutputRoot '{outputRootFull}' must not be equal to, contain, or be contained by SourceRoot '{sourceRootForCheck}'."));
             diagnostics.Sort(CompareDiagnostics);
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
         }
 
         // Recover from any interrupted previous publish (crash between artifact moves and manifest swap)
-        try { new ContentAtomicPublisher(outputRootFull).Recover(); } catch { }
+        try
+        {
+            new ContentAtomicPublisher(outputRootFull).Recover();
+        }
+        catch
+        {
+        }
 
         Directory.CreateDirectory(outputRootFull);
 
@@ -217,7 +241,8 @@ public sealed class ContentBuildCoordinator
         }
         catch (Exception ex)
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt, ContentDiagnosticSeverity.Error, null, $"Build publication failed: {ex.Message}"));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
+                ContentDiagnosticSeverity.Error, null, $"Build publication failed: {ex.Message}"));
             TryDeleteDirectory(stagingDir);
             diagnostics.Sort(CompareDiagnostics);
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
@@ -229,7 +254,8 @@ public sealed class ContentBuildCoordinator
         string manifestPath = Path.Combine(stagingDir, "manifest.json");
         if (!File.Exists(manifestPath))
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt, ContentDiagnosticSeverity.Error, null, "Staging manifest missing."));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
+                ContentDiagnosticSeverity.Error, null, "Staging manifest missing."));
             return;
         }
 
@@ -238,17 +264,22 @@ public sealed class ContentBuildCoordinator
         // Simpler: just check file exists and size matches manifest.
         foreach (ContentManifestEntry entry in manifest.Entries)
         {
-            string artifactPath = Path.Combine(stagingDir, entry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar));
+            string artifactPath =
+                Path.Combine(stagingDir, entry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(artifactPath))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt, ContentDiagnosticSeverity.Error, null, $"Missing artifact for {entry.AssetId} at {entry.ArtifactLocator}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
+                    ContentDiagnosticSeverity.Error, null,
+                    $"Missing artifact for {entry.AssetId} at {entry.ArtifactLocator}"));
                 continue;
             }
 
             long actualSize = new FileInfo(artifactPath).Length;
             if (actualSize != entry.Size)
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt, ContentDiagnosticSeverity.Error, null, $"Artifact size mismatch for {entry.AssetId}. Expected {entry.Size}, got {actualSize}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
+                    ContentDiagnosticSeverity.Error, null,
+                    $"Artifact size mismatch for {entry.AssetId}. Expected {entry.Size}, got {actualSize}"));
             }
 
             // Verify artifact name contains hash that matches content? We could check that filename equals hash of content via content hashing?
@@ -267,32 +298,37 @@ public sealed class ContentBuildCoordinator
         }
         catch (Exception ex)
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"Invalid source root: {ex.Message}"));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null, $"Invalid source root: {ex.Message}"));
             return null;
         }
 
         if (!Directory.Exists(sourceRoot))
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile, ContentDiagnosticSeverity.Error, null, $"Source root does not exist: {sourceRoot}"));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile,
+                ContentDiagnosticSeverity.Error, null, $"Source root does not exist: {sourceRoot}"));
             return null;
         }
 
         if (PathSafety.IsReparsePoint(sourceRoot))
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"Source root is a reparse point: {sourceRoot}"));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null, $"Source root is a reparse point: {sourceRoot}"));
             return null;
         }
 
         if (string.IsNullOrWhiteSpace(options.Namespace))
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidLogicalName, ContentDiagnosticSeverity.Error, null, "Namespace must be non-empty."));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidLogicalName,
+                ContentDiagnosticSeverity.Error, null, "Namespace must be non-empty."));
             return null;
         }
 
         string expectedNamespace = options.Namespace.Trim();
         if (!IsValidNamespace(expectedNamespace))
         {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidLogicalName, ContentDiagnosticSeverity.Error, null, $"Invalid namespace '{expectedNamespace}'."));
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidLogicalName,
+                ContentDiagnosticSeverity.Error, null, $"Invalid namespace '{expectedNamespace}'."));
             return null;
         }
 
@@ -331,13 +367,15 @@ public sealed class ContentBuildCoordinator
             }
             catch (Exception ex)
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, null, $"Source path escapes root: {sourceFile}: {ex.Message}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal,
+                    ContentDiagnosticSeverity.Error, null, $"Source path escapes root: {sourceFile}: {ex.Message}"));
                 continue;
             }
 
             if (IsTraversalRelative(relativePath))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, relativePath, $"Source path contains traversal: {relativePath}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal,
+                    ContentDiagnosticSeverity.Error, relativePath, $"Source path contains traversal: {relativePath}"));
                 continue;
             }
 
@@ -346,13 +384,17 @@ public sealed class ContentBuildCoordinator
 
             if (!File.Exists(metaPath))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingMetaFile, ContentDiagnosticSeverity.Error, relativePath, $"Missing sidecar meta for '{relativePath}'. Expected '{metaRelative}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingMetaFile,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Missing sidecar meta for '{relativePath}'. Expected '{metaRelative}'."));
                 continue;
             }
 
             if (PathSafety.IsReparsePoint(sourceFile) || PathSafety.IsReparsePoint(metaPath))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error, relativePath, $"Source or meta is a reparse point: {relativePath}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Source or meta is a reparse point: {relativePath}"));
                 continue;
             }
 
@@ -364,7 +406,8 @@ public sealed class ContentBuildCoordinator
             }
             catch (Exception ex)
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile, ContentDiagnosticSeverity.Error, relativePath, $"Cannot read source: {ex.Message}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile,
+                    ContentDiagnosticSeverity.Error, relativePath, $"Cannot read source: {ex.Message}"));
                 continue;
             }
 
@@ -376,7 +419,8 @@ public sealed class ContentBuildCoordinator
             }
             catch (Exception ex)
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidMetaJson, ContentDiagnosticSeverity.Error, metaRelative, $"Cannot read meta: {ex.Message}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.InvalidMetaJson,
+                    ContentDiagnosticSeverity.Error, metaRelative, $"Cannot read meta: {ex.Message}"));
                 continue;
             }
 
@@ -394,7 +438,9 @@ public sealed class ContentBuildCoordinator
             // Validate declared type supported
             if (!_processors.ContainsKey(meta.DeclaredType))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnsupportedDeclaredType, ContentDiagnosticSeverity.Error, relativePath, $"Unsupported declared type '{meta.DeclaredType}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnsupportedDeclaredType,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Unsupported declared type '{meta.DeclaredType}'."));
                 continue;
             }
 
@@ -402,14 +448,18 @@ public sealed class ContentBuildCoordinator
             string logicalNamespace = meta.LogicalName.Split('/')[0];
             if (!string.Equals(logicalNamespace, expectedNamespace, StringComparison.Ordinal))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.NamespaceMismatch, ContentDiagnosticSeverity.Error, relativePath, $"Logical name '{meta.LogicalName}' namespace '{logicalNamespace}' does not match expected '{expectedNamespace}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.NamespaceMismatch,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Logical name '{meta.LogicalName}' namespace '{logicalNamespace}' does not match expected '{expectedNamespace}'."));
                 continue;
             }
 
             // Duplicate ID check
             if (idMap.ContainsKey(meta.AssetId))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DuplicateAssetId, ContentDiagnosticSeverity.Error, relativePath, $"Duplicate AssetId '{meta.AssetId}' also used by '{idMap[meta.AssetId].RelativePath}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DuplicateAssetId,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Duplicate AssetId '{meta.AssetId}' also used by '{idMap[meta.AssetId].RelativePath}'."));
                 // Also mark previous? Keep both diagnostics but continue
                 continue;
             }
@@ -417,7 +467,9 @@ public sealed class ContentBuildCoordinator
             // Duplicate logical name check
             if (logicalNameMap.ContainsKey(meta.LogicalName))
             {
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DuplicateLogicalName, ContentDiagnosticSeverity.Error, relativePath, $"Duplicate logicalName '{meta.LogicalName}' also used by '{logicalNameMap[meta.LogicalName].RelativePath}'."));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DuplicateLogicalName,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    $"Duplicate logicalName '{meta.LogicalName}' also used by '{logicalNameMap[meta.LogicalName].RelativePath}'."));
                 continue;
             }
 
@@ -443,7 +495,8 @@ public sealed class ContentBuildCoordinator
             if (!File.Exists(sourceCandidate))
             {
                 string rel = GetRelativePathSafe(sourceRoot, metaFile);
-                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile, ContentDiagnosticSeverity.Error, rel, $"Orphan meta without source file: {rel}"));
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingSourceFile,
+                    ContentDiagnosticSeverity.Error, rel, $"Orphan meta without source file: {rel}"));
             }
         }
 
@@ -463,7 +516,9 @@ public sealed class ContentBuildCoordinator
             {
                 if (!idMap.ContainsKey(dep))
                 {
-                    diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnknownDependency, ContentDiagnosticSeverity.Error, kv.Value.RelativePath, $"Unknown dependency '{dep}' referenced by '{kv.Key}'."));
+                    diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnknownDependency,
+                        ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                        $"Unknown dependency '{dep}' referenced by '{kv.Key}'."));
                 }
                 else
                 {
@@ -479,7 +534,9 @@ public sealed class ContentBuildCoordinator
                     string depNamespace = depEntry.Meta.LogicalName.Split('/')[0];
                     if (!string.Equals(depNamespace, expectedNamespace, StringComparison.Ordinal))
                     {
-                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DependencyOutsideNamespace, ContentDiagnosticSeverity.Error, kv.Value.RelativePath, $"Dependency '{dep}' logicalName '{depEntry.Meta.LogicalName}' is outside expected namespace '{expectedNamespace}'."));
+                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DependencyOutsideNamespace,
+                            ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                            $"Dependency '{dep}' logicalName '{depEntry.Meta.LogicalName}' is outside expected namespace '{expectedNamespace}'."));
                     }
                 }
             }
@@ -512,12 +569,14 @@ public sealed class ContentBuildCoordinator
                         var cycle = stack.Skip(idx).Concat(new[] { dep }).Select(id => id.ToCanonicalString());
                         string cycleStr = string.Join(" -> ", cycle);
                         string dependentPath = idMap[node].RelativePath;
-                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DependencyCycle, ContentDiagnosticSeverity.Error, dependentPath, $"Dependency cycle detected: {cycleStr}"));
+                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DependencyCycle,
+                            ContentDiagnosticSeverity.Error, dependentPath, $"Dependency cycle detected: {cycleStr}"));
                         cycleFound = true;
                         return;
                     }
                 }
             }
+
             stack.RemoveAt(stack.Count - 1);
             visited[node] = 2;
         }
@@ -548,13 +607,15 @@ public sealed class ContentBuildCoordinator
 
     private static bool IsTraversalRelative(string rel)
     {
-        if (rel.StartsWith("../") || rel == ".." || rel.Contains("/../") || rel.Contains("\\") || Path.IsPathRooted(rel))
+        if (rel.StartsWith("../") || rel == ".." || rel.Contains("/../") || rel.Contains("\\") ||
+            Path.IsPathRooted(rel))
             return true;
         // Also check segments ".."
         foreach (string seg in rel.Split('/'))
         {
             if (seg == "..") return true;
         }
+
         return false;
     }
 
@@ -571,6 +632,7 @@ public sealed class ContentBuildCoordinator
             if (c == '_' || c == '-' || c == '.') continue;
             return false;
         }
+
         return true;
     }
 
@@ -591,10 +653,13 @@ public sealed class ContentBuildCoordinator
             {
                 Directory.Delete(path, recursive: true);
             }
+
             // Also delete marker
             string marker = path + ".owned";
             if (File.Exists(marker)) File.Delete(marker);
         }
-        catch { }
+        catch
+        {
+        }
     }
 }

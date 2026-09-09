@@ -26,7 +26,10 @@ public sealed class ContentDiagnostic : IEquatable<ContentDiagnostic>
     public bool Equals(ContentDiagnostic? other)
     {
         if (other is null) return false;
-        return Code == other.Code && Severity == other.Severity && RelativePath == other.RelativePath && Message == other.Message;
+        return Code == other.Code
+               && Severity == other.Severity
+               && RelativePath == other.RelativePath
+               && Message == other.Message;
     }
 
     public override bool Equals(object? obj) => obj is ContentDiagnostic other && Equals(other);
@@ -35,7 +38,9 @@ public sealed class ContentDiagnostic : IEquatable<ContentDiagnostic>
 
     public override string ToString()
     {
-        string location = RelativePath is null ? string.Empty : $"{RelativePath}: ";
+        string location = RelativePath is null
+            ? string.Empty
+            : $"{RelativePath}: ";
         return $"{Code} [{Severity}] {location}{Message}";
     }
 }

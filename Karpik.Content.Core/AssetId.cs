@@ -1,13 +1,8 @@
 namespace Karpik.Content.Core;
 
-public readonly struct AssetId : IEquatable<AssetId>, IComparable<AssetId>, IComparable
+public readonly struct AssetId(Guid value) : IEquatable<AssetId>, IComparable<AssetId>, IComparable
 {
-    private readonly Guid _value;
-
-    public AssetId(Guid value)
-    {
-        _value = value;
-    }
+    private readonly Guid _value = value;
 
     public Guid Value => _value;
 

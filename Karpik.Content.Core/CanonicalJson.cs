@@ -13,12 +13,6 @@ public static class CanonicalJson
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    private static readonly JsonDocumentOptions DocOptions = new()
-    {
-        AllowTrailingCommas = false,
-        CommentHandling = JsonCommentHandling.Disallow
-    };
-
     public static string SerializeCanonical(JsonElement element)
     {
         using var stream = new MemoryStream();
@@ -45,6 +39,7 @@ public static class CanonicalJson
             {
                 writer.WriteStringValue(dep.ToCanonicalString());
             }
+
             writer.WriteEndArray();
 
             writer.WritePropertyName("importSettings");
@@ -83,6 +78,7 @@ public static class CanonicalJson
                 {
                     writer.WriteStringValue(dep.ToCanonicalString());
                 }
+
                 writer.WriteEndArray();
 
                 writer.WriteString("importSettingsHash", entry.ImportSettingsHash);
@@ -110,6 +106,7 @@ public static class CanonicalJson
                     writer.WritePropertyName(prop.Name);
                     WriteCanonical(writer, prop.Value);
                 }
+
                 writer.WriteEndObject();
                 break;
             case JsonValueKind.Array:
@@ -118,14 +115,13 @@ public static class CanonicalJson
                 {
                     WriteCanonical(writer, item);
                 }
+
                 writer.WriteEndArray();
                 break;
             case JsonValueKind.String:
                 writer.WriteStringValue(element.GetString());
                 break;
             case JsonValueKind.Number:
-                // Lossless canonical: Int64 -> Decimal normalized -> raw normalized (exponent lowercased, + stripped)
-                // This avoids double rounding and ensures 1e400 vs 1E400 are identical.
                 string rawNumber = element.GetRawText();
                 if (element.TryGetInt64(out long l))
                 {
@@ -142,6 +138,7 @@ public static class CanonicalJson
                         if (decStr == "-0") decStr = "0";
                         if (decStr.Length == 0) decStr = "0";
                     }
+
                     writer.WriteRawValue(decStr, skipInputValidation: true);
                 }
                 else
@@ -150,6 +147,7 @@ public static class CanonicalJson
                     string normalized = NormalizeLargeExponentNumber(rawNumber);
                     writer.WriteRawValue(normalized, skipInputValidation: true);
                 }
+
                 break;
             case JsonValueKind.True:
                 writer.WriteBooleanValue(true);
@@ -183,11 +181,13 @@ public static class CanonicalJson
         if (eIdx < 0) return s;
         string mant = s.Substring(0, eIdx);
         string expPart = s.Substring(eIdx + 1);
-        if (!BigInteger.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out BigInteger exp))
+        if (!BigInteger.TryParse(expPart, System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out BigInteger exp))
         {
             // JsonDocument validates numeric syntax before this method is called; retain raw text if parsing fails.
             return s;
         }
+
         bool neg = mant.StartsWith("-");
         if (neg) mant = mant.Substring(1);
         // Split mantissa into integer and fractional
@@ -203,6 +203,7 @@ public static class CanonicalJson
             intPart = mant;
             fracPart = "";
         }
+
         string originalIntPart = intPart;
         intPart = intPart.TrimStart('0');
         // Combine intPart + fracPart as digits, track exponent adjustment for dot
@@ -214,7 +215,13 @@ public static class CanonicalJson
         {
             // intPart is all zeros (e.g. 0.001): find first non-zero in fracPart
             int firstNonZero = -1;
-            for (int i = 0; i < fracPart.Length; i++) if (fracPart[i] != '0') { firstNonZero = i; break; }
+            for (int i = 0; i < fracPart.Length; i++)
+                if (fracPart[i] != '0')
+                {
+                    firstNonZero = i;
+                    break;
+                }
+
             if (firstNonZero >= 0)
                 exp = exp - (firstNonZero + 1);
         }
@@ -223,6 +230,7 @@ public static class CanonicalJson
             // intPart non-zero: normalize exponent by intPart significant length
             exp = exp + (originalIntPart.TrimStart('0').Length - 1);
         }
+
         string first = digits.Substring(0, 1);
         string rest = digits.Length > 1 ? digits.Substring(1) : "";
         rest = rest.TrimEnd('0');
@@ -230,13 +238,5 @@ public static class CanonicalJson
         if (neg) normMant = "-" + normMant;
         if (exp == 0) return normMant;
         return normMant + "e" + exp.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    public static JsonElement ParseAndCanonicalize(string json)
-    {
-        using JsonDocument doc = JsonDocument.Parse(json, DocOptions);
-        string canonical = SerializeCanonical(doc.RootElement);
-        using JsonDocument canonicalDoc = JsonDocument.Parse(canonical);
-        return canonicalDoc.RootElement.Clone();
     }
 }

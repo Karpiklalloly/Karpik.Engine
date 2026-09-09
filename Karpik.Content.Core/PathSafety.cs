@@ -6,13 +6,15 @@ internal static class PathSafety
     {
         string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         string fullCandidate = Path.GetFullPath(candidate);
-        return string.Equals(fullRoot, fullCandidate, PathComparison) ||
-               fullCandidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison);
+        return string.Equals(fullRoot, fullCandidate, PathComparison)
+               || fullCandidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison);
     }
 
     public static bool IsReparsePoint(string path)
     {
-        var info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);
+        FileSystemInfo info = Directory.Exists(path)
+            ? new DirectoryInfo(path)
+            : new FileInfo(path);
         if (!info.Exists) return false;
         return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }

@@ -72,7 +72,8 @@ public sealed class ContentRegistry
         if (_store is null)
             throw new InvalidOperationException("RegisterManifest must be called before LoadAsync.");
         if (!_slots.TryGetValue(r.Id, out var slot))
-            throw new KeyNotFoundException($"AssetId {r.Id} not registered. Call RegisterManifest with a manifest containing this id.");
+            throw new KeyNotFoundException(
+                $"AssetId {r.Id} not registered. Call RegisterManifest with a manifest containing this id.");
 
         // Volatile.Read fast path — already loaded => completed task, no lock, no alloc
         var fastState = (SlotState)Volatile.Read(ref Unsafe.As<SlotState, int>(ref slot.State));
@@ -119,7 +120,7 @@ public sealed class ContentRegistry
             if (store is null)
                 throw new InvalidOperationException("Store is null during load.");
 
-            // Perform I/O outside of any lock — thread-safe per slot, not holding Sync
+            // Perform I/O outside any lock — thread-safe per slot, not holding Sync
             var bytes = await store.GetAsync(slot.ArtifactLocator, ct).ConfigureAwait(false);
 
             T payload = CreatePayload<T>(bytes);
