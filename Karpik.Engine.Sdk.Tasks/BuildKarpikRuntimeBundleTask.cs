@@ -184,8 +184,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} asset items.");
         }
-        var sources = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        var assemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        SortedDictionary<string, string> sources = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        HashSet<string> assemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         AddAssembly(sources, assemblyNames, PrimaryAssembly);
         foreach (ITaskItem item in Assemblies)
         {
@@ -216,8 +216,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
         string modules = Path.Combine(staging, "modules.version.1");
         string contentRoot = Path.Combine(staging, "Content");
-        var assetDirectories = new HashSet<string>(BundleIdentityComparer);
-        var assetSources = new List<(string Source, string Destination)>();
+        HashSet<string> assetDirectories = new HashSet<string>(BundleIdentityComparer);
+        List<(string Source, string Destination)> assetSources = new List<(string Source, string Destination)>();
         PrepareAssetRoot(Content, "Content", contentRoot, assetDirectories, assetSources, ref totalInputBytes);
         if (Mods.Length > 0)
         {
@@ -271,8 +271,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             throw new InvalidDataException($"Static runtime bundle exceeds the maximum of {MaxTreeEntries} asset items.");
         }
 
-        var sources = new List<(string Source, string Destination)>();
-        var directories = new HashSet<string>(BundleIdentityComparer);
+        List<(string Source, string Destination)> sources = new List<(string Source, string Destination)>();
+        HashSet<string> directories = new HashSet<string>(BundleIdentityComparer);
         long totalInputBytes = Encoding.UTF8.GetByteCount(BundleCompletionMarker)
                                + Encoding.UTF8.GetByteCount(SideMarkerPrefix + Side + "\n")
                                + Encoding.UTF8.GetByteCount(OwnedStagingMarker);
@@ -355,7 +355,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         ICollection<(string Source, string Destination)> assetSources,
         ref long totalInputBytes)
     {
-        var targets = new HashSet<string>(BundleIdentityComparer);
+        HashSet<string> targets = new HashSet<string>(BundleIdentityComparer);
         assetDirectories.Add(assetRoot);
         foreach (ITaskItem item in items.OrderBy(item => item.GetMetadata("TargetPath"), StringComparer.Ordinal))
         {
@@ -458,7 +458,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                 return false;
             }
 
-            var allowedRootFiles = new HashSet<string>(StringComparer.Ordinal)
+            HashSet<string> allowedRootFiles = new HashSet<string>(StringComparer.Ordinal)
             {
                 ".complete", "runtime-bundle.side"
             };
@@ -478,7 +478,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             // A static runtime bundle never carries managed module staging, a
             // module manifest or a shadow directory. Native payload inputs live
             // only under native/ or runtimes/.
-            var allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
+            HashSet<string> allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
             {
                 "Content", "Mods", "reload", "native", "runtimes"
             };
@@ -506,7 +506,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                     // A static runtime output never carries or reads a managed module manifest.
                     return false;
                 }
-                var info = new FileInfo(file);
+                FileInfo info = new FileInfo(file);
                 if (info.Length > MaxIndividualFileBytes
                     || totalBytes > MaxBundleBytes - info.Length)
                 {
@@ -613,7 +613,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                 return false;
             }
 
-            var allowedRootFiles = new HashSet<string>(StringComparer.Ordinal)
+            HashSet<string> allowedRootFiles = new HashSet<string>(StringComparer.Ordinal)
             {
                 ".complete", "runtime-bundle.side"
             };
@@ -625,7 +625,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                     return false;
                 }
             }
-            var allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
+            HashSet<string> allowedRootDirectories = new HashSet<string>(StringComparer.Ordinal)
             {
                 "Content", "Mods", "modules.version.1", "reload"
             };
@@ -646,8 +646,8 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                 return false;
             }
 
-            var listed = new HashSet<string>(names, BundleIdentityComparer);
-            var actual = new HashSet<string>(BundleIdentityComparer);
+            HashSet<string> listed = new HashSet<string>(names, BundleIdentityComparer);
+            HashSet<string> actual = new HashSet<string>(BundleIdentityComparer);
             foreach (string entry in Directory.EnumerateFileSystemEntries(modules, "*", SearchOption.TopDirectoryOnly))
             {
                 if (Directory.Exists(entry))
@@ -675,7 +675,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             long totalBytes = 0;
             foreach (string file in EnumerateFilesBounded(root))
             {
-                var info = new FileInfo(file);
+                FileInfo info = new FileInfo(file);
                 if (info.Length > MaxIndividualFileBytes
                     || totalBytes > MaxBundleBytes - info.Length)
                 {
@@ -725,7 +725,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         {
             return false;
         }
-        var unique = new HashSet<string>(BundleIdentityComparer);
+        HashSet<string> unique = new HashSet<string>(BundleIdentityComparer);
         foreach (string name in names)
         {
             if (name.Length == 0
@@ -747,7 +747,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             return false;
         }
         byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);
-        var info = new FileInfo(path);
+        FileInfo info = new FileInfo(path);
         return info.Length == expectedBytes.Length
                && File.ReadAllBytes(path).AsSpan().SequenceEqual(expectedBytes);
     }
@@ -773,7 +773,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         try
         {
             int count = 0;
-            var pending = new Stack<(string Directory, int Depth)>();
+            Stack<(string Directory, int Depth)> pending = new Stack<(string Directory, int Depth)>();
             pending.Push((root, 0));
             while (pending.Count > 0)
             {
@@ -805,7 +805,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
     private static IEnumerable<string> EnumerateFilesBounded(string root)
     {
         int count = 0;
-        var pending = new Stack<(string Directory, int Depth)>();
+        Stack<(string Directory, int Depth)> pending = new Stack<(string Directory, int Depth)>();
         pending.Push((root, 0));
         while (pending.Count > 0)
         {
@@ -834,7 +834,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
     private static void EnsureNotReparse(string path)
     {
-        var current = new DirectoryInfo(Path.GetFullPath(path));
+        DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(path));
         while (current is not null)
         {
             if ((current.Attributes & FileAttributes.ReparsePoint) != 0 || current.LinkTarget is not null)
@@ -869,7 +869,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
 
     private static bool IsReparsePoint(string path)
     {
-        var info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);
+        FileSystemInfo info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);
         return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }
 

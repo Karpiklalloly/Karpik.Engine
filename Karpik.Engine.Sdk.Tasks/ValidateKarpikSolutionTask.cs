@@ -12,7 +12,7 @@ public sealed class ValidateKarpikSolutionTask : Microsoft.Build.Utilities.Task
     {
         try
         {
-            var model = new KarpikSolutionReader().Read(SolutionPath);
+            KarpikSolutionModel model = new KarpikSolutionReader().Read(SolutionPath);
             return LogDiagnostics(new KarpikSolutionValidator().Validate(model));
         }
         catch (Exception exception) when (
@@ -34,7 +34,7 @@ public sealed class ValidateKarpikSolutionTask : Microsoft.Build.Utilities.Task
 
     private bool LogDiagnostics(IReadOnlyList<KarpikDiagnostic> diagnostics)
     {
-        foreach (var diagnostic in diagnostics)
+        foreach (KarpikDiagnostic diagnostic in diagnostics)
         {
             Log.LogError(
                 subcategory: null,

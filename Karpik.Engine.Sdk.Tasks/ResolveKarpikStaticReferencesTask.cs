@@ -65,11 +65,11 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             ? catalog.Where(entry => entry.Side == EngineModuleSide.Shared)
             : EngineModuleCatalog.ForSide(catalog, side);
 
-        var references = new List<ITaskItem>();
-        var payloads = new List<ITaskItem>();
-        var identities = new HashSet<string>(StringComparer.Ordinal);
-        var simpleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var payloadPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<ITaskItem> references = new List<ITaskItem>();
+        List<ITaskItem> payloads = new List<ITaskItem>();
+        HashSet<string> identities = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, string> simpleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> payloadPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (EngineModuleCatalogEntry entry in selected)
         {
             string path = ResolvePrimaryAssembly(modulesRoot, entry.ModuleId);
@@ -91,7 +91,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             }
 
             simpleNames.Add(simpleName, identity);
-            var reference = new TaskItem(path);
+            TaskItem reference = new TaskItem(path);
             reference.SetMetadata("AssemblyIdentity", identity);
             references.Add(reference);
         }

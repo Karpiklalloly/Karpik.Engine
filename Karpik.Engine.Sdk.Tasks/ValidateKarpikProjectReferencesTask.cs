@@ -14,18 +14,18 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
     {
         try
         {
-            var normalizedProjectPath = Path.GetFullPath(ProjectPath);
-            var projectDirectory = Path.GetDirectoryName(normalizedProjectPath)!;
-            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            var evaluatedReferences = ProjectReferences
+            string normalizedProjectPath = Path.GetFullPath(ProjectPath);
+            string projectDirectory = Path.GetDirectoryName(normalizedProjectPath)!;
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            List<string> evaluatedReferences = ProjectReferences
                 .Select(reference => Path.GetFullPath(reference.ItemSpec, projectDirectory))
                 .Distinct(comparer)
                 .ToList();
-            var model = new KarpikSolutionReader().ReadProjectGraph(normalizedProjectPath);
-            var rootProject = model.Projects.Single(project => comparer.Equals(project.ProjectPath, normalizedProjectPath));
-            var rawReferences = rootProject.ProjectReferences.Distinct(comparer).ToList();
-            var rawOnly = rawReferences.Except(evaluatedReferences, comparer).OrderBy(path => path, comparer).ToList();
-            var evaluatedOnly = evaluatedReferences.Except(rawReferences, comparer).OrderBy(path => path, comparer).ToList();
+            KarpikSolutionModel model = new KarpikSolutionReader().ReadProjectGraph(normalizedProjectPath);
+            KarpikProjectDescriptor rootProject = model.Projects.Single(project => comparer.Equals(project.ProjectPath, normalizedProjectPath));
+            List<string> rawReferences = rootProject.ProjectReferences.Distinct(comparer).ToList();
+            List<string> rawOnly = rawReferences.Except(evaluatedReferences, comparer).OrderBy(path => path, comparer).ToList();
+            List<string> evaluatedOnly = evaluatedReferences.Except(rawReferences, comparer).OrderBy(path => path, comparer).ToList();
 
             if (rawOnly.Count > 0 || evaluatedOnly.Count > 0)
             {
@@ -43,13 +43,13 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
                 return false;
             }
 
-            var diagnostics = new KarpikSolutionValidator().Validate(model)
+            List<KarpikDiagnostic> diagnostics = new KarpikSolutionValidator().Validate(model)
                 .Where(diagnostic =>
                     diagnostic.Reason != KarpikDiagnosticReason.InvalidProjectEntry ||
                     comparer.Equals(diagnostic.ProjectPath, normalizedProjectPath))
                 .Distinct()
                 .ToList();
-            foreach (var diagnostic in diagnostics)
+            foreach (KarpikDiagnostic diagnostic in diagnostics)
             {
                 Log.LogError(
                     subcategory: null,

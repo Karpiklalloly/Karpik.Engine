@@ -8,24 +8,22 @@ public sealed class KarpikSolutionReader
 {
     private const int InvalidEnumValue = -1;
 
-    public KarpikSolutionModel Read(string solutionPath)
-        => Read(solutionPath, FileSystemKarpikProjectInputProvider.Instance);
+    public KarpikSolutionModel Read(string solutionPath) => Read(solutionPath, FileSystemKarpikProjectInputProvider.Instance);
 
-    public KarpikSolutionModel Read(
-        string solutionPath,
-        IKarpikProjectInputProvider inputProvider)
+    public KarpikSolutionModel Read(string solutionPath, IKarpikProjectInputProvider inputProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
         ArgumentNullException.ThrowIfNull(inputProvider);
 
-        var normalizedSolutionPath = KarpikPathPolicy.Normalize(solutionPath);
-        var solutionRoot = Path.GetDirectoryName(normalizedSolutionPath)
-                           ?? throw new ArgumentException("The solution path must have a parent directory.", nameof(solutionPath));
-        var solution = LoadXml(normalizedSolutionPath, inputProvider);
-        var projects = solution.Descendants()
-            .Where(element => element.Name.LocalName == "Project")
-            .Select(element => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Path")?.Value)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
+        string normalizedSolutionPath = KarpikPathPolicy.Normalize(solutionPath);
+        string solutionRoot = Path.GetDirectoryName(normalizedSolutionPath)
+                              ?? throw new ArgumentException("The solution path must have a parent directory.",
+                                  nameof(solutionPath));
+        XDocument solution = LoadXml(normalizedSolutionPath, inputProvider);
+        List<KarpikProjectDescriptor> projects = solution.Descendants()
+            .Where(static element => element.Name.LocalName == "Project")
+            .Select(static element => element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Path")?.Value)
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
             .Select(path => ReadProject(solutionRoot, path!, inputProvider))
             .ToList();
 
@@ -39,31 +37,31 @@ public sealed class KarpikSolutionReader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
-        var normalizedProjectPath = KarpikPathPolicy.Normalize(projectPath);
-        var projects = new List<KarpikProjectDescriptor>();
-        var pending = new Queue<string>();
-        var visited = new HashSet<string>(KarpikPathPolicy.Comparer);
+        string normalizedProjectPath = KarpikPathPolicy.Normalize(projectPath);
+        List<KarpikProjectDescriptor> projects = new List<KarpikProjectDescriptor>();
+        Queue<string> pending = new Queue<string>();
+        HashSet<string> visited = new HashSet<string>(KarpikPathPolicy.Comparer);
         pending.Enqueue(normalizedProjectPath);
 
         while (pending.Count > 0)
         {
-            var currentPath = pending.Dequeue();
+            string currentPath = pending.Dequeue();
             if (!visited.Add(currentPath))
             {
                 continue;
             }
 
-            var project = ReadProjectFile(
+            KarpikProjectDescriptor project = ReadProjectFile(
                 currentPath,
                 FileSystemKarpikProjectInputProvider.Instance);
             projects.Add(project);
-            foreach (var reference in project.ProjectReferences)
+            foreach (string reference in project.ProjectReferences)
             {
                 pending.Enqueue(reference);
             }
         }
 
-        var graphRoot = FindGraphRoot(normalizedProjectPath, projects);
+        string graphRoot = FindGraphRoot(normalizedProjectPath, projects);
         return new KarpikSolutionModel(
             Path.Combine(graphRoot, ".karpik-direct-build.slnx"),
             ReadSdkVersion(graphRoot, FileSystemKarpikProjectInputProvider.Instance),
@@ -104,8 +102,8 @@ public sealed class KarpikSolutionReader
 
         try
         {
-            var document = LoadXml(projectPath, inputProvider);
-            var projectReferenceElements = TopLevelItemElements(document, "ProjectReference").ToList();
+            XDocument document = LoadXml(projectPath, inputProvider);
+            List<XElement> projectReferenceElements = TopLevelItemElements(document, "ProjectReference").ToList();
             return new KarpikProjectDescriptor(
                 projectPath,
                 ReadSdkNames(document),
@@ -127,8 +125,8 @@ public sealed class KarpikSolutionReader
         string rootProjectPath,
         IReadOnlyList<KarpikProjectDescriptor> projects)
     {
-        var rootProjectDirectory = Path.GetDirectoryName(rootProjectPath)!;
-        for (var directory = new DirectoryInfo(rootProjectDirectory); directory != null; directory = directory.Parent)
+        string rootProjectDirectory = Path.GetDirectoryName(rootProjectPath)!;
+        for (DirectoryInfo? directory = new DirectoryInfo(rootProjectDirectory); directory != null; directory = directory.Parent)
         {
             if (File.Exists(Path.Combine(directory.FullName, "global.json")))
             {
@@ -136,52 +134,52 @@ public sealed class KarpikSolutionReader
             }
         }
 
-        var graphRoot = rootProjectDirectory;
-        foreach (var project in projects)
+        string graphRoot = rootProjectDirectory;
+        foreach (KarpikProjectDescriptor project in projects)
         {
             while (!KarpikPathPolicy.IsWithinRoot(project.ProjectPath, graphRoot))
             {
-                var parent = Directory.GetParent(graphRoot)?.FullName;
+                string? parent = Directory.GetParent(graphRoot)?.FullName;
                 if (parent == null)
                 {
                     break;
                 }
+
                 graphRoot = parent;
             }
         }
+
         return graphRoot;
     }
 
-    private static XDocument LoadXml(
-        string path,
-        IKarpikProjectInputProvider inputProvider)
+    private static XDocument LoadXml(string path, IKarpikProjectInputProvider inputProvider)
     {
-        var settings = new XmlReaderSettings
+        XmlReaderSettings settings = new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             XmlResolver = null
         };
-        using var stream = inputProvider.OpenRead(path);
-        using var reader = XmlReader.Create(stream, settings);
+        using Stream stream = inputProvider.OpenRead(path);
+        using XmlReader reader = XmlReader.Create(stream, settings);
         return XDocument.Load(reader, LoadOptions.None);
     }
 
     private static IReadOnlyList<string> ReadSdkNames(XDocument document)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var rootSdk = document.Root?.Attributes()
+        HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? rootSdk = document.Root?.Attributes()
             .FirstOrDefault(attribute => attribute.Name.LocalName == "Sdk")?.Value;
         AddSdkDeclarations(names, rootSdk);
 
-        foreach (var sdk in TopLevelElements(document, "Sdk"))
+        foreach (XElement sdk in TopLevelElements(document, "Sdk"))
         {
-            var name = sdk.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;
+            string? name = sdk.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")?.Value;
             AddSdkDeclarations(names, name);
         }
 
-        foreach (var import in TopLevelElements(document, "Import"))
+        foreach (XElement import in TopLevelElements(document, "Import"))
         {
-            var sdk = import.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Sdk")?.Value;
+            string? sdk = import.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Sdk")?.Value;
             AddSdkDeclarations(names, sdk);
         }
 
@@ -195,10 +193,10 @@ public sealed class KarpikSolutionReader
             return;
         }
 
-        foreach (var declaration in declarations.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string declaration in declarations.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var versionSeparator = declaration.IndexOf('/');
-            var name = versionSeparator > 0 ? declaration[..versionSeparator] : declaration;
+            int versionSeparator = declaration.IndexOf('/');
+            string name = versionSeparator > 0 ? declaration[..versionSeparator] : declaration;
             if (!string.IsNullOrWhiteSpace(name))
             {
                 names.Add(name.Trim());
@@ -209,18 +207,19 @@ public sealed class KarpikSolutionReader
     private static TEnum ReadEnumProperty<TEnum>(XDocument document, string propertyName)
         where TEnum : struct, Enum
     {
-        var values = TopLevelElements(document, "PropertyGroup")
+        List<string> values = TopLevelElements(document, "PropertyGroup")
             .SelectMany(group => group.Elements().Where(element => element.Name.LocalName == propertyName))
             .Select(element => element.Value.Trim())
             .Where(value => value.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (values.Count == 1 &&
-            Enum.TryParse<TEnum>(values[0], ignoreCase: true, out var value) &&
+            Enum.TryParse(values[0], ignoreCase: true, out TEnum value) &&
             Enum.IsDefined(value))
         {
             return value;
         }
+
         return (TEnum)Enum.ToObject(typeof(TEnum), InvalidEnumValue);
     }
 
@@ -228,22 +227,24 @@ public sealed class KarpikSolutionReader
         IEnumerable<XElement> projectReferenceElements,
         string projectPath)
     {
-        var projectDirectory = Path.GetDirectoryName(projectPath)!;
-        var references = new List<string>();
-        foreach (var reference in projectReferenceElements)
+        string projectDirectory = Path.GetDirectoryName(projectPath)!;
+        List<string> references = new List<string>();
+        foreach (XElement reference in projectReferenceElements)
         {
-            var include = reference.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
+            string? include = reference.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Include")
+                ?.Value;
             if (!string.IsNullOrWhiteSpace(include))
             {
                 references.Add(KarpikPathPolicy.Normalize(include, projectDirectory));
             }
         }
+
         return references;
     }
 
     private static bool IsStaticProjectReference(XElement reference)
     {
-        var include = reference.Attributes()
+        string? include = reference.Attributes()
             .FirstOrDefault(attribute => attribute.Name.LocalName == "Include")?.Value;
         return !string.IsNullOrWhiteSpace(include) &&
                reference.Attributes().All(attribute => attribute.Name.LocalName != "Condition") &&
@@ -256,22 +257,24 @@ public sealed class KarpikSolutionReader
 
     private static IReadOnlyList<KarpikModuleReference> ReadModules(XDocument document)
     {
-        var modules = new List<KarpikModuleReference>();
-        foreach (var dependency in TopLevelItemElements(
+        List<KarpikModuleReference> modules = new List<KarpikModuleReference>();
+        foreach (XElement dependency in TopLevelItemElements(
                      document,
                      "KarpikModuleDependency",
                      "KarpikModuleReference"))
         {
-            var id = ReadMetadata(dependency, "Include");
+            string? id = ReadMetadata(dependency, "Include");
             if (string.IsNullOrWhiteSpace(id))
             {
                 continue;
             }
+
             modules.Add(new KarpikModuleReference(
                 id,
                 ReadMetadata(dependency, "Implementation"),
-                bool.TryParse(ReadMetadata(dependency, "Optional"), out var optional) && optional));
+                bool.TryParse(ReadMetadata(dependency, "Optional"), out bool optional) && optional));
         }
+
         return modules;
     }
 
@@ -297,7 +300,7 @@ public sealed class KarpikSolutionReader
         string solutionRoot,
         IKarpikProjectInputProvider inputProvider)
     {
-        var globalJsonPath = Path.Combine(solutionRoot, "global.json");
+        string globalJsonPath = Path.Combine(solutionRoot, "global.json");
         if (!inputProvider.Exists(globalJsonPath))
         {
             return string.Empty;
@@ -305,10 +308,10 @@ public sealed class KarpikSolutionReader
 
         try
         {
-            using var stream = inputProvider.OpenRead(globalJsonPath);
-            using var document = JsonDocument.Parse(stream);
-            return document.RootElement.TryGetProperty("msbuild-sdks", out var sdkVersions) &&
-                   sdkVersions.TryGetProperty("Karpik.Engine.Sdk", out var sdkVersion) &&
+            using Stream stream = inputProvider.OpenRead(globalJsonPath);
+            using JsonDocument document = JsonDocument.Parse(stream);
+            return document.RootElement.TryGetProperty("msbuild-sdks", out JsonElement sdkVersions) &&
+                   sdkVersions.TryGetProperty("Karpik.Engine.Sdk", out JsonElement sdkVersion) &&
                    sdkVersion.ValueKind == JsonValueKind.String
                 ? sdkVersion.GetString() ?? string.Empty
                 : string.Empty;

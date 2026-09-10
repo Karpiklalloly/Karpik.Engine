@@ -23,7 +23,7 @@ public sealed class ResolveKarpikEngineRootTask : Microsoft.Build.Utilities.Task
             string? localApplicationDataRoot = string.IsNullOrWhiteSpace(LocalApplicationDataRoot)
                 ? null
                 : LocalApplicationDataRoot;
-            var resolver = new EngineInstallationResolver(
+            EngineInstallationResolver resolver = new EngineInstallationResolver(
                 localApplicationDataRoot: localApplicationDataRoot);
             EngineInstallationResolutionResult result = resolver.Resolve(
                 SdkVersion,
