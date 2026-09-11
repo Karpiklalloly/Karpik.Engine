@@ -1,18 +1,22 @@
 <Project>
+  <!-- Базовые значения SDK: имя runtime bundle, режим композиции и проверка AOT. -->
   <PropertyGroup>
     <KarpikRuntimeBundleDirectoryName>karpik-bundle</KarpikRuntimeBundleDirectoryName>
     <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Static</KarpikCompositionMode>
     <KarpikEnableNativeAotValidation Condition="'$(KarpikEnableNativeAotValidation)' == ''">false</KarpikEnableNativeAotValidation>
   </PropertyGroup>
   
+  <!-- Передаёт выбранные MSBuild-свойства в исходные генераторы. -->
   <ItemGroup>
     <CompilerVisibleProperty Include="KarpikSide" />
     <CompilerVisibleProperty Include="KarpikProjectKind" />
     <CompilerVisibleProperty Include="KarpikCompositionMode" />
   </ItemGroup>
   
+  <!-- Подключает стандартные свойства .NET SDK после установки значений Karpik. -->
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   
+  <!-- Настраивает Content Pipeline и его промежуточные артефакты. -->
   <PropertyGroup>
     <KarpikContentNamespace Condition="'$(KarpikContentNamespace)' == '' and '$(KarpikContentEnabled)' == 'true'">game</KarpikContentNamespace>
     <KarpikContentSourceRoot Condition="'$(KarpikContentSourceRoot)' == ''">$(MSBuildProjectDirectory)\Content</KarpikContentSourceRoot>
@@ -21,6 +25,7 @@
     <KarpikContentToolDll Condition="'$(KarpikContentToolDll)' == ''">$(MSBuildThisFileDirectory)..\..\Karpik.Content.Tool\bin\$(Configuration)\net10.0\content.dll</KarpikContentToolDll>
   </PropertyGroup>
   
+  <!-- Подключает генератор content-кода и metadata-файлы, когда Content Pipeline включён. -->
   <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
     <ProjectReference Include="$(KarpikRepositoryRoot)Karpik.Content.Codegen/Karpik.Content.Codegen.csproj">
       <OutputItemType>Analyzer</OutputItemType>
@@ -33,10 +38,12 @@
     <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
   </ItemGroup>
   
+  <!-- Собирает content CLI только при наличии исходного каталога контента. -->
   <Target Name="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)')">
     <MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" Targets="Build" Properties="Configuration=$(Configuration)" />
   </Target>
   
+  <!-- Строит manifest контента до компиляции, чтобы генератор видел актуальные входные данные. -->
   <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" DependsOnTargets="KarpikContentToolBuild" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
     <Exec Command="dotnet &quot;$(KarpikContentToolDll)&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace)" />
   </Target>

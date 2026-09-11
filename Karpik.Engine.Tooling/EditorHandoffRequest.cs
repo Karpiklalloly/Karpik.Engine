@@ -3,24 +3,31 @@ using System.Text.Json;
 
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Описывает сериализуемый запрос launcher'у на открытие решения другим редактором.</summary>
 public sealed record EditorHandoffRequest
 {
+    /// <summary>Текущая версия протокола handoff-запроса.</summary>
     public const int CurrentProtocolVersion = 1;
 
+    /// <summary>Создаёт запрос текущей версии для указанного решения.</summary>
     public EditorHandoffRequest(string solutionPath)
         : this(CurrentProtocolVersion, NormalizeSolutionPath(solutionPath))
     {
     }
 
+    /// <summary>Создаёт нормализованный запрос с явно указанной версией протокола.</summary>
     private EditorHandoffRequest(int protocolVersion, string solutionPath)
     {
         ProtocolVersion = protocolVersion;
         SolutionPath = solutionPath;
     }
 
+    /// <summary>Получает версию wire-протокола handoff.</summary>
     public int ProtocolVersion { get; }
+    /// <summary>Получает нормализованный абсолютный путь к решению.</summary>
     public string SolutionPath { get; }
 
+    /// <summary>Сериализует запрос в JSON wire-формата.</summary>
     public string ToJson()
     {
         using var stream = new MemoryStream();
@@ -35,6 +42,7 @@ public sealed record EditorHandoffRequest
         return Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
     }
 
+    /// <summary>Атомарно записывает запрос в указанный handoff-файл.</summary>
     public void Write(string handoffPath)
     {
         string path = NormalizeHandoffPath(handoffPath);
@@ -53,6 +61,7 @@ public sealed record EditorHandoffRequest
         writer.Write(ToJson());
     }
 
+    /// <summary>Читает и разбирает handoff-запрос из файла.</summary>
     public static EditorHandoffRequest Read(string handoffPath)
     {
         string path = NormalizeHandoffPath(handoffPath);
@@ -67,6 +76,7 @@ public sealed record EditorHandoffRequest
         return Parse(File.ReadAllText(path));
     }
 
+    /// <summary>Разбирает и проверяет JSON handoff-запроса.</summary>
     public static EditorHandoffRequest Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
@@ -114,6 +124,7 @@ public sealed record EditorHandoffRequest
         }
     }
 
+    /// <summary>Нормализует и проверяет путь к решению.</summary>
     private static string NormalizeSolutionPath(string solutionPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
@@ -131,6 +142,7 @@ public sealed record EditorHandoffRequest
         return path;
     }
 
+    /// <summary>Нормализует и проверяет путь handoff-файла.</summary>
     private static string NormalizeHandoffPath(string handoffPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(handoffPath);
@@ -141,6 +153,7 @@ public sealed record EditorHandoffRequest
         return Path.GetFullPath(handoffPath);
     }
 
+    /// <summary>Определяет, является ли путь ссылкой или reparse point.</summary>
     private static bool IsReparsePoint(string path)
     {
         var info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);

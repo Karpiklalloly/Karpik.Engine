@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- Настраивает консольный packager engine payload. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,10 +7,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Подключает общие проверки установки и публикации payload. -->
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
   </ItemGroup>
 
+  <!-- Убирает несвязанные генераторы из графа packager. -->
   <ItemGroup>
     <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
   </ItemGroup>

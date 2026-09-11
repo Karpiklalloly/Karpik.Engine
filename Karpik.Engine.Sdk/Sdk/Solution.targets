@@ -1,11 +1,14 @@
 <Project>
+  <!-- Находит DLL MSBuild-задач, упакованную вместе с SDK. -->
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
   </PropertyGroup>
 
+  <!-- Регистрирует задачу валидации состава solution до обычной сборки. -->
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikSolutionTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
+  <!-- Проверяет solution, если MSBuild запускается в контексте реального solution-файла. -->
   <Target Name="ValidateKarpikSolutionBeforeBuild"
           BeforeTargets="Build"
           Condition="'$(SolutionPath)' != '' and '$(SolutionPath)' != '*Undefined*'">

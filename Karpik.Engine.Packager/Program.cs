@@ -1,9 +1,12 @@
 namespace Karpik.Engine.Packager;
 
+/// <summary>Предоставляет CLI для сборки и публикации engine payload.</summary>
 public static class Program
 {
+    /// <summary>Точка входа консольного packager.</summary>
     public static int Main(string[] args) => Run(args, Console.Out, Console.Error);
 
+    /// <summary>Разбирает аргументы CLI и запускает упаковку через заданные потоки.</summary>
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -46,6 +49,7 @@ public static class Program
         }
     }
 
+    /// <summary>Выводит синтаксис CLI в поток ошибок.</summary>
     private static void WriteUsage(TextWriter error) =>
         error.WriteLine("Usage: Karpik.Engine.Packager --source <path> --output <path> --engine-version <version> --sdk-version <version>");
 }

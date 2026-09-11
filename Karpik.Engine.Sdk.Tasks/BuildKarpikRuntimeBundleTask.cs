@@ -3,33 +3,54 @@ using System.Text;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
+/// <summary>
+/// Минимальная файловая абстракция для управляемого тестирования публикации runtime bundle.
+/// </summary>
 public class RuntimeBundleFileSystem
 {
+    /// <summary>Перемещает каталог в новое расположение.</summary>
     public virtual void MoveDirectory(string source, string destination) => Directory.Move(source, destination);
+    /// <summary>Удаляет файл.</summary>
     public virtual void DeleteFile(string path) => File.Delete(path);
 }
 
+/// <summary>
+/// MSBuild-задача, создающая и атомарно публикующая client- или server-runtime bundle игры.
+/// </summary>
 public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Task
 {
+    /// <summary>Максимальное число записей в дереве bundle.</summary>
     public const int MaxTreeEntries = 32_768;
+    /// <summary>Максимальная глубина дерева bundle.</summary>
     public const int MaxTreeDepth = 64;
+    /// <summary>Максимальный размер manifest-файла модулей в байтах.</summary>
     public const int MaxManifestBytes = 1024 * 1024;
+    /// <summary>Максимальное число записей в manifest-файле модулей.</summary>
     public const int MaxManifestEntries = 4_096;
+    /// <summary>Максимальный размер одного файла bundle в байтах.</summary>
     public const long MaxIndividualFileBytes = 4L * 1024 * 1024 * 1024;
+    /// <summary>Максимальный суммарный размер bundle в байтах.</summary>
     public const long MaxBundleBytes = 32L * 1024 * 1024 * 1024;
+    /// <summary>Точное содержимое маркера завершённой публикации bundle.</summary>
     public const string BundleCompletionMarker = "karpik-runtime-bundle-v1\n";
+    /// <summary>Точное содержимое маркера завершённого staging модулей.</summary>
     public const string ModuleCompletionMarker = "karpik-module-staging-v1\n";
+    /// <summary>Префикс маркера стороны runtime bundle.</summary>
     public const string SideMarkerPrefix = "karpik-runtime-side-v1:";
+    /// <summary>Маркер staging-каталога, которым владеет эта задача.</summary>
     private const string OwnedStagingMarker = "karpik-runtime-owned-staging-v1\n";
 
     private readonly RuntimeBundleFileSystem _fileSystem;
 
+    /// <summary>Создаёт задачу с файловой системой по умолчанию.</summary>
     public BuildKarpikRuntimeBundleTask() : this(new RuntimeBundleFileSystem()) { }
 
+    /// <summary>Создаёт задачу с заданной файловой системой.</summary>
     public BuildKarpikRuntimeBundleTask(RuntimeBundleFileSystem fileSystem) =>
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     [Required]
+    /// <summary>Получает сторону публикуемого bundle: <c>Client</c> или <c>Server</c>.</summary>
     public string Side { get; set; } = string.Empty;
 
     /// <summary>
@@ -40,24 +61,34 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
     public string CompositionMode { get; set; } = "Dynamic";
 
     [Required]
+    /// <summary>Получает путь к главной DLL игрового runtime-проекта.</summary>
     public string PrimaryAssembly { get; set; } = string.Empty;
 
     [Required]
+    /// <summary>Получает абсолютный путь назначения runtime bundle.</summary>
     public string BundlePath { get; set; } = string.Empty;
 
+    /// <summary>Получает управляемые DLL для dynamic bundle.</summary>
     public ITaskItem[] Assemblies { get; set; } = [];
 
+    /// <summary>Получает контент, который следует скопировать в bundle.</summary>
     public ITaskItem[] Content { get; set; } = [];
 
+    /// <summary>Получает файлы модов, которые следует скопировать в bundle.</summary>
     public ITaskItem[] Mods { get; set; } = [];
 
+    /// <summary>Получает native-файлы для static bundle.</summary>
     public ITaskItem[] NativeFiles { get; set; } = [];
 
+    /// <summary>Определяет, выбран ли режим статической композиции.</summary>
     private bool IsStaticMode => IsStaticCompositionMode(CompositionMode);
 
+    /// <summary>Проверяет строковое значение режима статической композиции.</summary>
     private static bool IsStaticCompositionMode(string? compositionMode) =>
         string.Equals(compositionMode ?? "Dynamic", "Static", StringComparison.Ordinal);
 
+    /// <summary>Публикует bundle и переводит ожидаемые ошибки в диагностику MSBuild.</summary>
+    /// <returns><see langword="true"/> при успешной публикации; иначе <see langword="false"/>.</returns>
     public override bool Execute()
     {
         try
@@ -80,6 +111,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Проверяет входные пути, восстанавливает незавершённую публикацию и публикует staging.</summary>
     private void Publish()
     {
         if (Side is not ("Client" or "Server"))
@@ -162,6 +194,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Материализует dynamic bundle с manifest-файлом и набором управляемых модулей.</summary>
     private void MaterializeDynamic(string staging)
     {
         if (!Path.IsPathFullyQualified(PrimaryAssembly) || !File.Exists(PrimaryAssembly))
@@ -260,6 +293,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
     }
 
+    /// <summary>Материализует static bundle без managed module manifest и DLL модулей.</summary>
     private void MaterializeStatic(string staging)
     {
         if (Content.Length == 0)
@@ -341,12 +375,14 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
     }
 
+    /// <summary>Проверяет, допустим ли относительный путь native payload.</summary>
     private static bool IsNativeRelativePath(string relativePath)
     {
         string firstSegment = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries)[0];
         return firstSegment is "native" or "runtimes";
     }
 
+    /// <summary>Проверяет и собирает файлы контента, модов или native payload для staging-каталога.</summary>
     private static void PrepareAssetRoot(
         IEnumerable<ITaskItem> items,
         string rootName,
@@ -402,6 +438,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Добавляет уникальную и безопасную runtime DLL в набор копируемых сборок.</summary>
     private static void AddAssembly(
         IDictionary<string, string> sources,
         ISet<string> assemblyNames,
@@ -437,6 +474,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         sources[fileName] = fullPath;
     }
 
+    /// <summary>Проверяет, является ли каталог завершённым bundle, которым безопасно управлять.</summary>
     private bool IsProvenBundleOutput(string path)
     {
         return Directory.Exists(path) && (
@@ -444,6 +482,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
             || IsCompleteStaticBundle(path, Side, allowOwnershipMarker: false));
     }
 
+    /// <summary>Проверяет структуру и маркеры завершённого static bundle.</summary>
     private bool IsCompleteStaticBundle(string root, string side, bool allowOwnershipMarker)
     {
         try
@@ -523,6 +562,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Восстанавливает или удаляет подтверждённый backup прерванной публикации.</summary>
     private void RecoverBackup(string destination, string backup)
     {
         if (!Directory.Exists(backup))
@@ -545,6 +585,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         Directory.Delete(backup, recursive: true);
     }
 
+    /// <summary>Удаляет незавершённые staging-каталоги, подтверждённо созданные этой задачей.</summary>
     private static void RecoverOwnedStaging(string parent, string destinationName)
     {
         int count = 0;
@@ -558,6 +599,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Удаляет безопасный staging-каталог с маркером владения.</summary>
     private static void DeleteOwnedStaging(string path)
     {
         if (!Directory.Exists(path) || IsReparsePoint(path))
@@ -571,6 +613,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Удаляет опубликованный bundle только после проверки его структуры и маркера владения.</summary>
     private void DeleteOwnedPublishedBundle(string path)
     {
         if (!Directory.Exists(path) || IsReparsePoint(path))
@@ -587,6 +630,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Проверяет структуру, manifest и размеры завершённого dynamic bundle.</summary>
     private static bool IsCompleteBundle(
         string root,
         string side,
@@ -692,6 +736,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Читает и проверяет канонический список DLL из manifest-файла модулей.</summary>
     private static bool TryReadCanonicalManifest(string path, out string[] names)
     {
         names = [];
@@ -740,6 +785,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         return true;
     }
 
+    /// <summary>Проверяет, что UTF-8 файл содержит в точности ожидаемую строку.</summary>
     private static bool HasExactUtf8File(string path, string expected)
     {
         if (!File.Exists(path))
@@ -752,6 +798,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
                && File.ReadAllBytes(path).AsSpan().SequenceEqual(expectedBytes);
     }
 
+    /// <summary>Проверяет допустимую форму необязательного каталога hot-reload.</summary>
     private static bool ValidateReloadShape(string reload)
     {
         if (!Directory.Exists(reload))
@@ -768,6 +815,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         return true;
     }
 
+    /// <summary>Проверяет ограничение размера дерева и отсутствие ссылок в нём.</summary>
     private static bool IsBoundedTreeWithoutLinks(string root)
     {
         try
@@ -802,6 +850,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Перечисляет файлы дерева, останавливаясь при превышении его лимитов.</summary>
     private static IEnumerable<string> EnumerateFilesBounded(string root)
     {
         int count = 0;
@@ -832,6 +881,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Отклоняет путь, содержащий symbolic link или reparse point.</summary>
     private static void EnsureNotReparse(string path)
     {
         DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(path));
@@ -845,6 +895,7 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         }
     }
 
+    /// <summary>Проверяет существующих предков пути до создания нового каталога.</summary>
     private static void EnsureExistingAncestorsNotReparse(string path)
     {
         DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(path));
@@ -859,21 +910,27 @@ public sealed class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utilities.Tas
         EnsureNotReparse(current.FullName);
     }
 
+    /// <summary>Проверяет, находится ли путь внутри заданного корня.</summary>
     private static bool IsContained(string root, string candidate)
     {
         string prefix = TrimRoot(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
         return Path.GetFullPath(candidate).StartsWith(prefix, PathComparison);
     }
 
+    /// <summary>Удаляет завершающие разделители каталога.</summary>
     private static string TrimRoot(string path) => path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
+    /// <summary>Определяет, является ли путь ссылкой или reparse point.</summary>
     private static bool IsReparsePoint(string path)
     {
         FileSystemInfo info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);
         return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }
 
+    /// <summary>Получает платформенно-зависимое правило сравнения путей.</summary>
     private static StringComparison PathComparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    /// <summary>Получает платформенно-зависимый comparer путей.</summary>
     private static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    /// <summary>Получает comparer идентичностей файлов bundle без учёта регистра.</summary>
     private static StringComparer BundleIdentityComparer => StringComparer.OrdinalIgnoreCase;
 }

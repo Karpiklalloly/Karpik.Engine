@@ -3,13 +3,27 @@ using Microsoft.Build.Framework;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
+/// <summary>
+/// MSBuild-задача, которая сверяет вычисленные <c>ProjectReference</c> с исходным
+/// статическим графом и проверяет границы Karpik-проектов.
+/// </summary>
 public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilities.Task
 {
+    /// <summary>
+    /// Получает путь к корневому проекту проверяемого графа.
+    /// </summary>
     [Required]
     public string ProjectPath { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Получает вычисленные MSBuild ссылки на проекты для сверки с исходным XML.
+    /// </summary>
     public ITaskItem[] ProjectReferences { get; set; } = [];
 
+    /// <summary>
+    /// Выполняет сверку ссылок и записывает нарушения графа в журнал MSBuild.
+    /// </summary>
+    /// <returns><see langword="true"/>, если граф корректен; иначе <see langword="false"/>.</returns>
     public override bool Execute()
     {
         try
@@ -81,6 +95,11 @@ public sealed class ValidateKarpikProjectReferencesTask : Microsoft.Build.Utilit
         }
     }
 
+    /// <summary>
+    /// Преобразует список путей в стабильное текстовое представление для диагностики.
+    /// </summary>
+    /// <param name="paths">Пути для форматирования.</param>
+    /// <returns>Список путей через запятую либо <c>none</c> для пустого списка.</returns>
     private static string FormatPaths(IReadOnlyList<string> paths) =>
         paths.Count == 0 ? "none" : string.Join(", ", paths);
 }

@@ -3,18 +3,28 @@ using System.Text.Json;
 
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Описывает совместимость и содержимое установленного engine payload.</summary>
 public sealed class EngineInstallationManifest
 {
+    /// <summary>Текущая версия layout engine payload.</summary>
     public const int CurrentLayoutVersion = 2;
+    /// <summary>Текущая версия протокола запуска runtime.</summary>
     public const int CurrentRuntimeProtocolVersion = 1;
 
+    /// <summary>Получает версию движка.</summary>
     public required string EngineVersion { get; init; }
+    /// <summary>Получает совместимую точную версию MSBuild SDK.</summary>
     public required string MsBuildSdkVersion { get; init; }
+    /// <summary>Получает версию редактора, поставляемого с payload.</summary>
     public required string EditorVersion { get; init; }
+    /// <summary>Получает версию runtime-протокола payload.</summary>
     public required int RuntimeProtocolVersion { get; init; }
+    /// <summary>Получает версию layout payload.</summary>
     public required int LayoutVersion { get; init; }
+    /// <summary>Получает хеш файлов payload, исключая manifest и completion marker.</summary>
     public required string ContentHash { get; init; }
 
+    /// <summary>Сериализует manifest в канонический JSON.</summary>
     public string ToJson()
     {
         using var stream = new MemoryStream();
@@ -33,6 +43,7 @@ public sealed class EngineInstallationManifest
         return Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
     }
 
+    /// <summary>Разбирает и проверяет manifest установки.</summary>
     public static EngineInstallationManifest Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
@@ -77,6 +88,7 @@ public sealed class EngineInstallationManifest
         };
     }
 
+    /// <summary>Читает обязательное строковое свойство manifest.</summary>
     private static string ReadString(IReadOnlyDictionary<string, JsonElement> properties, string name)
     {
         if (properties[name].ValueKind != JsonValueKind.String)
@@ -87,6 +99,7 @@ public sealed class EngineInstallationManifest
         return properties[name].GetString()!;
     }
 
+    /// <summary>Читает обязательное целочисленное свойство manifest.</summary>
     private static int ReadInt32(IReadOnlyDictionary<string, JsonElement> properties, string name)
     {
         if (properties[name].ValueKind != JsonValueKind.Number || !properties[name].TryGetInt32(out int value))
@@ -98,4 +111,5 @@ public sealed class EngineInstallationManifest
     }
 }
 
+/// <summary>Представляет нарушение формата installation manifest.</summary>
 internal sealed class ManifestContractException(string message) : JsonException(message);

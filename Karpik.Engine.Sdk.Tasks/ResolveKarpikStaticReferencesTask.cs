@@ -5,14 +5,26 @@ using System.Reflection;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
+/// <summary>
+/// MSBuild-задача, собирающая безопасные ссылки на модули для статической композиции.
+/// </summary>
 public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilities.Task
 {
+    /// <summary>
+    /// Получает абсолютный корень валидированной установки движка.
+    /// </summary>
     [Required]
     public string EngineRoot { get; set; } = "";
 
     [Required]
+    /// <summary>
+    /// Получает сторону runtime-графа: <c>Shared</c>, <c>Client</c> или <c>Server</c>.
+    /// </summary>
     public string Side { get; set; } = "";
 
+    /// <summary>
+    /// Получает ссылки на первичные сборки выбранных модулей вместе с CLR-идентичностью.
+    /// </summary>
     [Output]
     public ITaskItem[] References { get; set; } = [];
 
@@ -25,6 +37,10 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     [Output]
     public ITaskItem[] PayloadAssemblies { get; set; } = [];
 
+    /// <summary>
+    /// Разрешает ссылки на модули и их payload-сборки для заданной стороны.
+    /// </summary>
+    /// <returns><see langword="true"/>, если все ссылки разрешены; иначе <see langword="false"/>.</returns>
     public override bool Execute()
     {
         References = [];
@@ -43,6 +59,11 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         }
     }
 
+    /// <summary>
+    /// Читает каталог модулей и формирует ссылки на первичные и payload-сборки.
+    /// </summary>
+    /// <param name="payloadAssemblies">Получает DLL-пакеты, лежащие рядом с первичными сборками.</param>
+    /// <returns>Ссылки на первичные сборки модулей.</returns>
     private ITaskItem[] Resolve(out ITaskItem[] payloadAssemblies)
     {
         if (!Path.IsPathFullyQualified(EngineRoot))
@@ -100,6 +121,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         return [.. references];
     }
 
+    /// <summary>
+    /// Добавляет DLL модуля, кроме его первичной сборки и runner-сборок, в payload.
+    /// </summary>
     private void CollectPayloadAssemblies(string moduleDirectory, string primaryAssemblyPath,
         HashSet<string> seen, List<ITaskItem> collected)
     {
@@ -117,6 +141,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         }
     }
 
+    /// <summary>
+    /// Преобразует строковое значение стороны MSBuild в значение каталога модулей.
+    /// </summary>
     private static EngineModuleSide ParseSide(string side) => side switch
     {
         "Shared" => EngineModuleSide.Shared,
@@ -125,6 +152,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         _ => throw new ArgumentException("KarpikSide must be exactly Shared, Client, or Server.", nameof(side))
     };
 
+    /// <summary>
+    /// Находит и проверяет первичную DLL модуля, не разрешая выход за каталог модулей.
+    /// </summary>
     private static string ResolvePrimaryAssembly(string modulesRoot, string moduleId)
     {
         if (!ModuleLayoutPolicy.IsSafeModuleId(moduleId))
@@ -150,6 +180,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         return assemblyPath;
     }
 
+    /// <summary>
+    /// Отклоняет путь, если он или его предки являются ссылкой либо reparse point.
+    /// </summary>
     private static void EnsureNotReparse(string path)
     {
         for (DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(path)); current is not null; current = current.Parent)
@@ -161,21 +194,33 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         }
     }
 
+    /// <summary>
+    /// Проверяет, находится ли кандидат внутри корневого каталога.
+    /// </summary>
     private static bool IsContained(string root, string candidate)
     {
         string prefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
         return Path.GetFullPath(candidate).StartsWith(prefix, PathComparison);
     }
 
+    /// <summary>
+    /// Определяет, является ли файловая система ссылкой или reparse point.
+    /// </summary>
     private static bool IsReparsePoint(FileSystemInfo info) =>
         (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
 
+    /// <summary>
+    /// Определяет, является ли путь ссылкой или reparse point.
+    /// </summary>
     private static bool IsReparsePoint(string path)
     {
         FileSystemInfo info = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
         return IsReparsePoint(info);
     }
 
+    /// <summary>
+    /// Получает платформенно-зависимое правило сравнения путей.
+    /// </summary>
     private static StringComparison PathComparison => OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;

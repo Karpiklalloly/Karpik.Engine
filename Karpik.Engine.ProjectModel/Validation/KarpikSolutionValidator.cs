@@ -1,9 +1,12 @@
 namespace Karpik.Engine.ProjectModel;
 
+/// <summary>Проверяет SDK, project graph, стороны и циклы Karpik-решения.</summary>
 public sealed class KarpikSolutionValidator
 {
+    /// <summary>Имя SDK, обязательного для каждого Karpik-проекта.</summary>
     private const string RequiredSdkName = "Karpik.Engine.Sdk";
 
+    /// <summary>Проверяет модель решения и возвращает все найденные нарушения.</summary>
     public IReadOnlyList<KarpikDiagnostic> Validate(KarpikSolutionModel model)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -26,6 +29,7 @@ public sealed class KarpikSolutionValidator
         return diagnostics;
     }
 
+    /// <summary>Проверяет доступность, расположение и уникальность проектов решения.</summary>
     private static HashSet<string> ValidateSolutionProjects(
         KarpikSolutionModel model,
         string solutionRoot,
@@ -73,6 +77,7 @@ public sealed class KarpikSolutionValidator
         return invalidProjects;
     }
 
+    /// <summary>Проверяет обязательный SDK, вид и сторону одного проекта.</summary>
     private static void ValidateDeclarations(
         KarpikProjectDescriptor project,
         ICollection<KarpikDiagnostic> diagnostics)
@@ -106,6 +111,7 @@ public sealed class KarpikSolutionValidator
         }
     }
 
+    /// <summary>Проверяет существование project references и допустимость зависимостей сторон.</summary>
     private static void ValidateReferences(
         IReadOnlyDictionary<string, KarpikProjectDescriptor> projectsByPath,
         string solutionRoot,
@@ -140,6 +146,7 @@ public sealed class KarpikSolutionValidator
         }
     }
 
+    /// <summary>Определяет, разрешена ли target-сторона для source-стороны.</summary>
     private static bool IsSideAllowed(KarpikProjectSide source, KarpikProjectSide target)
     {
         return source switch
@@ -152,6 +159,7 @@ public sealed class KarpikSolutionValidator
         };
     }
 
+    /// <summary>Добавляет диагностику, если в project-reference graph есть цикл.</summary>
     private static void ValidateCycles(
         IReadOnlyDictionary<string, KarpikProjectDescriptor> projectsByPath,
         ICollection<KarpikDiagnostic> diagnostics,
@@ -176,6 +184,7 @@ public sealed class KarpikSolutionValidator
         }
     }
 
+    /// <summary>Находит проекты, принадлежащие strongly connected component с циклом.</summary>
     private static IReadOnlyList<string> FindCyclicProjects(IReadOnlyDictionary<string, List<string>> outgoing)
     {
         var nextIndex = 0;

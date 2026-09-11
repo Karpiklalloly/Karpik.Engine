@@ -2,20 +2,30 @@ using System.Text;
 
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Определяет runtime-сторону модуля в engine payload.</summary>
 public enum EngineModuleSide : byte
 {
+    /// <summary>Модуль доступен обеим runtime-сторонам.</summary>
     Shared,
+    /// <summary>Модуль доступен клиенту.</summary>
     Client,
+    /// <summary>Модуль доступен серверу.</summary>
     Server
 }
 
+/// <summary>Описывает одну запись канонического каталога модулей.</summary>
+/// <param name="ModuleId">Безопасный идентификатор модуля.</param>
+/// <param name="Side">Сторона модуля.</param>
 public readonly record struct EngineModuleCatalogEntry(string ModuleId, EngineModuleSide Side);
 
+/// <summary>Читает, проверяет и сериализует канонический каталог модулей payload.</summary>
 public static class EngineModuleCatalog
 {
+    /// <summary>Имя файла каталога модулей.</summary>
     public const string FileName = "modules.catalog";
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
+    /// <summary>Сериализует записи в детерминированный UTF-8 текстовый формат.</summary>
     public static string Serialize(IEnumerable<EngineModuleCatalogEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -26,6 +36,7 @@ public static class EngineModuleCatalog
         return string.Concat(canonical.Select(entry => $"{entry.Side}\t{entry.ModuleId}\n"));
     }
 
+    /// <summary>Читает и проверяет каталог из каталога modules.</summary>
     public static EngineModuleCatalogEntry[] Read(string modulesRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modulesRoot);
@@ -42,6 +53,7 @@ public static class EngineModuleCatalog
         return Parse(File.ReadAllBytes(path));
     }
 
+    /// <summary>Проверяет и разбирает байты канонического каталога.</summary>
     public static EngineModuleCatalogEntry[] Parse(ReadOnlySpan<byte> bytes)
     {
         string text;
@@ -80,6 +92,7 @@ public static class EngineModuleCatalog
         return canonical;
     }
 
+    /// <summary>Возвращает shared и side-specific модули для client или server runtime.</summary>
     public static EngineModuleCatalogEntry[] ForSide(IEnumerable<EngineModuleCatalogEntry> entries, EngineModuleSide side)
     {
         if (side is EngineModuleSide.Shared)
@@ -93,6 +106,7 @@ public static class EngineModuleCatalog
             .ToArray();
     }
 
+    /// <summary>Проверяет размер, уникальность и безопасность записей каталога.</summary>
     private static EngineModuleCatalogEntry[] Validate(IEnumerable<EngineModuleCatalogEntry> entries)
     {
         EngineModuleCatalogEntry[] materialized = entries.ToArray();

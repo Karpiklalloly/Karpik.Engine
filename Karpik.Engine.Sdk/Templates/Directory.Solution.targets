@@ -1,3 +1,4 @@
 <Project>
+  <!-- Шаблон подключает solution-level проверки Karpik для внешнего проекта. -->
   <Import Project="Solution.targets" Sdk="Karpik.Engine.Sdk" />
 </Project>

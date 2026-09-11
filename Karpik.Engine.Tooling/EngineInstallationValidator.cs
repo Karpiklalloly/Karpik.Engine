@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Описывает результат проверки структуры и совместимости engine payload.</summary>
 public enum EngineInstallationValidationCode
 {
     Valid,
@@ -29,14 +30,21 @@ public enum EngineInstallationValidationCode
     HashMismatch
 }
 
+/// <summary>Содержит результат проверки одной установки движка.</summary>
+/// <param name="IsValid">Указывает, прошла ли установка все проверки.</param>
+/// <param name="Code">Код результата проверки.</param>
+/// <param name="Message">Текст результата для диагностики.</param>
+/// <param name="Manifest">Распарсенный manifest, если он доступен.</param>
 public sealed record EngineInstallationValidationResult(
     bool IsValid,
     EngineInstallationValidationCode Code,
     string Message,
     EngineInstallationManifest? Manifest = null);
 
+/// <summary>Проверяет manifest, layout, DLL-идентичности и content hash engine payload.</summary>
 public sealed class EngineInstallationValidator
 {
+    /// <summary>Проверяет установку и, при необходимости, её ожидаемые версии.</summary>
     public EngineInstallationValidationResult Validate(
         string installationRoot,
         string? expectedSdkVersion = null,
@@ -251,12 +259,14 @@ public sealed class EngineInstallationValidator
         return new EngineInstallationValidationResult(true, EngineInstallationValidationCode.Valid, "Engine installation is valid.", manifest);
     }
 
+    /// <summary>Проверяет, пригодна ли версия для хранения в manifest и сегменте пути.</summary>
     private static bool IsValidVersion(string value) =>
         !string.IsNullOrWhiteSpace(value) &&
         value is not "." and not ".." &&
         value.IndexOfAny(['/', '\\']) < 0 &&
         value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
+    /// <summary>Отклоняет module payload с конфликтующими CLR-идентичностями DLL.</summary>
     private static EngineInstallationValidationResult? ValidateManagedAssemblyIdentities(
         IEnumerable<string> moduleDirectories,
         EngineInstallationManifest manifest)
@@ -303,11 +313,13 @@ public sealed class EngineInstallationValidator
         return null;
     }
 
+    /// <summary>Создаёт неуспешный результат валидации.</summary>
     private static EngineInstallationValidationResult Failure(
         EngineInstallationValidationCode code,
         string message,
         EngineInstallationManifest? manifest = null) => new(false, code, message, manifest);
 
+    /// <summary>Создаёт диагностику некорректного layout каталога modules.</summary>
     private static EngineInstallationValidationResult InvalidModuleLayout(
         EngineInstallationManifest manifest,
         string? detail = null) => Failure(
@@ -317,11 +329,15 @@ public sealed class EngineInstallationValidator
             manifest);
 }
 
+/// <summary>Вычисляет детерминированный SHA-256 хеш файлов engine payload.</summary>
 public static class EngineContentHash
 {
+    /// <summary>Префикс формата, разделяющий версии алгоритма хеширования.</summary>
     private static readonly byte[] FormatPrefix = Encoding.ASCII.GetBytes("KARPIK-PAYLOAD-HASH\0v1");
+    /// <summary>Строгий UTF-8 encoder для имён файлов payload.</summary>
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
+    /// <summary>Вычисляет content hash, исключая installation manifest и completion marker.</summary>
     public static string Compute(string installationRoot)
     {
         string root = Path.GetFullPath(installationRoot);
@@ -377,6 +393,7 @@ public static class EngineContentHash
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
+    /// <summary>Собирает безопасные файлы payload и их нормализованные относительные пути.</summary>
     private static List<(string RelativePath, string FullPath)> CollectFiles(string root)
     {
         var files = new List<(string RelativePath, string FullPath)>();
@@ -421,6 +438,7 @@ public static class EngineContentHash
         return files;
     }
 
+    /// <summary>Нормализует относительный путь для стабильного хеширования.</summary>
     private static string NormalizeRelativePath(string path)
     {
         string normalized = string.Join('/', path.Split(Path.DirectorySeparatorChar)).Normalize(NormalizationForm.FormC);
@@ -432,8 +450,10 @@ public static class EngineContentHash
     }
 }
 
+/// <summary>Содержит проверки containment и reparse point для путей payload.</summary>
 internal static class PathSafety
 {
+    /// <summary>Проверяет, расположен ли кандидат внутри корня.</summary>
     public static bool IsContained(string root, string candidate)
     {
         string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -442,12 +462,14 @@ internal static class PathSafety
                fullCandidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, PathComparison);
     }
 
+    /// <summary>Определяет, является ли путь symbolic link или reparse point.</summary>
     public static bool IsReparsePoint(string path)
     {
         var info = Directory.Exists(path) ? (FileSystemInfo)new DirectoryInfo(path) : new FileInfo(path);
         return (info.Attributes & FileAttributes.ReparsePoint) != 0 || info.LinkTarget is not null;
     }
 
+    /// <summary>Получает платформенно-зависимое правило сравнения путей.</summary>
     public static StringComparison PathComparison => OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;

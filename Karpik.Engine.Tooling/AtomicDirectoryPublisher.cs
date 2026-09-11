@@ -1,5 +1,6 @@
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Публикует подготовленные каталоги через staging, backup и проверяемое восстановление.</summary>
 public class AtomicDirectoryPublisher
 {
     private const string OwnedMarkerSuffix = ".owned";
@@ -9,6 +10,7 @@ public class AtomicDirectoryPublisher
     private readonly string _stagingRoot;
     private readonly string _replacementRoot;
 
+    /// <summary>Создаёт publisher для заданного корня установок.</summary>
     public AtomicDirectoryPublisher(string outputRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputRoot);
@@ -18,6 +20,7 @@ public class AtomicDirectoryPublisher
         _replacementRoot = Path.Combine(_outputRoot, ".replacement");
     }
 
+    /// <summary>Создаёт маркированный staging-каталог, принадлежащий publisher'у.</summary>
     public string CreateStagingDirectory()
     {
         EnsureOwnedRoots();
@@ -28,6 +31,7 @@ public class AtomicDirectoryPublisher
         return stagingDirectory;
     }
 
+    /// <summary>Восстанавливает либо удаляет подтверждённые следы незавершённой публикации.</summary>
     public void Recover(Func<string, bool>? validateInstallation = null)
     {
         EnsureOwnedRoots();
@@ -35,6 +39,7 @@ public class AtomicDirectoryPublisher
         RecoverStaging();
     }
 
+    /// <summary>Проверяет staging и атомарно заменяет каталог назначения.</summary>
     public void Publish(
         string stagingDirectory,
         string destinationDirectory,
@@ -135,6 +140,7 @@ public class AtomicDirectoryPublisher
         }
     }
 
+    /// <summary>Удаляет принадлежащий publisher'у staging-каталог.</summary>
     public void AbandonStaging(string stagingDirectory)
     {
         (string staging, string transactionId) = ValidateOwnedStaging(stagingDirectory);
@@ -142,6 +148,7 @@ public class AtomicDirectoryPublisher
         File.Delete(GetStagingMarker(transactionId));
     }
 
+    /// <summary>Помечает staging для сохранения после неподтверждённого завершения дочернего процесса.</summary>
     public void PreserveStagingAfterUnconfirmedProcess(string stagingDirectory, int processId)
     {
         (string staging, _) = ValidateOwnedStaging(stagingDirectory);
@@ -150,9 +157,11 @@ public class AtomicDirectoryPublisher
             $"dotnet process {processId} termination was not confirmed; inspect before removing this marker.{Environment.NewLine}");
     }
 
+    /// <summary>Перемещает каталог; virtual для имитации сбоев в тестах.</summary>
     protected virtual void MoveDirectory(string sourceDirectory, string destinationDirectory) =>
         Directory.Move(sourceDirectory, destinationDirectory);
 
+    /// <summary>Создаёт служебные корни staging и replacement.</summary>
     private void EnsureOwnedRoots()
     {
         Directory.CreateDirectory(_outputRoot);
@@ -170,6 +179,7 @@ public class AtomicDirectoryPublisher
         }
     }
 
+    /// <summary>Проверяет, что staging находится в ожидаемом корне и имеет marker владения.</summary>
     private (string Staging, string TransactionId) ValidateOwnedStaging(string stagingDirectory)
     {
         string staging = Path.GetFullPath(stagingDirectory);
@@ -190,6 +200,7 @@ public class AtomicDirectoryPublisher
         return (staging, transactionId);
     }
 
+    /// <summary>Проверяет, что destination является безопасным leaf-каталогом Engines.</summary>
     private string ValidateDestination(string destinationDirectory)
     {
         string destination = Path.GetFullPath(destinationDirectory);
@@ -206,6 +217,7 @@ public class AtomicDirectoryPublisher
         return destination;
     }
 
+    /// <summary>Удаляет подтверждённые устаревшие staging-каталоги.</summary>
     private void RecoverStaging()
     {
         foreach (string marker in Directory.EnumerateFiles(_stagingRoot, "*" + OwnedMarkerSuffix, SearchOption.TopDirectoryOnly))
@@ -228,6 +240,7 @@ public class AtomicDirectoryPublisher
         }
     }
 
+    /// <summary>Завершает восстановление либо cleanup replacement-транзакций.</summary>
     private void RecoverReplacements(Func<string, bool>? validateInstallation)
     {
         foreach (string wrapper in Directory.EnumerateDirectories(_replacementRoot, "*", SearchOption.TopDirectoryOnly))
@@ -304,6 +317,7 @@ public class AtomicDirectoryPublisher
         }
     }
 
+    /// <summary>Безопасно вызывает внешний валидатор установки.</summary>
     private static bool TryValidateInstallation(Func<string, bool> validateInstallation, string path)
     {
         try
@@ -316,15 +330,18 @@ public class AtomicDirectoryPublisher
         }
     }
 
+    /// <summary>Возвращает путь marker-файла staging-транзакции.</summary>
     private string GetStagingMarker(string transactionId) =>
         Path.Combine(_stagingRoot, transactionId + OwnedMarkerSuffix);
 
+    /// <summary>Проверяет, является ли имя безопасным одиночным сегментом пути.</summary>
     private static bool IsSafeLeafName(string name) =>
         !string.IsNullOrWhiteSpace(name) &&
         name is not "." and not ".." &&
         name.IndexOfAny(['/', '\\']) < 0 &&
         name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
+    /// <summary>Удаляет дерево только при наличии marker-файла владения.</summary>
     private static void DeleteOwnedTree(string path)
     {
         if (!Directory.Exists(path))

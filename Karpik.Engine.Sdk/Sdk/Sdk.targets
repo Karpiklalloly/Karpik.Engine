@@ -1,4 +1,5 @@
 <Project>
+  <!-- Вычисляет расположение SDK-задач и анализаторов внутри установленного NuGet-пакета. -->
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
     <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
@@ -6,6 +7,7 @@
     <_KarpikMsBuildSdkVersion>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildThisFileDirectory)'))))))</_KarpikMsBuildSdkVersion>
   </PropertyGroup>
 
+  <!-- Подключает генераторы core-кода и runtime network-кода. -->
   <ItemGroup>
     <Analyzer Include="$(_KarpikCoreCodegenAssembly)"
               Condition="Exists('$(_KarpikCoreCodegenAssembly)')" />
@@ -13,6 +15,7 @@
               Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(_KarpikNetworkCodegenAssembly)')" />
   </ItemGroup>
 
+  <!-- Регистрирует задачи SDK, вызываемые целями ниже. -->
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikEngineRootTask"
@@ -22,13 +25,15 @@
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
+  <!-- Подключает стандартные цели .NET SDK. -->
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
+  <!-- Задаёт каталог готового runtime bundle, если пользователь не переопределил его. -->
   <PropertyGroup>
     <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
   </PropertyGroup>
 
-<!--  Проверка на режим сборки (static/dynamic)-->
+  <!-- Проверяет допустимый режим композиции: Static или Dynamic. -->
   <Target Name="ValidateKarpikCompositionMode"
           BeforeTargets="PrepareForBuild;Restore">
     <PropertyGroup>
@@ -39,7 +44,7 @@
            Text="KARPIK010: KarpikCompositionMode must be exactly 'Dynamic' or 'Static'; actual value: '$(KarpikCompositionMode)'." />
   </Target>
 
-<!--  вапвап-->
+  <!-- Разрешает установку движка и добавляет базовые DLL для Runtime и Static Tool. -->
   <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
           Condition="'$(KarpikProjectKind)' == 'Runtime' Or ('$(KarpikProjectKind)' == 'Tool' And '$(KarpikCompositionMode)' == 'Static')">
     <ResolveKarpikEngineRootTask SdkVersion="$(_KarpikMsBuildSdkVersion)"
@@ -79,6 +84,7 @@
     </ItemGroup>
   </Target>
 
+  <!-- Добавляет статически выбранные модули и их транзитивные контракты. -->
   <Target Name="_KarpikResolveStaticModuleReferences"
           BeforeTargets="ResolveAssemblyReferences"
           DependsOnTargets="_KarpikResolveEngineReferenceAssemblies"
@@ -133,6 +139,7 @@
     </ItemGroup>
   </Target>
 
+  <!-- Отклоняет недопустимые ProjectReference до restore. -->
   <Target Name="ValidateKarpikProjectReferencesBeforeRestore"
           BeforeTargets="_GenerateRestoreProjectPathWalk"
           Condition="'$(DesignTimeBuild)' != 'true'">
@@ -210,6 +217,7 @@
           SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- Собирает Runtime bundle из приложения, контента, модов и native-файлов. -->
   <Target Name="BuildKarpikRuntimeBundle"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
@@ -244,6 +252,7 @@
                                   NativeFiles="@(_KarpikBundleNative)" />
   </Target>
 
+  <!-- Повторяет проверку ProjectReference перед началом сборки. -->
   <Target Name="ValidateKarpikProjectReferencesBeforeBuild"
           BeforeTargets="AssignProjectConfiguration"
           Condition="'$(DesignTimeBuild)' != 'true'">

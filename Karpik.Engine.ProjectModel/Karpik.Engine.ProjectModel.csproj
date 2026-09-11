@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <!-- Настраивает независимую библиотеку модели solution и project-файлов. -->
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <!-- Убирает несвязанные генераторы из графа библиотеки модели. -->
     <ItemGroup>
         <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>

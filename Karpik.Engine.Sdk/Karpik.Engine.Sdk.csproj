@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <!-- Описывает NuGet-пакет SDK и пути к артефактам, которые будут упакованы. -->
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -15,12 +16,14 @@
         <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikNetworkCodegenOutputPath>
     </PropertyGroup>
 
+    <!-- Собирает DLL MSBuild-задач до упаковки SDK, не добавляя её как runtime-зависимость. -->
     <ItemGroup>
         <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj"
                           ReferenceOutputAssembly="false"
                           PrivateAssets="all" />
     </ItemGroup>
 
+    <!-- Включает targets, шаблон и готовые DLL в layout NuGet-пакета SDK. -->
     <ItemGroup>
         <None Include="Sdk\Sdk.props" Pack="true" PackagePath="Sdk/" />
         <None Include="Sdk\Sdk.targets" Pack="true" PackagePath="Sdk/" />
@@ -44,6 +47,7 @@
               PackagePath="analyzers/dotnet/cs/" />
     </ItemGroup>
 
+    <!-- Исключает внешние генераторы из неявного графа и добавляет нужный analyzer явно. -->
     <ItemGroup>
         <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
         <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"

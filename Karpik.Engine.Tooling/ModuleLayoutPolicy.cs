@@ -1,9 +1,12 @@
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Определяет безопасные имена и layout-файлы модулей engine payload.</summary>
 public static class ModuleLayoutPolicy
 {
+    /// <summary>Получает comparer идентификаторов модулей без учёта регистра.</summary>
     public static StringComparer ModuleIdComparer { get; } = StringComparer.OrdinalIgnoreCase;
 
+    /// <summary>Проверяет, является ли идентификатор переносимым безопасным сегментом пути.</summary>
     public static bool IsSafeModuleId(string? moduleId)
     {
         if (string.IsNullOrWhiteSpace(moduleId) ||
@@ -24,6 +27,7 @@ public static class ModuleLayoutPolicy
         return true;
     }
 
+    /// <summary>Возвращает ожидаемое имя первичной DLL безопасного модуля.</summary>
     public static string GetPrimaryAssemblyFileName(string moduleId)
     {
         if (!IsSafeModuleId(moduleId))

@@ -3,11 +3,21 @@ using Microsoft.Build.Framework;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
+/// <summary>
+/// MSBuild-задача, которая читает и проверяет полный граф проектов Karpik-решения.
+/// </summary>
 public sealed class ValidateKarpikSolutionTask : Microsoft.Build.Utilities.Task
 {
+    /// <summary>
+    /// Получает абсолютный путь к файлу решения, подлежащему проверке.
+    /// </summary>
     [Required]
     public string SolutionPath { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Выполняет чтение решения и передаёт найденные нарушения в журнал MSBuild.
+    /// </summary>
+    /// <returns><see langword="true"/>, если нарушений не найдено; иначе <see langword="false"/>.</returns>
     public override bool Execute()
     {
         try
@@ -32,6 +42,11 @@ public sealed class ValidateKarpikSolutionTask : Microsoft.Build.Utilities.Task
         }
     }
 
+    /// <summary>
+    /// Записывает диагностические сообщения модели проекта в журнал MSBuild.
+    /// </summary>
+    /// <param name="diagnostics">Диагностики, которые необходимо вывести.</param>
+    /// <returns><see langword="true"/>, если список пуст; иначе <see langword="false"/>.</returns>
     private bool LogDiagnostics(IReadOnlyList<KarpikDiagnostic> diagnostics)
     {
         foreach (KarpikDiagnostic diagnostic in diagnostics)

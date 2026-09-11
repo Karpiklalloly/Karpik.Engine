@@ -2,22 +2,30 @@ using Karpik.Engine.Tooling;
 
 namespace Karpik.Engine.Packager;
 
+/// <summary>Содержит результат materialization и публикации engine payload.</summary>
+/// <param name="DestinationDirectory">Каталог опубликованной установки.</param>
+/// <param name="ContentHash">Вычисленный хеш содержимого payload.</param>
+/// <param name="ReusedExistingInstallation">Указывает, была ли переиспользована идентичная установка.</param>
 public sealed record EnginePayloadBuildResult(
     string DestinationDirectory,
     string ContentHash,
     bool ReusedExistingInstallation);
 
+/// <summary>Собирает, проверяет и атомарно публикует versioned engine payload.</summary>
 public sealed class EnginePayloadBuilder
 {
     private readonly DotNetProcessRunner _processRunner;
 
+    /// <summary>Создаёт builder со стандартным runner'ом dotnet-процессов.</summary>
     public EnginePayloadBuilder() : this(new DotNetProcessRunner())
     {
     }
 
+    /// <summary>Создаёт builder с runner'ом для тестирования запуска dotnet.</summary>
     internal EnginePayloadBuilder(DotNetProcessRunner processRunner) =>
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
 
+    /// <summary>Строит payload из checkout или подготовленного layout и публикует его.</summary>
     public EnginePayloadBuildResult Build(
         string sourceRoot,
         string outputRoot,
@@ -99,6 +107,7 @@ public sealed class EnginePayloadBuilder
         }
     }
 
+    /// <summary>Нормализует путь и требует существующий каталог.</summary>
     private static string NormalizeExistingDirectory(string path, string parameterName)
     {
         string fullPath = NormalizeDirectory(path, parameterName);
@@ -109,12 +118,14 @@ public sealed class EnginePayloadBuilder
         return fullPath;
     }
 
+    /// <summary>Нормализует непустой путь к каталогу.</summary>
     private static string NormalizeDirectory(string path, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
         return Path.GetFullPath(path);
     }
 
+    /// <summary>Проверяет версию как безопасный сегмент пути.</summary>
     private static void ValidateVersion(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value) ||
@@ -126,6 +137,7 @@ public sealed class EnginePayloadBuilder
         }
     }
 
+    /// <summary>Определяет, требуется ли content-addressed суффикс development-версии.</summary>
     private static bool IsDevelopmentVersion(string version) =>
         version.Contains("-dev", StringComparison.OrdinalIgnoreCase);
 }

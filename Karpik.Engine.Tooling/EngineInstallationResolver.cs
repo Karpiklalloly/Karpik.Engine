@@ -1,16 +1,30 @@
 namespace Karpik.Engine.Tooling;
 
+/// <summary>Описывает исход поиска совместимой установки KarpikEngine.</summary>
 public enum EngineInstallationResolutionCode
 {
+    /// <summary>Установка успешно разрешена.</summary>
     Success,
+    /// <summary>Запрошенная SDK-версия небезопасна или пуста.</summary>
     InvalidSdkVersion,
+    /// <summary>Явно указанный корень установки некорректен.</summary>
     InvalidExplicitRoot,
+    /// <summary>Локальное хранилище установок отсутствует.</summary>
     MissingInstallationStore,
+    /// <summary>Подходящая установка не найдена.</summary>
     InstallationNotFound,
+    /// <summary>Найдено более одной валидной установки для версии SDK.</summary>
     AmbiguousInstallation,
+    /// <summary>Найдена, но не прошла проверку совместимая установка.</summary>
     InvalidInstallation
 }
 
+/// <summary>Содержит результат поиска engine payload для точной версии SDK.</summary>
+/// <param name="IsSuccess">Указывает на успешность поиска.</param>
+/// <param name="Code">Код результата.</param>
+/// <param name="Message">Текст результата для пользователя или диагностики.</param>
+/// <param name="InstallationRoot">Корень найденной установки при успехе.</param>
+/// <param name="Manifest">Проверенный manifest найденной установки.</param>
 public sealed record EngineInstallationResolutionResult(
     bool IsSuccess,
     EngineInstallationResolutionCode Code,
@@ -18,11 +32,13 @@ public sealed record EngineInstallationResolutionResult(
     string? InstallationRoot = null,
     EngineInstallationManifest? Manifest = null);
 
+/// <summary>Находит единственную валидную установку движка для закреплённой SDK-версии.</summary>
 public sealed class EngineInstallationResolver
 {
     private readonly EngineInstallationValidator _validator;
     private readonly string _localApplicationDataRoot;
 
+    /// <summary>Создаёт resolver с валидатором и корнем local application data.</summary>
     public EngineInstallationResolver(
         EngineInstallationValidator? validator = null,
         string? localApplicationDataRoot = null)
@@ -32,6 +48,7 @@ public sealed class EngineInstallationResolver
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
 
+    /// <summary>Разрешает явный root либо единственную совместимую установленную версию.</summary>
     public EngineInstallationResolutionResult Resolve(
         string requestedSdkVersion,
         string? karpikEngineRoot = null)
@@ -116,15 +133,18 @@ public sealed class EngineInstallationResolver
         return Failure(EngineInstallationResolutionCode.InstallationNotFound, $"No valid engine installation provides exact SDK version '{requestedSdkVersion}'.");
     }
 
+    /// <summary>Проверяет, пригодна ли версия для использования как сегмент пути.</summary>
     private static bool IsSafeVersion(string version) =>
         !string.IsNullOrWhiteSpace(version) &&
         version is not "." and not ".." &&
         version.IndexOfAny(['/', '\\']) < 0 &&
         version.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
+    /// <summary>Создаёт успешный результат разрешения.</summary>
     private static EngineInstallationResolutionResult Success(string root, EngineInstallationManifest manifest) =>
         new(true, EngineInstallationResolutionCode.Success, "Engine installation resolved.", root, manifest);
 
+    /// <summary>Создаёт неуспешный результат разрешения.</summary>
     private static EngineInstallationResolutionResult Failure(EngineInstallationResolutionCode code, string message) =>
         new(false, code, message);
 }

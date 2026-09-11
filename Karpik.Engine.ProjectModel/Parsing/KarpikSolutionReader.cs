@@ -4,12 +4,16 @@ using System.Xml.Linq;
 
 namespace Karpik.Engine.ProjectModel;
 
+/// <summary>Читает solution и project-файлы в независимую от MSBuild модель Karpik.</summary>
 public sealed class KarpikSolutionReader
 {
+    /// <summary>Сторожевое значение для некорректного enum-свойства проекта.</summary>
     private const int InvalidEnumValue = -1;
 
+    /// <summary>Читает решение из локальной файловой системы.</summary>
     public KarpikSolutionModel Read(string solutionPath) => Read(solutionPath, FileSystemKarpikProjectInputProvider.Instance);
 
+    /// <summary>Читает решение через заданный источник файлового ввода.</summary>
     public KarpikSolutionModel Read(string solutionPath, IKarpikProjectInputProvider inputProvider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
@@ -33,6 +37,7 @@ public sealed class KarpikSolutionReader
             projects);
     }
 
+    /// <summary>Читает транзитивный граф ссылок, достижимый из одного проекта.</summary>
     public KarpikSolutionModel ReadProjectGraph(string projectPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
@@ -68,6 +73,7 @@ public sealed class KarpikSolutionReader
             projects);
     }
 
+    /// <summary>Разрешает путь, объявленный в решении, и читает соответствующий проект.</summary>
     private static KarpikProjectDescriptor ReadProject(
         string solutionRoot,
         string declaredPath,
@@ -91,6 +97,7 @@ public sealed class KarpikSolutionReader
         return ReadProjectFile(projectPath, inputProvider);
     }
 
+    /// <summary>Читает один project-файл либо возвращает descriptor с причиной ошибки чтения.</summary>
     private static KarpikProjectDescriptor ReadProjectFile(
         string projectPath,
         IKarpikProjectInputProvider inputProvider)
@@ -121,6 +128,7 @@ public sealed class KarpikSolutionReader
         }
     }
 
+    /// <summary>Находит общий корень direct-build graph, предпочитая каталог с global.json.</summary>
     private static string FindGraphRoot(
         string rootProjectPath,
         IReadOnlyList<KarpikProjectDescriptor> projects)
@@ -152,6 +160,7 @@ public sealed class KarpikSolutionReader
         return graphRoot;
     }
 
+    /// <summary>Безопасно загружает XML, запрещая DTD и внешние XML-resolver'ы.</summary>
     private static XDocument LoadXml(string path, IKarpikProjectInputProvider inputProvider)
     {
         XmlReaderSettings settings = new XmlReaderSettings
@@ -164,6 +173,7 @@ public sealed class KarpikSolutionReader
         return XDocument.Load(reader, LoadOptions.None);
     }
 
+    /// <summary>Извлекает все SDK-имена из корня проекта, Sdk и Import элементов.</summary>
     private static IReadOnlyList<string> ReadSdkNames(XDocument document)
     {
         HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -186,6 +196,7 @@ public sealed class KarpikSolutionReader
         return names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>Разбирает разделённые точкой с запятой объявления SDK и добавляет их имена.</summary>
     private static void AddSdkDeclarations(ISet<string> names, string? declarations)
     {
         if (string.IsNullOrWhiteSpace(declarations))
@@ -204,6 +215,7 @@ public sealed class KarpikSolutionReader
         }
     }
 
+    /// <summary>Читает единственное корректное enum-свойство из верхнеуровневых PropertyGroup.</summary>
     private static TEnum ReadEnumProperty<TEnum>(XDocument document, string propertyName)
         where TEnum : struct, Enum
     {
@@ -223,6 +235,7 @@ public sealed class KarpikSolutionReader
         return (TEnum)Enum.ToObject(typeof(TEnum), InvalidEnumValue);
     }
 
+    /// <summary>Извлекает и нормализует статически объявленные ссылки на проекты.</summary>
     private static IReadOnlyList<string> ReadProjectReferences(
         IEnumerable<XElement> projectReferenceElements,
         string projectPath)
@@ -242,6 +255,7 @@ public sealed class KarpikSolutionReader
         return references;
     }
 
+    /// <summary>Проверяет, что ссылка literal, unconditional и не использует MSBuild-выражения.</summary>
     private static bool IsStaticProjectReference(XElement reference)
     {
         string? include = reference.Attributes()
@@ -255,6 +269,7 @@ public sealed class KarpikSolutionReader
                include.IndexOfAny(['*', '?', ';']) < 0;
     }
 
+    /// <summary>Извлекает требования к Karpik-модулям из верхнеуровневых ItemGroup.</summary>
     private static IReadOnlyList<KarpikModuleReference> ReadModules(XDocument document)
     {
         List<KarpikModuleReference> modules = new List<KarpikModuleReference>();
@@ -278,17 +293,20 @@ public sealed class KarpikSolutionReader
         return modules;
     }
 
+    /// <summary>Читает metadata из атрибута либо вложенного элемента MSBuild item.</summary>
     private static string? ReadMetadata(XElement element, string name)
     {
         return element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == name)?.Value.Trim()
                ?? element.Elements().FirstOrDefault(child => child.Name.LocalName == name)?.Value.Trim();
     }
 
+    /// <summary>Перечисляет элементы первого уровня с заданным локальным именем.</summary>
     private static IEnumerable<XElement> TopLevelElements(XDocument document, string name)
     {
         return document.Root?.Elements().Where(element => element.Name.LocalName == name) ?? [];
     }
 
+    /// <summary>Перечисляет item-элементы из верхнеуровневых ItemGroup по их именам.</summary>
     private static IEnumerable<XElement> TopLevelItemElements(XDocument document, params string[] names)
     {
         return TopLevelElements(document, "ItemGroup")
@@ -296,6 +314,7 @@ public sealed class KarpikSolutionReader
                 .Where(element => names.Contains(element.Name.LocalName, StringComparer.Ordinal)));
     }
 
+    /// <summary>Читает закреплённую версию Karpik.Engine.Sdk из global.json.</summary>
     private static string ReadSdkVersion(
         string solutionRoot,
         IKarpikProjectInputProvider inputProvider)
@@ -322,6 +341,7 @@ public sealed class KarpikSolutionReader
         }
     }
 
+    /// <summary>Создаёт descriptor проекта, который нельзя использовать в дальнейшей валидации.</summary>
     private static KarpikProjectDescriptor InvalidDescriptor(string projectPath, KarpikProjectReadStatus status)
     {
         return new KarpikProjectDescriptor(

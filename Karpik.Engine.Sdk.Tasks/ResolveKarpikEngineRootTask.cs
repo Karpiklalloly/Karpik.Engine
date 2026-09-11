@@ -4,18 +4,37 @@ using Microsoft.Build.Framework;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
+/// <summary>
+/// MSBuild-задача, разрешающая совместимую установку KarpikEngine для закреплённой версии SDK.
+/// </summary>
 public sealed class ResolveKarpikEngineRootTask : Microsoft.Build.Utilities.Task
 {
+    /// <summary>
+    /// Получает точную версию MSBuild SDK, которой должна соответствовать установка движка.
+    /// </summary>
     [Required]
     public string SdkVersion { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Получает или задаёт явный абсолютный путь к установке движка вместо автоматического поиска.
+    /// </summary>
     public string? ExplicitRoot { get; set; }
 
+    /// <summary>
+    /// Получает или задаёт корень local application data для изолированного поиска установки.
+    /// </summary>
     public string? LocalApplicationDataRoot { get; set; }
 
+    /// <summary>
+    /// Получает разрешённый абсолютный путь к валидированной установке движка.
+    /// </summary>
     [Output]
     public string ResolvedRoot { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Разрешает установку и сообщает в MSBuild диагностическую ошибку при неудаче.
+    /// </summary>
+    /// <returns><see langword="true"/>, если <see cref="ResolvedRoot"/> установлен; иначе <see langword="false"/>.</returns>
     public override bool Execute()
     {
         try
@@ -25,9 +44,7 @@ public sealed class ResolveKarpikEngineRootTask : Microsoft.Build.Utilities.Task
                 : LocalApplicationDataRoot;
             EngineInstallationResolver resolver = new EngineInstallationResolver(
                 localApplicationDataRoot: localApplicationDataRoot);
-            EngineInstallationResolutionResult result = resolver.Resolve(
-                SdkVersion,
-                ExplicitRoot);
+            EngineInstallationResolutionResult result = resolver.Resolve(SdkVersion, ExplicitRoot);
             if (!result.IsSuccess)
             {
                 LogResolutionError(result.Message);
@@ -48,6 +65,10 @@ public sealed class ResolveKarpikEngineRootTask : Microsoft.Build.Utilities.Task
         }
     }
 
+    /// <summary>
+    /// Записывает ошибку разрешения установки с кодом диагностики Karpik.
+    /// </summary>
+    /// <param name="message">Текст ошибки.</param>
     private void LogResolutionError(string message)
     {
         Log.LogError(
