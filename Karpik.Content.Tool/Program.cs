@@ -1,4 +1,5 @@
 using Karpik.Content.Core;
+using System.Text.Json;
 
 namespace Karpik.Content.Tool;
 
@@ -24,6 +25,7 @@ internal static class Program
             {
                 "build" => RunBuild(args.Skip(1).ToArray()),
                 "validate" => RunValidate(args.Skip(1).ToArray()),
+                "create" => RunCreate(args.Skip(1).ToArray()),
                 "list" => RunList(args.Skip(1).ToArray()),
                 "why" => RunWhy(args.Skip(1).ToArray()),
                 "--help" or "-h" or "help" => RunHelp(),
@@ -56,6 +58,7 @@ internal static class Program
         Console.WriteLine("Usage:");
         Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id>");
         Console.WriteLine("  content validate --source <dir> --namespace <id>");
+        Console.WriteLine("  content create   --source <dir> --file <relative-json-path> --namespace <id>");
         Console.WriteLine("  content list     --manifest <path>");
         Console.WriteLine("  content why      --manifest <path> <asset-guid>");
     }
@@ -149,6 +152,108 @@ internal static class Program
     private static void PrintValidateUsage()
     {
         Console.WriteLine("Usage: content validate --source <dir> --namespace <id>");
+    }
+
+    private static int RunCreate(string[] args)
+    {
+        string? source = null;
+        string? file = null;
+        string? ns = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg == "--source" && i + 1 < args.Length) source = args[++i];
+            else if (arg == "--file" && i + 1 < args.Length) file = args[++i];
+            else if (arg == "--namespace" && i + 1 < args.Length) ns = args[++i];
+            else if (arg == "--help" || arg == "-h") { PrintCreateUsage(); return ExitSuccess; }
+            else { Console.Error.WriteLine($"unknown argument '{arg}' for create"); PrintCreateUsage(); return ExitUsage; }
+        }
+
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(file) || string.IsNullOrWhiteSpace(ns))
+        {
+            Console.Error.WriteLine("create requires --source, --file, and --namespace");
+            PrintCreateUsage();
+            return ExitUsage;
+        }
+
+        string sourceRoot = Path.GetFullPath(source);
+        if (!Directory.Exists(sourceRoot))
+        {
+            Console.Error.WriteLine($"source directory not found: {sourceRoot}");
+            return ExitValidation;
+        }
+        if (!IsValidNamespace(ns))
+        {
+            Console.Error.WriteLine($"invalid namespace '{ns}'");
+            return ExitValidation;
+        }
+
+        string sourceFile = Path.GetFullPath(Path.IsPathRooted(file)
+            ? file
+            : Path.Combine(sourceRoot, file));
+        if (!IsContained(sourceRoot, sourceFile))
+        {
+            Console.Error.WriteLine($"source file escapes source directory: {sourceFile}");
+            return ExitValidation;
+        }
+        if (!File.Exists(sourceFile))
+        {
+            Console.Error.WriteLine($"source file not found: {sourceFile}");
+            return ExitValidation;
+        }
+        if (!string.Equals(Path.GetExtension(sourceFile), ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"create supports only .json source files: {sourceFile}");
+            return ExitValidation;
+        }
+
+        string relativePath = Path.GetRelativePath(sourceRoot, sourceFile);
+        string logicalPath = Path.ChangeExtension(relativePath, null)!
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/');
+        string logicalName = $"{ns}/{logicalPath}";
+        if (!AssetMeta.IsValidLogicalName(logicalName))
+        {
+            Console.Error.WriteLine($"source file cannot produce a valid logical name: {logicalName}");
+            return ExitValidation;
+        }
+
+        string metaPath = sourceFile + ".meta";
+        AssetId assetId = AssetId.New();
+        string metaJson = JsonSerializer.Serialize(
+            new
+            {
+                schemaVersion = AssetMeta.CurrentSchemaVersion,
+                assetId = assetId.ToCanonicalString(),
+                declaredType = AssetMeta.ExpectedDeclaredTypeRawJson,
+                logicalName,
+                importSettings = new { },
+                dependencies = Array.Empty<string>()
+            },
+            new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+
+        try
+        {
+            using FileStream stream = new(metaPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            using var writer = new StreamWriter(stream);
+            writer.Write(metaJson);
+        }
+        catch (IOException) when (File.Exists(metaPath))
+        {
+            Console.Error.WriteLine($"meta file already exists: {metaPath}");
+            return ExitValidation;
+        }
+
+        Console.WriteLine($"created meta: {metaPath}");
+        Console.WriteLine($"assetId: {assetId.ToCanonicalString()}");
+        Console.WriteLine($"logicalName: {logicalName}");
+        return ExitSuccess;
+    }
+
+    private static void PrintCreateUsage()
+    {
+        Console.WriteLine("Usage: content create --source <dir> --file <relative-json-path> --namespace <id>");
     }
 
     private static int RunList(string[] args)
@@ -312,6 +417,28 @@ internal static class Program
     private static void PrintWhyUsage()
     {
         Console.WriteLine("Usage: content why --manifest <path> <asset-guid>");
+    }
+
+    private static bool IsContained(string root, string candidate)
+    {
+        string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string fullCandidate = Path.GetFullPath(candidate);
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(fullRoot, fullCandidate, comparison) ||
+               fullCandidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, comparison);
+    }
+
+    private static bool IsValidNamespace(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Contains('/') || value.Contains('\\') || value.Contains(".."))
+        {
+            return false;
+        }
+
+        return value.All(character =>
+            character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '_' or '-' or '.');
     }
 
     private static void PrintDiagnostics(IReadOnlyList<ContentDiagnostic> diagnostics)

@@ -10,6 +10,7 @@
 | [Architecture](architecture/overview.md) | Обзор архитектуры |
 | [Modules](modules/README.md) | Документация модулей |
 | [Performance](performance/overview.md) | Оптимизации производительности |
+| [Content Pipeline](content-pipeline.md) | Практическая сборка и загрузка cooked-контента |
 
 ## 🎯 Быстрые ссылки
 

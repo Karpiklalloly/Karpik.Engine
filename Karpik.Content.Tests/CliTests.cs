@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using Karpik.Content.Core;
 using Xunit;
 
 namespace Karpik.Content.Tests;
@@ -100,6 +102,58 @@ public sealed class CliTests
 
         var (code, stdout, stderr) = RunTool("validate", "--source", source, "--namespace", "game");
         Assert.Equal(2, code);
+    }
+
+    [Fact]
+    public void Cli_Create_WritesMetaForJsonSource()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string relativeFile = Path.Combine("config", "player.json");
+        string sourceFile = Path.Combine(source, relativeFile);
+        Directory.CreateDirectory(Path.GetDirectoryName(sourceFile)!);
+        File.WriteAllText(sourceFile, """{"name":"Player"}""");
+
+        var (code, _, _) = RunTool("create", "--source", source, "--file", relativeFile, "--namespace", "game");
+
+        string metaPath = sourceFile + ".meta";
+        Assert.Equal(0, code);
+        Assert.True(File.Exists(metaPath));
+        using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(metaPath));
+        Assert.Equal(1, meta.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("raw-json", meta.RootElement.GetProperty("declaredType").GetString());
+        Assert.Equal("game/config/player", meta.RootElement.GetProperty("logicalName").GetString());
+        Assert.True(AssetId.TryParse(meta.RootElement.GetProperty("assetId").GetString(), out _));
+    }
+
+    [Fact]
+    public void Cli_Create_RefusesToOverwriteExistingMeta()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string sourceFile = Path.Combine(source, "player.json");
+        File.WriteAllText(sourceFile, "{}");
+        string metaPath = sourceFile + ".meta";
+        File.WriteAllText(metaPath, "preserve");
+
+        var (code, _, _) = RunTool("create", "--source", source, "--file", "player.json", "--namespace", "game");
+
+        Assert.Equal(2, code);
+        Assert.Equal("preserve", File.ReadAllText(metaPath));
+    }
+
+    [Fact]
+    public void Cli_Create_RejectsFileOutsideSourceRoot()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string outsideFile = Path.Combine(tmp.RootPath, "outside.json");
+        File.WriteAllText(outsideFile, "{}");
+
+        var (code, _, _) = RunTool("create", "--source", source, "--file", outsideFile, "--namespace", "game");
+
+        Assert.Equal(2, code);
+        Assert.False(File.Exists(outsideFile + ".meta"));
     }
 
     [Fact]
