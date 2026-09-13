@@ -1,5 +1,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
+using Karpik.Engine.Shared.AssetManagement.Core;
+using Microsoft.Extensions.Logging;
 using KarpikGame.Shared;
 
 [Module(ModuleScope.Simulation)]
@@ -18,31 +20,26 @@ internal sealed class ServerGameModule : IModule
     }
 }
 
-// Public: static composition emits direct factories for module systems, so every
-// ECS system must be visible from the host launcher assembly.
-public sealed class ServerGameInitSystem(EcsDefaultWorld world) : ISystemInit
+public sealed class ServerGameInitSystem(EcsDefaultWorld world, ILogger<ServerGameInitSystem> logger, IFileSystem fileSystem) : ISystemInit
 {
     public void Init()
     {
-        // Idempotent under hot-reload state restoration: the restored world
-        // already contains the baseline entity, so creating another one on every
-        // worker restart would grow the saved state payload linearly.
         if (world.Count == 0)
         {
             int entity = world.NewEntity();
             world.GetPool<GameComponent>().Add(entity) = new GameComponent { Value = 42 };
-            Console.WriteLine($"[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}");
+            logger.LogInformation("Created entity {entity} with GameComponent(42). Total entities: {count}", entity, world.Count);
         }
 
-        string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
-        if (File.Exists(contentPath))
+        string contentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
+        if (fileSystem.Exists(contentPath))
         {
-            Console.WriteLine($"[ServerGame] Content: {File.ReadAllText(contentPath).Trim()}");
+            logger.LogInformation("Content: {content}", File.ReadAllText(contentPath).Trim());
         }
-        string sharedContentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "shared-runtime.txt");
+        string sharedContentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "shared-runtime.txt");
         if (File.Exists(sharedContentPath))
         {
-            Console.WriteLine($"[ServerGame] Shared content: {File.ReadAllText(sharedContentPath).Trim()}");
+            logger.LogInformation("Shared content: {content}", File.ReadAllText(sharedContentPath).Trim());
         }
     }
 }

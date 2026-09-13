@@ -1,5 +1,7 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
+using Karpik.Engine.Shared.AssetManagement.Core;
+using Microsoft.Extensions.Logging;
 using KarpikGame.Shared;
 
 [Module(ModuleScope.Simulation)]
@@ -19,24 +21,21 @@ internal sealed class ClientGameModule : IModule
     }
 }
 
-// Public: static composition emits direct factories for module systems, so every
-// ECS system must be visible from the host launcher assembly.
-public sealed class ClientGameInitSystem(EcsDefaultWorld world) : ISystemInit
+public sealed class ClientGameInitSystem(EcsDefaultWorld world, ILogger<ClientGameInitSystem> logger, IFileSystem fileSystem) : ISystemInit
 {
     public void Init()
     {
-        Console.WriteLine($"[ClientGame] World has {world.Count} entities. Client initialized.");
+        logger.LogInformation("World has {count} entities. Client initialized.", world.Count);
 
-        string contentPath = Path.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
+        string contentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
         if (File.Exists(contentPath))
         {
-            Console.WriteLine($"[ClientGame] Content: {File.ReadAllText(contentPath).Trim()}");
+            logger.LogInformation("Content: {content}", File.ReadAllText(contentPath).Trim());
         }
     }
 }
 
-// Emits the acceptance evidence for the NativeAOT client gate: one rendered frame.
-public sealed class ClientGameRenderSystem : ISystemRender
+public sealed class ClientGameRenderSystem(ILogger<ClientGameRenderSystem> logger) : ISystemRender
 {
     private int _renderedFrames;
 
@@ -44,7 +43,7 @@ public sealed class ClientGameRenderSystem : ISystemRender
     {
         if (Interlocked.Increment(ref _renderedFrames) == 1)
         {
-            Console.WriteLine("[ClientGame] First frame rendered.");
+            logger.LogInformation("First frame rendered");
         }
     }
 }
