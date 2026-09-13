@@ -43,6 +43,19 @@ Neither processor compiles or reflects the source. Shader compilation is
 backend-specific runtime work and is deliberately outside this build-time Core
 contract.
 
+The NuGet SDK package carries the published Content CLI and Content code
+generator. SDK targets invoke the packaged CLI and load the packaged analyzer;
+they do not use `KarpikRepositoryRoot` or a project reference into the engine
+checkout. This makes the pipeline available to games created from the external
+game template.
+
+The SDK publishes cooked `manifest.json` and `artifacts/` from
+`$(KarpikContentOutput)` into `$(TargetDir)Content` before
+`BuildKarpikRuntimeBundle`. The runtime bundle therefore contains both the
+cooked content contract and the template's existing source files. Keeping the
+sources preserves the legacy path-based loaders until manifest-backed runtime
+loaders replace them.
+
 The default content coordinator registers `RawJsonProcessor`,
 `TextureProcessor`, `FontJsonProcessor`, and `ShaderProcessor`. Missing or
 malformed inputs produce stable content diagnostics and block publication just
@@ -81,6 +94,11 @@ Unknown extensions remain untouched by Editor auto-generation. They require
 their own processor and extension-to-declared-type mapping before a `.meta` is
 created automatically.
 
+The cooked manifest and artifacts are present in `bin/.../Content` and the
+runtime bundle, but this does not add runtime loaders for font descriptions or
+shaders. They remain source-compatible legacy files until a future runtime
+slice consumes their manifest entries.
+
 ## Alternatives Considered
 
 ### Add GPU texture upload now
@@ -105,6 +123,12 @@ Rejected. Compilation target, optimization level, and reflection format depend
 on the graphics backend. Adding one to Core would leak Client rendering policy
 into a headless build contract.
 
+### Require a checkout to build content
+
+Rejected. A game created from the SDK template is an external consumer. The
+CLI and analyzer must therefore ship with the SDK package rather than resolve
+engine project paths at game build time.
+
 ## Validation
 
 - Unit-test the shared meta template for JSON, images, `.font-json`, `.vert`,
@@ -117,4 +141,7 @@ into a headless build contract.
   existing `assetId`, and excludes `.meta` files from the tree.
 - Test that the game template enables the pipeline and builds its initial
   content successfully.
+- Test a packed SDK and external template build: the CLI and analyzer resolve
+  from the package, and the runtime bundle contains cooked manifest and
+  artifacts.
 - Build and validate the content tool and Editor tests.
