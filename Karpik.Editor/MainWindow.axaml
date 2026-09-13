@@ -10,13 +10,17 @@
   <Window.DataTemplates>
     <local:DockContextDataTemplate />
     <DataTemplate DataType="local:ProjectViewModel">
-      <StackPanel Margin="12" Spacing="8">
+      <Grid Margin="8" RowDefinitions="Auto,Auto,*">
         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Text="{Binding Path, FallbackValue=Выберите папку проекта через меню «Файл».}" TextWrapping="Wrap" Opacity="0.75" />
-        <Border Background="#252A33" CornerRadius="4" Padding="8" Margin="0,8,0,0">
-          <TextBlock Text="Панель ассетов и импорт появятся после внедрения asset pipeline." TextWrapping="Wrap" Opacity="0.65" />
-        </Border>
-      </StackPanel>
+        <TextBlock Grid.Row="1" Text="{Binding AssetMessage}" Margin="0,8" TextWrapping="Wrap" Opacity="0.65" />
+        <TreeView Grid.Row="2" ItemsSource="{Binding Assets}">
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate ItemsSource="{Binding Children}">
+              <TextBlock Text="{Binding Name}" Margin="4,2" />
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:HierarchyViewModel">
       <Grid RowDefinitions="Auto,*" Margin="8">
@@ -117,6 +121,7 @@
       <MenuItem Header="_Запуск">
         <MenuItem Header="Запустить сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
         <MenuItem Header="Добавить клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
+        <MenuItem Header="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
         <Separator />
         <MenuItem Header="Собрать проект" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
         <MenuItem Header="Опубликовать проект" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
@@ -126,14 +131,18 @@
     </Menu>
 
     <Border Grid.Row="1" Background="#252A33" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
         <Button Content="▶ Сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
         <Button Grid.Column="1" Content="＋ Клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
         <Button Grid.Column="2" Content="⚙ Собрать" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
         <Button Grid.Column="3" Content="📦 Опубликовать" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
         <Button Grid.Column="4" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
-        <TextBlock Grid.Column="5" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Column="6" Text="{Binding Status}" VerticalAlignment="Center" />
+        <Button Grid.Column="5" Content="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
+        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <ProgressBar Width="96" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
+          <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
+        </StackPanel>
       </Grid>
     </Border>
 

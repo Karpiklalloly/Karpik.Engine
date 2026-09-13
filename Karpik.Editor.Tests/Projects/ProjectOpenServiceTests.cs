@@ -56,6 +56,27 @@ public sealed class ProjectOpenServiceTests
     }
 
     [Fact]
+    public async Task OpenAsync_DeferredRuntimeEvaluationStillOpensTheProject()
+    {
+        using var solution = TestSolution.Create();
+        var inspector = new ThrowingInspector(new TimeoutException("evaluation exceeded"));
+        var service = new ProjectOpenService(
+            inspector,
+            new FakeInstallationProvider(solution.EngineRoot),
+            new FakeContextFactory());
+
+        ProjectOpenResult result = await service.OpenAsync(
+            solution.SolutionPath,
+            new ProjectGeneration(1),
+            TestContext.Current.CancellationToken,
+            evaluateRuntime: false);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Candidate);
+        Assert.Equal(0, inspector.CallCount);
+    }
+
+    [Fact]
     public async Task OpenAsync_StaticCompositionUsesGameSpecificLaunchers()
     {
         using var solution = TestSolution.Create(includeLaunchers: true);
@@ -714,6 +735,21 @@ public sealed class ProjectOpenServiceTests
         }
     }
 
+    private sealed class ThrowingInspector(Exception exception) : IMsBuildProjectInspector
+    {
+        public int CallCount { get; private set; }
+
+        public Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
+            KarpikSolutionModel solution,
+            string engineRoot,
+            CancellationToken cancellationToken,
+            ProjectInputLease? inputLease = null)
+        {
+            CallCount++;
+            return Task.FromException<IReadOnlyList<MsBuildProjectEvaluation>>(exception);
+        }
+    }
+
     private sealed class FakeInstallationProvider(string engineRoot) : IEngineInstallationProvider
     {
         public EngineInstallationSelection Resolve(string sdkVersion) =>
@@ -728,11 +764,17 @@ public sealed class ProjectOpenServiceTests
         public ActiveProjectContext Create(
             KarpikSolutionModel solution,
             ProjectRuntimeDescriptor runtime,
-            ProjectGeneration generation)
+            ProjectGeneration generation,
+            bool isRuntimeReady = true)
         {
             CreateCount++;
             Runtime = runtime;
-            return new ActiveProjectContext(solution, runtime, generation, NullActiveProjectLifetime.Instance);
+            return new ActiveProjectContext(
+                solution,
+                runtime,
+                generation,
+                NullActiveProjectLifetime.Instance,
+                isRuntimeReady);
         }
     }
 

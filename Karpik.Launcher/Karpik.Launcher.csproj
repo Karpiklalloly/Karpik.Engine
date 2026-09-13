@@ -19,6 +19,13 @@
     <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>Karpik.DebugEditorDirectory</_Parameter1>
+      <_Parameter2>$(KarpikRepositoryRoot)Karpik.Editor\bin\$(Configuration)\net10.0</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Update="Localization\Strings.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -7,6 +7,19 @@ namespace Karpik.Editor.Tests.Projects;
 public sealed class ProjectSwitchCoordinatorTests
 {
     [Fact]
+    public async Task SwitchAsync_EvaluatesRuntimeByDefault()
+    {
+        var events = new List<string>();
+        var candidate = CreateContext("New.slnx", new ProjectGeneration(1));
+        var opener = new FakeProjectOpenService(events, ProjectOpenResult.Success(candidate));
+        await using var coordinator = new ProjectSwitchCoordinator(opener);
+
+        await coordinator.SwitchAsync(candidate.SolutionPath, TestContext.Current.CancellationToken);
+
+        Assert.True(opener.EvaluateRuntime);
+    }
+
+    [Fact]
     public async Task SwitchAsync_TearsDownOldContextInExactOrderBeforeOpeningCandidate()
     {
         var events = new List<string>();
@@ -464,6 +477,7 @@ public sealed class ProjectSwitchCoordinatorTests
         ProjectOpenResult result) : IProjectOpenService
     {
         public int OpenCount { get; private set; }
+        public bool EvaluateRuntime { get; private set; }
         public TaskCompletionSource? OpenGate { get; init; }
         public TaskCompletionSource? OpenStarted { get; init; }
         public bool CancelAfterCreatingCandidate { get; init; }
@@ -472,9 +486,17 @@ public sealed class ProjectSwitchCoordinatorTests
         public async Task<ProjectOpenResult> OpenAsync(
             string solutionPath,
             ProjectGeneration generation,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken) =>
+            await OpenAsync(solutionPath, generation, cancellationToken, evaluateRuntime: true);
+
+        public async Task<ProjectOpenResult> OpenAsync(
+            string solutionPath,
+            ProjectGeneration generation,
+            CancellationToken cancellationToken,
+            bool evaluateRuntime)
         {
             OpenCount++;
+            EvaluateRuntime = evaluateRuntime;
             events.Add("open");
             OpenStarted?.TrySetResult();
             if (OpenGate is not null)

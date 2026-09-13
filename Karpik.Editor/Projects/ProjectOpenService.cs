@@ -9,6 +9,12 @@ public interface IProjectOpenService
         string solutionPath,
         ProjectGeneration generation,
         CancellationToken cancellationToken);
+
+    Task<ProjectOpenResult> OpenAsync(
+        string solutionPath,
+        ProjectGeneration generation,
+        CancellationToken cancellationToken,
+        bool evaluateRuntime) => OpenAsync(solutionPath, generation, cancellationToken);
 }
 
 public sealed record EngineInstallationSelection(
@@ -69,7 +75,14 @@ public sealed class ProjectOpenService : IProjectOpenService
     public async Task<ProjectOpenResult> OpenAsync(
         string solutionPath,
         ProjectGeneration generation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        await OpenAsync(solutionPath, generation, cancellationToken, evaluateRuntime: true);
+
+    public async Task<ProjectOpenResult> OpenAsync(
+        string solutionPath,
+        ProjectGeneration generation,
+        CancellationToken cancellationToken,
+        bool evaluateRuntime)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!generation.IsValid)
@@ -143,6 +156,14 @@ public sealed class ProjectOpenService : IProjectOpenService
                 installation.Diagnostic ?? "The Karpik engine installation could not be resolved.");
         }
         string engineRoot = Path.GetFullPath(installation.EngineRoot);
+        if (!evaluateRuntime)
+        {
+            return CreateUnavailableResult(
+                solution,
+                engineRoot,
+                generation,
+                "Runtime не проверен. Нажмите «Проверить runtime» перед запуском.");
+        }
 
         IReadOnlyList<MsBuildProjectEvaluation> evaluations;
         try
@@ -162,7 +183,11 @@ public sealed class ProjectOpenService : IProjectOpenService
         }
         catch (Exception exception)
         {
-            return ProjectOpenResult.Failure($"MSBuild evaluation failed: {exception.Message}");
+            return CreateUnavailableResult(
+                solution,
+                engineRoot,
+                generation,
+                $"MSBuild evaluation failed: {exception.Message}");
         }
 
         IReadOnlyList<string> evaluatedDiagnostics = ValidateEvaluations(
@@ -196,6 +221,40 @@ public sealed class ProjectOpenService : IProjectOpenService
         }
 
         return ProjectOpenResult.Success(candidate);
+    }
+
+    private ProjectOpenResult CreateUnavailableResult(
+        KarpikSolutionModel solution,
+        string engineRoot,
+        ProjectGeneration generation,
+        string diagnostic)
+    {
+        try
+        {
+            ActiveProjectContext candidate = _contextFactory.Create(
+                solution,
+                CreateUnavailableRuntime(engineRoot),
+                generation,
+                isRuntimeReady: false);
+            return ProjectOpenResult.Success(candidate, [diagnostic]);
+        }
+        catch (Exception exception)
+        {
+            return ProjectOpenResult.Failure(
+                diagnostic,
+                $"Failed to create project context: {exception.Message}");
+        }
+    }
+
+    private static ProjectRuntimeDescriptor CreateUnavailableRuntime(string engineRoot)
+    {
+        string unavailable = Path.Combine(engineRoot, ".runtime-unavailable");
+        return new ProjectRuntimeDescriptor(
+            engineRoot,
+            unavailable,
+            unavailable,
+            unavailable,
+            unavailable);
     }
 
     private static IReadOnlyList<string> ValidateEvaluations(

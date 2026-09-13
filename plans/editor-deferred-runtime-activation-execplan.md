@@ -9,10 +9,10 @@ Opening a valid Karpik `.slnx` must immediately make the desktop editor useful: 
 ## Progress
 
 - [x] (2026-09-13) Initial plan created; user approved deferred runtime activation.
-- [ ] Add project-open state that does not require a runtime descriptor.
-- [ ] Move runtime evaluation and session-manager creation behind explicit activation.
-- [ ] Update editor command state and diagnostics.
-- [ ] Add focused tests and run `Karpik.Editor.Tests`.
+- [x] (2026-09-13) Add project-open state that does not require a ready runtime descriptor.
+- [x] (2026-09-13) Defer runtime evaluation until an explicit runtime check.
+- [x] (2026-09-13) Update editor command state and diagnostics.
+- [x] (2026-09-13) Add focused regression test and run `Karpik.Editor.Tests` (94 passed, 8 skipped).
 
 ## Surprises & Discoveries
 
@@ -20,6 +20,8 @@ Opening a valid Karpik `.slnx` must immediately make the desktop editor useful: 
   Evidence: `Karpik.Editor/Projects/MsBuildProjectInspector.cs`, `ProjectOpenService.OpenAsync`.
 - Observation: Manual evaluation of both reported MyFirstGame3 client projects completed in approximately 3.6 seconds after the failure, so the timeout is intermittent and has affected more than one project.
   Evidence: 2026-09-13 local diagnostic runs against `MyFirstGame3.Client.Launcher.csproj` and `MyFirstGame3.Client.csproj`.
+- Observation: Reusing the existing project-switch path for an explicit runtime check preserves its generation, cancellation, and cleanup guarantees without adding a second evaluator lifecycle.
+  Evidence: `ProjectSwitchCoordinator.SwitchAsync` now receives the explicit evaluation flag.
 
 ## Decision Log
 
@@ -29,10 +31,13 @@ Opening a valid Karpik `.slnx` must immediately make the desktop editor useful: 
 - Decision: Keep build and publish available for an opened solution. Require runtime activation only for `Start server` and `Add client`.
   Rationale: Their command inputs come from the validated solution declaration; session creation is the only operation that consumes runtime descriptor paths.
   Date/Author: 2026-09-13 / developer and Codex
+- Decision: Implement explicit activation as a re-evaluation of the current solution through the existing project-switch transaction, rather than a new background service.
+  Rationale: The coordinator already serializes switches, cancels active work, and rejects stale generations. A separate lifecycle would duplicate those failure-prone responsibilities.
+  Date/Author: 2026-09-13 / developer and Codex
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update this after each major milestone and at completion.
+Primary outcome: opening an external project no longer starts MSBuild evaluation. The editor publishes an unactivated project with Build/Publish enabled and Server/Client launch disabled. The new `Проверить runtime` command reruns the established evaluation path; a failure leaves the project open and records the diagnostic.
 
 ## Context and Orientation
 

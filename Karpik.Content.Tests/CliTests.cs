@@ -126,6 +126,26 @@ public sealed class CliTests
         Assert.True(AssetId.TryParse(meta.RootElement.GetProperty("assetId").GetString(), out _));
     }
 
+    [Theory]
+    [InlineData("Sprites/player.png")]
+    [InlineData("Sprites/player.jpg")]
+    [InlineData("Sprites/player.jpeg")]
+    public void Cli_Create_WritesTextureMetaForImageSource(string relativeFile)
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string sourceFile = Path.Combine(source, relativeFile);
+        Directory.CreateDirectory(Path.GetDirectoryName(sourceFile)!);
+        File.WriteAllBytes(sourceFile, [1]);
+
+        var (code, _, _) = RunTool("create", "--source", source, "--file", relativeFile, "--namespace", "game");
+
+        Assert.Equal(0, code);
+        using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(sourceFile + ".meta"));
+        Assert.Equal("texture", meta.RootElement.GetProperty("declaredType").GetString());
+        Assert.Equal($"game/Sprites/player", meta.RootElement.GetProperty("logicalName").GetString());
+    }
+
     [Fact]
     public void Cli_Create_RefusesToOverwriteExistingMeta()
     {

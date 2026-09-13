@@ -51,7 +51,8 @@ public sealed class ActiveProjectContext : IAsyncDisposable
         KarpikSolutionModel solution,
         ProjectRuntimeDescriptor runtime,
         ProjectGeneration generation,
-        IActiveProjectLifetime lifetime)
+        IActiveProjectLifetime lifetime,
+        bool isRuntimeReady = true)
     {
         ArgumentNullException.ThrowIfNull(solution);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -64,6 +65,7 @@ public sealed class ActiveProjectContext : IAsyncDisposable
         Solution = solution with { SolutionPath = NormalizeSolutionPath(solution.SolutionPath) };
         Runtime = NormalizeRuntime(runtime);
         Generation = generation;
+        IsRuntimeReady = isRuntimeReady;
         _lifetime = lifetime;
     }
 
@@ -71,6 +73,7 @@ public sealed class ActiveProjectContext : IAsyncDisposable
     public string SolutionPath => Solution.SolutionPath;
     public ProjectRuntimeDescriptor Runtime { get; }
     public ProjectGeneration Generation { get; }
+    public bool IsRuntimeReady { get; }
     public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     internal EditorSessionManager? SessionManager =>
@@ -163,7 +166,8 @@ public interface IActiveProjectContextFactory
     ActiveProjectContext Create(
         KarpikSolutionModel solution,
         ProjectRuntimeDescriptor runtime,
-        ProjectGeneration generation);
+        ProjectGeneration generation,
+        bool isRuntimeReady = true);
 }
 
 public sealed class ActiveProjectContextFactory : IActiveProjectContextFactory
@@ -180,6 +184,7 @@ public sealed class ActiveProjectContextFactory : IActiveProjectContextFactory
     public ActiveProjectContext Create(
         KarpikSolutionModel solution,
         ProjectRuntimeDescriptor runtime,
-        ProjectGeneration generation) =>
-        new(solution, runtime, generation, _lifetimeFactory(solution, runtime));
+        ProjectGeneration generation,
+        bool isRuntimeReady = true) =>
+        new(solution, runtime, generation, _lifetimeFactory(solution, runtime), isRuntimeReady);
 }

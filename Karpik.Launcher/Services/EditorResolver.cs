@@ -17,6 +17,7 @@ public sealed record EditorLaunchDescriptor(
     string InstallationRoot,
     EngineInstallationManifest Manifest,
     string EditorAssemblyPath,
+    string WorkingDirectory,
     string FileName,
     IReadOnlyList<string> PrefixArguments);
 
@@ -30,13 +31,16 @@ public sealed class EditorResolver
 {
     private readonly EngineInstallationResolver _installationResolver;
     private readonly GlobalJsonSdkVersionReader _globalJsonReader;
+    private readonly string? _debugEditorDirectory;
 
     public EditorResolver(
         EngineInstallationResolver? installationResolver = null,
-        GlobalJsonSdkVersionReader? globalJsonReader = null)
+        GlobalJsonSdkVersionReader? globalJsonReader = null,
+        string? debugEditorDirectory = null)
     {
         _installationResolver = installationResolver ?? new EngineInstallationResolver();
         _globalJsonReader = globalJsonReader ?? new GlobalJsonSdkVersionReader();
+        _debugEditorDirectory = debugEditorDirectory;
     }
 
     public EditorResolutionResult Resolve(string solutionPath)
@@ -64,7 +68,7 @@ public sealed class EditorResolver
             return Failure(EditorResolutionCode.InstallationFailure, installation.Message);
         }
 
-        string editorRoot = Path.Combine(installation.InstallationRoot, "editor");
+        string editorRoot = _debugEditorDirectory ?? Path.Combine(installation.InstallationRoot, "editor");
         string assemblyPath = Path.Combine(editorRoot, "Karpik.Editor.dll");
         string platformExecutable = Path.Combine(
             editorRoot,
@@ -98,6 +102,7 @@ public sealed class EditorResolver
                 installation.InstallationRoot,
                 installation.Manifest,
                 assemblyPath,
+                editorRoot,
                 fileName,
                 prefixArguments));
     }

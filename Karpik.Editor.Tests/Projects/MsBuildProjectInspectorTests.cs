@@ -8,6 +8,17 @@ namespace Karpik.Editor.Tests.Projects;
 public sealed class MsBuildProjectInspectorTests
 {
     [Fact]
+    public void Constructor_UsesInfiniteEvaluationTimeoutByDefault()
+    {
+        var inspector = new MsBuildProjectInspector();
+        var field = typeof(MsBuildProjectInspector).GetField(
+            "_evaluationTimeout",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.Equal(Timeout.InfiniteTimeSpan, Assert.IsType<TimeSpan>(field!.GetValue(inspector)));
+    }
+
+    [Fact]
     public async Task InspectAsync_RealChildProcessEvaluatesSyntheticProject()
     {
         string root = Path.Combine(
@@ -140,6 +151,61 @@ public sealed class MsBuildProjectInspectorTests
         Assert.Contains("-getItem:ProjectReference", process.StartInfo.ArgumentList);
         Assert.Contains("-m:1", process.StartInfo.ArgumentList);
         Assert.Contains("-nr:false", process.StartInfo.ArgumentList);
+    }
+
+    [Fact]
+    public async Task InspectAsync_RemovesRiderDiagnosticPortsFromChildMsBuild()
+    {
+        const string diagnosticPorts = "DOTNET_DiagnosticPorts";
+        const string defaultSuspend = "DOTNET_DefaultDiagnosticPortSuspend";
+        string? previousPorts = Environment.GetEnvironmentVariable(diagnosticPorts);
+        string? previousSuspend = Environment.GetEnvironmentVariable(defaultSuspend);
+        Environment.SetEnvironmentVariable(diagnosticPorts, "Rider_AutoAttach,connect,suspend");
+        Environment.SetEnvironmentVariable(defaultSuspend, "0");
+        try
+        {
+            string project = Path.GetFullPath("Client.csproj");
+            var process = new FakeProcess
+            {
+                ResultJson = $$"""
+                    {
+                      "Properties": {
+                        "MSBuildProjectFullPath": "{{Escape(project)}}",
+                        "KarpikProjectKind": "Runtime",
+                        "KarpikSide": "Client",
+                        "KarpikRuntimeBundlePath": "{{Escape(Path.GetFullPath("bundle"))}}",
+                        "KarpikEngineRoot": "{{Escape(Path.GetFullPath("engine"))}}",
+                        "TargetPath": "{{Escape(Path.GetFullPath("Client.dll"))}}"
+                      },
+                      "Items": {
+                        "ProjectReference": []
+                      }
+                    }
+                    """
+            };
+            var inspector = new MsBuildProjectInspector(
+                new FakeProcessFactory(process),
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1));
+            var solution = new KarpikSolutionModel(
+                Path.GetFullPath("Game.slnx"),
+                "0.6.0-test",
+                [new KarpikProjectDescriptor(project, ["Karpik.Engine.Sdk"], KarpikProjectKind.Runtime,
+                    KarpikProjectSide.Client, [], [])]);
+
+            await inspector.InspectAsync(
+                solution,
+                Path.GetFullPath("engine"),
+                TestContext.Current.CancellationToken);
+
+            Assert.False(process.StartInfo!.Environment.ContainsKey(diagnosticPorts));
+            Assert.False(process.StartInfo.Environment.ContainsKey(defaultSuspend));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(diagnosticPorts, previousPorts);
+            Environment.SetEnvironmentVariable(defaultSuspend, previousSuspend);
+        }
     }
 
     [Fact]

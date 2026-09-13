@@ -61,7 +61,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         string dotNetExecutable = "dotnet")
         : this(
             new SystemMsBuildProcessFactory(),
-            evaluationTimeout ?? TimeSpan.FromSeconds(30),
+            evaluationTimeout ?? Timeout.InfiniteTimeSpan,
             terminationTimeout ?? TimeSpan.FromSeconds(5),
             dotNetExecutable,
             maximumRetainedProcesses: 8)
@@ -77,7 +77,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
     {
         ArgumentNullException.ThrowIfNull(processFactory);
         ArgumentException.ThrowIfNullOrWhiteSpace(dotNetExecutable);
-        if (evaluationTimeout <= TimeSpan.Zero)
+        if (evaluationTimeout != Timeout.InfiniteTimeSpan && evaluationTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(evaluationTimeout));
         }
@@ -153,6 +153,8 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+        startInfo.Environment.Remove("DOTNET_DiagnosticPorts");
+        startInfo.Environment.Remove("DOTNET_DefaultDiagnosticPortSuspend");
         startInfo.ArgumentList.Add("msbuild");
         startInfo.ArgumentList.Add(projectPath);
         startInfo.ArgumentList.Add("-nologo");
@@ -199,13 +201,17 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
             Task<string> standardError = process.ReadStandardErrorAsync(
                 MaximumOutputCharacters,
                 CancellationToken.None);
-            using var timeout = new CancellationTokenSource(_evaluationTimeout);
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken,
-                timeout.Token);
+            using var timeout = _evaluationTimeout == Timeout.InfiniteTimeSpan
+                ? null
+                : new CancellationTokenSource(_evaluationTimeout);
+            using var linked = timeout is null
+                ? null
+                : CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    timeout.Token);
             try
             {
-                await process.WaitForExitAsync(linked.Token);
+                await process.WaitForExitAsync(linked?.Token ?? cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -235,6 +241,10 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
                 if (cancellationToken.IsCancellationRequested)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                }
+                if (timeout is null)
+                {
+                    throw;
                 }
                 throw new TimeoutException(
                     $"MSBuild evaluation exceeded {_evaluationTimeout} for '{projectPath}'.");

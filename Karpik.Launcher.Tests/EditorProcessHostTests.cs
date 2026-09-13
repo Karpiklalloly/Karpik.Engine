@@ -101,6 +101,28 @@ public sealed class EditorProcessHostTests
         Assert.Equal(3, runner.Requests.Count);
     }
 
+    [Fact]
+    public async Task RunAsyncUsesTheResolvedEditorWorkingDirectory()
+    {
+        using var workspace = new TestWorkspace();
+        string localRoot = Path.Combine(workspace.RootPath, "local");
+        workspace.CreateInstallation(localRoot, "engine", "1.0.0", "sdk");
+        string solution = workspace.CreateGame("Game", "sdk");
+        string sourceEditor = Path.Combine(workspace.RootPath, "source-editor");
+        Directory.CreateDirectory(sourceEditor);
+        File.WriteAllText(Path.Combine(sourceEditor, "Karpik.Editor.dll"), "editor");
+        var runner = new RecordingProcessRunner((_, _) => 0);
+        var resolver = new EditorResolver(
+            new EngineInstallationResolver(localApplicationDataRoot: localRoot),
+            debugEditorDirectory: sourceEditor);
+        var host = new EditorProcessHost(resolver, runner, localRoot);
+
+        EditorHostResult result = await host.RunAsync(solution, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.Equal(sourceEditor, Assert.Single(runner.Requests).WorkingDirectory);
+    }
+
     private static EditorProcessHost CreateHost(
         string localRoot,
         IEditorProcessRunner runner,

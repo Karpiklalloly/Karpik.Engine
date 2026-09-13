@@ -53,6 +53,46 @@ public sealed class EditorShellProjectLifecycleTests
     }
 
     [Fact]
+    public async Task OpenProjectAsync_ShowsMsBuildStatusWhileRuntimeEvaluationRuns()
+    {
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            $"KarpikEditorShellTests-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        string solutionPath = Path.Combine(directory, "Game.slnx");
+        await File.WriteAllTextAsync(solutionPath, "<Solution />", TestContext.Current.CancellationToken);
+
+        try
+        {
+            var opener = new GatedProjectOpenService();
+            using var viewModel = new EditorShellViewModel(
+                new WorkspaceStore(Path.Combine(directory, "workspace.json")),
+                opener);
+
+            Task<ProjectOpenResult> opening = viewModel.OpenProjectAsync(
+                solutionPath,
+                TestContext.Current.CancellationToken);
+            await opener.Started.Task.WaitAsync(
+                TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+
+            try
+            {
+                Assert.Equal("Проверка MSBuild…", viewModel.Status);
+            }
+            finally
+            {
+                opener.Release.SetResult();
+                await opening;
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task OpenProjectAsync_SuccessUsesCandidateOwnedSessionManager()
     {
         string directory = Path.Combine(
@@ -270,6 +310,24 @@ public sealed class EditorShellProjectLifecycleTests
             OpenCount++;
             SolutionPath = solutionPath;
             return Task.FromResult(ProjectOpenResult.Failure("rejected by test"));
+        }
+    }
+
+    private sealed class GatedProjectOpenService : IProjectOpenService
+    {
+        public TaskCompletionSource Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<ProjectOpenResult> OpenAsync(
+            string solutionPath,
+            ProjectGeneration generation,
+            CancellationToken cancellationToken)
+        {
+            Started.SetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return ProjectOpenResult.Failure("rejected by test");
         }
     }
 

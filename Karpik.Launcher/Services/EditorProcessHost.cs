@@ -124,7 +124,7 @@ public sealed class EditorProcessHost : IEditorProcessHost
                 var request = new EditorProcessStartRequest(
                     descriptor.FileName,
                     arguments,
-                    Path.Combine(descriptor.InstallationRoot, "editor"),
+                    descriptor.WorkingDirectory,
                     new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         ["KarpikEngineRoot"] = descriptor.InstallationRoot

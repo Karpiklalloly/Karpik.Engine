@@ -5,6 +5,7 @@ using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Karpik.Content.Core;
 using Karpik.Engine.Core;
 using ReactiveUI;
 
@@ -20,9 +21,18 @@ public sealed class EditorEntityViewModel
 public sealed class ProjectViewModel : ReactiveObject
 {
     private string? _path;
+    private string _assetMessage = "Откройте проект, чтобы увидеть ассеты.";
 
     public string Title => "Проект";
     public string Name => _path is null ? "Проект не открыт" : System.IO.Path.GetFileName(_path);
+    public ObservableCollection<AssetTreeItemViewModel> Assets { get; } = [];
+
+    public string AssetMessage
+    {
+        get => _assetMessage;
+        private set => this.RaiseAndSetIfChanged(ref _assetMessage, value);
+    }
+
     public string? Path
     {
         get => _path;
@@ -30,8 +40,114 @@ public sealed class ProjectViewModel : ReactiveObject
         {
             this.RaiseAndSetIfChanged(ref _path, value);
             this.RaisePropertyChanged(nameof(Name));
+            LoadAssets();
         }
     }
+
+    private void LoadAssets()
+    {
+        Assets.Clear();
+        if (_path is null)
+        {
+            AssetMessage = "Откройте проект, чтобы увидеть ассеты.";
+            return;
+        }
+
+        string contentPath = System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(_path)!,
+            "Content");
+        if (!Directory.Exists(contentPath))
+        {
+            AssetMessage = "Папка Content не найдена.";
+            return;
+        }
+
+        try
+        {
+            EnsureMetaFiles(contentPath);
+            foreach (AssetTreeItemViewModel item in LoadDirectory(contentPath))
+            {
+                Assets.Add(item);
+            }
+            AssetMessage = Assets.Count == 0 ? "Папка Content пуста." : string.Empty;
+        }
+        catch (IOException)
+        {
+            AssetMessage = "Не удалось прочитать папку Content.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            AssetMessage = "Нет доступа к папке Content.";
+        }
+    }
+
+    private static void EnsureMetaFiles(string contentPath)
+    {
+        foreach (string sourcePath in Directory.EnumerateFiles(contentPath, "*", SearchOption.AllDirectories))
+        {
+            if (sourcePath.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)
+                || File.Exists(sourcePath + ".meta"))
+            {
+                continue;
+            }
+
+            string relativePath = System.IO.Path.GetRelativePath(contentPath, sourcePath);
+            if (!ContentMetaTemplate.TryCreate(relativePath, "game", out string metaJson))
+            {
+                continue;
+            }
+
+            try
+            {
+                using FileStream stream = new(sourcePath + ".meta", FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                using var writer = new StreamWriter(stream);
+                writer.Write(metaJson);
+            }
+            catch (IOException) when (File.Exists(sourcePath + ".meta"))
+            {
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+
+    private static IEnumerable<AssetTreeItemViewModel> LoadDirectory(string path)
+    {
+        foreach (string child in Directory.EnumerateFileSystemEntries(path)
+                     .OrderBy(entry => Directory.Exists(entry) ? 0 : 1)
+                     .ThenBy(System.IO.Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+        {
+            if (child.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (Directory.Exists(child))
+            {
+                var directory = new AssetTreeItemViewModel(System.IO.Path.GetFileName(child), true);
+                foreach (AssetTreeItemViewModel descendant in LoadDirectory(child))
+                {
+                    directory.Children.Add(descendant);
+                }
+                yield return directory;
+            }
+            else
+            {
+                yield return new AssetTreeItemViewModel(System.IO.Path.GetFileName(child), false);
+            }
+        }
+    }
+}
+
+public sealed class AssetTreeItemViewModel(string name, bool isDirectory)
+{
+    public string Name { get; } = name;
+    public bool IsDirectory { get; } = isDirectory;
+    public ObservableCollection<AssetTreeItemViewModel> Children { get; } = [];
 }
 
 public sealed class HierarchyViewModel : ReactiveObject
@@ -208,6 +324,8 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private Task? _snapshotLoop;
     private ProjectGeneration _snapshotGeneration;
     private bool _outputDrainScheduled;
+    private bool _runtimeReady;
+    private bool _isProjectOpening;
     private bool _disposed;
     private bool _shutdownCompleted;
 
@@ -233,28 +351,37 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         private set => this.RaiseAndSetIfChanged(ref _status, value);
     }
 
+    public bool IsProjectOpening
+    {
+        get => _isProjectOpening;
+        private set => this.RaiseAndSetIfChanged(ref _isProjectOpening, value);
+    }
+
     public bool CanStartServer
     {
         get
         {
             EditorSession? server = _sessionManager?.Sessions.FirstOrDefault(session => session.Side == Side.Server);
-            return ProjectPath is not null
+            return _runtimeReady
+                   && ProjectPath is not null
                    && server?.State is not (EditorPreviewState.Starting
                           or EditorPreviewState.Running
                           or EditorPreviewState.Stopping);
         }
     }
 
-    public bool CanAddClient => ProjectPath is not null && _sessionManager?.CanAddClient == true;
+    public bool CanAddClient => _runtimeReady && ProjectPath is not null && _sessionManager?.CanAddClient == true;
     public bool CanStopAll => _sessionManager?.Sessions.Any(session => session.State != EditorPreviewState.Stopped) == true;
     public bool CanBuild => ProjectPath is not null;
     public bool CanPublish => ProjectPath is not null;
+    public bool CanCheckRuntime => ProjectPath is not null && !_runtimeReady;
 
     public ReactiveCommand<Unit, Unit> StartServerCommand { get; }
     public ReactiveCommand<Unit, Unit> AddClientCommand { get; }
     public ReactiveCommand<Unit, Unit> StopAllCommand { get; }
     public ReactiveCommand<Unit, Unit> BuildProjectCommand { get; }
     public ReactiveCommand<Unit, Unit> PublishProjectCommand { get; }
+    public ReactiveCommand<Unit, Unit> CheckRuntimeCommand { get; }
 
     public EditorShellViewModel(WorkspaceStore workspaceStore)
         : this(workspaceStore, new EditorStartupOptions(null, null))
@@ -308,11 +435,13 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         StopAllCommand = ReactiveCommand.CreateFromTask(StopAllAsync);
         BuildProjectCommand = ReactiveCommand.CreateFromTask(BuildProjectAsync);
         PublishProjectCommand = ReactiveCommand.CreateFromTask(PublishProjectAsync);
+        CheckRuntimeCommand = ReactiveCommand.CreateFromTask(CheckRuntimeAsync);
     }
 
     public async Task<ProjectOpenResult> OpenProjectAsync(
         string solutionPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool evaluateRuntime = true)
     {
         string fullPath = Path.GetFullPath(solutionPath);
         if (!File.Exists(fullPath))
@@ -322,12 +451,29 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
 
         ProjectSwitchCoordinator coordinator = _projectCoordinator
             ?? throw new InvalidOperationException("Project opening is unavailable in this editor shell instance.");
-        ProjectOpenResult result = await coordinator.SwitchAsync(fullPath, cancellationToken);
-        if (!result.IsSuccess)
+        IsProjectOpening = true;
+        Status = "Проверка MSBuild…";
+        try
         {
-            Status = string.Join(Environment.NewLine, result.Diagnostics);
+            ProjectOpenResult result = await coordinator.SwitchAsync(fullPath, cancellationToken, evaluateRuntime);
+            if (!result.IsSuccess)
+            {
+                Status = string.Join(Environment.NewLine, result.Diagnostics);
+            }
+            else if (result.Diagnostics.Count > 0)
+            {
+                Status = string.Join(Environment.NewLine, result.Diagnostics);
+                foreach (string diagnostic in result.Diagnostics)
+                {
+                    Console.Add($"[{DateTime.Now:HH:mm:ss}] {diagnostic}");
+                }
+            }
+            return result;
         }
-        return result;
+        finally
+        {
+            IsProjectOpening = false;
+        }
     }
 
     public async Task<EditorWorkspace> RestoreAsync(
@@ -351,9 +497,12 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         EditorSessionManager sessionManager = context.SessionManager
             ?? throw new InvalidOperationException("The active project candidate has no editor services.");
         AttachSessionManager(sessionManager, context.Generation);
+        _runtimeReady = context.IsRuntimeReady;
         ProjectPath = context.SolutionPath;
         Project.Path = context.SolutionPath;
-        Status = $"Открыт проект: {Path.GetFileName(context.SolutionPath)}";
+        Status = context.IsRuntimeReady
+            ? $"Открыт проект: {Path.GetFileName(context.SolutionPath)}"
+            : $"Открыт проект: {Path.GetFileName(context.SolutionPath)}. Запуск недоступен: runtime не проверен.";
         Console.Add($"[{DateTime.Now:HH:mm:ss}] Открыт проект {context.SolutionPath}");
         RaiseCommandState();
         return Task.CompletedTask;
@@ -411,6 +560,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             return;
         }
         DetachSessionManager();
+        _runtimeReady = false;
         _sessionManager = sessionManager;
         var binding = new SessionCommandBinding(sessionManager, generation);
         _attachedSessionBinding = binding;
@@ -571,6 +721,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             Status = "Ошибка сборки";
         }
     }
+
+    private Task CheckRuntimeAsync() => ProjectPath is { } path
+        ? OpenProjectAsync(path, _lifetime.Token, evaluateRuntime: true)
+        : Task.CompletedTask;
 
     private async Task PublishProjectAsync()
     {
@@ -965,6 +1119,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         this.RaisePropertyChanged(nameof(CanStopAll));
         this.RaisePropertyChanged(nameof(CanBuild));
         this.RaisePropertyChanged(nameof(CanPublish));
+        this.RaisePropertyChanged(nameof(CanCheckRuntime));
     }
 
     public async Task ShutdownAsync()

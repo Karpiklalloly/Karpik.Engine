@@ -66,4 +66,5 @@ public static class ContentDiagnosticCodes
     public const string ArtifactHashMismatch = "KCO017";
     public const string ManifestCorrupt = "KCO018";
     public const string InvalidManifestSchemaVersion = "KCO019";
+    public const string InvalidImageContent = "KCO020";
 }

@@ -1,9 +1,10 @@
 # Content Pipeline: практическое использование
 
-> Статус на сентябрь 2026: pipeline собирает `raw-json`, создаёт manifest и
-> cooked-артефакты, генерирует `ContentRefs` и может быть подключён к runtime
-> bundle. Внешний проект, использующий только установленный NuGet-пакет SDK,
-> пока не поддержан: SDK ссылается на проекты и CLI из checkout репозитория.
+> Статус на сентябрь 2026: pipeline собирает `raw-json` и `texture`, создаёт
+> manifest и cooked-артефакты, генерирует `ContentRefs` для JSON и может быть
+> подключён к runtime bundle. Внешний проект, использующий только
+> установленный NuGet-пакет SDK, пока не поддержан: SDK ссылается на проекты
+> и CLI из checkout репозитория.
 
 ## Что делает pipeline
 
@@ -20,8 +21,10 @@ Content/config/player.json.meta
 ```
 
 `assetId` — неизменяемая идентичность ассета. Переименование файла и
-`logicalName` не требует менять ID. На текущем срезе поддержан только
-`declaredType: "raw-json"`.
+`logicalName` не требует менять ID. Поддержаны `declaredType: "raw-json"`
+для JSON и `declaredType: "texture"` для PNG/JPG/JPEG. Texture processor
+проверяет изображение, но пока сохраняет исходные encoded bytes без GPU
+загрузки.
 
 ## 1. Создать ассет
 
@@ -41,7 +44,8 @@ Content/config/player.json.meta
 }
 ```
 
-После создания исходного JSON проще всего сгенерировать sidecar командой:
+После создания поддерживаемого исходника проще всего сгенерировать sidecar
+командой:
 
 ```powershell
 dotnet run --project Karpik.Content.Tool -- create `
@@ -52,8 +56,12 @@ dotnet run --project Karpik.Content.Tool -- create `
 
 Она запишет `player.json.meta` рядом с исходником, с новым lowercase GUID,
 `logicalName` `game/config/player`, типом `raw-json` и пустыми
-`importSettings`/`dependencies`. Существующий `.meta` команда не
+`importSettings`/`dependencies`. Команда также принимает `.png`, `.jpg` и
+`.jpeg` и создаёт для них тип `texture`. Существующий `.meta` команда не
 перезаписывает.
+
+Editor при открытии проекта создаёт отсутствующие `.meta` для этих же
+расширений с namespace `game`; неизвестные расширения пропускаются.
 
 Файл можно создать и вручную — это полезно при миграции или code review:
 
@@ -168,8 +176,8 @@ AssetRef<PlayerConfig> player = ContentRefs.Game_Config_Player;
 Имена полей образуются из `logicalName`; при конфликте имён генератор добавит
 суффикс и выдаст предупреждение. Аннотация выше не создаёт новый processor:
 она только связывает уже поддержанный `raw-json` с CLR-типом потребителя.
-Для нового `declaredType` всё ещё нужен отдельный processor. В текущей
-поставке есть только `raw-json`.
+Для нового `declaredType` всё ещё нужен отдельный processor. `texture`
+сейчас только валидирует и публикует encoded image bytes, без runtime-типа.
 
 ## 4. Положить cooked output в runtime bundle
 
@@ -237,8 +245,9 @@ if (registry.TryGet(ContentRefs.Game_Config_Player, out AssetLease<PlayerConfig>
   Для внешнего потребителя без checkout эта интеграция не работает.
 - Перенос cooked output в `TargetDir\Content` пока задаётся целью проекта из
   раздела 4, а не самим SDK.
-- Нет processors для текстур, шрифтов, shaders и пользовательских типов;
-  используйте только `raw-json`.
+- Texture processor пока не создаёт `AssetRef<ITexture2D>`, GPU texture или
+  import settings; cooked-артефакт содержит исходные encoded PNG/JPEG bytes.
+- Нет processors для шрифтов, shaders и пользовательских типов.
 - Старый path-based `AssetManagement.Core` продолжает существовать отдельно;
   не смешивайте его пути с `AssetRef<T>` и manifest pipeline.
 

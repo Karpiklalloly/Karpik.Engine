@@ -1,5 +1,4 @@
 using Karpik.Content.Core;
-using System.Text.Json;
 
 namespace Karpik.Content.Tool;
 
@@ -58,7 +57,7 @@ internal static class Program
         Console.WriteLine("Usage:");
         Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id>");
         Console.WriteLine("  content validate --source <dir> --namespace <id>");
-        Console.WriteLine("  content create   --source <dir> --file <relative-json-path> --namespace <id>");
+        Console.WriteLine("  content create   --source <dir> --file <relative-source-path> --namespace <id>");
         Console.WriteLine("  content list     --manifest <path>");
         Console.WriteLine("  content why      --manifest <path> <asset-guid>");
     }
@@ -202,37 +201,14 @@ internal static class Program
             Console.Error.WriteLine($"source file not found: {sourceFile}");
             return ExitValidation;
         }
-        if (!string.Equals(Path.GetExtension(sourceFile), ".json", StringComparison.OrdinalIgnoreCase))
-        {
-            Console.Error.WriteLine($"create supports only .json source files: {sourceFile}");
-            return ExitValidation;
-        }
-
         string relativePath = Path.GetRelativePath(sourceRoot, sourceFile);
-        string logicalPath = Path.ChangeExtension(relativePath, null)!
-            .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace(Path.AltDirectorySeparatorChar, '/');
-        string logicalName = $"{ns}/{logicalPath}";
-        if (!AssetMeta.IsValidLogicalName(logicalName))
+        if (!ContentMetaTemplate.TryCreate(relativePath, ns, out string metaJson))
         {
-            Console.Error.WriteLine($"source file cannot produce a valid logical name: {logicalName}");
+            Console.Error.WriteLine($"create supports only .json, .png, .jpg, and .jpeg source files: {sourceFile}");
             return ExitValidation;
         }
 
         string metaPath = sourceFile + ".meta";
-        AssetId assetId = AssetId.New();
-        string metaJson = JsonSerializer.Serialize(
-            new
-            {
-                schemaVersion = AssetMeta.CurrentSchemaVersion,
-                assetId = assetId.ToCanonicalString(),
-                declaredType = AssetMeta.ExpectedDeclaredTypeRawJson,
-                logicalName,
-                importSettings = new { },
-                dependencies = Array.Empty<string>()
-            },
-            new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
-
         try
         {
             using FileStream stream = new(metaPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -245,15 +221,16 @@ internal static class Program
             return ExitValidation;
         }
 
+        AssetMeta meta = AssetMeta.Parse(metaJson, relativePath + ".meta", []);
         Console.WriteLine($"created meta: {metaPath}");
-        Console.WriteLine($"assetId: {assetId.ToCanonicalString()}");
-        Console.WriteLine($"logicalName: {logicalName}");
+        Console.WriteLine($"assetId: {meta.AssetId.ToCanonicalString()}");
+        Console.WriteLine($"logicalName: {meta.LogicalName}");
         return ExitSuccess;
     }
 
     private static void PrintCreateUsage()
     {
-        Console.WriteLine("Usage: content create --source <dir> --file <relative-json-path> --namespace <id>");
+        Console.WriteLine("Usage: content create --source <dir> --file <relative-source-path> --namespace <id>");
     }
 
     private static int RunList(string[] args)

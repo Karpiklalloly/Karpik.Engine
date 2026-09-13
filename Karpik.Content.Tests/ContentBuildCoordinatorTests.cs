@@ -235,7 +235,7 @@ public sealed class ContentBuildCoordinatorTests
     {
         using var tmp = new TemporaryDirectory();
         string source = tmp.CreateSubdirectory("source");
-        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a", declaredType: "texture");
+        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a", declaredType: "unsupported-test");
 
         var coordinator = new ContentBuildCoordinator();
         var result = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out"), Namespace = "game" });

@@ -26,10 +26,12 @@ public sealed record ProjectOpenResult
     public ActiveProjectContext? Candidate { get; }
     public IReadOnlyList<string> Diagnostics { get; }
 
-    public static ProjectOpenResult Success(ActiveProjectContext candidate)
+    public static ProjectOpenResult Success(
+        ActiveProjectContext candidate,
+        IReadOnlyList<string>? diagnostics = null)
     {
         ArgumentNullException.ThrowIfNull(candidate);
-        return new ProjectOpenResult(true, false, candidate, []);
+        return new ProjectOpenResult(true, false, candidate, diagnostics?.ToArray() ?? []);
     }
 
     public static ProjectOpenResult Failure(params string[] diagnostics) =>

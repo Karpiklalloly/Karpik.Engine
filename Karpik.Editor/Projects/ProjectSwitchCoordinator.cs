@@ -83,7 +83,8 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
 
     public async Task<ProjectOpenResult> SwitchAsync(
         string solutionPath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool evaluateRuntime = true)
     {
         ThrowIfShutdownRequested();
         if (Interlocked.CompareExchange(ref _switchInProgress, 1, 0) != 0)
@@ -141,7 +142,8 @@ public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyProperty
             ProjectOpenResult openResult = await _projectOpenService.OpenAsync(
                 solutionPath,
                 generation,
-                cancellationToken);
+                cancellationToken,
+                evaluateRuntime);
             if (!openResult.IsSuccess)
             {
                 return openResult;

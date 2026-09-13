@@ -14,6 +14,7 @@ public sealed class AssetMeta(
 {
     public const int CurrentSchemaVersion = 1;
     public const string ExpectedDeclaredTypeRawJson = "raw-json";
+    public const string ExpectedDeclaredTypeTexture = "texture";
 
     public int SchemaVersion { get; } = schemaVersion;
     public AssetId AssetId { get; } = assetId;
