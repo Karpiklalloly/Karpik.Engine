@@ -1,14 +1,16 @@
 ---
-title: "Texture source assets in the content pipeline"
+title: "Source asset formats in the content pipeline"
 date: "2026-09-13"
 status: "accepted"
 tags:
   - adr
   - content
   - textures
+  - fonts
+  - shaders
 ---
 
-# Texture source assets in the content pipeline
+# Source asset formats in the content pipeline
 
 > Status: accepted
 > Date: 2026-09-13
@@ -17,15 +19,16 @@ tags:
 
 ## Context
 
-The content pipeline currently has only `raw-json`. As a result, the Editor
-can create useful sidecars only for JSON, even though the existing loose-file
-graphics loader already accepts PNG and JPEG image inputs. The first texture
-slice must make image authoring and headless content builds work without
-bringing a graphics device, Veldrid, or Client module dependency into Core.
+The content pipeline started with `raw-json` and later added images. The game
+template also contains an MSDF font description (`.font-json`) and GLSL shader
+sources (`.vert` and `.frag`). A template that enables the pipeline must build
+these files without bringing a graphics device, Veldrid, shader compiler, or
+Client module dependency into Core.
 
 ## Decision
 
-`Karpik.Content.Core` will support one new declared type: `texture`.
+`Karpik.Content.Core` supports the declared types `texture`, `font-json`, and
+`shader` in addition to `raw-json`.
 
 A headless `TextureProcessor` accepts `.png`, `.jpg`, and `.jpeg` source
 paths. It uses `StbImageSharp` to verify that bytes decode as an image, but
@@ -33,14 +36,24 @@ the cooked artifact is the unchanged encoded input bytes. The processor owns
 no GPU objects and has no dependency on `Graphics.Core`; runtime texture
 upload through `AssetRef` is deferred.
 
-The default content coordinator registers both `RawJsonProcessor` and
-`TextureProcessor`. Missing or malformed image inputs produce stable content
-diagnostics and block publication just as any other processor error does.
+`FontJsonProcessor` accepts `.font-json`, validates it as JSON, and publishes
+the unchanged source bytes. `ShaderProcessor` accepts `.vert` and `.frag`,
+rejects empty or invalid UTF-8 source, and publishes unchanged source bytes.
+Neither processor compiles or reflects the source. Shader compilation is
+backend-specific runtime work and is deliberately outside this build-time Core
+contract.
+
+The default content coordinator registers `RawJsonProcessor`,
+`TextureProcessor`, `FontJsonProcessor`, and `ShaderProcessor`. Missing or
+malformed inputs produce stable content diagnostics and block publication just
+as any other processor error does.
 
 The Editor and Content CLI share one Core meta-template contract:
 
 - `.json` creates `declaredType: "raw-json"`;
 - `.png`, `.jpg`, and `.jpeg` create `declaredType: "texture"`;
+- `.font-json` creates `declaredType: "font-json"`;
+- `.vert` and `.frag` create `declaredType: "shader"`;
 - the initial logical name is `game/<path-without-extension>`;
 - generated `importSettings` and `dependencies` are empty.
 
@@ -58,14 +71,15 @@ and validates its behavior.
 
 ## Consequences
 
-Images can receive stable asset identities, pass `content validate`, and be
-published into the manifest. Their current cooked bytes remain readable by a
-future runtime image loader, but no runtime `AssetRef<ITexture2D>`, GPU
-allocation, sampler, or import-setting behavior is introduced here.
+Images, font descriptions, and shader source can receive stable asset
+identities, pass `content validate`, and be published into the manifest. Their
+cooked bytes remain readable by future runtime loaders, but this decision adds
+no runtime `AssetRef<ITexture2D>`, GPU allocation, sampler, shader compiler,
+or font loader.
 
 Unknown extensions remain untouched by Editor auto-generation. They require
-their own processor and extension-to-declared-type mapping before a `.meta`
-is created automatically.
+their own processor and extension-to-declared-type mapping before a `.meta` is
+created automatically.
 
 ## Alternatives Considered
 
@@ -85,12 +99,22 @@ runtime behavior would make the Editor promise controls it cannot honour.
 Rejected. `assetId` in `.meta`, rather than a path or extension, continues to
 be the stable reference across moves and renames.
 
+### Compile shaders in Content.Core
+
+Rejected. Compilation target, optimization level, and reflection format depend
+on the graphics backend. Adding one to Core would leak Client rendering policy
+into a headless build contract.
+
 ## Validation
 
-- Unit-test the shared meta template for JSON, PNG, JPG, and JPEG mappings.
+- Unit-test the shared meta template for JSON, images, `.font-json`, `.vert`,
+  and `.frag` mappings.
 - Test valid PNG/JPEG cooking and malformed-image diagnostics.
-- Test a mixed JSON/image build produces deterministic artifacts and a
-  manifest.
+- Test valid/invalid font JSON and valid/empty shader diagnostics.
+- Test a mixed JSON/image/font/shader build produces deterministic artifacts
+  and a manifest.
 - Test Editor auto-generation creates sidecars once, does not overwrite an
   existing `assetId`, and excludes `.meta` files from the tree.
+- Test that the game template enables the pipeline and builds its initial
+  content successfully.
 - Build and validate the content tool and Editor tests.
