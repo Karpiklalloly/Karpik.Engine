@@ -30,7 +30,7 @@ public sealed class ContentBuildCoordinator
 
     public ContentBuildCoordinator(IEnumerable<IContentProcessor>? processors = null)
     {
-        var list = processors ?? [new RawJsonProcessor(), new TextureProcessor()];
+        var list = processors ?? [new RawJsonProcessor(), new TextureProcessor(), new FontJsonProcessor(), new ShaderProcessor()];
         _processors = list.ToDictionary(p => p.DeclaredType, StringComparer.Ordinal);
     }
 

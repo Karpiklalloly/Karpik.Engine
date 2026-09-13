@@ -10,6 +10,9 @@ public sealed class ContentMetaTemplateTests
     [InlineData("Sprites/player.png", "texture", "game/Sprites/player")]
     [InlineData("Sprites/player.jpg", "texture", "game/Sprites/player")]
     [InlineData("Sprites/player.jpeg", "texture", "game/Sprites/player")]
+    [InlineData("Fonts/default.font-json", "font-json", "game/Fonts/default")]
+    [InlineData("Shaders/2D.vert", "shader", "game/Shaders/2D")]
+    [InlineData("Shaders/2D.frag", "shader", "game/Shaders/2D")]
     public void TryCreate_SupportedSource_ProducesInitialMeta(
         string relativePath,
         string declaredType,

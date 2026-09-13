@@ -10,6 +10,8 @@ public static class ContentMetaTemplate
         {
             ".json" => AssetMeta.ExpectedDeclaredTypeRawJson,
             ".png" or ".jpg" or ".jpeg" => AssetMeta.ExpectedDeclaredTypeTexture,
+            ".font-json" => AssetMeta.ExpectedDeclaredTypeFontJson,
+            ".vert" or ".frag" => AssetMeta.ExpectedDeclaredTypeShader,
             _ => null
         };
         if (declaredType is null)

@@ -67,4 +67,5 @@ public static class ContentDiagnosticCodes
     public const string ManifestCorrupt = "KCO018";
     public const string InvalidManifestSchemaVersion = "KCO019";
     public const string InvalidImageContent = "KCO020";
+    public const string InvalidShaderContent = "KCO021";
 }
