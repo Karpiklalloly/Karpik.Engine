@@ -1,5 +1,5 @@
 ---
-title: "Target-aware content build profiles"
+title: "Target-aware профили сборки контента"
 date: "2026-09-14"
 status: "accepted"
 tags:
@@ -8,107 +8,110 @@ tags:
   - content
 ---
 
-# Target-aware content build profiles
+# Target-aware профили сборки контента
 
-> Status: accepted
-> Date: 2026-09-14
-> Owners: developer and Codex
-> Related: [[content-pipeline-build-contract]]
+> Статус: принят
+> Дата: 2026-09-14
+> Владельцы: разработчик и Codex
+> Связанный документ: [[content-pipeline-build-contract]]
 
-## Context
+## Контекст
 
-The game template currently cooks its complete `Content/` tree independently
-for Client and Server. This makes both runtime bundles self-contained, but it
-cannot prevent a Server manifest from containing Client-only assets such as
-textures, shaders, or audio. Folder names are useful authoring conventions,
-but they cannot be the delivery contract: moving a file must not silently
-change where it ships.
+Сейчас шаблон игры независимо готовит всё дерево `Content/` для Client и
+Server. Благодаря этому оба runtime bundle самодостаточны, но Server manifest
+может содержать Client-only ассеты: текстуры, шейдеры или аудио. Имена папок
+полезны как соглашение для авторинга, но не могут быть контрактом доставки:
+перенос файла не должен неявно менять состав его bundle.
 
-The pipeline also needs a safe foundation for future processor-specific Client
-and Server variants. For example, a future texture processor may use different
-settings for each runtime. The current output format is already a manifest and
-content-addressed artifacts; no requirement yet calls for a monolithic
-`content.pack` file.
+Pipeline также нужна безопасная основа для будущих Client- и
+Server-вариантов, специфичных для processor. Например, будущий processor
+текстур сможет использовать разные настройки для каждой стороны. Текущий
+формат результата уже состоит из manifest и content-addressed artifacts;
+потребности в монолитном файле `content.pack` пока нет.
 
-## Decision
+## Решение
 
-`Karpik.Content.Core` defines a flags `AssetTarget` with `Client`, `Server`,
-and `Shared = Client | Server`. Every asset sidecar gains an optional canonical
-`targets` array. Its absent value means `Shared` for backward compatibility;
-the Editor and `content create` emit both targets for new sidecars.
+`Karpik.Content.Core` определяет flags-enum `AssetTarget` со значениями
+`Client`, `Server` и `Shared = Client | Server`. Каждый sidecar ассета получает
+необязательный канонический массив `targets`. Отсутствующее поле означает
+`Shared` для обратной совместимости; Editor и `content create` записывают оба
+target для новых sidecar.
 
-The SDK invokes the CLI with its runtime `KarpikSide`. The CLI exposes the
-same choice as `--target Client|Server`, and Core receives it through an
-immutable content build profile. A target build includes an asset only when
-its `targets` contains the selected target. It writes the existing
-`manifest.json` plus `artifacts/` layout into that runtime's ordinary output;
-there is no `content.pack` in this decision.
+SDK запускает CLI со своим runtime `KarpikSide`. CLI предоставляет тот же
+выбор через `--target Client|Server`, а Core получает его в неизменяемом
+профиле content build. Сборка target включает ассет, только если его `targets`
+содержит выбранный target. Результат записывается в существующем формате
+`manifest.json` и `artifacts/` в обычный output соответствующего runtime;
+`content.pack` это решение не добавляет.
 
-The build profile reaches processors through a `ContentProcessorContext`.
-Current processors produce the same bytes for both targets, but the selected
-target is nevertheless included in the canonical recipe hash and manifest
-identity. Future processors may therefore produce target-specific artifacts
-without cache collisions or an API redesign.
+Профиль сборки передаётся processor через `ContentProcessorContext`. Текущие
+processor создают одинаковые bytes для обоих target, но выбранный target всё
+равно включается в канонический recipe hash и идентичность manifest. Поэтому
+будущие processor смогут создавать target-specific artifacts без конфликтов
+кеша и переработки API.
 
-Validation is target-aware:
+Валидация учитывает target:
 
-- `assetId` remains globally unique across the whole source tree;
-- `logicalName` must be unique only among assets selected into one target
-  manifest, so disjoint Client-only and Server-only assets may use the same
-  logical name;
-- a selected asset's direct dependency must also be selected for that target;
-- an asset available to both targets may only depend on an asset available to
-  both targets. Client-only and Server-only assets may depend on their own
-  target or a shared asset.
+- `assetId` остаётся глобально уникальным во всём дереве исходников;
+- `logicalName` должен быть уникальным только среди ассетов, выбранных в один
+  manifest target. Поэтому независимые Client-only и Server-only ассеты могут
+  иметь одинаковый logical name;
+- прямая зависимость выбранного ассета тоже должна быть выбрана для этого
+  target;
+- ассет, доступный обоим target, может зависеть только от ассета, доступного
+  обоим target. Client-only и Server-only ассеты могут зависеть от своего
+  target или общего ассета.
 
-`Content/Client`, `Content/Server`, and `Content/Shared` remain recommended
-folders for authoring, not special build roots. A sidecar's `targets` is the
-only source of truth.
+`Content/Client`, `Content/Server` и `Content/Shared` остаются рекомендуемыми
+папками для авторинга, но не особыми build root. Единственный источник истины
+— `targets` в sidecar.
 
-## Consequences
+## Последствия
 
-Client and Server bundles carry separate manifests and separate content hashes
-even when their current cooked bytes are identical. This deliberately spends
-some build and storage duplication to keep each bundle independently
-deployable and to reserve a stable extension point for future variants.
+Client и Server bundle содержат отдельные manifest и отдельные content hash,
+даже если текущие cooked bytes совпадают. Это осознанно создаёт небольшое
+дублирование при сборке и хранении, зато каждый bundle разворачивается
+независимо и получает стабильную точку расширения для будущих вариантов.
 
-Asset source, `assetId`, and `logicalName` stay stable across targets. A
-gameplay definition needing different authority and presentation data should
-normally be modelled as separate Server and Client assets with a shared game
-identifier, rather than one opaque JSON file whose runtime interpretation is
-side-dependent.
+Исходник ассета, `assetId` и `logicalName` остаются стабильными между target.
+Игровое определение, которому нужны разные authoritative и presentation
+данные, обычно моделируется отдельными Server и Client ассетами с общим
+игровым идентификатором, а не одним непрозрачным JSON, чья интерпретация
+зависит от стороны.
 
-No runtime loader, ECS system, renderer, pack archive, or hot-path code is
-changed. All target selection, dependency checks, and cooking happen during
-Editor/CLI/MSBuild work.
+Не меняются runtime loader, ECS system, renderer, pack archive и hot-path
+код. Выбор target, проверка зависимостей и cooking выполняются при работе
+Editor, CLI и MSBuild.
 
-## Alternatives Considered
+## Рассмотренные альтернативы
 
-### Folder include globs in project files
+### Include-glob папок в project files
 
-Rejected. They make delivery depend on filesystem placement and duplicate
-selection policy between Client and Server project files.
+Отклонено. Такой вариант делает доставку зависимой от расположения в файловой
+системе и дублирует политику выбора между Client и Server project files.
 
-### One shared asset compiled differently without target in its identity
+### Один общий ассет с разной компиляцией без target в идентичности
 
-Rejected. It permits cache collisions and makes an `assetId` ambiguous. The
-target must be part of the recipe before any processor gains such behavior.
+Отклонено. Он допускает конфликты кеша и делает `assetId` неоднозначным.
+Target должен стать частью recipe до того, как processor получит такое
+поведение.
 
-### Add `content.pack` now
+### Добавить `content.pack` сейчас
 
-Rejected for this slice. The existing manifest/artifact contract already
-delivers target-specific outputs. A pack is justified later by measured
-startup, streaming, signing, or distribution requirements.
+Отклонено для текущего среза. Существующий контракт manifest/artifact уже
+поставляет target-specific output. Pack будет оправдан позже измеренными
+требованиями к старту, streaming, signing или доставке.
 
-## Validation
+## Валидация
 
-- Unit-test absent, Client-only, Server-only, and Shared `targets` parsing.
-- Build each target from one source tree and assert its manifest contains only
-  selected assets.
-- Test allowed and forbidden dependency edges for both target builds.
-- Test same logical name in disjoint targets succeeds and an overlapping name
-  fails.
-- Test artifact locators differ by target even when processor output bytes are
-  equal.
-- Test the SDK passes `KarpikSide` to the packaged CLI and each template
-  runtime bundle contains its own cooked manifest.
+- Unit-test parsing отсутствующего, Client-only, Server-only и Shared
+  `targets`.
+- Собрать каждый target из одного дерева исходников и проверить, что его
+  manifest содержит только выбранные ассеты.
+- Проверить разрешённые и запрещённые рёбра зависимостей для обеих сборок.
+- Проверить, что одинаковый logical name у независимых target допустим, а у
+  пересекающихся — вызывает ошибку.
+- Проверить, что artifact locator различается по target даже при одинаковых
+  bytes processor output.
+- Проверить, что SDK передаёт `KarpikSide` packaged CLI, а каждый runtime
+  bundle шаблона содержит собственный cooked manifest.
