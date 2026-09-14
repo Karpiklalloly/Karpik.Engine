@@ -142,115 +142,115 @@ The durable decision is recorded in `docs/02_ADR/versioned-engine-sdk-and-extern
 
 - Decision: Use a thin NuGet-distributed custom MSBuild SDK plus a separate versioned engine payload.
   Rationale: MSBuild SDK resolution keeps games compatible with ordinary `dotnet` commands, while the payload can carry runners, native libraries, editor binaries, and modules that do not fit a managed package-only model.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Require `Karpik.Engine.Sdk` on every project in a game `.slnx` and require orthogonal `KarpikProjectKind` and `KarpikSide` properties.
   Rationale: Tests, tools, generators, assets, and runtime projects need different build profiles but must not bypass analyzers or side-boundary validation.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Do not introduce a `.karpik` manifest or require a game-level `Directory.Build.props` contract.
   Rationale: `.slnx`, `global.json`, and SDK-based `.csproj` files already provide a standard .NET project model and avoid duplicated state.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Use a stable launcher with an editor packaged per compatible engine installation.
   Rationale: The current editor directly references engine contracts; version-matched editors avoid immediate compatibility branches across historical APIs.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Repair Milestones 8B-8D around a representative external sample instead of porting the deleted repository platformer wholesale.
   Rationale: the accepted external contract is server plus two clients, ECS state, content, mods, snapshot, hot reload, and project switching. Porting the old network/physics/rendering sample would require generalizing `Network.Codegen` and module selection and is a separate feature rather than a correction of the external-project migration.
-  Date/Author: 2026-07-21 / developer and Codex
+  Date/Author: 2026-07-21 / developer and AI assistant
 
 - Decision: Runtime `Content/` and `Mods/` remain immutable game-bundle inputs; the editor must not redirect asset lookup to a mutable game source directory.
   Rationale: bundle publication already provides bounded path, link, size, identity, and transactional validation. `KARPIK_CONTENT_ROOT` would introduce an unvalidated third runtime root, make CLI and editor launches behave differently, and weaken project-switch isolation.
-  Date/Author: 2026-07-21 / developer and Codex
+  Date/Author: 2026-07-21 / developer and AI assistant
 
 - Decision: Treat the minimum Configurator decoupling needed to remove `MyGame/` as an 8D prerequisite and leave broader generator modernization to later work.
   Rationale: the former milestone order is circular. Removing the dead `GameRoots` model and deleted-launcher diagnostics restores a coherent engine-only graph without expanding this remediation into a network-codegen redesign.
-  Date/Author: 2026-07-21 / developer and Codex
+  Date/Author: 2026-07-21 / developer and AI assistant
 
 - Decision: payload layout v2 requires `modules/modules.catalog`, with canonical `Shared|Client|Server` ownership for every isolated module root.
   Rationale: the external runner cannot safely infer side ownership after packaging from module IDs alone, and flattening isolated outputs reintroduces dependency collisions. A hashed installation-owned catalog makes selection deterministic and keeps engine modules out of game-owned bundles.
-  Date/Author: 2026-07-18 / Codex
+  Date/Author: 2026-07-18 / AI assistant
 
 - Decision: Use a strict one-shot JSON handoff file plus process exit code `20`, with `KarpikEngineRoot` inherited by the selected editor.
   Rationale: The launcher can validate an absolute existing `.slnx`, resolve its exact SDK again, and bound restart loops without sharing mutable in-process state across editor versions. Handoff preflight runs before active-project teardown, but exit `20` is emitted only after teardown completes successfully.
-  Date/Author: 2026-07-18 / Codex
+  Date/Author: 2026-07-18 / AI assistant
 
 - Decision: Preserve one active project per editor and one server plus multiple clients within that project.
   Rationale: This isolates workers, IPC, ports, watchers, logs, hot-reload state, and build state while preserving the existing multisession editor workflow.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: New tooling projects added to `KarpikEngine.slnx` receive normal deterministic entries in `Generated/KarpikModuleCatalog.props`.
   Rationale: Configurator intentionally catalogs every solution project. Excluding the new projects would require a special case and contradict that existing contract. `AutoGenerated.targets` and `Generated/ModuleLoader.cs` remain unchanged in Milestone 1.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Ship a package-owned `Sdk/Solution.targets` and copy its standard `Directory.Solution.targets` importer into each external game root.
   Rationale: The generated `.slnx` metaproject must reject independent foreign projects before it launches any child project. The SDK import stays pinned by the same `global.json` mapping and does not introduce a custom manifest or game-local validation implementation.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Require every game graph edge to be an unconditional literal top-level `<ProjectReference Include="..." />` in the referencing `.csproj`, and require the normalized evaluated direct-reference set to match that raw set exactly.
   Rationale: The editor and CLI need one deterministic graph that can be inspected safely without evaluating child projects or loading game assemblies. Imported, conditional, expression-based, globbed, and target-mutated edges can diverge from the raw model, bypass solution membership, or hide cycles. Every Karpik project therefore uses distinct task invocations before NuGet's recursive restore walk and at the final point before `AssignProjectConfiguration`, then validates the complete raw transitive graph. Both targets are declared after the Microsoft SDK targets import so earlier consumer/`Directory.Build.targets` restore mutations are visible; the late target remains last so consumer/imported build mutations are visible before reference resolution.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Build repository-mode payload inputs only into a transaction-owned artifacts root and copy only explicit editor, runner, selected-module, SDK-package, and native-runtime outputs.
   Rationale: Clean owned outputs prevent stale source-tree binaries, old module-version directories, and unrelated launch artifacts from entering an installation. The same generic engine runner output is used for both client and server until later milestones introduce game-owned bundles.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Canonicalize the SDK `.nupkg` after `dotnet pack` by sorting entries, fixing ZIP timestamps, and normalizing the NuGet core-properties part and relationship identifiers.
   Rationale: The engine payload hash covers package bytes. NuGet's random OPC part name would otherwise force an atomic replacement on every identical build even though every package entry payload is semantically unchanged.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Frame the payload content hash with a format tag, file count, normalized UTF-8 path lengths, content lengths, and bytes while excluding only the root manifest and completion marker.
   Rationale: Explicit framing prevents ambiguous concatenations and makes the independently reproducible hash contract stable without a self-referential manifest hash.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Engine installations are immutable after validation; publish a candidate with one rename to a previously absent destination and never move a valid destination away.
   Rationale: A two-rename replacement creates a Windows interval in which a known-good installation name is absent. Stable-version differing content is an immutable-version conflict. Development versions use `<engine-version>-<full-content-hash>`, so differing valid payloads coexist and exact-SDK resolution reports sorted ambiguity candidates.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Build SDK tasks first and pass the exact transaction-owned `KarpikSdkTasksOutputPath` to `dotnet pack`.
   Rationale: The pack item needs a fully evaluated directory. Capturing the late `ArtifactsPivots` property in an earlier global property silently produced the wrong path.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: A timed-out packager subprocess must be killed, awaited again with a separate bound, and have redirected output drained only after exit is confirmed.
   Rationale: If termination cannot be confirmed, a typed error preserves and marks the owned staging directory; ordinary recovery skips that marker rather than deleting files beneath a potentially live child.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Store each selected module's clean build output below `modules/<module-id>/` and require `modules/<module-id>/<module-id>.dll` as its primary assembly.
   Rationale: Module dependencies can legitimately share filenames while containing different bytes. Isolated subtrees preserve each module's dependency closure without collision; the later hot-reload loader must enumerate these roots recursively rather than assume a flat module directory.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Test the external template through an isolated template hive and a temporary hermetic NuGet configuration containing the freshly packed SDK feed plus a compact copy of the integration project's resolved test-package closure.
   Rationale: The test must neither mutate global template/NuGet state nor depend on network availability, while package-source mapping must guarantee that `Karpik.Engine.Sdk/0.6.0-local` comes from the current repository package rather than a stale cache. Single-node restore is required on this host to prevent solution restore from leaving a large worker tree.
-  Date/Author: 2026-07-15 / Codex
+  Date/Author: 2026-07-15 / AI assistant
 
 - Decision: A runtime bundle is a game-owned, side-marked, versioned directory with one completed `modules.version.*` manifest and non-empty `Content`; publication uses a unique owned sibling staging directory and restores the last proven complete bundle on any visibility or marker-finalization failure.
   Rationale: The build must never expose a partial tree, delete an unproven user directory, or copy an engine runner into mutable game output. Exact markers and a sorted assembly manifest give the runner a deterministic startup contract without loading assemblies during the build.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Runtime launch uses immutable `RuntimeLaunchOptions` carrying side, engine-installed runner path, and game bundle path; Bootstrap receives its `IEngineRunner` through constructor injection.
   Rationale: Executable ownership, working-directory ownership, and engine composition are independent boundaries. Explicit inputs remove `AppContext.BaseDirectory`, current-directory, and manual runner-assembly loading from external startup and keep reload state/shadow cleanup within the bundle.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: The generated parameterless `ModuleLoader` and repository `MyGame` lists remain only obsolete monorepository compatibility until Milestone 8; explicit bundle construction never consults them or falls back to the runner directory.
   Rationale: Milestone 5 must make external launches strict without prematurely deleting repository composition roots scheduled for migration. A collectible bundle-scoped load context proves the new path releases shadow resources independently.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: SDK publication and runtime validation share a canonical bounded bundle contract: 32,768 tree entries, depth 64, a 1 MiB/4,096-entry manifest, 4 GiB individual files, and 32 GiB aggregate bytes; exact UTF-8/LF markers and manifest bytes, exact root/module shape, and the full ancestor reparse chain are mandatory.
   Rationale: Recovery and cleanup may move or delete only fully proven owned trees, and hostile or malformed trees must be rejected before unbounded allocation, enumeration, or source copying. A cross-contract test prevents SDK/Core constant drift.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Milestone 5 real hot-reload acceptance serializes and consumes an empty `ModuleStates` payload; non-empty ECS/module state is deferred to Milestone 8.
   Rationale: The explicit external game bundle intentionally contains only game Client/Server+Shared assemblies and no engine `ECSInstaller` compile contract. The current milestone can still prove request/response, old-process exit, bundle-owned state file, same-bundle restart, new PID/readiness, state consumption, and cleanup without expanding the SDK boundary prematurely.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Collectible module shadow cleanup is two-phase.
   Rationale: An `AssemblyLoadContext` cannot be proven collected while its `Dispose` stack may still root loaded assemblies. Dispose unloads and enqueues a bounded owned-shadow record; the outer runner/standalone caller performs bounded GC polling and exact contained deletion after the stack returns, with ProcessManager cleanup as defense in depth.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 - Decision: Request/response IPC and worker replacement use explicit single-owner lifetimes.
   Rationale: A response handler must exist before its request can be observed and must be removed through `finally`; only one reload may own the worker transition, every exit waiter captures one immutable `Process`, and a force-killed worker must confirm exit before its handle is disposed or a replacement starts.
-  Date/Author: 2026-07-15 / developer and Codex
+  Date/Author: 2026-07-15 / developer and AI assistant
 
 ## Outcomes & Retrospective
 

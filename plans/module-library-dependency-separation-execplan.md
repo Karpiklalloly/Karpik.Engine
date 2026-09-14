@@ -35,13 +35,13 @@ Make the project files express two different concepts explicitly. A `KarpikModul
 
 - Decision: Classify dependencies by the target project's repository path rather than adding project-kind metadata.
   Rationale: `Modules/` is already the authoritative runtime-module boundary used by Configurator, and explicit metadata would duplicate that source of truth.
-  Date/Author: 2026-08-09 / user and Codex
+  Date/Author: 2026-08-09 / user and AI assistant
 - Decision: Allow module projects to reference non-module projects with standard `ProjectReference`, but reject direct references whose resolved target is another project under `Modules/`.
   Rationale: standard library references need no runtime selection semantics, while module-to-module edges must remain visible to selection and load-order validation.
-  Date/Author: 2026-08-09 / user and Codex
+  Date/Author: 2026-08-09 / user and AI assistant
 - Decision: Validate Client/Server/Shared boundaries for both dependency kinds.
   Rationale: changing the MSBuild item type must not create a route around side isolation.
-  Date/Author: 2026-08-09 / user and Codex
+  Date/Author: 2026-08-09 / user and AI assistant
 
 ## Outcomes & Retrospective
 

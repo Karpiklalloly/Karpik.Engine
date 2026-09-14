@@ -41,11 +41,11 @@ An external game created from `templates/Karpik.Game` must build with an ordinar
 
 - Decision: Resolve installations inside an MSBuild task and reuse `EngineInstallationResolver`.
   Rationale: this keeps JSON parsing, path safety, payload hashing, and ambiguity policy in the existing tested component instead of duplicating them in MSBuild XML.
-  Date/Author: 2026-07-31 / Codex and developer.
+  Date/Author: 2026-07-31 / AI assistant and developer.
 
 - Decision: An explicit non-empty `KarpikEngineRoot` remains the highest-priority override and is validated. An invalid explicit root fails; it does not silently fall back.
   Rationale: explicit configuration must be deterministic and must not hide stale or malicious paths.
-  Date/Author: 2026-07-31 / Codex.
+  Date/Author: 2026-07-31 / AI assistant.
 
 - Decision: With no explicit root, zero valid exact matches and multiple valid exact matches both fail the build with a stable Karpik diagnostic.
   Rationale: selecting an arbitrary payload would make builds depend on directory enumeration or timestamps.
@@ -53,7 +53,7 @@ An external game created from `templates/Karpik.Game` must build with an ordinar
 
 - Decision: Use an optional `KarpikLocalApplicationDataRoot` MSBuild property only as a controlled installation-store override for tests and portable tooling. Normal consumers leave it empty and use `Environment.SpecialFolder.LocalApplicationData`.
   Rationale: integration tests need an isolated store outside the real user profile, while production builds need the platform default.
-  Date/Author: 2026-07-31 / Codex.
+  Date/Author: 2026-07-31 / AI assistant.
 
 ## Outcomes & Retrospective
 

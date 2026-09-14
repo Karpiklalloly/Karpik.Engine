@@ -1,4 +1,4 @@
-﻿# Перевести runtime-композицию на compile-time граф и подготовить NativeAOT
+# Перевести runtime-композицию на compile-time граф и подготовить NativeAOT
 
 > **Для agentic workers:** REQUIRED SUB-SKILL: выполняйте этот план через `superpowers:subagent-driven-development` (предпочтительно) либо `superpowers:executing-plans`, по одному milestone за раз с отдельной проверкой результата. Для каждого изменения поведения соблюдайте TDD: сначала тест, подтверждённый RED, затем минимальная реализация и GREEN.
 
@@ -90,47 +90,47 @@
 
 - Decision: сохранить `KarpikCompositionMode=Dynamic|Static` на период миграции, первоначально с default `Dynamic`.
   Rationale: это позволяет вводить closed-world путь milestone-ами, сохраняя работающий editor/runtime до достижения функционального паритета.
-  Date/Author: 2026-08-15 / Codex по согласованию с разработчиком.
+  Date/Author: 2026-08-15 / AI assistant по согласованию с разработчиком.
 
 - Decision: `KarpikModuleSelection` и установленный `modules.catalog` остаются build-time входами, но не входят в Static runtime.
   Rationale: компилятор не выбирает backend самостоятельно; выбор должен быть детерминирован до compilation. NativeAOT требует закрытого графа, а не отсутствия build metadata.
-  Date/Author: 2026-08-15 / Codex.
+  Date/Author: 2026-08-15 / AI assistant.
 
 - Decision: внешняя игра получает prebuilt engine module assemblies как MSBuild `Reference`, а source build внутри репозитория продолжает строить модули их существующими проектами. При `PublishAot` IL всех достижимых references становится входом AOT-компилятора.
   Rationale: внешняя игра не имеет исходных `.csproj` установленного движка; искусственные `ProjectReference` к installation payload невозможны. Обычные compile-time references дают Roslyn и NativeAOT нужный закрытый граф.
-  Date/Author: 2026-08-15 / Codex.
+  Date/Author: 2026-08-15 / AI assistant.
 
 - Decision: snapshot registry генерируется в Shared-проекте; runtime composition генерируется отдельно в Client и Server host.
   Rationale: сетевой протокол должен быть одинаковым на сторонах, тогда как module installers и backend-состав side-specific.
-  Date/Author: 2026-08-15 / Codex.
+  Date/Author: 2026-08-15 / AI assistant.
 
 - Decision: Static snapshot code не использует `object`, reflection или interface dispatch на каждый компонент; генератор испускает прямые typed read/write blocks.
   Rationale: snapshot serialization является горячим сетевым путём; boxing, словари serializers и pointer chasing неприемлемы.
-  Date/Author: 2026-08-15 / Codex.
+  Date/Author: 2026-08-15 / AI assistant.
 
 - Decision: protocol schema handshake использует существующий Shared `PacketType.Handshake` и LiteNetLib peer connect/receive path, отправляет hash через `ReliableOrdered`, и публикует `PeerConnectedEvent`/entity payload только после equality; mismatch disconnects peer до consumer payload access.
   Rationale: это наименьшая exact integration в текущую transport architecture, сохраняющая delivery method и authority. Изменение deterministic component IDs/schema является protocol-incompatible и должно выкатываться/откатываться одновременно на Client и Server.
-  Date/Author: 2026-08-21 / Codex.
+  Date/Author: 2026-08-21 / AI assistant.
 
 - Decision: generated `NetworkSnapshotRegistry` экспортируется как `INetworkProtocolSchema` и как concrete Simulation singleton; реальные Client/Server init systems получают этот Shared contract через обычный service resolution и передают generated nonzero hash в `INetworkManager` до `Start`. Hash `0` зарезервирован как unconfigured и отклоняется; exact handshake payload после `PacketType` содержит ровно один `Int64` без trailing bytes.
   Rationale: schema должен попадать в normal runtime автоматически из generated closed schema, а не из mutable `NetworkConfig`, process-global state или runtime lookup типа/hash. Shared interface не создаёт Client↔Server dependency; существующий service registration path и будущая compile-time composition используют один и тот же generated service metadata.
-  Date/Author: 2026-08-21 / Codex, Task 3 Fix Round 1.
+  Date/Author: 2026-08-21 / AI assistant, Task 3 Fix Round 1.
 
 - Decision: произвольные managed DLL-моды не поддерживаются в Static/NativeAOT; Lua и другие data/script mods остаются runtime-динамическими. Managed-мод должен быть включён до публикации.
   Rationale: NativeAOT не поддерживает общий сценарий загрузки и компиляции ранее неизвестного managed кода.
-  Date/Author: 2026-08-15 / Codex.
+  Date/Author: 2026-08-15 / AI assistant.
 
 - Decision: do not require a generated lightweight DI container from this milestone's smoke result.
   Rationale: the Autofac factory-registration probe completed NativeAOT publish and execution without intrinsic trimming/AOT diagnostics. Future Milestone 5 scope remains governed by its full three-scope and reflection-boundary tests.
-  Date/Author: 2026-08-20 / Codex.
+  Date/Author: 2026-08-20 / AI assistant.
 
 - Decision: `ResolveKarpikStaticReferencesTask` uses `EngineModuleCatalog.ForSide` for Client/Server and filters already validated `EngineModuleCatalog.Read` output for Shared.
   Rationale: `ForSide` intentionally rejects `Shared`; filtering canonical validated catalog entries preserves that runtime API invariant without duplicating parser or module-ID validation.
-  Date/Author: 2026-08-20 / Codex.
+  Date/Author: 2026-08-20 / AI assistant.
 
 - Decision: focused external SDK packing restores and builds the SDK task graph and Core code generator under one transaction-owned, per-project intermediate/output tree, then packs with `--no-build --no-restore` and explicit trailing-separator input paths.
   Rationale: the fixture must test the current SDK package without reading or writing repository package feeds, `bin`, `obj`, or default `artifacts`; explicit owned inputs make that isolation observable and repeatable.
-  Date/Author: 2026-08-21 / Codex.
+  Date/Author: 2026-08-21 / AI assistant.
 
 - Decision: отключённый `ModuleRegistratorGenerator.cs` удалён полностью, без файла-переадресатора.
   Rationale: генератор никогда не выпускал source (`context.AddSource` закомментирован), проект не является packable отдельно — в SDK упаковывается целиком `Karpik.Engine.Core.Codegen.dll`, поэтому ни один потребитель не мог зависеть от типа. RuntimeCompositionGenerator полностью заменяет его контракт.
@@ -200,7 +200,7 @@
 
 - Decision: Milestone 9 отвечает за удаление blanket roots, generated instantiation roots и строгий warning gate; полное удаление узких roots ECS state pipeline требует смены формата/сериализатора и выполняется отдельным ExecPlan `plans/ecs-state-serialization-execplan.md`.
   Rationale: текущие roots ограничены одной явно документированной reflection-поверхностью, а переход на типизированный restart-state format является самостоятельным совместимостным и hot-reload изменением. Смешивание его с corrective M9 скрывало бы отдельный wire-format риск.
-  Date/Author: 2026-08-25 / Codex по результатам третьего аудита.
+  Date/Author: 2026-08-25 / AI assistant по результатам третьего аудита.
 ## Outcomes & Retrospective
 
 ### Follow-ups после Milestone 9 (обязательные)

@@ -1,6 +1,6 @@
 ---
 name: karpik-memory
-description: Use when Codex works with Karpik.Memory, native containers, unmanaged allocation, NativeArray, NativeSlice, NativeResult, NativeLinearAllocator, NativePool, NativeArena, SimpleNativeArray migration, no-GC storage, allocation-budget tests, or memory ownership in KarpikEngine hot paths.
+description: Use for Karpik.Memory, native containers, unmanaged allocation, NativeArray, NativeSlice, NativeResult, NativeLinearAllocator, NativePool, NativeArena, SimpleNativeArray migration, no-GC storage, allocation-budget tests, or memory ownership in KarpikEngine hot paths.
 ---
 
 # Karpik Memory

@@ -48,16 +48,16 @@ A developer can place `Content/Sprites/player.png`, open the Editor, and find a 
 
 - Decision: Cook unchanged encoded PNG/JPEG bytes in this slice.
   Rationale: content build support and stable identities do not require GPU allocation, pixel conversion, or a Client dependency.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: Put extension mapping and serialized initial meta in one Core `ContentMetaTemplate` API; leave create-only disk writes in CLI and Editor.
   Rationale: two hosts must produce byte-equivalent authoring sidecars, while Core stays independent from filesystem orchestration.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: Start generated logical names with `game/`.
   Rationale: this matches current docs and CLI examples; a project-level namespace setting is deferred.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: Treat per-file Editor sidecar write failures as non-fatal to the asset tree.
   Rationale: project browsing remains useful when one asset is locked or inaccessible; a later Inspector or diagnostics pane can expose per-file details.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 
 ## Outcomes & Retrospective
 

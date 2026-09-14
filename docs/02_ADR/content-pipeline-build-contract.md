@@ -12,7 +12,7 @@ tags:
 
 > Status: accepted
 > Date: 2026-08-27
-> Owners: developer and Codex
+> Owners: developer and AI assistant
 > Related ExecPlan: [[../../plans/content-pipeline-foundation-execplan]]
 
 ## Context

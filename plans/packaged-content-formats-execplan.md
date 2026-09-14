@@ -98,26 +98,26 @@ does the same without source paths to this repository.
   backend format.
   Rationale: processor behavior stays deterministic and headless; GLSL
   compilation belongs to a future graphics-backend runtime slice.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: package the CLI and analyzer in `Karpik.Engine.Sdk`.
   Rationale: the generated game is an external NuGet consumer and cannot
   resolve repository-relative projects.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: copy cooked files into `TargetDir/Content` while retaining source
   files.
   Rationale: manifest consumers can access cooked assets without breaking the
   legacy path-based loaders that still require source names.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: map `.font-json` to the logical suffix `.font` and retain `.vert`
   or `.frag` for shaders.
   Rationale: one source basename may legitimately have both image/font or
   vertex/fragment files; logical names must remain unique.
-  Date/Author: 2026-09-13 / developer and Codex.
+  Date/Author: 2026-09-13 / developer and AI assistant.
 - Decision: both template runtime projects cook the common game `Content/`
   tree independently.
   Rationale: each runtime bundle stays self-contained; shared prefab schemas
   can live in Shared without creating a Client-to-Server project reference.
-  Date/Author: 2026-09-14 / developer and Codex.
+  Date/Author: 2026-09-14 / developer and AI assistant.
 
 ## Outcomes & Retrospective
 

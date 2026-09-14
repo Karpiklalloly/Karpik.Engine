@@ -24,10 +24,10 @@ Extend the ImGui graphics load probe beyond identical rectangles. Developers can
 
 - Decision: use synthetic resources, not game assets.
   Rationale: engine benchmarks must be deterministic and independent of project content and hot reload asset state.
-  Date/Author: 2026-07-12 / developer and Codex
+  Date/Author: 2026-07-12 / developer and AI assistant
 - Decision: create a small fixed set of 1x1 GPU textures once during graphics initialization; no texture or managed allocation is permitted in `RenderPrepare`.
   Rationale: isolate command ordering and batching cost from asset IO and per-frame allocation.
-  Date/Author: 2026-07-12 / Codex
+  Date/Author: 2026-07-12 / AI assistant
 
 ## Outcomes & Retrospective
 

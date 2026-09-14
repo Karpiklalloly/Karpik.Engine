@@ -41,22 +41,22 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 ## Skills
 Large domain-specific rules live in repo-local skills:
 
-- `.codex/skills/karpik-engine-performance` - hot paths, zero allocation, DOD, SIMD, low-level .NET.
-- `.codex/skills/karpik-engine-architecture` - Client/Server/Shared, modules, tick system, DI.
-- `.codex/skills/karpik-dragon-ecs` - Dragon ECS, components, pools, aspects, systems.
-- `.codex/skills/karpik-networking` - RPC, serialization, peer/connection management.
-- `.codex/skills/karpik-hot-reload` - Hot Reload, IPC, PluginLoadContext, ECS state preservation.
-- `.codex/skills/karpik-testing` - unit/integration/edge/PBT/performance testing.
-- `.codex/skills/maintaining-changelogs` - CHANGELOG.md structure and semantic release versioning.
+- `skills/karpik-engine-performance/SKILL.md` - hot paths, zero allocation, DOD, SIMD, low-level .NET.
+- `skills/karpik-engine-architecture/SKILL.md` - Client/Server/Shared, modules, tick system, DI.
+- `skills/karpik-dragon-ecs/SKILL.md` - Dragon ECS, components, pools, aspects, systems.
+- `skills/karpik-networking/SKILL.md` - RPC, serialization, peer/connection management.
+- `skills/karpik-hot-reload/SKILL.md` - Hot Reload, IPC, PluginLoadContext, ECS state preservation.
+- `skills/karpik-testing/SKILL.md` - unit/integration/edge/PBT/performance testing.
+- `skills/maintaining-changelogs/SKILL.md` - CHANGELOG.md structure and semantic release versioning.
 
 Before working on a specific subsystem, load the matching skill and follow it. This root file contains only project-wide invariants.
 
-## Superpowers Adaptation
-Use `superpowers:brainstorming` for new subsystems, architectural changes, cross-module APIs, and changes with significant unknowns.
+## Planning
+For new subsystems, architectural changes, cross-module APIs, and changes with significant unknowns, clarify the design before implementation.
 
-- Do not require brainstorming for narrow fixes, local refactors, or self-contained algorithms unless the developer explicitly asks for it.
-- For substantial KarpikEngine work, write specifications and plans using the existing ExecPlan format from `plans/PLANS.md`. Do not create `docs/superpowers/*`.
-- During architecture evaluation, apply the relevant `karpik-*` skills after the brainstorming workflow. KarpikEngine real-time constraints take priority over generic abstraction and TDD guidance.
+- Do not require a formal design phase for narrow fixes, local refactors, or self-contained algorithms unless the developer explicitly asks for it.
+- For substantial KarpikEngine work, write specifications and plans using the existing ExecPlan format from `plans/PLANS.md`.
+- During architecture evaluation, apply the relevant `karpik-*` skills. KarpikEngine real-time constraints take priority over generic abstraction and TDD guidance.
 - Use subagents and worktrees only when the task benefits from independent parallel work or isolated branches.
 
 ## ExecPlans
@@ -75,14 +75,12 @@ After a large task, investigation, or architectural discussion, propose 3-7 shor
 
 ## Code and documentation context
 
-For non-trivial debugging, feature work, refactoring, or behavioral changes in existing code, load and follow the `bridging-code-and-docs` skill.
+For non-trivial debugging, feature work, refactoring, or behavioral changes in existing code, consult the relevant project documentation before changing code.
 
-Use Superpowers for the development workflow.
+Use available structural and semantic code-discovery tools before broad text search.
 
-Use CBM for structural and semantic understanding of the current source code.
+Consult project documentation, ADRs, specifications, previous design decisions, ownership/lifetime notes, and public contracts when they can affect the implementation.
 
-Use QMD only when project documentation, ADRs, specifications, previous design decisions, architecture, ownership/lifetime, public contracts, or other documented intent may affect the correct implementation.
+Do not use documentation search as a second code search engine.
 
-Do not use QMD as a second code search engine.
-
-Do not perform redundant grep/read repository exploration when CBM can answer the structural question directly.
+Do not perform redundant repository exploration when structural tools can answer the question directly.

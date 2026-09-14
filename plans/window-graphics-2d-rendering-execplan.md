@@ -82,19 +82,19 @@ The observable outcome is a client sample or test scene where:
 
 - Decision: Treat this as a staged renderer architecture change, not four isolated feature patches.
   Rationale: Rotation, world coordinates, and cameras all depend on the same transform path. Text depends on batching, atlas lifetime, and pipeline/resource binding decisions. Implementing them separately would duplicate transform code and make the render hot path harder to keep allocation-free.
-  Date/Author: 2026-05-02 / Codex
+  Date/Author: 2026-05-02 / AI assistant
 
 - Decision: Keep `Window` responsible for surface size, framebuffer resize events, DPI/content scale, and input-space conversion only; keep camera/world transforms in `Graphics`.
   Rationale: `Window` should not know game-world concepts. `Graphics` already owns framebuffer dimensions, render commands, pipelines, and merge timing.
-  Date/Author: 2026-05-02 / Codex
+  Date/Author: 2026-05-02 / AI assistant
 
 - Decision: Use a small value-type transform/camera model rather than class-based scene nodes.
   Rationale: Rendering commands are written in hot paths and later merged linearly. Class hierarchies would add pointer chasing, lifetime complexity, and avoidable GC pressure.
-  Date/Author: 2026-05-02 / Codex
+  Date/Author: 2026-05-02 / AI assistant
 
 - Decision: Start text with a prebuilt atlas path and leave dynamic glyph packing as a later milestone.
   Rationale: Rasterizing or packing glyphs during `Run` or merge would allocate and create unpredictable latency. A prebuilt SDF/MSDF atlas gives deterministic render work and a clear asset pipeline.
-  Date/Author: 2026-05-02 / Codex
+  Date/Author: 2026-05-02 / AI assistant
 
 ## Outcomes & Retrospective
 
@@ -116,7 +116,7 @@ Validation notes:
 
 - Source-linked graphics tests cover transform math, camera projection, texture UVs, command-buffer helpers, font metadata parsing, font lookup, text anchors, and text layout behavior.
 - The user confirmed the SDF/MSDF text path renders correctly in their local client scene.
-- Local `dotnet` validation from Codex was intentionally stopped after process-host issues; the user's environment reports normal build/run behavior.
+- Local `dotnet` validation from AI assistant was intentionally stopped after process-host issues; the user's environment reports normal build/run behavior.
 
 ## Context and Orientation
 

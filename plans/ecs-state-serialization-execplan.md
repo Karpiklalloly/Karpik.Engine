@@ -29,13 +29,13 @@ Observable result: template Server сохраняет `GameComponent=42` и ст
 
 - Decision: use a generator-owned binary registry keyed by deterministic 64-bit component IDs; do not preserve CLR type names in the new payload.
   Rationale: NativeAOT needs statically reachable generic instantiations, and stable IDs remove runtime type binding and assembly-name coupling.
-  Date/Author: 2026-08-25 / Codex, following the accepted static-composition ADR.
+  Date/Author: 2026-08-25 / AI assistant, following the accepted static-composition ADR.
 - Decision: make the payload fail-closed with magic, format version, side/schema hash, world count and bounded lengths before mutating any ECS world.
   Rationale: a partially compatible or truncated reload payload must not destroy the currently initialized world or deserialize into the wrong component layout.
-  Date/Author: 2026-08-25 / Codex.
+  Date/Author: 2026-08-25 / AI assistant.
 - Decision: keep `IRestartWorkerStateProvider.Capture(): byte[]` and `Restore(ReadOnlySpan<byte>)` unchanged in this plan.
   Rationale: the process/IPC boundary is already stable; only the ECS provider payload changes.
-  Date/Author: 2026-08-25 / Codex.
+  Date/Author: 2026-08-25 / AI assistant.
 
 ## Outcomes & Retrospective
 

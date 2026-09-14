@@ -33,31 +33,31 @@ The first observable outcome is that ordinary services such as asset loaders and
 
 - Decision: Use a hybrid composition model.
   Rationale: Attributes remove repetitive registrations, while installers remain available for factories, conditions, third-party objects, and other complex cases that attributes cannot express cleanly.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Introduce `ModSet` between `Engine` and `Simulation`.
   Rationale: Mods and their asset formats are known before a ModSet is built, and simulations using that ModSet can share its services and asset cache without leaking state into other mod configurations.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Keep service contract export separate from scope and lifetime metadata.
   Rationale: An implementation may export several contracts, while it has one owning scope and one instance lifetime.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Remove `OnAnotherModuleLoaded` from the target architecture.
   Rationale: DI registrations must be known before `ContainerBuilder.Build()`. Post-build module notifications are not a safe registration mechanism and currently introduce ordering and duplicate-scanning behavior.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Pass an asset load context to loader methods instead of injecting `IAssetsManager` or adding `Init()`.
   Rationale: This breaks the manager-loader constructor cycle and avoids temporal coupling and mutable initialization state.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Autofac lifetime scopes own disposal of services.
   Rationale: `IDisposable` and `IAsyncDisposable` are service responsibilities; installers must not retain and manually destroy resolved runtime services.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 - Decision: Lua mod registration is deferred but must not be blocked by the descriptor model.
   Rationale: CLR attributes are only one source of registration descriptors. A future Lua manifest or adapter can produce equivalent descriptors without changing Autofac composition.
-  Date/Author: 2026-08-06 / developer and Codex
+  Date/Author: 2026-08-06 / developer and AI assistant
 
 ## Outcomes & Retrospective
 

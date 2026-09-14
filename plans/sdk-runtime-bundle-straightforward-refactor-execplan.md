@@ -31,16 +31,16 @@
 
 - Decision: Сохранить полную поведенческую совместимость, а не удалять редкие защитные и recovery-ветки.
   Rationale: bundle является границей запуска игры; частичное дерево, ссылка/reparse point или неверный rollback ломают уже работающий runtime.
-  Date/Author: 2026-09-11 / developer and Codex
+  Date/Author: 2026-09-11 / developer and AI assistant
 - Decision: Разделить реализацию на три внутренние конкретные класса без новых интерфейсов, фабрик или универсального pipeline framework.
   Rationale: это делает верхний сценарий линейным и не добавляет абстракций, которые пришлось бы понимать наряду с исходной логикой.
-  Date/Author: 2026-09-11 / developer and Codex
+  Date/Author: 2026-09-11 / developer and AI assistant
 - Decision: Не объединять runtime-bundle publication с `AtomicDirectoryPublisher`.
   Rationale: различаются правила ownership, layout и доказательства «полностью собранного» output; искусственное объединение увеличит риск и объём кода.
-  Date/Author: 2026-09-11 / developer and Codex
+  Date/Author: 2026-09-11 / developer and AI assistant
 - Decision: Разделить один `BuildKarpikRuntimeBundleTask` на `partial`-файлы по materialization, validation и publication вместо передачи task state между новыми объектами.
   Rationale: исходные private helper'ы используют один набор MSBuild inputs и test seam. Partial-тип сохраняет этот доступ без нового context object, интерфейсов или изменения поведения.
-  Date/Author: 2026-09-11 / Codex
+  Date/Author: 2026-09-11 / AI assistant
 
 ## Outcomes & Retrospective
 

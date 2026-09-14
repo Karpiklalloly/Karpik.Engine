@@ -1,6 +1,6 @@
 ---
 name: karpik-testing
-description: KarpikEngine testing standards. Use when Codex adds or reviews unit tests, integration tests, edge-case tests, property-based tests, BenchmarkDotNet benchmarks, allocation checks, or module verification strategy.
+description: KarpikEngine testing standards. Use when adding or reviewing unit tests, integration tests, edge-case tests, property-based tests, BenchmarkDotNet benchmarks, allocation checks, or module verification strategy.
 ---
 
 # Karpik Testing

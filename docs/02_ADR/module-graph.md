@@ -12,7 +12,7 @@ tags:
 
 > Status: accepted
 > Date: 2026-05-31
-> Owners: developer and Codex
+> Owners: developer and AI assistant
 > Related ExecPlan: [[../../plans/module-graph-execplan]]
 
 ## Context

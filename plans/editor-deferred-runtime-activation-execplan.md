@@ -27,13 +27,13 @@ Opening a valid Karpik `.slnx` must immediately make the desktop editor useful: 
 
 - Decision: Decouple project opening from runtime evaluation; retain runtime validation at the server/client launch boundary.
   Rationale: Build and asset authoring require a valid solution, not runtime bundles or runners. Launch requires the descriptor and must remain blocked until its validation succeeds.
-  Date/Author: 2026-09-13 / developer and Codex
+  Date/Author: 2026-09-13 / developer and AI assistant
 - Decision: Keep build and publish available for an opened solution. Require runtime activation only for `Start server` and `Add client`.
   Rationale: Their command inputs come from the validated solution declaration; session creation is the only operation that consumes runtime descriptor paths.
-  Date/Author: 2026-09-13 / developer and Codex
+  Date/Author: 2026-09-13 / developer and AI assistant
 - Decision: Implement explicit activation as a re-evaluation of the current solution through the existing project-switch transaction, rather than a new background service.
   Rationale: The coordinator already serializes switches, cancels active work, and rejects stale generations. A separate lifecycle would duplicate those failure-prone responsibilities.
-  Date/Author: 2026-09-13 / developer and Codex
+  Date/Author: 2026-09-13 / developer and AI assistant
 
 ## Outcomes & Retrospective
 

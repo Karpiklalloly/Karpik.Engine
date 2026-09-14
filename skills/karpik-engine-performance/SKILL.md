@@ -1,6 +1,6 @@
 ---
 name: karpik-engine-performance
-description: Real-time C# performance rules for KarpikEngine. Use when Codex works on hot paths, frame loops, ECS systems, allocation-sensitive code, cache locality, SIMD, NativeMemory, Unsafe, lock-free structures, or low-level optimization.
+description: Real-time C# performance rules for KarpikEngine. Use for hot paths, frame loops, ECS systems, allocation-sensitive code, cache locality, SIMD, NativeMemory, Unsafe, lock-free structures, or low-level optimization.
 ---
 
 # KarpikEngine Performance

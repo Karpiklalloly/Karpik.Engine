@@ -13,7 +13,7 @@ tags:
 
 > Status: accepted
 > Date: 2026-06-03
-> Owners: developer and Codex
+> Owners: developer and AI assistant
 > Related ExecPlan: [[../../plans/native-memory-foundation-execplan]]
 
 ## Context

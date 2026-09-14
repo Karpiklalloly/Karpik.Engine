@@ -42,23 +42,23 @@ The initial integration is not a production gameplay UI system. It is a client-o
 
 - Decision: Put the first ImGui integration in `Graphics.Core`, not `Graphics.OpenGL`.
   Rationale: `ImGuiRenderer` depends on Veldrid abstractions rather than OpenGL-specific APIs. `Graphics.OpenGL` should only remain responsible for creating and registering the `GraphicsDevice`.
-  Date/Author: 2026-05-03 / Codex
+  Date/Author: 2026-05-03 / AI assistant
 
 - Decision: Treat ImGui as debug and temporary UI for v1, not as the long-term game UI.
   Rationale: ImGui is productive for tools and diagnostics, but it is not designed around the engine's zero-allocation, gameplay-facing UI constraints.
-  Date/Author: 2026-05-03 / Codex
+  Date/Author: 2026-05-03 / AI assistant
 
 - Decision: Use direct ECS ImGui systems for user panels in v1.
   Rationale: The user prefers ECS systems over a panel registry. This keeps the first API small: systems call `ImGuiNET.ImGui` directly between ImGui begin and render.
-  Date/Author: 2026-05-03 / Codex
+  Date/Author: 2026-05-03 / AI assistant
 
 - Decision: Use `F1` as the runtime overlay toggle.
   Rationale: It gives a simple global debug switch without introducing configuration files or editor-only bootstrap.
-  Date/Author: 2026-05-03 / Codex
+  Date/Author: 2026-05-03 / AI assistant
 
 - Decision: Respect ImGui `WantCaptureMouse`, `WantCaptureKeyboard`, and text input capture in gameplay input.
   Rationale: Interactive ImGui windows and text fields are not usable if gameplay systems continue to consume the same input.
-  Date/Author: 2026-05-03 / Codex
+  Date/Author: 2026-05-03 / AI assistant
 
 ## Outcomes & Retrospective
 
@@ -72,7 +72,7 @@ Initial usable overlay outcome: an ECS system can now call `ImGuiNET.ImGui` afte
 
 Game project cleanup outcome: `DisplaySystem` uses the overlay-enabled guard before calling ImGui, and `MyGame.Client.Main` now references the same `ImGui.NET` version as the renderer package. This avoids loading a newer ImGui.NET API against a renderer compiled with the older binding.
 
-Final validation outcome: `ClientLauncher` is the correct executable for the composed client module set. Running it with `KARPIK_IMGUI_ENABLED=1` produced a visible `Karpik Debug` ImGui window and the `DisplaySystem` sample `My Window` above the existing scene. Automated input clicked the debug panel `InputText` and typed text into it. Automated `F1` synthesis from the Codex tool environment did not reach SDL reliably, but the runtime toggle path is implemented over raw `IInputSource.KeyEvents` and remains the default user-facing way to enable the overlay.
+Final validation outcome: `ClientLauncher` is the correct executable for the composed client module set. Running it with `KARPIK_IMGUI_ENABLED=1` produced a visible `Karpik Debug` ImGui window and the `DisplaySystem` sample `My Window` above the existing scene. Automated input clicked the debug panel `InputText` and typed text into it. Automated `F1` synthesis from the AI assistant tool environment did not reach SDL reliably, but the runtime toggle path is implemented over raw `IInputSource.KeyEvents` and remains the default user-facing way to enable the overlay.
 
 ## Context and Orientation
 

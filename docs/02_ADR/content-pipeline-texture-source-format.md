@@ -14,7 +14,7 @@ tags:
 
 > Status: accepted
 > Date: 2026-09-13
-> Owners: developer and Codex
+> Owners: developer and AI assistant
 > Extends: [[content-pipeline-build-contract]]
 
 ## Context

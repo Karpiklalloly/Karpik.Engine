@@ -93,13 +93,13 @@ A developer can see this working by building `ClientLauncher` or `ServerLauncher
 
 - Decision: Hot reload v1 uses restart-worker as the only true reload mechanism.
   Rationale: It reliably releases managed assemblies, static state, event subscriptions, background tasks, and native libraries by terminating the worker process.
-  Date/Author: 2026-05-15 / Codex
+  Date/Author: 2026-05-15 / AI assistant
 - Decision: Persist only ECS state.
   Rationale: Gameplay state must live in ECS; module services, graphics resources, network sockets, mod runtimes, and static caches are disposable runtime resources.
-  Date/Author: 2026-05-15 / Codex
+  Date/Author: 2026-05-15 / AI assistant
 - Decision: Keep manual build and `modules/` staging.
   Rationale: MSBuild/Rider remain the source of truth for project references, analyzers, generated code, conditions, and runtime assets.
-  Date/Author: 2026-05-15 / Codex
+  Date/Author: 2026-05-15 / AI assistant
 
 ## Outcomes & Retrospective
 

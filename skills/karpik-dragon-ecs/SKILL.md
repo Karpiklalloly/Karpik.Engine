@@ -1,6 +1,6 @@
 ---
 name: karpik-dragon-ecs
-description: Dragon ECS rules for KarpikEngine. Use when Codex implements or reviews entities, IEcsComponent structs, EcsPool/EcsReadonlyPool access, EcsAspect filters, ECS systems, IEcsRun/IEcsInit/IEcsRunParallel, or ECS data layout.
+description: Dragon ECS rules for KarpikEngine. Use when implementing or reviewing entities, IEcsComponent structs, EcsPool/EcsReadonlyPool access, EcsAspect filters, ECS systems, IEcsRun/IEcsInit/IEcsRunParallel, or ECS data layout.
 ---
 
 # Karpik Dragon ECS

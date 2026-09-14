@@ -54,18 +54,18 @@ overrides, streaming, and hot reload are deliberately not part of this plan.
   with an MSBuild task.
   Rationale: Content building must be headless, reproducible, and independent
   of runtime lifetime/ownership concerns.
-  Date/Author: 2026-08-27 / developer and Codex
+  Date/Author: 2026-08-27 / developer and AI assistant
 
 - Decision: Store a stable `AssetId` as a GUID in each source sidecar `.meta`.
   Rationale: Source paths and logical names are mutable authoring data and
   cannot safely identify long-lived references.
-  Date/Author: 2026-08-27 / developer and Codex
+  Date/Author: 2026-08-27 / developer and AI assistant
 
 - Decision: Limit the first slice to `raw-json` cooking and contract
   validation.
   Rationale: It proves the build architecture without entangling runtime,
   rendering, mod ordering, or hot-reload ownership.
-  Date/Author: 2026-08-27 / developer and Codex
+  Date/Author: 2026-08-27 / developer and AI assistant
 
 ## Outcomes & Retrospective
 

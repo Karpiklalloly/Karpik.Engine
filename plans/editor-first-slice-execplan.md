@@ -34,16 +34,16 @@
 
 - Decision: editor запускает preview как отдельный worker process через публичный controller поверх существующего `ProcessManager`.
   Rationale: это соответствует ADR, сохраняет SDL/Veldrid lifecycle отдельно от Avalonia и повторно использует проверенный shutdown/pipe flow.
-  Date/Author: 2026-07-13 / Codex
+  Date/Author: 2026-07-13 / AI assistant
 - Decision: editor snapshots определяются в `Karpik.Engine.Core`, а их создание реализуется в `Karpik.Engine.Core.Runner`.
   Rationale: editor зависит только от Core contracts; Dragon ECS, graphics и modules не протекают в UI project.
-  Date/Author: 2026-07-13 / Codex
+  Date/Author: 2026-07-13 / AI assistant
 - Decision: протокол snapshot использует JSON payload и выполняется максимум несколько раз в секунду.
   Rationale: это debug/control path, а не hot path; читаемость и совместимость важнее бинарной микрооптимизации. Bounded UI buffers исключают неограниченный рост памяти.
-  Date/Author: 2026-07-13 / Codex
+  Date/Author: 2026-07-13 / AI assistant
 - Decision: использовать Avalonia 12.1.0, Dock 12.0.0.2 и ReactiveUI.Avalonia 12.0.3.
   Rationale: это актуальные стабильные совместимые пакеты для `net10.0`; legacy `Avalonia.ReactiveUI` deprecated.
-  Date/Author: 2026-07-13 / Codex
+  Date/Author: 2026-07-13 / AI assistant
 
 ## Outcomes & Retrospective
 

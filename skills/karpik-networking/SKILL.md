@@ -1,6 +1,6 @@
 ---
 name: karpik-networking
-description: KarpikEngine networking rules. Use when Codex works on RPC, Network.Codegen, IReader/IWriter serialization, client-server validation, IPeer, ITargetRpcSender, delivery methods, connection state, replication, prediction, or network hot paths.
+description: KarpikEngine networking rules. Use for RPC, Network.Codegen, IReader/IWriter serialization, client-server validation, IPeer, ITargetRpcSender, delivery methods, connection state, replication, prediction, or network hot paths.
 ---
 
 # Karpik Networking

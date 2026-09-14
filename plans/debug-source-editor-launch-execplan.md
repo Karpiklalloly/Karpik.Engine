@@ -42,10 +42,10 @@ Engine developers can run `Karpik.Launcher` under Debug and immediately receive 
 
 - Decision: Override only the editor host binary in Debug; retain SDK installation resolution for runtime ownership.
   Rationale: This makes editor iteration immediate without invalidating the installed-SDK contract of external games.
-  Date/Author: 2026-09-13 / Codex and developer.
+  Date/Author: 2026-09-13 / AI assistant and developer.
 - Decision: Embed the source editor directory as Debug-only assembly metadata instead of deriving it from `AppContext.BaseDirectory`.
   Rationale: MSBuild already owns the checkout root and metadata remains valid with a custom launcher output path.
-  Date/Author: 2026-09-13 / Codex and developer.
+  Date/Author: 2026-09-13 / AI assistant and developer.
 
 ## Outcomes & Retrospective
 

@@ -32,16 +32,16 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 - Decision: Build all three scopes now, even though the current runner owns one simulation and has no ModSet registrations yet.
   Rationale: this establishes the agreed parent-child visibility and avoids another container rewrite when mod sets arrive.
-  Date/Author: 2026-08-09 / Codex
+  Date/Author: 2026-08-09 / AI assistant
 - Decision: Attribute registrations are applied before explicit installer registrations in each scope.
   Rationale: Autofac uses the last default registration, so explicit complex installer configuration can intentionally override conventional exports.
-  Date/Author: 2026-08-09 / Codex
+  Date/Author: 2026-08-09 / AI assistant
 - Decision: Keep `Destroy()` as the synchronous public boundary but implement it through asynchronous scope disposal.
   Rationale: existing hosts are synchronous, while the agreed ownership contract requires `IAsyncDisposable` services to be awaited.
-  Date/Author: 2026-08-09 / Codex
+  Date/Author: 2026-08-09 / AI assistant
 - Decision: Register `Time`, `Application`, `MainThreadScheduler`, and `ClientFrameMetrics` in Engine scope for the current one-application runner.
   Rationale: existing Engine services require them. Splitting per-simulation time is a future multi-simulation runner change, not safe to infer during this migration.
-  Date/Author: 2026-08-09 / Codex
+  Date/Author: 2026-08-09 / AI assistant
 
 ## Outcomes & Retrospective
 

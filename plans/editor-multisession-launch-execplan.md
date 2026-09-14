@@ -40,22 +40,22 @@
 
 - Decision: использовать два физически раздельных runtime-пакета `runtimes/server` и `runtimes/client`, собранных существующими `ServerLauncher` и `ClientLauncher` composition roots.
   Rationale: это сохраняет строгую границу Client/Server и повторно использует существующий список модулей без создания третьих host-проектов.
-  Date/Author: 2026-07-14 / Artem and Codex
+  Date/Author: 2026-07-14 / Artem and AI assistant
 - Decision: редактор перестаёт быть client composition root и становится только desktop orchestrator.
   Rationale: UI не должен неявно владеть игровыми client-модулями; каждый backend запускается из собственного runtime-пакета.
-  Date/Author: 2026-07-14 / Artem and Codex
+  Date/Author: 2026-07-14 / Artem and AI assistant
 - Decision: orchestration model содержит не более одного сервера и произвольное число явно созданных клиентских сессий.
   Rationale: это соответствует локальному multiplayer workflow «сервер, затем несколько клиентов» и позволяет адресно останавливать и перезапускать процессы.
-  Date/Author: 2026-07-14 / Artem and Codex
+  Date/Author: 2026-07-14 / Artem and AI assistant
 - Decision: сервер является родительской сессией; его stop, restart или fault каскадно останавливает клиентов, но после нового старта сервера клиенты автоматически не восстанавливаются.
   Rationale: клиенты не должны оставаться подключёнными к несуществующему authority, а автоматическое восстановление могло бы неожиданно породить процессы и скрыть ошибки старта.
-  Date/Author: 2026-07-14 / Artem and Codex
+  Date/Author: 2026-07-14 / Artem and AI assistant
 - Decision: snapshot polling выполняется только для выбранной работающей сессии; результат запроса от прежнего выбора отбрасывается.
   Rationale: сущности разных ECS worlds нельзя смешивать, а параллельный polling всех процессов создаёт ненужные IPC-запросы и аллокации.
-  Date/Author: 2026-07-14 / Artem and Codex
+  Date/Author: 2026-07-14 / Artem and AI assistant
 - Decision: client editor snapshot выполняется на simulation thread через отдельную редкую work queue, а server snapshot остаётся на server/main tick thread.
   Rationale: это синхронизирует обход ECS с владельцем gameplay state и не связывает inspection с потенциально блокирующим render; обычный кадр не создаёт managed allocations.
-  Date/Author: 2026-07-14 / Codex
+  Date/Author: 2026-07-14 / AI assistant
 
 ## Outcomes & Retrospective
 

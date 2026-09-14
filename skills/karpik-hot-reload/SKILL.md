@@ -1,6 +1,6 @@
 ---
 name: karpik-hot-reload
-description: KarpikEngine Hot Reload rules. Use when Codex works on HotReloadHandler, IPC reload flow, IpcClient/IpcServer, PluginLoadContext, plugin assembly loading, reload-safe state, ECS state preservation, or module reload behavior.
+description: KarpikEngine Hot Reload rules. Use for HotReloadHandler, IPC reload flow, IpcClient/IpcServer, PluginLoadContext, plugin assembly loading, reload-safe state, ECS state preservation, or module reload behavior.
 ---
 
 # Karpik Hot Reload

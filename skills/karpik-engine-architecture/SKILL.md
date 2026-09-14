@@ -1,6 +1,6 @@
 ---
 name: karpik-engine-architecture
-description: Use when Codex changes or reviews KarpikEngine Client/Server/Shared boundaries, modules, Bootstrap, DI registration or injection, service scopes, tick loops, project structure, or cross-module APIs.
+description: Use when changing or reviewing KarpikEngine Client/Server/Shared boundaries, modules, Bootstrap, DI registration or injection, service scopes, tick loops, project structure, or cross-module APIs.
 ---
 
 # KarpikEngine Architecture
