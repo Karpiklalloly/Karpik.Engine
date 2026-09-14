@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -22,10 +23,42 @@ public sealed class ProjectViewModel : ReactiveObject
 {
     private string? _path;
     private string _assetMessage = "Откройте проект, чтобы увидеть ассеты.";
+    private string _metaMessage = "Выберите ассет, чтобы изменить его .meta.";
+    private string? _contentPath;
+    private AssetTreeItemViewModel? _selectedAsset;
+    private AssetMetaEditorViewModel? _selectedMeta;
+
+    public ProjectViewModel()
+    {
+        SaveMetaCommand = ReactiveCommand.Create(() => { SaveSelectedMeta(); });
+    }
 
     public string Title => "Проект";
     public string Name => _path is null ? "Проект не открыт" : System.IO.Path.GetFileName(_path);
     public ObservableCollection<AssetTreeItemViewModel> Assets { get; } = [];
+    public ReactiveCommand<Unit, Unit> SaveMetaCommand { get; }
+
+    public AssetTreeItemViewModel? SelectedAsset
+    {
+        get => _selectedAsset;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedAsset, value);
+            LoadSelectedMeta();
+        }
+    }
+
+    public AssetMetaEditorViewModel? SelectedMeta
+    {
+        get => _selectedMeta;
+        private set => this.RaiseAndSetIfChanged(ref _selectedMeta, value);
+    }
+
+    public string MetaMessage
+    {
+        get => _metaMessage;
+        private set => this.RaiseAndSetIfChanged(ref _metaMessage, value);
+    }
 
     public string AssetMessage
     {
@@ -47,8 +80,11 @@ public sealed class ProjectViewModel : ReactiveObject
     private void LoadAssets()
     {
         Assets.Clear();
+        SelectedAsset = null;
+        SelectedMeta = null;
         if (_path is null)
         {
+            _contentPath = null;
             AssetMessage = "Откройте проект, чтобы увидеть ассеты.";
             return;
         }
@@ -56,6 +92,7 @@ public sealed class ProjectViewModel : ReactiveObject
         string contentPath = System.IO.Path.Combine(
             System.IO.Path.GetDirectoryName(_path)!,
             "Content");
+        _contentPath = contentPath;
         if (!Directory.Exists(contentPath))
         {
             AssetMessage = "Папка Content не найдена.";
@@ -80,6 +117,89 @@ public sealed class ProjectViewModel : ReactiveObject
             AssetMessage = "Нет доступа к папке Content.";
         }
     }
+
+    public bool SaveSelectedMeta()
+    {
+        if (SelectedMeta is null)
+        {
+            MetaMessage = "Выберите ассет, чтобы изменить его .meta.";
+            return false;
+        }
+
+        try
+        {
+            string candidate = SelectedMeta.ToJson();
+            var diagnostics = new List<ContentDiagnostic>();
+            AssetMeta parsed = AssetMeta.Parse(candidate, GetRelativeMetaPath(SelectedMeta.MetaPath), diagnostics);
+            if (!StringComparer.Ordinal.Equals(parsed.AssetId.ToCanonicalString(), SelectedMeta.AssetId))
+            {
+                MetaMessage = "assetId нельзя изменять в редакторе.";
+                return false;
+            }
+
+            string canonicalMeta = parsed.ToCanonicalMetaJson();
+            string temporaryPath = SelectedMeta.MetaPath + ".tmp";
+            File.WriteAllText(temporaryPath, canonicalMeta);
+            File.Move(temporaryPath, SelectedMeta.MetaPath, overwrite: true);
+            MetaMessage = "Сохранено.";
+            LoadSelectedMeta();
+            return true;
+        }
+        catch (JsonException ex)
+        {
+            MetaMessage = $"Некорректный JSON: {ex.Message}";
+            return false;
+        }
+        catch (InvalidDataException ex)
+        {
+            MetaMessage = ex.Message;
+            return false;
+        }
+        catch (IOException)
+        {
+            MetaMessage = "Не удалось сохранить .meta.";
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MetaMessage = "Нет доступа для сохранения .meta.";
+            return false;
+        }
+    }
+
+    private void LoadSelectedMeta()
+    {
+        SelectedMeta = null;
+        if (SelectedAsset?.SourcePath is not string sourcePath)
+        {
+            MetaMessage = "Выберите ассет, чтобы изменить его .meta.";
+            return;
+        }
+
+        string metaPath = sourcePath + ".meta";
+        try
+        {
+            var diagnostics = new List<ContentDiagnostic>();
+            AssetMeta meta = AssetMeta.Parse(File.ReadAllText(metaPath), GetRelativeMetaPath(metaPath), diagnostics);
+            SelectedMeta = new AssetMetaEditorViewModel(meta, metaPath);
+            MetaMessage = string.Empty;
+        }
+        catch (IOException)
+        {
+            MetaMessage = "Не удалось прочитать .meta.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MetaMessage = "Нет доступа к .meta.";
+        }
+        catch (InvalidDataException ex)
+        {
+            MetaMessage = ex.Message;
+        }
+    }
+
+    private string? GetRelativeMetaPath(string metaPath) =>
+        _contentPath is null ? null : System.IO.Path.GetRelativePath(_contentPath, metaPath);
 
     private static void EnsureMetaFiles(string contentPath)
     {
@@ -137,17 +257,99 @@ public sealed class ProjectViewModel : ReactiveObject
             }
             else
             {
-                yield return new AssetTreeItemViewModel(System.IO.Path.GetFileName(child), false);
+                yield return new AssetTreeItemViewModel(System.IO.Path.GetFileName(child), false, child);
             }
         }
     }
 }
 
-public sealed class AssetTreeItemViewModel(string name, bool isDirectory)
+public sealed class AssetTreeItemViewModel(string name, bool isDirectory, string? sourcePath = null)
 {
     public string Name { get; } = name;
     public bool IsDirectory { get; } = isDirectory;
+    public string? SourcePath { get; } = sourcePath;
     public ObservableCollection<AssetTreeItemViewModel> Children { get; } = [];
+}
+
+public sealed class AssetMetaEditorViewModel : ReactiveObject
+{
+    private string _declaredType;
+    private string _logicalName;
+    private bool _includesClient;
+    private bool _includesServer;
+    private string _importSettingsJson;
+    private string _dependenciesJson;
+
+    public AssetMetaEditorViewModel(AssetMeta meta, string metaPath)
+    {
+        MetaPath = metaPath;
+        AssetId = meta.AssetId.ToCanonicalString();
+        _declaredType = meta.DeclaredType;
+        _logicalName = meta.LogicalName;
+        _includesClient = (meta.Targets & AssetTarget.Client) != 0;
+        _includesServer = (meta.Targets & AssetTarget.Server) != 0;
+        _importSettingsJson = meta.RawImportSettingsJson;
+        _dependenciesJson = JsonSerializer.Serialize(meta.Dependencies.Select(dependency => dependency.ToCanonicalString()));
+    }
+
+    internal string MetaPath { get; }
+    public string AssetId { get; }
+
+    public string DeclaredType
+    {
+        get => _declaredType;
+        set => this.RaiseAndSetIfChanged(ref _declaredType, value);
+    }
+
+    public string LogicalName
+    {
+        get => _logicalName;
+        set => this.RaiseAndSetIfChanged(ref _logicalName, value);
+    }
+
+    public bool IncludesClient
+    {
+        get => _includesClient;
+        set => this.RaiseAndSetIfChanged(ref _includesClient, value);
+    }
+
+    public bool IncludesServer
+    {
+        get => _includesServer;
+        set => this.RaiseAndSetIfChanged(ref _includesServer, value);
+    }
+
+    public string ImportSettingsJson
+    {
+        get => _importSettingsJson;
+        set => this.RaiseAndSetIfChanged(ref _importSettingsJson, value);
+    }
+
+    public string DependenciesJson
+    {
+        get => _dependenciesJson;
+        set => this.RaiseAndSetIfChanged(ref _dependenciesJson, value);
+    }
+
+    internal string ToJson()
+    {
+        using JsonDocument importSettings = JsonDocument.Parse(ImportSettingsJson);
+        using JsonDocument dependencies = JsonDocument.Parse(DependenciesJson);
+        var targets = new List<string>(2);
+        if (IncludesClient) targets.Add("Client");
+        if (IncludesServer) targets.Add("Server");
+
+        return JsonSerializer.Serialize(new
+        {
+            schemaVersion = AssetMeta.CurrentSchemaVersion,
+            assetId = AssetId,
+            declaredType = DeclaredType,
+            logicalName = LogicalName,
+            targets,
+            importSettings = importSettings.RootElement,
+            dependencies = dependencies.RootElement
+        });
+    }
 }
 
 public sealed class HierarchyViewModel : ReactiveObject
@@ -167,12 +369,39 @@ public sealed class HierarchyViewModel : ReactiveObject
 public sealed class InspectorViewModel : ReactiveObject
 {
     private IReadOnlyList<EditorComponentSnapshot> _components = [];
+    private AssetMetaEditorViewModel? _selectedMeta;
+    private string _metaMessage = "Выберите ассет, чтобы изменить его .meta.";
+    private ReactiveCommand<Unit, Unit>? _saveMetaCommand;
 
     public string Title => "Инспектор";
     public IReadOnlyList<EditorComponentSnapshot> Components
     {
         get => _components;
         set => this.RaiseAndSetIfChanged(ref _components, value);
+    }
+
+    public AssetMetaEditorViewModel? SelectedMeta
+    {
+        get => _selectedMeta;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedMeta, value);
+            this.RaisePropertyChanged(nameof(HasSelectedMeta));
+        }
+    }
+
+    public bool HasSelectedMeta => _selectedMeta is not null;
+
+    public string MetaMessage
+    {
+        get => _metaMessage;
+        set => this.RaiseAndSetIfChanged(ref _metaMessage, value);
+    }
+
+    public ReactiveCommand<Unit, Unit>? SaveMetaCommand
+    {
+        get => _saveMetaCommand;
+        set => this.RaiseAndSetIfChanged(ref _saveMetaCommand, value);
     }
 }
 
@@ -429,6 +658,28 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
 
         Hierarchy.WhenAnyValue(x => x.SelectedEntity)
             .Subscribe(entity => Inspector.Components = entity?.Components ?? []);
+        Project.WhenAnyValue(x => x.SelectedMeta)
+            .Subscribe(meta => Inspector.SelectedMeta = meta);
+        Project.WhenAnyValue(x => x.MetaMessage)
+            .Subscribe(message => Inspector.MetaMessage = message);
+        Inspector.SaveMetaCommand = Project.SaveMetaCommand;
+
+        Project.WhenAnyValue(x => x.SelectedAsset)
+            .Subscribe(asset =>
+            {
+                if (asset is not null)
+                {
+                    Hierarchy.SelectedEntity = null;
+                }
+            });
+        Hierarchy.WhenAnyValue(x => x.SelectedEntity)
+            .Subscribe(entity =>
+            {
+                if (entity is not null)
+                {
+                    Project.SelectedAsset = null;
+                }
+            });
 
         StartServerCommand = ReactiveCommand.CreateFromTask(StartServerAsync);
         AddClientCommand = ReactiveCommand.CreateFromTask(AddClientAsync);

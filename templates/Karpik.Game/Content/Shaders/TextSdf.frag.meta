@@ -1,1 +1,1 @@
-{"schemaVersion":1,"assetId":"2f45eb3f-90da-41ce-b15e-e655a3944862","declaredType":"shader","logicalName":"game/Shaders/TextSdf.frag","importSettings":{},"dependencies":[]}
+{"schemaVersion":1,"assetId":"2f45eb3f-90da-41ce-b15e-e655a3944862","declaredType":"shader","logicalName":"game/Shaders/TextSdf.frag","targets":["Client","Server"],"importSettings":{},"dependencies":[]}

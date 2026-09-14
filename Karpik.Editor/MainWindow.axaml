@@ -13,7 +13,7 @@
       <Grid Margin="8" RowDefinitions="Auto,Auto,*">
         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
         <TextBlock Grid.Row="1" Text="{Binding AssetMessage}" Margin="0,8" TextWrapping="Wrap" Opacity="0.65" />
-        <TreeView Grid.Row="2" ItemsSource="{Binding Assets}">
+        <TreeView Grid.Row="2" ItemsSource="{Binding Assets}" SelectedItem="{Binding SelectedAsset, Mode=TwoWay}">
           <TreeView.ItemTemplate>
             <TreeDataTemplate ItemsSource="{Binding Children}">
               <TextBlock Text="{Binding Name}" Margin="4,2" />
@@ -21,6 +21,37 @@
           </TreeView.ItemTemplate>
         </TreeView>
       </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="local:AssetMetaEditorViewModel">
+      <ScrollViewer>
+        <StackPanel Spacing="8">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Asset ID" Opacity="0.7" />
+            <TextBox Text="{Binding AssetId}" IsReadOnly="True" />
+          </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Тип" Opacity="0.7" />
+            <TextBox Text="{Binding DeclaredType, Mode=TwoWay}" />
+          </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Логическое имя" Opacity="0.7" />
+            <TextBox Text="{Binding LogicalName, Mode=TwoWay}" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Стороны" Opacity="0.7" />
+            <CheckBox Content="Client" IsChecked="{Binding IncludesClient, Mode=TwoWay}" />
+            <CheckBox Content="Server" IsChecked="{Binding IncludesServer, Mode=TwoWay}" />
+          </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Import settings (JSON)" Opacity="0.7" />
+            <TextBox Text="{Binding ImportSettingsJson, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" />
+          </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Dependencies (JSON-массив assetId)" Opacity="0.7" />
+            <TextBox Text="{Binding DependenciesJson, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:HierarchyViewModel">
       <Grid RowDefinitions="Auto,*" Margin="8">
@@ -60,18 +91,25 @@
     </DataTemplate>
     <DataTemplate DataType="local:InspectorViewModel">
       <ScrollViewer>
-        <ItemsControl ItemsSource="{Binding Components}" Margin="8">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Border BorderBrush="#3F4652" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
-                <StackPanel Spacing="5">
-                  <TextBlock Text="{Binding TypeName}" FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding DisplayValue}" TextWrapping="Wrap" Opacity="0.8" />
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <StackPanel Spacing="8" Margin="8">
+          <StackPanel Spacing="8" IsVisible="{Binding HasSelectedMeta}">
+            <TextBlock Text="{Binding MetaMessage}" TextWrapping="Wrap" Opacity="0.75" />
+            <ContentControl Content="{Binding SelectedMeta}" />
+            <Button Content="Сохранить .meta" Command="{Binding SaveMetaCommand}" HorizontalAlignment="Right" />
+          </StackPanel>
+          <ItemsControl ItemsSource="{Binding Components}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="#3F4652" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="{Binding TypeName}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DisplayValue}" TextWrapping="Wrap" Opacity="0.8" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:ConsoleViewModel">

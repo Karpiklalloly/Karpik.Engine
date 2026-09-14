@@ -1,1 +1,1 @@
-{"schemaVersion":1,"assetId":"9ec0582b-4832-48d3-9683-438f090ee02e","declaredType":"texture","logicalName":"game/PressStart","importSettings":{},"dependencies":[]}
+{"schemaVersion":1,"assetId":"9ec0582b-4832-48d3-9683-438f090ee02e","declaredType":"texture","logicalName":"game/PressStart","targets":["Client","Server"],"importSettings":{},"dependencies":[]}

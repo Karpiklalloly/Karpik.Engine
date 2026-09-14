@@ -37,6 +37,84 @@ public sealed class ProjectViewModelTests
         }
     }
 
+    [Fact]
+    public void SelectedAsset_ExposesAndSavesEditableMetaWithoutChangingAssetId()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        try
+        {
+            string content = Path.Combine(root, "Content");
+            Directory.CreateDirectory(content);
+            string source = Path.Combine(content, "player.json");
+            string metaPath = source + ".meta";
+            File.WriteAllText(source, "{}");
+            File.WriteAllText(metaPath, """
+                {"schemaVersion":1,"assetId":"b7b0fb92-a439-4d3e-9fb6-e5fc2b00b565","declaredType":"raw-json","logicalName":"game/player","targets":["Client","Server"],"importSettings":{},"dependencies":[]}
+                """);
+            string solution = Path.Combine(root, "Game.slnx");
+            File.WriteAllText(solution, "");
+            var viewModel = new ProjectViewModel { Path = solution };
+
+            viewModel.SelectedAsset = Assert.Single(viewModel.Assets);
+            AssetMetaEditorViewModel meta = Assert.IsType<AssetMetaEditorViewModel>(viewModel.SelectedMeta);
+            Assert.Null(typeof(AssetMetaEditorViewModel).GetProperty(nameof(AssetMetaEditorViewModel.AssetId))!.SetMethod);
+            meta.LogicalName = "game/player-server";
+            meta.IncludesClient = false;
+            meta.IncludesServer = true;
+            meta.ImportSettingsJson = "{\"quality\":\"high\"}";
+            meta.DependenciesJson = "[]";
+
+            Assert.True(viewModel.SaveSelectedMeta());
+            using JsonDocument saved = JsonDocument.Parse(File.ReadAllText(metaPath));
+            Assert.Equal("b7b0fb92-a439-4d3e-9fb6-e5fc2b00b565", saved.RootElement.GetProperty("assetId").GetString());
+            Assert.Equal("game/player-server", saved.RootElement.GetProperty("logicalName").GetString());
+            Assert.Equal(["Server"], saved.RootElement.GetProperty("targets").EnumerateArray().Select(target => target.GetString()!).ToArray());
+            Assert.Equal("high", saved.RootElement.GetProperty("importSettings").GetProperty("quality").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void SaveSelectedMeta_InvalidValueKeepsExistingFile()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        try
+        {
+            string content = Path.Combine(root, "Content");
+            Directory.CreateDirectory(content);
+            string source = Path.Combine(content, "player.json");
+            string metaPath = source + ".meta";
+            File.WriteAllText(source, "{}");
+            string originalMeta = """
+                {"schemaVersion":1,"assetId":"b7b0fb92-a439-4d3e-9fb6-e5fc2b00b565","declaredType":"raw-json","logicalName":"game/player","targets":["Client","Server"],"importSettings":{},"dependencies":[]}
+                """;
+            File.WriteAllText(metaPath, originalMeta);
+            string solution = Path.Combine(root, "Game.slnx");
+            File.WriteAllText(solution, "");
+            var viewModel = new ProjectViewModel { Path = solution };
+
+            viewModel.SelectedAsset = Assert.Single(viewModel.Assets);
+            AssetMetaEditorViewModel meta = Assert.IsType<AssetMetaEditorViewModel>(viewModel.SelectedMeta);
+            meta.LogicalName = "invalid";
+
+            Assert.False(viewModel.SaveSelectedMeta());
+            Assert.Equal(originalMeta, File.ReadAllText(metaPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     [Theory]
     [InlineData("player.json", "raw-json", "game/Sprites/player")]
     [InlineData("player.png", "texture", "game/Sprites/player")]

@@ -238,6 +238,24 @@ public sealed class ExternalGameCliTests
     }
 
     [Fact]
+    public void Template_content_metadata_declares_shared_targets_explicitly()
+    {
+        string contentRoot = Path.Combine(GetTemplateRoot(), "Content");
+
+        foreach (string metaPath in Directory.EnumerateFiles(contentRoot, "*.meta", SearchOption.AllDirectories))
+        {
+            using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(metaPath));
+            string[] targets = meta.RootElement.GetProperty("targets")
+                .EnumerateArray()
+                .Select(target => target.GetString())
+                .OfType<string>()
+                .ToArray();
+
+            Assert.Equal(["Client", "Server"], targets);
+        }
+    }
+
+    [Fact]
     public void Template_launchers_are_runnable_projects_with_build_only_runtime_dependencies()
     {
         string templateRoot = GetTemplateRoot();
