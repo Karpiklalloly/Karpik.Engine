@@ -12,13 +12,16 @@ public sealed class UpdateKarpikSdkScriptTests
     {
         string repositoryRoot = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        string scriptPath = Path.Combine(repositoryRoot, "Update-KarpikSdk.ps1");
+        string scriptPath = Path.Combine(repositoryRoot, "_scripts", "Update-KarpikSdk.ps1");
 
         Assert.True(File.Exists(scriptPath), $"Missing SDK update script: {scriptPath}");
         string script = File.ReadAllText(scriptPath);
 
         Assert.Matches(
-            new Regex(@"(?m)^\$SdkVersion\s*=\s*""[^""]+""\s*$", RegexOptions.CultureInvariant),
+            new Regex(@"(?m)^\$SdkVersionBase\s*=\s*""[^""]+""\s*$", RegexOptions.CultureInvariant),
+            script);
+        Assert.Matches(
+            new Regex(@"\$SdkVersion\s*=\s*""\$SdkVersionBase-\$\(Get-Date -Format 'yyyyMMdd-HHmmss'\)""", RegexOptions.CultureInvariant),
             script);
         Assert.Contains("Karpik.Engine.Packager", script, StringComparison.Ordinal);
         Assert.Contains("--sdk-version", script, StringComparison.Ordinal);

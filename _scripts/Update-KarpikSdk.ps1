@@ -2,7 +2,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Change this value when the MSBuild SDK version changes.
-$SdkVersion = "0.6.0-local"
+$SdkVersionBase = "0.6.0-local"
+$SdkVersion = "$SdkVersionBase-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
 # Development engine versions are content-hash qualified by the packager.
 $EngineVersion = "0.6.0-dev"
