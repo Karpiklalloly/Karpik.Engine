@@ -56,6 +56,11 @@ cooked content contract and the template's existing source files. Keeping the
 sources preserves the legacy path-based loaders until manifest-backed runtime
 loaders replace them.
 
+The game template enables this build for both Client and Server. They consume
+the same game-owned source tree but cook it into independent intermediate and
+runtime-bundle directories. Shared prefab schemas belong in Shared; no
+Client-to-Server project reference is introduced.
+
 The default content coordinator registers `RawJsonProcessor`,
 `TextureProcessor`, `FontJsonProcessor`, and `ShaderProcessor`. Missing or
 malformed inputs produce stable content diagnostics and block publication just
@@ -65,9 +70,9 @@ The Editor and Content CLI share one Core meta-template contract:
 
 - `.json` creates `declaredType: "raw-json"`;
 - `.png`, `.jpg`, and `.jpeg` create `declaredType: "texture"`;
-- `.font-json` creates `declaredType: "font-json"`;
-- `.vert` and `.frag` create `declaredType: "shader"`;
-- the initial logical name is `game/<path-without-extension>`;
+- `.font-json` creates `declaredType: "font-json"` and logical suffix `.font`;
+- `.vert` and `.frag` create `declaredType: "shader"` and retain their stage suffix;
+- other initial logical names are `game/<path-without-extension>`;
 - generated `importSettings` and `dependencies` are empty.
 
 On project open, the Editor creates missing sidecars for these supported

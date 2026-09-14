@@ -38,13 +38,17 @@ public sealed class ProjectViewModelTests
     }
 
     [Theory]
-    [InlineData("player.json", "raw-json")]
-    [InlineData("player.png", "texture")]
-    [InlineData("player.jpg", "texture")]
-    [InlineData("player.jpeg", "texture")]
+    [InlineData("player.json", "raw-json", "game/Sprites/player")]
+    [InlineData("player.png", "texture", "game/Sprites/player")]
+    [InlineData("player.jpg", "texture", "game/Sprites/player")]
+    [InlineData("player.jpeg", "texture", "game/Sprites/player")]
+    [InlineData("player.font-json", "font-json", "game/Sprites/player.font")]
+    [InlineData("player.vert", "shader", "game/Sprites/player.vert")]
+    [InlineData("player.frag", "shader", "game/Sprites/player.frag")]
     public void Path_CreatesMissingSupportedMetaWithoutOverwritingIt(
         string fileName,
-        string declaredType)
+        string declaredType,
+        string logicalName)
     {
         string root = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
         try
@@ -62,7 +66,7 @@ public sealed class ProjectViewModelTests
             using (JsonDocument meta = JsonDocument.Parse(firstMeta))
             {
                 Assert.Equal(declaredType, meta.RootElement.GetProperty("declaredType").GetString());
-                Assert.Equal("game/Sprites/player", meta.RootElement.GetProperty("logicalName").GetString());
+                Assert.Equal(logicalName, meta.RootElement.GetProperty("logicalName").GetString());
             }
 
             viewModel.Path = solution;

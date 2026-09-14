@@ -19,6 +19,17 @@ public sealed class FontJsonProcessorTests
     }
 
     [Fact]
+    public void Process_Utf8BomFontJson_PreservesSourceBytes()
+    {
+        byte[] source = [0xEF, 0xBB, 0xBF, .. "{}"u8.ToArray()];
+
+        ContentProcessorResult result = new FontJsonProcessor().Process(source, CreateMeta(), "default.font-json");
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
+        Assert.Equal(source, result.CookedBytes);
+    }
+
+    [Fact]
     public void Process_InvalidFontJson_ReportsJsonError()
     {
         ContentProcessorResult result = new FontJsonProcessor().Process("not-json"u8, CreateMeta(), "default.font-json");

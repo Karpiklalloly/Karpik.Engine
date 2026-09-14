@@ -127,10 +127,16 @@ public sealed class CliTests
     }
 
     [Theory]
-    [InlineData("Sprites/player.png")]
-    [InlineData("Sprites/player.jpg")]
-    [InlineData("Sprites/player.jpeg")]
-    public void Cli_Create_WritesTextureMetaForImageSource(string relativeFile)
+    [InlineData("Sprites/player.png", "texture", "game/Sprites/player")]
+    [InlineData("Sprites/player.jpg", "texture", "game/Sprites/player")]
+    [InlineData("Sprites/player.jpeg", "texture", "game/Sprites/player")]
+    [InlineData("Fonts/default.font-json", "font-json", "game/Fonts/default.font")]
+    [InlineData("Shaders/main.vert", "shader", "game/Shaders/main.vert")]
+    [InlineData("Shaders/main.frag", "shader", "game/Shaders/main.frag")]
+    public void Cli_Create_WritesMetaForSupportedSource(
+        string relativeFile,
+        string declaredType,
+        string logicalName)
     {
         using var tmp = new TemporaryDirectory();
         string source = tmp.CreateSubdirectory("source");
@@ -142,8 +148,8 @@ public sealed class CliTests
 
         Assert.Equal(0, code);
         using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(sourceFile + ".meta"));
-        Assert.Equal("texture", meta.RootElement.GetProperty("declaredType").GetString());
-        Assert.Equal($"game/Sprites/player", meta.RootElement.GetProperty("logicalName").GetString());
+        Assert.Equal(declaredType, meta.RootElement.GetProperty("declaredType").GetString());
+        Assert.Equal(logicalName, meta.RootElement.GetProperty("logicalName").GetString());
     }
 
     [Fact]

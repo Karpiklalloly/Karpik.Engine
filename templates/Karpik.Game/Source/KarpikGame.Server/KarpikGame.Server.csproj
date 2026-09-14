@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
     <KarpikProjectKind>Runtime</KarpikProjectKind>
     <KarpikSide>Server</KarpikSide>
+    <KarpikContentEnabled>true</KarpikContentEnabled>
+    <KarpikContentNamespace>game</KarpikContentNamespace>
+    <KarpikContentSourceRoot>$(MSBuildProjectDirectory)\..\..\Content</KarpikContentSourceRoot>
   </PropertyGroup>
 
   <ItemGroup>

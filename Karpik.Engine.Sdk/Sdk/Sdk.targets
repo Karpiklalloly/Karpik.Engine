@@ -28,6 +28,17 @@
   <!-- Подключает стандартные цели .NET SDK. -->
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
+  <PropertyGroup>
+    <KarpikContentOutput Condition="'$(KarpikContentOutput)' == ''">$(IntermediateOutputPath)Content</KarpikContentOutput>
+    <KarpikContentManifest Condition="'$(KarpikContentManifest)' == ''">$([System.IO.Path]::GetFullPath('$(KarpikContentOutput)\manifest.json'))</KarpikContentManifest>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
+    <CompilerVisibleProperty Include="KarpikContentManifest" />
+    <CompilerVisibleProperty Include="KarpikContentNamespace" />
+    <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
+  </ItemGroup>
+
   <!-- Задаёт каталог готового runtime bundle, если пользователь не переопределил его. -->
   <PropertyGroup>
     <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>

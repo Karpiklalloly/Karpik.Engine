@@ -17,6 +17,10 @@ public sealed class RawJsonProcessor : IContentProcessor
         try
         {
             text = Encoding.UTF8.GetString(sourceBytes);
+            if (text.StartsWith('\uFEFF'))
+            {
+                text = text[1..];
+            }
         }
         catch (Exception ex)
         {

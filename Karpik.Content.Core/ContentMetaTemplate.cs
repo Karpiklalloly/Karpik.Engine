@@ -20,7 +20,13 @@ public static class ContentMetaTemplate
             return false;
         }
 
-        string logicalPath = Path.ChangeExtension(relativePath, null)!
+        string extension = Path.GetExtension(relativePath);
+        string logicalPath = extension.Equals(".font-json", StringComparison.OrdinalIgnoreCase)
+            ? relativePath[..^extension.Length] + ".font"
+            : extension.Equals(".vert", StringComparison.OrdinalIgnoreCase) || extension.Equals(".frag", StringComparison.OrdinalIgnoreCase)
+                ? relativePath
+                : Path.ChangeExtension(relativePath, null)!;
+        logicalPath = logicalPath
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/');
         string logicalName = $"{assetNamespace}/{logicalPath}";

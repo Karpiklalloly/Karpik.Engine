@@ -26,6 +26,17 @@ public sealed class RawJsonProcessorTests
     }
 
     [Fact]
+    public void Process_Utf8BomJson_CookedIsCanonical()
+    {
+        byte[] source = [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("""{"a":1}""")];
+
+        ContentProcessorResult result = _processor.Process(source, CreateMeta(Guid.NewGuid().ToString("D")), "bom.json");
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
+        Assert.Equal("""{"a":1}""", Encoding.UTF8.GetString(result.CookedBytes));
+    }
+
+    [Fact]
     public void Process_InvalidJson_ReportsError()
     {
         string guid = Guid.NewGuid().ToString("D");

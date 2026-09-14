@@ -1,10 +1,9 @@
 # Content Pipeline: практическое использование
 
-> Статус на сентябрь 2026: pipeline собирает `raw-json` и `texture`, создаёт
-> manifest и cooked-артефакты, генерирует `ContentRefs` для JSON и может быть
-> подключён к runtime bundle. Внешний проект, использующий только
-> установленный NuGet-пакет SDK, пока не поддержан: SDK ссылается на проекты
-> и CLI из checkout репозитория.
+> Статус на сентябрь 2026: pipeline собирает `raw-json`, `texture`,
+> `font-json` и `shader`, создаёт manifest и cooked-артефакты, генерирует
+> `ContentRefs` для JSON и автоматически добавляет cooked output в runtime
+> bundle. Внешний проект работает только с установленным NuGet-пакетом SDK.
 
 ## Что делает pipeline
 
@@ -22,9 +21,9 @@ Content/config/player.json.meta
 
 `assetId` — неизменяемая идентичность ассета. Переименование файла и
 `logicalName` не требует менять ID. Поддержаны `declaredType: "raw-json"`
-для JSON и `declaredType: "texture"` для PNG/JPG/JPEG. Texture processor
-проверяет изображение, но пока сохраняет исходные encoded bytes без GPU
-загрузки.
+для JSON, `texture` для PNG/JPG/JPEG, `font-json` для `.font-json` и
+`shader` для `.vert`/`.frag`. Processors проверяют исходные данные и пока
+сохраняют исходные bytes без GPU-загрузки или компиляции шейдеров.
 
 ## 1. Создать ассет
 
@@ -56,9 +55,11 @@ dotnet run --project Karpik.Content.Tool -- create `
 
 Она запишет `player.json.meta` рядом с исходником, с новым lowercase GUID,
 `logicalName` `game/config/player`, типом `raw-json` и пустыми
-`importSettings`/`dependencies`. Команда также принимает `.png`, `.jpg` и
-`.jpeg` и создаёт для них тип `texture`. Существующий `.meta` команда не
-перезаписывает.
+`importSettings`/`dependencies`. Команда также принимает `.png`, `.jpg`,
+`.jpeg`, `.font-json`, `.vert` и `.frag`. Для font она создаёт суффикс
+`.font` в logical name, для shader сохраняет `.vert` или `.frag`, чтобы
+несколько входов с одним basename не конфликтовали. Существующий `.meta`
+команда не перезаписывает.
 
 Editor при открытии проекта создаёт отсутствующие `.meta` для этих же
 расширений с namespace `game`; неизвестные расширения пропускаются.
@@ -125,18 +126,8 @@ dotnet run --project Karpik.Content.Tool -- why `
 
 ## 3. Подключить build и генератор к проекту SDK
 
-Это работает только пока игра и Content Pipeline находятся в одном checkout.
-Runtime-проекту нужны ссылки на Core и Runtime:
-
-```xml
-<ItemGroup>
-  <ProjectReference Include="..\..\Karpik.Content.Core\Karpik.Content.Core.csproj" />
-  <ProjectReference Include="..\..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
-</ItemGroup>
-```
-
-В том же `.csproj` включите pipeline и, если `Content` находится не рядом с
-проектом, укажите его корень:
+В каждом runtime `.csproj`, которому нужны ассеты, включите pipeline и, если
+`Content` находится не рядом с проектом, укажите его корень:
 
 ```xml
 <PropertyGroup>
@@ -146,8 +137,13 @@ Runtime-проекту нужны ссылки на Core и Runtime:
 </PropertyGroup>
 ```
 
-`Karpik.Engine.Sdk` перед компиляцией соберёт `content.dll`, вызовет
-`content build`, передаст путь к manifest генератору и добавит все
+Шаблон включает это и для `Client`, и для `Server`: оба собирают общий
+`Content/` в собственный `obj/.../Content` и кладут cooked-результат в свой
+runtime bundle. JSON-схемы префабов, используемые с обеих сторон, должны жить
+в `Shared`; `Client` и `Server` не ссылаются друг на друга.
+
+`Karpik.Engine.Sdk` перед компиляцией вызовет packaged `content.dll`,
+передаст путь к manifest packaged code generator и добавит все
 `**/*.json.meta` как `AdditionalFiles`.
 
 Генератор создаёт в проекте класс `Karpik.Content.Generated.ContentRefs`.
@@ -179,26 +175,11 @@ AssetRef<PlayerConfig> player = ContentRefs.Game_Config_Player;
 Для нового `declaredType` всё ещё нужен отдельный processor. `texture`
 сейчас только валидирует и публикует encoded image bytes, без runtime-типа.
 
-## 4. Положить cooked output в runtime bundle
+## 4. Cooked output в runtime bundle
 
-`BuildKarpikRuntimeBundle` упаковывает только `$(TargetDir)\Content`. Сам
-pipeline публикует в `$(IntermediateOutputPath)Content`, поэтому добавьте в
-client/server `.csproj` одну цель:
-
-```xml
-<Target Name="CopyCookedKarpikContentToRuntimeOutput"
-        BeforeTargets="BuildKarpikRuntimeBundle"
-        DependsOnTargets="KarpikContentBuild">
-  <ItemGroup>
-    <_KarpikCookedContent Include="$(KarpikContentOutput)**\*" />
-  </ItemGroup>
-  <Copy SourceFiles="@(_KarpikCookedContent)"
-        DestinationFiles="@(_KarpikCookedContent-&gt;'$(TargetDir)Content\%(RecursiveDir)%(Filename)%(Extension)')"
-        SkipUnchangedFiles="true" />
-</Target>
-```
-
-После этого итоговая структура будет такой:
+SDK сам копирует cooked `manifest.json` и `artifacts/` из промежуточного
+output в `$(TargetDir)\Content` до создания runtime bundle. После build
+структура будет такой:
 
 ```text
 bin/.../Content/manifest.json
@@ -207,9 +188,8 @@ karpik-bundle/Content/manifest.json
 karpik-bundle/Content/artifacts/.../*.cooked
 ```
 
-Не добавляйте одновременно исходный `Content\**\*` как MSBuild `Content`
-item, если в bundle нужны только cooked-артефакты. Иначе в пакет попадут и
-исходный JSON, и `.meta`.
+Исходные template-файлы остаются в bundle для старых path-based loaders;
+runtime manifest consumers используют cooked данные.
 
 ## 5. Загрузить ассет в runtime
 
@@ -241,13 +221,10 @@ if (registry.TryGet(ContentRefs.Game_Config_Player, out AssetLease<PlayerConfig>
 
 ## Текущие ограничения
 
-- SDK пока не поставляет Content CLI и code generator как assets NuGet-пакета.
-  Для внешнего потребителя без checkout эта интеграция не работает.
-- Перенос cooked output в `TargetDir\Content` пока задаётся целью проекта из
-  раздела 4, а не самим SDK.
 - Texture processor пока не создаёт `AssetRef<ITexture2D>`, GPU texture или
   import settings; cooked-артефакт содержит исходные encoded PNG/JPEG bytes.
-- Нет processors для шрифтов, shaders и пользовательских типов.
+- Font и shader processors валидируют и публикуют source bytes; runtime font
+  loader, shader compiler и пользовательские types остаются будущими задачами.
 - Старый path-based `AssetManagement.Core` продолжает существовать отдельно;
   не смешивайте его пути с `AssetRef<T>` и manifest pipeline.
 

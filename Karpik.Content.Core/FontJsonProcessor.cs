@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace Karpik.Content.Core;
@@ -10,9 +11,12 @@ public sealed class FontJsonProcessor : IContentProcessor
     public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath)
     {
         byte[] cookedBytes = sourceBytes.ToArray();
+        byte[] validationBytes = cookedBytes.AsSpan().StartsWith(Encoding.UTF8.Preamble)
+            ? cookedBytes[Encoding.UTF8.Preamble.Length..]
+            : cookedBytes;
         try
         {
-            using JsonDocument _ = JsonDocument.Parse(cookedBytes);
+            using JsonDocument _ = JsonDocument.Parse(validationBytes);
             return new ContentProcessorResult(cookedBytes, [], []);
         }
         catch (JsonException exception)

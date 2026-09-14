@@ -49,17 +49,14 @@ public sealed class RecoveryAndToolTests
     }
 
     [Fact]
-    public void SdkProps_ToolBuildAlwaysInvokesMSBuild()
+    public void SdkProps_UsesPackagedContentTool()
     {
         string sdkPropsPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Karpik.Engine.Sdk", "Sdk", "Sdk.props"));
         string sdkProps = File.ReadAllText(sdkPropsPath);
-        // Should contain KarpikContentToolBuild without !Exists(ToolDll) condition
-        Assert.Contains("KarpikContentToolBuild", sdkProps);
-        Assert.DoesNotContain("!Exists('$(KarpikContentToolDll)')", sdkProps);
-        Assert.Contains("DependsOnTargets=\"KarpikContentToolBuild\"", sdkProps);
-        // Should use MSBuildThisFileDirectory for tool path
-        Assert.Contains("KarpikContentToolDll", sdkProps);
-        Assert.Contains("MSBuildThisFileDirectory", sdkProps);
+        Assert.DoesNotContain("KarpikContentToolBuild", sdkProps);
+        Assert.DoesNotContain("Karpik.Content.Tool.csproj", sdkProps);
+        Assert.Contains("tools\\net10.0\\content\\content.dll", sdkProps);
+        Assert.Contains("$(DOTNET_HOST_PATH)", sdkProps);
     }
 
     [Fact]
