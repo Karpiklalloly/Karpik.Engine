@@ -38,13 +38,26 @@ public sealed class ExternalGameCliTests
         Assert.Contains(project.Descendants("None"), item =>
             (string?)item.Attribute("Include") == "$(KarpikContentCodegenOutputPath)**\\*"
             && (string?)item.Attribute("PackagePath") == "analyzers/dotnet/cs/");
+        Assert.Contains(project.Descendants("None"), item =>
+            (string?)item.Attribute("Include") == "$(KarpikContentRuntimeOutputPath)Karpik.Content.Runtime.dll"
+            && (string?)item.Attribute("PackagePath") == "tools/net10.0/content/");
+        Assert.DoesNotContain(project.Descendants("None"), item =>
+            (string?)item.Attribute("Include") == "$(KarpikDragonEcsOutputPath)DragonECS.dll");
 
         string sdkProps = File.ReadAllText(Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "Sdk", "Sdk.props"));
         Assert.Contains("tools\\net10.0\\content\\content.dll", sdkProps, StringComparison.Ordinal);
         Assert.Contains("analyzers\\dotnet\\cs\\Karpik.Content.Codegen.dll", sdkProps, StringComparison.Ordinal);
+        Assert.Contains("tools\\net10.0\\content\\Karpik.Content.Runtime.dll", sdkProps, StringComparison.Ordinal);
+        Assert.Contains("tools\\net10.0\\content\\Karpik.Content.Core.dll", sdkProps, StringComparison.Ordinal);
+        Assert.Contains("<Reference Include=\"Karpik.Content.Runtime\">", sdkProps, StringComparison.Ordinal);
+        Assert.Contains("<Reference Include=\"Karpik.Content.Core\">", sdkProps, StringComparison.Ordinal);
+        Assert.DoesNotContain("KarpikDragonEcsDll", sdkProps, StringComparison.Ordinal);
         Assert.Contains("$(DOTNET_HOST_PATH)", sdkProps, StringComparison.Ordinal);
+        Assert.Contains("--target $(KarpikSide)", sdkProps, StringComparison.Ordinal);
         string sdkTargets = File.ReadAllText(Path.Combine(repositoryRoot, "Karpik.Engine.Sdk", "Sdk", "Sdk.targets"));
-        Assert.Contains("$(IntermediateOutputPath)Content</KarpikContentOutput>", sdkTargets, StringComparison.Ordinal);
+        Assert.Contains("MSBuildProjectDirectory", sdkTargets, StringComparison.Ordinal);
+        Assert.Contains("$(IntermediateOutputPath)Content", sdkTargets, StringComparison.Ordinal);
+        Assert.Contains("</KarpikContentOutput>", sdkTargets, StringComparison.Ordinal);
         Assert.Contains("GetFullPath('$(KarpikContentOutput)\\manifest.json')", sdkTargets, StringComparison.Ordinal);
         Assert.Contains("<CompilerVisibleProperty Include=\"KarpikContentManifest\"", sdkTargets, StringComparison.Ordinal);
         Assert.Contains("<CompilerVisibleProperty Include=\"KarpikContentNamespace\"", sdkTargets, StringComparison.Ordinal);
@@ -52,6 +65,70 @@ public sealed class ExternalGameCliTests
         Assert.DoesNotContain("<CompilerVisibleProperty Include=\"KarpikContentManifest\"", sdkProps, StringComparison.Ordinal);
         Assert.DoesNotContain("Karpik.Content.Tool.csproj", sdkProps, StringComparison.Ordinal);
         Assert.DoesNotContain("Karpik.Content.Codegen/Karpik.Content.Codegen.csproj", sdkProps, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Packaged_sdk_compiles_generated_content_refs()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikContentSdk_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+
+        try
+        {
+            string packageFeed = Path.Combine(temporaryRoot, "packages");
+            string offlinePackageFeed = Path.Combine(temporaryRoot, "offline");
+            Directory.CreateDirectory(packageFeed);
+            Directory.CreateDirectory(offlinePackageFeed);
+            var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
+                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+                ["DOTNET_NOLOGO"] = "1",
+                ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
+                ["MSBUILDDISABLENODEREUSE"] = "1",
+                ["KarpikEngineRoot"] = ResolveRetainedEngineRoot(repositoryRoot)
+            };
+
+            ProcessResult pack = await RunAsync(
+                repositoryRoot,
+                ["pack", "Karpik.Engine.Sdk\\Karpik.Engine.Sdk.csproj", "-c", "Debug", "-m:1", "-nr:false",
+                    "--no-restore", $"-p:PackageVersion={PackageVersion}", "-o", packageFeed],
+                environment);
+            AssertSuccess(pack, "pack SDK for minimal external content project");
+
+            string projectRoot = Path.Combine(temporaryRoot, "game");
+            string contentRoot = Path.Combine(projectRoot, "Content");
+            Directory.CreateDirectory(contentRoot);
+            File.WriteAllText(Path.Combine(projectRoot, "Game.csproj"), """
+                <Project Sdk="Karpik.Engine.Sdk/0.6.0-local">
+                  <PropertyGroup>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <KarpikProjectKind>Runtime</KarpikProjectKind>
+                    <KarpikSide>Client</KarpikSide>
+                    <KarpikCompositionMode>Dynamic</KarpikCompositionMode>
+                    <KarpikContentEnabled>true</KarpikContentEnabled>
+                    <KarpikContentNamespace>game</KarpikContentNamespace>
+                  </PropertyGroup>
+                </Project>
+                """);
+            File.WriteAllText(Path.Combine(contentRoot, "asset.json"), """{"value":1}""");
+            File.WriteAllText(Path.Combine(contentRoot, "asset.json.meta"),
+                "{\"schemaVersion\":1,\"assetId\":\"" + Guid.NewGuid().ToString("D") +
+                "\",\"declaredType\":\"raw-json\",\"logicalName\":\"game/asset\",\"targets\":[\"Client\"],\"importSettings\":{},\"dependencies\":[]}");
+            WriteNuGetConfig(projectRoot, packageFeed, offlinePackageFeed);
+
+            ProcessResult restore = await RunAsync(projectRoot, ["restore", "Game.csproj", "-m:1", "-nr:false"], environment);
+            AssertSuccess(restore, "restore minimal external content project");
+            ProcessResult build = await RunAsync(projectRoot, ["build", "Game.csproj", "-m:1", "-nr:false", "--no-restore"], environment);
+            AssertSuccess(build, "compile generated ContentRefs from packaged SDK");
+            Assert.DoesNotContain("KCO301", build.CombinedOutput, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteOwnedTemporaryRoot(temporaryRoot);
+        }
     }
 
     [Fact]
@@ -957,6 +1034,8 @@ public sealed class ExternalGameCliTests
         Assert.Contains("tools/net10.0/content/content.dll", entries);
         Assert.Contains("tools/net10.0/content/content.runtimeconfig.json", entries);
         Assert.Contains("analyzers/dotnet/cs/Karpik.Content.Codegen.dll", entries);
+        Assert.Contains("tools/net10.0/content/Karpik.Content.Runtime.dll", entries);
+        Assert.Contains("tools/net10.0/content/Karpik.Content.Core.dll", entries);
     }
 
     /// <summary>
@@ -1390,6 +1469,8 @@ public sealed class ExternalGameCliTests
                                    Path.DirectorySeparatorChar;
         string contentCodegenOutput = Path.Combine(artifacts, "bin", "Karpik.Content.Codegen", "debug") +
                                       Path.DirectorySeparatorChar;
+        string contentRuntimeOutput = Path.Combine(artifacts, "bin", "Karpik.Content.Runtime", "debug") +
+                                      Path.DirectorySeparatorChar;
         Assert.True(File.Exists(Path.Combine(codegenOutput, "Karpik.Engine.Core.Codegen.dll")),
             $"Transaction-owned codegen output is missing: {codegenOutput}");
         Assert.True(File.Exists(Path.Combine(networkCodegenOutput, "Network.Codegen.dll")),
@@ -1398,11 +1479,14 @@ public sealed class ExternalGameCliTests
             $"Transaction-owned content tool output is missing: {contentToolOutput}");
         Assert.True(File.Exists(Path.Combine(contentCodegenOutput, "Karpik.Content.Codegen.dll")),
             $"Transaction-owned content codegen output is missing: {contentCodegenOutput}");
+        Assert.True(File.Exists(Path.Combine(contentRuntimeOutput, "Karpik.Content.Runtime.dll")),
+            $"Transaction-owned content runtime output is missing: {contentRuntimeOutput}");
         Assert.True(IsWithinRoot(tasksOutput, ownedBuildRoot));
         Assert.True(IsWithinRoot(codegenOutput, ownedBuildRoot));
         Assert.True(IsWithinRoot(networkCodegenOutput, ownedBuildRoot));
         Assert.True(IsWithinRoot(contentToolOutput, ownedBuildRoot));
         Assert.True(IsWithinRoot(contentCodegenOutput, ownedBuildRoot));
+        Assert.True(IsWithinRoot(contentRuntimeOutput, ownedBuildRoot));
 
         ProcessResult pack = await RunAsync(
             repositoryRoot,
@@ -1414,6 +1498,7 @@ public sealed class ExternalGameCliTests
                 $"-p:KarpikNetworkCodegenOutputPath={networkCodegenOutput}",
                 $"-p:KarpikContentToolOutputPath={contentToolOutput}",
                 $"-p:KarpikContentCodegenOutputPath={contentCodegenOutput}",
+                $"-p:KarpikContentRuntimeOutputPath={contentRuntimeOutput}",
                 .. ownedProperties,
                 "-o", packageFeed
             ],

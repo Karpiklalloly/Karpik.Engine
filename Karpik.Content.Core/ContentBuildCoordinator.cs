@@ -5,6 +5,10 @@ public sealed class ContentBuildOptions
     public string SourceRoot { get; init; } = string.Empty;
     public string OutputRoot { get; init; } = string.Empty;
     public string Namespace { get; init; } = string.Empty;
+    // Build target selection. Defaults to Shared (the union of Client|Server),
+    // which selects the whole tree and preserves the pre-target behavior.
+    // CLI/SDK always pass a single target (Client or Server).
+    public AssetTarget Target { get; init; } = AssetTarget.Shared;
 }
 
 public sealed class ContentBuildResult
@@ -43,12 +47,17 @@ public sealed class ContentBuildCoordinator
         {
             foreach (SourceEntry entry in entries)
             {
+                if (!IsSelectedFor(entry, options.Target))
+                {
+                    continue;
+                }
+
                 if (!_processors.TryGetValue(entry.Meta.DeclaredType, out IContentProcessor? processor))
                 {
                     continue;
                 }
 
-                ContentProcessorResult result = processor.Process(entry.SourceBytes, entry.Meta, entry.RelativePath);
+                ContentProcessorResult result = processor.Process(entry.SourceBytes, entry.Meta, entry.RelativePath, new ContentProcessorContext(options.Target));
                 foreach (ContentDiagnostic d in result.Diagnostics)
                 {
                     diagnostics.Add(d);
@@ -95,6 +104,11 @@ public sealed class ContentBuildCoordinator
 
         foreach (SourceEntry entry in entries.OrderBy(e => e.Meta.AssetId.Value))
         {
+            if (!IsSelectedFor(entry, options.Target))
+            {
+                continue;
+            }
+
             if (!_processors.TryGetValue(entry.Meta.DeclaredType, out IContentProcessor? processor))
             {
                 diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnsupportedDeclaredType,
@@ -104,7 +118,7 @@ public sealed class ContentBuildCoordinator
             }
 
             string canonicalMeta = entry.Meta.ToCanonicalMetaJson();
-            ContentProcessorResult result = processor.Process(entry.SourceBytes, entry.Meta, entry.RelativePath);
+            ContentProcessorResult result = processor.Process(entry.SourceBytes, entry.Meta, entry.RelativePath, new ContentProcessorContext(options.Target));
 
             // Add processor diagnostics
             foreach (ContentDiagnostic d in result.Diagnostics)
@@ -120,7 +134,7 @@ public sealed class ContentBuildCoordinator
             string sourceHash = ContentHashing.HashSourceBytes(entry.SourceBytes);
             string importSettingsHash = ContentHashing.HashImportSettings(entry.Meta.RawImportSettingsJson);
             string artifactHash =
-                ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version);
+                ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version, options.Target);
             string locator = ContentHashing.ComputeArtifactLocator(artifactHash);
             long size = result.CookedBytes.Length;
 
@@ -332,6 +346,14 @@ public sealed class ContentBuildCoordinator
             return null;
         }
 
+        if (options.Target is not (AssetTarget.Client or AssetTarget.Server or AssetTarget.Shared))
+        {
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ConcreteBuildTargetRequired,
+                ContentDiagnosticSeverity.Error, null,
+                "Build target must be Client or Server."));
+            return null;
+        }
+
         // Scan files
         var entries = new List<SourceEntry>();
         var idMap = new Dictionary<AssetId, SourceEntry>();
@@ -435,6 +457,14 @@ public sealed class ContentBuildCoordinator
                 continue;
             }
 
+            if (options.Target == AssetTarget.Shared && meta.Targets != AssetTarget.Shared)
+            {
+                diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ConcreteBuildTargetRequired,
+                    ContentDiagnosticSeverity.Error, relativePath,
+                    "Build target must be Client or Server when the source tree contains single-target assets."));
+                continue;
+            }
+
             // Validate declared type supported
             if (!_processors.ContainsKey(meta.DeclaredType))
             {
@@ -464,8 +494,11 @@ public sealed class ContentBuildCoordinator
                 continue;
             }
 
-            // Duplicate logical name check
-            if (logicalNameMap.ContainsKey(meta.LogicalName))
+            bool selectedForTarget = (meta.Targets & options.Target) != 0;
+
+            // Duplicate logical name check (only within the selected target set,
+            // so independent Client-only and Server-only assets may share a name)
+            if (selectedForTarget && logicalNameMap.ContainsKey(meta.LogicalName))
             {
                 diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DuplicateLogicalName,
                     ContentDiagnosticSeverity.Error, relativePath,
@@ -485,7 +518,10 @@ public sealed class ContentBuildCoordinator
 
             entries.Add(entry);
             idMap[meta.AssetId] = entry;
-            logicalNameMap[meta.LogicalName] = entry;
+            if (selectedForTarget)
+            {
+                logicalNameMap[meta.LogicalName] = entry;
+            }
         }
 
         // Also check for orphan .meta files without source
@@ -506,12 +542,23 @@ public sealed class ContentBuildCoordinator
         var graph = new Dictionary<AssetId, List<AssetId>>();
         foreach (var kv in idMap)
         {
+            if (!IsSelectedFor(kv.Value, options.Target))
+            {
+                continue;
+            }
+
             graph[kv.Key] = kv.Value.Meta.Dependencies.ToList();
         }
 
-        // Unknown dependency
+        // Unknown dependency (only dependencies of selected assets are enforced;
+        // a dependency that exists but is not selected for this target is KCO022)
         foreach (var kv in idMap)
         {
+            if (!IsSelectedFor(kv.Value, options.Target))
+            {
+                continue;
+            }
+
             foreach (AssetId dep in kv.Value.Meta.Dependencies)
             {
                 if (!idMap.ContainsKey(dep))
@@ -519,6 +566,12 @@ public sealed class ContentBuildCoordinator
                     diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnknownDependency,
                         ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
                         $"Unknown dependency '{dep}' referenced by '{kv.Key}'."));
+                }
+                else if (!IsSelectedFor(idMap[dep], options.Target))
+                {
+                    diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.TargetDependencyNotSelected,
+                        ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                        $"Dependency '{dep}' referenced by '{kv.Key}' is not selected for this target."));
                 }
                 else
                 {
@@ -531,6 +584,15 @@ public sealed class ContentBuildCoordinator
                     // For simplicity, treat any dependency whose target's logicalName namespace != expectedNamespace as DependencyOutsideNamespace.
                     // But since we already enforce all targets are within expectedNamespace, this branch will never hit. We can still check.
                     SourceEntry depEntry = idMap[dep];
+                    if (kv.Value.Meta.Targets == AssetTarget.Shared &&
+                        depEntry.Meta.Targets != AssetTarget.Shared)
+                    {
+                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.SharedDependsOnSided,
+                            ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                            $"Shared asset '{kv.Key}' must not depend on single-target asset '{dep}'."));
+                        continue;
+                    }
+
                     string depNamespace = depEntry.Meta.LogicalName.Split('/')[0];
                     if (!string.Equals(depNamespace, expectedNamespace, StringComparison.Ordinal))
                     {
@@ -581,7 +643,7 @@ public sealed class ContentBuildCoordinator
             visited[node] = 2;
         }
 
-        foreach (AssetId id in idMap.Keys.OrderBy(k => k.Value))
+        foreach (AssetId id in graph.Keys.OrderBy(k => k.Value))
         {
             if (!visited.ContainsKey(id))
             {
@@ -635,6 +697,9 @@ public sealed class ContentBuildCoordinator
 
         return true;
     }
+
+    private static bool IsSelectedFor(SourceEntry entry, AssetTarget target) =>
+        (entry.Meta.Targets & target) != 0;
 
     private static int CompareDiagnostics(ContentDiagnostic a, ContentDiagnostic b)
     {

@@ -10,7 +10,7 @@ public sealed class FontJsonProcessorTests
     {
         byte[] source = "{\"atlas\":{\"type\":\"msdf\"},\"glyphs\":[]}"u8.ToArray();
 
-        ContentProcessorResult result = new FontJsonProcessor().Process(source, CreateMeta(), "default.font-json");
+        ContentProcessorResult result = new FontJsonProcessor().Process(source, CreateMeta(), "default.font-json", default);
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Equal(source, result.CookedBytes);
@@ -23,7 +23,7 @@ public sealed class FontJsonProcessorTests
     {
         byte[] source = [0xEF, 0xBB, 0xBF, .. "{}"u8.ToArray()];
 
-        ContentProcessorResult result = new FontJsonProcessor().Process(source, CreateMeta(), "default.font-json");
+        ContentProcessorResult result = new FontJsonProcessor().Process(source, CreateMeta(), "default.font-json", default);
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Equal(source, result.CookedBytes);
@@ -32,7 +32,7 @@ public sealed class FontJsonProcessorTests
     [Fact]
     public void Process_InvalidFontJson_ReportsJsonError()
     {
-        ContentProcessorResult result = new FontJsonProcessor().Process("not-json"u8, CreateMeta(), "default.font-json");
+        ContentProcessorResult result = new FontJsonProcessor().Process("not-json"u8, CreateMeta(), "default.font-json", default);
 
         Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.InvalidJsonContent);
         Assert.Empty(result.CookedBytes);

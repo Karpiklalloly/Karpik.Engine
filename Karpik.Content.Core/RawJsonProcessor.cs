@@ -8,7 +8,7 @@ public sealed class RawJsonProcessor : IContentProcessor
     public string DeclaredType => AssetMeta.ExpectedDeclaredTypeRawJson;
     public string Version => "1.0.0";
 
-    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath)
+    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath, ContentProcessorContext context)
     {
         var diagnostics = new List<ContentDiagnostic>();
 

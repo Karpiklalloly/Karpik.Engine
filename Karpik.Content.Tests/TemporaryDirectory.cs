@@ -35,7 +35,7 @@ internal sealed class TemporaryDirectory : IDisposable
 
 internal static class TestFixtures
 {
-    public static string CreateSourceFile(string sourceRoot, string relativePath, string content, AssetId? id = null, string? logicalName = null, string declaredType = "raw-json", object? importSettings = null, IEnumerable<AssetId>? dependencies = null)
+    public static string CreateSourceFile(string sourceRoot, string relativePath, string content, AssetId? id = null, string? logicalName = null, string declaredType = "raw-json", object? importSettings = null, IEnumerable<AssetId>? dependencies = null, AssetTarget? targets = null)
     {
         string fullPath = Path.Combine(sourceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
         string? dir = Path.GetDirectoryName(fullPath);
@@ -45,15 +45,22 @@ internal static class TestFixtures
         AssetId assetId = id ?? new AssetId(Guid.NewGuid());
         string logName = logicalName ?? $"game/{Path.GetFileNameWithoutExtension(relativePath)}";
 
-        var meta = new
+        var meta = new Dictionary<string, object?>
         {
-            schemaVersion = 1,
-            assetId = assetId.ToCanonicalString(),
-            declaredType = declaredType,
-            logicalName = logName,
-            importSettings = importSettings ?? new { },
-            dependencies = dependencies?.Select(d => d.ToCanonicalString()).ToArray() ?? Array.Empty<string>()
+            ["schemaVersion"] = 1,
+            ["assetId"] = assetId.ToCanonicalString(),
+            ["declaredType"] = declaredType,
+            ["logicalName"] = logName,
+            ["importSettings"] = importSettings ?? new { },
+            ["dependencies"] = dependencies?.Select(d => d.ToCanonicalString()).ToArray() ?? Array.Empty<string>()
         };
+        if (targets is not null)
+        {
+            var targetNames = new List<string>();
+            if (targets.Value.HasFlag(AssetTarget.Client)) targetNames.Add("Client");
+            if (targets.Value.HasFlag(AssetTarget.Server)) targetNames.Add("Server");
+            meta["targets"] = targetNames;
+        }
 
         string metaJson = System.Text.Json.JsonSerializer.Serialize(meta, new System.Text.Json.JsonSerializerOptions { WriteIndented = false });
         // Write with pretty for easier debugging but parser should handle any whitespace

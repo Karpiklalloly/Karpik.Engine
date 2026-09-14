@@ -12,7 +12,7 @@ public sealed class ShaderProcessorTests
     {
         byte[] source = "#version 450\nvoid main() {}"u8.ToArray();
 
-        ContentProcessorResult result = new ShaderProcessor().Process(source, CreateMeta(), relativePath);
+        ContentProcessorResult result = new ShaderProcessor().Process(source, CreateMeta(), relativePath, default);
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Equal(source, result.CookedBytes);
@@ -23,7 +23,7 @@ public sealed class ShaderProcessorTests
     [Fact]
     public void Process_EmptyShader_ReportsError()
     {
-        ContentProcessorResult result = new ShaderProcessor().Process([], CreateMeta(), "main.frag");
+        ContentProcessorResult result = new ShaderProcessor().Process([], CreateMeta(), "main.frag", default);
 
         Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.InvalidShaderContent);
         Assert.Empty(result.CookedBytes);
@@ -32,7 +32,7 @@ public sealed class ShaderProcessorTests
     [Fact]
     public void Process_InvalidUtf8Shader_ReportsError()
     {
-        ContentProcessorResult result = new ShaderProcessor().Process([0xff], CreateMeta(), "main.frag");
+        ContentProcessorResult result = new ShaderProcessor().Process([0xff], CreateMeta(), "main.frag", default);
 
         Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.InvalidShaderContent);
         Assert.Empty(result.CookedBytes);

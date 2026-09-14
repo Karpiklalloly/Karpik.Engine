@@ -100,4 +100,57 @@ public sealed class AssetMetaTests
         Assert.False(AssetMeta.IsValidLogicalName("game/../foo"));
         Assert.False(AssetMeta.IsValidLogicalName("game/foo\\bar"));
     }
+
+    [Fact]
+    public void Parse_MissingTargets_DefaultsToShared()
+    {
+        string guid = Guid.NewGuid().ToString("D").ToLowerInvariant();
+        string json = $$"""{"schemaVersion":1,"assetId":"{{guid}}","declaredType":"raw-json","logicalName":"game/foo","importSettings":{},"dependencies":[]}""";
+        var diagnostics = new List<ContentDiagnostic>();
+        AssetMeta meta = AssetMeta.Parse(json, "foo.json.meta", diagnostics);
+        Assert.Equal(AssetTarget.Shared, meta.Targets);
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("""["Client"]""", AssetTarget.Client)]
+    [InlineData("""["Server"]""", AssetTarget.Server)]
+    [InlineData("""["Client","Server"]""", AssetTarget.Shared)]
+    [InlineData("""["Server","Client"]""", AssetTarget.Shared)]
+    public void Parse_Targets_Parsed(string targetsJson, AssetTarget expected)
+    {
+        string guid = Guid.NewGuid().ToString("D").ToLowerInvariant();
+        string json = $$"""{"schemaVersion":1,"assetId":"{{guid}}","declaredType":"raw-json","logicalName":"game/foo","targets":{{targetsJson}}}""";
+        var diagnostics = new List<ContentDiagnostic>();
+        AssetMeta meta = AssetMeta.Parse(json, "foo.json.meta", diagnostics);
+        Assert.Equal(expected, meta.Targets);
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("""["Unknown"]""")]
+    [InlineData("""["Client",42]""")]
+    [InlineData("\"Client\"")]
+    public void Parse_InvalidTargets_ReportsDiagnostic(string targetsJson)
+    {
+        string guid = Guid.NewGuid().ToString("D").ToLowerInvariant();
+        string json = $$"""{"schemaVersion":1,"assetId":"{{guid}}","declaredType":"raw-json","logicalName":"game/foo","targets":{{targetsJson}}}""";
+        var diagnostics = new List<ContentDiagnostic>();
+        Assert.Throws<InvalidDataException>(() => AssetMeta.Parse(json, "foo.json.meta", diagnostics));
+        Assert.Contains(diagnostics, d => d.Code == ContentDiagnosticCodes.MissingMetaField);
+    }
+
+    [Fact]
+    public void ToCanonicalMetaJson_TargetsOrderCanonicalized()
+    {
+        string guid = Guid.NewGuid().ToString("D").ToLowerInvariant();
+        string json1 = $$"""{"schemaVersion":1,"assetId":"{{guid}}","declaredType":"raw-json","logicalName":"game/foo","targets":["Server","Client"]}""";
+        string json2 = $$"""{"schemaVersion":1,"assetId":"{{guid}}","declaredType":"raw-json","logicalName":"game/foo","targets":["Client","Server"]}""";
+        AssetMeta meta1 = AssetMeta.Parse(json1, "a", new List<ContentDiagnostic>());
+        AssetMeta meta2 = AssetMeta.Parse(json2, "a", new List<ContentDiagnostic>());
+        string canonical1 = meta1.ToCanonicalMetaJson();
+        Assert.Equal(canonical1, meta2.ToCanonicalMetaJson());
+        Assert.Contains("\"targets\":[\"Client\",\"Server\"]", canonical1, StringComparison.Ordinal);
+    }
 }

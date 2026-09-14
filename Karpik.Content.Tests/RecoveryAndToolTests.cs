@@ -142,8 +142,8 @@ public sealed class RecoveryAndToolTests
         // Also via RawJsonProcessor cooked artifact
         var processor = new RawJsonProcessor();
         var meta = AssetMeta.Parse("""{"schemaVersion":1,"assetId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","declaredType":"raw-json","logicalName":"game/a"}""", "a.json.meta", new List<ContentDiagnostic>());
-        var result1 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 0.001e400}"""), meta, "a.json");
-        var result2 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 1e397}"""), meta, "a.json");
+        var result1 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 0.001e400}"""), meta, "a.json", default);
+        var result2 = processor.Process(System.Text.Encoding.UTF8.GetBytes("""{"v": 1e397}"""), meta, "a.json", default);
         Assert.Equal(System.Text.Encoding.UTF8.GetString(result1.CookedBytes), System.Text.Encoding.UTF8.GetString(result2.CookedBytes));
     }
 }

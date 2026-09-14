@@ -16,6 +16,7 @@
         <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikNetworkCodegenOutputPath>
         <KarpikContentToolOutputPath Condition="'$(KarpikContentToolOutputPath)' == ''">..\Karpik.Content.Tool\bin\$(Configuration)\net10.0\</KarpikContentToolOutputPath>
         <KarpikContentCodegenOutputPath Condition="'$(KarpikContentCodegenOutputPath)' == ''">..\Karpik.Content.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikContentCodegenOutputPath>
+        <KarpikContentRuntimeOutputPath Condition="'$(KarpikContentRuntimeOutputPath)' == ''">..\Karpik.Content.Runtime\bin\$(Configuration)\net10.0\</KarpikContentRuntimeOutputPath>
     </PropertyGroup>
 
     <!-- Собирает DLL MSBuild-задач до упаковки SDK, не добавляя её как runtime-зависимость. -->
@@ -27,6 +28,9 @@
                           ReferenceOutputAssembly="false"
                           PrivateAssets="all" />
         <ProjectReference Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj"
+                          ReferenceOutputAssembly="false"
+                          PrivateAssets="all" />
+        <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj"
                           ReferenceOutputAssembly="false"
                           PrivateAssets="all" />
     </ItemGroup>
@@ -53,6 +57,9 @@
         <None Include="$(KarpikNetworkCodegenOutputPath)Network.Codegen.dll"
               Pack="true"
               PackagePath="analyzers/dotnet/cs/" />
+        <None Include="$(KarpikContentRuntimeOutputPath)Karpik.Content.Runtime.dll"
+              Pack="true"
+              PackagePath="tools/net10.0/content/" />
     </ItemGroup>
 
     <!-- Исключает внешние генераторы из неявного графа и добавляет нужный analyzer явно. -->

@@ -14,5 +14,5 @@ public interface IContentProcessor
 {
     string DeclaredType { get; }
     string Version { get; }
-    ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath);
+    ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath, ContentProcessorContext context);
 }

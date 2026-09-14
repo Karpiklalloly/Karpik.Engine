@@ -42,6 +42,7 @@ public static class ContentMetaTemplate
             assetId = AssetId.New().ToCanonicalString(),
             declaredType,
             logicalName,
+            targets = new[] { "Client", "Server" },
             importSettings = new { },
             dependencies = Array.Empty<string>()
         }) + Environment.NewLine;

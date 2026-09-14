@@ -33,6 +33,19 @@ public sealed class ContentMetaTemplateTests
     }
 
     [Fact]
+    public void TryCreate_IncludesSharedTargets()
+    {
+        bool created = ContentMetaTemplate.TryCreate("config/player.json", "game", out string metaJson);
+        var diagnostics = new List<ContentDiagnostic>();
+
+        AssetMeta meta = AssetMeta.Parse(metaJson, "config/player.json.meta", diagnostics);
+
+        Assert.True(created);
+        Assert.Empty(diagnostics);
+        Assert.Equal(AssetTarget.Shared, meta.Targets);
+    }
+
+    [Fact]
     public void TryCreate_UnsupportedSource_ReturnsFalse()
     {
         bool created = ContentMetaTemplate.TryCreate("Sprites/player.gif", "game", out string metaJson);

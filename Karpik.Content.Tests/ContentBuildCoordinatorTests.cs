@@ -324,4 +324,141 @@ public sealed class ContentBuildCoordinatorTests
         string expectedSourceHash = ContentHashing.HashString(sourceContent);
         Assert.Equal(expectedSourceHash, entry.SourceHash);
     }
+
+    [Fact]
+    public void Build_TargetFiltersAssets()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string clientOut = tmp.CreateSubdirectory("client-out");
+        string serverOut = tmp.CreateSubdirectory("server-out");
+
+        var sharedId = new AssetId(Guid.NewGuid());
+        var clientId = new AssetId(Guid.NewGuid());
+        var serverId = new AssetId(Guid.NewGuid());
+        TestFixtures.CreateSourceFile(source, "shared.json", """{"s":1}""", id: sharedId, logicalName: "game/shared");
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", id: clientId, logicalName: "game/client", targets: AssetTarget.Client, dependencies: new[] { sharedId });
+        TestFixtures.CreateSourceFile(source, "server.json", """{"s":2}""", id: serverId, logicalName: "game/server", targets: AssetTarget.Server, dependencies: new[] { sharedId });
+
+        var coordinator = new ContentBuildCoordinator();
+        var clientResult = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = clientOut, Namespace = "game", Target = AssetTarget.Client });
+        Assert.True(clientResult.Success, $"Client build failed: {string.Join("\n", clientResult.Diagnostics.Select(d => d.ToString()))}");
+        Assert.Equal(2, clientResult.Manifest!.Entries.Count);
+        Assert.Contains(clientResult.Manifest.Entries, e => e.AssetId == sharedId);
+        Assert.Contains(clientResult.Manifest.Entries, e => e.AssetId == clientId);
+
+        var serverResult = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = serverOut, Namespace = "game", Target = AssetTarget.Server });
+        Assert.True(serverResult.Success, $"Server build failed: {string.Join("\n", serverResult.Diagnostics.Select(d => d.ToString()))}");
+        Assert.Equal(2, serverResult.Manifest!.Entries.Count);
+        Assert.Contains(serverResult.Manifest.Entries, e => e.AssetId == sharedId);
+        Assert.Contains(serverResult.Manifest.Entries, e => e.AssetId == serverId);
+    }
+
+    [Fact]
+    public void Validate_DuplicateLogicalName_AcrossIndependentTargets_Allowed()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", logicalName: "game/same", targets: AssetTarget.Client);
+        TestFixtures.CreateSourceFile(source, "server.json", """{"s":1}""", logicalName: "game/same", targets: AssetTarget.Server);
+
+        var coordinator = new ContentBuildCoordinator();
+        var clientResult = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out-client"), Namespace = "game", Target = AssetTarget.Client });
+        Assert.True(clientResult.Success, $"Client validate failed: {string.Join("\n", clientResult.Diagnostics.Select(d => d.ToString()))}");
+        var serverResult = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out-server"), Namespace = "game", Target = AssetTarget.Server });
+        Assert.True(serverResult.Success, $"Server validate failed: {string.Join("\n", serverResult.Diagnostics.Select(d => d.ToString()))}");
+    }
+
+    [Fact]
+    public void Validate_SharedBuildTarget_WithSidedAssets_RequiresConcreteTarget()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", logicalName: "game/same", targets: AssetTarget.Client);
+        TestFixtures.CreateSourceFile(source, "server.json", """{"s":1}""", logicalName: "game/same", targets: AssetTarget.Server);
+
+        var coordinator = new ContentBuildCoordinator();
+        var result = coordinator.Validate(new ContentBuildOptions
+        {
+            SourceRoot = source,
+            OutputRoot = tmp.CreateSubdirectory("out"),
+            Namespace = "game"
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == "KCO024");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.DuplicateLogicalName);
+    }
+
+    [Fact]
+    public void Validate_DuplicateLogicalName_AcrossOverlappingTargets_Rejected()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        TestFixtures.CreateSourceFile(source, "shared.json", """{"s":1}""", logicalName: "game/same");
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", logicalName: "game/same", targets: AssetTarget.Client);
+
+        var coordinator = new ContentBuildCoordinator();
+        var result = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out"), Namespace = "game", Target = AssetTarget.Client });
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.DuplicateLogicalName);
+    }
+
+    [Fact]
+    public void Validate_DependencyOnUnselectedTarget_Rejected()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        var serverId = new AssetId(Guid.NewGuid());
+        TestFixtures.CreateSourceFile(source, "server.json", """{"s":1}""", id: serverId, logicalName: "game/server", targets: AssetTarget.Server);
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", logicalName: "game/client", targets: AssetTarget.Client, dependencies: new[] { serverId });
+
+        var coordinator = new ContentBuildCoordinator();
+        var result = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out"), Namespace = "game", Target = AssetTarget.Client });
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.TargetDependencyNotSelected);
+    }
+
+    [Fact]
+    public void Validate_SharedDependsOnSided_Rejected()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        var clientId = new AssetId(Guid.NewGuid());
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", id: clientId, logicalName: "game/client", targets: AssetTarget.Client);
+        TestFixtures.CreateSourceFile(source, "shared.json", """{"s":1}""", logicalName: "game/shared", dependencies: new[] { clientId });
+
+        var coordinator = new ContentBuildCoordinator();
+        var result = coordinator.Validate(new ContentBuildOptions { SourceRoot = source, OutputRoot = tmp.CreateSubdirectory("out"), Namespace = "game", Target = AssetTarget.Client });
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.SharedDependsOnSided);
+    }
+
+    [Fact]
+    public void Build_SameAsset_DifferentTargets_DifferentLocators()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string clientOut = tmp.CreateSubdirectory("client-out");
+        string serverOut = tmp.CreateSubdirectory("server-out");
+
+        var id = new AssetId(Guid.NewGuid());
+        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", id: id, logicalName: "game/a");
+
+        var coordinator = new ContentBuildCoordinator();
+        var clientResult = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = clientOut, Namespace = "game", Target = AssetTarget.Client });
+        Assert.True(clientResult.Success, $"Client build failed: {string.Join("\n", clientResult.Diagnostics.Select(d => d.ToString()))}");
+        var serverResult = coordinator.Build(new ContentBuildOptions { SourceRoot = source, OutputRoot = serverOut, Namespace = "game", Target = AssetTarget.Server });
+        Assert.True(serverResult.Success, $"Server build failed: {string.Join("\n", serverResult.Diagnostics.Select(d => d.ToString()))}");
+
+        var clientEntry = clientResult.Manifest!.Entries.Single();
+        var serverEntry = serverResult.Manifest!.Entries.Single();
+        Assert.Equal(clientEntry.AssetId, serverEntry.AssetId);
+        Assert.Equal(clientEntry.SourceHash, serverEntry.SourceHash);
+        Assert.NotEqual(clientEntry.ArtifactLocator, serverEntry.ArtifactLocator);
+
+        byte[] clientCooked = File.ReadAllBytes(Path.Combine(clientOut, clientEntry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar)));
+        byte[] serverCooked = File.ReadAllBytes(Path.Combine(serverOut, serverEntry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.Equal(clientCooked, serverCooked);
+    }
 }

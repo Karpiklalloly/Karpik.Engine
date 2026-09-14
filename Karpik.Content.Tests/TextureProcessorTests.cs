@@ -20,7 +20,7 @@ public sealed class TextureProcessorTests
         byte[] source = relativePath.EndsWith("png", StringComparison.Ordinal) ? ValidPng : ValidJpeg;
         var processor = new TextureProcessor();
 
-        ContentProcessorResult result = processor.Process(source, CreateMeta(), relativePath);
+        ContentProcessorResult result = processor.Process(source, CreateMeta(), relativePath, default);
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Equal(source, result.CookedBytes);
@@ -33,7 +33,7 @@ public sealed class TextureProcessorTests
     {
         var processor = new TextureProcessor();
 
-        ContentProcessorResult result = processor.Process([1, 2, 3], CreateMeta(), "broken.png");
+        ContentProcessorResult result = processor.Process([1, 2, 3], CreateMeta(), "broken.png", default);
 
         Assert.Contains(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Empty(result.CookedBytes);

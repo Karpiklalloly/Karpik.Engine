@@ -7,7 +7,7 @@ public sealed class TextureProcessor : IContentProcessor
     public string DeclaredType => AssetMeta.ExpectedDeclaredTypeTexture;
     public string Version => "1.0.0";
 
-    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath)
+    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath, ContentProcessorContext context)
     {
         if (!IsSupportedExtension(relativePath))
         {

@@ -24,16 +24,25 @@ public static class ContentHashing
 
     public static string HashImportSettings(string canonicalImportSettingsJson) => HashString(canonicalImportSettingsJson);
 
-    public static string ComputeArtifactHash(ReadOnlySpan<byte> sourceBytes, string canonicalMetaJson, string processorVersion)
+    public static string ComputeArtifactHash(ReadOnlySpan<byte> sourceBytes, string canonicalMetaJson, string processorVersion, AssetTarget target)
     {
         using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         hash.AppendData(FormatPrefix);
 
         Span<byte> frame = stackalloc byte[sizeof(ulong)];
 
+        string targetName = target switch
+        {
+            AssetTarget.Client => "Client",
+            AssetTarget.Server => "Server",
+            AssetTarget.Shared => "Shared",
+            _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown content target.")
+        };
+
         AppendFramed(hash, frame, "source", sourceBytes);
         AppendFramed(hash, frame, "meta", StrictUtf8.GetBytes(canonicalMetaJson));
         AppendFramed(hash, frame, "processorVersion", StrictUtf8.GetBytes(processorVersion));
+        AppendFramed(hash, frame, "target", StrictUtf8.GetBytes(targetName));
 
         byte[] digest = hash.GetHashAndReset();
         return Convert.ToHexString(digest).ToLowerInvariant();

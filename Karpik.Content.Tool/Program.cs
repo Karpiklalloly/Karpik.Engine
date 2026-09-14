@@ -55,8 +55,8 @@ internal static class Program
     {
         Console.WriteLine("Karpik Content Tool");
         Console.WriteLine("Usage:");
-        Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id>");
-        Console.WriteLine("  content validate --source <dir> --namespace <id>");
+        Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id> --target <Client|Server>");
+        Console.WriteLine("  content validate --source <dir> --namespace <id> --target <Client|Server>");
         Console.WriteLine("  content create   --source <dir> --file <relative-source-path> --namespace <id>");
         Console.WriteLine("  content list     --manifest <path>");
         Console.WriteLine("  content why      --manifest <path> <asset-guid>");
@@ -67,6 +67,7 @@ internal static class Program
         string? source = null;
         string? output = null;
         string? ns = null;
+        string? target = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -74,19 +75,27 @@ internal static class Program
             if (arg == "--source" && i + 1 < args.Length) source = args[++i];
             else if (arg == "--output" && i + 1 < args.Length) output = args[++i];
             else if (arg == "--namespace" && i + 1 < args.Length) ns = args[++i];
+            else if (arg == "--target" && i + 1 < args.Length) target = args[++i];
             else if (arg == "--help" || arg == "-h") { PrintBuildUsage(); return ExitSuccess; }
             else { Console.Error.WriteLine($"unknown argument '{arg}' for build"); PrintBuildUsage(); return ExitUsage; }
         }
 
-        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(output) || string.IsNullOrWhiteSpace(ns))
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(output) || string.IsNullOrWhiteSpace(ns) || string.IsNullOrWhiteSpace(target))
         {
-            Console.Error.WriteLine("build requires --source, --output, --namespace");
+            Console.Error.WriteLine("build requires --source, --output, --namespace, --target");
+            PrintBuildUsage();
+            return ExitUsage;
+        }
+
+        if (!AssetTargets.TryParse(target, out AssetTarget buildTarget))
+        {
+            Console.Error.WriteLine($"invalid --target '{target}'. Expected 'Client' or 'Server'.");
             PrintBuildUsage();
             return ExitUsage;
         }
 
         var coordinator = new ContentBuildCoordinator();
-        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = ns };
+        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = ns, Target = buildTarget };
         ContentBuildResult result = coordinator.Build(options);
 
         PrintDiagnostics(result.Diagnostics);
@@ -109,32 +118,41 @@ internal static class Program
 
     private static void PrintBuildUsage()
     {
-        Console.WriteLine("Usage: content build --source <dir> --output <dir> --namespace <id>");
+        Console.WriteLine("Usage: content build --source <dir> --output <dir> --namespace <id> --target <Client|Server>");
     }
 
     private static int RunValidate(string[] args)
     {
         string? source = null;
         string? ns = null;
+        string? target = null;
 
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
             if (arg == "--source" && i + 1 < args.Length) source = args[++i];
             else if (arg == "--namespace" && i + 1 < args.Length) ns = args[++i];
+            else if (arg == "--target" && i + 1 < args.Length) target = args[++i];
             else if (arg == "--help" || arg == "-h") { PrintValidateUsage(); return ExitSuccess; }
             else { Console.Error.WriteLine($"unknown argument '{arg}' for validate"); PrintValidateUsage(); return ExitUsage; }
         }
 
-        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(ns))
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(ns) || string.IsNullOrWhiteSpace(target))
         {
-            Console.Error.WriteLine("validate requires --source, --namespace");
+            Console.Error.WriteLine("validate requires --source, --namespace, --target");
+            PrintValidateUsage();
+            return ExitUsage;
+        }
+
+        if (!AssetTargets.TryParse(target, out AssetTarget validateTarget))
+        {
+            Console.Error.WriteLine($"invalid --target '{target}'. Expected 'Client' or 'Server'.");
             PrintValidateUsage();
             return ExitUsage;
         }
 
         var coordinator = new ContentBuildCoordinator();
-        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = Path.GetTempPath(), Namespace = ns };
+        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = Path.GetTempPath(), Namespace = ns, Target = validateTarget };
         ContentBuildResult result = coordinator.Validate(options);
 
         PrintDiagnostics(result.Diagnostics);
@@ -150,7 +168,7 @@ internal static class Program
 
     private static void PrintValidateUsage()
     {
-        Console.WriteLine("Usage: content validate --source <dir> --namespace <id>");
+        Console.WriteLine("Usage: content validate --source <dir> --namespace <id> --target <Client|Server>");
     }
 
     private static int RunCreate(string[] args)

@@ -48,6 +48,21 @@ public static class CanonicalJson
 
             writer.WriteString("logicalName", meta.LogicalName);
             writer.WriteNumber("schemaVersion", meta.SchemaVersion);
+
+            writer.WritePropertyName("targets");
+            writer.WriteStartArray();
+            if (meta.Targets.HasFlag(AssetTarget.Client))
+            {
+                writer.WriteStringValue("Client");
+            }
+
+            if (meta.Targets.HasFlag(AssetTarget.Server))
+            {
+                writer.WriteStringValue("Server");
+            }
+
+            writer.WriteEndArray();
+
             writer.WriteEndObject();
         }
 

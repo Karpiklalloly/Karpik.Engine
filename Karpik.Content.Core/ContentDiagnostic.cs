@@ -68,4 +68,7 @@ public static class ContentDiagnosticCodes
     public const string InvalidManifestSchemaVersion = "KCO019";
     public const string InvalidImageContent = "KCO020";
     public const string InvalidShaderContent = "KCO021";
+    public const string TargetDependencyNotSelected = "KCO022";
+    public const string SharedDependsOnSided = "KCO023";
+    public const string ConcreteBuildTargetRequired = "KCO024";
 }

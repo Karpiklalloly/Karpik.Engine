@@ -7,6 +7,7 @@ public sealed class AssetMeta(
     AssetId assetId,
     string declaredType,
     string logicalName,
+    AssetTarget targets,
     JsonElement importSettings,
     string rawImportSettingsJson,
     IReadOnlyList<AssetId> dependencies)
@@ -22,6 +23,7 @@ public sealed class AssetMeta(
     public AssetId AssetId { get; } = assetId;
     public string DeclaredType { get; } = declaredType;
     public string LogicalName { get; } = logicalName;
+    public AssetTarget Targets { get; } = targets;
     public JsonElement ImportSettings { get; } = importSettings;
     public IReadOnlyList<AssetId> Dependencies { get; } = dependencies;
 
@@ -35,6 +37,7 @@ public sealed class AssetMeta(
                && AssetId.Equals(other.AssetId)
                && DeclaredType == other.DeclaredType
                && LogicalName == other.LogicalName
+               && Targets == other.Targets
                && RawImportSettingsJson == other.RawImportSettingsJson
                && Dependencies.SequenceEqual(other.Dependencies);
     }
@@ -42,7 +45,7 @@ public sealed class AssetMeta(
     public override bool Equals(object? obj) => obj is AssetMeta other && Equals(other);
 
     public override int GetHashCode() =>
-        HashCode.Combine(SchemaVersion, AssetId, DeclaredType, LogicalName, RawImportSettingsJson);
+        HashCode.Combine(SchemaVersion, AssetId, DeclaredType, LogicalName, Targets, RawImportSettingsJson);
 
     public static AssetMeta Parse(string json, string? relativePathForDiagnostics, List<ContentDiagnostic> diagnostics)
     {
@@ -148,6 +151,36 @@ public sealed class AssetMeta(
                 throw new InvalidDataException($"Invalid logicalName at {relativePathForDiagnostics}");
             }
 
+            // targets (optional, defaults to Shared for backward compatibility)
+            AssetTarget targets = AssetTarget.Shared;
+            if (root.TryGetProperty("targets", out JsonElement targetsEl))
+            {
+                if (targetsEl.ValueKind != JsonValueKind.Array || targetsEl.GetArrayLength() == 0)
+                {
+                    diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingMetaField,
+                        ContentDiagnosticSeverity.Error, relativePathForDiagnostics,
+                        "Invalid 'targets'. Expected a non-empty array of 'Client'/'Server'."));
+                    throw new InvalidDataException($"Invalid targets at {relativePathForDiagnostics}");
+                }
+
+                AssetTarget parsed = 0;
+                foreach (JsonElement targetEl in targetsEl.EnumerateArray())
+                {
+                    if (targetEl.ValueKind != JsonValueKind.String ||
+                        !AssetTargets.TryParse(targetEl.GetString(), out AssetTarget single))
+                    {
+                        diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.MissingMetaField,
+                            ContentDiagnosticSeverity.Error, relativePathForDiagnostics,
+                            "Invalid 'targets' entry. Expected 'Client' or 'Server'."));
+                        throw new InvalidDataException($"Invalid targets entry at {relativePathForDiagnostics}");
+                    }
+
+                    parsed |= single;
+                }
+
+                targets = parsed;
+            }
+
             // importSettings (optional, default to empty object)
             JsonElement importSettings;
             string rawImportSettingsJson;
@@ -203,6 +236,7 @@ public sealed class AssetMeta(
                 assetId,
                 logicalName: logicalName,
                 declaredType: declaredType,
+                targets: targets,
                 importSettings: importSettings,
                 rawImportSettingsJson: rawImportSettingsJson,
                 dependencies: dependencies);

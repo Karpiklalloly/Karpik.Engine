@@ -29,7 +29,7 @@
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
-    <KarpikContentOutput Condition="'$(KarpikContentOutput)' == ''">$(IntermediateOutputPath)Content</KarpikContentOutput>
+    <KarpikContentOutput Condition="'$(KarpikContentOutput)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)Content'))</KarpikContentOutput>
     <KarpikContentManifest Condition="'$(KarpikContentManifest)' == ''">$([System.IO.Path]::GetFullPath('$(KarpikContentOutput)\manifest.json'))</KarpikContentManifest>
   </PropertyGroup>
 

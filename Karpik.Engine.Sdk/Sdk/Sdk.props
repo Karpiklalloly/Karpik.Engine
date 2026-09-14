@@ -21,17 +21,25 @@
     <KarpikContentNamespace Condition="'$(KarpikContentNamespace)' == '' and '$(KarpikContentEnabled)' == 'true'">game</KarpikContentNamespace>
     <KarpikContentSourceRoot Condition="'$(KarpikContentSourceRoot)' == ''">$(MSBuildProjectDirectory)\Content</KarpikContentSourceRoot>
     <KarpikContentToolDll Condition="'$(KarpikContentToolDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\content.dll</KarpikContentToolDll>
+    <KarpikContentRuntimeDll Condition="'$(KarpikContentRuntimeDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\Karpik.Content.Runtime.dll</KarpikContentRuntimeDll>
+    <KarpikContentCoreDll Condition="'$(KarpikContentCoreDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\Karpik.Content.Core.dll</KarpikContentCoreDll>
   </PropertyGroup>
   
   <!-- Подключает генератор content-кода и metadata-файлы, когда Content Pipeline включён. -->
   <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
     <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Content.Codegen.dll" />
     <AdditionalFiles Include="**\*.json.meta" />
+    <Reference Include="Karpik.Content.Runtime">
+      <HintPath>$(KarpikContentRuntimeDll)</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Content.Core">
+      <HintPath>$(KarpikContentCoreDll)</HintPath>
+    </Reference>
   </ItemGroup>
   
   <!-- Строит manifest контента до компиляции, чтобы генератор видел актуальные входные данные. -->
-  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
-    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; &quot;$(KarpikContentToolDll)&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace)" />
+  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and ('$(KarpikSide)' == 'Client' or '$(KarpikSide)' == 'Server') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; &quot;$(KarpikContentToolDll)&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace) --target $(KarpikSide)" />
   </Target>
 
   <Target Name="KarpikContentCopyToRuntimeOutput"

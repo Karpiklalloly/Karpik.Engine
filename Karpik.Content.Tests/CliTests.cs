@@ -61,7 +61,7 @@ public sealed class CliTests
         string output = tmp.CreateSubdirectory("output");
         TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
 
-        var (code, stdout, stderr) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        var (code, stdout, stderr) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client");
         Assert.Equal(0, code);
         Assert.Contains("build succeeded", stdout);
         Assert.True(File.Exists(Path.Combine(output, "manifest.json")));
@@ -75,7 +75,7 @@ public sealed class CliTests
         string output = tmp.CreateSubdirectory("output");
         TestFixtures.CreateSourceFile(source, "a.json", """{ invalid }""", logicalName: "game/a");
 
-        var (code, stdout, stderr) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        var (code, stdout, stderr) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client");
         Assert.Equal(2, code);
         Assert.DoesNotContain("build succeeded", stdout);
         Assert.False(File.Exists(Path.Combine(output, "manifest.json")));
@@ -88,7 +88,7 @@ public sealed class CliTests
         string source = tmp.CreateSubdirectory("source");
         TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
 
-        var (code, stdout, _) = RunTool("validate", "--source", source, "--namespace", "game");
+        var (code, stdout, _) = RunTool("validate", "--source", source, "--namespace", "game", "--target", "Client");
         Assert.Equal(0, code);
         Assert.Contains("validate succeeded", stdout);
     }
@@ -100,7 +100,7 @@ public sealed class CliTests
         string source = tmp.CreateSubdirectory("source");
         TestFixtures.CreateSourceFile(source, "a.json", """{ invalid }""", logicalName: "game/a");
 
-        var (code, stdout, stderr) = RunTool("validate", "--source", source, "--namespace", "game");
+        var (code, stdout, stderr) = RunTool("validate", "--source", source, "--namespace", "game", "--target", "Client");
         Assert.Equal(2, code);
     }
 
@@ -193,7 +193,7 @@ public sealed class CliTests
         TestFixtures.CreateSourceFile(source, "b.json", """{"b":2}""", id: idA, logicalName: "game/b");
         TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", id: idB, logicalName: "game/a");
 
-        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client");
         Assert.Equal(0, buildCode);
 
         string manifest = Path.Combine(output, "manifest.json");
@@ -217,7 +217,7 @@ public sealed class CliTests
         TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", id: idA, logicalName: "game/a", dependencies: new[] { idB });
         TestFixtures.CreateSourceFile(source, "b.json", """{"b":2}""", id: idB, logicalName: "game/b");
 
-        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client");
         Assert.Equal(0, buildCode);
 
         string manifest = Path.Combine(output, "manifest.json");
@@ -234,7 +234,7 @@ public sealed class CliTests
         string source = tmp.CreateSubdirectory("source");
         string output = tmp.CreateSubdirectory("output");
         TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
-        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        var (buildCode, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client");
         Assert.Equal(0, buildCode);
 
         string manifest = Path.Combine(output, "manifest.json");
@@ -248,5 +248,84 @@ public sealed class CliTests
     {
         var (code, _, _) = RunTool("build", "--source", "onlyOneArg");
         Assert.Equal(1, code);
+    }
+
+    [Fact]
+    public void Cli_Build_RequiresTarget()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string output = tmp.CreateSubdirectory("output");
+        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
+
+        var (code, _, _) = RunTool("build", "--source", source, "--output", output, "--namespace", "game");
+        Assert.Equal(1, code);
+        Assert.False(File.Exists(Path.Combine(output, "manifest.json")));
+    }
+
+    [Fact]
+    public void Cli_Build_RejectsInvalidTarget()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string output = tmp.CreateSubdirectory("output");
+        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
+
+        var (code, _, stderr) = RunTool("build", "--source", source, "--output", output, "--namespace", "game", "--target", "Bogus");
+        Assert.Equal(1, code);
+        Assert.Contains("Expected 'Client' or 'Server'", stderr, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(output, "manifest.json")));
+    }
+
+    [Fact]
+    public void Cli_Validate_RequiresTarget()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        TestFixtures.CreateSourceFile(source, "a.json", """{"a":1}""", logicalName: "game/a");
+
+        var (code, _, _) = RunTool("validate", "--source", source, "--namespace", "game");
+        Assert.Equal(1, code);
+    }
+
+    [Fact]
+    public void Cli_Build_FiltersByTarget()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string clientOut = tmp.CreateSubdirectory("client-out");
+        string serverOut = tmp.CreateSubdirectory("server-out");
+        TestFixtures.CreateSourceFile(source, "shared.json", """{"s":1}""", logicalName: "game/shared");
+        TestFixtures.CreateSourceFile(source, "client.json", """{"c":1}""", logicalName: "game/client", targets: AssetTarget.Client);
+        TestFixtures.CreateSourceFile(source, "server.json", """{"s":2}""", logicalName: "game/server", targets: AssetTarget.Server);
+
+        var (clientCode, _, _) = RunTool("build", "--source", source, "--output", clientOut, "--namespace", "game", "--target", "Client");
+        Assert.Equal(0, clientCode);
+        var clientManifest = ContentManifest.LoadFromFile(Path.Combine(clientOut, "manifest.json"));
+        Assert.Equal(2, clientManifest.Entries.Count);
+        Assert.Contains(clientManifest.Entries, e => e.LogicalName == "game/shared");
+        Assert.Contains(clientManifest.Entries, e => e.LogicalName == "game/client");
+
+        var (serverCode, _, _) = RunTool("build", "--source", source, "--output", serverOut, "--namespace", "game", "--target", "Server");
+        Assert.Equal(0, serverCode);
+        var serverManifest = ContentManifest.LoadFromFile(Path.Combine(serverOut, "manifest.json"));
+        Assert.Equal(2, serverManifest.Entries.Count);
+        Assert.Contains(serverManifest.Entries, e => e.LogicalName == "game/shared");
+        Assert.Contains(serverManifest.Entries, e => e.LogicalName == "game/server");
+    }
+
+    [Fact]
+    public void Cli_Create_WritesSharedTargets()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string sourceFile = Path.Combine(source, "player.json");
+        File.WriteAllText(sourceFile, """{"name":"Player"}""");
+
+        var (code, _, _) = RunTool("create", "--source", source, "--file", "player.json", "--namespace", "game");
+        Assert.Equal(0, code);
+        using JsonDocument meta = JsonDocument.Parse(File.ReadAllText(sourceFile + ".meta"));
+        Assert.True(meta.RootElement.TryGetProperty("targets", out JsonElement targetsEl));
+        Assert.Equal(new[] { "Client", "Server" }, targetsEl.EnumerateArray().Select(e => e.GetString()).ToList());
     }
 }

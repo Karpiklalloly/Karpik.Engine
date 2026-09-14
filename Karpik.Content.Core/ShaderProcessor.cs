@@ -7,7 +7,7 @@ public sealed class ShaderProcessor : IContentProcessor
     public string DeclaredType => AssetMeta.ExpectedDeclaredTypeShader;
     public string Version => "1.0.0";
 
-    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath)
+    public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath, ContentProcessorContext context)
     {
         if (!IsSupportedExtension(relativePath))
         {

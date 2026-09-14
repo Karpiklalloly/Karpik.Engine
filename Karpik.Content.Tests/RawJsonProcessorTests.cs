@@ -16,8 +16,8 @@ public sealed class RawJsonProcessorTests
         string json1 = """{"b":2,"a":1}""";
         string json2 = """{"a":1,"b":2}""";
 
-        var result1 = _processor.Process(Encoding.UTF8.GetBytes(json1), meta, "a.json");
-        var result2 = _processor.Process(Encoding.UTF8.GetBytes(json2), meta, "a.json");
+        var result1 = _processor.Process(Encoding.UTF8.GetBytes(json1), meta, "a.json", default);
+        var result2 = _processor.Process(Encoding.UTF8.GetBytes(json2), meta, "a.json", default);
 
         Assert.Empty(result1.Diagnostics.Where(d => d.Severity == ContentDiagnosticSeverity.Error));
         Assert.Empty(result2.Diagnostics.Where(d => d.Severity == ContentDiagnosticSeverity.Error));
@@ -30,7 +30,7 @@ public sealed class RawJsonProcessorTests
     {
         byte[] source = [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("""{"a":1}""")];
 
-        ContentProcessorResult result = _processor.Process(source, CreateMeta(Guid.NewGuid().ToString("D")), "bom.json");
+        ContentProcessorResult result = _processor.Process(source, CreateMeta(Guid.NewGuid().ToString("D")), "bom.json", default);
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Equal("""{"a":1}""", Encoding.UTF8.GetString(result.CookedBytes));
@@ -42,7 +42,7 @@ public sealed class RawJsonProcessorTests
         string guid = Guid.NewGuid().ToString("D");
         var meta = CreateMeta(guid);
         string invalid = """{"a": }""";
-        var result = _processor.Process(Encoding.UTF8.GetBytes(invalid), meta, "bad.json");
+        var result = _processor.Process(Encoding.UTF8.GetBytes(invalid), meta, "bad.json", default);
         Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.InvalidJsonContent && d.Severity == ContentDiagnosticSeverity.Error);
         Assert.Empty(result.CookedBytes);
     }
@@ -55,8 +55,8 @@ public sealed class RawJsonProcessorTests
         string json1 = """{"a":1}""";
         string json2 = """{"a":2}""";
         string canonicalMeta = meta.ToCanonicalMetaJson();
-        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json1), canonicalMeta, _processor.Version);
-        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json2), canonicalMeta, _processor.Version);
+        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json1), canonicalMeta, _processor.Version, AssetTarget.Client);
+        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json2), canonicalMeta, _processor.Version, AssetTarget.Client);
         Assert.NotEqual(hash1, hash2);
     }
 
@@ -67,8 +67,8 @@ public sealed class RawJsonProcessorTests
         var meta1 = CreateMeta(guid, logicalName: "game/a");
         var meta2 = CreateMeta(guid, logicalName: "game/b");
         string json = """{"a":1}""";
-        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), meta1.ToCanonicalMetaJson(), _processor.Version);
-        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), meta2.ToCanonicalMetaJson(), _processor.Version);
+        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), meta1.ToCanonicalMetaJson(), _processor.Version, AssetTarget.Client);
+        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), meta2.ToCanonicalMetaJson(), _processor.Version, AssetTarget.Client);
         Assert.NotEqual(hash1, hash2);
     }
 
@@ -79,9 +79,21 @@ public sealed class RawJsonProcessorTests
         var meta = CreateMeta(guid);
         string json = """{"a":1}""";
         string canonicalMeta = meta.ToCanonicalMetaJson();
-        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), canonicalMeta, "1.0.0");
-        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), canonicalMeta, "2.0.0");
+        string hash1 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), canonicalMeta, "1.0.0", AssetTarget.Client);
+        string hash2 = ContentHashing.ComputeArtifactHash(Encoding.UTF8.GetBytes(json), canonicalMeta, "2.0.0", AssetTarget.Client);
         Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
+    public void HashChanges_AcrossTargets()
+    {
+        string guid = Guid.NewGuid().ToString("D");
+        var meta = CreateMeta(guid);
+        byte[] source = Encoding.UTF8.GetBytes("""{"a":1}""");
+        string canonicalMeta = meta.ToCanonicalMetaJson();
+        string clientHash = ContentHashing.ComputeArtifactHash(source, canonicalMeta, _processor.Version, AssetTarget.Client);
+        string serverHash = ContentHashing.ComputeArtifactHash(source, canonicalMeta, _processor.Version, AssetTarget.Server);
+        Assert.NotEqual(clientHash, serverHash);
     }
 
     private static AssetMeta CreateMeta(string guid, string logicalName = "game/foo")
