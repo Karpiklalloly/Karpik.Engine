@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready for user review on 2026-09-14.
+Approved for implementation planning on 2026-09-14.
 
 ## Goal
 
