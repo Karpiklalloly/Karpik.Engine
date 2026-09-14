@@ -25,6 +25,14 @@ public sealed class ExternalGameCliTests
     public ExternalGameCliTests(ITestOutputHelper output) => _output = output;
 
     [Fact]
+    public void Template_pack_has_a_catalog_and_a_pack_only_project()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        Assert.True(File.Exists(Path.Combine(repositoryRoot, "templates", "catalog.json")));
+        Assert.True(File.Exists(Path.Combine(repositoryRoot, "Karpik.Engine.Templates", "Karpik.Engine.Templates.csproj")));
+    }
+
+    [Fact]
     public void Sdk_packages_content_tool_and_codegen_without_checkout_references()
     {
         string repositoryRoot = GetRepositoryRoot();
@@ -350,13 +358,16 @@ public sealed class ExternalGameCliTests
         using JsonDocument globalJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(templateRoot, "global.json")));
         Assert.Equal("10.0.100", globalJson.RootElement.GetProperty("sdk").GetProperty("version").GetString());
         Assert.Equal("latestPatch", globalJson.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString());
-        Assert.Equal(PackageVersion,
+        Assert.Equal("KarpikSdkVersionPlaceholder",
             globalJson.RootElement.GetProperty("msbuild-sdks").GetProperty("Karpik.Engine.Sdk").GetString());
 
         using JsonDocument metadata = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(templateRoot, ".template.config", "template.json")));
         Assert.Equal("KarpikGame", metadata.RootElement.GetProperty("sourceName").GetString());
         Assert.Equal("karpik-game", metadata.RootElement.GetProperty("shortName").GetString());
+        JsonElement sdkVersion = metadata.RootElement.GetProperty("symbols").GetProperty("karpikSdkVersion");
+        Assert.Equal("parameter", sdkVersion.GetProperty("type").GetString());
+        Assert.Equal("KarpikSdkVersionPlaceholder", sdkVersion.GetProperty("replaces").GetString());
         Assert.True(metadata.RootElement.GetProperty("preferNameDirectory").GetBoolean());
 
         string repositoryRoot = GetRepositoryRoot();

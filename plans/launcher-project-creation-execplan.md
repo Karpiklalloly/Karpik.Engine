@@ -30,12 +30,13 @@ A developer will choose an installed SDK (newest preselected), one template from
 
 ## Progress
 
-- [ ] (2026-09-14) Initial plan created.
-- [ ] Template package and payload catalog validated.
-- [ ] Valid SDK enumeration validated.
-- [ ] Transactional creation service validated.
-- [ ] Create-project dialog and optional editor launch validated.
-- [ ] Targeted tests and package-to-launcher smoke complete.
+- [x] (2026-09-14) Initial plan created.
+- [x] (2026-09-14) Baseline: tooling tests passed 41/41; launcher tests passed 16/16 when Avalonia received access to its standard LocalAppData log.
+- [x] (2026-09-14) Template package and payload catalog validated.
+- [x] (2026-09-14) Valid SDK enumeration validated.
+- [x] (2026-09-14) Transactional creation service validated.
+- [x] (2026-09-14) Create-project dialog and optional editor launch validated.
+- [x] (2026-09-14) Targeted tests and package-to-launcher smoke complete.
 
 ## Surprises & Discoveries
 
@@ -45,6 +46,8 @@ A developer will choose an installed SDK (newest preselected), one template from
   Evidence: `Karpik.Engine.Packager/PayloadLayout.cs:140-148` and `Karpik.Engine.Tooling/EngineInstallationValidator.cs:120-170`.
 - Observation: `dotnet new install <local .nupkg>` and `--debug:custom-hive` are supported standard CLI features.
   Evidence: [Microsoft template packages](https://learn.microsoft.com/en-us/dotnet/core/tools/custom-templates) and [template parameters](https://learn.microsoft.com/en-us/dotnet/core/tools/templates).
+- Observation: launcher test compilation writes Avalonia telemetry to `%LocalAppData%/AvaloniaUI/BuildServices/buildtasks.log`.
+  Evidence: the sandbox-only baseline failed before compilation with `AvaloniaStatsTask` `UnauthorizedAccessException`; the identical elevated run passed 16/16.
 
 ## Decision Log
 
@@ -57,7 +60,7 @@ A developer will choose an installed SDK (newest preselected), one template from
 
 ## Outcomes & Retrospective
 
-No outcome yet. Record actual commands and results after each milestone. No ADR is expected: this is a packaging/launcher delivery detail, not a runtime architecture decision.
+Delivered: `Karpik.Engine.Templates` is packed into each repository-built payload and described by `sdk/templates.json`; the launcher lists valid local SDK installations, defaults to the newest, and creates a selected template with a private `dotnet new` hive and staging directory. The dialog registers the generated solution and opens it only when requested. Verified with launcher tests (19/19), tooling tests (42/42), Packager build, package-content inspection, and a real `dotnet new` generation that pinned SDK version `1.2.3-test`. No ADR is expected: this is a packaging/launcher delivery detail, not a runtime architecture decision.
 
 ## Context and Orientation
 

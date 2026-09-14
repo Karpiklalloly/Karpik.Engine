@@ -102,6 +102,12 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         _lifetime.Cancel();
     }
 
+    public void RegisterCreatedProject(string solutionPath)
+    {
+        _projectRegistry.Add(solutionPath);
+        ReloadRecentProjects();
+    }
+
     private void ReloadRecentProjects()
     {
         RecentProjects.Clear();
@@ -158,4 +164,5 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
     {
         return _clipboard?.SetTextAsync(Status) ?? Task.CompletedTask;
     }
+
 }

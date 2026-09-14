@@ -32,6 +32,8 @@ public sealed record EngineInstallationResolutionResult(
     string? InstallationRoot = null,
     EngineInstallationManifest? Manifest = null);
 
+public sealed record InstalledEngineInstallation(string InstallationRoot, EngineInstallationManifest Manifest);
+
 /// <summary>Находит единственную валидную установку движка для закреплённой SDK-версии.</summary>
 public sealed class EngineInstallationResolver
 {
@@ -46,6 +48,22 @@ public sealed class EngineInstallationResolver
         _validator = validator ?? new EngineInstallationValidator();
         _localApplicationDataRoot = Path.GetFullPath(localApplicationDataRoot ??
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+    }
+
+    public IReadOnlyList<InstalledEngineInstallation> ListInstalled()
+    {
+        string store = Path.Combine(_localApplicationDataRoot, "Karpik", "Engines");
+        if (!Directory.Exists(store) || PathSafety.IsReparsePoint(store))
+        {
+            return [];
+        }
+
+        return Directory.EnumerateDirectories(store, "*", SearchOption.TopDirectoryOnly)
+            .Select(path => (Path: Path.GetFullPath(path), Validation: _validator.Validate(path)))
+            .Where(item => item.Validation.IsValid && item.Validation.Manifest is not null)
+            .Select(item => new InstalledEngineInstallation(item.Path, item.Validation.Manifest!))
+            .OrderByDescending(item => item, Comparer<InstalledEngineInstallation>.Create(CompareInstallations))
+            .ToArray();
     }
 
     /// <summary>Разрешает явный root либо единственную совместимую установленную версию.</summary>
@@ -139,6 +157,24 @@ public sealed class EngineInstallationResolver
         version is not "." and not ".." &&
         version.IndexOfAny(['/', '\\']) < 0 &&
         version.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+
+    private static int CompareInstallations(InstalledEngineInstallation left, InstalledEngineInstallation right)
+    {
+        string[] leftParts = left.Manifest.MsBuildSdkVersion.Split('-', 2);
+        string[] rightParts = right.Manifest.MsBuildSdkVersion.Split('-', 2);
+        bool leftVersion = Version.TryParse(leftParts[0], out Version? leftCore);
+        bool rightVersion = Version.TryParse(rightParts[0], out Version? rightCore);
+        if (leftVersion != rightVersion) return leftVersion ? 1 : -1;
+        if (leftVersion)
+        {
+            int core = leftCore!.CompareTo(rightCore);
+            if (core != 0) return core;
+            bool leftStable = leftParts.Length == 1;
+            bool rightStable = rightParts.Length == 1;
+            if (leftStable != rightStable) return leftStable ? 1 : -1;
+        }
+        return string.Compare(left.Manifest.MsBuildSdkVersion, right.Manifest.MsBuildSdkVersion, StringComparison.Ordinal);
+    }
 
     /// <summary>Создаёт успешный результат разрешения.</summary>
     private static EngineInstallationResolutionResult Success(string root, EngineInstallationManifest manifest) =>

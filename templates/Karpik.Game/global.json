@@ -4,6 +4,6 @@
     "rollForward": "latestPatch"
   },
   "msbuild-sdks": {
-    "Karpik.Engine.Sdk": "0.6.0-local"
+    "Karpik.Engine.Sdk": "KarpikSdkVersionPlaceholder"
   }
 }

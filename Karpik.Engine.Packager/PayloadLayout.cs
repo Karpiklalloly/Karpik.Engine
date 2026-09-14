@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Karpik.Engine.Tooling;
 
@@ -109,7 +110,9 @@ public static class PayloadLayout
         string scratch = Path.Combine(stagingRoot, ".build");
         string artifacts = Path.Combine(scratch, "artifacts");
         string sdkOutput = Path.Combine(scratch, "sdk");
+        string templatesOutput = Path.Combine(scratch, "templates");
         Directory.CreateDirectory(sdkOutput);
+        Directory.CreateDirectory(templatesOutput);
         string artifactsProperty = $"-p:ArtifactsPath={artifacts}";
         string pathMapProperty = $"-p:PathMap={scratch}=/_karpik_owned_build";
         string[] deterministicProperties =
@@ -138,6 +141,10 @@ public static class PayloadLayout
         string coreCodegenOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj") + Path.DirectorySeparatorChar;
         string networkCodegenOutput = GetArtifactOutput(artifacts, "Network.Codegen/Network.Codegen/Network.Codegen.csproj") + Path.DirectorySeparatorChar;
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", $"-p:KarpikSdkTasksOutputPath={sdkTasksOutput}", $"-p:KarpikCoreCodegenOutputPath={coreCodegenOutput}", $"-p:KarpikNetworkCodegenOutputPath={networkCodegenOutput}", "-o", sdkOutput);
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "Karpik.Engine.Templates/Karpik.Engine.Templates.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", "-o", templatesOutput);
+        string templatePackage = Directory.EnumerateFiles(templatesOutput, "Karpik.Engine.Templates.*.nupkg", SearchOption.TopDirectoryOnly).Single();
+        CopyFileMerged(templatePackage, Path.Combine(sdkOutput, Path.GetFileName(templatePackage)));
+        WriteTemplateCatalog(repositoryRoot, sdkOutput, Path.GetFileName(templatePackage));
         CanonicalizeNuGetPackages(sdkOutput);
 
         string editorOutput = GetArtifactOutput(artifacts, "Karpik.Editor/Karpik.Editor.csproj");
@@ -174,6 +181,23 @@ public static class PayloadLayout
         }
 
         Directory.Delete(scratch, recursive: true);
+    }
+
+    private static void WriteTemplateCatalog(string repositoryRoot, string sdkOutput, string packageFile)
+    {
+        JsonObject root = JsonNode.Parse(File.ReadAllText(Path.Combine(repositoryRoot, "templates", "catalog.json")))?.AsObject()
+            ?? throw new InvalidDataException("Template catalog must be a JSON object.");
+        JsonArray templates = root["templates"]?.AsArray()
+            ?? throw new InvalidDataException("Template catalog must contain a templates array.");
+        foreach (JsonNode? item in templates)
+        {
+            JsonObject template = item?.AsObject() ?? throw new InvalidDataException("Template catalog contains an invalid entry.");
+            if (!string.Equals(template["packageId"]?.GetValue<string>(), "Karpik.Engine.Templates", StringComparison.Ordinal))
+                throw new InvalidDataException("Template catalog entry references an unknown package.");
+            template.Remove("packageId");
+            template["packageFile"] = packageFile;
+        }
+        File.WriteAllText(Path.Combine(sdkOutput, "templates.json"), root.ToJsonString());
     }
 
     /// <summary>Нормализует порядок и метаданные NuGet-архивов для детерминированного payload.</summary>

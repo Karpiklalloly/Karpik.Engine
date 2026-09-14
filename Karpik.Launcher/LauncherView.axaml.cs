@@ -19,4 +19,15 @@ public partial class LauncherView : ReactiveUserControl<LauncherViewModel>
             ViewModel.OpenRecentProjectCommand.Execute(project.SolutionPath);
         }
     }
+
+    private async void CreateProject_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (ViewModel is null || Avalonia.Controls.TopLevel.GetTopLevel(this) is not Avalonia.Controls.Window parent) return;
+        IReadOnlyList<Karpik.Engine.Tooling.InstalledEngineInstallation> installations = new Karpik.Engine.Tooling.EngineInstallationResolver().ListInstalled();
+        if (installations.Count == 0) return;
+        CreateProjectDialogResult? result = await new CreateProjectWindow(installations).ShowDialog<CreateProjectDialogResult?>(parent);
+        if (result is null) return;
+        ViewModel.RegisterCreatedProject(result.SolutionPath);
+        if (result.OpenAfterCreation) await ViewModel.LaunchAsync(result.SolutionPath, CancellationToken.None);
+    }
 }

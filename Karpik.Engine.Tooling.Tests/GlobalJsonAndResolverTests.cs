@@ -87,4 +87,21 @@ public sealed class GlobalJsonAndResolverTests
         Assert.Equal(EngineInstallationResolutionCode.AmbiguousInstallation, ambiguous.Code);
         Assert.Contains("a-content-hash, z-content-hash", ambiguous.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ResolverListsOnlyValidInstallationsNewestFirst()
+    {
+        using var temporary = new TemporaryDirectory();
+        string local = Path.Combine(temporary.RootPath, "local");
+        string store = Path.Combine(local, "Karpik", "Engines");
+        TestInstallation.Create(store, directoryName: "old", sdkVersion: "0.6.0-local");
+        TestInstallation.Create(store, directoryName: "new", sdkVersion: "0.7.0");
+        string invalid = TestInstallation.Create(store, directoryName: "invalid", sdkVersion: "0.8.0");
+        File.Delete(Path.Combine(invalid, ".complete"));
+
+        IReadOnlyList<InstalledEngineInstallation> installations = new EngineInstallationResolver(localApplicationDataRoot: local)
+            .ListInstalled();
+
+        Assert.Equal(["0.7.0", "0.6.0-local"], installations.Select(item => item.Manifest.MsBuildSdkVersion));
+    }
 }

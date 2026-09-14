@@ -17,11 +17,10 @@
                      Opacity="0.7"
                      TextWrapping="Wrap" />
         </StackPanel>
-        <Button Grid.Column="1"
-                Content="{Binding Localization[Select_Project]}"
-                Command="{Binding OpenProjectCommand}"
-                IsEnabled="{Binding !IsBusy}"
-                VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="Создать..." Click="CreateProject_OnClick" IsEnabled="{Binding !IsBusy}" />
+          <Button Content="{Binding Localization[Select_Project]}" Command="{Binding OpenProjectCommand}" IsEnabled="{Binding !IsBusy}" />
+        </StackPanel>
       </Grid>
 
       <Border Grid.Row="1" Background="#20242C" CornerRadius="8" Padding="12">
