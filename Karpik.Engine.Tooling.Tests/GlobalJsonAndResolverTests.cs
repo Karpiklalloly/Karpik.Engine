@@ -104,4 +104,21 @@ public sealed class GlobalJsonAndResolverTests
 
         Assert.Equal(["0.7.0", "0.6.0-local"], installations.Select(item => item.Manifest.MsBuildSdkVersion));
     }
+
+    [Fact]
+    public void ResolverPrefersTheMostRecentlyPublishedInstallationForTheSameSdkVersion()
+    {
+        using var temporary = new TemporaryDirectory();
+        string local = Path.Combine(temporary.RootPath, "local");
+        string store = Path.Combine(local, "Karpik", "Engines");
+        string old = TestInstallation.Create(store, directoryName: "old", sdkVersion: "0.6.0-local");
+        string recent = TestInstallation.Create(store, directoryName: "recent", sdkVersion: "0.6.0-local");
+        Directory.SetLastWriteTimeUtc(old, DateTime.UtcNow.AddMinutes(-1));
+        Directory.SetLastWriteTimeUtc(recent, DateTime.UtcNow);
+
+        IReadOnlyList<InstalledEngineInstallation> installations = new EngineInstallationResolver(localApplicationDataRoot: local)
+            .ListInstalled();
+
+        Assert.Equal(Path.GetFullPath(recent), installations[0].InstallationRoot);
+    }
 }

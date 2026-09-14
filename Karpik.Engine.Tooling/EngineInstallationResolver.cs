@@ -63,6 +63,7 @@ public sealed class EngineInstallationResolver
             .Where(item => item.Validation.IsValid && item.Validation.Manifest is not null)
             .Select(item => new InstalledEngineInstallation(item.Path, item.Validation.Manifest!))
             .OrderByDescending(item => item, Comparer<InstalledEngineInstallation>.Create(CompareInstallations))
+            .ThenByDescending(item => Directory.GetLastWriteTimeUtc(item.InstallationRoot))
             .ToArray();
     }
 

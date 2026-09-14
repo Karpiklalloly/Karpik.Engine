@@ -490,6 +490,9 @@ internal static class FakeRepository
             "Network.Codegen/Network.Codegen/Network.Codegen.csproj",
             "Network.Codegen",
             markerSource: "public static class NetworkCodegenFreshMarker { }");
+        WriteProject(root, "Karpik.Content.Tool/Karpik.Content.Tool.csproj", "Karpik.Content.Tool");
+        WriteProject(root, "Karpik.Content.Codegen/Karpik.Content.Codegen.csproj", "Karpik.Content.Codegen");
+        WriteProject(root, "Karpik.Content.Runtime/Karpik.Content.Runtime.csproj", "Karpik.Content.Runtime");
         WriteProject(
             root,
             "Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj",
@@ -581,6 +584,9 @@ internal static class FakeRepository
               <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
               <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
               <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
+              <Project Path="Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
+              <Project Path="Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
+              <Project Path="Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
               <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
               <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
               <Project Path="Dependencies/A/SharedDependencyA.csproj" />
