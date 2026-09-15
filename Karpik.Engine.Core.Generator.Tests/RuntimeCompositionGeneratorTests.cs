@@ -211,9 +211,10 @@ public sealed class RuntimeCompositionGeneratorTests
 
         Assert.IsType<Karpik.Content.Runtime.FileContentStore>(store);
         Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(contentRegistry);
-        Assert.Contains(registry.Registrations, static registration =>
+        var startableRegistration = Assert.Single(registry.Registrations, static registration =>
             registration.ContractType == typeof(Autofac.IStartable) &&
             registration.ImplementationType == typeof(Karpik.Content.Runtime.ContentRegistry));
+        Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(startableRegistration.Factory(resolver));
     }
 
     [Fact]
