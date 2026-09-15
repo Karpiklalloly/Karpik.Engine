@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Karpik.Launcher.DeleteProjectWindow" Width="500" Height="210" Title="Удалить проект">
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Text="Удалить проект из списка недавних?" FontWeight="SemiBold" />
+    <TextBlock x:Name="ProjectPath" TextWrapping="Wrap" Opacity="0.7" />
+    <CheckBox x:Name="DeleteSourcesBox" Content="Удалить папку проекта с исходниками" />
+    <TextBlock Text="Удаление исходников необратимо." Opacity="0.7" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Отмена" Click="Cancel" />
+      <Button Content="Удалить" Click="Delete" />
+    </StackPanel>
+  </StackPanel>
+</Window>

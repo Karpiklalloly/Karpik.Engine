@@ -7,6 +7,20 @@ namespace Karpik.Launcher.Tests;
 public sealed class ProjectRegistryTests
 {
     [Fact]
+    public void RemoveDeletesOnlyTheRecentProjectEntry()
+    {
+        using var workspace = new TestWorkspace();
+        string solution = workspace.CreateGame("Game", "sdk-a");
+        var registry = new ProjectRegistry(Path.Combine(workspace.RootPath, "local"));
+        registry.Add(solution);
+
+        registry.Remove(solution);
+
+        Assert.Empty(registry.Load());
+        Assert.True(File.Exists(solution));
+    }
+
+    [Fact]
     public void AddDeduplicatesAProjectAndPersistsTheLatestTimestampOutsideTheGame()
     {
         using var workspace = new TestWorkspace();

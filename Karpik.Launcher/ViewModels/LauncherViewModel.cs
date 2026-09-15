@@ -108,6 +108,31 @@ public sealed class LauncherViewModel : ReactiveObject, ILauncherViewModel
         ReloadRecentProjects();
     }
 
+    public bool RemoveRecentProject(string solutionPath, bool deleteSources)
+    {
+        try
+        {
+            if (deleteSources)
+            {
+                string projectDirectory = Path.GetDirectoryName(Path.GetFullPath(solutionPath))
+                    ?? throw new InvalidOperationException("Project directory is unavailable.");
+                if (string.Equals(projectDirectory, Path.GetPathRoot(projectDirectory), StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Refusing to delete a filesystem root.");
+                Directory.Delete(projectDirectory, recursive: true);
+            }
+
+            _projectRegistry.Remove(solutionPath);
+            ReloadRecentProjects();
+            Status = deleteSources ? "Project sources deleted." : "Project removed from recent projects.";
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            Status = $"Cannot remove project: {exception.Message}";
+            return false;
+        }
+    }
+
     private void ReloadRecentProjects()
     {
         RecentProjects.Clear();

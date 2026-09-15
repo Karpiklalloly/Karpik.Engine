@@ -30,4 +30,12 @@ public partial class LauncherView : ReactiveUserControl<LauncherViewModel>
         ViewModel.RegisterCreatedProject(result.SolutionPath);
         if (result.OpenAfterCreation) await ViewModel.LaunchAsync(result.SolutionPath, CancellationToken.None);
     }
+
+    private async void RemoveProject_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (ViewModel is null || sender is not Avalonia.Controls.Button { CommandParameter: RecentProject project } ||
+            Avalonia.Controls.TopLevel.GetTopLevel(this) is not Avalonia.Controls.Window parent) return;
+        DeleteProjectDialogResult? result = await new DeleteProjectWindow(project).ShowDialog<DeleteProjectDialogResult?>(parent);
+        if (result is not null) ViewModel.RemoveRecentProject(project.SolutionPath, result.DeleteSources);
+    }
 }

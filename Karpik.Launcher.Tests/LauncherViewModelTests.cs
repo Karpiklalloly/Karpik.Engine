@@ -6,6 +6,39 @@ namespace Karpik.Launcher.Tests;
 
 public sealed class LauncherViewModelTests
 {
+    [Fact]
+    public void RemoveRecentProjectKeepsSourcesWhenRequested()
+    {
+        using var workspace = new TestWorkspace();
+        string solution = workspace.CreateGame("Game", "sdk-a");
+        var registry = new ProjectRegistry(Path.Combine(workspace.RootPath, "local"));
+        registry.Add(solution);
+        var viewModel = new LauncherViewModel(registry, new RecordingHost(), null, null);
+
+        bool removed = viewModel.RemoveRecentProject(solution, deleteSources: false);
+
+        Assert.True(removed);
+        Assert.Empty(viewModel.RecentProjects);
+        Assert.True(File.Exists(solution));
+    }
+
+    [Fact]
+    public void RemoveRecentProjectDeletesSourcesWhenRequested()
+    {
+        using var workspace = new TestWorkspace();
+        string solution = workspace.CreateGame("Game", "sdk-a");
+        string projectDirectory = Path.GetDirectoryName(solution)!;
+        var registry = new ProjectRegistry(Path.Combine(workspace.RootPath, "local"));
+        registry.Add(solution);
+        var viewModel = new LauncherViewModel(registry, new RecordingHost(), null, null);
+
+        bool removed = viewModel.RemoveRecentProject(solution, deleteSources: true);
+
+        Assert.True(removed);
+        Assert.Empty(viewModel.RecentProjects);
+        Assert.False(Directory.Exists(projectDirectory));
+    }
+
     [Theory]
     [InlineData("{broken")]
     [InlineData("[null]")]

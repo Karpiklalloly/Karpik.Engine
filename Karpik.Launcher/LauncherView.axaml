@@ -33,7 +33,7 @@
                    IsEnabled="{Binding !IsBusy}">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="*,Auto" Margin="6" ColumnSpacing="16">
+                <Grid ColumnDefinitions="*,Auto,Auto" Margin="6" ColumnSpacing="16">
                   <StackPanel>
                     <TextBlock Text="{Binding SolutionPath}" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding LastOpenedUtc}" FontSize="11" Opacity="0.55" />
@@ -42,6 +42,7 @@
                           Content="{Binding ViewModel.Localization[Open_Project], ElementName=Root}"
                           Command="{Binding ElementName=Root, Path=ViewModel.OpenRecentProjectCommand}"
                           CommandParameter="{Binding SolutionPath}" />
+                  <Button Grid.Column="2" Content="Удалить" Click="RemoveProject_OnClick" CommandParameter="{Binding}" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>

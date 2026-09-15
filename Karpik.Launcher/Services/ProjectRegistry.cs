@@ -61,6 +61,18 @@ public sealed class ProjectRegistry
             .Take(MaximumRecentProjects)
             .ToArray();
 
+        Save(projects);
+    }
+
+    public void Remove(string solutionPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(solutionPath);
+        string path = Path.GetFullPath(solutionPath);
+        Save(Load().Where(project => !PathComparer.Equals(project.SolutionPath, path)).ToArray());
+    }
+
+    private void Save(IReadOnlyList<RecentProject> projects)
+    {
         string directory = Path.GetDirectoryName(RegistryPath)!;
         Directory.CreateDirectory(directory);
         string temporaryPath = Path.Combine(directory, $".{Path.GetFileName(RegistryPath)}.{Guid.NewGuid():N}.tmp");
