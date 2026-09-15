@@ -1,6 +1,10 @@
 using Autofac;
+using Autofac.Builder;
 using System.Composition;
+using Karpik.Content.Runtime;
 using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
+using Karpik.Engine.Core.Runner;
 using Xunit;
 
 public sealed class AutofacCompositionTests
@@ -57,6 +61,24 @@ public sealed class AutofacCompositionTests
 
         Assert.Equal(1, CompositionTrace.StartCount);
         runner.Destroy();
+    }
+
+    [Fact]
+    public void DynamicRegistration_ResolvesCoreAndContentEngineServices()
+    {
+        Type[] types = Program.GetDynamicRegistrationTypes(
+        [
+            typeof(ContentRegistry).Assembly,
+        ]);
+        var builder = new ContainerBuilder();
+
+        AttributedServiceRegistrar.Register(builder, types, ModuleScope.Engine);
+
+        using IContainer container = builder.Build(ContainerBuildOptions.IgnoreStartableComponents);
+        Assert.IsType<PhysicalFileSystem>(container.Resolve<IFileSystem>());
+        Assert.IsType<FileContentStore>(container.Resolve<IContentStore>());
+        var registry = Assert.IsType<ContentRegistry>(container.Resolve<IContentRegistry>());
+        Assert.Same(registry, container.Resolve<IStartable>());
     }
 
     private static EngineRunner SetupRunner(Dictionary<string, byte[]>? hotReloadData = null)

@@ -178,6 +178,45 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_Static_RegistersAndConstructsContentRuntimeServices()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+                GeneratorTestHarness.AssemblyReference<Autofac.IStartable>(),
+                GeneratorTestHarness.AssemblyReference<Karpik.Content.Runtime.ContentRegistry>(),
+            ]);
+
+        result.AssertNoErrors();
+        var loaded = GeneratorTestHarness.EmitAndLoad(result);
+        var composition = LoadComposition(loaded);
+        var registry = new RecordingStaticRegistry();
+        composition.RegisterServices(registry);
+
+        var fileSystem = new Karpik.Engine.Core.FileSystem.PhysicalFileSystem();
+        var resolver = new StubResolver();
+        resolver.Add(typeof(Karpik.Engine.Core.FileSystem.IFileSystem), fileSystem);
+
+        var storeRegistration = Assert.Single(registry.Registrations, static registration =>
+            registration.ContractType == typeof(Karpik.Content.Runtime.IContentStore));
+        object store = storeRegistration.Factory(resolver);
+        resolver.Add(typeof(Karpik.Content.Runtime.IContentStore), store);
+
+        var contentRegistration = Assert.Single(registry.Registrations, static registration =>
+            registration.ContractType == typeof(Karpik.Content.Runtime.IContentRegistry));
+        object contentRegistry = contentRegistration.Factory(resolver);
+
+        Assert.IsType<Karpik.Content.Runtime.FileContentStore>(store);
+        Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(contentRegistry);
+        Assert.Contains(registry.Registrations, static registration =>
+            registration.ContractType == typeof(Autofac.IStartable) &&
+            registration.ImplementationType == typeof(Karpik.Content.Runtime.ContentRegistry));
+    }
+
+    [Fact]
     public void Run_SameReferencedIdentityButChangedModuleSource_RegeneratesFromFreshScan()
     {
         // The referenced-assembly scan is memoized across generations; its cache

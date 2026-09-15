@@ -1,4 +1,5 @@
 using Karpik.Engine.Core;
+using System.Reflection;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -43,11 +44,20 @@ public class Program
             default:
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
-        Type[] types = loader.LoadedAssemblies
-            .SelectMany(assembly => assembly.GetTypes())
-            .ToArray();
+        Type[] types = GetDynamicRegistrationTypes(loader.LoadedAssemblies);
         RuntimeModuleComposition.ValidateRequiredInstallers(types);
         bootstrap.RegisterTypes(types);
         return new WorkerRuntimeConfiguration(loader.ModuleDirectory, loader);
+    }
+
+    internal static Type[] GetDynamicRegistrationTypes(IEnumerable<Assembly> loadedAssemblies)
+    {
+        ArgumentNullException.ThrowIfNull(loadedAssemblies);
+
+        return loadedAssemblies
+            .Append(typeof(ServiceRegistrationAttribute).Assembly)
+            .Distinct()
+            .SelectMany(assembly => assembly.GetTypes())
+            .ToArray();
     }
 }

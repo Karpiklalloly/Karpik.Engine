@@ -22,6 +22,7 @@
       <ProjectReference Include="..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core.Runner.TestWorker\Karpik.Engine.Core.Runner.TestWorker.csproj" />
       <ProjectReference Include="..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />

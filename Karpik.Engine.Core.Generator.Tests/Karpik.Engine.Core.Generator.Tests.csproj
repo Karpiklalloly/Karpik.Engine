@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+    <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
     <!-- Full production module selections (mirror Generated/ModuleLoader.cs
          ClientModules/ServerModules) so parity tests compile the same module
          graph real template hosts reference. -->
