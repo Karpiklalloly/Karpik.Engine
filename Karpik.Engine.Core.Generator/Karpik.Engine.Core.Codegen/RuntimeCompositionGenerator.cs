@@ -730,7 +730,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         {
             foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
-                if (installerInterface is null || ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity))
+                if (installerInterface is null
+                    || reference.Identity.Equals(installerInterface.ContainingAssembly.Identity)
+                    || ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity))
                 {
                     yield return reference;
                 }

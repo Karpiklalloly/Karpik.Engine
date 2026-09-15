@@ -11,17 +11,23 @@ namespace Karpik.Content.Runtime.Tests;
 public sealed class ContentRegistryTests
 {
     [Fact]
-    public void Start_RegistersManifest_WithoutReadingArtifacts()
+    public async Task Start_RegistersManifest_WithoutReadingArtifacts()
     {
         var knownId = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((knownId, "game/config", "artifacts/config.cooked"));
         var store = new CountingStore();
-        var registry = new ContentRegistry(new FakeFileSystem(manifest.ToCanonicalJson()), store);
+        var fileSystem = new FakeFileSystem(manifest.ToCanonicalJson());
+        var registry = new ContentRegistry(fileSystem, store);
 
         registry.Start();
 
         Assert.Equal(0, store.Calls);
+        Assert.Equal(Path.Combine(fileSystem.ContentPath, "manifest.json"), Assert.Single(fileSystem.OpenReadPaths));
         Assert.False(registry.TryGet(new AssetRef<RawJsonPayload>(knownId), out _));
+
+        var asset = new AssetRef<RawJsonPayload>(knownId, 1);
+        await registry.LoadAsync(asset);
+        Assert.True(registry.TryGet(asset, out _));
 
         object[] exports = typeof(ContentRegistry).GetCustomAttributes(inherit: false);
         Assert.Contains(exports, export => GetExportContract(export) == typeof(IContentRegistry));
@@ -140,6 +146,7 @@ public sealed class ContentRegistryTests
     {
         private readonly byte[] _manifest = Encoding.UTF8.GetBytes(manifestJson);
 
+        public List<string> OpenReadPaths { get; } = [];
         public string RootPath => "C:/game";
         public string ContentPath => "C:/game/Content";
         public string ModsPath => "C:/game/Mods";
@@ -147,7 +154,13 @@ public sealed class ContentRegistryTests
         public bool Exists(string path) => path == Path.Combine(ContentPath, "manifest.json");
         public string GetExtension(string path) => Path.GetExtension(path);
         public bool ExistsDirectory(string path) => false;
-        public Stream OpenRead(string path) => new MemoryStream(_manifest, writable: false);
+        public Stream OpenRead(string path)
+        {
+            OpenReadPaths.Add(path);
+            if (path != Path.Combine(ContentPath, "manifest.json"))
+                throw new InvalidDataException($"Unexpected manifest path: {path}");
+            return new MemoryStream(_manifest, writable: false);
+        }
         public Stream OpenWrite(string path) => throw new NotSupportedException();
         public string Combine(params ReadOnlySpan<string> path) => Path.Combine(path);
         public Span<string> GetDirectories(string path) => [];

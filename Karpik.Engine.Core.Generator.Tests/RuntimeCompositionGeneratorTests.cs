@@ -159,6 +159,25 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_Static_DiscoversExportedServiceFromEngineCore()
+    {
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>(),
+            ]);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "registry.Register<global::Karpik.Engine.Core.FileSystem.IFileSystem, " +
+            "global::Karpik.Engine.Core.FileSystem.PhysicalFileSystem>(",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_SameReferencedIdentityButChangedModuleSource_RegeneratesFromFreshScan()
     {
         // The referenced-assembly scan is memoized across generations; its cache
@@ -1017,6 +1036,7 @@ public sealed class RuntimeCompositionGeneratorTests
     private static IEnumerable<Assembly> GetParityAssemblies(string side) =>
         SelectionAnchorsBySide[side]
             .Select(static type => type.Assembly)
+            .Append(typeof(Karpik.Engine.Core.IModuleInstaller).Assembly)
             .Distinct();
 
     /// <summary>
