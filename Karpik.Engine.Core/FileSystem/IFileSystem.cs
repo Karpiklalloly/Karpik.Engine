@@ -1,4 +1,4 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement.Core;
+namespace Karpik.Engine.Core.FileSystem;
 
 public interface IFileSystem
 {

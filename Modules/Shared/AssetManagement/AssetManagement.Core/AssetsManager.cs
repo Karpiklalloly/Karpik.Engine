@@ -2,6 +2,7 @@
 using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
 using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;

@@ -1,5 +1,5 @@
 using Karpik.Engine.Shared.AssetManagement.Core;
-using Karpik.Engine.Shared.AssetManagement.Core.Physical;
+using Karpik.Engine.Core.FileSystem;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -9,6 +9,9 @@ public sealed class AssetsManagerRuntimeBundleTests
     [Fact]
     public void Paths_AreRootedAtRuntimeBundleWorkingDirectory()
     {
+        var fileSystem = new Karpik.Engine.Core.FileSystem.PhysicalFileSystem();
+        Assert.NotNull(fileSystem);
+
         string originalWorkingDirectory = Environment.CurrentDirectory;
         string bundleRoot = Path.Combine(
             Path.GetTempPath(),

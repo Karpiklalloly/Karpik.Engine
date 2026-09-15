@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Composition;
 using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Shared.Log;
 using Karpik.Jobs;

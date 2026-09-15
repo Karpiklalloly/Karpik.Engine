@@ -1,4 +1,6 @@
-﻿namespace Karpik.Engine.Shared.AssetManagement.Core;
+﻿using Karpik.Engine.Core.FileSystem;
+
+namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public interface IAssetsManager : IDisposable
 {

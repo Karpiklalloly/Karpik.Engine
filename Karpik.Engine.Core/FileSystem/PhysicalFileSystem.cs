@@ -1,7 +1,6 @@
-﻿using System.Composition;
-using Karpik.Engine.Core;
+using System.Composition;
 
-namespace Karpik.Engine.Shared.AssetManagement.Core.Physical;
+namespace Karpik.Engine.Core.FileSystem;
 
 [Export(typeof(IFileSystem))]
 [Export(typeof(PhysicalFileSystem))]

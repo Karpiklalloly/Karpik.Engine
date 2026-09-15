@@ -1,7 +1,7 @@
 using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
 using Karpik.Engine.Shared.AssetManagement.Core;
-using Karpik.Engine.Shared.AssetManagement.Core.Physical;
 using Karpik.Jobs;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
