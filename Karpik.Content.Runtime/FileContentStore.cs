@@ -1,24 +1,29 @@
+using Karpik.Engine.Core.FileSystem;
+
 namespace Karpik.Content.Runtime;
 
-public sealed class FileContentStore(string outputRoot) : IContentStore
+public sealed class FileContentStore(IFileSystem fileSystem) : IContentStore
 {
-    private readonly string _root = Path.GetFullPath(outputRoot);
+    private readonly string _root = Path.GetFullPath(fileSystem.ContentPath);
 
     public ReadOnlyMemory<byte> Get(string locator)
     {
-        string combined = Path.Combine(_root, locator.Replace('/', Path.DirectorySeparatorChar));
+        string combined = Path.Combine(_root, locator.Replace('/', fileSystem.DirectorySeparatorChar));
         string fullPath = Path.GetFullPath(combined);
         if (!PathSafety.IsContained(_root, fullPath))
         {
             throw new InvalidDataException($"KCR201 Path traversal detected: locator '{locator}' escapes root '{_root}'");
         }
 
-        if (!File.Exists(fullPath))
+        if (!fileSystem.Exists(fullPath))
         {
             throw new InvalidDataException($"KCR201 Missing artifact {locator}");
         }
 
-        return File.ReadAllBytes(fullPath);
+        using Stream input = fileSystem.OpenRead(fullPath);
+        using var output = new MemoryStream();
+        input.CopyTo(output);
+        return output.ToArray();
     }
 
     public Task<ReadOnlyMemory<byte>> GetAsync(string locator, CancellationToken ct = default) => Task.Run(() => Get(locator), ct);

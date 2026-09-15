@@ -154,8 +154,14 @@ public sealed class ContentManifest(int schemaVersion, IReadOnlyList<ContentMani
 
     public static ContentManifest LoadFromFile(string path, List<ContentDiagnostic>? diagnostics = null)
     {
-        string json = File.ReadAllText(path);
-        return Parse(json, diagnostics);
+        using Stream stream = File.OpenRead(path);
+        return Load(stream, diagnostics);
+    }
+
+    public static ContentManifest Load(Stream stream, List<ContentDiagnostic>? diagnostics = null)
+    {
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, true, 1024, true);
+        return Parse(reader.ReadToEnd(), diagnostics);
     }
 
     public void SaveToFile(string path)

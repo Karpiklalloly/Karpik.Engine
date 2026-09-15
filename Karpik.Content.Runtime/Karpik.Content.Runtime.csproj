@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Content.Core\Karpik.Content.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     <ProjectReference Include="..\third-parties\DragonECS\DragonECS.csproj" />
   </ItemGroup>
 </Project>
