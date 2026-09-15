@@ -1,12 +1,28 @@
+using System.Composition;
 using System.Runtime.CompilerServices;
+using Autofac;
 using Karpik.Content.Core;
+using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
 
 namespace Karpik.Content.Runtime;
 
-public sealed class ContentRegistry
+[Export(typeof(IContentRegistry))]
+[Export(typeof(ContentRegistry))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store) : IContentRegistry, IStartable
 {
     private readonly Dictionary<AssetId, ContentSlot> _slots = new();
+    private readonly IFileSystem _fileSystem = fileSystem;
+    private readonly IContentStore _startupStore = store;
     private IContentStore? _store;
+
+    public void Start()
+    {
+        string manifestPath = Path.Combine(_fileSystem.ContentPath, "manifest.json");
+        using Stream stream = _fileSystem.OpenRead(manifestPath);
+        RegisterManifest(ContentManifest.Load(stream), _startupStore);
+    }
 
     public void RegisterManifest(ContentManifest manifest, IContentStore store)
     {

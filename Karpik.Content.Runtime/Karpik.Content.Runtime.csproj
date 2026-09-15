@@ -9,4 +9,8 @@
     <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     <ProjectReference Include="..\third-parties\DragonECS\DragonECS.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="9.3.1" />
+    <PackageReference Include="System.Composition" Version="10.0.10" />
+  </ItemGroup>
 </Project>

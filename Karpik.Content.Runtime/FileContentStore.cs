@@ -1,7 +1,12 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
 
 namespace Karpik.Content.Runtime;
 
+[Export(typeof(IContentStore))]
+[Export(typeof(FileContentStore))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class FileContentStore(IFileSystem fileSystem) : IContentStore
 {
     private readonly string _root = Path.GetFullPath(fileSystem.ContentPath);

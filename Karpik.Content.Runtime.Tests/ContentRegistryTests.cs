@@ -1,12 +1,38 @@
+using System.Reflection;
 using System.Text;
 using Karpik.Content.Core;
 using Karpik.Content.Runtime;
+using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
 using Xunit;
 
 namespace Karpik.Content.Runtime.Tests;
 
 public sealed class ContentRegistryTests
 {
+    [Fact]
+    public void Start_RegistersManifest_WithoutReadingArtifacts()
+    {
+        var knownId = new AssetId(Guid.NewGuid());
+        var manifest = MakeManifest((knownId, "game/config", "artifacts/config.cooked"));
+        var store = new CountingStore();
+        var registry = new ContentRegistry(new FakeFileSystem(manifest.ToCanonicalJson()), store);
+
+        registry.Start();
+
+        Assert.Equal(0, store.Calls);
+        Assert.False(registry.TryGet(new AssetRef<RawJsonPayload>(knownId), out _));
+
+        object[] exports = typeof(ContentRegistry).GetCustomAttributes(inherit: false);
+        Assert.Contains(exports, export => GetExportContract(export) == typeof(IContentRegistry));
+        Assert.Contains(exports, export => GetExportContract(export) == typeof(ContentRegistry));
+
+        var registration = typeof(ContentRegistry).GetCustomAttribute<ServiceRegistrationAttribute>();
+        Assert.NotNull(registration);
+        Assert.Equal(ModuleScope.Engine, registration.Scope);
+        Assert.Equal(ServiceLifetime.Singleton, registration.Lifetime);
+    }
+
     private sealed class CountingStore : IContentStore
     {
         public int Calls;
@@ -110,6 +136,32 @@ public sealed class ContentRegistryTests
         return new ContentManifest(ContentManifest.CurrentSchemaVersion, list);
     }
 
+    private sealed class FakeFileSystem(string manifestJson) : IFileSystem
+    {
+        private readonly byte[] _manifest = Encoding.UTF8.GetBytes(manifestJson);
+
+        public string RootPath => "C:/game";
+        public string ContentPath => "C:/game/Content";
+        public string ModsPath => "C:/game/Mods";
+        public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
+        public bool Exists(string path) => path == Path.Combine(ContentPath, "manifest.json");
+        public string GetExtension(string path) => Path.GetExtension(path);
+        public bool ExistsDirectory(string path) => false;
+        public Stream OpenRead(string path) => new MemoryStream(_manifest, writable: false);
+        public Stream OpenWrite(string path) => throw new NotSupportedException();
+        public string Combine(params ReadOnlySpan<string> path) => Path.Combine(path);
+        public Span<string> GetDirectories(string path) => [];
+        public Span<string> GetFiles(string path) => [];
+        public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption) => [];
+        public string GetFileName(string path) => Path.GetFileName(path);
+    }
+
+    private static Type? GetExportContract(object attribute) =>
+        attribute.GetType().GetProperty("ContractType")?.GetValue(attribute) as Type;
+
+    private static ContentRegistry CreateRegistry(IContentStore store) =>
+        new(new FakeFileSystem("{}"), store);
+
     [Fact]
     public async Task SingleFlight_TwoConcurrentLoads_OneStoreGet()
     {
@@ -117,7 +169,7 @@ public sealed class ContentRegistryTests
         var idB = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/hash1.cooked"), (idB, "game/b", "artifacts/ef/gh/hash2.cooked"));
         var store = new CountingStore(delayMs: 80);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(store);
         registry.RegisterManifest(manifest, store);
 
         var r = new AssetRef<RawJsonPayload>(idA, 1);
@@ -139,7 +191,7 @@ public sealed class ContentRegistryTests
         var idA = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/hash1.cooked"));
         var store = new CountingStore(delayMs: 0);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(store);
         registry.RegisterManifest(manifest, store);
 
         var missingId = new AssetId(Guid.NewGuid());
@@ -159,7 +211,7 @@ public sealed class ContentRegistryTests
         var idA = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/hash1.cooked"));
         var store = new CountingStore(delayMs: 0);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(store);
         registry.RegisterManifest(manifest, store);
 
         var r = new AssetRef<RawJsonPayload>(idA, 1);
@@ -184,7 +236,7 @@ public sealed class ContentRegistryTests
         var idA = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/hash1.cooked"));
         var store = new CountingStore(delayMs: 10);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(store);
         registry.RegisterManifest(manifest, store);
 
         var r = new AssetRef<RawJsonPayload>(idA, 1);
@@ -202,7 +254,7 @@ public sealed class ContentRegistryTests
         var idA = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/missing.cooked"));
         var flaky = new FlakyStore(failCount: 1);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(flaky);
         registry.RegisterManifest(manifest, flaky);
 
         var r = new AssetRef<RawJsonPayload>(idA, 1);
@@ -226,7 +278,7 @@ public sealed class ContentRegistryTests
         var idA = new AssetId(Guid.NewGuid());
         var manifest = MakeManifest((idA, "game/a", "artifacts/ab/cd/hash1.cooked"));
         var store = new CountingStore(delayMs: 10);
-        var registry = new ContentRegistry();
+        var registry = CreateRegistry(store);
         registry.RegisterManifest(manifest, store);
 
         var r = new AssetRef<RawJsonPayload>(idA, 1);
