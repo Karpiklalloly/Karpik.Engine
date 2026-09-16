@@ -44,7 +44,14 @@ against it is green, and all gate tests below pass.
   streaming compare). 21/21 non-RepositoryMode packager tests green incl. 3
   new (dedup, conflict, runtimes merge); exact-layout contract test now
   expects `shared/`.
-- [ ] M3: manifest v3 + validator 2..3 implemented and tested.
+- [x] (2026-09-16) M3 done: `CurrentLayoutVersion = 3`,
+  `MinimumLayoutVersion = 2` (v2 installs keep validating — migration-safe);
+  validator requires `shared/` and primary-only module dirs for v3, extends
+  managed identity check to `shared/*.dll`. Tooling 46/46 incl. 3 new
+  (v2-without-shared valid, v3-without-shared MissingDirectory,
+  v3-extra-module-DLL MissingModules). Fixture fallout fixed (shared/ added):
+  Sdk.Tasks root tests 5/5, Launcher 22/22, Runner RunnerArguments 4/4,
+  Editor HandoffService 2/2.
 - [ ] M4: SDK consumer side (tasks, targets, runtime probing) migrated.
 - [ ] M5: full publish, integration tests, size acceptance, ADR handoff.
 

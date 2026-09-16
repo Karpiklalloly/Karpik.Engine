@@ -109,10 +109,12 @@ public sealed class EngineInstallationValidator
         {
             return Failure(EngineInstallationValidationCode.WrongEditorVersion, $"Editor version '{manifest.EditorVersion}' does not match engine version '{manifest.EngineVersion}'.", manifest);
         }
-        if (manifest.LayoutVersion != EngineInstallationManifest.CurrentLayoutVersion)
+        if (manifest.LayoutVersion < EngineInstallationManifest.MinimumLayoutVersion ||
+            manifest.LayoutVersion > EngineInstallationManifest.CurrentLayoutVersion)
         {
             return Failure(EngineInstallationValidationCode.WrongLayoutVersion, $"Unsupported payload layout version '{manifest.LayoutVersion}'.", manifest);
         }
+        bool sharedLayout = manifest.LayoutVersion >= 3;
         if (manifest.RuntimeProtocolVersion != EngineInstallationManifest.CurrentRuntimeProtocolVersion)
         {
             return Failure(EngineInstallationValidationCode.WrongRuntimeProtocolVersion, $"Unsupported runtime protocol version '{manifest.RuntimeProtocolVersion}'.", manifest);
@@ -124,7 +126,9 @@ public sealed class EngineInstallationValidator
             return Failure(EngineInstallationValidationCode.MissingCompletionMarker, $"Missing completion marker: {completionMarker}", manifest);
         }
 
-        string[] requiredDirectories = ["editor", "sdk", "runners/client", "runners/server", "modules", "native"];
+        string[] requiredDirectories = sharedLayout
+            ? ["editor", "sdk", "runners/client", "runners/server", "modules", "native", "shared"]
+            : ["editor", "sdk", "runners/client", "runners/server", "modules", "native"];
         foreach (string relativeDirectory in requiredDirectories)
         {
             string directory = Path.Combine(root, relativeDirectory.Replace('/', Path.DirectorySeparatorChar));
@@ -222,6 +226,15 @@ public sealed class EngineInstallationValidator
             {
                 return InvalidModuleLayout(manifest, $"Missing primary module assembly: {primaryAssembly}");
             }
+            if (sharedLayout)
+            {
+                string[] moduleContents = Directory.EnumerateFileSystemEntries(entry).ToArray();
+                if (moduleContents.Length != 1 ||
+                    !string.Equals(Path.GetFullPath(moduleContents[0]), Path.GetFullPath(primaryAssembly), PathSafety.PathComparison))
+                {
+                    return InvalidModuleLayout(manifest, $"Layout v3 keeps only the primary assembly in a module directory: {entry}");
+                }
+            }
             if (PathSafety.IsReparsePoint(primaryAssembly))
             {
                 return Failure(EngineInstallationValidationCode.ReparsePoint, $"Primary module assembly is a link or reparse point: {primaryAssembly}", manifest);
@@ -231,7 +244,10 @@ public sealed class EngineInstallationValidator
         {
             return InvalidModuleLayout(manifest, "The module catalog and modules/<module-id>/ directories do not match exactly.");
         }
-        EngineInstallationValidationResult? identityConflict = ValidateManagedAssemblyIdentities(moduleEntries, manifest);
+        IEnumerable<string> identityRoots = sharedLayout
+            ? moduleEntries.Append(Path.Combine(root, "shared"))
+            : moduleEntries;
+        EngineInstallationValidationResult? identityConflict = ValidateManagedAssemblyIdentities(identityRoots, manifest);
         if (identityConflict is not null)
         {
             return identityConflict;

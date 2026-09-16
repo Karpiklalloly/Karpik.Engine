@@ -250,4 +250,55 @@ public sealed class ManifestAndValidationTests
 
         Assert.Throws<InvalidDataException>(() => EngineContentHash.Compute(root));
     }
+
+    [Fact]
+    public void ValidatorAcceptsLegacyLayoutVersionTwoWithoutSharedDirectory()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath, layoutVersion: 2);
+        string shared = Path.Combine(root, "shared");
+        if (Directory.Exists(shared))
+        {
+            Directory.Delete(shared, recursive: true);
+            TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+        }
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.True(result.IsValid, result.Message);
+        Assert.Equal(EngineInstallationValidationCode.Valid, result.Code);
+    }
+
+    [Fact]
+    public void ValidatorRequiresSharedDirectoryForLayoutVersionThree()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath, layoutVersion: 3);
+        string shared = Path.Combine(root, "shared");
+        if (Directory.Exists(shared))
+        {
+            Directory.Delete(shared, recursive: true);
+        }
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingDirectory, result.Code);
+    }
+
+    [Fact]
+    public void ValidatorRejectsNonPrimaryModuleFilesForLayoutVersionThree()
+    {
+        using var temporary = new TemporaryDirectory();
+        string root = TestInstallation.Create(temporary.RootPath, layoutVersion: 3);
+        Directory.CreateDirectory(Path.Combine(root, "shared"));
+        File.WriteAllText(Path.Combine(root, "modules", "Module", "Helper.dll"), "helper");
+        TestInstallation.RewriteManifest(root, contentHash: EngineContentHash.Compute(root));
+
+        EngineInstallationValidationResult result = new EngineInstallationValidator().Validate(root);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(EngineInstallationValidationCode.MissingModules, result.Code);
+    }
 }

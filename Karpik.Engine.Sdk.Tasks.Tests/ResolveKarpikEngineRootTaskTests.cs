@@ -160,6 +160,7 @@ public sealed class ResolveKarpikEngineRootTaskTests
         Directory.CreateDirectory(Path.Combine(root, "runners", "server"));
         Directory.CreateDirectory(Path.Combine(root, "modules", "TestModule"));
         Directory.CreateDirectory(Path.Combine(root, "native"));
+        Directory.CreateDirectory(Path.Combine(root, "shared"));
         File.WriteAllText(Path.Combine(root, "editor", "Karpik.Editor.dll"), "editor");
         File.WriteAllText(Path.Combine(root, "sdk", "Karpik.Engine.Sdk.nupkg"), "sdk");
         File.WriteAllText(

@@ -108,6 +108,7 @@ public sealed class RunnerArgumentsTests
             Directory.CreateDirectory(Path.Combine(root, "runners", "server"));
             Directory.CreateDirectory(Path.Combine(root, "modules", "ECS.Core"));
             Directory.CreateDirectory(Path.Combine(root, "native"));
+            Directory.CreateDirectory(Path.Combine(root, "shared"));
             File.WriteAllText(Path.Combine(root, "editor", "Karpik.Editor.dll"), "editor");
             File.WriteAllText(Path.Combine(root, "sdk", "Karpik.Engine.Sdk.1.0.0.nupkg"), "sdk");
             File.WriteAllText(Path.Combine(root, "runners", "client", "Karpik.Engine.Core.Runner.dll"), "client");
