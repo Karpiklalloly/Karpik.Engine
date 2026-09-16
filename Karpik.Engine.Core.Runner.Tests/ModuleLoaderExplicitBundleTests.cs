@@ -95,6 +95,99 @@ public sealed class ModuleLoaderExplicitBundleTests
     }
 
     [Fact]
+    public void ExplicitLoader_ResolvesModuleDependenciesFromEngineSharedRoot()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "KarpikSharedProbe", Guid.NewGuid().ToString("N"));
+        string modules = Path.Combine(root, "bundle", "modules.version.1");
+        string engineModule = Path.Combine(root, "engine", "Mod");
+        string shared = Path.Combine(root, "shared");
+        Directory.CreateDirectory(modules);
+        Directory.CreateDirectory(engineModule);
+        Directory.CreateDirectory(shared);
+        try
+        {
+            string libProject = Path.Combine(root, "Lib", "Lib.csproj");
+            string lib = BuildDependency(root, "Lib", "namespace Lib; public class Holder { }");
+            string mod = BuildDependency(root, "Mod", "public class UsesLib : Lib.Holder { }", libProject);
+            File.Copy(lib, Path.Combine(shared, "Lib.dll"));
+            File.Copy(mod, Path.Combine(engineModule, "Mod.dll"));
+            string gameSource = typeof(Karpik.Engine.Tooling.EngineModuleCatalog).Assembly.Location;
+            string gameName = Path.GetFileName(gameSource);
+            File.Copy(gameSource, Path.Combine(modules, gameName));
+            File.WriteAllText(Path.Combine(modules, "modules.list"), gameName + "\n");
+            File.WriteAllText(Path.Combine(modules, ".complete"), RuntimeBundleLayout.ModuleCompletionMarker);
+            // Capture only text: a live exception would root the collectible
+            // context through LoaderExceptions and mask itself at cleanup.
+            string? loadError = null;
+            WeakReference? lifetime = null;
+            try
+            {
+                lifetime = LoadSharedProbedAndDispose(root, engineModule, shared);
+            }
+            catch (Exception exception)
+            {
+                loadError = exception.ToString();
+            }
+            for (int attempt = 0; attempt < 10 && (lifetime?.IsAlive ?? false); attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+            ModuleLoader.CleanupDisposedShadows();
+            Directory.Delete(root, recursive: true);
+            Assert.True(loadError is null, loadError);
+            Assert.False(lifetime!.IsAlive);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static WeakReference LoadSharedProbedAndDispose(string root, string engineModule, string shared)
+    {
+        var loader = new ModuleLoader(
+            Path.Combine(root, "bundle"),
+            [new ModuleLoader.EngineModuleDescriptor("Mod", engineModule)],
+            engineSharedRoot: shared);
+        try
+        {
+            loader.LoadServerModules();
+            System.Reflection.Assembly mod = Assert.Single(loader.LoadedAssemblies, assembly => assembly.GetName().Name == "Mod");
+            Assert.Contains(mod.GetTypes(), type => type.Name == "UsesLib");
+        }
+        finally
+        {
+            loader.Dispose();
+        }
+        return Assert.IsType<WeakReference>(loader.LoadContextLifetime);
+    }
+
+    private static string BuildDependency(string root, string name, string source, string? libProject = null)
+    {
+        string directory = Path.Combine(root, name);
+        Directory.CreateDirectory(directory);
+        string reference = libProject is null
+            ? string.Empty
+            : $$"""<ItemGroup><ProjectReference Include="{{libProject}}" /></ItemGroup>""";
+        File.WriteAllText(
+            Path.Combine(directory, name + ".csproj"),
+            $$"""<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><AssemblyName>{{name}}</AssemblyName></PropertyGroup>{{reference}}</Project>""");
+        File.WriteAllText(Path.Combine(directory, "C.cs"), source + "\n");
+        var info = new System.Diagnostics.ProcessStartInfo("dotnet") { WorkingDirectory = directory, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        info.ArgumentList.Add("build"); info.ArgumentList.Add("-m:1"); info.ArgumentList.Add("-nr:false"); info.ArgumentList.Add("--nologo");
+        using var process = System.Diagnostics.Process.Start(info)!;
+        string output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, output);
+        return Path.Combine(directory, "bin", "Debug", "net10.0", name + ".dll");
+    }
+
+    [Fact]
     public void PluginContext_RejectsTheOnlyCandidateWhenItsAssemblyIdentityDoesNotMatch()
     {
         string root = Path.Combine(Path.GetTempPath(), "KarpikAssemblyIdentity", Guid.NewGuid().ToString("N"));

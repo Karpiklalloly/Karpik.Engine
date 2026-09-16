@@ -30,9 +30,11 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
     /// <summary>
     /// Every safe DLL that ships inside the resolved modules' own directories
-    /// (third-party payloads such as Aether.Physics2D or Newtonsoft.Json). Static
-    /// compilations must reference these because generated composition factories
-    /// mention service constructor parameter types transitively.
+    /// (third-party payloads such as Aether.Physics2D or Newtonsoft.Json), plus
+    /// every safe DLL in the installation shared dependencies directory created
+    /// by payload layout v3. Static compilations must reference these because
+    /// generated composition factories mention service constructor parameter
+    /// types transitively.
     /// </summary>
     [Output]
     public ITaskItem[] PayloadAssemblies { get; set; } = [];
@@ -117,8 +119,37 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             references.Add(reference);
         }
 
-        payloadAssemblies = [.. payloads];
+        payloadAssemblies = CollectSharedPayloadAssemblies(engineRoot, payloadPaths, payloads);
         return [.. references];
+    }
+
+    /// <summary>
+    /// Добавляет DLL из каталога общих зависимостей (payload layout v3).
+    /// Каталог может отсутствовать в установках layout v2.
+    /// </summary>
+    private ITaskItem[] CollectSharedPayloadAssemblies(
+        string engineRoot,
+        HashSet<string> seen,
+        List<ITaskItem> collected)
+    {
+        string sharedRoot = Path.Combine(engineRoot, "shared");
+        if (!Directory.Exists(sharedRoot))
+        {
+            return [.. collected];
+        }
+        EnsureNotReparse(sharedRoot);
+        foreach (string file in Directory.EnumerateFiles(sharedRoot, "*.dll", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal))
+        {
+            if (!seen.Add(file) ||
+                Path.GetFileName(file).StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase) ||
+                IsReparsePoint(file))
+            {
+                continue;
+            }
+
+            collected.Add(new TaskItem(file));
+        }
+        return [.. collected];
     }
 
     /// <summary>

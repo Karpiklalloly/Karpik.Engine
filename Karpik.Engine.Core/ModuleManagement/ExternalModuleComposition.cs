@@ -12,13 +12,15 @@ public sealed partial class ModuleLoader
 {
     private readonly EngineModuleDescriptor[] _engineModules = [];
     private readonly string? _engineNativeRoot;
+    private readonly string? _engineSharedRoot;
 
     public readonly record struct EngineModuleDescriptor(string ModuleId, string DirectoryPath);
 
     public ModuleLoader(
         string bundleRoot,
         IEnumerable<EngineModuleDescriptor> engineModules,
-        string? engineNativeRoot = null) : this(bundleRoot)
+        string? engineNativeRoot = null,
+        string? engineSharedRoot = null) : this(bundleRoot)
     {
         ArgumentNullException.ThrowIfNull(engineModules);
         _engineModules = engineModules
@@ -32,12 +34,23 @@ public sealed partial class ModuleLoader
             _engineNativeRoot = Path.GetFullPath(engineNativeRoot);
             RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(_engineNativeRoot);
         }
+        if (engineSharedRoot is not null)
+        {
+            if (!Path.IsPathFullyQualified(engineSharedRoot) || !Directory.Exists(engineSharedRoot))
+                throw new DirectoryNotFoundException($"Engine shared root does not exist: {engineSharedRoot}");
+            _engineSharedRoot = Path.GetFullPath(engineSharedRoot);
+            RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(_engineSharedRoot);
+        }
     }
 
     private PluginLoadContext CreateLoadContext(string shadowCopyDirectory)
     {
         string[] dependencyDirectories =
             [shadowCopyDirectory, .. _engineModules.Select(module => module.DirectoryPath)];
+        if (_engineSharedRoot is not null)
+        {
+            dependencyDirectories = [.. dependencyDirectories, _engineSharedRoot];
+        }
         return new PluginLoadContext(
             shadowCopyDirectory,
             _bundleRoot,

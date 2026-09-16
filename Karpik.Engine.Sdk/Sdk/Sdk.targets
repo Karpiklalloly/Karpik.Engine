@@ -124,8 +124,10 @@
         <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <Reference Include="@(_KarpikStaticModulePayloadAssembly)">
-        <!-- Third-party payload DLLs ship inside each module directory; generated
-             static composition factories mention their types transitively. -->
+        <!-- Third-party payload DLLs ship inside the installation shared
+             directory (payload layout v3) or inside each module directory
+             (layout v2); generated static composition factories mention their
+             types transitively. -->
         <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <!-- Generated static composition factories mention every service constructor

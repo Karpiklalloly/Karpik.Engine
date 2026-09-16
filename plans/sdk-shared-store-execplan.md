@@ -52,7 +52,15 @@ against it is green, and all gate tests below pass.
   v3-extra-module-DLL MissingModules). Fixture fallout fixed (shared/ added):
   Sdk.Tasks root tests 5/5, Launcher 22/22, Runner RunnerArguments 4/4,
   Editor HandoffService 2/2.
-- [ ] M4: SDK consumer side (tasks, targets, runtime probing) migrated.
+- [x] (2026-09-16) M4 done: `ResolveKarpikStaticReferencesTask` collects
+  `shared/*.dll` (v2-compatible: missing dir skipped); `ModuleLoader` gains
+  optional `engineSharedRoot` plumbed into `PluginLoadContext`
+  dependencyDirectories (native `shared/runtimes/<rid>/native` probing comes
+  free via existing candidate paths); runner `Program` passes it when present;
+  `Sdk.targets` comment updated. Tests: task shared-collect green,
+  new loader test proves `Lib` resolves only from shared (watched honest RED:
+  `FileNotFoundException` at `GetTypes()`), ModuleLoaderExplicitBundle 13/13,
+  Sdk.Tasks 76+4skip, Runner 133/133.
 - [ ] M5: full publish, integration tests, size acceptance, ADR handoff.
 
 ## Surprises & Discoveries

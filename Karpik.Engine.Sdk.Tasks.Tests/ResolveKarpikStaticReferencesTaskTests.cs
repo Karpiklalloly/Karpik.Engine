@@ -58,6 +58,24 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
         Assert.Empty(task.References);
     }
 
+    [Fact]
+    public void Execute_CollectsPayloadAssembliesFromSharedDirectory()
+    {
+        using var tree = new Tree();
+        tree.Add("A", typeof(EngineModuleCatalog).Assembly.Location);
+        tree.WriteCatalog();
+        Directory.CreateDirectory(Path.Combine(tree.Root, "shared"));
+        File.Copy(
+            typeof(ResolveKarpikStaticReferencesTask).Assembly.Location,
+            Path.Combine(tree.Root, "shared", "SharedDep.dll"));
+        var task = new ResolveKarpikStaticReferencesTask { BuildEngine = new Engine(), EngineRoot = tree.Root, Side = "Shared" };
+
+        Assert.True(task.Execute());
+        Assert.Contains(
+            task.PayloadAssemblies,
+            item => item.ItemSpec.EndsWith("SharedDep.dll", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("Shared", 1)] [InlineData("Client", 2)] [InlineData("Server", 2)]
     public void Execute_RespectsSide(string side, int count)

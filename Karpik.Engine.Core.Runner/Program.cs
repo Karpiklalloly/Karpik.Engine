@@ -29,10 +29,12 @@ public class Program
         string engineRoot,
         Bootstrap bootstrap)
     {
+        string sharedRoot = Path.Combine(engineRoot, "shared");
         var loader = new ModuleLoader(
             bundleRoot,
             RuntimeModuleComposition.Resolve(engineRoot, side),
-            Path.Combine(engineRoot, "native"));
+            Path.Combine(engineRoot, "native"),
+            Directory.Exists(sharedRoot) ? sharedRoot : null);
         switch (side)
         {
             case Side.Client:
