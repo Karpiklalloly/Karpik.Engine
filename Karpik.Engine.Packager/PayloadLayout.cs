@@ -19,6 +19,8 @@ public static class PayloadLayout
     public const string ServerRunnerDirectory = "runners/server";
     /// <summary>Каталог engine modules.</summary>
     public const string ModulesDirectory = "modules";
+    /// <summary>Каталог общих зависимостей payload.</summary>
+    public const string SharedDirectory = "shared";
     /// <summary>Каталог native payload.</summary>
     public const string NativeDirectory = "native";
     /// <summary>Имя installation manifest.</summary>
@@ -51,6 +53,7 @@ public static class PayloadLayout
         }
 
         StageModuleNativeAssetsForRunners(stagingRoot);
+        DeduplicateToShared(stagingRoot);
     }
 
     /// <summary>Определяет, уже ли источник соответствует готовому layout payload.</summary>
@@ -83,6 +86,93 @@ public static class PayloadLayout
     /// <summary>Определяет, должен ли файл попасть в публикуемый payload (символы отладки не поставляются).</summary>
     private static bool IsStagedPayloadFile(string relativePath) =>
         !relativePath.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Выносит общие файлы модулей в каталог shared, оставляя первичные сборки на месте.</summary>
+    private static void DeduplicateToShared(string stagingRoot)
+    {
+        string modulesRoot = Path.Combine(stagingRoot, ModulesDirectory);
+        string sharedRoot = Path.Combine(stagingRoot, SharedDirectory);
+        Directory.CreateDirectory(sharedRoot);
+        foreach (string moduleDirectory in Directory.EnumerateDirectories(modulesRoot).Order(StringComparer.Ordinal))
+        {
+            string primaryFileName = Path.GetFileName(moduleDirectory) + ".dll";
+            foreach (string file in Directory.EnumerateFiles(moduleDirectory, "*", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal))
+            {
+                if (string.Equals(Path.GetFileName(file), primaryFileName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                MoveFileToShared(file, Path.Combine(sharedRoot, Path.GetFileName(file)));
+            }
+            string runtimesSource = Path.Combine(moduleDirectory, "runtimes");
+            if (Directory.Exists(runtimesSource))
+            {
+                foreach (string file in EnumerateFilesSafe(runtimesSource).Order(StringComparer.Ordinal))
+                {
+                    string relative = NormalizeRelativePath(Path.GetRelativePath(runtimesSource, file));
+                    MoveFileToShared(file, Path.Combine(sharedRoot, "runtimes", relative.Replace('/', Path.DirectorySeparatorChar)));
+                }
+                Directory.Delete(runtimesSource, recursive: true);
+            }
+            string[] leftovers = Directory.EnumerateFileSystemEntries(moduleDirectory).ToArray();
+            if (leftovers.Length != 1 ||
+                !string.Equals(Path.GetFileName(leftovers[0]), primaryFileName, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"Module payload has unexpected content after sharing dependencies: {moduleDirectory}.");
+            }
+        }
+    }
+
+    /// <summary>Перемещает файл в shared, требуя побитового совпадения при коллизии имён.</summary>
+    private static void MoveFileToShared(string source, string destination)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        if (!File.Exists(destination))
+        {
+            File.Move(source, destination);
+            return;
+        }
+        if (!FilesAreIdentical(source, destination))
+        {
+            throw new InvalidDataException($"Conflicting shared payload files map to '{destination}'.");
+        }
+        File.Delete(source);
+    }
+
+    /// <summary>Потоково сравнивает файлы без загрузки содержимого целиком в память.</summary>
+    private static bool FilesAreIdentical(string left, string right)
+    {
+        var leftInfo = new FileInfo(left);
+        var rightInfo = new FileInfo(right);
+        if (leftInfo.Length != rightInfo.Length)
+        {
+            return false;
+        }
+        const int bufferSize = 128 * 1024;
+        byte[] leftBuffer = new byte[bufferSize];
+        byte[] rightBuffer = new byte[bufferSize];
+        using var leftStream = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan);
+        using var rightStream = new FileStream(right, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.SequentialScan);
+        int leftRead;
+        while ((leftRead = leftStream.Read(leftBuffer, 0, bufferSize)) != 0)
+        {
+            int rightRead = 0;
+            while (rightRead < leftRead)
+            {
+                int chunk = rightStream.Read(rightBuffer, rightRead, leftRead - rightRead);
+                if (chunk == 0)
+                {
+                    return false;
+                }
+                rightRead += chunk;
+            }
+            if (!leftBuffer.AsSpan(0, leftRead).SequenceEqual(rightBuffer.AsSpan(0, leftRead)))
+            {
+                return false;
+            }
+        }
+        return rightStream.ReadByte() == -1;
+    }
 
     /// <summary>Добавляет native-ресурсы модулей в каталоги client и server runner.</summary>
     private static void StageModuleNativeAssetsForRunners(string stagingRoot)

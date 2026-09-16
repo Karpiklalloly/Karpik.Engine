@@ -30,9 +30,20 @@ against it is green, and all gate tests below pass.
   4 `RepositoryMode*` failures are pre-existing fixture drift
   (`Karpik.Engine.Templates.csproj` missing from `FakeRepository`, MSB1009) —
   same names and cause on clean tree.
+- [ ] M2 locked boundary (module scan 2026-09-16): module dirs contain
+  top-level `*.dll` (628 files / 257 MB), `Runner.exe` x17, `*.json` x57,
+  `*.ttf` x2, and only one subdir kind — `runtimes/` (5 modules). No
+  satellite/culture dirs. Rule: primary stays; other top-level files move
+  flat to `shared/`; `runtimes/` merges to `shared/runtimes/`; any other
+  subdir throws fail-closed.
 - [ ] M0: overlap matrix measured, shared boundary locked.
 - [ ] M1: `*.pdb` strip implemented, tested, committed.
-- [ ] M2: packager dedup to `shared/` implemented and unit-tested.
+- [x] (2026-09-16) M2 done: `PayloadLayout.DeduplicateToShared` (primaries
+  stay, other top-level files move flat to `shared/`, `runtimes/` merges to
+  `shared/runtimes/`, unknown subdirs and byte-conflicts throw fail-closed,
+  streaming compare). 21/21 non-RepositoryMode packager tests green incl. 3
+  new (dedup, conflict, runtimes merge); exact-layout contract test now
+  expects `shared/`.
 - [ ] M3: manifest v3 + validator 2..3 implemented and tested.
 - [ ] M4: SDK consumer side (tasks, targets, runtime probing) migrated.
 - [ ] M5: full publish, integration tests, size acceptance, ADR handoff.

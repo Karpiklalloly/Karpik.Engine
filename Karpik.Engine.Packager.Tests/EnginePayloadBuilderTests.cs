@@ -25,7 +25,7 @@ public sealed class EnginePayloadBuilderTests
         Assert.False(result.ReusedExistingInstallation);
         Assert.Equal(result.ContentHash, EngineContentHash.Compute(result.DestinationDirectory));
         Assert.Equal(
-            [".complete", "editor", "engine-installation.json", "modules", "native", "runners", "sdk"],
+            [".complete", "editor", "engine-installation.json", "modules", "native", "runners", "sdk", "shared"],
             Directory.EnumerateFileSystemEntries(result.DestinationDirectory)
                 .Select(Path.GetFileName)
                 .Order(StringComparer.Ordinal));
@@ -50,6 +50,93 @@ public sealed class EnginePayloadBuilderTests
 
         Assert.True(validation.IsValid, validation.Message);
         Assert.Empty(Directory.EnumerateFiles(result.DestinationDirectory, "*.pdb", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void BuilderDeduplicatesSharedModuleDependenciesToSharedDirectory()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string moduleB = Path.Combine(source, "modules", "ModuleB");
+        Directory.CreateDirectory(moduleB);
+        File.WriteAllText(Path.Combine(source, "modules", "Module", "Dep.dll"), "shared-dependency");
+        File.WriteAllText(Path.Combine(moduleB, "ModuleB.dll"), "module-b");
+        File.WriteAllText(Path.Combine(moduleB, "Dep.dll"), "shared-dependency");
+        File.WriteAllText(
+            Path.Combine(source, "modules", EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize([
+                new EngineModuleCatalogEntry("Module", EngineModuleSide.Shared),
+                new EngineModuleCatalogEntry("ModuleB", EngineModuleSide.Shared)
+            ]));
+
+        EnginePayloadBuildResult result = new EnginePayloadBuilder().Build(
+            source,
+            Path.Combine(temporary.RootPath, "output"),
+            "0.6.0",
+            "0.6.0-sdk");
+        EngineInstallationValidationResult validation = new EngineInstallationValidator()
+            .Validate(result.DestinationDirectory, "0.6.0-sdk", "0.6.0");
+
+        Assert.True(validation.IsValid, validation.Message);
+        Assert.Equal("shared-dependency", File.ReadAllText(Path.Combine(result.DestinationDirectory, "shared", "Dep.dll")));
+        Assert.Equal(
+            ["Module.dll"],
+            Directory.EnumerateFiles(Path.Combine(result.DestinationDirectory, "modules", "Module")).Select(Path.GetFileName));
+        Assert.Equal(
+            ["ModuleB.dll"],
+            Directory.EnumerateFiles(Path.Combine(result.DestinationDirectory, "modules", "ModuleB")).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void BuilderRejectsByteConflictingSharedModuleDependencies()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string moduleB = Path.Combine(source, "modules", "ModuleB");
+        Directory.CreateDirectory(moduleB);
+        File.WriteAllText(Path.Combine(source, "modules", "Module", "Dep.dll"), "dependency-a");
+        File.WriteAllText(Path.Combine(moduleB, "ModuleB.dll"), "module-b");
+        File.WriteAllText(Path.Combine(moduleB, "Dep.dll"), "dependency-b");
+        File.WriteAllText(
+            Path.Combine(source, "modules", EngineModuleCatalog.FileName),
+            EngineModuleCatalog.Serialize([
+                new EngineModuleCatalogEntry("Module", EngineModuleSide.Shared),
+                new EngineModuleCatalogEntry("ModuleB", EngineModuleSide.Shared)
+            ]));
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(
+            () => new EnginePayloadBuilder().Build(
+                source,
+                Path.Combine(temporary.RootPath, "output"),
+                "0.6.0",
+                "0.6.0-sdk"));
+
+        Assert.Contains("shared", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(Path.Combine(temporary.RootPath, "output", "Engines", "0.6.0")));
+    }
+
+    [Fact]
+    public void BuilderMergesModuleNativeRuntimesToSharedRuntimes()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string moduleNative = Path.Combine(source, "modules", "Module", "runtimes", "win-x64", "native", "Native.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(moduleNative)!);
+        File.WriteAllText(moduleNative, "shared-native");
+
+        EnginePayloadBuildResult result = new EnginePayloadBuilder().Build(
+            source,
+            Path.Combine(temporary.RootPath, "output"),
+            "0.6.0",
+            "0.6.0-sdk");
+        EngineInstallationValidationResult validation = new EngineInstallationValidator()
+            .Validate(result.DestinationDirectory, "0.6.0-sdk", "0.6.0");
+
+        Assert.True(validation.IsValid, validation.Message);
+        Assert.Equal(
+            "shared-native",
+            File.ReadAllText(Path.Combine(result.DestinationDirectory, "shared", "runtimes", "win-x64", "native", "Native.dll")));
+        Assert.False(Directory.Exists(Path.Combine(result.DestinationDirectory, "modules", "Module", "runtimes")));
     }
 
     [Fact]
