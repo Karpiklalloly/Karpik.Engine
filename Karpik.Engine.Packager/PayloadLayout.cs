@@ -66,19 +66,23 @@ public static class PayloadLayout
     private static void CopyPreparedPayload(string sourceRoot, string stagingRoot)
     {
         foreach (string relativeDirectory in new[]
-                 {
-                     EditorDirectory,
-                     SdkDirectory,
-                     ClientRunnerDirectory,
-                     ServerRunnerDirectory,
-                     ModulesDirectory,
-                     NativeDirectory
-                 })
+                  {
+                      EditorDirectory,
+                      SdkDirectory,
+                      ClientRunnerDirectory,
+                      ServerRunnerDirectory,
+                      ModulesDirectory,
+                      NativeDirectory
+                  })
         {
             string relative = relativeDirectory.Replace('/', Path.DirectorySeparatorChar);
-            CopyDirectory(Path.Combine(sourceRoot, relative), Path.Combine(stagingRoot, relative));
+            CopyDirectory(Path.Combine(sourceRoot, relative), Path.Combine(stagingRoot, relative), IsStagedPayloadFile);
         }
     }
+
+    /// <summary>Определяет, должен ли файл попасть в публикуемый payload (символы отладки не поставляются).</summary>
+    private static bool IsStagedPayloadFile(string relativePath) =>
+        !relativePath.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Добавляет native-ресурсы модулей в каталоги client и server runner.</summary>
     private static void StageModuleNativeAssetsForRunners(string stagingRoot)
@@ -155,17 +159,17 @@ public static class PayloadLayout
 
         string editorOutput = GetArtifactOutput(artifacts, "Karpik.Editor/Karpik.Editor.csproj");
         string runnerOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj");
-        CopyDirectory(editorOutput, Path.Combine(stagingRoot, EditorDirectory));
-        CopyDirectory(runnerOutput, Path.Combine(stagingRoot, "runners", "client"));
-        CopyDirectory(runnerOutput, Path.Combine(stagingRoot, "runners", "server"));
-        CopyDirectory(sdkOutput, Path.Combine(stagingRoot, SdkDirectory));
+        CopyDirectory(editorOutput, Path.Combine(stagingRoot, EditorDirectory), IsStagedPayloadFile);
+        CopyDirectory(runnerOutput, Path.Combine(stagingRoot, "runners", "client"), IsStagedPayloadFile);
+        CopyDirectory(runnerOutput, Path.Combine(stagingRoot, "runners", "server"), IsStagedPayloadFile);
+        CopyDirectory(sdkOutput, Path.Combine(stagingRoot, SdkDirectory), IsStagedPayloadFile);
 
         string modulesDestination = Path.Combine(stagingRoot, ModulesDirectory);
         Directory.CreateDirectory(modulesDestination);
         foreach (SelectedModuleProject moduleProject in moduleProjects)
         {
             string moduleDestination = Path.Combine(modulesDestination, moduleProject.ModuleId);
-            CopyDirectory(GetArtifactOutput(artifacts, moduleProject.ProjectPath), moduleDestination);
+            CopyDirectory(GetArtifactOutput(artifacts, moduleProject.ProjectPath), moduleDestination, IsStagedPayloadFile);
         }
         File.WriteAllText(
             Path.Combine(modulesDestination, EngineModuleCatalog.FileName),
@@ -354,6 +358,10 @@ public static class PayloadLayout
         foreach (string file in EnumerateFilesSafe(sourceRoot))
         {
             string relative = NormalizeRelativePath(Path.GetRelativePath(sourceRoot, file));
+            if (!IsStagedPayloadFile(relative))
+            {
+                continue;
+            }
             if (!relative.Contains("/native/", StringComparison.OrdinalIgnoreCase) &&
                 !relative.StartsWith("native/", StringComparison.OrdinalIgnoreCase))
             {

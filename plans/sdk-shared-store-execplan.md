@@ -24,6 +24,12 @@ against it is green, and all gate tests below pass.
 
 - [x] (2026-09-16) Initial plan created.
 - [x] (2026-09-16) M0 measured, shared boundary locked (see evidence below).
+- [x] (2026-09-16) M1 done: `IsStagedPayloadFile` filter in `PayloadLayout`
+  (prepared + repository copy sites, native staging); 13/13 non-RepositoryMode
+  packager tests green incl. new `BuilderStripsSymbolFilesFromPublishedPayload`.
+  4 `RepositoryMode*` failures are pre-existing fixture drift
+  (`Karpik.Engine.Templates.csproj` missing from `FakeRepository`, MSB1009) —
+  same names and cause on clean tree.
 - [ ] M0: overlap matrix measured, shared boundary locked.
 - [ ] M1: `*.pdb` strip implemented, tested, committed.
 - [ ] M2: packager dedup to `shared/` implemented and unit-tested.

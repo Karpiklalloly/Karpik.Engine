@@ -33,6 +33,26 @@ public sealed class EnginePayloadBuilderTests
     }
 
     [Fact]
+    public void BuilderStripsSymbolFilesFromPublishedPayload()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        File.WriteAllText(Path.Combine(source, "editor", "libSkiaSharp.pdb"), "symbols");
+        File.WriteAllText(Path.Combine(source, "modules", "Module", "Helper.pdb"), "symbols");
+
+        EnginePayloadBuildResult result = new EnginePayloadBuilder().Build(
+            source,
+            Path.Combine(temporary.RootPath, "output"),
+            "0.6.0",
+            "0.6.0-sdk");
+        EngineInstallationValidationResult validation = new EngineInstallationValidator()
+            .Validate(result.DestinationDirectory, "0.6.0-sdk", "0.6.0");
+
+        Assert.True(validation.IsValid, validation.Message);
+        Assert.Empty(Directory.EnumerateFiles(result.DestinationDirectory, "*.pdb", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public void BuilderStagesClientModuleNativeAssetsWhereClientRunnerCanDiscoverThem()
     {
         using var temporary = new PackagerTemporaryDirectory();
