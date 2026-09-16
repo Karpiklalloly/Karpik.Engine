@@ -7,12 +7,23 @@ namespace Karpik.Engine.Core.Runner;
 
 public class Builder(EcsPipeline.Builder builder) : IBuilder
 {
+    private readonly List<ISystemAsyncInit> _asyncInitializers = [];
+    private readonly List<ISystemAsyncDestroy> _asyncDestroyers = [];
+
+    internal IReadOnlyList<ISystemAsyncInit> AsyncInitializers => _asyncInitializers;
+    internal IReadOnlyList<ISystemAsyncDestroy> AsyncDestroyers => _asyncDestroyers;
+
     public IBuilder Add(object system, string layer = "BASIC_LAYER", int order = 0)
     {
         bool added = false;
         if (system is ISystemInit init)
         {
             Add(init, layer, order);
+            added = true;
+        }
+        if (system is ISystemAsyncInit asyncInit)
+        {
+            _asyncInitializers.Add(asyncInit);
             added = true;
         }
         if (system is ISystemMainThreadBegin mainThreadBegin)
@@ -58,6 +69,11 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
         if (system is ISystemDestroy destroy)
         {
             Add(destroy, layer, order);
+            added = true;
+        }
+        if (system is ISystemAsyncDestroy asyncDestroy)
+        {
+            _asyncDestroyers.Add(asyncDestroy);
             added = true;
         }
 

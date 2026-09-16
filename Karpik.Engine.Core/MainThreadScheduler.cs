@@ -49,6 +49,25 @@ public class MainThreadScheduler
     {
         _actions.Enqueue(action);
     }
+
+    public Task ScheduleAsync(Func<Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _actions.Enqueue(() =>
+        {
+            try
+            {
+                _ = CompleteAsync(action(), completion);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        });
+        return completion.Task;
+    }
     
     public JobHandle InvokeAsync(Action work)
     {
@@ -96,6 +115,23 @@ public class MainThreadScheduler
                 Console.WriteLine(e);
                 throw;
             }
+        }
+    }
+
+    private static async Task CompleteAsync(Task task, TaskCompletionSource completion)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            completion.TrySetCanceled();
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
         }
     }
 }

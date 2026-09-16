@@ -32,13 +32,25 @@ internal sealed class WorkerHost
     private volatile bool _stateCollected;
     private ClientSimulationWorker? _clientSimulationWorker;
 
-    public void Run(string[] args, ConfigureWorkerRuntime configureRuntime)
-        => Run(RunnerLaunchArguments.Parse(args), configureRuntime);
+    public void Run(string[] args, ConfigureWorkerRuntime configureRuntime) =>
+        RunAsync(args, configureRuntime).GetAwaiter().GetResult();
 
-    public void Run(RunnerLaunchArguments launch, ConfigureWorkerRuntime configureRuntime)
-        => Run(launch, configureRuntime, CancellationToken.None);
+    public void Run(RunnerLaunchArguments launch, ConfigureWorkerRuntime configureRuntime) =>
+        RunAsync(launch, configureRuntime).GetAwaiter().GetResult();
 
     public void Run(
+        RunnerLaunchArguments launch,
+        ConfigureWorkerRuntime configureRuntime,
+        CancellationToken cancellationToken) =>
+        RunAsync(launch, configureRuntime, cancellationToken).GetAwaiter().GetResult();
+
+    public Task RunAsync(string[] args, ConfigureWorkerRuntime configureRuntime) =>
+        RunAsync(RunnerLaunchArguments.Parse(args), configureRuntime);
+
+    public Task RunAsync(RunnerLaunchArguments launch, ConfigureWorkerRuntime configureRuntime) =>
+        RunAsync(launch, configureRuntime, CancellationToken.None);
+
+    public async Task RunAsync(
         RunnerLaunchArguments launch,
         ConfigureWorkerRuntime configureRuntime,
         CancellationToken cancellationToken)
@@ -126,7 +138,12 @@ internal sealed class WorkerHost
         WorkerRuntimeConfiguration? runtimeConfiguration = null;
         try
         {
-            RunEngine(launch.Side, launch.BundlePath, launch.EngineRoot, configureRuntime, cancellationToken, out runtimeConfiguration);
+            runtimeConfiguration = await RunEngineAsync(
+                launch.Side,
+                launch.BundlePath,
+                launch.EngineRoot,
+                configureRuntime,
+                cancellationToken);
         }
         finally
         {
@@ -148,18 +165,17 @@ internal sealed class WorkerHost
         _ = _ipcClient.RequestHotReloadAsync();
     }
 
-    private void RunEngine(
+    private Task<WorkerRuntimeConfiguration> RunEngineAsync(
         Side side,
         string bundleRoot,
         string engineRoot,
         ConfigureWorkerRuntime configureRuntime,
-        CancellationToken cancellationToken,
-        out WorkerRuntimeConfiguration? runtimeConfiguration)
+        CancellationToken cancellationToken)
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
 
         _bootstrap = new Bootstrap(side, new EngineRunner());
-        runtimeConfiguration =
+        WorkerRuntimeConfiguration runtimeConfiguration =
             configureRuntime(side, bundleRoot, engineRoot, _bootstrap);
 
         Dictionary<string, byte[]>? initialHotReloadData = null;
@@ -172,6 +188,9 @@ internal sealed class WorkerHost
         Console.WriteLine(Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
         mainThreadScheduler.Execute();
+        // The game loop must remain on the thread that owns this scheduler.
+        // Awaiting in a console host may resume on a thread-pool thread instead.
+        _bootstrap.Startup.GetAwaiter().GetResult();
 
         _ipcClient?.SetScheduler(mainThreadScheduler);
 
@@ -203,9 +222,10 @@ internal sealed class WorkerHost
         }
 
         HotReloadHandler.OnUpdateApplication -= RequestHotReload;
-        _bootstrap.Shutdown();
+        _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
 
         Console.WriteLine("[Worker] Exited cleanly");
+        return Task.FromResult(runtimeConfiguration);
     }
 
     private HotReloadState? GetHotReloadState()

@@ -9,9 +9,11 @@ internal class Bootstrap : IClientSimulationLoop
     private Application _application;
     private readonly ClientFrameMetrics _clientFrameMetrics = new();
     private IEngineRunner _runner = null!;
+    private Task _startup = Task.CompletedTask;
 
     /// <summary>Runner-assembly seam for static composition registration.</summary>
     internal IEngineRunner Runner => _runner;
+    public Task Startup => _startup;
     [Obsolete("Legacy in-process compatibility only. Runtime hosts must inject an IEngineRunner.")]
     public Bootstrap(Side side)
     {
@@ -34,7 +36,7 @@ internal class Bootstrap : IClientSimulationLoop
             Console.WriteLine("[Bootstrap] Starting with state from previous worker (process isolation)");
         }
         
-        _mainThreadScheduler.Schedule(() => Setup(initialHotReloadState));
+        _startup = SetupAsync(initialHotReloadState);
         return _mainThreadScheduler;
     }
 
@@ -48,11 +50,15 @@ internal class Bootstrap : IClientSimulationLoop
         _runner.RegisterTypes(types);
     }
 
-    private void Setup(Dictionary<string, byte[]>? hotReloadData)
+    private Task SetupAsync(Dictionary<string, byte[]>? hotReloadData)
     {
         Job.Initialize(new Jobs.JobSystem());
-        
-        _runner.Setup(_application, _mainThreadScheduler, _clientFrameMetrics, hotReloadData ?? new Dictionary<string, byte[]>());
+
+        return _runner.SetupAsync(
+            _application,
+            _mainThreadScheduler,
+            _clientFrameMetrics,
+            hotReloadData ?? new Dictionary<string, byte[]>());
     }
     
     public void Loop(double dt)
@@ -88,6 +94,8 @@ internal class Bootstrap : IClientSimulationLoop
     {
         _runner.Destroy();
     }
+
+    public Task ShutdownAsync() => _runner.DestroyAsync();
     
     public Dictionary<string, byte[]> GetHotReloadData()
     {

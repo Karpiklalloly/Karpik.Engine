@@ -10,7 +10,7 @@ namespace Karpik.Engine.Core.Runner;
 /// </summary>
 public static class StaticEngineHost
 {
-    public static Task<int> RunAsync(
+    public static async Task<int> RunAsync(
         Side side,
         IStaticRuntimeComposition composition,
         string[] args,
@@ -22,7 +22,7 @@ public static class StaticEngineHost
         try
         {
             RunnerLaunchArguments launch = StaticLaunchArguments.Parse(args, side);
-            new WorkerHost().Run(
+            await new WorkerHost().RunAsync(
                 launch,
                 (hostSide, _, _, bootstrap) =>
                 {
@@ -32,16 +32,16 @@ public static class StaticEngineHost
                     return new WorkerRuntimeConfiguration(ResolveModuleDirectory(launch.BundlePath), null);
                 },
                 cancellationToken);
-            return Task.FromResult(0);
+            return 0;
         }
         catch (OperationCanceledException)
         {
-            return Task.FromResult(0);
+            return 0;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Worker] Engine crashed: {ex}");
-            return Task.FromResult(1);
+            return 1;
         }
     }
 

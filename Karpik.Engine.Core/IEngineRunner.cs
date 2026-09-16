@@ -2,6 +2,9 @@
 
 internal interface IEngineRunner
 {
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
+        Dictionary<string, byte[]>? hotReloadData = null);
+
     public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null);
 
@@ -20,6 +23,8 @@ internal interface IEngineRunner
     public bool IsApplicationRunning { get; }
 
     public void Destroy();
+
+    public Task DestroyAsync();
 
     public Dictionary<string, byte[]> GetHotReloadData();
 

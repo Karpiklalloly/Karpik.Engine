@@ -5,12 +5,12 @@ namespace Karpik.Engine.Core.Runner;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         Console.WriteLine("[Worker] Starting...");
         try
         {
-            new WorkerHost().Run(args, LoadDynamicModules);
+            await new WorkerHost().RunAsync(args, LoadDynamicModules);
         }
         catch (Exception ex)
         {

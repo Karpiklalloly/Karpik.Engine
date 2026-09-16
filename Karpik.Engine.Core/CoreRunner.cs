@@ -124,6 +124,8 @@ public class CoreRunner
         
         Console.WriteLine(Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning);
+        mainThreadScheduler.Execute();
+        _bootstrap.Startup.GetAwaiter().GetResult();
 
         switch (side)
         {
@@ -137,7 +139,7 @@ public class CoreRunner
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
         
-        _bootstrap.Shutdown();
+        _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
         
         Console.WriteLine("[Worker] Exited cleanly");
     }

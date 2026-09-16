@@ -7,6 +7,52 @@ using Xunit;
 public sealed class EngineRunnerLifecycleTests
 {
     [Fact]
+    public async Task EngineRunner_AsyncLifecycle_RunsAroundSynchronousLifecycle()
+    {
+        LifecycleTrace.Clear();
+
+        var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+        var runner = new EngineRunner();
+        runner.RegisterModule(new AsyncLifecycleSmokeModuleInstaller());
+
+        Task setup = runner.SetupAsync(new Application(Side.Server), scheduler);
+        scheduler.Execute();
+        await setup;
+        await runner.DestroyAsync();
+
+        AssertSequence(["Init", "AsyncInit", "AsyncDestroy", "Destroy"], LifecycleTrace.Items);
+    }
+
+    [Fact]
+    public async Task EngineRunner_SetupAsync_WaitsForAsyncInitializer()
+    {
+        LifecycleTrace.Clear();
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        AsyncLifecycleSmokeSystem.InitializationGate = gate.Task;
+
+        try
+        {
+            var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+            var runner = new EngineRunner();
+            runner.RegisterModule(new AsyncLifecycleSmokeModuleInstaller());
+
+            Task setup = runner.SetupAsync(new Application(Side.Server), scheduler);
+            scheduler.Execute();
+
+            Assert.False(setup.IsCompleted);
+            gate.SetResult();
+            await setup;
+            await runner.DestroyAsync();
+
+            AssertSequence(["Init", "AsyncInit", "AsyncDestroy", "Destroy"], LifecycleTrace.Items);
+        }
+        finally
+        {
+            AsyncLifecycleSmokeSystem.InitializationGate = null;
+        }
+    }
+
+    [Fact]
     public void EngineRunner_Run_ExecutesLifecyclePhasesIn04Order()
     {
         LifecycleTrace.Clear();
@@ -166,5 +212,44 @@ sealed class LifecycleSmokeSystem :
     public void Update() => LifecycleTrace.Add("Update");
     public void LateUpdate() => LifecycleTrace.Add("LateUpdate");
     public void Render() => LifecycleTrace.Add("Render");
+    public void Destroy() => LifecycleTrace.Add("Destroy");
+}
+
+[Module(ModuleScope.Simulation)]
+sealed class AsyncLifecycleSmokeModuleInstaller : IModuleInstaller
+{
+    public string Name => nameof(AsyncLifecycleSmokeModuleInstaller);
+
+    public IModule CreateModule() => new AsyncLifecycleSmokeModule();
+}
+
+sealed class AsyncLifecycleSmokeModule : IModule
+{
+    public void Add(ISystemRegistry systems)
+    {
+        systems.Add<AsyncLifecycleSmokeSystem>();
+    }
+}
+
+sealed class AsyncLifecycleSmokeSystem : ISystemInit, ISystemAsyncInit, ISystemAsyncDestroy, ISystemDestroy
+{
+    internal static Task? InitializationGate;
+
+    public void Init() => LifecycleTrace.Add("Init");
+    public async ValueTask InitAsync(CancellationToken cancellationToken)
+    {
+        if (InitializationGate is { } gate)
+        {
+            await gate;
+        }
+        LifecycleTrace.Add("AsyncInit");
+    }
+
+    public ValueTask DestroyAsync()
+    {
+        LifecycleTrace.Add("AsyncDestroy");
+        return ValueTask.CompletedTask;
+    }
+
     public void Destroy() => LifecycleTrace.Add("Destroy");
 }

@@ -29,6 +29,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private IStaticRuntimeComposition? _staticComposition;
     private StaticEcsRegistryProviders? _staticEcsProviders;
     private AutofacStaticServiceRegistry? _staticServices;
+    private ISystemAsyncDestroy[] _asyncDestroyers = [];
     private bool _setupPending;
 
     /// <summary>
@@ -102,7 +103,13 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         {
             try
             {
-                SetupCore(application, scheduler, clientFrameMetrics, hotReloadData);
+                Task setup = SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData);
+                if (!setup.IsCompleted)
+                {
+                    throw new InvalidOperationException(
+                        "Asynchronous system initialization requires SetupAsync to be awaited by the host.");
+                }
+                setup.GetAwaiter().GetResult();
             }
             catch
             {
@@ -116,7 +123,45 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         });
     }
 
-    private void SetupCore(
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
+    {
+        return SetupAsync(application, scheduler, new ClientFrameMetrics(), hotReloadData);
+    }
+
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics, Dictionary<string, byte[]>? hotReloadData = null)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(clientFrameMetrics);
+
+        if (_setupPending || _engineContainer is not null)
+        {
+            throw new InvalidOperationException("Runner is already set up or setup is pending.");
+        }
+
+        _application = application;
+        _clientFrameMetrics = clientFrameMetrics;
+        _setupPending = true;
+
+        return scheduler.ScheduleAsync(async () =>
+        {
+            try
+            {
+                await SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData);
+            }
+            catch
+            {
+                await DestroyAsyncCore(clearRegistrations: false);
+                throw;
+            }
+            finally
+            {
+                _setupPending = false;
+            }
+        });
+    }
+
+    private async Task SetupCoreAsync(
         Application application,
         MainThreadScheduler scheduler,
         ClientFrameMetrics clientFrameMetrics,
@@ -219,6 +264,12 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         ConfigureEcsRenderPrepareScheduler(_renderPrepareRunner);
         _renderRunner = _pipeline.GetRunner<EcsRenderRunner>();
         _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application);
+
+        _asyncDestroyers = moduleBuilder.AsyncDestroyers.ToArray();
+        for (int index = 0; index < moduleBuilder.AsyncInitializers.Count; index++)
+        {
+            await moduleBuilder.AsyncInitializers[index].InitAsync(CancellationToken.None);
+        }
     }
 
     public void Run(double dt)
@@ -424,6 +475,8 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     {
         DestroyAsyncCore(clearRegistrations: true).AsTask().GetAwaiter().GetResult();
     }
+
+    public Task DestroyAsync() => DestroyAsyncCore(clearRegistrations: true).AsTask();
 
     public Dictionary<string, byte[]> GetHotReloadData()
     {
@@ -642,8 +695,10 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         ILifetimeScope? simulationScope = _simulationScope;
         ILifetimeScope? modSetScope = _modSetScope;
         IContainer? engineContainer = _engineContainer;
+        ISystemAsyncDestroy[] asyncDestroyers = _asyncDestroyers;
 
         _pipeline = null;
+        _asyncDestroyers = [];
         _fixedRunTicker = null!;
         _serviceResolver = null;
         _simulationScope = null;
@@ -660,6 +715,10 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         try { _ecsUpdateScheduler.Dispose(); } catch (Exception exception) { Record(exception); }
         try { _ecsRenderPrepareScheduler.Dispose(); } catch (Exception exception) { Record(exception); }
         try { fixedRunTicker?.Destroy(); } catch (Exception exception) { Record(exception); }
+        for (int index = asyncDestroyers.Length - 1; index >= 0; index--)
+        {
+            try { await asyncDestroyers[index].DestroyAsync(); } catch (Exception exception) { Record(exception); }
+        }
         try { pipeline?.Destroy(); } catch (Exception exception) { Record(exception); }
 
         if (simulationScope is not null)
