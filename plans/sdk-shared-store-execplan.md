@@ -23,21 +23,16 @@ against it is green, and all gate tests below pass.
 ## Progress
 
 - [x] (2026-09-16) Initial plan created.
-- [x] (2026-09-16) M0 measured, shared boundary locked (see evidence below).
+- [x] (2026-09-16) M0 done: overlap matrix measured, shared boundary locked
+  (module scan: top-level `*.dll` 628/257 MB, `Runner.exe` x17, `*.json` x57,
+  `*.ttf` x2, only subdir kind `runtimes/` in 5 modules; dupes live in
+  modules+native+runners, editor is unique).
 - [x] (2026-09-16) M1 done: `IsStagedPayloadFile` filter in `PayloadLayout`
   (prepared + repository copy sites, native staging); 13/13 non-RepositoryMode
   packager tests green incl. new `BuilderStripsSymbolFilesFromPublishedPayload`.
   4 `RepositoryMode*` failures are pre-existing fixture drift
   (`Karpik.Engine.Templates.csproj` missing from `FakeRepository`, MSB1009) —
   same names and cause on clean tree.
-- [ ] M2 locked boundary (module scan 2026-09-16): module dirs contain
-  top-level `*.dll` (628 files / 257 MB), `Runner.exe` x17, `*.json` x57,
-  `*.ttf` x2, and only one subdir kind — `runtimes/` (5 modules). No
-  satellite/culture dirs. Rule: primary stays; other top-level files move
-  flat to `shared/`; `runtimes/` merges to `shared/runtimes/`; any other
-  subdir throws fail-closed.
-- [ ] M0: overlap matrix measured, shared boundary locked.
-- [ ] M1: `*.pdb` strip implemented, tested, committed.
 - [x] (2026-09-16) M2 done: `PayloadLayout.DeduplicateToShared` (primaries
   stay, other top-level files move flat to `shared/`, `runtimes/` merges to
   `shared/runtimes/`, unknown subdirs and byte-conflicts throw fail-closed,
@@ -61,11 +56,28 @@ against it is green, and all gate tests below pass.
   new loader test proves `Lib` resolves only from shared (watched honest RED:
   `FileNotFoundException` at `GetTypes()`), ModuleLoaderExplicitBundle 13/13,
   Sdk.Tasks 76+4skip, Runner 133/133.
-- [ ] M5: full publish, integration tests, size acceptance, ADR handoff.
+- [x] (2026-09-16) M5 done (partial: heavy CLI integration tests remain the
+  residual gate): real publish green (SDK `0.6.0-local-20260916-181305`,
+  1845.7 -> 915.5 MB, layout v3, retention freed ~1.9 GB in the same run);
+  game build parity v2-vs-v3 proven (identical pre-existing CS0246, see
+  Surprises); unit/integration suites listed in M1-M4 all green.
 
 ## Surprises & Discoveries
 
 - Observation: M0 overlap matrix (install `0.6.0-dev-e3c627...`, 1845.7 MB).
+- Observation: user game SSSuperGame does NOT build on current source even
+  with the previous v2 SDK (`0.6.0-local-20260916-160604`): identical
+  `CS0246: type "T" not found` in `GeneratedRuntimeComposition.g.cs` (Client
+  140:111, Server 84-127:111). v3 build reaches the exact same state —
+  resolution/restore/compile parity proven, failure is pre-existing and
+  game-side (stale game vs current codegen). Not chased in this plan.
+  Evidence: temp copies `v2-game-test-*` / `v3-game-test-*`, 2026-09-16.
+- Observation: M5 real publish green: SDK `0.6.0-local-20260916-181305`,
+  install `0.6.0-dev-554014c6...`, 1845.7 -> 915.5 MB (-50.4%).
+  modules/ 872 -> 0.4 MB, shared/ 245.0 MB, editor 568 -> 264.5 MB
+  (PDB strip), 0 PDBs, layoutVersion 3, publish-time staging validation +
+  hash contract passed. Retention freed ~1.9 GB in the same run.
+  Evidence: publish log + install measurement, 2026-09-16.
   Per-dir: editor 568.0 MB / 111 files, sdk 8.4 MB / 3, modules 872.0 MB /
   804 files, native 196.8 MB / 39, runners 200.4 MB / 83.
   Module primaries total 0.3 MB in 23 files — i.e. ~871.7 MB of `modules/`
@@ -103,7 +115,15 @@ against it is green, and all gate tests below pass.
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update this after each major milestone and at completion.
+M0-M5 delivered 2026-09-16 in 6 commits (retention + plan + M1 + M2 + M3 +
+M4). Fresh install: 915.5 MB, layout v3, publish-time validation green.
+ADR `versioned-engine-sdk-and-external-game-projects.md` records the v3
+layout. Residual gates (not run): heavy `Karpik.Engine.Sdk.IntegrationTests`
+CLI workflows and a Dynamic editor smoke against a v3 install; plus the
+pre-existing SSSuperGame CS0246 failure and 4 pre-existing
+`RepositoryMode*` fixture-drift failures are independent of this plan.
+Follow-up option if size must shrink further: teach editor/runners
+`shared/` probing (native + managed) instead of self-contained hosts.
 
 ## Context and Orientation
 

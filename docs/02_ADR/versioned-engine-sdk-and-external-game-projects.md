@@ -81,6 +81,15 @@ SDK installation from source is transactional:
 
 Incomplete or damaged installations never participate in resolution.
 
+Payload layout v3 (2026-09-16) deduplicates the installation: module
+directories keep only their primary `<module-id>.dll`, every other managed
+dependency ships exactly once in a top-level `shared/` directory (module
+native `runtimes/` trees merge into `shared/runtimes/`), and `*.pdb` symbol
+files are not staged. Editor, runners, and `native/` stay self-contained
+application hosts. Build-time module references and Dynamic runtime probing
+resolve `shared/`; the validator accepts layouts 2 and 3 so existing
+installations keep working. Measured effect: 1845 MB -> 915 MB per install.
+
 ### Launcher and editor versions follow the engine installation
 
 A stable Karpik launcher owns the recent-project list, installed-engine management, and editor selection. Each engine installation contains a compatible editor. On opening a game solution, the launcher reads `global.json`, resolves the exact Karpik SDK version, validates the engine-installation manifest, and starts the matching editor with the absolute `.slnx` path.
