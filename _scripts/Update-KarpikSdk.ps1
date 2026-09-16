@@ -200,6 +200,19 @@ if (Test-Path -LiteralPath $sdkCachePath) {
     Remove-Item -LiteralPath $sdkCachePath -Recurse -Force
 }
 
+$retentionScript = Join-Path $PSScriptRoot "Clear-OldKarpikSdks.ps1"
+if (Test-Path -LiteralPath $retentionScript -PathType Leaf) {
+    try {
+        & $retentionScript -KeepCount 5 -KarpikHome $KarpikHome -CurrentInstallation $installationRoot
+    }
+    catch {
+        Write-Warning "SDK retention cleanup failed (new installation is unaffected): $_"
+    }
+}
+else {
+    Write-Warning "SDK retention script was not found: $retentionScript"
+}
+
 Write-Host ""
 Write-Host "KarpikEngine SDK update completed."
 Write-Host "SDK version: $SdkVersion"
