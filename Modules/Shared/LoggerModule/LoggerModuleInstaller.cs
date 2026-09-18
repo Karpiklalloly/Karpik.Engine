@@ -15,6 +15,13 @@ public class LoggerModuleInstaller : IModuleInstaller
             {
                 logging.ClearProviders();
                 logging.AddSimpleConsole();
+                if (string.Equals(
+                        Environment.GetEnvironmentVariable("KARPIK_EDITOR_LOG_CAPTURE"),
+                        "1",
+                        StringComparison.Ordinal))
+                {
+                    logging.AddEditorConsole();
+                }
                 logging.SetMinimumLevel(LogLevel.Debug);
             }))
             .As<ILoggerFactory>()

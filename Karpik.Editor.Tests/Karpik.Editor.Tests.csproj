@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Editor\Karpik.Editor.csproj" />
+    <ProjectReference Include="..\Modules\Shared\LoggerModule\LoggerModule.csproj" />
   </ItemGroup>
 </Project>

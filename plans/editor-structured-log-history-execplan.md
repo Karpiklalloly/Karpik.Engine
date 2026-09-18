@@ -33,7 +33,7 @@ The Editor console displays a single row per `ILogger` call. Changing either sel
 
 - [ ] (2026-09-18) Initial plan created.
 - [x] (2026-09-18) Protocol and editor-worker environment flag tested: `EditorConsoleLogProtocolTests` 2/2 and `RuntimeLaunchOptionsTests` 24/24.
-- [ ] Opt-in logger provider tested.
+- [x] (2026-09-18) Opt-in logger provider tested: `EditorConsoleLoggerTests` 2/2.
 - [ ] Editor history and archive tested.
 - [ ] Console UI binding tested and validated.
 
