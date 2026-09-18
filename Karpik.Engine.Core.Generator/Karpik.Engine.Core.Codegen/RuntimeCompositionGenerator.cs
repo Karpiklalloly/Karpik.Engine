@@ -131,8 +131,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             static (node, _) => IsComponentLikeDeclaration(node),
             static (ctx, _) => AnalyzeComponentCandidate(ctx));
 
-        var referenced = context.CompilationProvider.Select(static (compilation, _) =>
-            ReferencedScan.Scan(compilation));
+        var referenced = context.CompilationProvider.Combine(properties).Select(static (state, _) =>
+            ReferencedScan.Scan(state.Left, state.Right.Side));
 
         var own = ownInstallers
             .Collect()
@@ -500,9 +500,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private sealed class ReferencedScan
     {
-        internal static ReferencedModels Scan(Compilation compilation)
+        internal static ReferencedModels Scan(Compilation compilation, string side)
         {
-            var identityParts = new List<string>();
+            var identityParts = new List<string> { "side:", side };
             foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
                 identityParts.Add(reference.Identity.GetDisplayName());
@@ -520,7 +520,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             {
                 if (!ReferencedCache.TryGetValue(key, out ReferencedModels cached))
                 {
-                    cached = ScanCore(compilation);
+                    cached = ScanCore(compilation, side);
                     ReferencedCache[key] = cached;
                     ReferencedCacheInsertionOrder.Add(key);
                     while (ReferencedCache.Count > MaxReferencedCacheEntries
@@ -647,7 +647,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         }
         #pragma warning restore RS1035
 
-        private static ReferencedModels ScanCore(Compilation compilation)
+        private static ReferencedModels ScanCore(Compilation compilation, string side)
         {
             INamedTypeSymbol? installerInterface = compilation.GetTypeByMetadataName(InstallerInterfaceName);
             INamedTypeSymbol? moduleAttribute = compilation.GetTypeByMetadataName(ModuleAttributeName);
@@ -663,7 +663,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             var systems = ImmutableArray.CreateBuilder<SystemModel>();
             var components = ImmutableArray.CreateBuilder<ComponentRootModel>();
 
-            foreach (IAssemblySymbol assembly in EnumerateReferencedAssemblies(compilation, installerInterface))
+            foreach (IAssemblySymbol assembly in EnumerateReferencedAssemblies(compilation, installerInterface, side))
             {
                 string assemblyDisplayName = assembly.Identity.GetDisplayName();
                 foreach (INamedTypeSymbol type in GetTopLevelTypes(assembly.GlobalNamespace))
@@ -727,17 +727,43 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         private static IEnumerable<IAssemblySymbol> EnumerateReferencedAssemblies(
             Compilation compilation,
-            INamedTypeSymbol? installerInterface)
+            INamedTypeSymbol? installerInterface,
+            string side)
         {
             foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
-                if (installerInterface is null
+                if (IsCompatibleWithSide(reference, side)
+                    && (installerInterface is null
                     || reference.Identity.Equals(installerInterface.ContainingAssembly.Identity)
-                    || ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity))
+                    || ReferencesAssembly(reference, installerInterface.ContainingAssembly.Identity)))
                 {
                     yield return reference;
                 }
             }
+        }
+
+        private static bool IsCompatibleWithSide(IAssemblySymbol assembly, string side)
+        {
+            if (side is not ("Client" or "Server"))
+            {
+                return true;
+            }
+
+            foreach (AttributeData attribute in assembly.GetAttributes())
+            {
+                if (attribute.AttributeClass?.ToDisplayString() != "System.Reflection.AssemblyMetadataAttribute"
+                    || attribute.ConstructorArguments.Length != 2
+                    || attribute.ConstructorArguments[0].Value is not string { } key
+                    || key != "KarpikSide"
+                    || attribute.ConstructorArguments[1].Value is not string { } assemblySide)
+                {
+                    continue;
+                }
+
+                return assemblySide == "Shared" || assemblySide == side;
+            }
+
+            return true;
         }
 
         private static bool ReferencesAssembly(IAssemblySymbol assembly, AssemblyIdentity target)

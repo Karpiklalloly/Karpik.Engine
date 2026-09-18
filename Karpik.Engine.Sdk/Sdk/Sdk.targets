@@ -33,6 +33,14 @@
     <KarpikContentManifest Condition="'$(KarpikContentManifest)' == ''">$([System.IO.Path]::GetFullPath('$(KarpikContentOutput)\manifest.json'))</KarpikContentManifest>
   </PropertyGroup>
 
+  <Target Name="_KarpikEmitSideAssemblyMetadata"
+          BeforeTargets="GenerateAssemblyInfo"
+          Condition="'$(KarpikSide)' != ''">
+    <ItemGroup>
+      <AssemblyMetadata Include="KarpikSide" Value="$(KarpikSide)" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
     <CompilerVisibleProperty Include="KarpikContentManifest" />
     <CompilerVisibleProperty Include="KarpikContentNamespace" />

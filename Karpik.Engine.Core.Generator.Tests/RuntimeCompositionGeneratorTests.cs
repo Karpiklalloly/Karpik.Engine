@@ -192,6 +192,34 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_ServerStatic_ExcludesClientSideReferencedInstaller()
+    {
+        var clientModule = GeneratorTestHarness.CompileModuleAssembly("ClientOnlyModule", """
+            [assembly: System.Reflection.AssemblyMetadata("KarpikSide", "Client")]
+
+            namespace ClientOnly;
+
+            [Karpik.Engine.Core.Module(Karpik.Engine.Core.ModuleScope.Engine)]
+            public sealed class ClientInstaller : Karpik.Engine.Core.IModuleInstaller
+            {
+                public string Name => "ClientOnly";
+            }
+            """);
+
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            side: "Server",
+            additionalReferences:
+            [
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+                clientModule,
+            ]);
+
+        result.AssertNoErrors();
+        Assert.DoesNotContain("ClientOnly.ClientInstaller", result.CompositionSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_Static_DiscoversExportedServiceFromEngineCore()
     {
         var result = GeneratorTestHarness.Run(

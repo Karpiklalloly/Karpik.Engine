@@ -34,6 +34,18 @@ public sealed class CompositionModeBehaviorTests
         Assert.Contains("KarpikCompositionMode must be exactly 'Dynamic' or 'Static'", result.Output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SdkConsumerEmitsSideAssemblyMetadata()
+    {
+        using var fixture = new CompositionModeFixture(null);
+
+        BuildResult result = await fixture.CaptureSideMetadataAsync();
+
+        Assert.True(result.Succeeded, result.Output);
+        string metadata = File.ReadAllText(fixture.SideMetadataPath);
+        Assert.Contains("KarpikSide=Server", metadata, StringComparison.Ordinal);
+    }
+
     private sealed class CompositionModeFixture : IDisposable
     {
         private readonly string _rootPath;
@@ -62,6 +74,11 @@ public sealed class CompositionModeBehaviorTests
                     <DesignTimeBuild>true</DesignTimeBuild>
                 {{modeProperty}}  </PropertyGroup>
                   <Import Project="{{SecurityElement.Escape(targetsPath)}}" />
+                  <Target Name="CaptureKarpikSideMetadata" DependsOnTargets="_KarpikEmitSideAssemblyMetadata">
+                    <WriteLinesToFile File="$(BaseIntermediateOutputPath)KarpikSideMetadata.txt"
+                                      Lines="@(AssemblyMetadata->'%(Identity)=%(Value)')"
+                                      Overwrite="true" />
+                  </Target>
                 </Project>
                 """);
             File.WriteAllText(Path.Combine(_rootPath, "Program.cs"), "public static class Program { public static void Main() { } }");
@@ -76,9 +93,24 @@ public sealed class CompositionModeBehaviorTests
             "net10.0",
             "CompositionFixture.GeneratedMSBuildEditorConfig.editorconfig");
 
+        public string SideMetadataPath => Path.Combine(
+            _rootPath,
+            "obj",
+            "KarpikSideMetadata.txt");
+
         public async Task<BuildResult> BuildAsync()
         {
-            var startInfo = new ProcessStartInfo("dotnet", $"build \"{ProjectPath}\" -m:1 -nr:false")
+            return await RunAsync($"build \"{ProjectPath}\" -m:1 -nr:false");
+        }
+
+        public async Task<BuildResult> CaptureSideMetadataAsync()
+        {
+            return await RunAsync($"msbuild \"{ProjectPath}\" /t:CaptureKarpikSideMetadata -m:1 -nr:false");
+        }
+
+        private async Task<BuildResult> RunAsync(string arguments)
+        {
+            var startInfo = new ProcessStartInfo("dotnet", arguments)
             {
                 WorkingDirectory = _rootPath,
                 RedirectStandardOutput = true,
