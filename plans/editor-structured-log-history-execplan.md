@@ -34,8 +34,8 @@ The Editor console displays a single row per `ILogger` call. Changing either sel
 - [ ] (2026-09-18) Initial plan created.
 - [x] (2026-09-18) Protocol and editor-worker environment flag tested: `EditorConsoleLogProtocolTests` 2/2 and `RuntimeLaunchOptionsTests` 24/24.
 - [x] (2026-09-18) Opt-in logger provider tested: `EditorConsoleLoggerTests` 2/2.
-- [ ] Editor history and archive tested.
-- [ ] Console UI binding tested and validated.
+- [x] (2026-09-18) Editor history and archive tested: `EditorConsoleHistoryTests` 2/2.
+- [x] (2026-09-18) Console UI binding compiled and validated: full Editor tests 115 passed, 8 skipped; `Karpik.Editor` build succeeded with 0 warnings and 0 errors.
 
 ## Surprises & Discoveries
 
@@ -57,7 +57,7 @@ The Editor console displays a single row per `ILogger` call. Changing either sel
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update after validation.
+The Editor now accepts only marked `ILogger` records from preview workers. Its active in-memory history can be filtered by level and session without losing records, while the archive writer preserves accepted records as JSONL on disk. Full Editor validation completed successfully.
 
 ## Context and Orientation
 

@@ -407,26 +407,123 @@ public sealed class InspectorViewModel : ReactiveObject
 
 public sealed class ConsoleViewModel : ReactiveObject
 {
+    public const string AllSessions = "Все сессии";
+    private readonly Queue<EditorConsoleLogEntry> _allEntries = new(2_000);
+    private int _minimumLevel = 1;
+    private string _selectedLevel = "Debug";
+    private string _selectedSession = AllSessions;
+
     public string Title => "Консоль";
     public ObservableCollection<string> Entries { get; } = [];
+    public IReadOnlyList<EditorConsoleLogEntry> AllEntries => _allEntries.ToArray();
+    public ObservableCollection<string> Sessions { get; } = [AllSessions];
+    public IReadOnlyList<string> Levels { get; } = ["Debug", "Info", "Warn", "Error", "Critical"];
     public ReactiveCommand<Unit, Unit> ClearCommand { get; }
+
+    public int MinimumLevel
+    {
+        get => _minimumLevel;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _minimumLevel, value);
+            RefreshEntries();
+        }
+    }
+
+    public string SelectedSession
+    {
+        get => _selectedSession;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedSession, value);
+            RefreshEntries();
+        }
+    }
+
+    public string SelectedLevel
+    {
+        get => _selectedLevel;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedLevel, value);
+            MinimumLevel = value switch
+            {
+                "Debug" => 1,
+                "Info" => 2,
+                "Warn" => 3,
+                "Error" => 4,
+                "Critical" => 5,
+                _ => 1
+            };
+        }
+    }
 
     public ConsoleViewModel()
     {
         ClearCommand = ReactiveCommand.Create(Clear);
     }
 
-    public void Add(string line)
+    public void RegisterSession(string session)
     {
-        if (Entries.Count == 2_000)
+        ArgumentException.ThrowIfNullOrWhiteSpace(session);
+        if (!Sessions.Contains(session))
         {
-            Entries.RemoveAt(0);
+            Sessions.Add(session);
         }
-
-        Entries.Add(line);
     }
 
-    public void Clear() => Entries.Clear();
+    public void Add(EditorConsoleLogEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        RegisterSession(entry.Session);
+        if (_allEntries.Count == 2_000)
+        {
+            _allEntries.Dequeue();
+        }
+
+        _allEntries.Enqueue(entry);
+        if (Matches(entry))
+        {
+            Entries.Add(Format(entry));
+        }
+    }
+
+    public void Add(string line)
+    {
+    }
+
+    public void Clear()
+    {
+        _allEntries.Clear();
+        Entries.Clear();
+    }
+
+    private void RefreshEntries()
+    {
+        Entries.Clear();
+        foreach (EditorConsoleLogEntry entry in _allEntries.Where(Matches))
+        {
+            Entries.Add(Format(entry));
+        }
+    }
+
+    private bool Matches(EditorConsoleLogEntry entry) =>
+        entry.Level >= MinimumLevel
+        && (SelectedSession == AllSessions || entry.Session == SelectedSession);
+
+    private static string Format(EditorConsoleLogEntry entry) =>
+        $"[{entry.Session}] [{LevelName(entry.Level)}] {entry.Message.ReplaceLineEndings(" ↵ ")}";
+
+    private static string LevelName(int level) => level switch
+    {
+        0 => "Trace",
+        1 => "Debug",
+        2 => "Info",
+        3 => "Warn",
+        4 => "Error",
+        5 => "Critical",
+        _ => level.ToString()
+    };
 }
 
 public sealed class PreviewViewModel : ReactiveObject
@@ -537,6 +634,7 @@ public sealed class SessionsViewModel : ReactiveObject
 public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveProjectPublisher
 {
     private readonly WorkspaceStore _workspaceStore;
+    private readonly EditorLogArchive _logArchive = new();
     private EditorSessionManager? _sessionManager;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _pendingOutputGate = new();
@@ -1234,6 +1332,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             return;
         }
         Sessions.Items.Add(new SessionItemViewModel(session, StopSessionAsync, RestartSessionAsync));
+        Console.RegisterSession(session.Name);
         RefreshSessions();
     });
 
@@ -1281,10 +1380,21 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         EditorSession session,
         string line)
     {
-        if (IsCurrentBinding(binding))
+        if (!IsCurrentBinding(binding)
+            || !EditorConsoleLogProtocol.TryParse(line, out EditorConsoleLogEvent? output))
         {
-            EnqueueOutput($"[{session.Name}] {line}");
+            return;
         }
+
+        var entry = new EditorConsoleLogEntry(output!.Timestamp, session.Name, output.Level, output.Message);
+        _logArchive.Append(entry);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (IsCurrentBinding(binding))
+            {
+                Console.Add(entry);
+            }
+        });
     }
 
     private void OnBackgroundOperationFailed(
@@ -1423,6 +1533,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         EditorSessionManager? sessionManager = _sessionManager;
         DetachSessionManager();
         sessionManager?.Dispose();
+        _logArchive.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _lifetime.Dispose();
     }
 }
