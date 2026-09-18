@@ -88,6 +88,29 @@ public sealed class EnginePayloadBuilderTests
     }
 
     [Fact]
+    public void BuilderPreservesSharedStoreWhenRepackagingLayoutVersionThreePayload()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        File.WriteAllText(Path.Combine(source, "modules", "Module", "Dep.dll"), "shared-dependency");
+
+        EnginePayloadBuildResult first = new EnginePayloadBuilder().Build(
+            source,
+            Path.Combine(temporary.RootPath, "first"),
+            "0.6.0",
+            "0.6.0-sdk");
+        EnginePayloadBuildResult repackaged = new EnginePayloadBuilder().Build(
+            first.DestinationDirectory,
+            Path.Combine(temporary.RootPath, "repackaged"),
+            "0.6.0",
+            "0.6.0-sdk");
+
+        Assert.Equal(
+            "shared-dependency",
+            File.ReadAllText(Path.Combine(repackaged.DestinationDirectory, "shared", "Dep.dll")));
+    }
+
+    [Fact]
     public void BuilderRejectsByteConflictingSharedModuleDependencies()
     {
         using var temporary = new PackagerTemporaryDirectory();

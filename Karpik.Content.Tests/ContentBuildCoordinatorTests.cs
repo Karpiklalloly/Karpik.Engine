@@ -7,6 +7,23 @@ namespace Karpik.Content.Tests;
 public sealed class ContentBuildCoordinatorTests
 {
     [Fact]
+    public void Build_UnchangedInputs_DoesNotRunProcessorAgain()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string output = tmp.CreateSubdirectory("output");
+        TestFixtures.CreateSourceFile(source, "a.json", "{}", logicalName: "game/a", declaredType: "counting");
+
+        var processor = new CountingProcessor();
+        var coordinator = new ContentBuildCoordinator([processor]);
+        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = "game", Target = AssetTarget.Client };
+
+        Assert.True(coordinator.Build(options).Success);
+        Assert.True(coordinator.Build(options).Success);
+        Assert.Equal(1, processor.CallCount);
+    }
+
+    [Fact]
     public void Build_ValidTree_CreatesManifestAndArtifacts()
     {
         using var tmp = new TemporaryDirectory();
@@ -460,5 +477,18 @@ public sealed class ContentBuildCoordinatorTests
         byte[] clientCooked = File.ReadAllBytes(Path.Combine(clientOut, clientEntry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar)));
         byte[] serverCooked = File.ReadAllBytes(Path.Combine(serverOut, serverEntry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar)));
         Assert.Equal(clientCooked, serverCooked);
+    }
+
+    private sealed class CountingProcessor : IContentProcessor
+    {
+        public int CallCount { get; private set; }
+        public string DeclaredType => "counting";
+        public string Version => "1";
+
+        public ContentProcessorResult Process(ReadOnlySpan<byte> sourceBytes, AssetMeta meta, string relativePath, ContentProcessorContext context)
+        {
+            CallCount++;
+            return new ContentProcessorResult(sourceBytes.ToArray(), [], []);
+        }
     }
 }

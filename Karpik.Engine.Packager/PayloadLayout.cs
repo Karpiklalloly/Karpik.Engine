@@ -81,6 +81,12 @@ public static class PayloadLayout
             string relative = relativeDirectory.Replace('/', Path.DirectorySeparatorChar);
             CopyDirectory(Path.Combine(sourceRoot, relative), Path.Combine(stagingRoot, relative), IsStagedPayloadFile);
         }
+
+        string sharedSource = Path.Combine(sourceRoot, SharedDirectory);
+        if (Directory.Exists(sharedSource))
+        {
+            CopyDirectory(sharedSource, Path.Combine(stagingRoot, SharedDirectory), IsStagedPayloadFile);
+        }
     }
 
     /// <summary>Определяет, должен ли файл попасть в публикуемый payload (символы отладки не поставляются).</summary>

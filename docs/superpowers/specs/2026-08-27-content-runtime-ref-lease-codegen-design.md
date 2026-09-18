@@ -1,9 +1,11 @@
 # Content Runtime: Slot Registry + AssetRef/Lease + Codegen (B slice)
 
 > Date: 2026-08-27
-> Status: draft (pending user review)
+> Status: superseded by the current runtime-registry integration.
 > Branch: content-pipeline
 > Related: `docs/02_ADR/content-pipeline-build-contract.md` (accepted), `docs/04_Roadmap/kanban-content-pipeline-approach-2.md` (Runtime registry), `plans/content-pipeline-foundation-execplan.md` (done), `Karpik.Content.Core/*`
+
+> Current startup contract: [Content runtime registry and filesystem integration](2026-09-16-content-runtime-registry-and-filesystem-design.md).
 
 ## 1. Purpose
 

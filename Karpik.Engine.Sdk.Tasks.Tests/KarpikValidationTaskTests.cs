@@ -9,6 +9,18 @@ using Xunit;
 public sealed class KarpikValidationTaskTests
 {
     [Fact]
+    public void SdkBuildsPayloadProjectsOnlyWhenPacking()
+    {
+        var sdkProject = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Karpik.Engine.Sdk.csproj"));
+
+        Assert.DoesNotContain(sdkProject.Descendants("ProjectReference"), element => element.Attribute("Include") is not null);
+        XElement preparePayload = sdkProject.Root!.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "PrepareKarpikSdkPackage");
+        Assert.Equal("_GetPackageFiles", (string?)preparePayload.Attribute("BeforeTargets"));
+        Assert.NotEmpty(preparePayload.Elements("MSBuild"));
+    }
+
+    [Fact]
     public void SdkWiresCoreCodegenAnalyzerIntoExternalProjects()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
@@ -155,6 +167,17 @@ public sealed class KarpikValidationTaskTests
         var evaluatedElements = targets.Root.Elements().ToList();
         Assert.True(evaluatedElements.IndexOf(targets.Root.Element("Import")!)
                     < evaluatedElements.IndexOf(bundlePath.Parent!));
+    }
+
+    [Fact]
+    public void SdkDoesNotStageContentInputFingerprint()
+    {
+        var props = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.props"));
+        XElement copyTarget = props.Root!.Elements("Target")
+            .Single(target => (string?)target.Attribute("Name") == "KarpikContentCopyToRuntimeOutput");
+
+        Assert.Contains(copyTarget.Descendants("_KarpikCookedContent"), item =>
+            (string?)item.Attribute("Remove") == @"$(KarpikContentOutput)\.karpik-content-inputs.v1");
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Karpik.Editor;
+using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.ReactiveUI.Controls;
 using ReactiveUI.Builder;
@@ -89,6 +90,36 @@ public sealed class EditorWorkspaceTests
             var restoredDock = Assert.IsType<ToolDock>(Assert.Single(restored.VisibleDockables!));
             Assert.Equal(321, restoredDock.Proportion);
             Assert.Equal("hierarchy", Assert.Single(restoredDock.VisibleDockables!).Id);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void DockLayoutStore_SavesInitializedDockTree()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        string path = Path.Combine(directory, "layout.json");
+        try
+        {
+            using var shell = new EditorShellViewModel(
+                new WorkspaceStore(Path.Combine(directory, "workspace.json")));
+            var factory = new EditorDockFactory(shell, new EditorWorkspace());
+            IRootDock layout = factory.CreateLayout();
+            factory.InitLayout(layout);
+            var store = new DockLayoutStore(path);
+
+            store.Save(layout);
+
+            Assert.NotNull(store.Load());
         }
         finally
         {

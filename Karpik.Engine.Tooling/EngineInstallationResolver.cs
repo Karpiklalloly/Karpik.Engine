@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Karpik.Engine.Tooling;
 
 /// <summary>Описывает исход поиска совместимой установки KarpikEngine.</summary>
@@ -38,16 +40,19 @@ public sealed record InstalledEngineInstallation(string InstallationRoot, Engine
 public sealed class EngineInstallationResolver
 {
     private readonly EngineInstallationValidator _validator;
+    private readonly EngineInstallationValidationCache _validationCache;
     private readonly string _localApplicationDataRoot;
 
     /// <summary>Создаёт resolver с валидатором и корнем local application data.</summary>
     public EngineInstallationResolver(
         EngineInstallationValidator? validator = null,
-        string? localApplicationDataRoot = null)
+        string? localApplicationDataRoot = null,
+        EngineInstallationValidationCache? validationCache = null)
     {
         _validator = validator ?? new EngineInstallationValidator();
         _localApplicationDataRoot = Path.GetFullPath(localApplicationDataRoot ??
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        _validationCache = validationCache ?? new EngineInstallationValidationCache();
     }
 
     public IReadOnlyList<InstalledEngineInstallation> ListInstalled()
@@ -59,7 +64,7 @@ public sealed class EngineInstallationResolver
         }
 
         return Directory.EnumerateDirectories(store, "*", SearchOption.TopDirectoryOnly)
-            .Select(path => (Path: Path.GetFullPath(path), Validation: _validator.Validate(path)))
+            .Select(path => (Path: Path.GetFullPath(path), Validation: ValidateCached(path)))
             .Where(item => item.Validation.IsValid && item.Validation.Manifest is not null)
             .Select(item => new InstalledEngineInstallation(item.Path, item.Validation.Manifest!))
             .OrderByDescending(item => item, Comparer<InstalledEngineInstallation>.Create(CompareInstallations))
@@ -93,7 +98,7 @@ public sealed class EngineInstallationResolver
                 return Failure(EngineInstallationResolutionCode.InvalidExplicitRoot, $"Invalid KarpikEngineRoot: {exception.Message}");
             }
 
-            EngineInstallationValidationResult validation = _validator.Validate(explicitRoot, requestedSdkVersion);
+            EngineInstallationValidationResult validation = ValidateCached(explicitRoot, requestedSdkVersion);
             if (!validation.IsValid)
             {
                 return Failure(EngineInstallationResolutionCode.InvalidInstallation, $"KarpikEngineRoot is not a valid installation: {validation.Message}");
@@ -116,15 +121,17 @@ public sealed class EngineInstallationResolver
         foreach (string directory in Directory.EnumerateDirectories(store, "*", SearchOption.TopDirectoryOnly)
                      .Order(StringComparer.Ordinal))
         {
-            EngineInstallationValidationResult validation = _validator.Validate(directory);
-            if (validation.Manifest is null ||
-                !string.Equals(validation.Manifest.MsBuildSdkVersion, requestedSdkVersion, StringComparison.Ordinal))
+            EngineInstallationManifest? manifest = TryReadManifest(directory);
+            if (manifest is null ||
+                !string.Equals(manifest.MsBuildSdkVersion, requestedSdkVersion, StringComparison.Ordinal))
             {
                 continue;
             }
+
+            EngineInstallationValidationResult validation = ValidateCached(directory);
             if (validation.IsValid)
             {
-                matches.Add((Path.GetFullPath(directory), validation.Manifest));
+                matches.Add((Path.GetFullPath(directory), validation.Manifest!));
             }
             else
             {
@@ -184,4 +191,53 @@ public sealed class EngineInstallationResolver
     /// <summary>Создаёт неуспешный результат разрешения.</summary>
     private static EngineInstallationResolutionResult Failure(EngineInstallationResolutionCode code, string message) =>
         new(false, code, message);
+
+    private static EngineInstallationManifest? TryReadManifest(string installationRoot)
+    {
+        try
+        {
+            return EngineInstallationManifest.Parse(File.ReadAllText(
+                Path.Combine(installationRoot, "engine-installation.json")));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ManifestContractException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private EngineInstallationValidationResult ValidateCached(string installationRoot, string? expectedSdkVersion = null)
+    {
+        if (_validationCache.TryGetCurrent(installationRoot, out EngineInstallationManifest? manifest))
+        {
+            if (expectedSdkVersion is not null && !string.Equals(manifest!.MsBuildSdkVersion, expectedSdkVersion, StringComparison.Ordinal))
+            {
+                return new EngineInstallationValidationResult(
+                    false,
+                    EngineInstallationValidationCode.WrongSdkVersion,
+                    $"Expected MSBuild SDK version '{expectedSdkVersion}', found '{manifest.MsBuildSdkVersion}'.",
+                    manifest);
+            }
+
+            return new EngineInstallationValidationResult(
+                true,
+                EngineInstallationValidationCode.Valid,
+                "Engine installation is valid.",
+                manifest);
+        }
+
+        EngineInstallationValidationResult validation = _validator.Validate(installationRoot, expectedSdkVersion);
+        if (validation.IsValid && validation.Manifest is not null)
+        {
+            try
+            {
+                _validationCache.Record(installationRoot, validation.Manifest);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException)
+            {
+                // A missing cache only costs a future full validation; it must not block a valid build.
+            }
+        }
+
+        return validation;
+    }
 }

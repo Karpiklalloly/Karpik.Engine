@@ -214,6 +214,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         List<string> aotComponentTemplateRoots = ownComponents
             .Concat(referenced.Components)
+            .Where(static component => component.RootExpression.Length > 0)
             .Select(static component => component.RootExpression)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(static root => root, StringComparer.Ordinal)
@@ -1234,7 +1235,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     /// </summary>
     private static string? CollectComponentRoot(INamedTypeSymbol type, Compilation compilation)
     {
-        if (!type.IsValueType || type.IsStatic)
+        if (!type.IsValueType || type.IsStatic || type.IsGenericType)
         {
             return null;
         }

@@ -60,7 +60,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            _viewModel.Console.Add($"Не удалось восстановить раскладку: {ex.Message}");
+            _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
             layout = _dockFactory.CreateLayout();
         }
 
@@ -109,7 +109,7 @@ public sealed partial class MainWindow : Window
             }
             if (!result.IsSuccess)
             {
-                _viewModel.Console.Add(string.Join(Environment.NewLine, result.Diagnostics));
+                _viewModel.ReportEditorMessage(string.Join(Environment.NewLine, result.Diagnostics), level: 4);
             }
             return true;
         }
@@ -117,7 +117,7 @@ public sealed partial class MainWindow : Window
                                           or IOException
                                           or UnauthorizedAccessException)
         {
-            _viewModel.Console.Add($"Не удалось открыть проект: {exception.Message}");
+            _viewModel.ReportEditorMessage($"Не удалось открыть проект: {exception.Message}", level: 4);
             return true;
         }
     }
@@ -197,7 +197,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                _viewModel.Console.Add($"Не удалось сохранить раскладку: {ex.Message}");
+                _viewModel.ReportEditorMessage($"Не удалось сохранить раскладку: {ex.Message}", level: 4);
             }
         }
         try
@@ -207,7 +207,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            _viewModel.Console.Add($"Не удалось безопасно закрыть проект: {exception.Message}");
+            _viewModel.ReportEditorMessage($"Не удалось безопасно закрыть проект: {exception.Message}", level: 4);
             return;
         }
         _closeConfirmed = true;

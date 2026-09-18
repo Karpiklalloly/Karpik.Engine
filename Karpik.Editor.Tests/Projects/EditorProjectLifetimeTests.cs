@@ -8,6 +8,31 @@ namespace Karpik.Editor.Tests.Projects;
 public sealed class EditorProjectLifetimeTests
 {
     [Fact]
+    public async Task BuildAsync_UsesDefaultMsBuildParallelism()
+    {
+        string root = CreateRoot();
+        try
+        {
+            string solutionPath = Path.Combine(root, "Game.slnx");
+            var processes = new RecordingProcessFactory();
+            await using var lifetime = new EditorProjectLifetime(
+                new WorkspaceStore(Path.Combine(root, "workspace.json")),
+                new KarpikSolutionModel(solutionPath, "0.6.0-test", []),
+                CreateRuntime(root),
+                processes);
+
+            await lifetime.BuildAsync(static _ => { }, TestContext.Current.CancellationToken);
+
+            ProcessStartInfo startInfo = Assert.Single(processes.StartInfos);
+            Assert.Equal(["build", solutionPath, "-nr:false"], startInfo.ArgumentList);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task PublishAsync_UsesValidatedRuntimeProjectPathsWithoutNamingConventions()
     {
         string root = CreateRoot();
@@ -35,10 +60,10 @@ public sealed class EditorProjectLifetimeTests
             Assert.Collection(
                 processes.StartInfos,
                 item => Assert.Equal(
-                    ["publish", clientPath, "-m:1", "-nr:false"],
+                    ["publish", clientPath, "-nr:false"],
                     item.ArgumentList),
                 item => Assert.Equal(
-                    ["publish", serverPath, "-m:1", "-nr:false"],
+                    ["publish", serverPath, "-nr:false"],
                     item.ArgumentList));
         }
         finally

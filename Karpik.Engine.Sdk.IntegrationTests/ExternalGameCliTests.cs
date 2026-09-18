@@ -76,6 +76,25 @@ public sealed class ExternalGameCliTests
     }
 
     [Fact]
+    public void Static_tool_projects_reference_content_contracts_without_enabling_content_pipeline()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        XDocument sdkProps = XDocument.Load(Path.Combine(
+            repositoryRoot, "Karpik.Engine.Sdk", "Sdk", "Sdk.props"));
+
+        XElement group = Assert.Single(sdkProps.Root!.Elements("ItemGroup"), item =>
+            ((string?)item.Attribute("Condition"))?.Contains("KarpikProjectKind", StringComparison.Ordinal) == true
+            && ((string?)item.Attribute("Condition"))?.Contains("KarpikCompositionMode", StringComparison.Ordinal) == true);
+
+        Assert.Contains(group.Elements("Reference"), item =>
+            (string?)item.Attribute("Include") == "Karpik.Content.Runtime");
+        Assert.Contains(group.Elements("Reference"), item =>
+            (string?)item.Attribute("Include") == "Karpik.Content.Core");
+        Assert.Empty(group.Elements("Analyzer"));
+        Assert.Empty(group.Elements("AdditionalFiles"));
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     public async Task Packaged_sdk_compiles_generated_content_refs()
     {

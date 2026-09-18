@@ -34,7 +34,7 @@ public sealed class EditorProjectLifetime : IEditorProjectLifetime
     public Task BuildAsync(Action<string> output, CancellationToken cancellationToken) =>
         _commands.RunAsync(
             Path.GetDirectoryName(_solution.SolutionPath)!,
-            ["build", _solution.SolutionPath, "-m:1", "-nr:false"],
+            ["build", _solution.SolutionPath, "-nr:false"],
             output,
             cancellationToken);
 
@@ -49,7 +49,7 @@ public sealed class EditorProjectLifetime : IEditorProjectLifetime
         {
             await _commands.RunAsync(
                 Path.GetDirectoryName(project.ProjectPath)!,
-                ["publish", project.ProjectPath, "-m:1", "-nr:false"],
+                ["publish", project.ProjectPath, "-nr:false"],
                 output,
                 cancellationToken);
         }

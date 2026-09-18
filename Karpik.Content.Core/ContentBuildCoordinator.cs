@@ -30,6 +30,8 @@ public sealed class SourceEntry
 
 public sealed class ContentBuildCoordinator
 {
+    private const string InputFingerprintFileName = ".karpik-content-inputs.v1";
+    private const string InputFingerprintVersion = "karpik-content-inputs-v1";
     private readonly IReadOnlyDictionary<string, IContentProcessor> _processors;
 
     public ContentBuildCoordinator(IEnumerable<IContentProcessor>? processors = null)
@@ -96,6 +98,42 @@ public sealed class ContentBuildCoordinator
         {
             diagnostics.Sort(CompareDiagnostics);
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
+
+        string outputRootFull = Path.GetFullPath(options.OutputRoot);
+        string sourceRootForCheck;
+        try
+        {
+            sourceRootForCheck = Path.GetFullPath(options.SourceRoot);
+        }
+        catch (Exception ex)
+        {
+            sourceRootForCheck = options.SourceRoot;
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null, $"Invalid source root for output check: {ex.Message}"));
+            diagnostics.Sort(CompareDiagnostics);
+            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
+
+        string normalizedSource = sourceRootForCheck.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string normalizedOutput = outputRootFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        bool same = string.Equals(normalizedSource, normalizedOutput, PathSafety.PathComparison);
+        bool outputInsideSource = PathSafety.IsContained(sourceRootForCheck, outputRootFull) && !same;
+        bool sourceInsideOutput = PathSafety.IsContained(outputRootFull, sourceRootForCheck) && !same;
+        if (same || outputInsideSource || sourceInsideOutput)
+        {
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
+                null,
+                $"OutputRoot '{outputRootFull}' must not be equal to, contain, or be contained by SourceRoot '{sourceRootForCheck}'."));
+            diagnostics.Sort(CompareDiagnostics);
+            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
+
+        if (TryComputeInputFingerprint(entries, options, out string inputFingerprint) &&
+            TryLoadReusableOutput(outputRootFull, inputFingerprint, out ContentManifest? previousManifest))
+        {
+            diagnostics.Sort(CompareDiagnostics);
+            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = previousManifest };
         }
 
         // Process each source to cooked bytes and artifact hash
@@ -168,37 +206,6 @@ public sealed class ContentBuildCoordinator
 
         diagnostics.Sort(CompareDiagnostics);
 
-        // Validate output vs source have no intersection before any staging
-        string outputRootFull = Path.GetFullPath(options.OutputRoot);
-        string sourceRootForCheck;
-        try
-        {
-            sourceRootForCheck = Path.GetFullPath(options.SourceRoot);
-        }
-        catch (Exception ex)
-        {
-            sourceRootForCheck = options.SourceRoot;
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
-                null, $"Invalid source root for output check: {ex.Message}"));
-            diagnostics.Sort(CompareDiagnostics);
-            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
-        }
-
-        string normalizedSource =
-            sourceRootForCheck.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        string normalizedOutput = outputRootFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        bool same = string.Equals(normalizedSource, normalizedOutput, PathSafety.PathComparison);
-        bool outputInsideSource = PathSafety.IsContained(sourceRootForCheck, outputRootFull) && !same;
-        bool sourceInsideOutput = PathSafety.IsContained(outputRootFull, sourceRootForCheck) && !same;
-        if (same || outputInsideSource || sourceInsideOutput)
-        {
-            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.PathTraversal, ContentDiagnosticSeverity.Error,
-                null,
-                $"OutputRoot '{outputRootFull}' must not be equal to, contain, or be contained by SourceRoot '{sourceRootForCheck}'."));
-            diagnostics.Sort(CompareDiagnostics);
-            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
-        }
-
         // Recover from any interrupted previous publish (crash between artifact moves and manifest swap)
         try
         {
@@ -233,6 +240,7 @@ public sealed class ContentBuildCoordinator
             // Write manifest
             string manifestPath = Path.Combine(stagingDir, "manifest.json");
             manifest.SaveToFile(manifestPath);
+            File.WriteAllText(Path.Combine(stagingDir, InputFingerprintFileName), inputFingerprint + "\n");
 
             // Validate staging: ensure manifest can be parsed and artifacts exist
             ValidateStaging(stagingDir, manifest, diagnostics);
@@ -260,6 +268,80 @@ public sealed class ContentBuildCoordinator
             TryDeleteDirectory(stagingDir);
             diagnostics.Sort(CompareDiagnostics);
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+        }
+    }
+
+    private bool TryComputeInputFingerprint(
+        IReadOnlyList<SourceEntry> entries,
+        ContentBuildOptions options,
+        out string fingerprint)
+    {
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(
+            System.Security.Cryptography.HashAlgorithmName.SHA256);
+        AppendFingerprintPart(hash, InputFingerprintVersion);
+        AppendFingerprintPart(hash, options.Namespace);
+        AppendFingerprintPart(hash, options.Target.ToString());
+        foreach (SourceEntry entry in entries.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal))
+        {
+            if (!_processors.TryGetValue(entry.Meta.DeclaredType, out IContentProcessor? processor))
+            {
+                fingerprint = string.Empty;
+                return false;
+            }
+
+            AppendFingerprintPart(hash, entry.RelativePath);
+            hash.AppendData(entry.SourceBytes);
+            AppendFingerprintPart(hash, entry.Meta.ToCanonicalMetaJson());
+            AppendFingerprintPart(hash, processor.Version);
+        }
+
+        fingerprint = Convert.ToHexString(hash.GetHashAndReset());
+        return true;
+    }
+
+    private static void AppendFingerprintPart(System.Security.Cryptography.IncrementalHash hash, string value)
+    {
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        hash.AppendData(BitConverter.GetBytes(bytes.Length));
+        hash.AppendData(bytes);
+    }
+
+    private static bool TryLoadReusableOutput(string outputRoot, string fingerprint, out ContentManifest? manifest)
+    {
+        manifest = null;
+        try
+        {
+            string fingerprintPath = Path.Combine(outputRoot, InputFingerprintFileName);
+            if (!File.Exists(fingerprintPath) ||
+                !string.Equals(File.ReadAllText(fingerprintPath).Trim(), fingerprint, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            ContentManifest loaded = ContentManifest.LoadFromFile(Path.Combine(outputRoot, "manifest.json"));
+            foreach (ContentManifestEntry entry in loaded.Entries)
+            {
+                string artifactPath = Path.Combine(outputRoot, entry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(artifactPath) || new FileInfo(artifactPath).Length != entry.Size)
+                {
+                    return false;
+                }
+            }
+
+            manifest = loaded;
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (InvalidDataException)
+        {
+            return false;
         }
     }
 

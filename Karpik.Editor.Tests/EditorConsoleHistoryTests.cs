@@ -5,6 +5,36 @@ namespace Karpik.Editor.Tests;
 
 public sealed class EditorConsoleHistoryTests
 {
+    [Theory]
+    [InlineData("Сервер", 2, "▣ ℹ message")]
+    [InlineData("Клиент 2", 3, "● 2 ⚠ message")]
+    [InlineData("Редактор", 4, "✎ ✖ message")]
+    public void Entries_UseIconsForKnownSessionsAndLevels(
+        string session,
+        int level,
+        string expected)
+    {
+        var console = new ConsoleViewModel();
+
+        console.Add(new EditorConsoleLogEntry(DateTimeOffset.UtcNow, session, level, "message"));
+
+        Assert.Equal(expected, Assert.Single(console.Entries));
+    }
+
+    [Fact]
+    public void EditorMessages_AreStoredUnderTheEditorSession()
+    {
+        var console = new ConsoleViewModel();
+
+        console.Add("Сборка завершена успешно");
+
+        EditorConsoleLogEntry entry = Assert.Single(console.AllEntries);
+        Assert.Equal("Редактор", entry.Session);
+        Assert.Equal(2, entry.Level);
+        Assert.Equal("Сборка завершена успешно", entry.Message);
+        Assert.Contains("Редактор", console.Sessions);
+    }
+
     [Fact]
     public void Filters_HideEntriesWithoutRemovingThemFromHistory()
     {

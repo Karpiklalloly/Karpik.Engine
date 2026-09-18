@@ -67,6 +67,39 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void GeneratedStaticComposition_SkipsOpenGenericComponentTemplateRoots()
+    {
+        var references = new[]
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<DCFApixels.DragonECS.IEcsComponent>(),
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.ComponentTemplateBase>(),
+        };
+
+        var result = GeneratorTestHarness.Run(
+            CreateGenerator(),
+            source: """
+                using DCFApixels.DragonECS;
+
+                public struct OpenGenericComponent<T> : IEcsComponent
+                {
+                    public T Value;
+                }
+
+                public struct ConcreteComponent : IEcsComponent { }
+                """,
+            side: "Server",
+            additionalReferences: references);
+
+        result.AssertNoErrors();
+        Assert.Contains(
+            "typeof(global::Karpik.Engine.Shared.ECS.ComponentTemplate<global::ConcreteComponent>)",
+            result.CompositionSource,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("OpenGenericComponent", result.CompositionSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_WithoutBuildProperties_EmitsNoSource()
     {
         var result = GeneratorTestHarness.Run(

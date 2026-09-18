@@ -36,6 +36,20 @@
       <HintPath>$(KarpikContentCoreDll)</HintPath>
     </Reference>
   </ItemGroup>
+
+  <!-- Static launchers compile generated factories for runtime systems. Those
+       factories can mention content contracts from their referenced Runtime
+       projects, but ProjectReference does not propagate the contracts to the
+       host compilation. Keep this as references only: a launcher must not run
+       the content pipeline for its own (nonexistent) Content directory. -->
+  <ItemGroup Condition="'$(KarpikProjectKind)' == 'Tool' and '$(KarpikCompositionMode)' == 'Static'">
+    <Reference Include="Karpik.Content.Runtime">
+      <HintPath>$(KarpikContentRuntimeDll)</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Content.Core">
+      <HintPath>$(KarpikContentCoreDll)</HintPath>
+    </Reference>
+  </ItemGroup>
   
   <!-- Строит manifest контента до компиляции, чтобы генератор видел актуальные входные данные. -->
   <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and ('$(KarpikSide)' == 'Client' or '$(KarpikSide)' == 'Server') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
@@ -48,6 +62,7 @@
           Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and '$(KarpikProjectKind)' == 'Runtime' and ('$(KarpikSide)' == 'Client' or '$(KarpikSide)' == 'Server') and Exists('$(KarpikContentManifest)')">
     <ItemGroup>
       <_KarpikCookedContent Include="$(KarpikContentOutput)\**\*" />
+      <_KarpikCookedContent Remove="$(KarpikContentOutput)\.karpik-content-inputs.v1" />
     </ItemGroup>
     <Copy SourceFiles="@(_KarpikCookedContent)"
           DestinationFiles="@(_KarpikCookedContent-&gt;'$(TargetDir)Content\%(RecursiveDir)%(Filename)%(Extension)')"

@@ -198,31 +198,39 @@ runtime manifest consumers используют cooked данные.
 
 ## 5. Загрузить ассет в runtime
 
-При старте приложения зарегистрируйте manifest и file store. Делайте это при
-инициализации, а не в hot path кадра:
+`IContentRegistry` и `IContentStore` экспортируются как engine-scoped
+singleton-сервисы. При запуске контейнера `ContentRegistry` сам читает
+`Content/manifest.json` через `IFileSystem` и регистрирует metadata всех
+ассетов. Он не читает cooked-артефакты и не десериализует payload на старте.
+
+Получите `IContentRegistry` через конструктор loading/bootstrap-сервиса и
+загрузите нужные ассеты до входа ECS-систем в игровой цикл:
 
 ```csharp
-using Karpik.Content.Core;
 using Karpik.Content.Generated;
 using Karpik.Content.Runtime;
 
-string contentRoot = Path.Combine(AppContext.BaseDirectory, "Content");
-ContentManifest manifest = ContentManifest.LoadFromFile(
-    Path.Combine(contentRoot, "manifest.json"));
+public sealed class GameContentBootstrap(IContentRegistry contentRegistry)
+{
+    public Task LoadAsync(CancellationToken cancellationToken) =>
+        contentRegistry.LoadAsync(ContentRefs.Game_Config_Player, cancellationToken);
+}
+```
 
-var registry = new ContentRegistry();
-registry.RegisterManifest(manifest, new FileContentStore(contentRoot));
+`LoadAsync` выполняет файловый ввод и десериализацию вне lock. После его
+успешного завершения ECS-система получает уже загруженный ассет через
+`TryGet`:
 
-await registry.LoadAsync(ContentRefs.Game_Config_Player);
-if (registry.TryGet(ContentRefs.Game_Config_Player, out AssetLease<PlayerConfig> lease))
+```csharp
+if (contentRegistry.TryGet(ContentRefs.Game_Config_Player, out AssetLease<PlayerConfig> lease))
 {
     int health = lease.Payload.Health;
 }
 ```
 
-`LoadAsync` выполняет файловый ввод и десериализацию вне lock. В игровом
-цикле используйте уже загруженный `AssetRef<T>` через `TryGet`; не вызывайте
-`LoadAsync` из `Update`, ECS `Run` или других hot path.
+Не вызывайте `LoadAsync` из `Update`, ECS `Run` или других hot path. До
+завершения загрузки `TryGet` возвращает `false`; система должна пропустить
+зависимую работу либо дождаться loading-фазы.
 
 ## Текущие ограничения
 

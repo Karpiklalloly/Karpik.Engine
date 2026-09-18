@@ -19,20 +19,13 @@
         <KarpikContentRuntimeOutputPath Condition="'$(KarpikContentRuntimeOutputPath)' == ''">..\Karpik.Content.Runtime\bin\$(Configuration)\net10.0\</KarpikContentRuntimeOutputPath>
     </PropertyGroup>
 
-    <!-- Собирает DLL MSBuild-задач до упаковки SDK, не добавляя её как runtime-зависимость. -->
+    <!-- Payload нужен только пакету SDK; обычный build не должен проходить весь этот граф. -->
     <ItemGroup>
-        <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj"
-                          ReferenceOutputAssembly="false"
-                          PrivateAssets="all" />
-        <ProjectReference Include="..\Karpik.Content.Tool\Karpik.Content.Tool.csproj"
-                          ReferenceOutputAssembly="false"
-                          PrivateAssets="all" />
-        <ProjectReference Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj"
-                          ReferenceOutputAssembly="false"
-                          PrivateAssets="all" />
-        <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj"
-                          ReferenceOutputAssembly="false"
-                          PrivateAssets="all" />
+        <KarpikSdkPayloadProject Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj" />
+        <KarpikSdkPayloadProject Include="..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" />
+        <KarpikSdkPayloadProject Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj" />
+        <KarpikSdkPayloadProject Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
+        <KarpikSdkPayloadProject Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
     </ItemGroup>
 
     <!-- Включает targets, шаблон и готовые DLL в layout NuGet-пакета SDK. -->
@@ -65,10 +58,13 @@
     <!-- Исключает внешние генераторы из неявного графа и добавляет нужный analyzer явно. -->
     <ItemGroup>
         <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
-        <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
-                          ReferenceOutputAssembly="false"
-                          PrivateAssets="all" />
     </ItemGroup>
+
+    <Target Name="PrepareKarpikSdkPackage" BeforeTargets="_GetPackageFiles">
+        <MSBuild Projects="@(KarpikSdkPayloadProject)"
+                 Targets="Build"
+                 Properties="Configuration=$(Configuration)" />
+    </Target>
 
     <Target Name="_KarpikPackageContentPayload" BeforeTargets="_GetPackageFiles">
         <ItemGroup>

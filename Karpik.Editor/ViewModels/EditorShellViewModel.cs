@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Reactive;
 using System.Reactive.Linq;
 using System.Text.Json;
 using Avalonia;
@@ -9,6 +8,7 @@ using Avalonia.Threading;
 using Karpik.Content.Core;
 using Karpik.Engine.Core;
 using ReactiveUI;
+using RxVoid = ReactiveUI.Primitives.RxVoid;
 
 namespace Karpik.Editor;
 
@@ -36,7 +36,7 @@ public sealed class ProjectViewModel : ReactiveObject
     public string Title => "Проект";
     public string Name => _path is null ? "Проект не открыт" : System.IO.Path.GetFileName(_path);
     public ObservableCollection<AssetTreeItemViewModel> Assets { get; } = [];
-    public ReactiveCommand<Unit, Unit> SaveMetaCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SaveMetaCommand { get; }
 
     public AssetTreeItemViewModel? SelectedAsset
     {
@@ -371,7 +371,7 @@ public sealed class InspectorViewModel : ReactiveObject
     private IReadOnlyList<EditorComponentSnapshot> _components = [];
     private AssetMetaEditorViewModel? _selectedMeta;
     private string _metaMessage = "Выберите ассет, чтобы изменить его .meta.";
-    private ReactiveCommand<Unit, Unit>? _saveMetaCommand;
+    private ReactiveCommand<RxVoid, RxVoid>? _saveMetaCommand;
 
     public string Title => "Инспектор";
     public IReadOnlyList<EditorComponentSnapshot> Components
@@ -398,7 +398,7 @@ public sealed class InspectorViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _metaMessage, value);
     }
 
-    public ReactiveCommand<Unit, Unit>? SaveMetaCommand
+    public ReactiveCommand<RxVoid, RxVoid>? SaveMetaCommand
     {
         get => _saveMetaCommand;
         set => this.RaiseAndSetIfChanged(ref _saveMetaCommand, value);
@@ -408,6 +408,7 @@ public sealed class InspectorViewModel : ReactiveObject
 public sealed class ConsoleViewModel : ReactiveObject
 {
     public const string AllSessions = "Все сессии";
+    public const string EditorSession = "Редактор";
     private readonly Queue<EditorConsoleLogEntry> _allEntries = new(2_000);
     private int _minimumLevel = 1;
     private string _selectedLevel = "Debug";
@@ -416,9 +417,9 @@ public sealed class ConsoleViewModel : ReactiveObject
     public string Title => "Консоль";
     public ObservableCollection<string> Entries { get; } = [];
     public IReadOnlyList<EditorConsoleLogEntry> AllEntries => _allEntries.ToArray();
-    public ObservableCollection<string> Sessions { get; } = [AllSessions];
+    public ObservableCollection<string> Sessions { get; } = [AllSessions, EditorSession];
     public IReadOnlyList<string> Levels { get; } = ["Debug", "Info", "Warn", "Error", "Critical"];
-    public ReactiveCommand<Unit, Unit> ClearCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> ClearCommand { get; }
 
     public int MinimumLevel
     {
@@ -490,6 +491,7 @@ public sealed class ConsoleViewModel : ReactiveObject
 
     public void Add(string line)
     {
+        Add(new EditorConsoleLogEntry(DateTimeOffset.UtcNow, EditorSession, Level: 2, line));
     }
 
     public void Clear()
@@ -512,16 +514,24 @@ public sealed class ConsoleViewModel : ReactiveObject
         && (SelectedSession == AllSessions || entry.Session == SelectedSession);
 
     private static string Format(EditorConsoleLogEntry entry) =>
-        $"[{entry.Session}] [{LevelName(entry.Level)}] {entry.Message.ReplaceLineEndings(" ↵ ")}";
+        $"{SessionIcon(entry.Session)} {LevelIcon(entry.Level)} {entry.Message.ReplaceLineEndings(" ↵ ")}";
 
-    private static string LevelName(int level) => level switch
+    private static string SessionIcon(string session) => session switch
     {
-        0 => "Trace",
-        1 => "Debug",
-        2 => "Info",
-        3 => "Warn",
-        4 => "Error",
-        5 => "Critical",
+        "Сервер" => "▣",
+        EditorSession => "✎",
+        _ when session.StartsWith("Клиент ", StringComparison.Ordinal) => $"● {session["Клиент ".Length..]}",
+        _ => session
+    };
+
+    private static string LevelIcon(int level) => level switch
+    {
+        0 => "·",
+        1 => "◌",
+        2 => "ℹ",
+        3 => "⚠",
+        4 => "✖",
+        5 => "‼",
         _ => level.ToString()
     };
 }
@@ -562,8 +572,8 @@ public sealed class SessionItemViewModel : ReactiveObject
         private set => this.RaiseAndSetIfChanged(ref _canRestart, value);
     }
 
-    public ReactiveCommand<Unit, Unit> StopCommand { get; }
-    public ReactiveCommand<Unit, Unit> RestartCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> StopCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> RestartCommand { get; }
 
     internal SessionItemViewModel(
         EditorSession session,
@@ -637,8 +647,6 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private readonly EditorLogArchive _logArchive = new();
     private EditorSessionManager? _sessionManager;
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly object _pendingOutputGate = new();
-    private readonly Queue<string> _pendingOutput = new(2_000);
     private ProjectSwitchCoordinator? _projectCoordinator;
     private SessionCommandBinding? _attachedSessionBinding;
     private Action<EditorSession>? _sessionAddedHandler;
@@ -650,7 +658,6 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private string _status = "Проект не открыт";
     private Task? _snapshotLoop;
     private ProjectGeneration _snapshotGeneration;
-    private bool _outputDrainScheduled;
     private bool _runtimeReady;
     private bool _isProjectOpening;
     private bool _disposed;
@@ -703,12 +710,12 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     public bool CanPublish => ProjectPath is not null;
     public bool CanCheckRuntime => ProjectPath is not null && !_runtimeReady;
 
-    public ReactiveCommand<Unit, Unit> StartServerCommand { get; }
-    public ReactiveCommand<Unit, Unit> AddClientCommand { get; }
-    public ReactiveCommand<Unit, Unit> StopAllCommand { get; }
-    public ReactiveCommand<Unit, Unit> BuildProjectCommand { get; }
-    public ReactiveCommand<Unit, Unit> PublishProjectCommand { get; }
-    public ReactiveCommand<Unit, Unit> CheckRuntimeCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> StartServerCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> AddClientCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> StopAllCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> BuildProjectCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> PublishProjectCommand { get; }
+    public ReactiveCommand<RxVoid, RxVoid> CheckRuntimeCommand { get; }
 
     public EditorShellViewModel(WorkspaceStore workspaceStore)
         : this(workspaceStore, new EditorStartupOptions(null, null))
@@ -814,7 +821,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
                 Status = string.Join(Environment.NewLine, result.Diagnostics);
                 foreach (string diagnostic in result.Diagnostics)
                 {
-                    Console.Add($"[{DateTime.Now:HH:mm:ss}] {diagnostic}");
+                    ReportEditorMessage(diagnostic, level: 4);
                 }
             }
             return result;
@@ -852,7 +859,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         Status = context.IsRuntimeReady
             ? $"Открыт проект: {Path.GetFileName(context.SolutionPath)}"
             : $"Открыт проект: {Path.GetFileName(context.SolutionPath)}. Запуск недоступен: runtime не проверен.";
-        Console.Add($"[{DateTime.Now:HH:mm:ss}] Открыт проект {context.SolutionPath}");
+        ReportEditorMessage($"Открыт проект {context.SolutionPath}");
         RaiseCommandState();
         return Task.CompletedTask;
     }
@@ -1036,13 +1043,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         ProjectGeneration generation = active.Generation;
         try
         {
-            EnqueueOutput($"Начинаю сборку: {Path.GetFileName(active.SolutionPath)}");
             Status = "Сборка...";
             await coordinator.ExecuteCommandAsync(
                 generation,
-                (context, token) => context.BuildAsync(
-                    line => AcceptProjectOutput(generation, line),
-                    token),
+                (context, token) => context.BuildAsync(static _ => { }, token),
                 _lifetime.Token);
             if (!coordinator.TryAcceptOutput(generation))
             {
@@ -1057,7 +1061,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             {
                 return;
             }
-            EnqueueOutput("Сборка отменена");
+            EnqueueOutput("Сборка отменена", level: 3);
             Status = "Отменено";
         }
         catch (Exception ex)
@@ -1066,7 +1070,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             {
                 return;
             }
-            EnqueueOutput($"Ошибка сборки: {ex.Message}");
+            EnqueueOutput($"Ошибка сборки: {ex.Message}", level: 4);
             Status = "Ошибка сборки";
         }
     }
@@ -1086,13 +1090,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         ProjectGeneration generation = active.Generation;
         try
         {
-            EnqueueOutput($"Начинаю публикацию: {Path.GetFileName(active.SolutionPath)}");
             Status = "Публикация...";
             await coordinator.ExecuteCommandAsync(
                 generation,
-                (context, token) => context.PublishAsync(
-                    line => AcceptProjectOutput(generation, line),
-                    token),
+                (context, token) => context.PublishAsync(static _ => { }, token),
                 _lifetime.Token);
             if (!coordinator.TryAcceptOutput(generation))
             {
@@ -1107,7 +1108,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             {
                 return;
             }
-            EnqueueOutput("Публикация отменена");
+            EnqueueOutput("Публикация отменена", level: 3);
             Status = "Отменено";
         }
         catch (Exception ex)
@@ -1116,16 +1117,8 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             {
                 return;
             }
-            EnqueueOutput($"Ошибка публикации: {ex.Message}");
+            EnqueueOutput($"Ошибка публикации: {ex.Message}", level: 4);
             Status = "Ошибка публикации";
-        }
-    }
-
-    private void AcceptProjectOutput(ProjectGeneration generation, string line)
-    {
-        if (_projectCoordinator?.TryAcceptOutput(generation) == true)
-        {
-            EnqueueOutput(line);
         }
     }
 
@@ -1410,25 +1403,21 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private void OnBackgroundOperationFailed(Exception exception) =>
         EnqueueOutput($"Ошибка фоновой операции: {exception.Message}");
 
-    private void EnqueueOutput(string line)
+    internal void ReportEditorMessage(string message, int level = 2) =>
+        EnqueueOutput(message, level);
+
+    private void EnqueueOutput(string message, int level = 2)
     {
-        lock (_pendingOutputGate)
+        var entry = new EditorConsoleLogEntry(DateTimeOffset.UtcNow, ConsoleViewModel.EditorSession, level, message);
+        _logArchive.Append(entry);
+
+        if (Dispatcher.UIThread.CheckAccess())
         {
-            if (_pendingOutput.Count == 2_000)
-            {
-                _pendingOutput.Dequeue();
-            }
-
-            _pendingOutput.Enqueue($"[{DateTime.Now:HH:mm:ss}] {line}");
-            if (_outputDrainScheduled)
-            {
-                return;
-            }
-
-            _outputDrainScheduled = true;
+            Console.Add(entry);
+            return;
         }
 
-        Dispatcher.UIThread.Post(DrainOutput);
+        Dispatcher.UIThread.Post(() => Console.Add(entry));
     }
 
     private void RefreshSessions()
@@ -1451,26 +1440,6 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         Preview.Message = session is null
             ? "Сессия не выбрана."
             : $"Выбрана сессия «{session.Name}». Ожидание ECS snapshot…";
-    }
-
-    private void DrainOutput()
-    {
-        while (true)
-        {
-            string line;
-            lock (_pendingOutputGate)
-            {
-                if (_pendingOutput.Count == 0)
-                {
-                    _outputDrainScheduled = false;
-                    return;
-                }
-
-                line = _pendingOutput.Dequeue();
-            }
-
-            Console.Add(line);
-        }
     }
 
     private void RaiseCommandState()
@@ -1507,10 +1476,15 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             throw;
         }
         _shutdownCompleted = true;
-        Dispose();
+        await DisposeAsyncCore();
     }
 
     public void Dispose()
+    {
+        DisposeAsyncCore().GetAwaiter().GetResult();
+    }
+
+    private async Task DisposeAsyncCore()
     {
         if (_disposed)
         {
@@ -1533,7 +1507,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         EditorSessionManager? sessionManager = _sessionManager;
         DetachSessionManager();
         sessionManager?.Dispose();
-        _logArchive.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        await _logArchive.DisposeAsync();
         _lifetime.Dispose();
     }
 }

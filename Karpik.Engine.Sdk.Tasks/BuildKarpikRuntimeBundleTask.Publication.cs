@@ -32,6 +32,12 @@ public sealed partial class BuildKarpikRuntimeBundleTask
             throw new InvalidDataException($"Refusing to replace unproven directory '{destination}'.");
         }
 
+        string? inputFingerprint = TryComputeInputFingerprint();
+        if (inputFingerprint is not null && IsCurrentPublishedBundle(destination, inputFingerprint))
+        {
+            return;
+        }
+
         string staging = destination + ".staging." + Guid.NewGuid().ToString("N");
         Directory.CreateDirectory(staging);
         File.WriteAllText(Path.Combine(staging, ".karpik-owned-staging"), OwnedStagingMarker);
@@ -78,6 +84,11 @@ public sealed partial class BuildKarpikRuntimeBundleTask
             {
                 Directory.Delete(backup, recursive: true);
             }
+
+            if (inputFingerprint is not null)
+            {
+                File.WriteAllText(GetInputFingerprintPath(destination), inputFingerprint + "\n");
+            }
         }
         finally
         {
@@ -91,6 +102,14 @@ public sealed partial class BuildKarpikRuntimeBundleTask
         return Directory.Exists(path) && (
             IsCompleteBundle(path, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: null)
             || IsCompleteStaticBundle(path, Side, allowOwnershipMarker: false));
+    }
+
+    private bool IsCurrentPublishedBundle(string destination, string inputFingerprint)
+    {
+        bool complete = IsStaticMode
+            ? IsCompleteStaticBundle(destination, Side, allowOwnershipMarker: false)
+            : IsCompleteBundle(destination, Side, allowOwnershipMarker: false, requiredPrimaryAssembly: PrimaryAssembly);
+        return complete && HasExactUtf8File(GetInputFingerprintPath(destination), inputFingerprint + "\n");
     }
 
     /// <summary>Восстанавливает или удаляет подтверждённый backup прерванной публикации.</summary>

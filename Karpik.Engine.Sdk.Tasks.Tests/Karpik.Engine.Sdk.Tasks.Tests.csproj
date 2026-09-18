@@ -38,6 +38,9 @@
         <None Include="..\Karpik.Engine.Sdk\Templates\Directory.Solution.targets"
               Link="Directory.Solution.targets"
               CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj"
+              Link="Karpik.Engine.Sdk.csproj"
+              CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

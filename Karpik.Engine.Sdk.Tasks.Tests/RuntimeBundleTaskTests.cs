@@ -109,6 +109,31 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Fact]
+    public void Execute_UnchangedInputs_ReusesPublishedBundle()
+    {
+        using var tree = new TemporaryTree();
+        string primary = tree.Write("output/Game.Client.dll", "game");
+        string content = tree.Write("assets/content.txt", "content");
+        string bundle = Path.Combine(tree.Root, "karpik-bundle");
+        var fileSystem = new RecordingFileSystem();
+        var task = new BuildKarpikRuntimeBundleTask(fileSystem)
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Client",
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(content, "content.txt")]
+        };
+
+        Assert.True(task.Execute());
+        fileSystem.Reset();
+
+        Assert.True(task.Execute());
+        Assert.Equal(0, fileSystem.MoveCount);
+    }
+
+    [Fact]
     public void Execute_RejectsRelativeDestinationAndMissingRequiredInputs()
     {
         var engine = new FakeBuildEngine();
@@ -832,6 +857,19 @@ public sealed class RuntimeBundleTaskTests
     private sealed class FailingMarkerCleanupFileSystem : RuntimeBundleFileSystem
     {
         public override void DeleteFile(string path) => throw new IOException("Injected marker cleanup failure.");
+    }
+
+    private sealed class RecordingFileSystem : RuntimeBundleFileSystem
+    {
+        public int MoveCount { get; private set; }
+
+        public override void MoveDirectory(string source, string destination)
+        {
+            MoveCount++;
+            base.MoveDirectory(source, destination);
+        }
+
+        public void Reset() => MoveCount = 0;
     }
 
     private sealed class TemporaryTree : IDisposable
