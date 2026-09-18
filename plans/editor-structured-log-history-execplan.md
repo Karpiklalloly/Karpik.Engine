@@ -32,7 +32,7 @@ The Editor console displays a single row per `ILogger` call. Changing either sel
 ## Progress
 
 - [ ] (2026-09-18) Initial plan created.
-- [ ] Protocol and editor-worker environment flag tested.
+- [x] (2026-09-18) Protocol and editor-worker environment flag tested: `EditorConsoleLogProtocolTests` 2/2 and `RuntimeLaunchOptionsTests` 24/24.
 - [ ] Opt-in logger provider tested.
 - [ ] Editor history and archive tested.
 - [ ] Console UI binding tested and validated.
@@ -43,6 +43,8 @@ The Editor console displays a single row per `ILogger` call. Changing either sel
   Evidence: `Modules/Shared/LoggerModule/LoggerModuleInstaller.cs`.
 - Observation: Editor currently queues raw stdout/stderr strings and bounds the UI collection to 2,000 entries.
   Evidence: `Karpik.Editor/ViewModels/EditorShellViewModel.cs`.
+- Observation: `ProcessManager.CreateStartInfo` is covered by `RuntimeLaunchOptionsTests`, not `ProcessManagerLifecycleTests`.
+  Evidence: `Karpik.Engine.Core.Runner.Tests/RuntimeLaunchOptionsTests.cs`.
 
 ## Decision Log
 
@@ -82,12 +84,12 @@ All commands use `C:\Users\artem\RiderProjects\KarpikEngine`.
 
 ### Task 1: Core protocol and process opt-in
 
-**Files:** Create `Karpik.Engine.Core/Logging/EditorConsoleLogProtocol.cs` and `Karpik.Editor.Tests/EditorConsoleLogProtocolTests.cs`; modify `Karpik.Engine.Core/HotReloadOptions.cs`, `Karpik.Engine.Core/ProcessManagement/ProcessManager.cs`, `Karpik.Engine.Core/Editor/EditorPreviewController.cs`, and `Karpik.Engine.Core.Runner.Tests/ProcessManagerLifecycleTests.cs`.
+**Files:** Create `Karpik.Engine.Core/Logging/EditorConsoleLogProtocol.cs` and `Karpik.Editor.Tests/EditorConsoleLogProtocolTests.cs`; modify `Karpik.Engine.Core/HotReloadOptions.cs`, `Karpik.Engine.Core/ProcessManagement/ProcessManager.cs`, `Karpik.Engine.Core/Editor/EditorPreviewController.cs`, and `Karpik.Engine.Core.Runner.Tests/RuntimeLaunchOptionsTests.cs`.
 
 **Interfaces:** `EditorConsoleLogProtocol.Serialize(DateTimeOffset, int, string): string`; `TryParse(string, out EditorConsoleLogEvent?): bool`; `HotReloadOptions.CaptureEditorLogs: bool`.
 
 - [ ] Write failing tests: a multiline message round-trips as one prefixed physical line; malformed JSON is rejected; `CreateStartInfo` sets `KARPIK_EDITOR_LOG_CAPTURE=1` only when `CaptureEditorLogs` is true.
-- [ ] Run `dotnet test Karpik.Editor.Tests\Karpik.Editor.Tests.csproj -m:1 -nr:false --no-restore --filter EditorConsoleLogProtocolTests` and `dotnet test Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false --no-restore --filter ProcessManagerLifecycleTests`; expect missing API or a failed assertion.
+- [ ] Run `dotnet test Karpik.Editor.Tests\Karpik.Editor.Tests.csproj -m:1 -nr:false --no-restore --filter EditorConsoleLogProtocolTests` and `dotnet test Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false --no-restore --filter RuntimeLaunchOptionsTests`; expect missing API or a failed assertion.
 - [ ] Implement a JSON record `(Timestamp, Level, Message)`, exact-prefix parsing, the HotReload option, environment assignment, and EditorPreviewController opt-in in both constructors.
 - [ ] Repeat both test commands; expect passing results. Commit only Task 1 files as `feat: add editor log protocol`.
 

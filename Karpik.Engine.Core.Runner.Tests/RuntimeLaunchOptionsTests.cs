@@ -48,6 +48,21 @@ public sealed class RuntimeLaunchOptionsTests
     }
 
     [Fact]
+    public void ProcessStartInfo_SetsEditorLogCaptureOnlyWhenRequested()
+    {
+        using var tree = new RuntimeTree(Side.Client);
+        var launch = new RuntimeLaunchOptions(Side.Client, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
+
+        var ordinary = ProcessManager.CreateStartInfo(
+            launch, "ordinary", stateFile: null, waitForDebugger: false, captureOutput: true);
+        var editor = ProcessManager.CreateStartInfo(
+            launch, "editor", stateFile: null, waitForDebugger: false, captureOutput: true, captureEditorLogs: true);
+
+        Assert.False(ordinary.Environment.ContainsKey("KARPIK_EDITOR_LOG_CAPTURE"));
+        Assert.Equal("1", editor.EnvironmentVariables["KARPIK_EDITOR_LOG_CAPTURE"]);
+    }
+
+    [Fact]
     public void RepeatedLaunchRetainsBundleAndCleanupCannotEscapeIt()
     {
         using var tree = new RuntimeTree(Side.Server);

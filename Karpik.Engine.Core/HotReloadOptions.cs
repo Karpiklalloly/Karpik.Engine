@@ -16,6 +16,7 @@ public sealed class HotReloadOptions
     public bool WaitForDebuggerOnInitialWorkerStart { get; init; }
     public bool WaitForDebuggerOnReloadWorkerStart { get; init; }
     public bool CaptureWorkerOutput { get; init; }
+    public bool CaptureEditorLogs { get; init; }
 
     public static HotReloadOptions Default => CreateDefault();
 

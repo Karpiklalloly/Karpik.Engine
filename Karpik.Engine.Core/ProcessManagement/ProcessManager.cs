@@ -158,7 +158,8 @@ internal class ProcessManager : IDisposable
             _pipeName,
             stateFile,
             shouldWaitForDebugger,
-            _options.CaptureWorkerOutput);
+            _options.CaptureWorkerOutput,
+            _options.CaptureEditorLogs);
 
         if (ShouldStopTransition)
         {
@@ -1017,7 +1018,8 @@ internal class ProcessManager : IDisposable
         string pipeName,
         string? stateFile,
         bool waitForDebugger,
-        bool captureOutput)
+        bool captureOutput,
+        bool captureEditorLogs = false)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -1028,6 +1030,10 @@ internal class ProcessManager : IDisposable
             RedirectStandardError = captureOutput,
             WorkingDirectory = launchOptions.BundlePath
         };
+        if (captureEditorLogs)
+        {
+            startInfo.EnvironmentVariables["KARPIK_EDITOR_LOG_CAPTURE"] = "1";
+        }
         Add("--pipe-name", pipeName);
         Add("--side", launchOptions.Side.ToString());
         Add("--bundle", launchOptions.BundlePath);

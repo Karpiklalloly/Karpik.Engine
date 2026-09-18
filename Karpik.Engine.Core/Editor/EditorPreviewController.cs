@@ -51,7 +51,8 @@ public sealed class EditorPreviewController : IDisposable
             {
                 Mode = HotReloadMode.RestartWorker,
                 WorkerExecutablePath = launchOptions.RunnerExecutablePath,
-                CaptureWorkerOutput = true
+                CaptureWorkerOutput = true,
+                CaptureEditorLogs = true
             });
         _processManager.OnWorkerOutput += HandleWorkerOutput;
         _processManager.OnWorkerExited += HandleWorkerExited;
@@ -67,7 +68,8 @@ public sealed class EditorPreviewController : IDisposable
             {
                 Mode = HotReloadMode.RestartWorker,
                 WorkerExecutablePath = workerExecutablePath,
-                CaptureWorkerOutput = true
+                CaptureWorkerOutput = true,
+                CaptureEditorLogs = true
             });
         _processManager.OnWorkerOutput += HandleWorkerOutput;
         _processManager.OnWorkerExited += HandleWorkerExited;
