@@ -119,6 +119,8 @@ public sealed class EditorProjectLifetimeTests
                 new EditorWorkspace
                 {
                     SolutionPath = Path.Combine(root, "Previous.slnx"),
+                    UiDensity = EditorUiDensity.UltraCompact,
+                    LayoutPreset = EditorLayoutPreset.Debug,
                     WindowWidth = 1777,
                     WindowHeight = 999,
                     LeftPanelWidth = 411,
@@ -138,6 +140,8 @@ public sealed class EditorProjectLifetimeTests
 
             EditorWorkspace saved = await store.LoadAsync(TestContext.Current.CancellationToken);
             Assert.Equal(solutionPath, saved.SolutionPath);
+            Assert.Equal(EditorUiDensity.UltraCompact, saved.UiDensity);
+            Assert.Equal(EditorLayoutPreset.Debug, saved.LayoutPreset);
             Assert.Equal(1777, saved.WindowWidth);
             Assert.Equal(999, saved.WindowHeight);
             Assert.Equal(411, saved.LeftPanelWidth);

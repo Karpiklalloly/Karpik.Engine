@@ -10,7 +10,7 @@
   <Window.DataTemplates>
     <local:DockContextDataTemplate />
     <DataTemplate DataType="local:ProjectViewModel">
-      <Grid Margin="8" RowDefinitions="Auto,Auto,*">
+      <Grid Classes="editor-panel" Margin="8" RowDefinitions="Auto,Auto,*">
         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
         <TextBlock Grid.Row="1" Text="{Binding AssetMessage}" Margin="0,8" TextWrapping="Wrap" Opacity="0.65" />
         <TreeView Grid.Row="2" ItemsSource="{Binding Assets}" SelectedItem="{Binding SelectedAsset, Mode=TwoWay}">
@@ -23,7 +23,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:AssetMetaEditorViewModel">
-      <ScrollViewer>
+      <ScrollViewer Classes="editor-panel">
         <StackPanel Spacing="8">
           <StackPanel Spacing="2">
             <TextBlock Text="Asset ID" Opacity="0.7" />
@@ -54,7 +54,7 @@
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:HierarchyViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="8">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="8">
         <TextBlock Text="Сущности ECS" FontWeight="SemiBold" Margin="4,2,4,8" />
         <ListBox Grid.Row="1" ItemsSource="{Binding Entities}" SelectedItem="{Binding SelectedEntity}">
           <ListBox.ItemTemplate>
@@ -66,7 +66,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:SessionsViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="8">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="8">
         <TextBlock Text="Сервер и клиенты" FontWeight="SemiBold" Margin="4,2,4,8" />
         <ListBox Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}">
           <ListBox.ItemTemplate>
@@ -90,7 +90,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:InspectorViewModel">
-      <ScrollViewer>
+      <ScrollViewer Classes="editor-panel">
         <StackPanel Spacing="8" Margin="8">
           <StackPanel Spacing="8" IsVisible="{Binding HasSelectedMeta}">
             <TextBlock Text="{Binding MetaMessage}" TextWrapping="Wrap" Opacity="0.75" />
@@ -113,7 +113,7 @@
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:ConsoleViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="6">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="6">
         <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,6" ColumnSpacing="6">
           <ComboBox Grid.Column="1" Width="90" ItemsSource="{Binding Levels}" SelectedItem="{Binding SelectedLevel, Mode=TwoWay}" />
           <ComboBox Grid.Column="2" Width="130" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession, Mode=TwoWay}" />
@@ -144,7 +144,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:PreviewViewModel">
-      <Grid Background="#171A20">
+      <Grid Classes="editor-panel">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
           <TextBlock Text="Каждый клиент работает в отдельном окне SDL2/Veldrid" FontSize="18" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Message}" HorizontalAlignment="Center" Opacity="0.7" />
@@ -155,34 +155,46 @@
 
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu>
-      <MenuItem Header="_Файл">
-        <MenuItem Header="Открыть проект…" Click="OpenProject_OnClick" />
+      <MenuItem Header="_File">
+        <MenuItem Header="Open Project…" HotKey="Ctrl+O" Click="OpenProject_OnClick" />
+        <MenuItem Header="Save Workspace" HotKey="Ctrl+S" Click="SaveWorkspace_OnClick" />
+        <MenuItem Header="Save Workspace As…" HotKey="Ctrl+Shift+S" Click="SaveWorkspaceAs_OnClick" />
+        <MenuItem Header="Close Project" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="Выход" Click="Exit_OnClick" />
+        <MenuItem Header="Exit" HotKey="Alt+F4" Click="Exit_OnClick" />
       </MenuItem>
-      <MenuItem Header="_Запуск">
-        <MenuItem Header="Запустить сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
-        <MenuItem Header="Добавить клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
-        <MenuItem Header="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
+      <MenuItem Header="_Edit">
+        <MenuItem Header="Undo" HotKey="Ctrl+Z" IsEnabled="False" />
+        <MenuItem Header="Redo" HotKey="Ctrl+Shift+Z" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="Собрать проект" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
-        <MenuItem Header="Опубликовать проект" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
-        <Separator />
-        <MenuItem Header="Остановить все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <MenuItem Header="Frame Selected" HotKey="F" IsEnabled="False" />
+        <MenuItem Header="Delete" HotKey="Delete" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Assets">
+        <MenuItem Header="Refresh" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_GameObject">
+        <MenuItem Header="Create Empty" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Window">
+        <MenuItem Header="Editor Settings…" Click="EditorSettings_OnClick" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="About Karpik Editor" IsEnabled="False" />
       </MenuItem>
     </Menu>
 
-    <Border Grid.Row="1" Background="#252A33" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
-        <Button Content="▶ Сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
-        <Button Grid.Column="1" Content="＋ Клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
-        <Button Grid.Column="2" Content="⚙ Собрать" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
-        <Button Grid.Column="3" Content="📦 Опубликовать" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
-        <Button Grid.Column="4" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
-        <Button Grid.Column="5" Content="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
-        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <ProgressBar Width="96" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
+    <Border Grid.Row="1" Classes="editor-toolbar">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
+        <Button Content="▶S" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
+        <Button Grid.Column="1" Content="▶C" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
+        <Button Grid.Column="2" Content="■" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <Button Grid.Column="3" Content="Build" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
+        <Button Grid.Column="4" Content="Publish" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
+        <Button Grid.Column="5" Content="Runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
+        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=No project open}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <ProgressBar Width="72" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
           <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
         </StackPanel>
       </Grid>

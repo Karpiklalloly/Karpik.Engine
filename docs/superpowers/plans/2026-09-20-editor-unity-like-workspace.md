@@ -32,11 +32,12 @@
 ## Progress
 
 - [x] (2026-09-20 16:30 +04:00) Согласована спецификация и создан первичный ExecPlan.
-- [ ] Реализовать workspace settings и persistence.
-- [ ] Реализовать dock presets и custom layout storage.
-- [ ] Реализовать Editor Settings.
-- [ ] Реализовать компактную тему, меню, toolbar и hotkeys.
-- [ ] Выполнить полную проверку и обновить roadmap.
+- [x] (2026-09-20) Реализовать workspace settings и persistence; legacy defaults и round-trip покрыты тестами.
+- [x] (2026-09-20) Реализовать dock presets и custom layout storage; Unity/Debug/Custom wiring проверен scoped review.
+- [x] (2026-09-20) Реализовать Editor Settings с отдельным окном, плотностью и выбором раскладки.
+- [x] (2026-09-20) Реализовать компактную тему, меню, toolbar и native hotkeys.
+- [x] (2026-09-20) Закрыть review findings по сохранению Custom, legacy migration, split/floating Dock wrappers и nullable загрузке.
+- [ ] Полная проверка: финальный editor-only compile проходит без warnings/errors, но полный build/test и ручной smoke заблокированы неполным checkout/отсутствующими runtime artifacts.
 
 ## Surprises & Discoveries
 
@@ -46,6 +47,10 @@
   Evidence: `EditorDockFactory.CreateLayout` создаёт один `Document` с ID `preview`.
 - Observation: runtime commands уже представлены `ReactiveCommand` в `EditorShellViewModel`; отдельная command bus не нужна.
   Evidence: `StartServerCommand`, `AddClientCommand`, `StopAllCommand`, `BuildProjectCommand`, `PublishProjectCommand` и `CheckRuntimeCommand` в `Karpik.Editor/ViewModels/EditorShellViewModel.cs`.
+- Observation: измененный editor компилируется отдельно без ошибок и warnings (`dotnet build ... --no-restore -p:BuildProjectReferences=false`), но полный build останавливается на отсутствующих `first-parties/Karpik.Jobs` и `DragonECS.Karpik.Extensions`.
+  Evidence: финальная isolated editor compile завершилась с 0 предупреждений и 0 ошибок; full single-node build завершается 19 ошибками в `Karpik.Engine.Core` из-за отсутствующих first-party projects.
+- Observation: targeted tests компилируются до шага копирования, но запуск блокируется отсутствующими `Karpik.Engine.Core.Runner` runtimeconfig/deps/apphost artifacts; ручной UI smoke в этой среде не выполнялся.
+  Evidence: `dotnet test ... --no-restore -p:BuildProjectReferences=false --filter ...` завершился MSB3030.
 
 ## Decision Log
 
@@ -58,10 +63,15 @@
 - Decision: не добавлять undo stack, scene authoring или embedded Veldrid viewport в этот срез.
   Rationale: это отдельные подсистемы с собственными контрактами; текущий срез меняет оболочку и команды навигации.
   Date/Author: 2026-09-20 / Codex.
+- Decision: считать isolated editor compile достаточной статической проверкой измененного UI при неполном checkout, но не подменять им полный acceptance.
+  Rationale: missing first-party/runtime build artifacts находятся вне diff; ручной smoke и полный test pass должны быть повторены после восстановления зависимостей.
+  Date/Author: 2026-09-20 / Codex.
 
 ## Outcomes & Retrospective
 
-No implementation outcome yet. Update this section after each milestone and record whether the custom-layout migration and compact theme behaved as specified.
+Implementation outcome: workspace settings, Unity/Debug/Custom dock presets, custom-layout migration, Editor Settings, compact graphite shell, toolbar commands and native hotkeys реализованы. Scoped reviews approved all implementation slices; follow-up fixes закрыли Custom seeding/preservation, split/floating/pinned Dock wrappers, legacy Scene/Game titles, failed-Custom recovery, density-only apply и nullable loading. Custom layout is persisted separately and restored through the MainWindow selection path.
+
+Validation outcome: changed editor sources compile cleanly with project references disabled (0 warnings, 0 errors), and `git diff --check` passes. Full editor build and test execution remain blocked by missing first-party projects and runner output artifacts in this checkout; manual launch/docking/runtime smoke was not claimed or performed here. The next validation pass should restore those artifacts, run the full commands, and execute the manual scenario from Task 5.
 
 ## Context and Orientation
 

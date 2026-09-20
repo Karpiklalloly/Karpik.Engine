@@ -10,11 +10,17 @@ public sealed class EditorDockFactory : Factory
     private const double DefaultLeftProportion = 0.22;
     private const double DefaultRightProportion = 0.22;
     private const double DefaultBottomProportion = 0.28;
+    private const double DebugBottomProportion = 0.36;
     private const double MinimumToolProportion = 0.1;
     private const double MaximumToolProportion = 0.5;
+    private const string SceneContext = "Редактирование сцены пока недоступно.";
+    private const string GameContext = "Встроенный Game View пока недоступен.";
+    private static readonly string[] RequiredPanelIds =
+    [
+        "hierarchy", "sessions", "project", "inspector", "console", "scene", "game", "preview"
+    ];
 
     private readonly EditorShellViewModel _shell;
-    private readonly EditorWorkspace _workspace;
 
     public ToolDock? LeftDock { get; private set; }
     public ToolDock? BottomDock { get; private set; }
@@ -22,32 +28,28 @@ public sealed class EditorDockFactory : Factory
     public EditorDockFactory(EditorShellViewModel shell, EditorWorkspace workspace)
     {
         _shell = shell;
-        _workspace = workspace;
     }
 
-    public override IRootDock CreateLayout()
+    public override IRootDock CreateLayout() => CreateLayout(EditorLayoutPreset.Unity);
+
+    public IRootDock CreateLayout(EditorLayoutPreset preset)
     {
         var hierarchy = CreateTool("hierarchy", "Иерархия", _shell.Hierarchy);
         var project = CreateTool("project", "Проект", _shell.Project);
         var sessions = CreateTool("sessions", "Сессии", _shell.Sessions);
         var inspector = CreateTool("inspector", "Инспектор", _shell.Inspector);
         var console = CreateTool("console", "Консоль", _shell.Console);
-        var preview = new Document
-        {
-            Id = "preview",
-            Title = "Предпросмотр",
-            Context = _shell.Preview,
-            CanClose = false,
-            CanFloat = false
-        };
+        var scene = CreateDocument("scene", "Сцена", SceneContext);
+        var game = CreateDocument("game", "Игра", GameContext);
+        var preview = CreateDocument("preview", "Предпросмотр", _shell.Preview);
 
         LeftDock = new ToolDock
         {
             Id = "left-tools",
             Alignment = Alignment.Left,
-            Proportion = NormalizeToolProportion(_workspace.LeftPanelWidth, DefaultLeftProportion),
-            ActiveDockable = hierarchy,
-            VisibleDockables = CreateList<IDockable>(project, hierarchy, sessions)
+            Proportion = DefaultLeftProportion,
+            ActiveDockable = preset == EditorLayoutPreset.Debug ? sessions : hierarchy,
+            VisibleDockables = CreateList<IDockable>(hierarchy, sessions)
         };
         var inspectorDock = new ToolDock
         {
@@ -61,9 +63,9 @@ public sealed class EditorDockFactory : Factory
         {
             Id = "documents",
             IsCollapsable = false,
-            ActiveDockable = preview,
-            DefaultDockable = preview,
-            VisibleDockables = CreateList<IDockable>(preview)
+            ActiveDockable = scene,
+            DefaultDockable = scene,
+            VisibleDockables = CreateList<IDockable>(scene, game, preview)
         };
         var horizontal = new ProportionalDock
         {
@@ -82,9 +84,9 @@ public sealed class EditorDockFactory : Factory
         {
             Id = "bottom-tools",
             Alignment = Alignment.Bottom,
-            Proportion = NormalizeToolProportion(_workspace.BottomPanelHeight, DefaultBottomProportion),
-            ActiveDockable = console,
-            VisibleDockables = CreateList<IDockable>(console)
+            Proportion = preset == EditorLayoutPreset.Debug ? DebugBottomProportion : DefaultBottomProportion,
+            ActiveDockable = preset == EditorLayoutPreset.Debug ? console : project,
+            VisibleDockables = CreateList<IDockable>(project, console)
         };
         var vertical = new ProportionalDock
         {
@@ -108,13 +110,136 @@ public sealed class EditorDockFactory : Factory
         return root;
     }
 
-    public void AttachContexts(IRootDock layout)
+    public static bool IsValidLayout(IRootDock? layout)
     {
-        Visit(layout);
+        if (layout is null)
+        {
+            return false;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<IDockable>(ReferenceEqualityComparer.Instance);
+        return VisitForValidation(layout, seen, visited)
+               && RequiredPanelIds.All(seen.Contains);
     }
 
-    private void Visit(IDockable dockable)
+    private static bool VisitForValidation(
+        IDockable dockable,
+        HashSet<string> seen,
+        HashSet<IDockable> visited)
     {
+        if (!visited.Add(dockable))
+        {
+            return true;
+        }
+
+        if (dockable is ProportionalDockSplitter)
+        {
+            return true;
+        }
+
+        if (dockable is Tool or Document)
+        {
+            string? id = dockable.Id;
+            if (string.IsNullOrWhiteSpace(id)
+                || !RequiredPanelIds.Contains(id, StringComparer.Ordinal)
+                || !seen.Add(id)
+                || !HasExpectedType(dockable, id))
+            {
+                return false;
+            }
+        }
+
+        return VisitChildrenForValidation(dockable, seen, visited);
+    }
+
+    private static bool VisitChildrenForValidation(
+        IDockable dockable,
+        HashSet<string> seen,
+        HashSet<IDockable> visited)
+    {
+        if (dockable is IDock dock && dock.VisibleDockables is { } children)
+        {
+            foreach (IDockable child in children)
+            {
+                if (!VisitForValidation(child, seen, visited))
+                {
+                    return false;
+                }
+            }
+        }
+
+        if (dockable is IRootDock root)
+        {
+            if (!VisitCollection(root.HiddenDockables, seen, visited)
+                || !VisitCollection(root.LeftPinnedDockables, seen, visited)
+                || !VisitCollection(root.RightPinnedDockables, seen, visited)
+                || !VisitCollection(root.TopPinnedDockables, seen, visited)
+                || !VisitCollection(root.BottomPinnedDockables, seen, visited)
+                || (root.PinnedDock is { } pinned
+                    && !VisitForValidation(pinned, seen, visited)))
+            {
+                return false;
+            }
+
+            if (root.Windows is { } windows)
+            {
+                foreach (Dock.Model.Core.IDockWindow window in windows)
+                {
+                    if (window.Layout is { } floatingLayout
+                        && !VisitForValidation(floatingLayout, seen, visited))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool VisitCollection(
+        IList<IDockable>? dockables,
+        HashSet<string> seen,
+        HashSet<IDockable> visited)
+    {
+        if (dockables is null)
+        {
+            return true;
+        }
+
+        foreach (IDockable dockable in dockables)
+        {
+            if (!VisitForValidation(dockable, seen, visited))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasExpectedType(IDockable dockable, string id) => id switch
+    {
+        "hierarchy" or "sessions" or "project" or "inspector" or "console" => dockable is Tool,
+        "scene" or "game" or "preview" => dockable is Document,
+        _ => false
+    };
+
+    public void AttachContexts(IRootDock layout)
+    {
+        LeftDock = null;
+        BottomDock = null;
+        Visit(layout, new HashSet<IDockable>(ReferenceEqualityComparer.Instance));
+    }
+
+    private void Visit(IDockable dockable, HashSet<IDockable> visited)
+    {
+        if (!visited.Add(dockable))
+        {
+            return;
+        }
+
         dockable.Context = dockable.Id switch
         {
             "project" => _shell.Project,
@@ -122,6 +247,8 @@ public sealed class EditorDockFactory : Factory
             "sessions" => _shell.Sessions,
             "inspector" => _shell.Inspector,
             "console" => _shell.Console,
+            "scene" => SceneContext,
+            "game" => GameContext,
             "preview" => _shell.Preview,
             _ => dockable.Context
         };
@@ -131,12 +258,12 @@ public sealed class EditorDockFactory : Factory
             if (toolDock.Id == "left-tools")
             {
                 toolDock.Proportion = NormalizeToolProportion(toolDock.Proportion, DefaultLeftProportion);
-                LeftDock = toolDock;
+                LeftDock ??= toolDock;
             }
             else if (toolDock.Id == "bottom-tools")
             {
                 toolDock.Proportion = NormalizeToolProportion(toolDock.Proportion, DefaultBottomProportion);
-                BottomDock = toolDock;
+                BottomDock ??= toolDock;
             }
             else if (toolDock.Id == "right-tools")
             {
@@ -148,8 +275,46 @@ public sealed class EditorDockFactory : Factory
         {
             foreach (IDockable child in children)
             {
-                Visit(child);
+                Visit(child, visited);
             }
+        }
+
+        if (dockable is IRootDock root)
+        {
+            VisitCollection(root.HiddenDockables, visited);
+            VisitCollection(root.LeftPinnedDockables, visited);
+            VisitCollection(root.RightPinnedDockables, visited);
+            VisitCollection(root.TopPinnedDockables, visited);
+            VisitCollection(root.BottomPinnedDockables, visited);
+
+            if (root.PinnedDock is { } pinned)
+            {
+                Visit(pinned, visited);
+            }
+
+            if (root.Windows is { } windows)
+            {
+                foreach (Dock.Model.Core.IDockWindow window in windows)
+                {
+                    if (window.Layout is { } floatingLayout)
+                    {
+                        Visit(floatingLayout, visited);
+                    }
+                }
+            }
+        }
+    }
+
+    private void VisitCollection(IList<IDockable>? dockables, HashSet<IDockable> visited)
+    {
+        if (dockables is null)
+        {
+            return;
+        }
+
+        foreach (IDockable dockable in dockables)
+        {
+            Visit(dockable, visited);
         }
     }
 
@@ -159,6 +324,15 @@ public sealed class EditorDockFactory : Factory
         Title = title,
         Context = context,
         CanClose = false
+    };
+
+    private static Document CreateDocument(string id, string title, object context) => new()
+    {
+        Id = id,
+        Title = title,
+        Context = context,
+        CanClose = false,
+        CanFloat = false
     };
 
     private static double NormalizeToolProportion(double value, double fallback)

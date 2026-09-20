@@ -787,11 +787,11 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
                 }
             });
 
-        StartServerCommand = ReactiveCommand.CreateFromTask(StartServerAsync);
-        AddClientCommand = ReactiveCommand.CreateFromTask(AddClientAsync);
-        StopAllCommand = ReactiveCommand.CreateFromTask(StopAllAsync);
-        BuildProjectCommand = ReactiveCommand.CreateFromTask(BuildProjectAsync);
-        PublishProjectCommand = ReactiveCommand.CreateFromTask(PublishProjectAsync);
+        StartServerCommand = ReactiveCommand.CreateFromTask(StartServerAsync, this.WhenAnyValue(x => x.CanStartServer));
+        AddClientCommand = ReactiveCommand.CreateFromTask(AddClientAsync, this.WhenAnyValue(x => x.CanAddClient));
+        StopAllCommand = ReactiveCommand.CreateFromTask(StopAllAsync, this.WhenAnyValue(x => x.CanStopAll));
+        BuildProjectCommand = ReactiveCommand.CreateFromTask(BuildProjectAsync, this.WhenAnyValue(x => x.CanBuild));
+        PublishProjectCommand = ReactiveCommand.CreateFromTask(PublishProjectAsync, this.WhenAnyValue(x => x.CanPublish));
         CheckRuntimeCommand = ReactiveCommand.CreateFromTask(CheckRuntimeAsync);
     }
 
@@ -982,10 +982,18 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         RaiseCommandState();
     }
 
-    public Task SaveWorkspaceAsync(double windowWidth, double windowHeight, double leftWidth, double bottomHeight) =>
+    public Task SaveWorkspaceAsync(
+        double windowWidth,
+        double windowHeight,
+        double leftWidth,
+        double bottomHeight,
+        EditorLayoutPreset layoutPreset = EditorLayoutPreset.Unity,
+        EditorUiDensity uiDensity = EditorUiDensity.Compact) =>
         _workspaceStore.SaveAsync(new EditorWorkspace
         {
             SolutionPath = ProjectPath,
+            UiDensity = uiDensity,
+            LayoutPreset = layoutPreset,
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,
             LeftPanelWidth = leftWidth,

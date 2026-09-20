@@ -1,0 +1,176 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia">
+  <Styles.Resources>
+    <Color x:Key="EditorWindowColor">#1E1E1E</Color>
+    <Color x:Key="EditorPanelColor">#252526</Color>
+    <Color x:Key="EditorChromeColor">#2D2D30</Color>
+    <Color x:Key="EditorAccentColor">#3E6EAA</Color>
+    <SolidColorBrush x:Key="EditorWindowBrush" Color="{StaticResource EditorWindowColor}" />
+    <SolidColorBrush x:Key="EditorPanelBrush" Color="{StaticResource EditorPanelColor}" />
+    <SolidColorBrush x:Key="EditorChromeBrush" Color="{StaticResource EditorChromeColor}" />
+    <SolidColorBrush x:Key="EditorAccentBrush" Color="{StaticResource EditorAccentColor}" />
+    <SolidColorBrush x:Key="EditorForegroundBrush" Color="#D4D4D4" />
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource EditorWindowBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource EditorForegroundBrush}" />
+  </Style>
+  <Style Selector="Menu">
+    <Setter Property="Background" Value="{DynamicResource EditorChromeBrush}" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="TextBox">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="4,1" />
+  </Style>
+  <Style Selector="TreeViewItem">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="TabItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="dock|DocumentTabStripItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="dock|ToolTabStripItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Border.editor-toolbar">
+    <Setter Property="Background" Value="{DynamicResource EditorChromeBrush}" />
+    <Setter Property="Padding" Value="6,3" />
+  </Style>
+  <Style Selector="Grid.editor-panel">
+    <Setter Property="Background" Value="{DynamicResource EditorPanelBrush}" />
+  </Style>
+  <Style Selector="ScrollViewer.editor-panel">
+    <Setter Property="Background" Value="{DynamicResource EditorPanelBrush}" />
+  </Style>
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Background" Value="{DynamicResource EditorAccentBrush}" />
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Background" Value="{DynamicResource EditorAccentBrush}" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact Button">
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact MenuItem">
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact ListBoxItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TreeViewItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TabItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TextBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact ComboBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact dock|DocumentTabStripItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="5,1" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact dock|ToolTabStripItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="5,1" />
+  </Style>
+  <Style Selector="Window.density-compact Button">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Window.density-compact MenuItem">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Window.density-compact ListBoxItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TreeViewItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TabItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TextBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact ComboBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact dock|DocumentTabStripItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Window.density-compact dock|ToolTabStripItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Window.density-large Button">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large MenuItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large ListBoxItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TreeViewItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TabItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TextBox">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large ComboBox">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large dock|DocumentTabStripItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large dock|ToolTabStripItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+</Styles>

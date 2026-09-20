@@ -6,5 +6,6 @@
   <Application.Styles>
     <FluentTheme />
     <dockTheme:DockFluentTheme />
+    <StyleInclude Source="avares://Karpik.Editor/Styles/EditorTheme.axaml" />
   </Application.Styles>
 </Application>
