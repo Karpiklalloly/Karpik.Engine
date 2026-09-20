@@ -76,6 +76,35 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
             item => item.ItemSpec.EndsWith("SharedDep.dll", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Execute_ExcludesCatalogPrimaryAssemblyFromSharedPayload()
+    {
+        using var tree = new Tree();
+        tree.Add("SharedModule", typeof(EngineModuleCatalog).Assembly.Location, EngineModuleSide.Shared);
+        tree.Add("ClientModule", typeof(ResolveKarpikStaticReferencesTask).Assembly.Location, EngineModuleSide.Client);
+        tree.WriteCatalog();
+
+        string clientPrimary = Path.Combine(tree.Root, "modules", "ClientModule", "ClientModule.dll");
+        Directory.CreateDirectory(Path.Combine(tree.Root, "shared"));
+        File.Copy(clientPrimary, Path.Combine(tree.Root, "shared", "ClientModule.dll"));
+        File.Copy(
+            typeof(ResolveKarpikStaticReferencesTask).Assembly.Location,
+            Path.Combine(tree.Root, "shared", "OrdinarySharedDependency.dll"));
+
+        var task = new ResolveKarpikStaticReferencesTask
+        {
+            BuildEngine = new Engine(),
+            EngineRoot = tree.Root,
+            Side = "Server"
+        };
+
+        Assert.True(task.Execute());
+        Assert.DoesNotContain(task.PayloadAssemblies, item =>
+            item.ItemSpec.EndsWith("ClientModule.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(task.PayloadAssemblies, item =>
+            item.ItemSpec.EndsWith("OrdinarySharedDependency.dll", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData("Shared", 1)] [InlineData("Client", 2)] [InlineData("Server", 2)]
     public void Execute_RespectsSide(string side, int count)

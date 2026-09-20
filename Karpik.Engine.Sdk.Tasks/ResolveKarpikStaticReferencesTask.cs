@@ -84,6 +84,9 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         EnsureNotReparse(modulesRoot);
 
         EngineModuleCatalogEntry[] catalog = EngineModuleCatalog.Read(modulesRoot);
+        HashSet<string> catalogPrimaryFileNames = catalog
+            .Select(entry => ModuleLayoutPolicy.GetPrimaryAssemblyFileName(entry.ModuleId))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         IEnumerable<EngineModuleCatalogEntry> selected = side == EngineModuleSide.Shared
             ? catalog.Where(entry => entry.Side == EngineModuleSide.Shared)
             : EngineModuleCatalog.ForSide(catalog, side);
@@ -119,7 +122,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             references.Add(reference);
         }
 
-        payloadAssemblies = CollectSharedPayloadAssemblies(engineRoot, payloadPaths, payloads);
+        payloadAssemblies = CollectSharedPayloadAssemblies(engineRoot, payloadPaths, catalogPrimaryFileNames, payloads);
         return [.. references];
     }
 
@@ -130,6 +133,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     private ITaskItem[] CollectSharedPayloadAssemblies(
         string engineRoot,
         HashSet<string> seen,
+        HashSet<string> catalogPrimaryFileNames,
         List<ITaskItem> collected)
     {
         string sharedRoot = Path.Combine(engineRoot, "shared");
@@ -140,9 +144,11 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         EnsureNotReparse(sharedRoot);
         foreach (string file in Directory.EnumerateFiles(sharedRoot, "*.dll", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal))
         {
-            if (!seen.Add(file) ||
-                Path.GetFileName(file).StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase) ||
-                IsReparsePoint(file))
+            string fileName = Path.GetFileName(file);
+            if (!seen.Add(file)
+                || catalogPrimaryFileNames.Contains(fileName)
+                || fileName.StartsWith("Karpik.Engine.Core.Runner", StringComparison.OrdinalIgnoreCase)
+                || IsReparsePoint(file))
             {
                 continue;
             }

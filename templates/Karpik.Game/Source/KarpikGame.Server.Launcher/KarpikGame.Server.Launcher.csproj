@@ -30,6 +30,11 @@
     <ProjectReference Include="..\KarpikGame.Shared\KarpikGame.Shared.csproj"
                       ReferenceOutputAssembly="false"
                       Private="false" />
+    <Content Include="..\KarpikGame.Server\bin\$(Configuration)\$(TargetFramework)\Content\manifest.json"
+             Link="Content\manifest.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
   </ItemGroup>
 
   <!-- Static composition turns the launcher into the game-specific host executable:
