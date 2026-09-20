@@ -987,10 +987,12 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         double windowHeight,
         double leftWidth,
         double bottomHeight,
-        EditorLayoutPreset layoutPreset = EditorLayoutPreset.Unity) =>
+        EditorLayoutPreset layoutPreset = EditorLayoutPreset.Unity,
+        EditorUiDensity uiDensity = EditorUiDensity.Compact) =>
         _workspaceStore.SaveAsync(new EditorWorkspace
         {
             SolutionPath = ProjectPath,
+            UiDensity = uiDensity,
             LayoutPreset = layoutPreset,
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,

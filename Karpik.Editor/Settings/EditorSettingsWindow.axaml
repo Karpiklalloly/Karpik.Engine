@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Karpik.Editor"
+        x:Class="Karpik.Editor.EditorSettingsWindow"
+        x:DataType="local:EditorSettingsViewModel"
+        Title="Editor Settings"
+        Width="360"
+        Height="190"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="Auto,*" RowSpacing="8" ColumnSpacing="12">
+    <TextBlock VerticalAlignment="Center" Text="Density" />
+    <ComboBox Grid.Column="1"
+              ItemsSource="{Binding UiDensities}"
+              SelectedItem="{Binding UiDensity, Mode=TwoWay}" />
+
+    <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Layout" />
+    <ComboBox Grid.Row="1"
+              Grid.Column="1"
+              ItemsSource="{Binding LayoutPresets}"
+              SelectedItem="{Binding LayoutPreset, Mode=TwoWay}" />
+
+    <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button MinWidth="72" Content="Cancel" Command="{Binding CancelCommand}" />
+      <Button MinWidth="72" Content="Apply" Command="{Binding ApplyCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

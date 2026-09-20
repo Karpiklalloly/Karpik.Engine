@@ -10,6 +10,36 @@ namespace Karpik.Editor.Tests;
 public sealed class EditorWorkspaceTests
 {
     [Fact]
+    public void EditorSettings_ApplyUsesSelectedValuesAndCancelDoesNotApply()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        int applyCount = 0;
+        EditorUiDensity appliedDensity = default;
+        EditorLayoutPreset appliedPreset = default;
+        var viewModel = new EditorSettingsViewModel(
+            EditorUiDensity.Compact,
+            EditorLayoutPreset.Unity,
+            (density, preset) =>
+            {
+                applyCount++;
+                appliedDensity = density;
+                appliedPreset = preset;
+            },
+            () => { });
+        viewModel.UiDensity = EditorUiDensity.UltraCompact;
+        viewModel.LayoutPreset = EditorLayoutPreset.Debug;
+
+        using (viewModel.ApplyCommand.Execute().Subscribe()) { }
+        using (viewModel.CancelCommand.Execute().Subscribe()) { }
+
+        Assert.Equal(1, applyCount);
+        Assert.Equal(EditorUiDensity.UltraCompact, appliedDensity);
+        Assert.Equal(EditorLayoutPreset.Debug, appliedPreset);
+    }
+
+    [Fact]
     public void BoundedLog_DropsOldestEntries()
     {
         var log = new BoundedLog(3);

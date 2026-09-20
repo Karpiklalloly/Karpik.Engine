@@ -19,6 +19,8 @@ public sealed partial class MainWindow : Window
     private readonly DockLayoutStore _customLayoutStore;
     private readonly EditorStartupOptions _startupOptions;
     private EditorDockFactory? _dockFactory;
+    private EditorSettingsWindow? _settingsWindow;
+    private EditorUiDensity _uiDensity = EditorUiDensity.Compact;
     private EditorLayoutPreset _layoutPreset = EditorLayoutPreset.Unity;
     private bool _customLayoutLoaded;
     private bool _closeConfirmed;
@@ -57,7 +59,9 @@ public sealed partial class MainWindow : Window
         Height = Math.Max(MinHeight, workspace.WindowHeight);
 
         _dockFactory = new EditorDockFactory(_viewModel, workspace);
+        _uiDensity = workspace.UiDensity;
         _layoutPreset = workspace.LayoutPreset;
+        ApplyDensity(_uiDensity);
         IRootDock layout;
         try
         {
@@ -83,9 +87,89 @@ public sealed partial class MainWindow : Window
 
     private IRootDock LoadCustomLayout()
     {
-        IRootDock? layout = _customLayoutStore.Load();
-        _customLayoutLoaded = layout is not null;
-        return layout ?? _dockFactory!.CreateLayout(EditorLayoutPreset.Unity);
+        try
+        {
+            IRootDock? layout = _customLayoutStore.Load();
+            _customLayoutLoaded = layout is not null;
+            if (layout is not null)
+            {
+                return layout;
+            }
+
+            _viewModel.ReportEditorMessage("Пользовательская раскладка не найдена. Используется Unity.", level: 4);
+        }
+        catch (Exception ex)
+        {
+            _customLayoutLoaded = false;
+            _viewModel.ReportEditorMessage($"Не удалось загрузить пользовательскую раскладку: {ex.Message}", level: 4);
+        }
+
+        return _dockFactory!.CreateLayout(EditorLayoutPreset.Unity);
+    }
+
+    public void OpenEditorSettings()
+    {
+        if (_settingsWindow is { } existing)
+        {
+            if (existing.WindowState == WindowState.Minimized)
+            {
+                existing.WindowState = WindowState.Normal;
+            }
+            existing.Activate();
+            return;
+        }
+
+        _settingsWindow = new EditorSettingsWindow(_uiDensity, _layoutPreset, ApplyEditorSettings);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show(this);
+    }
+
+    private void EditorSettings_OnClick(object? sender, RoutedEventArgs e) => OpenEditorSettings();
+
+    public async void ApplyEditorSettings(EditorUiDensity density, EditorLayoutPreset preset)
+    {
+        if (_dockFactory is null || DockHost.Layout is not IRootDock activeLayout)
+        {
+            return;
+        }
+
+        try
+        {
+            _customLayoutStore.Save(activeLayout);
+            _customLayoutLoaded = true;
+            _uiDensity = density;
+            _layoutPreset = preset;
+            ApplyDensity(density);
+
+            IRootDock layout = preset == EditorLayoutPreset.Custom
+                ? LoadCustomLayout()
+                : _dockFactory.CreateLayout(preset);
+            _dockFactory.AttachContexts(layout);
+            _dockFactory.InitLayout(layout);
+            DockHost.Layout = layout;
+            _currentLayoutStore.Save(layout);
+
+            double left = _dockFactory.LeftDock?.Proportion ?? 300;
+            double bottom = _dockFactory.BottomDock?.Proportion ?? 220;
+            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportEditorMessage($"Не удалось применить настройки редактора: {ex.Message}", level: 4);
+        }
+    }
+
+    private void ApplyDensity(EditorUiDensity density)
+    {
+        Classes.Remove("density-compact");
+        Classes.Remove("density-ultra-compact");
+        Classes.Remove("density-large");
+        Classes.Add(density switch
+        {
+            EditorUiDensity.UltraCompact => "density-ultra-compact",
+            EditorUiDensity.Large => "density-large",
+            _ => "density-compact"
+        });
     }
 
     private async void OpenProject_OnClick(object? sender, RoutedEventArgs e)
@@ -224,7 +308,7 @@ public sealed partial class MainWindow : Window
         }
         try
         {
-            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset);
+            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
             await _viewModel.ShutdownAsync();
         }
         catch (Exception exception)
