@@ -33,6 +33,20 @@ public sealed class EditorConsoleLoggerTests
         Assert.DoesNotContain(EditorConsoleLogProtocol.Prefix, output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void LoggerModule_EmitsTraceWhenEditorCaptureIsEnabled()
+    {
+        string output = CaptureOutput(editorCapture: true, logger => logger.LogTrace("trace"));
+
+        string line = Assert.Single(
+            output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries),
+            item => item.StartsWith(EditorConsoleLogProtocol.Prefix, StringComparison.Ordinal));
+
+        Assert.True(EditorConsoleLogProtocol.TryParse(line, out EditorConsoleLogEvent? entry));
+        Assert.Equal((int)LogLevel.Trace, entry!.Level);
+        Assert.Equal("trace", entry.Message);
+    }
+
     private static string CaptureOutput(bool editorCapture, Action<ILogger> write)
     {
         lock (ConsoleGate)

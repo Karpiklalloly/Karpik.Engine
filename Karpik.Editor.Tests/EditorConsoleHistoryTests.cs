@@ -53,6 +53,23 @@ public sealed class EditorConsoleHistoryTests
     }
 
     [Fact]
+    public void LevelSelector_DefaultsToInfo_AndCanShowTrace()
+    {
+        var console = new ConsoleViewModel();
+
+        Assert.Equal("Info", console.SelectedLevel);
+        Assert.Equal(2, console.MinimumLevel);
+        Assert.Equal(["Trace", "Debug", "Info", "Warn", "Error", "Critical"], console.Levels);
+
+        console.Add(new EditorConsoleLogEntry(DateTimeOffset.UtcNow, "Сервер", Level: 0, "trace"));
+        Assert.Empty(console.Entries);
+
+        console.SelectedLevel = "Trace";
+
+        Assert.Single(console.Entries);
+    }
+
+    [Fact]
     public async Task Archive_WritesOneJsonLinePerEntry()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorLogs-{Guid.NewGuid():N}");

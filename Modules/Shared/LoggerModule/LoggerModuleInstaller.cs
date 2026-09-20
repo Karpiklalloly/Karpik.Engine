@@ -22,7 +22,7 @@ public class LoggerModuleInstaller : IModuleInstaller
                 {
                     logging.AddEditorConsole();
                 }
-                logging.SetMinimumLevel(LogLevel.Debug);
+                logging.SetMinimumLevel(LogLevel.Trace);
             }))
             .As<ILoggerFactory>()
             .SingleInstance();

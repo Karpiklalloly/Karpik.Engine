@@ -59,14 +59,15 @@ inspectable on disk; browsing archives in the panel is out of scope.
 
 The console tool contains:
 
-- a minimum-level selector, defaulting to `Debug` to preserve current behavior;
+- a minimum-level selector, defaulting to `Info` so routine diagnostics stay
+  hidden until requested;
 - a session selector, defaulting to `All sessions`;
 - the existing Clear action, which clears only the active in-memory history and
   does not delete the archive.
 
-Visible rows include session, level, and message on one row. `Trace` is not
-enabled globally: the logger keeps its current `Debug` minimum level to avoid
-introducing trace-level work into potentially hot runtime paths.
+Visible rows include session, level, and message on one row. `Trace` is
+available as an opt-in display filter, while the logger emits trace entries so
+they can be inspected when requested.
 
 ## Failure behavior and tests
 

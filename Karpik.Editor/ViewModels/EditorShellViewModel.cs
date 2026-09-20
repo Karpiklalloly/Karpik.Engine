@@ -410,15 +410,15 @@ public sealed class ConsoleViewModel : ReactiveObject
     public const string AllSessions = "Все сессии";
     public const string EditorSession = "Редактор";
     private readonly Queue<EditorConsoleLogEntry> _allEntries = new(2_000);
-    private int _minimumLevel = 1;
-    private string _selectedLevel = "Debug";
+    private int _minimumLevel = 2;
+    private string _selectedLevel = "Info";
     private string _selectedSession = AllSessions;
 
     public string Title => "Консоль";
     public ObservableCollection<string> Entries { get; } = [];
     public IReadOnlyList<EditorConsoleLogEntry> AllEntries => _allEntries.ToArray();
     public ObservableCollection<string> Sessions { get; } = [AllSessions, EditorSession];
-    public IReadOnlyList<string> Levels { get; } = ["Debug", "Info", "Warn", "Error", "Critical"];
+    public IReadOnlyList<string> Levels { get; } = ["Trace", "Debug", "Info", "Warn", "Error", "Critical"];
     public ReactiveCommand<RxVoid, RxVoid> ClearCommand { get; }
 
     public int MinimumLevel
@@ -449,6 +449,7 @@ public sealed class ConsoleViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref _selectedLevel, value);
             MinimumLevel = value switch
             {
+                "Trace" => 0,
                 "Debug" => 1,
                 "Info" => 2,
                 "Warn" => 3,
