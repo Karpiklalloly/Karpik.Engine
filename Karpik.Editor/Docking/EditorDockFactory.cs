@@ -10,11 +10,13 @@ public sealed class EditorDockFactory : Factory
     private const double DefaultLeftProportion = 0.22;
     private const double DefaultRightProportion = 0.22;
     private const double DefaultBottomProportion = 0.28;
+    private const double DebugBottomProportion = 0.36;
     private const double MinimumToolProportion = 0.1;
     private const double MaximumToolProportion = 0.5;
+    private const string SceneContext = "Редактирование сцены пока недоступно.";
+    private const string GameContext = "Встроенный Game View пока недоступен.";
 
     private readonly EditorShellViewModel _shell;
-    private readonly EditorWorkspace _workspace;
 
     public ToolDock? LeftDock { get; private set; }
     public ToolDock? BottomDock { get; private set; }
@@ -22,32 +24,28 @@ public sealed class EditorDockFactory : Factory
     public EditorDockFactory(EditorShellViewModel shell, EditorWorkspace workspace)
     {
         _shell = shell;
-        _workspace = workspace;
     }
 
-    public override IRootDock CreateLayout()
+    public override IRootDock CreateLayout() => CreateLayout(EditorLayoutPreset.Unity);
+
+    public IRootDock CreateLayout(EditorLayoutPreset preset)
     {
         var hierarchy = CreateTool("hierarchy", "Иерархия", _shell.Hierarchy);
         var project = CreateTool("project", "Проект", _shell.Project);
         var sessions = CreateTool("sessions", "Сессии", _shell.Sessions);
         var inspector = CreateTool("inspector", "Инспектор", _shell.Inspector);
         var console = CreateTool("console", "Консоль", _shell.Console);
-        var preview = new Document
-        {
-            Id = "preview",
-            Title = "Предпросмотр",
-            Context = _shell.Preview,
-            CanClose = false,
-            CanFloat = false
-        };
+        var scene = CreateDocument("scene", "Сцена", SceneContext);
+        var game = CreateDocument("game", "Игра", GameContext);
+        var preview = CreateDocument("preview", "Предпросмотр", _shell.Preview);
 
         LeftDock = new ToolDock
         {
             Id = "left-tools",
             Alignment = Alignment.Left,
-            Proportion = NormalizeToolProportion(_workspace.LeftPanelWidth, DefaultLeftProportion),
+            Proportion = DefaultLeftProportion,
             ActiveDockable = hierarchy,
-            VisibleDockables = CreateList<IDockable>(project, hierarchy, sessions)
+            VisibleDockables = CreateList<IDockable>(hierarchy, sessions)
         };
         var inspectorDock = new ToolDock
         {
@@ -61,9 +59,9 @@ public sealed class EditorDockFactory : Factory
         {
             Id = "documents",
             IsCollapsable = false,
-            ActiveDockable = preview,
-            DefaultDockable = preview,
-            VisibleDockables = CreateList<IDockable>(preview)
+            ActiveDockable = scene,
+            DefaultDockable = scene,
+            VisibleDockables = CreateList<IDockable>(scene, game, preview)
         };
         var horizontal = new ProportionalDock
         {
@@ -82,9 +80,9 @@ public sealed class EditorDockFactory : Factory
         {
             Id = "bottom-tools",
             Alignment = Alignment.Bottom,
-            Proportion = NormalizeToolProportion(_workspace.BottomPanelHeight, DefaultBottomProportion),
-            ActiveDockable = console,
-            VisibleDockables = CreateList<IDockable>(console)
+            Proportion = preset == EditorLayoutPreset.Debug ? DebugBottomProportion : DefaultBottomProportion,
+            ActiveDockable = project,
+            VisibleDockables = CreateList<IDockable>(project, console)
         };
         var vertical = new ProportionalDock
         {
@@ -122,6 +120,8 @@ public sealed class EditorDockFactory : Factory
             "sessions" => _shell.Sessions,
             "inspector" => _shell.Inspector,
             "console" => _shell.Console,
+            "scene" => SceneContext,
+            "game" => GameContext,
             "preview" => _shell.Preview,
             _ => dockable.Context
         };
@@ -159,6 +159,15 @@ public sealed class EditorDockFactory : Factory
         Title = title,
         Context = context,
         CanClose = false
+    };
+
+    private static Document CreateDocument(string id, string title, object context) => new()
+    {
+        Id = id,
+        Title = title,
+        Context = context,
+        CanClose = false,
+        CanFloat = false
     };
 
     private static double NormalizeToolProportion(double value, double fallback)

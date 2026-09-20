@@ -17,6 +17,50 @@ public sealed class EditorDockFactoryTests
     }
 
     [Fact]
+    public void CreateUnityLayout_PlacesDocumentsInOneCenterDock()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace())
+            .CreateLayout(EditorLayoutPreset.Unity);
+
+        var documentDock = Assert.IsType<DocumentDock>(FindById(root, "documents"));
+        Assert.Equal(["scene", "game", "preview"], documentDock.VisibleDockables!.Select(x => x.Id));
+        Assert.All(documentDock.VisibleDockables!, document => Assert.False(document.CanClose));
+        Assert.Equal(
+            ["hierarchy", "sessions"],
+            Assert.IsType<ToolDock>(FindById(root, "left-tools")).VisibleDockables!.Select(x => x.Id));
+        Assert.Equal(
+            ["project", "console"],
+            Assert.IsType<ToolDock>(FindById(root, "bottom-tools")).VisibleDockables!.Select(x => x.Id));
+    }
+
+    [Fact]
+    public void CreateDebugLayout_UsesTheSameDocumentsAndExpandedBottomDock()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace())
+            .CreateLayout(EditorLayoutPreset.Debug);
+
+        Assert.Equal(
+            ["scene", "game", "preview"],
+            Assert.IsType<DocumentDock>(FindById(root, "documents")).VisibleDockables!.Select(x => x.Id));
+        Assert.True(Assert.IsType<ToolDock>(FindById(root, "bottom-tools")).Proportion > 0.28);
+    }
+
+    [Fact]
+    public void CreateCustomLayout_UsesSafeUnityFallback()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace())
+            .CreateLayout(EditorLayoutPreset.Custom);
+
+        Assert.Equal(
+            ["scene", "game", "preview"],
+            Assert.IsType<DocumentDock>(FindById(root, "documents")).VisibleDockables!.Select(x => x.Id));
+        Assert.Equal(0.28, Assert.IsType<ToolDock>(FindById(root, "bottom-tools")).Proportion);
+    }
+
+    [Fact]
     public void CreateLayout_WithLegacyPixelOrCollapsedPanelValues_UsesVisibleProportions()
     {
         using var shell = new EditorShellViewModel(
@@ -68,6 +112,9 @@ public sealed class EditorDockFactoryTests
         Assert.InRange(bottomDock.Proportion, 0.1, 0.5);
         Assert.InRange(rightDock.Proportion, 0.1, 0.5);
     }
+
+    private static EditorShellViewModel CreateShell() => new(
+        new WorkspaceStore(Path.Combine(Path.GetTempPath(), $"karpik-editor-{Guid.NewGuid():N}.json")));
 
     private static IDockable? FindById(IDockable dockable, string id)
     {

@@ -6,21 +6,31 @@ namespace Karpik.Editor;
 public sealed class DockLayoutStore
 {
     private readonly string _path;
+    private readonly string? _legacyPath;
     private readonly DockSerializer _serializer = new();
 
     public DockLayoutStore(string path)
+        : this(path, null)
+    {
+    }
+
+    private DockLayoutStore(string path, string? legacyPath)
     {
         _path = path;
+        _legacyPath = legacyPath;
     }
 
     public IRootDock? Load()
     {
-        if (!File.Exists(_path))
+        string? path = File.Exists(_path)
+            ? _path
+            : _legacyPath is not null && File.Exists(_legacyPath) ? _legacyPath : null;
+        if (path is null)
         {
             return null;
         }
 
-        using var stream = File.OpenRead(_path);
+        using var stream = File.OpenRead(path);
         return _serializer.Load<IRootDock>(stream);
     }
 
@@ -41,9 +51,22 @@ public sealed class DockLayoutStore
         File.Move(temporaryPath, _path, overwrite: true);
     }
 
-    public static DockLayoutStore CreateDefault()
+    public static DockLayoutStore CreateDefault() => CreateCurrent();
+
+    public static DockLayoutStore CreateCurrent() => CreateMigrating("layout-current-v2.json");
+
+    public static DockLayoutStore CreateCustom() => CreateMigrating("layout-custom-v2.json");
+
+    private static DockLayoutStore CreateMigrating(string fileName)
     {
-        string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return new DockLayoutStore(Path.Combine(root, "KarpikEngine", "Editor", "layout-v2.json"));
+        string directory = GetEditorDirectory();
+        return new DockLayoutStore(
+            Path.Combine(directory, fileName),
+            Path.Combine(directory, "layout-v2.json"));
     }
+
+    private static string GetEditorDirectory() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "KarpikEngine",
+        "Editor");
 }

@@ -168,4 +168,54 @@ public sealed class EditorWorkspaceTests
             }
         }
     }
+
+    [Fact]
+    public void DockLayoutStore_CustomTreeIsUnchangedByPresetGeneration()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        string path = Path.Combine(directory, "layout-custom-v2.json");
+        try
+        {
+            var scene = new Document { Id = "scene" };
+            var game = new Document { Id = "game" };
+            var documents = new DocumentDock
+            {
+                Id = "documents",
+                Proportion = 0.63,
+                ActiveDockable = game,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable>
+                {
+                    game,
+                    scene
+                }
+            };
+            var root = new RootDock
+            {
+                Id = "root",
+                ActiveDockable = documents,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { documents }
+            };
+            var store = new DockLayoutStore(path);
+            store.Save(root);
+
+            using var shell = new EditorShellViewModel(
+                new WorkspaceStore(Path.Combine(directory, "workspace.json")));
+            new EditorDockFactory(shell, new EditorWorkspace()).CreateLayout(EditorLayoutPreset.Unity);
+
+            IRootDock restored = Assert.IsAssignableFrom<IRootDock>(store.Load());
+            var restoredDocuments = Assert.IsType<DocumentDock>(Assert.Single(restored.VisibleDockables!));
+            Assert.Equal(["game", "scene"], restoredDocuments.VisibleDockables!.Select(x => x.Id));
+            Assert.Equal(0.63, restoredDocuments.Proportion);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }
