@@ -15,6 +15,12 @@ public sealed partial class EditorSettingsWindow : Window
         Action<EditorUiDensity, EditorLayoutPreset> apply)
         : this()
     {
+        Classes.Add(uiDensity switch
+        {
+            EditorUiDensity.UltraCompact => "density-ultra-compact",
+            EditorUiDensity.Large => "density-large",
+            _ => "density-compact"
+        });
         DataContext = new EditorSettingsViewModel(uiDensity, layoutPreset, apply, Close);
     }
 }

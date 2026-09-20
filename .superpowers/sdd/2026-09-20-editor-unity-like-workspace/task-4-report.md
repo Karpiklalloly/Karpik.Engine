@@ -85,3 +85,13 @@ No builds or tests were run, per instruction. Known linked-worktree `obj` write-
 - The migration test asserts both titles.
 
 No builds or tests were run, per instruction.
+
+## Final review fix wave
+
+- Preset switches from Unity/Debug now seed the Custom snapshot before replacing the active layout, without overwriting an existing snapshot; this preserves a Unity rearrangement across a later Debug switch and Custom restore.
+- Density-only Apply now updates density and persists the active layout/workspace without `InitializeLayout`, `InitLayout`, or replacing `DockHost.Layout`.
+- Invalid or failed Custom loads now leave the rejected file untouched and set the effective preset to Unity, allowing close/Apply persistence to recover from the fallback.
+- Custom initialization failures take the same recoverable Unity fallback path without saving over the rejected custom snapshot.
+- Editor Settings now receives the active density class when opened.
+
+No builds or tests were run, per instruction. Known linked-worktree `obj` write-access and missing first-party project blockers remain validation concerns.

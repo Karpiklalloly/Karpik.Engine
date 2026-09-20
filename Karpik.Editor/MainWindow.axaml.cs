@@ -77,6 +77,11 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (_layoutPreset == EditorLayoutPreset.Custom)
+            {
+                _layoutPreset = EditorLayoutPreset.Unity;
+                _customLayoutLoaded = false;
+            }
             _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
             layout = _dockFactory.CreateLayout(fallbackPreset);
         }
@@ -114,6 +119,7 @@ public sealed partial class MainWindow : Window
             }
 
             _customLayoutLoaded = false;
+            _layoutPreset = EditorLayoutPreset.Unity;
             if (layout is not null)
             {
                 _viewModel.ReportEditorMessage("Пользовательская раскладка повреждена. Используется Unity.", level: 4);
@@ -126,6 +132,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             _customLayoutLoaded = false;
+            _layoutPreset = EditorLayoutPreset.Unity;
             _viewModel.ReportEditorMessage($"Не удалось загрузить пользовательскую раскладку: {ex.Message}", level: 4);
         }
 
@@ -147,6 +154,11 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (_layoutPreset == EditorLayoutPreset.Custom)
+            {
+                _layoutPreset = EditorLayoutPreset.Unity;
+                _customLayoutLoaded = false;
+            }
             _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
             IRootDock fallback = _dockFactory!.CreateLayout(fallbackPreset);
             _dockFactory.AttachContexts(fallback);
@@ -186,32 +198,33 @@ public sealed partial class MainWindow : Window
             bool samePreset = preset == _layoutPreset;
             if (samePreset)
             {
+                _uiDensity = density;
+                ApplyDensity(density);
+                _currentLayoutStore.Save(activeLayout);
                 if (_layoutPreset == EditorLayoutPreset.Custom && _customLayoutLoaded)
                 {
                     _customLayoutStore.Save(activeLayout);
                 }
+                await SaveWorkspaceStateAsync();
+                return;
             }
-            else if (_layoutPreset == EditorLayoutPreset.Custom)
-            {
-                if (_customLayoutLoaded)
-                {
-                    _customLayoutStore.Save(activeLayout);
-                }
-            }
-            else if (preset == EditorLayoutPreset.Custom && !_customLayoutStore.Exists())
+
+            if (_layoutPreset != EditorLayoutPreset.Custom && !_customLayoutStore.Exists())
             {
                 _customLayoutStore.Save(activeLayout);
                 _customLayoutLoaded = true;
+            }
+            else if (_layoutPreset == EditorLayoutPreset.Custom && _customLayoutLoaded)
+            {
+                _customLayoutStore.Save(activeLayout);
             }
             _uiDensity = density;
             _layoutPreset = preset;
             ApplyDensity(density);
 
-            IRootDock layout = samePreset
-                ? activeLayout
-                : preset == EditorLayoutPreset.Custom
-                    ? LoadCustomLayout()
-                    : _dockFactory.CreateLayout(preset);
+            IRootDock layout = preset == EditorLayoutPreset.Custom
+                ? LoadCustomLayout()
+                : _dockFactory.CreateLayout(preset);
             layout = InitializeLayout(
                 layout,
                 preset == EditorLayoutPreset.Debug
@@ -220,14 +233,19 @@ public sealed partial class MainWindow : Window
             DockHost.Layout = layout;
             _currentLayoutStore.Save(layout);
 
-            double left = _dockFactory.LeftDock?.Proportion ?? 300;
-            double bottom = _dockFactory.BottomDock?.Proportion ?? 220;
-            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
+            await SaveWorkspaceStateAsync();
         }
         catch (Exception ex)
         {
             _viewModel.ReportEditorMessage($"Не удалось применить настройки редактора: {ex.Message}", level: 4);
         }
+    }
+
+    private Task SaveWorkspaceStateAsync()
+    {
+        double left = _dockFactory?.LeftDock?.Proportion ?? 300;
+        double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
+        return _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
     }
 
     private void ApplyDensity(EditorUiDensity density)
