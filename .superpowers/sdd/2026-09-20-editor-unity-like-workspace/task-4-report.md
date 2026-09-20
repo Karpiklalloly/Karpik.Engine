@@ -95,3 +95,9 @@ No builds or tests were run, per instruction.
 - Editor Settings now receives the active density class when opened.
 
 No builds or tests were run, per instruction. Known linked-worktree `obj` write-access and missing first-party project blockers remain validation concerns.
+
+## Nullable legacy-load fix
+
+- `DockLayoutStore.Load` now handles a null serializer result before legacy migration, removing the nullable flow warning and avoiding migration on an absent layout.
+
+No tests were run, per instruction.

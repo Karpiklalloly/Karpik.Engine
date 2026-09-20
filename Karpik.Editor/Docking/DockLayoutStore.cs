@@ -33,7 +33,12 @@ public sealed class DockLayoutStore
         }
 
         using var stream = File.OpenRead(path);
-        IRootDock layout = _serializer.Load<IRootDock>(stream);
+        IRootDock? layout = _serializer.Load<IRootDock>(stream);
+        if (layout is null)
+        {
+            return null;
+        }
+
         if (_legacyPath is not null
             && string.Equals(path, _legacyPath, StringComparison.OrdinalIgnoreCase))
         {
