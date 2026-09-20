@@ -60,3 +60,10 @@ No dotnet build/test commands were run for this wave. Existing worktree `obj` wr
 - Added a focused test covering a duplicate-ID pinned wrapper plus hidden/pinned context restoration.
 
 No builds or tests were run, per instruction. The known linked-worktree `obj` write-access issue and missing first-party `Karpik.Jobs`/`DragonECS.Karpik.Extensions` projects remain validation concerns.
+
+## Scoped wrapper selection fix
+
+- `AttachContexts` now keeps the first normalized `left-tools`/`bottom-tools` encountered, so framework wrappers with duplicate IDs cannot replace the real visible main-layout docks.
+- The focused wrapper/context test now asserts that the real left dock remains selected.
+
+No builds or tests were run, per instruction.

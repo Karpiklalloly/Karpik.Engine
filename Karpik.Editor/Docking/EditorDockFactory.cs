@@ -280,12 +280,12 @@ public sealed class EditorDockFactory : Factory
             if (toolDock.Id == "left-tools")
             {
                 toolDock.Proportion = NormalizeToolProportion(toolDock.Proportion, DefaultLeftProportion);
-                LeftDock = toolDock;
+                LeftDock ??= toolDock;
             }
             else if (toolDock.Id == "bottom-tools")
             {
                 toolDock.Proportion = NormalizeToolProportion(toolDock.Proportion, DefaultBottomProportion);
-                BottomDock = toolDock;
+                BottomDock ??= toolDock;
             }
             else if (toolDock.Id == "right-tools")
             {

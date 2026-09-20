@@ -98,7 +98,7 @@ public sealed class EditorDockFactoryTests
         root.HiddenDockables.Add(hierarchy);
         root.PinnedDock = new ToolDock
         {
-            Id = "documents",
+            Id = "left-tools",
             VisibleDockables = [preview]
         };
         hierarchy.Context = null;
@@ -110,6 +110,7 @@ public sealed class EditorDockFactoryTests
 
         Assert.Same(shell.Hierarchy, hierarchy.Context);
         Assert.Same(shell.Preview, preview.Context);
+        Assert.Same(leftDock, factory.LeftDock);
     }
 
     [Fact]
