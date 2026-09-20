@@ -38,6 +38,9 @@
     <Setter Property="MinHeight" Value="20" />
     <Setter Property="Padding" Value="4,1" />
   </Style>
+  <Style Selector="TreeViewItem">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
   <Style Selector="TabItem">
     <Setter Property="MinHeight" Value="20" />
     <Setter Property="Padding" Value="6,1" />
@@ -64,11 +67,51 @@
   <Style Selector="Window.density-ultra-compact MenuItem">
     <Setter Property="FontSize" Value="11" />
   </Style>
+  <Style Selector="Window.density-ultra-compact ListBoxItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TreeViewItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TabItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact TextBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact ComboBox">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
   <Style Selector="Window.density-compact Button">
     <Setter Property="FontSize" Value="12" />
   </Style>
   <Style Selector="Window.density-compact MenuItem">
     <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Window.density-compact ListBoxItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TreeViewItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TabItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact TextBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="Window.density-compact ComboBox">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
   </Style>
   <Style Selector="Window.density-large Button">
     <Setter Property="MinHeight" Value="28" />
@@ -77,5 +120,20 @@
   <Style Selector="Window.density-large MenuItem">
     <Setter Property="MinHeight" Value="28" />
     <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large ListBoxItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TreeViewItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TabItem">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large TextBox">
+    <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large ComboBox">
+    <Setter Property="MinHeight" Value="28" />
   </Style>
 </Styles>

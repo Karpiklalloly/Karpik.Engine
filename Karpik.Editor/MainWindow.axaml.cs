@@ -63,26 +63,43 @@ public sealed partial class MainWindow : Window
         _layoutPreset = workspace.LayoutPreset;
         ApplyDensity(_uiDensity);
         IRootDock layout;
+        EditorLayoutPreset fallbackPreset = _layoutPreset == EditorLayoutPreset.Debug
+            ? EditorLayoutPreset.Debug
+            : EditorLayoutPreset.Unity;
         try
         {
             layout = _layoutPreset switch
             {
-                EditorLayoutPreset.Debug => _dockFactory.CreateLayout(EditorLayoutPreset.Debug),
+                EditorLayoutPreset.Debug => LoadCurrentLayout(EditorLayoutPreset.Debug),
                 EditorLayoutPreset.Custom => LoadCustomLayout(),
-                _ => _currentLayoutStore.Load()
-                     ?? _dockFactory.CreateLayout(EditorLayoutPreset.Unity)
+                _ => LoadCurrentLayout(EditorLayoutPreset.Unity)
             };
         }
         catch (Exception ex)
         {
             _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
-            layout = _dockFactory.CreateLayout(EditorLayoutPreset.Unity);
+            layout = _dockFactory.CreateLayout(fallbackPreset);
         }
 
-        _dockFactory.AttachContexts(layout);
-        _dockFactory.InitLayout(layout);
+        layout = InitializeLayout(layout, fallbackPreset);
         DockHost.Factory = _dockFactory;
         DockHost.Layout = layout;
+    }
+
+    private IRootDock LoadCurrentLayout(EditorLayoutPreset fallbackPreset)
+    {
+        IRootDock? layout = _currentLayoutStore.Load();
+        if (layout is not null && EditorDockFactory.IsValidLayout(layout))
+        {
+            return layout;
+        }
+
+        if (layout is not null)
+        {
+            _viewModel.ReportEditorMessage("Текущая раскладка повреждена. Используется резервная схема.", level: 4);
+        }
+
+        return _dockFactory!.CreateLayout(fallbackPreset);
     }
 
     private IRootDock LoadCustomLayout()
@@ -90,13 +107,21 @@ public sealed partial class MainWindow : Window
         try
         {
             IRootDock? layout = _customLayoutStore.Load();
-            _customLayoutLoaded = layout is not null;
-            if (layout is not null)
+            if (layout is not null && EditorDockFactory.IsValidLayout(layout))
             {
+                _customLayoutLoaded = true;
                 return layout;
             }
 
-            _viewModel.ReportEditorMessage("Пользовательская раскладка не найдена. Используется Unity.", level: 4);
+            _customLayoutLoaded = false;
+            if (layout is not null)
+            {
+                _viewModel.ReportEditorMessage("Пользовательская раскладка повреждена. Используется Unity.", level: 4);
+            }
+            else
+            {
+                _viewModel.ReportEditorMessage("Пользовательская раскладка не найдена. Используется Unity.", level: 4);
+            }
         }
         catch (Exception ex)
         {
@@ -105,6 +130,29 @@ public sealed partial class MainWindow : Window
         }
 
         return _dockFactory!.CreateLayout(EditorLayoutPreset.Unity);
+    }
+
+    private IRootDock InitializeLayout(IRootDock layout, EditorLayoutPreset fallbackPreset)
+    {
+        try
+        {
+            if (!EditorDockFactory.IsValidLayout(layout))
+            {
+                throw new InvalidDataException("The saved editor layout is missing required dockables.");
+            }
+
+            _dockFactory!.AttachContexts(layout);
+            _dockFactory.InitLayout(layout);
+            return layout;
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
+            IRootDock fallback = _dockFactory!.CreateLayout(fallbackPreset);
+            _dockFactory.AttachContexts(fallback);
+            _dockFactory.InitLayout(fallback);
+            return fallback;
+        }
     }
 
     public void OpenEditorSettings()
@@ -135,8 +183,11 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            _customLayoutStore.Save(activeLayout);
-            _customLayoutLoaded = true;
+            if (_layoutPreset == EditorLayoutPreset.Custom)
+            {
+                _customLayoutStore.Save(activeLayout);
+                _customLayoutLoaded = true;
+            }
             _uiDensity = density;
             _layoutPreset = preset;
             ApplyDensity(density);
@@ -144,8 +195,11 @@ public sealed partial class MainWindow : Window
             IRootDock layout = preset == EditorLayoutPreset.Custom
                 ? LoadCustomLayout()
                 : _dockFactory.CreateLayout(preset);
-            _dockFactory.AttachContexts(layout);
-            _dockFactory.InitLayout(layout);
+            layout = InitializeLayout(
+                layout,
+                preset == EditorLayoutPreset.Debug
+                    ? EditorLayoutPreset.Debug
+                    : EditorLayoutPreset.Unity);
             DockHost.Layout = layout;
             _currentLayoutStore.Save(layout);
 

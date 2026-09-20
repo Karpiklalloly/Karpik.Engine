@@ -15,6 +15,12 @@ public sealed class EditorDockFactory : Factory
     private const double MaximumToolProportion = 0.5;
     private const string SceneContext = "Редактирование сцены пока недоступно.";
     private const string GameContext = "Встроенный Game View пока недоступен.";
+    private static readonly string[] RequiredDockIds =
+    [
+        "root", "workspace", "main-row", "left-tools", "right-tools", "bottom-tools",
+        "documents", "hierarchy", "sessions", "project", "inspector", "console",
+        "scene", "game", "preview"
+    ];
 
     private readonly EditorShellViewModel _shell;
 
@@ -44,7 +50,7 @@ public sealed class EditorDockFactory : Factory
             Id = "left-tools",
             Alignment = Alignment.Left,
             Proportion = DefaultLeftProportion,
-            ActiveDockable = hierarchy,
+            ActiveDockable = preset == EditorLayoutPreset.Debug ? sessions : hierarchy,
             VisibleDockables = CreateList<IDockable>(hierarchy, sessions)
         };
         var inspectorDock = new ToolDock
@@ -81,7 +87,7 @@ public sealed class EditorDockFactory : Factory
             Id = "bottom-tools",
             Alignment = Alignment.Bottom,
             Proportion = preset == EditorLayoutPreset.Debug ? DebugBottomProportion : DefaultBottomProportion,
-            ActiveDockable = project,
+            ActiveDockable = preset == EditorLayoutPreset.Debug ? console : project,
             VisibleDockables = CreateList<IDockable>(project, console)
         };
         var vertical = new ProportionalDock
@@ -105,6 +111,59 @@ public sealed class EditorDockFactory : Factory
 
         return root;
     }
+
+    public static bool IsValidLayout(IRootDock? layout)
+    {
+        if (layout is null)
+        {
+            return false;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        return VisitForValidation(layout, seen)
+               && RequiredDockIds.All(seen.Contains);
+    }
+
+    private static bool VisitForValidation(IDockable dockable, HashSet<string> seen)
+    {
+        if (dockable is ProportionalDockSplitter)
+        {
+            return true;
+        }
+
+        string? id = dockable.Id;
+        if (string.IsNullOrWhiteSpace(id)
+            || !RequiredDockIds.Contains(id, StringComparer.Ordinal)
+            || !seen.Add(id)
+            || !HasExpectedType(dockable, id))
+        {
+            return false;
+        }
+
+        if (dockable is IDock dock && dock.VisibleDockables is { } children)
+        {
+            foreach (IDockable child in children)
+            {
+                if (!VisitForValidation(child, seen))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasExpectedType(IDockable dockable, string id) => id switch
+    {
+        "root" => dockable is RootDock,
+        "workspace" or "main-row" => dockable is ProportionalDock,
+        "left-tools" or "right-tools" or "bottom-tools" => dockable is ToolDock,
+        "documents" => dockable is DocumentDock,
+        "hierarchy" or "sessions" or "project" or "inspector" or "console" => dockable is Tool,
+        "scene" or "game" or "preview" => dockable is Document,
+        _ => false
+    };
 
     public void AttachContexts(IRootDock layout)
     {

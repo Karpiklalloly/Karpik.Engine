@@ -45,6 +45,20 @@ public sealed class EditorDockFactoryTests
             ["scene", "game", "preview"],
             Assert.IsType<DocumentDock>(FindById(root, "documents")).VisibleDockables!.Select(x => x.Id));
         Assert.True(Assert.IsType<ToolDock>(FindById(root, "bottom-tools")).Proportion > 0.28);
+        Assert.Equal("sessions", Assert.IsType<ToolDock>(FindById(root, "left-tools")).ActiveDockable!.Id);
+        Assert.Equal("console", Assert.IsType<ToolDock>(FindById(root, "bottom-tools")).ActiveDockable!.Id);
+    }
+
+    [Fact]
+    public void IsValidLayout_RejectsUnknownDockables()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace()).CreateLayout();
+
+        Assert.True(EditorDockFactory.IsValidLayout(root));
+        FindById(root, "scene")!.Id = "unknown";
+
+        Assert.False(EditorDockFactory.IsValidLayout(root));
     }
 
     [Fact]

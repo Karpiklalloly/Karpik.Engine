@@ -87,6 +87,8 @@ public sealed class EditorProjectLifetime : IEditorProjectLifetime
         await _workspaceStore.SaveAsync(new EditorWorkspace
         {
             SolutionPath = solutionPath,
+            UiDensity = current.UiDensity,
+            LayoutPreset = current.LayoutPreset,
             WindowWidth = current.WindowWidth,
             WindowHeight = current.WindowHeight,
             LeftPanelWidth = current.LeftPanelWidth,

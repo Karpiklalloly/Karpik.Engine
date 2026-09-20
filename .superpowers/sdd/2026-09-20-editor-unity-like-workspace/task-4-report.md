@@ -33,3 +33,13 @@ No build or test command was run after completing the implementation, per instru
 - Removed unsupported server start/stop claims; the test now checks command state forwarding before and after the shell receives an active project context, without pretending to exercise a coordinator or runtime transition.
 - Wrapped current-layout/workspace and save-as writes in filesystem-error handling that reports through `EditorShellViewModel.ReportEditorMessage`.
 - Applied panel and accent brushes to editor panel roots and selected `ListBoxItem`/`TabItem` styles so all declared graphite resources are consumed.
+
+## Final review fix wave
+
+- Custom layouts are saved only when leaving an active `Custom` preset; Debug/Unity changes no longer overwrite the custom snapshot. Current layout is always restored/saved, while Debug startup restores a validated current layout before generating a fresh Debug tree.
+- `EditorProjectLifetime.SaveWorkspaceAsync` now carries `UiDensity` and `LayoutPreset`; the existing lifetime persistence test asserts both fields.
+- Added `EditorDockFactory.IsValidLayout` for required IDs/types and unknown dock IDs. Startup and settings application validate before attach/init and report/fallback through the existing editor message path.
+- Debug-generated layouts now activate `Sessions` and `Console`; focused dock tests cover this and invalid-ID rejection.
+- Extended density-specific sizing to `ListBoxItem`, `TreeViewItem`, `TabItem`, `TextBox`, and `ComboBox`, preserving the 20 px floor and 28 px Large sizing.
+
+Validation remains intentionally unrun: no long dotnet commands were executed. The linked worktree's `obj` write-access failure and missing first-party `Karpik.Jobs`/`DragonECS.Karpik.Extensions` projects remain concerns.
