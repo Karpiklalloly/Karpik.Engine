@@ -1,0 +1,69 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <Color x:Key="EditorWindowColor">#1E1E1E</Color>
+    <Color x:Key="EditorPanelColor">#252526</Color>
+    <Color x:Key="EditorChromeColor">#2D2D30</Color>
+    <Color x:Key="EditorAccentColor">#3E6EAA</Color>
+    <SolidColorBrush x:Key="EditorWindowBrush" Color="{StaticResource EditorWindowColor}" />
+    <SolidColorBrush x:Key="EditorPanelBrush" Color="{StaticResource EditorPanelColor}" />
+    <SolidColorBrush x:Key="EditorChromeBrush" Color="{StaticResource EditorChromeColor}" />
+    <SolidColorBrush x:Key="EditorAccentBrush" Color="{StaticResource EditorAccentColor}" />
+    <SolidColorBrush x:Key="EditorForegroundBrush" Color="#D4D4D4" />
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource EditorWindowBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource EditorForegroundBrush}" />
+  </Style>
+  <Style Selector="Menu">
+    <Setter Property="Background" Value="{DynamicResource EditorChromeBrush}" />
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="TextBox">
+    <Setter Property="MinHeight" Value="20" />
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="4,1" />
+  </Style>
+  <Style Selector="TabItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Border.editor-toolbar">
+    <Setter Property="Background" Value="{DynamicResource EditorChromeBrush}" />
+    <Setter Property="Padding" Value="6,3" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact Button">
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact MenuItem">
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style Selector="Window.density-compact Button">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Window.density-compact MenuItem">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Window.density-large Button">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large MenuItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+</Styles>

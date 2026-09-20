@@ -155,34 +155,46 @@
 
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu>
-      <MenuItem Header="_Файл">
-        <MenuItem Header="Открыть проект…" Click="OpenProject_OnClick" />
+      <MenuItem Header="_File">
+        <MenuItem Header="Open Project…" HotKey="Ctrl+O" Click="OpenProject_OnClick" />
+        <MenuItem Header="Save Workspace" HotKey="Ctrl+S" Click="SaveWorkspace_OnClick" />
+        <MenuItem Header="Save Workspace As…" HotKey="Ctrl+Shift+S" Click="SaveWorkspaceAs_OnClick" />
+        <MenuItem Header="Close Project" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="Выход" Click="Exit_OnClick" />
+        <MenuItem Header="Exit" HotKey="Alt+F4" Click="Exit_OnClick" />
       </MenuItem>
-      <MenuItem Header="_Запуск">
-        <MenuItem Header="Запустить сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
-        <MenuItem Header="Добавить клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
-        <MenuItem Header="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
+      <MenuItem Header="_Edit">
+        <MenuItem Header="Undo" HotKey="Ctrl+Z" IsEnabled="False" />
+        <MenuItem Header="Redo" HotKey="Ctrl+Shift+Z" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="Собрать проект" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
-        <MenuItem Header="Опубликовать проект" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
-        <Separator />
-        <MenuItem Header="Остановить все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <MenuItem Header="Frame Selected" HotKey="F" IsEnabled="False" />
+        <MenuItem Header="Delete" HotKey="Delete" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Assets">
+        <MenuItem Header="Refresh" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_GameObject">
+        <MenuItem Header="Create Empty" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Window">
+        <MenuItem Header="Editor Settings…" Click="EditorSettings_OnClick" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="About Karpik Editor" IsEnabled="False" />
       </MenuItem>
     </Menu>
 
-    <Border Grid.Row="1" Background="#252A33" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
-        <Button Content="▶ Сервер" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
-        <Button Grid.Column="1" Content="＋ Клиент" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
-        <Button Grid.Column="2" Content="⚙ Собрать" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
-        <Button Grid.Column="3" Content="📦 Опубликовать" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
-        <Button Grid.Column="4" Content="■ Все" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
-        <Button Grid.Column="5" Content="Проверить runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
-        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=Проект не открыт}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <ProgressBar Width="96" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
+    <Border Grid.Row="1" Classes="editor-toolbar">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
+        <Button Content="▶S" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
+        <Button Grid.Column="1" Content="▶C" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
+        <Button Grid.Column="2" Content="■" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
+        <Button Grid.Column="3" Content="Build" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
+        <Button Grid.Column="4" Content="Publish" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
+        <Button Grid.Column="5" Content="Runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
+        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=No project open}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <ProgressBar Width="72" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
           <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
         </StackPanel>
       </Grid>

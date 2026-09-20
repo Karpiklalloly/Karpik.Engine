@@ -199,6 +199,54 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void SaveWorkspace_OnClick(object? sender, RoutedEventArgs e)
+    {
+        double left = _dockFactory?.LeftDock?.Proportion ?? 300;
+        double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
+        if (DockHost.Layout is IRootDock layout)
+        {
+            _currentLayoutStore.Save(layout);
+        }
+
+        await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
+    }
+
+    private async void SaveWorkspaceAs_OnClick(object? sender, RoutedEventArgs e)
+    {
+        IStorageFile? file = await StorageProvider.SaveFilePickerAsync(
+            new FilePickerSaveOptions
+            {
+                Title = "Save Karpik Editor workspace",
+                SuggestedFileName = "workspace.json",
+                DefaultExtension = "json",
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("Karpik Editor Workspace")
+                    {
+                        Patterns = ["*.json"]
+                    }
+                ]
+            });
+        string? path = file?.TryGetLocalPath();
+        if (path is null)
+        {
+            return;
+        }
+
+        double left = _dockFactory?.LeftDock?.Proportion ?? 300;
+        double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
+        await new WorkspaceStore(path).SaveAsync(new EditorWorkspace
+        {
+            SolutionPath = _viewModel.ProjectPath,
+            UiDensity = _uiDensity,
+            LayoutPreset = _layoutPreset,
+            WindowWidth = Width,
+            WindowHeight = Height,
+            LeftPanelWidth = left,
+            BottomPanelHeight = bottom
+        });
+    }
+
     private async Task<bool> TryOpenProjectAsync(string solutionPath)
     {
         try
