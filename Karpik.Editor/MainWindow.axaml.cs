@@ -188,6 +188,11 @@ public sealed partial class MainWindow : Window
                 _customLayoutStore.Save(activeLayout);
                 _customLayoutLoaded = true;
             }
+            else if (preset == EditorLayoutPreset.Custom && !_customLayoutStore.Exists())
+            {
+                _customLayoutStore.Save(activeLayout);
+                _customLayoutLoaded = true;
+            }
             _uiDensity = density;
             _layoutPreset = preset;
             ApplyDensity(density);

@@ -43,3 +43,11 @@ No build or test command was run after completing the implementation, per instru
 - Extended density-specific sizing to `ListBoxItem`, `TreeViewItem`, `TabItem`, `TextBox`, and `ComboBox`, preserving the 20 px floor and 28 px Large sizing.
 
 Validation remains intentionally unrun: no long dotnet commands were executed. The linked worktree's `obj` write-access failure and missing first-party `Karpik.Jobs`/`DragonECS.Karpik.Extensions` projects remain concerns.
+
+## Scoped re-review fix wave
+
+- Entering `Custom` now seeds the custom store from the active Unity/Debug layout only when neither the current nor legacy custom file exists; active Custom edits continue to save before switching away.
+- Layout validation now collects visible, hidden, pinned, pinned-dock, and floating-window root dockables, while still rejecting unknown IDs, wrong types, and missing required IDs. The focused dock test covers hidden and pinned placement.
+- Added density-specific `DocumentTabStripItem` and `ToolTabStripItem` selectors from `Dock.Avalonia`, including minimum height, padding, and font sizing.
+
+No dotnet build/test commands were run for this wave. Existing worktree `obj` write-access and missing first-party project blockers remain recorded concerns.

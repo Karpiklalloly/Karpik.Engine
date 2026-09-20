@@ -34,6 +34,9 @@ public sealed class DockLayoutStore
         return _serializer.Load<IRootDock>(stream);
     }
 
+    public bool Exists() => File.Exists(_path)
+                            || (_legacyPath is not null && File.Exists(_legacyPath));
+
     public void Save(IRootDock layout)
     {
         string? directory = Path.GetDirectoryName(_path);

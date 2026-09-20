@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia">
   <Styles.Resources>
     <Color x:Key="EditorWindowColor">#1E1E1E</Color>
     <Color x:Key="EditorPanelColor">#252526</Color>
@@ -45,6 +46,14 @@
     <Setter Property="MinHeight" Value="20" />
     <Setter Property="Padding" Value="6,1" />
   </Style>
+  <Style Selector="dock|DocumentTabStripItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="dock|ToolTabStripItem">
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
   <Style Selector="Border.editor-toolbar">
     <Setter Property="Background" Value="{DynamicResource EditorChromeBrush}" />
     <Setter Property="Padding" Value="6,3" />
@@ -87,6 +96,16 @@
     <Setter Property="FontSize" Value="11" />
     <Setter Property="MinHeight" Value="20" />
   </Style>
+  <Style Selector="Window.density-ultra-compact dock|DocumentTabStripItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="5,1" />
+  </Style>
+  <Style Selector="Window.density-ultra-compact dock|ToolTabStripItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="5,1" />
+  </Style>
   <Style Selector="Window.density-compact Button">
     <Setter Property="FontSize" Value="12" />
   </Style>
@@ -113,6 +132,16 @@
     <Setter Property="FontSize" Value="12" />
     <Setter Property="MinHeight" Value="20" />
   </Style>
+  <Style Selector="Window.density-compact dock|DocumentTabStripItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Window.density-compact dock|ToolTabStripItem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
   <Style Selector="Window.density-large Button">
     <Setter Property="MinHeight" Value="28" />
     <Setter Property="Padding" Value="8,3" />
@@ -135,5 +164,13 @@
   </Style>
   <Style Selector="Window.density-large ComboBox">
     <Setter Property="MinHeight" Value="28" />
+  </Style>
+  <Style Selector="Window.density-large dock|DocumentTabStripItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="Window.density-large dock|ToolTabStripItem">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,3" />
   </Style>
 </Styles>

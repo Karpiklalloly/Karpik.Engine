@@ -120,18 +120,33 @@ public sealed class EditorDockFactory : Factory
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        return VisitForValidation(layout, seen)
+        var visited = new HashSet<IDockable>(ReferenceEqualityComparer.Instance);
+        return VisitForValidation(layout, seen, visited)
                && RequiredDockIds.All(seen.Contains);
     }
 
-    private static bool VisitForValidation(IDockable dockable, HashSet<string> seen)
+    private static bool VisitForValidation(
+        IDockable dockable,
+        HashSet<string> seen,
+        HashSet<IDockable> visited,
+        bool floatingRoot = false)
     {
+        if (!visited.Add(dockable))
+        {
+            return true;
+        }
+
         if (dockable is ProportionalDockSplitter)
         {
             return true;
         }
 
         string? id = dockable.Id;
+        if (floatingRoot && dockable is IRootDock)
+        {
+            return VisitChildrenForValidation(dockable, seen, visited);
+        }
+
         if (string.IsNullOrWhiteSpace(id)
             || !RequiredDockIds.Contains(id, StringComparer.Ordinal)
             || !seen.Add(id)
@@ -140,14 +155,69 @@ public sealed class EditorDockFactory : Factory
             return false;
         }
 
+        return VisitChildrenForValidation(dockable, seen, visited);
+    }
+
+    private static bool VisitChildrenForValidation(
+        IDockable dockable,
+        HashSet<string> seen,
+        HashSet<IDockable> visited)
+    {
         if (dockable is IDock dock && dock.VisibleDockables is { } children)
         {
             foreach (IDockable child in children)
             {
-                if (!VisitForValidation(child, seen))
+                if (!VisitForValidation(child, seen, visited))
                 {
                     return false;
                 }
+            }
+        }
+
+        if (dockable is IRootDock root)
+        {
+            if (!VisitCollection(root.HiddenDockables, seen, visited)
+                || !VisitCollection(root.LeftPinnedDockables, seen, visited)
+                || !VisitCollection(root.RightPinnedDockables, seen, visited)
+                || !VisitCollection(root.TopPinnedDockables, seen, visited)
+                || !VisitCollection(root.BottomPinnedDockables, seen, visited)
+                || (root.PinnedDock is { } pinned
+                    && !VisitForValidation(pinned, seen, visited)))
+            {
+                return false;
+            }
+
+            if (root.Windows is { } windows)
+            {
+                foreach (Dock.Model.Core.IDockWindow window in windows)
+                {
+                    if (window.Layout is { } floatingLayout
+                        && !VisitForValidation(floatingLayout, seen, visited, floatingRoot: true))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool VisitCollection(
+        IList<IDockable>? dockables,
+        HashSet<string> seen,
+        HashSet<IDockable> visited)
+    {
+        if (dockables is null)
+        {
+            return true;
+        }
+
+        foreach (IDockable dockable in dockables)
+        {
+            if (!VisitForValidation(dockable, seen, visited))
+            {
+                return false;
             }
         }
 

@@ -62,6 +62,26 @@ public sealed class EditorDockFactoryTests
     }
 
     [Fact]
+    public void IsValidLayout_IncludesHiddenAndPinnedDockables()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace()).CreateLayout();
+        var documents = Assert.IsType<DocumentDock>(FindById(root, "documents"));
+        var leftDock = Assert.IsType<ToolDock>(FindById(root, "left-tools"));
+        IDockable scene = FindById(root, "scene")!;
+        IDockable hierarchy = FindById(root, "hierarchy")!;
+
+        documents.VisibleDockables!.Remove(scene);
+        leftDock.VisibleDockables!.Remove(hierarchy);
+        root.HiddenDockables ??= [];
+        root.HiddenDockables.Add(scene);
+        root.LeftPinnedDockables ??= [];
+        root.LeftPinnedDockables.Add(hierarchy);
+
+        Assert.True(EditorDockFactory.IsValidLayout(root));
+    }
+
+    [Fact]
     public void CreateCustomLayout_UsesSafeUnityFallback()
     {
         using var shell = CreateShell();
