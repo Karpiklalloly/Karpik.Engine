@@ -67,3 +67,14 @@ No builds or tests were run, per instruction. The known linked-worktree `obj` wr
 - The focused wrapper/context test now asserts that the real left dock remains selected.
 
 No builds or tests were run, per instruction.
+
+## Whole-branch edge-case fix
+
+- Layout validation now requires only the eight application Tool/Document IDs; structural root, proportional, tool-dock, document-dock, splitter, pinned, floating, empty, and extra wrapper nodes may carry arbitrary or duplicate IDs.
+- Repeated references to the same dockable are accepted as Dock pinned aliases, while distinct duplicate application nodes and unknown Tool/Document IDs remain invalid.
+- Context attachment still walks visible, hidden, pinned, pinned-dock, and floating-window collections, and now clears stale `LeftDock`/`BottomDock` references before selecting the first real traversal result.
+- Settings Apply preserves the active layout for density-only changes, seeds Custom only when entering it without an existing snapshot, and avoids rewriting a rejected Custom file.
+- Legacy `layout-v2.json` loads upgrade preview-only document docks in memory with scene/game documents while retaining order and proportions; the legacy file is not rewritten.
+- Added focused structural-wrapper/pinned-alias validation coverage and a preview-only legacy migration test.
+
+No builds or tests were run, per instruction. Known linked-worktree `obj` write-access and missing first-party project blockers remain validation concerns.

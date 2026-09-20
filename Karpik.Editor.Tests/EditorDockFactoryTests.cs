@@ -77,6 +77,35 @@ public sealed class EditorDockFactoryTests
         root.HiddenDockables.Add(scene);
         root.LeftPinnedDockables ??= [];
         root.LeftPinnedDockables.Add(hierarchy);
+        root.PinnedDock = new ToolDock
+        {
+            VisibleDockables = [hierarchy]
+        };
+
+        Assert.True(EditorDockFactory.IsValidLayout(root));
+    }
+
+    [Fact]
+    public void IsValidLayout_AllowsStructuralWrappersWithoutOriginalContainerIds()
+    {
+        using var shell = CreateShell();
+        IRootDock root = new EditorDockFactory(shell, new EditorWorkspace()).CreateLayout();
+        var workspace = Assert.IsType<ProportionalDock>(FindById(root, "workspace"));
+        var mainRow = Assert.IsType<ProportionalDock>(FindById(root, "main-row"));
+        var leftDock = Assert.IsType<ToolDock>(FindById(root, "left-tools"));
+        var rightDock = Assert.IsType<ToolDock>(FindById(root, "right-tools"));
+        var bottomDock = Assert.IsType<ToolDock>(FindById(root, "bottom-tools"));
+        var documents = Assert.IsType<DocumentDock>(FindById(root, "documents"));
+
+        root.Id = "root-wrapper";
+        workspace.Id = null;
+        mainRow.Id = "extra-proportional-wrapper";
+        leftDock.Id = null;
+        rightDock.Id = "extra-tool-wrapper";
+        bottomDock.Id = null;
+        documents.Id = "extra-document-wrapper";
+        root.HiddenDockables ??= [];
+        root.HiddenDockables.Add(new ProportionalDock { Id = "empty-preset-group", VisibleDockables = [] });
 
         Assert.True(EditorDockFactory.IsValidLayout(root));
     }

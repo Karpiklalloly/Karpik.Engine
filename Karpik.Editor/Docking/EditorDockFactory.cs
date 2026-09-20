@@ -15,11 +15,9 @@ public sealed class EditorDockFactory : Factory
     private const double MaximumToolProportion = 0.5;
     private const string SceneContext = "Редактирование сцены пока недоступно.";
     private const string GameContext = "Встроенный Game View пока недоступен.";
-    private static readonly string[] RequiredDockIds =
+    private static readonly string[] RequiredPanelIds =
     [
-        "root", "workspace", "main-row", "left-tools", "right-tools", "bottom-tools",
-        "documents", "hierarchy", "sessions", "project", "inspector", "console",
-        "scene", "game", "preview"
+        "hierarchy", "sessions", "project", "inspector", "console", "scene", "game", "preview"
     ];
 
     private readonly EditorShellViewModel _shell;
@@ -122,18 +120,17 @@ public sealed class EditorDockFactory : Factory
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var visited = new HashSet<IDockable>(ReferenceEqualityComparer.Instance);
         return VisitForValidation(layout, seen, visited)
-               && RequiredDockIds.All(seen.Contains);
+               && RequiredPanelIds.All(seen.Contains);
     }
 
     private static bool VisitForValidation(
         IDockable dockable,
         HashSet<string> seen,
-        HashSet<IDockable> visited,
-        bool frameworkWrapper = false)
+        HashSet<IDockable> visited)
     {
         if (!visited.Add(dockable))
         {
-            return frameworkWrapper || !IsApplicationDockable(dockable);
+            return true;
         }
 
         if (dockable is ProportionalDockSplitter)
@@ -141,11 +138,11 @@ public sealed class EditorDockFactory : Factory
             return true;
         }
 
-        if (!frameworkWrapper)
+        if (dockable is Tool or Document)
         {
             string? id = dockable.Id;
             if (string.IsNullOrWhiteSpace(id)
-                || !RequiredDockIds.Contains(id, StringComparer.Ordinal)
+                || !RequiredPanelIds.Contains(id, StringComparer.Ordinal)
                 || !seen.Add(id)
                 || !HasExpectedType(dockable, id))
             {
@@ -153,24 +150,19 @@ public sealed class EditorDockFactory : Factory
             }
         }
 
-        return VisitChildrenForValidation(dockable, seen, visited, frameworkWrapper);
+        return VisitChildrenForValidation(dockable, seen, visited);
     }
 
     private static bool VisitChildrenForValidation(
         IDockable dockable,
         HashSet<string> seen,
-        HashSet<IDockable> visited,
-        bool frameworkWrapper)
+        HashSet<IDockable> visited)
     {
         if (dockable is IDock dock && dock.VisibleDockables is { } children)
         {
             foreach (IDockable child in children)
             {
-                if (!VisitForValidation(
-                        child,
-                        seen,
-                        visited,
-                        frameworkWrapper && IsFrameworkWrapper(child)))
+                if (!VisitForValidation(child, seen, visited))
                 {
                     return false;
                 }
@@ -179,13 +171,13 @@ public sealed class EditorDockFactory : Factory
 
         if (dockable is IRootDock root)
         {
-            if (!VisitCollection(root.HiddenDockables, seen, visited, frameworkWrapper)
-                || !VisitCollection(root.LeftPinnedDockables, seen, visited, frameworkWrapper)
-                || !VisitCollection(root.RightPinnedDockables, seen, visited, frameworkWrapper)
-                || !VisitCollection(root.TopPinnedDockables, seen, visited, frameworkWrapper)
-                || !VisitCollection(root.BottomPinnedDockables, seen, visited, frameworkWrapper)
+            if (!VisitCollection(root.HiddenDockables, seen, visited)
+                || !VisitCollection(root.LeftPinnedDockables, seen, visited)
+                || !VisitCollection(root.RightPinnedDockables, seen, visited)
+                || !VisitCollection(root.TopPinnedDockables, seen, visited)
+                || !VisitCollection(root.BottomPinnedDockables, seen, visited)
                 || (root.PinnedDock is { } pinned
-                    && !VisitForValidation(pinned, seen, visited, frameworkWrapper: true)))
+                    && !VisitForValidation(pinned, seen, visited)))
             {
                 return false;
             }
@@ -195,7 +187,7 @@ public sealed class EditorDockFactory : Factory
                 foreach (Dock.Model.Core.IDockWindow window in windows)
                 {
                     if (window.Layout is { } floatingLayout
-                        && !VisitForValidation(floatingLayout, seen, visited, frameworkWrapper: true))
+                        && !VisitForValidation(floatingLayout, seen, visited))
                     {
                         return false;
                     }
@@ -206,18 +198,10 @@ public sealed class EditorDockFactory : Factory
         return true;
     }
 
-    private static bool IsFrameworkWrapper(IDockable dockable) =>
-        dockable is IRootDock
-        || (dockable is IDock && string.IsNullOrWhiteSpace(dockable.Id));
-
-    private static bool IsApplicationDockable(IDockable dockable) =>
-        dockable.Id is { } id && RequiredDockIds.Contains(id, StringComparer.Ordinal);
-
     private static bool VisitCollection(
         IList<IDockable>? dockables,
         HashSet<string> seen,
-        HashSet<IDockable> visited,
-        bool frameworkWrapper = false)
+        HashSet<IDockable> visited)
     {
         if (dockables is null)
         {
@@ -226,11 +210,7 @@ public sealed class EditorDockFactory : Factory
 
         foreach (IDockable dockable in dockables)
         {
-            if (!VisitForValidation(
-                    dockable,
-                    seen,
-                    visited,
-                    frameworkWrapper && IsFrameworkWrapper(dockable)))
+            if (!VisitForValidation(dockable, seen, visited))
             {
                 return false;
             }
@@ -241,10 +221,6 @@ public sealed class EditorDockFactory : Factory
 
     private static bool HasExpectedType(IDockable dockable, string id) => id switch
     {
-        "root" => dockable is RootDock,
-        "workspace" or "main-row" => dockable is ProportionalDock,
-        "left-tools" or "right-tools" or "bottom-tools" => dockable is ToolDock,
-        "documents" => dockable is DocumentDock,
         "hierarchy" or "sessions" or "project" or "inspector" or "console" => dockable is Tool,
         "scene" or "game" or "preview" => dockable is Document,
         _ => false
@@ -252,6 +228,8 @@ public sealed class EditorDockFactory : Factory
 
     public void AttachContexts(IRootDock layout)
     {
+        LeftDock = null;
+        BottomDock = null;
         Visit(layout, new HashSet<IDockable>(ReferenceEqualityComparer.Instance));
     }
 

@@ -356,4 +356,46 @@ public sealed class EditorWorkspaceTests
             }
         }
     }
+
+    [Fact]
+    public void DockLayoutStore_UpgradesLegacyPreviewOnlyDocumentsWithoutRewritingLegacyFile()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        try
+        {
+            string legacyPath = Path.Combine(directory, "layout-v2.json");
+            var preview = new Document { Id = "preview" };
+            var documents = new DocumentDock
+            {
+                Id = "documents",
+                Proportion = 0.61,
+                ActiveDockable = preview,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { preview }
+            };
+            new DockLayoutStore(legacyPath).Save(new RootDock
+            {
+                Id = "legacy-root",
+                ActiveDockable = documents,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { documents }
+            });
+            byte[] before = File.ReadAllBytes(legacyPath);
+
+            IRootDock restored = Assert.IsAssignableFrom<IRootDock>(DockLayoutStore.CreateCurrent(directory).Load());
+            var restoredDocuments = Assert.IsType<DocumentDock>(Assert.Single(restored.VisibleDockables!));
+
+            Assert.Equal(["scene", "game", "preview"], restoredDocuments.VisibleDockables!.Select(x => x.Id));
+            Assert.Equal(0.61, restoredDocuments.Proportion);
+            Assert.Equal(before, File.ReadAllBytes(legacyPath));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }

@@ -183,10 +183,20 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            if (_layoutPreset == EditorLayoutPreset.Custom)
+            bool samePreset = preset == _layoutPreset;
+            if (samePreset)
             {
-                _customLayoutStore.Save(activeLayout);
-                _customLayoutLoaded = true;
+                if (_layoutPreset == EditorLayoutPreset.Custom && _customLayoutLoaded)
+                {
+                    _customLayoutStore.Save(activeLayout);
+                }
+            }
+            else if (_layoutPreset == EditorLayoutPreset.Custom)
+            {
+                if (_customLayoutLoaded)
+                {
+                    _customLayoutStore.Save(activeLayout);
+                }
             }
             else if (preset == EditorLayoutPreset.Custom && !_customLayoutStore.Exists())
             {
@@ -197,9 +207,11 @@ public sealed partial class MainWindow : Window
             _layoutPreset = preset;
             ApplyDensity(density);
 
-            IRootDock layout = preset == EditorLayoutPreset.Custom
-                ? LoadCustomLayout()
-                : _dockFactory.CreateLayout(preset);
+            IRootDock layout = samePreset
+                ? activeLayout
+                : preset == EditorLayoutPreset.Custom
+                    ? LoadCustomLayout()
+                    : _dockFactory.CreateLayout(preset);
             layout = InitializeLayout(
                 layout,
                 preset == EditorLayoutPreset.Debug
