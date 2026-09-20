@@ -82,6 +82,37 @@ public sealed class EditorDockFactoryTests
     }
 
     [Fact]
+    public void IsValidLayout_AllowsPinnedFrameworkWrapper_AndRestoresHiddenContexts()
+    {
+        using var shell = CreateShell();
+        var factory = new EditorDockFactory(shell, new EditorWorkspace());
+        IRootDock root = factory.CreateLayout();
+        var documents = Assert.IsType<DocumentDock>(FindById(root, "documents"));
+        var leftDock = Assert.IsType<ToolDock>(FindById(root, "left-tools"));
+        IDockable hierarchy = FindById(root, "hierarchy")!;
+        IDockable preview = FindById(root, "preview")!;
+
+        leftDock.VisibleDockables!.Remove(hierarchy);
+        documents.VisibleDockables!.Remove(preview);
+        root.HiddenDockables ??= [];
+        root.HiddenDockables.Add(hierarchy);
+        root.PinnedDock = new ToolDock
+        {
+            Id = "documents",
+            VisibleDockables = [preview]
+        };
+        hierarchy.Context = null;
+        preview.Context = null;
+
+        Assert.True(EditorDockFactory.IsValidLayout(root));
+
+        factory.AttachContexts(root);
+
+        Assert.Same(shell.Hierarchy, hierarchy.Context);
+        Assert.Same(shell.Preview, preview.Context);
+    }
+
+    [Fact]
     public void CreateCustomLayout_UsesSafeUnityFallback()
     {
         using var shell = CreateShell();

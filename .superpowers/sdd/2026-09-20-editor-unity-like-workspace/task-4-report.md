@@ -51,3 +51,12 @@ Validation remains intentionally unrun: no long dotnet commands were executed. T
 - Added density-specific `DocumentTabStripItem` and `ToolTabStripItem` selectors from `Dock.Avalonia`, including minimum height, padding, and font sizing.
 
 No dotnet build/test commands were run for this wave. Existing worktree `obj` write-access and missing first-party project blockers remain recorded concerns.
+
+## Dock wrapper/context review fix
+
+- Validation now treats `PinnedDock` and floating-window layout roots as framework wrappers: their null/duplicate structural IDs are not counted as application dockables, while real application IDs still require known IDs, expected types, and unique placement.
+- Validation continues through visible, hidden, all pinned, pinned-dock contents, and floating-window layout collections, including nested structural wrappers.
+- `AttachContexts` now traverses the same hidden, pinned, pinned-dock, and floating-window collections, restoring contexts and tool proportions for actual dockables that were not visible at startup.
+- Added a focused test covering a duplicate-ID pinned wrapper plus hidden/pinned context restoration.
+
+No builds or tests were run, per instruction. The known linked-worktree `obj` write-access issue and missing first-party `Karpik.Jobs`/`DragonECS.Karpik.Extensions` projects remain validation concerns.
