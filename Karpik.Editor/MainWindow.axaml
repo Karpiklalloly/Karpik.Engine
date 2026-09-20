@@ -10,7 +10,7 @@
   <Window.DataTemplates>
     <local:DockContextDataTemplate />
     <DataTemplate DataType="local:ProjectViewModel">
-      <Grid Margin="8" RowDefinitions="Auto,Auto,*">
+      <Grid Classes="editor-panel" Margin="8" RowDefinitions="Auto,Auto,*">
         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
         <TextBlock Grid.Row="1" Text="{Binding AssetMessage}" Margin="0,8" TextWrapping="Wrap" Opacity="0.65" />
         <TreeView Grid.Row="2" ItemsSource="{Binding Assets}" SelectedItem="{Binding SelectedAsset, Mode=TwoWay}">
@@ -23,7 +23,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:AssetMetaEditorViewModel">
-      <ScrollViewer>
+      <ScrollViewer Classes="editor-panel">
         <StackPanel Spacing="8">
           <StackPanel Spacing="2">
             <TextBlock Text="Asset ID" Opacity="0.7" />
@@ -54,7 +54,7 @@
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:HierarchyViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="8">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="8">
         <TextBlock Text="Сущности ECS" FontWeight="SemiBold" Margin="4,2,4,8" />
         <ListBox Grid.Row="1" ItemsSource="{Binding Entities}" SelectedItem="{Binding SelectedEntity}">
           <ListBox.ItemTemplate>
@@ -66,7 +66,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:SessionsViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="8">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="8">
         <TextBlock Text="Сервер и клиенты" FontWeight="SemiBold" Margin="4,2,4,8" />
         <ListBox Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}">
           <ListBox.ItemTemplate>
@@ -90,7 +90,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:InspectorViewModel">
-      <ScrollViewer>
+      <ScrollViewer Classes="editor-panel">
         <StackPanel Spacing="8" Margin="8">
           <StackPanel Spacing="8" IsVisible="{Binding HasSelectedMeta}">
             <TextBlock Text="{Binding MetaMessage}" TextWrapping="Wrap" Opacity="0.75" />
@@ -113,7 +113,7 @@
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="local:ConsoleViewModel">
-      <Grid RowDefinitions="Auto,*" Margin="6">
+      <Grid Classes="editor-panel" RowDefinitions="Auto,*" Margin="6">
         <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,6" ColumnSpacing="6">
           <ComboBox Grid.Column="1" Width="90" ItemsSource="{Binding Levels}" SelectedItem="{Binding SelectedLevel, Mode=TwoWay}" />
           <ComboBox Grid.Column="2" Width="130" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession, Mode=TwoWay}" />
@@ -144,7 +144,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="local:PreviewViewModel">
-      <Grid Background="#171A20">
+      <Grid Classes="editor-panel">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
           <TextBlock Text="Каждый клиент работает в отдельном окне SDL2/Veldrid" FontSize="18" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Message}" HorizontalAlignment="Center" Opacity="0.7" />

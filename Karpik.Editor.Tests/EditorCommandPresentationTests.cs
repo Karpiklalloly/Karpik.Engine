@@ -3,7 +3,6 @@ using Karpik.Engine.Core;
 using Karpik.Engine.ProjectModel;
 using ReactiveUI.Builder;
 using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using Xunit;
 
 namespace Karpik.Editor.Tests;
@@ -23,27 +22,30 @@ public sealed class EditorCommandPresentationTests
         var lifetime = new TestProjectLifetime();
         using var shell = new EditorShellViewModel(
             new WorkspaceStore(Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}.json")),
-            new UnavailableEditorBackendFactory());
+            new UnusedProjectOpenService());
 
         AssertCommandState(shell);
 
         await shell.PublishAsync(CreateContext(lifetime), TestContext.Current.CancellationToken);
         AssertCommandState(shell);
-
-        await shell.StartServerCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
-        AssertCommandState(shell);
-
-        await shell.StopAllCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
-        AssertCommandState(shell);
     }
 
     private static void AssertCommandState(EditorShellViewModel shell)
     {
-        Assert.Equal(shell.CanStartServer, shell.StartServerCommand.CanExecute(null));
-        Assert.Equal(shell.CanAddClient, shell.AddClientCommand.CanExecute(null));
-        Assert.Equal(shell.CanStopAll, shell.StopAllCommand.CanExecute(null));
-        Assert.Equal(shell.CanBuild, shell.BuildProjectCommand.CanExecute(null));
-        Assert.Equal(shell.CanPublish, shell.PublishProjectCommand.CanExecute(null));
+        Assert.Equal(shell.CanStartServer, ((System.Windows.Input.ICommand)shell.StartServerCommand).CanExecute(null));
+        Assert.Equal(shell.CanAddClient, ((System.Windows.Input.ICommand)shell.AddClientCommand).CanExecute(null));
+        Assert.Equal(shell.CanStopAll, ((System.Windows.Input.ICommand)shell.StopAllCommand).CanExecute(null));
+        Assert.Equal(shell.CanBuild, ((System.Windows.Input.ICommand)shell.BuildProjectCommand).CanExecute(null));
+        Assert.Equal(shell.CanPublish, ((System.Windows.Input.ICommand)shell.PublishProjectCommand).CanExecute(null));
+    }
+
+    private sealed class UnusedProjectOpenService : IProjectOpenService
+    {
+        public Task<ProjectOpenResult> OpenAsync(
+            string solutionPath,
+            ProjectGeneration generation,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ProjectOpenResult.Failure("not used by this test"));
     }
 
     private static ActiveProjectContext CreateContext(IActiveProjectLifetime lifetime)

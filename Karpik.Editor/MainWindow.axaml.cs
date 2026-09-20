@@ -201,14 +201,25 @@ public sealed partial class MainWindow : Window
 
     private async void SaveWorkspace_OnClick(object? sender, RoutedEventArgs e)
     {
-        double left = _dockFactory?.LeftDock?.Proportion ?? 300;
-        double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
-        if (DockHost.Layout is IRootDock layout)
+        try
         {
-            _currentLayoutStore.Save(layout);
-        }
+            double left = _dockFactory?.LeftDock?.Proportion ?? 300;
+            double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
+            if (DockHost.Layout is IRootDock layout)
+            {
+                _currentLayoutStore.Save(layout);
+                if (_layoutPreset == EditorLayoutPreset.Custom && _customLayoutLoaded)
+                {
+                    _customLayoutStore.Save(layout);
+                }
+            }
 
-        await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
+            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset, _uiDensity);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _viewModel.ReportEditorMessage($"Не удалось сохранить рабочую область: {ex.Message}", level: 4);
+        }
     }
 
     private async void SaveWorkspaceAs_OnClick(object? sender, RoutedEventArgs e)
@@ -233,18 +244,25 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        double left = _dockFactory?.LeftDock?.Proportion ?? 300;
-        double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
-        await new WorkspaceStore(path).SaveAsync(new EditorWorkspace
+        try
         {
-            SolutionPath = _viewModel.ProjectPath,
-            UiDensity = _uiDensity,
-            LayoutPreset = _layoutPreset,
-            WindowWidth = Width,
-            WindowHeight = Height,
-            LeftPanelWidth = left,
-            BottomPanelHeight = bottom
-        });
+            double left = _dockFactory?.LeftDock?.Proportion ?? 300;
+            double bottom = _dockFactory?.BottomDock?.Proportion ?? 220;
+            await new WorkspaceStore(path).SaveAsync(new EditorWorkspace
+            {
+                SolutionPath = _viewModel.ProjectPath,
+                UiDensity = _uiDensity,
+                LayoutPreset = _layoutPreset,
+                WindowWidth = Width,
+                WindowHeight = Height,
+                LeftPanelWidth = left,
+                BottomPanelHeight = bottom
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _viewModel.ReportEditorMessage($"Не удалось сохранить рабочую область как файл: {ex.Message}", level: 4);
+        }
     }
 
     private async Task<bool> TryOpenProjectAsync(string solutionPath)
