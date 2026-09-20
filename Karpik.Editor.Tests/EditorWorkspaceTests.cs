@@ -176,7 +176,6 @@ public sealed class EditorWorkspaceTests
             .WithCoreServices()
             .BuildApp();
         string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
-        string path = Path.Combine(directory, "layout-custom-v2.json");
         try
         {
             var scene = new Document { Id = "scene" };
@@ -198,7 +197,7 @@ public sealed class EditorWorkspaceTests
                 ActiveDockable = documents,
                 VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { documents }
             };
-            var store = new DockLayoutStore(path);
+            var store = DockLayoutStore.CreateCustom(directory);
             store.Save(root);
 
             using var shell = new EditorShellViewModel(
