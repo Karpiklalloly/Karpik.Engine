@@ -53,6 +53,45 @@ public sealed class EditorWorkspaceTests
     }
 
     [Fact]
+    public async Task WorkspaceStore_RoundTripsDensityAndLayoutPreset()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}", "workspace.json");
+        var store = new WorkspaceStore(path);
+
+        await store.SaveAsync(new EditorWorkspace
+        {
+            UiDensity = EditorUiDensity.UltraCompact,
+            LayoutPreset = EditorLayoutPreset.Custom
+        }, TestContext.Current.CancellationToken);
+
+        EditorWorkspace restored = await store.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(EditorUiDensity.UltraCompact, restored.UiDensity);
+        Assert.Equal(EditorLayoutPreset.Custom, restored.LayoutPreset);
+    }
+
+    [Fact]
+    public async Task WorkspaceStore_LegacyWorkspaceUsesNewDefaults()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        string path = Path.Combine(directory, "workspace.json");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(path, "{\"SolutionPath\":\"C:\\\\games\\\\sample\\\\Sample.slnx\"}");
+
+        try
+        {
+            EditorWorkspace restored = await new WorkspaceStore(path).LoadAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(EditorUiDensity.Compact, restored.UiDensity);
+            Assert.Equal(EditorLayoutPreset.Unity, restored.LayoutPreset);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DockLayoutStore_RoundTripsDockTree()
     {
         RxAppBuilder.CreateReactiveUIBuilder()

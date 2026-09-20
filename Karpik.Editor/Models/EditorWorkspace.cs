@@ -2,9 +2,15 @@ using System.Text.Json;
 
 namespace Karpik.Editor;
 
+public enum EditorUiDensity { Compact, UltraCompact, Large }
+
+public enum EditorLayoutPreset { Unity, Debug, Custom }
+
 public sealed class EditorWorkspace
 {
     public string? SolutionPath { get; init; }
+    public EditorUiDensity UiDensity { get; init; } = EditorUiDensity.Compact;
+    public EditorLayoutPreset LayoutPreset { get; init; } = EditorLayoutPreset.Unity;
     public double LeftPanelWidth { get; init; } = 300;
     public double BottomPanelHeight { get; init; } = 220;
     public double WindowWidth { get; init; } = 1400;
