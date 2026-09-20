@@ -275,4 +275,56 @@ public sealed class EditorWorkspaceTests
             }
         }
     }
+
+    [Fact]
+    public void DockLayoutStore_FactoryPathsLoadLegacyLayoutWithoutTouchingUserProfile()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        Assert.NotNull(DockLayoutStore.CreateCurrent());
+        Assert.NotNull(DockLayoutStore.CreateCustom());
+
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        try
+        {
+            var documents = new DocumentDock
+            {
+                Id = "documents",
+                Proportion = 0.61,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable>
+                {
+                    new Document { Id = "game" },
+                    new Document { Id = "scene" }
+                }
+            };
+            var legacyRoot = new RootDock
+            {
+                Id = "legacy-root",
+                ActiveDockable = documents,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { documents }
+            };
+            new DockLayoutStore(Path.Combine(directory, "layout-v2.json")).Save(legacyRoot);
+
+            IRootDock current = Assert.IsAssignableFrom<IRootDock>(
+                DockLayoutStore.CreateCurrent(directory).Load());
+            IRootDock custom = Assert.IsAssignableFrom<IRootDock>(
+                DockLayoutStore.CreateCustom(directory).Load());
+
+            Assert.Equal("legacy-root", current.Id);
+            var customDocuments = Assert.IsType<DocumentDock>(Assert.Single(custom.VisibleDockables!));
+            Assert.Equal(["game", "scene"], customDocuments.VisibleDockables!.Select(x => x.Id));
+            Assert.Equal(0.61, customDocuments.Proportion);
+            Assert.True(File.Exists(Path.Combine(directory, "layout-v2.json")));
+            Assert.False(File.Exists(Path.Combine(directory, "layout-current-v2.json")));
+            Assert.False(File.Exists(Path.Combine(directory, "layout-custom-v2.json")));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }

@@ -53,13 +53,14 @@ public sealed class DockLayoutStore
 
     public static DockLayoutStore CreateDefault() => CreateCurrent();
 
-    public static DockLayoutStore CreateCurrent() => CreateMigrating("layout-current-v2.json");
+    public static DockLayoutStore CreateCurrent(string? editorDirectory = null) =>
+        CreateMigrating(editorDirectory ?? GetEditorDirectory(), "layout-current-v2.json");
 
-    public static DockLayoutStore CreateCustom() => CreateMigrating("layout-custom-v2.json");
+    public static DockLayoutStore CreateCustom(string? editorDirectory = null) =>
+        CreateMigrating(editorDirectory ?? GetEditorDirectory(), "layout-custom-v2.json");
 
-    private static DockLayoutStore CreateMigrating(string fileName)
+    private static DockLayoutStore CreateMigrating(string directory, string fileName)
     {
-        string directory = GetEditorDirectory();
         return new DockLayoutStore(
             Path.Combine(directory, fileName),
             Path.Combine(directory, "layout-v2.json"));
