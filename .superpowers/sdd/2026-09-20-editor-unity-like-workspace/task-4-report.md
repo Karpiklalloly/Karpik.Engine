@@ -78,3 +78,10 @@ No builds or tests were run, per instruction.
 - Added focused structural-wrapper/pinned-alias validation coverage and a preview-only legacy migration test.
 
 No builds or tests were run, per instruction. Known linked-worktree `obj` write-access and missing first-party project blockers remain validation concerns.
+
+## Legacy migration title fix
+
+- Migrated legacy `scene` and `game` documents now receive the same `Сцена` and `Игра` titles as normal generated layouts.
+- The migration test asserts both titles.
+
+No builds or tests were run, per instruction.

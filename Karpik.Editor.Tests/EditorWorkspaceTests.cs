@@ -387,6 +387,8 @@ public sealed class EditorWorkspaceTests
             var restoredDocuments = Assert.IsType<DocumentDock>(Assert.Single(restored.VisibleDockables!));
 
             Assert.Equal(["scene", "game", "preview"], restoredDocuments.VisibleDockables!.Select(x => x.Id));
+            Assert.Equal("Сцена", restoredDocuments.VisibleDockables![0].Title);
+            Assert.Equal("Игра", restoredDocuments.VisibleDockables![1].Title);
             Assert.Equal(0.61, restoredDocuments.Proportion);
             Assert.Equal(before, File.ReadAllBytes(legacyPath));
         }

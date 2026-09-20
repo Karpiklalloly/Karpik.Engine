@@ -171,18 +171,19 @@ public sealed class DockLayoutStore
 
         if (!hasScene)
         {
-            dockables.Insert(previewIndex++, CreateLegacyDocument("scene"));
+            dockables.Insert(previewIndex++, CreateLegacyDocument("scene", "Сцена"));
         }
 
         if (!hasGame)
         {
-            dockables.Insert(previewIndex, CreateLegacyDocument("game"));
+            dockables.Insert(previewIndex, CreateLegacyDocument("game", "Игра"));
         }
     }
 
-    private static Document CreateLegacyDocument(string id) => new()
+    private static Document CreateLegacyDocument(string id, string title) => new()
     {
         Id = id,
+        Title = title,
         CanClose = false,
         CanFloat = false
     };
