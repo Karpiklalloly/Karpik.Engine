@@ -218,4 +218,61 @@ public sealed class EditorWorkspaceTests
             }
         }
     }
+
+    [Fact]
+    public void DockLayoutStore_CurrentAndCustomTreesRemainSeparate()
+    {
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithCoreServices()
+            .BuildApp();
+        string directory = Path.Combine(Path.GetTempPath(), $"KarpikEditorTests-{Guid.NewGuid():N}");
+        try
+        {
+            var customDock = new DocumentDock
+            {
+                Id = "custom-documents",
+                Proportion = 0.63,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable>
+                {
+                    new Document { Id = "custom" }
+                }
+            };
+            var currentDock = new DocumentDock
+            {
+                Id = "current-documents",
+                Proportion = 0.37,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable>
+                {
+                    new Document { Id = "current" }
+                }
+            };
+            var customStore = new DockLayoutStore(Path.Combine(directory, "layout-custom-v2.json"));
+            var currentStore = new DockLayoutStore(Path.Combine(directory, "layout-current-v2.json"));
+
+            customStore.Save(new RootDock
+            {
+                Id = "custom-root",
+                ActiveDockable = customDock,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { customDock }
+            });
+            currentStore.Save(new RootDock
+            {
+                Id = "current-root",
+                ActiveDockable = currentDock,
+                VisibleDockables = new System.Collections.ObjectModel.ObservableCollection<IDockable> { currentDock }
+            });
+
+            Assert.Equal("custom-root", customStore.Load()!.Id);
+            Assert.Equal("current-root", currentStore.Load()!.Id);
+            Assert.Equal(0.63, Assert.IsType<DocumentDock>(Assert.Single(customStore.Load()!.VisibleDockables!)).Proportion);
+            Assert.Equal(0.37, Assert.IsType<DocumentDock>(Assert.Single(currentStore.Load()!.VisibleDockables!)).Proportion);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }

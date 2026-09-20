@@ -982,10 +982,16 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         RaiseCommandState();
     }
 
-    public Task SaveWorkspaceAsync(double windowWidth, double windowHeight, double leftWidth, double bottomHeight) =>
+    public Task SaveWorkspaceAsync(
+        double windowWidth,
+        double windowHeight,
+        double leftWidth,
+        double bottomHeight,
+        EditorLayoutPreset layoutPreset = EditorLayoutPreset.Unity) =>
         _workspaceStore.SaveAsync(new EditorWorkspace
         {
             SolutionPath = ProjectPath,
+            LayoutPreset = layoutPreset,
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,
             LeftPanelWidth = leftWidth,

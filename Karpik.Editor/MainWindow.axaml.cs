@@ -15,9 +15,12 @@ namespace Karpik.Editor;
 public sealed partial class MainWindow : Window
 {
     private readonly EditorShellViewModel _viewModel;
-    private readonly DockLayoutStore _layoutStore;
+    private readonly DockLayoutStore _currentLayoutStore;
+    private readonly DockLayoutStore _customLayoutStore;
     private readonly EditorStartupOptions _startupOptions;
     private EditorDockFactory? _dockFactory;
+    private EditorLayoutPreset _layoutPreset = EditorLayoutPreset.Unity;
+    private bool _customLayoutLoaded;
     private bool _closeConfirmed;
 
     public MainWindow()
@@ -30,7 +33,8 @@ public sealed partial class MainWindow : Window
         _startupOptions = startupOptions ?? new EditorStartupOptions(null, null);
         InitializeComponent();
         _viewModel = new EditorShellViewModel(WorkspaceStore.CreateDefault(), _startupOptions);
-        _layoutStore = DockLayoutStore.CreateDefault();
+        _currentLayoutStore = DockLayoutStore.CreateCurrent();
+        _customLayoutStore = DockLayoutStore.CreateCustom();
         DataContext = _viewModel;
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -53,21 +57,35 @@ public sealed partial class MainWindow : Window
         Height = Math.Max(MinHeight, workspace.WindowHeight);
 
         _dockFactory = new EditorDockFactory(_viewModel, workspace);
+        _layoutPreset = workspace.LayoutPreset;
         IRootDock layout;
         try
         {
-            layout = _layoutStore.Load() ?? _dockFactory.CreateLayout();
+            layout = _layoutPreset switch
+            {
+                EditorLayoutPreset.Debug => _dockFactory.CreateLayout(EditorLayoutPreset.Debug),
+                EditorLayoutPreset.Custom => LoadCustomLayout(),
+                _ => _currentLayoutStore.Load()
+                     ?? _dockFactory.CreateLayout(EditorLayoutPreset.Unity)
+            };
         }
         catch (Exception ex)
         {
             _viewModel.ReportEditorMessage($"Не удалось восстановить раскладку: {ex.Message}", level: 4);
-            layout = _dockFactory.CreateLayout();
+            layout = _dockFactory.CreateLayout(EditorLayoutPreset.Unity);
         }
 
         _dockFactory.AttachContexts(layout);
         _dockFactory.InitLayout(layout);
         DockHost.Factory = _dockFactory;
         DockHost.Layout = layout;
+    }
+
+    private IRootDock LoadCustomLayout()
+    {
+        IRootDock? layout = _customLayoutStore.Load();
+        _customLayoutLoaded = layout is not null;
+        return layout ?? _dockFactory!.CreateLayout(EditorLayoutPreset.Unity);
     }
 
     private async void OpenProject_OnClick(object? sender, RoutedEventArgs e)
@@ -193,7 +211,11 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                _layoutStore.Save(layout);
+                _currentLayoutStore.Save(layout);
+                if (_layoutPreset == EditorLayoutPreset.Custom && _customLayoutLoaded)
+                {
+                    _customLayoutStore.Save(layout);
+                }
             }
             catch (Exception ex)
             {
@@ -202,7 +224,7 @@ public sealed partial class MainWindow : Window
         }
         try
         {
-            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom);
+            await _viewModel.SaveWorkspaceAsync(Width, Height, left, bottom, _layoutPreset);
             await _viewModel.ShutdownAsync();
         }
         catch (Exception exception)
