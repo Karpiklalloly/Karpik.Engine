@@ -1,10 +1,27 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml.Linq;
 
 namespace ProjectConfigurator;
 
+public sealed record PackageCatalogDependency(string ModuleId, bool Optional);
+
+public sealed record PackageCatalogEntry(
+    string ProjectPath,
+    string ModuleId,
+    string LogicalModuleId,
+    PluginKind Kind,
+    ProjectSide Side,
+    string? ImplementationId,
+    IReadOnlyList<PackageCatalogDependency> Dependencies);
+
+public sealed record PackageCatalogDocument(int Version, IReadOnlyList<PackageCatalogEntry> Modules);
+
 public static class ArtifactGenerator
 {
+    public const int PackageCatalogVersion = 1;
+
     public static IReadOnlyDictionary<string, string> BuildArtifacts(RepositoryModel model, GraphResult graph)
     {
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -22,6 +39,46 @@ public static class ArtifactGenerator
             Directory.CreateDirectory(Path.GetDirectoryName(artifact.Key)!);
             File.WriteAllText(artifact.Key, artifact.Value, new UTF8Encoding(false));
         }
+    }
+
+    public static string BuildPackageCatalog(RepositoryModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var pluginsByPath = model.Plugins.ToDictionary(plugin => plugin.Project.AbsolutePath, StringComparer.OrdinalIgnoreCase);
+        var entries = model.Plugins
+            .OrderBy(plugin => plugin.Project.PluginId, StringComparer.Ordinal)
+            .Select(plugin => new PackageCatalogEntry(
+                plugin.Project.RelativePath.Replace('\\', '/'),
+                plugin.Project.PluginId,
+                plugin.ModuleId,
+                plugin.Kind,
+                plugin.Project.Side,
+                plugin.ImplementationId,
+                plugin.Project.Dependencies
+                    .Select(dependency => new PackageCatalogDependency(
+                        dependency.TargetPath != null && pluginsByPath.TryGetValue(dependency.TargetPath, out PluginInfo? target)
+                            ? target.Project.PluginId
+                            : dependency.Id,
+                        dependency.Optional))
+                    .OrderBy(dependency => dependency.ModuleId, StringComparer.Ordinal)
+                    .ThenBy(dependency => dependency.Optional)
+                    .ToArray()))
+            .ToArray();
+        return JsonSerializer.Serialize(
+                   new PackageCatalogDocument(PackageCatalogVersion, entries),
+                   new JsonSerializerOptions
+                   {
+                       WriteIndented = true,
+                       Converters = { new JsonStringEnumConverter() }
+                   }) + "\n";
+    }
+
+    public static void WritePackageCatalog(string outputPath, RepositoryModel model)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        string fullPath = Path.GetFullPath(outputPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        File.WriteAllText(fullPath, BuildPackageCatalog(model), new UTF8Encoding(false));
     }
 
     private static string BuildCatalog(RepositoryModel model)

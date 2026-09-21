@@ -36,7 +36,7 @@ This ExecPlan is a living document and must be maintained according to `plans/PL
 - [x] (2026-09-21) Implementation plan created and self-reviewed.
 - [x] (2026-09-21) Implementation method selected by developer: Native.
 - [x] (2026-09-21) Catalog contract and selection resolver implemented; tooling tests 53 passed.
-- [ ] Configurator package catalog implemented.
+- [x] (2026-09-21) Configurator package catalog implemented; tests 14 passed and repository output generated 25 candidates.
 - [ ] Packager builds and publishes all production module candidates.
 - [ ] Static SDK selection wired.
 - [ ] Dynamic bundle and runner selection wired.

@@ -13,6 +13,20 @@ internal static class Program
 
         var solutionPath = Directory.GetFiles(rootPath, "*.slnx").Single();
         var model = RepositoryParser.Load(rootPath, solutionPath);
+        int packageCatalogArgument = Array.IndexOf(args, "--package-catalog");
+        if (packageCatalogArgument >= 0)
+        {
+            if (packageCatalogArgument + 1 >= args.Length || model.ParseErrors.Count > 0)
+            {
+                PrintErrors(model.ParseErrors.Count == 0
+                    ? ["--package-catalog requires an output path."]
+                    : model.ParseErrors);
+                return 1;
+            }
+            ArtifactGenerator.WritePackageCatalog(args[packageCatalogArgument + 1], model);
+            Console.WriteLine("Package catalog generated successfully.");
+            return 0;
+        }
         var graph = GraphValidator.Validate(model);
         if (!graph.IsValid)
         {

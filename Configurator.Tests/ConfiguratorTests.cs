@@ -279,6 +279,29 @@ public sealed class ConfiguratorTests
         Assert.DoesNotContain("Disabled.csproj", targets, StringComparison.Ordinal);
         Assert.DoesNotContain("DisabledOnlyLibrary", targets, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void PackageCatalogContainsAllProductionPluginsInStableOrder()
+    {
+        using var repository = new TestRepository();
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Core");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.OpenGL");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Vulkan");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Core.Tests", isTest: true);
+        repository.AddPlugin(ProjectSide.Shared, "Tools", executable: true);
+        repository.Select("Graphics", implementation: "OpenGL");
+
+        RepositoryModel model = repository.Load();
+        string first = ArtifactGenerator.BuildPackageCatalog(model);
+        string second = ArtifactGenerator.BuildPackageCatalog(model);
+
+        Assert.Equal(first, second);
+        Assert.Contains("Graphics.OpenGL", first, StringComparison.Ordinal);
+        Assert.Contains("Graphics.Vulkan", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("Graphics.Core.Tests", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tools", first, StringComparison.Ordinal);
+        Assert.True(first.IndexOf("Graphics.Core", StringComparison.Ordinal) < first.IndexOf("Graphics.OpenGL", StringComparison.Ordinal));
+    }
 }
 
 internal sealed class TestRepository : IDisposable
