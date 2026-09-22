@@ -1,4 +1,5 @@
 using System.Text;
+using Karpik.Engine.Tooling;
 
 namespace Karpik.Engine.Sdk.Tasks;
 
@@ -85,7 +86,7 @@ public sealed partial class BuildKarpikRuntimeBundleTask
     }
 
     /// <summary>Проверяет структуру, manifest и размеры завершённого dynamic bundle.</summary>
-    private static bool IsCompleteBundle(
+    private bool IsCompleteBundle(
         string root,
         string side,
         bool allowOwnershipMarker,
@@ -105,6 +106,8 @@ public sealed partial class BuildKarpikRuntimeBundleTask
                 || !Directory.Exists(modules)
                 || !HasExactUtf8File(Path.Combine(modules, ".complete"), ModuleCompletionMarker)
                 || !TryReadCanonicalManifest(Path.Combine(modules, "modules.list"), out string[] names)
+                || (RequireEngineModuleSelection
+                    && !TryReadCanonicalEngineManifest(Path.Combine(modules, EngineModuleManifestFileName), out _))
                 || (requiredPrimaryAssembly is not null
                     && !names.Contains(Path.GetFileName(requiredPrimaryAssembly), StringComparer.OrdinalIgnoreCase)))
             {
@@ -153,7 +156,7 @@ public sealed partial class BuildKarpikRuntimeBundleTask
                     return false;
                 }
                 string name = Path.GetFileName(entry);
-                if (name is ".complete" or "modules.list")
+                if (name is ".complete" or "modules.list" or EngineModuleManifestFileName)
                 {
                     continue;
                 }
@@ -237,6 +240,40 @@ public sealed partial class BuildKarpikRuntimeBundleTask
             }
         }
         return true;
+    }
+
+    private static bool TryReadCanonicalEngineManifest(string path, out string[] ids)
+    {
+        ids = [];
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+        long length = new FileInfo(path).Length;
+        if (length is <= 0 or > MaxManifestBytes)
+        {
+            return false;
+        }
+        byte[] bytes = File.ReadAllBytes(path);
+        if (bytes.Length != length || bytes.AsSpan().StartsWith(Encoding.UTF8.Preamble))
+        {
+            return false;
+        }
+        string text = new UTF8Encoding(false, true).GetString(bytes);
+        if (!text.EndsWith('\n') || text.Contains('\r'))
+        {
+            return false;
+        }
+        ids = text[..^1].Split('\n');
+        HashSet<string> unique = new HashSet<string>(ModuleLayoutPolicy.ModuleIdComparer);
+        if (ids.Length is 0 or > MaxManifestEntries
+            || !ids.SequenceEqual(ids.Order(StringComparer.Ordinal), StringComparer.Ordinal)
+            || ids.Any(id => !ModuleLayoutPolicy.IsSafeModuleId(id) || !unique.Add(id)))
+        {
+            ids = [];
+            return false;
+        }
+        return bytes.AsSpan().SequenceEqual(Encoding.UTF8.GetBytes(string.Join('\n', ids) + '\n'));
     }
 
     /// <summary>Проверяет, что UTF-8 файл содержит в точности ожидаемую строку.</summary>

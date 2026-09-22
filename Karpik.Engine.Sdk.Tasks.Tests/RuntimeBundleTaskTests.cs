@@ -109,6 +109,44 @@ public sealed class RuntimeBundleTaskTests
     }
 
     [Fact]
+    public void Execute_DynamicModeWritesSelectedEngineModuleManifest()
+    {
+        using var tree = new TemporaryTree();
+        string engineRoot = Path.Combine(tree.Root, "engine");
+        Directory.CreateDirectory(Path.Combine(engineRoot, "modules"));
+        File.WriteAllText(
+            Path.Combine(engineRoot, "modules", Karpik.Engine.Tooling.EngineModuleCatalog.FileName),
+            Karpik.Engine.Tooling.EngineModuleCatalog.Serialize([
+                new("ECS.Core", "ECS", Karpik.Engine.Tooling.EngineModuleKind.Core, Karpik.Engine.Tooling.EngineModuleSide.Shared, null, []),
+                new("Optional.Core", "Optional", Karpik.Engine.Tooling.EngineModuleKind.Standalone, Karpik.Engine.Tooling.EngineModuleSide.Shared, null, [])
+            ]));
+        string primary = tree.Write("output/Game.Server.dll", "game");
+        string content = tree.Write("assets/content.txt", "content");
+        string bundle = Path.Combine(tree.Root, "karpik-bundle");
+        var ecs = new TaskItem("ECS");
+        ecs.SetMetadata("Enabled", "true");
+        var optional = new TaskItem("Optional");
+        optional.SetMetadata("Enabled", "false");
+        var task = new BuildKarpikRuntimeBundleTask
+        {
+            BuildEngine = new FakeBuildEngine(),
+            Side = "Server",
+            EngineRoot = engineRoot,
+            RequireEngineModuleSelection = true,
+            EngineModuleSelections = [ecs, optional],
+            PrimaryAssembly = primary,
+            BundlePath = bundle,
+            Assemblies = [new TaskItem(primary)],
+            Content = [ContentItem(content, "content.txt")]
+        };
+
+        Assert.True(task.Execute());
+        Assert.Equal(
+            "ECS.Core\n",
+            File.ReadAllText(Path.Combine(bundle, "modules.version.1", Karpik.Engine.Core.RuntimeBundleLayout.EngineModuleManifestFileName)));
+    }
+
+    [Fact]
     public void Execute_UnchangedInputs_ReusesPublishedBundle()
     {
         using var tree = new TemporaryTree();

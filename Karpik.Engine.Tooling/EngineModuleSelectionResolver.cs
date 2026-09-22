@@ -29,11 +29,6 @@ public static class EngineModuleSelectionResolver
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(selections);
-        if (side is EngineModuleSide.Shared)
-        {
-            throw new ArgumentOutOfRangeException(nameof(side), "A runtime side must be Client or Server.");
-        }
-
         EngineModuleCatalogEntry[] entries = catalog.ToArray();
         if (entries.Any(entry => !entry.HasSelectionMetadata))
         {
@@ -145,7 +140,9 @@ public static class EngineModuleSelectionResolver
     }
 
     private static bool IsAvailable(EngineModuleCatalogEntry entry, EngineModuleSide side) =>
-        entry.Side is EngineModuleSide.Shared || entry.Side == side;
+        side is EngineModuleSide.Shared
+            ? entry.Side is EngineModuleSide.Shared
+            : entry.Side is EngineModuleSide.Shared || entry.Side == side;
 
     private static EngineModuleSelectionException Error(EngineModuleSelectionErrorCode code, string message) =>
         new(code, message);

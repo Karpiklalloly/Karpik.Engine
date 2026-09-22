@@ -1,4 +1,5 @@
 using Microsoft.Build.Framework;
+using Karpik.Engine.Tooling;
 using System.Text;
 
 namespace Karpik.Engine.Sdk.Tasks;
@@ -35,6 +36,8 @@ public sealed partial class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utili
     public const string BundleCompletionMarker = "karpik-runtime-bundle-v1\n";
     /// <summary>Точное содержимое маркера завершённого staging модулей.</summary>
     public const string ModuleCompletionMarker = "karpik-module-staging-v1\n";
+    /// <summary>Имя manifest-файла выбранных engine modules.</summary>
+    public const string EngineModuleManifestFileName = "engine.modules.list";
     /// <summary>Префикс маркера стороны runtime bundle.</summary>
     public const string SideMarkerPrefix = "karpik-runtime-side-v1:";
     /// <summary>Маркер staging-каталога, которым владеет эта задача.</summary>
@@ -59,6 +62,15 @@ public sealed partial class BuildKarpikRuntimeBundleTask : Microsoft.Build.Utili
     /// files — never a managed module manifest or module DLLs.
     /// </summary>
     public string CompositionMode { get; set; } = "Dynamic";
+
+    /// <summary>Получает корень установленного engine для dynamic module selection.</summary>
+    public string EngineRoot { get; set; } = string.Empty;
+
+    /// <summary>Получает build-time выбор engine modules.</summary>
+    public ITaskItem[] EngineModuleSelections { get; set; } = [];
+
+    /// <summary>Требует manifest выбранных engine modules в dynamic bundle.</summary>
+    public bool RequireEngineModuleSelection { get; set; }
 
     [Required]
     /// <summary>Получает путь к главной DLL игрового runtime-проекта.</summary>

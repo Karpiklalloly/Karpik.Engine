@@ -1,4 +1,5 @@
 using Microsoft.Build.Framework;
+using Karpik.Engine.Tooling;
 using System.Text;
 
 namespace Karpik.Engine.Sdk.Tasks;
@@ -47,6 +48,11 @@ public sealed partial class BuildKarpikRuntimeBundleTask
                                + Encoding.UTF8.GetByteCount(BundleCompletionMarker)
                                + Encoding.UTF8.GetByteCount(SideMarkerPrefix + Side + "\n")
                                + Encoding.UTF8.GetByteCount(OwnedStagingMarker);
+        string? engineModuleManifestText = ResolveEngineModuleManifest();
+        if (engineModuleManifestText is not null)
+        {
+            totalInputBytes += Encoding.UTF8.GetByteCount(engineModuleManifestText);
+        }
         foreach (string source in sources.Values)
         {
             long length = new FileInfo(source).Length;
@@ -77,7 +83,8 @@ public sealed partial class BuildKarpikRuntimeBundleTask
         int fixedEntries = 3 // root markers plus staging ownership marker
                            + 1 // modules.version.1 directory
                            + sources.Count
-                           + 2; // module manifest and marker
+                           + 2 // module manifest and marker
+                           + (engineModuleManifestText is null ? 0 : 1);
         if (fixedEntries > MaxTreeEntries - assetDirectories.Count - assetSources.Count)
         {
             throw new InvalidDataException($"Runtime bundle exceeds the maximum of {MaxTreeEntries} tree entries.");
@@ -93,6 +100,13 @@ public sealed partial class BuildKarpikRuntimeBundleTask
             Path.Combine(modules, "modules.list"),
             manifestText,
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        if (engineModuleManifestText is not null)
+        {
+            File.WriteAllText(
+                Path.Combine(modules, EngineModuleManifestFileName),
+                engineModuleManifestText,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
         File.WriteAllText(Path.Combine(modules, ".complete"), ModuleCompletionMarker);
         foreach ((string source, string destination) in assetSources)
         {
@@ -102,6 +116,51 @@ public sealed partial class BuildKarpikRuntimeBundleTask
 
         File.WriteAllText(Path.Combine(staging, "runtime-bundle.side"), SideMarkerPrefix + Side + "\n");
         File.WriteAllText(Path.Combine(staging, ".complete"), BundleCompletionMarker);
+    }
+
+    private string? ResolveEngineModuleManifest()
+    {
+        if (string.IsNullOrWhiteSpace(EngineRoot))
+        {
+            if (RequireEngineModuleSelection)
+            {
+                throw new InvalidDataException("EngineRoot is required for dynamic engine module selection.");
+            }
+            return null;
+        }
+        if (!Path.IsPathFullyQualified(EngineRoot))
+        {
+            throw new InvalidDataException("EngineRoot must be an absolute path for dynamic engine module selection.");
+        }
+        if (RequireEngineModuleSelection && EngineModuleSelections.Length == 0)
+        {
+            throw new InvalidDataException("KarpikModuleSelection item group is required for dynamic SDK builds.");
+        }
+
+        EngineModuleSide side = Side switch
+        {
+            "Client" => EngineModuleSide.Client,
+            "Server" => EngineModuleSide.Server,
+            _ => throw new InvalidDataException($"Unsupported runtime side for engine module selection: {Side}")
+        };
+        EngineModuleCatalogEntry[] catalog = EngineModuleCatalog.Read(Path.Combine(Path.GetFullPath(EngineRoot), "modules"));
+        var selections = new List<EngineModuleSelection>(EngineModuleSelections.Length);
+        foreach (ITaskItem item in EngineModuleSelections)
+        {
+            string enabledText = item.GetMetadata("Enabled");
+            if (!bool.TryParse(enabledText, out bool enabled))
+            {
+                throw new InvalidDataException($"KarpikModuleSelection '{item.ItemSpec}' has invalid Enabled metadata '{enabledText}'.");
+            }
+            string implementation = item.GetMetadata("Implementation");
+            selections.Add(new EngineModuleSelection(item.ItemSpec, enabled, string.IsNullOrWhiteSpace(implementation) ? null : implementation));
+        }
+        EngineModuleCatalogEntry[] selected = EngineModuleSelectionResolver.Resolve(catalog, selections, side);
+        if (!selected.Any(entry => entry is { ModuleId: "ECS.Core", Side: EngineModuleSide.Shared }))
+        {
+            throw new InvalidDataException("Selected engine module graph must include shared ECS.Core.");
+        }
+        return string.Join('\n', selected.Select(entry => entry.ModuleId).Order(StringComparer.Ordinal)) + '\n';
     }
 
     /// <summary>Материализует static bundle без managed module manifest и DLL модулей.</summary>

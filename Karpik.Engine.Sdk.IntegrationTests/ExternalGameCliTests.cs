@@ -10,6 +10,7 @@ using System.Xml.Linq;
 using Karpik.Engine.Core;
 using Karpik.Engine.Packager;
 using Karpik.Engine.Tooling;
+using ProjectConfigurator;
 using Xunit;
 
 namespace Karpik.Engine.Sdk.IntegrationTests;
@@ -104,6 +105,11 @@ public sealed class ExternalGameCliTests
 
         try
         {
+            string retainedEngineRoot = ResolveRetainedEngineRoot(repositoryRoot);
+            string selectionEngineRoot = CreateSelectionCompatibleEngineRoot(
+                repositoryRoot,
+                retainedEngineRoot,
+                temporaryRoot);
             string packageFeed = Path.Combine(temporaryRoot, "packages");
             string offlinePackageFeed = Path.Combine(temporaryRoot, "offline");
             Directory.CreateDirectory(packageFeed);
@@ -115,7 +121,7 @@ public sealed class ExternalGameCliTests
                 ["DOTNET_NOLOGO"] = "1",
                 ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
                 ["MSBUILDDISABLENODEREUSE"] = "1",
-                ["KarpikEngineRoot"] = ResolveRetainedEngineRoot(repositoryRoot)
+                ["KarpikEngineRoot"] = selectionEngineRoot
             };
 
             ProcessResult pack = await RunAsync(
@@ -130,7 +136,7 @@ public sealed class ExternalGameCliTests
             Directory.CreateDirectory(contentRoot);
             File.WriteAllText(Path.Combine(projectRoot, "Game.csproj"), """
                 <Project Sdk="Karpik.Engine.Sdk/0.6.0-local">
-                  <PropertyGroup>
+                <PropertyGroup>
                     <TargetFramework>net10.0</TargetFramework>
                     <KarpikProjectKind>Runtime</KarpikProjectKind>
                     <KarpikSide>Client</KarpikSide>
@@ -138,6 +144,9 @@ public sealed class ExternalGameCliTests
                     <KarpikContentEnabled>true</KarpikContentEnabled>
                     <KarpikContentNamespace>game</KarpikContentNamespace>
                   </PropertyGroup>
+                  <ItemGroup>
+                    <KarpikModuleSelection Include="ECS" Enabled="true" />
+                  </ItemGroup>
                 </Project>
                 """);
             File.WriteAllText(Path.Combine(contentRoot, "asset.json"), """{"value":1}""");
@@ -205,6 +214,7 @@ public sealed class ExternalGameCliTests
             "global.json",
             "KarpikGame.slnx",
             "Directory.Solution.targets",
+            "Directory.Build.targets",
             "Source/KarpikGame.Client/KarpikGame.Client.csproj",
             "Source/KarpikGame.Client/Content/runtime.txt",
             "Source/KarpikGame.Client.Launcher/KarpikGame.Client.Launcher.csproj",
@@ -232,7 +242,7 @@ public sealed class ExternalGameCliTests
         Assert.All(expectedFiles, relativePath =>
             Assert.True(File.Exists(Path.Combine(templateRoot, Normalize(relativePath))), $"Missing template file: {relativePath}"));
 
-        string[] forbiddenNames = [".karpik", "Directory.Build.props", "Directory.Build.targets"];
+        string[] forbiddenNames = [".karpik", "Directory.Build.props"];
         Assert.DoesNotContain(
             EnumerateTemplateSourceFiles(templateRoot),
             path => forbiddenNames.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase));
@@ -1787,23 +1797,97 @@ public sealed class ExternalGameCliTests
         return Path.GetFullPath(engineRoot);
     }
 
+    private static string CreateSelectionCompatibleEngineRoot(
+        string repositoryRoot,
+        string retainedEngineRoot,
+        string temporaryRoot)
+    {
+        string prepared = Path.Combine(temporaryRoot, "selection-engine");
+        CopyDirectory(retainedEngineRoot, prepared);
+        MoveLegacyModulePayloadToShared(prepared);
+        WriteEngineModuleCatalog(repositoryRoot, Path.Combine(prepared, "modules"));
+        EngineInstallationManifest retainedManifest = EngineInstallationManifest.Parse(
+            File.ReadAllText(Path.Combine(prepared, "engine-installation.json")));
+        EngineInstallationManifest manifest = new()
+        {
+            EngineVersion = retainedManifest.EngineVersion,
+            MsBuildSdkVersion = retainedManifest.MsBuildSdkVersion,
+            EditorVersion = retainedManifest.EditorVersion,
+            RuntimeProtocolVersion = retainedManifest.RuntimeProtocolVersion,
+            LayoutVersion = EngineInstallationManifest.CurrentLayoutVersion,
+            ContentHash = EngineContentHash.Compute(prepared)
+        };
+        File.WriteAllText(
+            Path.Combine(prepared, "engine-installation.json"),
+            manifest.ToJson(),
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(Path.Combine(prepared, ".complete"), "complete\n");
+        return prepared;
+    }
+
+    private static void MoveLegacyModulePayloadToShared(string engineRoot)
+    {
+        string modulesRoot = Path.Combine(engineRoot, "modules");
+        string sharedRoot = Path.Combine(engineRoot, "shared");
+        Directory.CreateDirectory(sharedRoot);
+        foreach (string moduleDirectory in Directory.EnumerateDirectories(modulesRoot))
+        {
+            string moduleId = Path.GetFileName(moduleDirectory);
+            string primary = Path.Combine(moduleDirectory, moduleId + ".dll");
+            foreach (string payload in Directory.EnumerateFiles(moduleDirectory))
+            {
+                if (string.Equals(payload, primary, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string destination = Path.Combine(sharedRoot, Path.GetFileName(payload));
+                if (File.Exists(destination))
+                {
+                    Assert.Equal(File.ReadAllBytes(destination), File.ReadAllBytes(payload));
+                    File.Delete(payload);
+                }
+                else
+                {
+                    File.Move(payload, destination);
+                }
+            }
+            foreach (string payloadDirectory in Directory.EnumerateDirectories(moduleDirectory))
+            {
+                Directory.Delete(payloadDirectory, recursive: true);
+            }
+        }
+    }
+
     internal static void WriteEngineModuleCatalog(string repositoryRoot, string modulesRoot)
     {
-        XDocument targets = XDocument.Load(Path.Combine(repositoryRoot, "AutoGenerated.targets"));
+        string solutionPath = Assert.Single(Directory.GetFiles(repositoryRoot, "*.slnx", SearchOption.TopDirectoryOnly));
+        RepositoryModel model = RepositoryParser.Load(repositoryRoot, solutionPath);
+        Assert.Empty(model.ParseErrors);
+        using JsonDocument packageCatalog = JsonDocument.Parse(ArtifactGenerator.BuildPackageCatalog(model));
         var entries = new List<EngineModuleCatalogEntry>();
-        foreach (XElement reference in targets.Descendants().Where(element => element.Name.LocalName == "PluginReference"))
+        foreach (JsonElement module in packageCatalog.RootElement.GetProperty("Modules").EnumerateArray())
         {
-            string? include = (string?)reference.Attribute("Include");
-            if (string.IsNullOrWhiteSpace(include))
+            string moduleId = module.GetProperty("ModuleId").GetString()!;
+            if (!Directory.Exists(Path.Combine(modulesRoot, moduleId)))
                 continue;
-            string normalized = include.Replace("\\", "/", StringComparison.Ordinal);
-            EngineModuleSide? side = normalized.Contains("Modules/Shared/", StringComparison.Ordinal) ? EngineModuleSide.Shared
-                : normalized.Contains("Modules/Client/", StringComparison.Ordinal) ? EngineModuleSide.Client
-                : normalized.Contains("Modules/Server/", StringComparison.Ordinal) ? EngineModuleSide.Server
-                : null;
-            string moduleId = Path.GetFileNameWithoutExtension(normalized);
-            if (side is not null && Directory.Exists(Path.Combine(modulesRoot, moduleId)))
-                entries.Add(new EngineModuleCatalogEntry(moduleId, side.Value));
+
+            EngineModuleSide side = Enum.Parse<EngineModuleSide>(module.GetProperty("Side").GetString()!);
+            EngineModuleKind kind = Enum.Parse<EngineModuleKind>(module.GetProperty("Kind").GetString()!);
+            string? implementation = module.GetProperty("ImplementationId").ValueKind is JsonValueKind.Null
+                ? null
+                : module.GetProperty("ImplementationId").GetString();
+            EngineModuleDependency[] dependencies = module.GetProperty("Dependencies")
+                .EnumerateArray()
+                .Select(dependency => new EngineModuleDependency(
+                    dependency.GetProperty("ModuleId").GetString()!,
+                    dependency.GetProperty("Optional").GetBoolean()))
+                .ToArray();
+            entries.Add(new EngineModuleCatalogEntry(
+                moduleId,
+                module.GetProperty("LogicalModuleId").GetString()!,
+                kind,
+                side,
+                implementation,
+                dependencies));
         }
         Assert.Equal(
             Directory.EnumerateDirectories(modulesRoot).Select(Path.GetFileName).Order(StringComparer.Ordinal),

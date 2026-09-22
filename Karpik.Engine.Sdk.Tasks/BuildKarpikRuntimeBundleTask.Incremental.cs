@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Karpik.Engine.Tooling;
 using Microsoft.Build.Framework;
 
 namespace Karpik.Engine.Sdk.Tasks;
@@ -25,6 +26,18 @@ public sealed partial class BuildKarpikRuntimeBundleTask
                     if (!TryAddFingerprintInput(inputs, "assembly", Path.GetFileName(assembly.ItemSpec), assembly.ItemSpec))
                     {
                         return null;
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(EngineRoot))
+                {
+                    string catalogPath = Path.Combine(Path.GetFullPath(EngineRoot), "modules", EngineModuleCatalog.FileName);
+                    if (!TryAddFingerprintInput(inputs, "engine-catalog", EngineModuleCatalog.FileName, catalogPath))
+                    {
+                        return null;
+                    }
+                    foreach (ITaskItem selection in EngineModuleSelections.OrderBy(item => item.ItemSpec, StringComparer.Ordinal))
+                    {
+                        inputs.Add($"engine-selection\n{selection.ItemSpec}\n{selection.GetMetadata("Enabled")}\n{selection.GetMetadata("Implementation")}");
                     }
                 }
             }

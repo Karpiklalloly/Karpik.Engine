@@ -63,6 +63,7 @@ public static class RuntimeBundleLayout
     public const long MaxBundleBytes = 32L * 1024 * 1024 * 1024;
     public const string BundleCompletionMarker = "karpik-runtime-bundle-v1\n";
     public const string ModuleCompletionMarker = "karpik-module-staging-v1\n";
+    public const string EngineModuleManifestFileName = "engine.modules.list";
     public const string SideMarkerPrefix = "karpik-runtime-side-v1:";
 
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
@@ -95,6 +96,10 @@ public static class RuntimeBundleLayout
 
         string modules = ResolveModuleDirectory(root);
         ReadCanonicalModuleManifest(modules);
+        if (File.Exists(Path.Combine(modules, EngineModuleManifestFileName)))
+        {
+            ReadCanonicalEngineModuleManifest(modules);
+        }
         return root;
     }
 
@@ -312,7 +317,7 @@ public static class RuntimeBundleLayout
                 throw new InvalidDataException("Runtime module directory contains an unexpected, linked, or excessive entry.");
             }
             string fileName = Path.GetFileName(entry);
-            if (fileName is ".complete" or "modules.list")
+            if (fileName is ".complete" or "modules.list" or EngineModuleManifestFileName)
             {
                 continue;
             }
@@ -335,6 +340,48 @@ public static class RuntimeBundleLayout
         }
         return names;
     }
+
+    public static string[] ReadCanonicalEngineModuleManifest(string moduleDirectory)
+    {
+        string modules = Path.GetFullPath(moduleDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        EnsureExistingPathHasNoReparsePoints(modules);
+        byte[] bytes = ReadBoundedFile(
+            Path.Combine(modules, EngineModuleManifestFileName),
+            MaxManifestBytes,
+            "engine module selection manifest");
+        string text;
+        try
+        {
+            text = new UTF8Encoding(false, true).GetString(bytes);
+        }
+        catch (DecoderFallbackException exception)
+        {
+            throw new InvalidDataException("Engine module selection manifest must be valid UTF-8 without a BOM.", exception);
+        }
+        if (bytes.AsSpan().StartsWith(Encoding.UTF8.Preamble) || !text.EndsWith('\n') || text.Contains('\r'))
+        {
+            throw new InvalidDataException("Engine module selection manifest must use canonical UTF-8 bytes and LF line endings.");
+        }
+
+        string[] ids = text[..^1].Split('\n');
+        var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (ids.Length is 0 or > MaxManifestEntries ||
+            !ids.SequenceEqual(ids.Order(StringComparer.Ordinal), StringComparer.Ordinal) ||
+            ids.Any(id => !IsSafeEngineModuleId(id) || !unique.Add(id)))
+        {
+            throw new InvalidDataException("Engine module selection manifest must be non-empty, bounded, unique, safe, and ordinally sorted.");
+        }
+        string canonical = string.Join('\n', ids) + '\n';
+        if (!bytes.AsSpan().SequenceEqual(Encoding.UTF8.GetBytes(canonical)))
+        {
+            throw new InvalidDataException("Engine module selection manifest bytes are not canonical.");
+        }
+        return ids;
+    }
+
+    private static bool IsSafeEngineModuleId(string id) =>
+        !string.IsNullOrWhiteSpace(id) && char.IsAsciiLetterOrDigit(id[0]) && char.IsAsciiLetterOrDigit(id[^1]) &&
+        id.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_');
 
     internal static bool IsReparsePoint(string path)
     {

@@ -7,7 +7,7 @@ namespace Karpik.Engine.Tooling;
 public sealed class EngineInstallationManifest
 {
     /// <summary>Текущая версия layout engine payload.</summary>
-    public const int CurrentLayoutVersion = 3;
+    public const int CurrentLayoutVersion = 4;
     /// <summary>Минимальная поддерживаемая версия layout (v2 — до shared store).</summary>
     public const int MinimumLayoutVersion = 2;
     /// <summary>Текущая версия протокола запуска runtime.</summary>

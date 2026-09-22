@@ -9,6 +9,7 @@
 
   <!-- Подключает общие проверки установки и публикации payload. -->
   <ItemGroup>
+    <ProjectReference Include="..\Configurator\Configurator.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
   </ItemGroup>
 

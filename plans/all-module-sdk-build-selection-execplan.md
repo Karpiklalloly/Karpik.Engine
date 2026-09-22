@@ -37,11 +37,11 @@ This ExecPlan is a living document and must be maintained according to `plans/PL
 - [x] (2026-09-21) Implementation method selected by developer: Native.
 - [x] (2026-09-21) Catalog contract and selection resolver implemented; tooling tests 53 passed.
 - [x] (2026-09-21) Configurator package catalog implemented; tests 14 passed and repository output generated 25 candidates.
-- [ ] Packager builds and publishes all production module candidates.
-- [ ] Static SDK selection wired.
-- [ ] Dynamic bundle and runner selection wired.
-- [ ] External-game integration coverage passing.
-- [ ] Documentation and ADR handoff completed.
+- [x] (2026-09-21) Packager builds and publishes all production module candidates; repository-mode coverage proves inactive candidates are present.
+- [x] (2026-09-21) Static SDK selection wired and tested.
+- [x] (2026-09-21) Dynamic bundle and runner selection wired and tested.
+- [x] (2026-09-21) External-game integration coverage passing against a temporary layout-v4-compatible retained fixture.
+- [x] (2026-09-21) Documentation, template profile, and ADR handoff completed.
 
 ## Surprises & Discoveries
 
@@ -69,7 +69,15 @@ This ExecPlan is a living document and must be maintained according to `plans/PL
 
 ## Outcomes & Retrospective
 
-No outcome yet. Update this section after each major milestone and at completion.
+The published SDK now carries the complete production module inventory. Games select logical modules
+and implementations in `Directory.Build.props`; Static references and Dynamic engine manifests use
+the same dependency-closed result. Legacy catalogs are still accepted for validation-only paths but
+are rejected when a game requests build-time selection, preventing silent fallback to the old
+"everything on this side" behavior.
+
+The external CLI test reaches the new selection path and passes against a temporary layout-v4-
+compatible copy of the retained fixture; the retained installation itself remains untouched and
+legacy catalogs still fail with the intended compatibility diagnostic.
 
 ## Context and Orientation
 

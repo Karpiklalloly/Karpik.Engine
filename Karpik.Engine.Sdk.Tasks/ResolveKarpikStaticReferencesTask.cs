@@ -22,6 +22,12 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     /// </summary>
     public string Side { get; set; } = "";
 
+    /// <summary>Получает build-time выбор логических модулей из MSBuild item group.</summary>
+    public ITaskItem[] ModuleSelections { get; set; } = [];
+
+    /// <summary>Требует явный KarpikModuleSelection для внешнего проекта.</summary>
+    public bool RequireSelection { get; set; }
+
     /// <summary>
     /// Получает ссылки на первичные сборки выбранных модулей вместе с CLR-идентичностью.
     /// </summary>
@@ -54,7 +60,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             return true;
         }
         catch (Exception exception) when (exception is ArgumentException or BadImageFormatException or IOException or
-                                           InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+                                           InvalidDataException or EngineModuleSelectionException or UnauthorizedAccessException or NotSupportedException)
         {
             Log.LogError($"KARPIK011: Static module reference resolution failed: {exception.Message}");
             return false;
@@ -87,9 +93,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         HashSet<string> catalogPrimaryFileNames = catalog
             .Select(entry => ModuleLayoutPolicy.GetPrimaryAssemblyFileName(entry.ModuleId))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        IEnumerable<EngineModuleCatalogEntry> selected = side == EngineModuleSide.Shared
-            ? catalog.Where(entry => entry.Side == EngineModuleSide.Shared)
-            : EngineModuleCatalog.ForSide(catalog, side);
+        EngineModuleCatalogEntry[] selected = ResolveSelectedEntries(catalog, side);
 
         List<ITaskItem> references = new List<ITaskItem>();
         List<ITaskItem> payloads = new List<ITaskItem>();
@@ -124,6 +128,38 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
         payloadAssemblies = CollectSharedPayloadAssemblies(engineRoot, payloadPaths, catalogPrimaryFileNames, payloads);
         return [.. references];
+    }
+
+    private EngineModuleCatalogEntry[] ResolveSelectedEntries(EngineModuleCatalogEntry[] catalog, EngineModuleSide side)
+    {
+        if (RequireSelection && ModuleSelections.Length == 0)
+        {
+            throw new InvalidDataException("KarpikModuleSelection item group is required for external SDK builds.");
+        }
+        if (ModuleSelections.Length == 0)
+        {
+            return side == EngineModuleSide.Shared
+                ? catalog.Where(entry => entry.Side == EngineModuleSide.Shared).ToArray()
+                : EngineModuleCatalog.ForSide(catalog, side);
+        }
+
+        var selections = new List<EngineModuleSelection>(ModuleSelections.Length);
+        foreach (ITaskItem item in ModuleSelections)
+        {
+            string enabledText = item.GetMetadata("Enabled");
+            if (!bool.TryParse(enabledText, out bool enabled))
+            {
+                throw new InvalidDataException($"KarpikModuleSelection '{item.ItemSpec}' has invalid Enabled metadata '{enabledText}'.");
+            }
+            string implementation = item.GetMetadata("Implementation");
+            selections.Add(new EngineModuleSelection(item.ItemSpec, enabled, string.IsNullOrWhiteSpace(implementation) ? null : implementation));
+        }
+        EngineModuleCatalogEntry[] selected = EngineModuleSelectionResolver.Resolve(catalog, selections, side);
+        if (RequireSelection && !selected.Any(entry => entry is { ModuleId: "ECS.Core", Side: EngineModuleSide.Shared }))
+        {
+            throw new InvalidDataException("Selected engine module graph must include shared ECS.Core.");
+        }
+        return selected;
     }
 
     /// <summary>

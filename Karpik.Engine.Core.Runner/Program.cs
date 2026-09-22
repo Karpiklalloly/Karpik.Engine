@@ -32,7 +32,7 @@ public class Program
         string sharedRoot = Path.Combine(engineRoot, "shared");
         var loader = new ModuleLoader(
             bundleRoot,
-            RuntimeModuleComposition.Resolve(engineRoot, side),
+            RuntimeModuleComposition.Resolve(engineRoot, bundleRoot, side),
             Path.Combine(engineRoot, "native"),
             Directory.Exists(sharedRoot) ? sharedRoot : null);
         switch (side)

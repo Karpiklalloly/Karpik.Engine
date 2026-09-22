@@ -28,6 +28,25 @@ Every project in the game solution must use the SDK and explicitly declare both 
 </Project>
 ```
 
+The SDK package contains the complete production module inventory from the engine installation.
+Each game repository must define its build-time module profile, normally in a root
+`Directory.Build.targets` shared by all game projects. Put side-specific items under a
+`KarpikSide` condition so Shared projects cannot receive Client or Server modules:
+
+```xml
+<ItemGroup Label="KarpikModuleSelection">
+  <KarpikModuleSelection Include="ECS" Enabled="true" />
+</ItemGroup>
+<ItemGroup Condition="'$(KarpikSide)' == 'Client'">
+  <KarpikModuleSelection Include="Graphics" Enabled="true" Implementation="OpenGL" />
+</ItemGroup>
+```
+
+Unlisted modules are excluded. Required dependencies are added automatically, while an
+implementation choice selects only that implementation. Static references and Dynamic engine
+module manifests are produced from the same resolved selection; the game cannot change this graph
+after build.
+
 Runtime projects resolve their engine installation automatically before
 `ResolveAssemblyReferences`. The SDK selects the single validated installation
 under the platform local application-data store whose manifest provides the
@@ -53,7 +72,7 @@ The external game template also places the package's standard `templates/Directo
 </Project>
 ```
 
-This solution-scope import resolves the same version pinned by `global.json` and validates the raw `.slnx` before its `Build` target launches any child project. It is required to reject a foreign project before that project can compile. Future project creation tooling must copy this package template verbatim; games do not need a `.karpik` manifest or any `Directory.Build.*` contract.
+This solution-scope import resolves the same version pinned by `global.json` and validates the raw `.slnx` before its `Build` target launches any child project. It is required to reject a foreign project before that project can compile. Future project creation tooling must copy this package template verbatim; games do not need a `.karpik` manifest, but they do need a build-time `KarpikModuleSelection` profile.
 
 Supported project kinds are `Runtime`, `Test`, `Tool`, `Generator`, and `Assets`. Supported sides are `Client`, `Server`, `Shared`, and `None`; runtime and test projects require a runtime side rather than `None`.
 

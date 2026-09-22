@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Configurator\Configurator.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Packager\Karpik.Engine.Packager.csproj" />
     <ProjectReference Include="..\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj"

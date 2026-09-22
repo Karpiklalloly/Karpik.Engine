@@ -4,6 +4,24 @@ Games created from this template (`dotnet new karpik-game`) build against the in
 through the `Karpik.Engine.Sdk` MSBuild SDK. Every project declares its kind and side; composition
 mode controls how the game is packaged and launched.
 
+The engine installation contains the complete production module inventory. The game chooses its
+build graph in `Directory.Build.targets` with `KarpikModuleSelection` items; only selected modules
+and their required dependencies enter the build or dynamic bundle. Change that file to remove a
+module or choose another implementation, for example:
+
+```xml
+<ItemGroup Label="KarpikModuleSelection">
+  <KarpikModuleSelection Include="ECS" Enabled="true" />
+</ItemGroup>
+<ItemGroup Label="KarpikClientModuleSelection" Condition="'$(KarpikSide)' == 'Client'">
+  <KarpikModuleSelection Include="Graphics" Enabled="true" Implementation="OpenGL" />
+</ItemGroup>
+```
+
+The template ships with a working starter profile split by `KarpikSide`, so Shared projects never
+receive client/server modules. The selection is evaluated at build time; the published game does
+not choose engine modules at runtime.
+
 ## Composition mode
 
 | Mode | Default | Bundle | Host |

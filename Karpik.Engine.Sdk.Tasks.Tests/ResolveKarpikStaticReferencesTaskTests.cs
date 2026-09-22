@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using Karpik.Engine.Sdk.Tasks;
 using Karpik.Engine.Tooling;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
 using Xunit;
 using Xunit.Sdk;
 
@@ -156,6 +157,56 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
     }
 
     [Fact]
+    public void Execute_UsesOnlyExplicitlySelectedLogicalModules()
+    {
+        using var tree = new Tree();
+        tree.AddSelected("ECS.Core", "ECS", EngineModuleKind.Core, EngineModuleSide.Shared);
+        tree.AddSelected("Selected", "Selected", EngineModuleKind.Standalone, EngineModuleSide.Shared);
+        tree.AddSelected("Unselected", "Unselected", EngineModuleKind.Standalone, EngineModuleSide.Shared);
+        File.Copy(
+            typeof(ResolveKarpikStaticReferencesTask).Assembly.Location,
+            Path.Combine(tree.Root, "modules", "Selected", "Selected.dll"),
+            overwrite: true);
+        tree.WriteCatalog();
+        var ecs = new TaskItem("ECS");
+        ecs.SetMetadata("Enabled", "true");
+        var selection = new TaskItem("Selected");
+        selection.SetMetadata("Enabled", "true");
+        var task = new ResolveKarpikStaticReferencesTask
+        {
+            BuildEngine = new Engine(),
+            EngineRoot = tree.Root,
+            Side = "Shared",
+            RequireSelection = true,
+            ModuleSelections = [ecs, selection]
+        };
+
+        Assert.True(task.Execute());
+        Assert.Contains(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "ECS.Core");
+        Assert.Contains(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "Selected");
+        Assert.DoesNotContain(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "Unselected");
+    }
+
+    [Fact]
+    public void Execute_RejectsExternalBuildWithoutSelectionItems()
+    {
+        using var tree = new Tree();
+        tree.AddSelected("Selected", "Selected", EngineModuleKind.Standalone, EngineModuleSide.Shared);
+        tree.WriteCatalog();
+        var engine = new Engine();
+        var task = new ResolveKarpikStaticReferencesTask
+        {
+            BuildEngine = engine,
+            EngineRoot = tree.Root,
+            Side = "Shared",
+            RequireSelection = true
+        };
+
+        Assert.False(task.Execute());
+        Assert.Contains(engine.Errors, error => error.Message.Contains("KarpikModuleSelection", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Execute_RejectsLinkedModuleDirectoryWhenSymbolicLinksAreAvailable()
     {
         using var tree = new Tree();
@@ -199,6 +250,7 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
         public Tree() { Root = Path.Combine(Path.GetTempPath(), "KarpikStaticTask", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(Path.Combine(Root, "modules")); }
         public string Root { get; }
         public void Add(string id, string assembly, EngineModuleSide side = EngineModuleSide.Shared) { _entries.Add(new(id, side)); string dir = Path.Combine(Root, "modules", id); Directory.CreateDirectory(dir); File.Copy(assembly, Path.Combine(dir, id + ".dll")); }
+        public void AddSelected(string id, string logicalId, EngineModuleKind kind, EngineModuleSide side, string? implementation = null) { _entries.Add(new(id, logicalId, kind, side, implementation, [])); string dir = Path.Combine(Root, "modules", id); Directory.CreateDirectory(dir); File.Copy(typeof(EngineModuleCatalog).Assembly.Location, Path.Combine(dir, id + ".dll")); }
         public void AddMissing(string id, EngineModuleSide side = EngineModuleSide.Shared) => _entries.Add(new(id, side));
         public void WriteCatalog() => File.WriteAllText(Path.Combine(Root, "modules", EngineModuleCatalog.FileName), EngineModuleCatalog.Serialize(_entries), new UTF8Encoding(false));
         public void Dispose() => Directory.Delete(Root, true);

@@ -43,6 +43,27 @@ Runtime installer lifecycle ordering remains priority-first. Equal priorities us
 - Configurator allocates model objects and loader startup creates descriptors; hot paths remain unchanged.
 - Rider must reload projects after dependency declaration edits so evaluated `ProjectReference` items refresh.
 
+## SDK publication and game selection
+
+An engine SDK installation publishes every production runtime module candidate, including inactive
+implementations. Tests, tools, executables, analyzers, and ordinary libraries remain outside the
+module payload. The game repository selects its graph at build time with evaluated
+`KarpikModuleSelection` items, normally in a root `Directory.Build.targets`, for example:
+
+```xml
+<ItemGroup Label="KarpikModuleSelection">
+  <KarpikModuleSelection Include="ECS" Enabled="true" />
+</ItemGroup>
+<ItemGroup Condition="'$(KarpikSide)' == 'Client'">
+  <KarpikModuleSelection Include="Graphics" Enabled="true" Implementation="OpenGL" />
+</ItemGroup>
+```
+
+The SDK resolves logical modules, implementation choices, required dependencies, and side
+boundaries from the installed catalog. Static compiler references and Dynamic engine-module
+manifests use that same resolved set. Selection is a build concern; the published game does not
+discover or choose a different engine module graph at runtime.
+
 ## Validation
 
 - `dotnet msbuild Modules\Shared\StatAndAbilities\StatAndAbilities.csproj -getItem:KarpikModuleDependency -getItem:ProjectReference -m:1 -nr:false`

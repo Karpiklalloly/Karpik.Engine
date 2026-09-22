@@ -115,7 +115,9 @@
       <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
     </ResolveKarpikEngineRootTask>
     <ResolveKarpikStaticReferencesTask EngineRoot="$(KarpikEngineRoot)"
-                                       Side="$(KarpikSide)">
+                                       Side="$(KarpikSide)"
+                                       RequireSelection="true"
+                                       ModuleSelections="@(KarpikModuleSelection)">
       <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
       <Output TaskParameter="PayloadAssemblies" ItemName="_KarpikStaticModulePayloadAssembly" />
     </ResolveKarpikStaticReferencesTask>
@@ -265,6 +267,9 @@
     </ItemGroup>
     <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
                                   CompositionMode="$(KarpikCompositionMode)"
+                                  EngineRoot="$(KarpikEngineRoot)"
+                                  RequireEngineModuleSelection="true"
+                                  EngineModuleSelections="@(KarpikModuleSelection)"
                                   PrimaryAssembly="$(TargetPath)"
                                   BundlePath="$(KarpikRuntimeBundlePath)"
                                   Assemblies="@(_KarpikBundleAssembly)"
