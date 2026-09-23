@@ -28,6 +28,8 @@ public sealed class UpdateKarpikSdkScriptTests
         Assert.Contains("ArchivedEngines", script, StringComparison.Ordinal);
         Assert.Contains("Clear-OldKarpikSdks", script, StringComparison.Ordinal);
         Assert.Contains("dotnet nuget", script, StringComparison.Ordinal);
+        Assert.Contains("Diagnostics.Stopwatch", script, StringComparison.Ordinal);
+        Assert.Contains("Publication duration", script, StringComparison.Ordinal);
         Assert.DoesNotContain("Copy-Item", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TrimEndingDirectorySeparator", script, StringComparison.Ordinal);
     }

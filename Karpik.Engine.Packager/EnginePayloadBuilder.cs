@@ -15,15 +15,33 @@ public sealed record EnginePayloadBuildResult(
 public sealed class EnginePayloadBuilder
 {
     private readonly DotNetProcessRunner _processRunner;
+    private readonly string? _localApplicationDataRoot;
 
     /// <summary>Создаёт builder со стандартным runner'ом dotnet-процессов.</summary>
-    public EnginePayloadBuilder() : this(new DotNetProcessRunner())
+    public EnginePayloadBuilder() : this(new DotNetProcessRunner(), null)
     {
     }
 
     /// <summary>Создаёт builder с runner'ом для тестирования запуска dotnet.</summary>
-    internal EnginePayloadBuilder(DotNetProcessRunner processRunner) =>
+    internal EnginePayloadBuilder(DotNetProcessRunner processRunner)
+        : this(processRunner, null)
+    {
+    }
+
+    /// <summary>Создаёт builder с изолированным local-data корнем для тестирования.</summary>
+    internal EnginePayloadBuilder(string localApplicationDataRoot)
+        : this(new DotNetProcessRunner(), localApplicationDataRoot)
+    {
+    }
+
+    /// <summary>Создаёт builder с runner'ом и опциональным изолированным local-data корнем.</summary>
+    internal EnginePayloadBuilder(DotNetProcessRunner processRunner, string? localApplicationDataRoot)
+    {
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
+        _localApplicationDataRoot = string.IsNullOrWhiteSpace(localApplicationDataRoot)
+            ? null
+            : Path.GetFullPath(localApplicationDataRoot);
+    }
 
     /// <summary>Строит payload из checkout или подготовленного layout и публикует его.</summary>
     public EnginePayloadBuildResult Build(
@@ -43,7 +61,7 @@ public sealed class EnginePayloadBuilder
         string staging = publisher.CreateStagingDirectory();
         try
         {
-            PayloadLayout.Materialize(sourceRoot, staging, sdkVersion, _processRunner);
+            PayloadLayout.Materialize(sourceRoot, staging, sdkVersion, _processRunner, _localApplicationDataRoot);
             string contentHash = EngineContentHash.Compute(staging);
             var manifest = new EngineInstallationManifest
             {

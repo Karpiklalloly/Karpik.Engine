@@ -390,7 +390,7 @@ public sealed class EnginePayloadBuilderTests
         string repository = FakeRepository.Create(Path.Combine(temporary.RootPath, "repository"));
         string output = Path.Combine(temporary.RootPath, "output");
 
-        var builder = new EnginePayloadBuilder();
+        var builder = new EnginePayloadBuilder(temporary.RootPath);
         EnginePayloadBuildResult first = builder.Build(repository, output, "0.6.0", "0.6.0-sdk");
         string[] payloadPaths = Directory.EnumerateFileSystemEntries(first.DestinationDirectory, "*", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(first.DestinationDirectory, path).Replace('\\', '/'))
@@ -453,7 +453,7 @@ public sealed class EnginePayloadBuilderTests
             Path.Combine(temporary.RootPath, "repository"),
             includeClientNativeModule: true);
 
-        EnginePayloadBuildResult result = new EnginePayloadBuilder().Build(
+        EnginePayloadBuildResult result = new EnginePayloadBuilder(temporary.RootPath).Build(
             repository,
             Path.Combine(temporary.RootPath, "output"),
             "0.6.0",
@@ -474,7 +474,7 @@ public sealed class EnginePayloadBuilderTests
             Path.Combine(temporary.RootPath, "repository"),
             includeUnselectedModule: true);
 
-        EnginePayloadBuildResult result = new EnginePayloadBuilder().Build(
+        EnginePayloadBuildResult result = new EnginePayloadBuilder(temporary.RootPath).Build(
             repository,
             Path.Combine(temporary.RootPath, "output"),
             "0.6.0",
@@ -487,6 +487,43 @@ public sealed class EnginePayloadBuilderTests
     }
 
     [Fact]
+    public void RepositoryModeKeepsBuildArtifactsInPersistentLocalDataCache()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string repository = FakeRepository.Create(Path.Combine(temporary.RootPath, "repository"));
+        string localDataRoot = Path.Combine(temporary.RootPath, "local-data");
+        string output = Path.Combine(temporary.RootPath, "output");
+
+        EnginePayloadBuildResult result = new EnginePayloadBuilder(localDataRoot).Build(
+            repository,
+            output,
+            "0.6.0",
+            "0.6.0-sdk");
+
+        string cacheRoot = PayloadLayout.GetPersistentBuildCacheRoot(repository, localDataRoot);
+        Assert.True(Directory.Exists(Path.Combine(cacheRoot, "artifacts")));
+        Assert.True(Directory.Exists(Path.Combine(cacheRoot, "packages")));
+        Assert.False(Directory.Exists(Path.Combine(result.DestinationDirectory, ".build")));
+    }
+
+    [Fact]
+    public void GeneratedBuildGraphContainsProductionRootsAndCatalogModulesOnly()
+    {
+        string project = PayloadLayout.GenerateBuildProjectContents([
+            "Karpik.Editor/Karpik.Editor.csproj",
+            "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj",
+            "Modules/Shared/TestModuleA/TestModuleA.csproj",
+            "Modules/Shared/TestModuleB/TestModuleB.csproj"]);
+
+        Assert.Contains("Karpik.Editor/Karpik.Editor.csproj", project, StringComparison.Ordinal);
+        Assert.Contains("Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj", project, StringComparison.Ordinal);
+        Assert.Contains("Modules/Shared/TestModuleA/TestModuleA.csproj", project, StringComparison.Ordinal);
+        Assert.Contains("Modules/Shared/TestModuleB/TestModuleB.csproj", project, StringComparison.Ordinal);
+        Assert.Contains("BuildInParallel=\"true\"", project, StringComparison.Ordinal);
+        Assert.DoesNotContain("KarpikGame.Tests", project, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RepositoryModeRejectsByteDistinctAssembliesWithTheSameIdentity()
     {
         using var temporary = new PackagerTemporaryDirectory();
@@ -495,7 +532,7 @@ public sealed class EnginePayloadBuilderTests
             conflictingDependencies: true);
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            new EnginePayloadBuilder().Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
+            new EnginePayloadBuilder(temporary.RootPath).Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
 
         Assert.Contains("same identity", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -509,7 +546,7 @@ public sealed class EnginePayloadBuilderTests
             versionedDependencies: true);
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            new EnginePayloadBuilder().Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
+            new EnginePayloadBuilder(temporary.RootPath).Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
 
         Assert.Contains("same simple name", exception.Message, StringComparison.OrdinalIgnoreCase);
     }

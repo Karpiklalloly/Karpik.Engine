@@ -447,7 +447,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     {
         if (hasValue)
         {
-            builder.Append(", ");
+            builder.AppendLine();
         }
 
         builder.Append(name);

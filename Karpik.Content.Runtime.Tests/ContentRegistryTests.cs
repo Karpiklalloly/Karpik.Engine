@@ -262,6 +262,20 @@ public sealed class ContentRegistryTests
     }
 
     [Fact]
+    public async Task RawJsonPayload_PreservesCookedJson()
+    {
+        var id = new AssetId(Guid.NewGuid());
+        var store = new CountingStore(delayMs: 0, payload: "{\"MatchDuration\":90}");
+        var registry = CreateRegistry(store);
+        registry.RegisterManifest(MakeManifest((id, "game/match", "artifacts/match.cooked")), store);
+
+        await registry.LoadAsync<RawJsonPayload>(new AssetRef<RawJsonPayload>(id, 1));
+
+        Assert.True(registry.TryGet(new AssetRef<RawJsonPayload>(id, 1), out var lease));
+        Assert.Equal("{\"MatchDuration\":90}", lease.Payload!.Json);
+    }
+
+    [Fact]
     public async Task Failed_Retryable_SecondLoadRetries()
     {
         var idA = new AssetId(Guid.NewGuid());

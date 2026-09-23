@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$PublishStopwatch = [Diagnostics.Stopwatch]::StartNew()
 
 # Change this value when the MSBuild SDK version changes.
 $SdkVersionBase = "0.6.0-local"
@@ -214,6 +215,8 @@ else {
 }
 
 Write-Host ""
+$PublishStopwatch.Stop()
 Write-Host "KarpikEngine SDK update completed."
+Write-Host "Publication duration: $($PublishStopwatch.Elapsed.ToString('hh\:mm\:ss\.fff'))"
 Write-Host "SDK version: $SdkVersion"
 Write-Host "Installation: $installationRoot"

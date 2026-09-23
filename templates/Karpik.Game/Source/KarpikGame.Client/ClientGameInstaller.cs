@@ -1,7 +1,5 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Karpik.Engine.Core.FileSystem;
-using Karpik.Engine.Shared.AssetManagement.Core;
 using Microsoft.Extensions.Logging;
 using KarpikGame.Shared;
 
@@ -22,17 +20,11 @@ internal sealed class ClientGameModule : IModule
     }
 }
 
-public sealed class ClientGameInitSystem(EcsDefaultWorld world, ILogger<ClientGameInitSystem> logger, IFileSystem fileSystem) : ISystemInit
+public sealed class ClientGameInitSystem(EcsDefaultWorld world, ILogger<ClientGameInitSystem> logger) : ISystemInit
 {
     public void Init()
     {
         logger.LogInformation("World has {count} entities. Client initialized.", world.Count);
-
-        string contentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
-        if (File.Exists(contentPath))
-        {
-            logger.LogInformation("Content: {content}", File.ReadAllText(contentPath).Trim());
-        }
     }
 }
 

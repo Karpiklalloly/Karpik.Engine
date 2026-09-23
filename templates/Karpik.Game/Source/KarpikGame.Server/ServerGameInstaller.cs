@@ -1,7 +1,5 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
-using Karpik.Engine.Core.FileSystem;
-using Karpik.Engine.Shared.AssetManagement.Core;
 using Microsoft.Extensions.Logging;
 using KarpikGame.Shared;
 
@@ -21,7 +19,7 @@ internal sealed class ServerGameModule : IModule
     }
 }
 
-public sealed class ServerGameInitSystem(EcsDefaultWorld world, ILogger<ServerGameInitSystem> logger, IFileSystem fileSystem) : ISystemInit
+public sealed class ServerGameInitSystem(EcsDefaultWorld world, ILogger<ServerGameInitSystem> logger) : ISystemInit
 {
     public void Init()
     {
@@ -32,15 +30,5 @@ public sealed class ServerGameInitSystem(EcsDefaultWorld world, ILogger<ServerGa
             logger.LogInformation("Created entity {entity} with GameComponent(42). Total entities: {count}", entity, world.Count);
         }
 
-        string contentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "runtime.txt");
-        if (fileSystem.Exists(contentPath))
-        {
-            logger.LogInformation("Content: {content}", File.ReadAllText(contentPath).Trim());
-        }
-        string sharedContentPath = fileSystem.Combine(Directory.GetCurrentDirectory(), "Content", "shared-runtime.txt");
-        if (File.Exists(sharedContentPath))
-        {
-            logger.LogInformation("Shared content: {content}", File.ReadAllText(sharedContentPath).Trim());
-        }
     }
 }

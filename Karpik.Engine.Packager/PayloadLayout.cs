@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.Json;
 using System.Xml.Linq;
+using System.Security.Cryptography;
 using ProjectConfigurator;
 using Karpik.Engine.Tooling;
 
@@ -31,13 +32,26 @@ public static class PayloadLayout
     public const string CompletionMarkerFileName = ".complete";
     /// <summary>Имя основной сборки runner.</summary>
     public const string RunnerAssemblyFileName = "Karpik.Engine.Core.Runner.dll";
+    private const string BuildCacheVersion = "v1";
+    private static readonly string[] ProductionBuildProjectPaths =
+    [
+        "Karpik.Editor/Karpik.Editor.csproj",
+        "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj",
+        "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj",
+        "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj",
+        "Network.Codegen/Network.Codegen/Network.Codegen.csproj",
+        "Karpik.Content.Tool/Karpik.Content.Tool.csproj",
+        "Karpik.Content.Codegen/Karpik.Content.Codegen.csproj",
+        "Karpik.Content.Runtime/Karpik.Content.Runtime.csproj"
+    ];
 
     /// <summary>Материализует полный payload в staging-каталог.</summary>
     internal static void Materialize(
         string sourceRoot,
         string stagingRoot,
         string sdkVersion,
-        DotNetProcessRunner processRunner)
+        DotNetProcessRunner processRunner,
+        string? localApplicationDataRoot = null)
     {
         if (IsPreparedPayload(sourceRoot))
         {
@@ -51,7 +65,7 @@ public static class PayloadLayout
                     "--source must be either a prepared payload with editor/sdk/runners/modules/native directories or a KarpikEngine source root.");
             }
 
-            MaterializeRepository(sourceRoot, stagingRoot, sdkVersion, processRunner);
+            MaterializeRepository(sourceRoot, stagingRoot, sdkVersion, processRunner, localApplicationDataRoot);
         }
 
         StageModuleNativeAssetsForRunners(stagingRoot);
@@ -207,16 +221,22 @@ public static class PayloadLayout
         string repositoryRoot,
         string stagingRoot,
         string sdkVersion,
-        DotNetProcessRunner processRunner)
+        DotNetProcessRunner processRunner,
+        string? localApplicationDataRoot)
     {
-        string scratch = Path.Combine(stagingRoot, ".build");
-        string artifacts = Path.Combine(scratch, "artifacts");
-        string sdkOutput = Path.Combine(scratch, "sdk");
-        string templatesOutput = Path.Combine(scratch, "templates");
-        Directory.CreateDirectory(sdkOutput);
-        Directory.CreateDirectory(templatesOutput);
+        string cacheRoot = GetPersistentBuildCacheRoot(repositoryRoot, localApplicationDataRoot);
+        Directory.CreateDirectory(cacheRoot);
+        using FileStream cacheLock = AcquireBuildCacheLock(cacheRoot);
+        string artifacts = Path.Combine(cacheRoot, "artifacts");
+        string packagesRoot = Path.Combine(cacheRoot, "packages");
+        string sdkOutput = Path.Combine(packagesRoot, "sdk");
+        string templatesOutput = Path.Combine(packagesRoot, "templates");
+        Directory.CreateDirectory(artifacts);
+        Directory.CreateDirectory(packagesRoot);
+        RecreateDirectory(sdkOutput);
+        RecreateDirectory(templatesOutput);
         string artifactsProperty = $"-p:ArtifactsPath={artifacts}";
-        string pathMapProperty = $"-p:PathMap={scratch}=/_karpik_owned_build";
+        string pathMapProperty = $"-p:PathMap={cacheRoot}=/_karpik_owned_build";
         string[] deterministicProperties =
         [
             "-p:UseArtifactsOutput=true",
@@ -227,21 +247,15 @@ public static class PayloadLayout
             "-p:DebugType=None",
             pathMapProperty
         ];
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "restore", "KarpikEngine.slnx", "-m:1", "-nr:false", "-p:Configuration=Release");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Editor/Karpik.Editor.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Network.Codegen/Network.Codegen/Network.Codegen.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Content.Tool/Karpik.Content.Tool.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Content.Codegen/Karpik.Content.Codegen.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", "Karpik.Content.Runtime/Karpik.Content.Runtime.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-
         IReadOnlyList<SelectedModuleProject> moduleProjects = ReadPackageCatalog(repositoryRoot);
-        foreach (SelectedModuleProject moduleProject in moduleProjects)
-        {
-            RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "build", moduleProject.ProjectPath, "-c", "Release", "--no-restore", "-m:1", "-nr:false");
-        }
+        string buildProjectPath = Path.Combine(cacheRoot, "EnginePayload.Build.proj");
+        string[] buildProjectPaths = ProductionBuildProjectPaths
+            .Concat(moduleProjects.Select(module => module.ProjectPath))
+            .Select(project => Path.GetFullPath(Path.Combine(repositoryRoot, project.Replace('/', Path.DirectorySeparatorChar))))
+            .ToArray();
+        File.WriteAllText(buildProjectPath, GenerateBuildProjectContents(buildProjectPaths));
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "restore", "KarpikEngine.slnx", "-m:1", "-nr:false", "-p:Configuration=Release");
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "msbuild", buildProjectPath, "-t:Build", "-graphBuild", "-m:1", "-nr:false", "-p:Configuration=Release");
         string sdkTasksOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj") + Path.DirectorySeparatorChar;
         string coreCodegenOutput = GetArtifactOutput(artifacts, "Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj") + Path.DirectorySeparatorChar;
         string networkCodegenOutput = GetArtifactOutput(artifacts, "Network.Codegen/Network.Codegen/Network.Codegen.csproj") + Path.DirectorySeparatorChar;
@@ -292,7 +306,85 @@ public static class PayloadLayout
             CopyFileMerged(trackedNative, Path.Combine(nativeDestination, Path.GetFileName(trackedNative)));
         }
 
-        Directory.Delete(scratch, recursive: true);
+        Directory.SetLastWriteTimeUtc(cacheRoot, DateTime.UtcNow);
+    }
+
+    /// <summary>Возвращает постоянный кэш сборки для конкретного checkout.</summary>
+    internal static string GetPersistentBuildCacheRoot(
+        string sourceRoot,
+        string? localApplicationDataRoot = null)
+    {
+        string normalizedSourceRoot = NormalizeCachePath(sourceRoot, nameof(sourceRoot));
+        string localDataRoot = NormalizeCachePath(
+            localApplicationDataRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            nameof(localApplicationDataRoot));
+        string cacheKeyInput = string.Join(
+            '\n',
+            OperatingSystem.IsWindows() ? normalizedSourceRoot.ToUpperInvariant() : normalizedSourceRoot,
+            BuildCacheVersion,
+            "Release",
+            Environment.Version.ToString(),
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+        string cacheKey = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(cacheKeyInput))).ToLowerInvariant();
+        return Path.Combine(localDataRoot, "Karpik", "BuildCache", "EnginePayload", $"{BuildCacheVersion}-{cacheKey}");
+    }
+
+    internal static string GenerateBuildProjectContents(IReadOnlyList<string> projectPaths)
+    {
+        ArgumentNullException.ThrowIfNull(projectPaths);
+        var project = new XElement(
+            "Project",
+            new XElement(
+                "ItemGroup",
+                projectPaths.Select(path => new XElement(
+                    "ProjectReference",
+                    new XAttribute("Include", path)))),
+            new XElement(
+                "Target",
+                new XAttribute("Name", "Build"),
+                new XElement(
+                    "MSBuild",
+                    new XAttribute("Projects", "@(ProjectReference)"),
+                    new XAttribute("Targets", "Build"),
+                    new XAttribute("BuildInParallel", "true"))));
+        return new XDocument(new XDeclaration("1.0", "utf-8", null), project)
+            .ToString(SaveOptions.DisableFormatting);
+    }
+
+    private static string NormalizeCachePath(string path, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, parameterName);
+        string fullPath = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(fullPath) ?? string.Empty;
+        return fullPath.Length > root.Length
+            ? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            : fullPath;
+    }
+
+    private static FileStream AcquireBuildCacheLock(string cacheRoot)
+    {
+        string lockPath = Path.Combine(cacheRoot, ".lock");
+        while (true)
+        {
+            try
+            {
+                return new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(100);
+            }
+        }
+    }
+
+    private static void RecreateDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        Directory.CreateDirectory(path);
     }
 
     private static void WriteTemplateCatalog(string repositoryRoot, string sdkOutput, string packageFile)

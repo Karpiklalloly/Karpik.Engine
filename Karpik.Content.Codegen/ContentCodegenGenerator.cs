@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
@@ -56,20 +57,43 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             return string.Empty;
         });
 
+        var projectDirectoryProvider = context.AnalyzerConfigOptionsProvider.Select((provider, ct) =>
+        {
+            return provider.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var v)
+                ? v ?? string.Empty
+                : string.Empty;
+        });
+
+        var contentRootProvider = context.AnalyzerConfigOptionsProvider.Select((provider, ct) =>
+        {
+            return provider.GlobalOptions.TryGetValue("build_property.KarpikContentSourceRoot", out var v)
+                ? v ?? string.Empty
+                : string.Empty;
+        });
+
         var additionalTextsProvider = context.AdditionalTextsProvider.Collect();
 
-        var compilationAndAdditional = context.CompilationProvider.Combine(additionalTextsProvider.Combine(manifestPathProvider));
+        var compilationAndAdditional = context.CompilationProvider.Combine(
+            additionalTextsProvider.Combine(manifestPathProvider.Combine(projectDirectoryProvider.Combine(contentRootProvider))));
 
         context.RegisterSourceOutput(compilationAndAdditional, (spc, source) =>
         {
             var compilation = source.Left;
             var additionalFiles = source.Right.Left;
-            var manifestPath = source.Right.Right;
-            Execute(spc, compilation, additionalFiles, manifestPath);
+            var manifestPath = source.Right.Right.Left;
+            var projectDirectory = source.Right.Right.Right.Left;
+            var contentRoot = source.Right.Right.Right.Right;
+            Execute(spc, compilation, additionalFiles, manifestPath, projectDirectory, contentRoot);
         });
     }
 
-    private static void Execute(SourceProductionContext spc, Compilation compilation, ImmutableArray<AdditionalText> additionalFiles, string manifestPath)
+    private static void Execute(
+        SourceProductionContext spc,
+        Compilation compilation,
+        ImmutableArray<AdditionalText> additionalFiles,
+        string manifestPath,
+        string projectDirectory,
+        string contentRoot)
     {
         spc.CancellationToken.ThrowIfCancellationRequested();
 
@@ -121,7 +145,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             foreach (var file in additionalFiles)
             {
                 spc.CancellationToken.ThrowIfCancellationRequested();
-                if (!file.Path.EndsWith(".json.meta", StringComparison.OrdinalIgnoreCase))
+                if (!file.Path.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -164,6 +188,15 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         {
             // entries already parsed from manifest, ensure sorted
             entries.Sort((a, b) => a.AssetId.CompareTo(b.AssetId));
+        }
+
+        var sourcePaths = CollectSourcePaths(additionalFiles, projectDirectory, contentRoot, spc.CancellationToken);
+        foreach (ManifestEntry entry in entries)
+        {
+            if (sourcePaths.TryGetValue(entry.AssetId, out string? sourcePath))
+            {
+                entry.SourcePath = sourcePath;
+            }
         }
 
         string code = GenerateCode(entries, stringMap, spc);
@@ -351,6 +384,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             // Generate field: AssetRef is blittable Guid+uint (no LogicalName field); logicalName is exposed via const Path
             sb.AppendLine($"        public static readonly AssetRef<{clr}> {fi.FieldName} = new AssetRef<{clr}>(\"{guidStr}\", 1);");
             sb.AppendLine($"        public const string {fi.FieldName}_Path = \"{EscapeString(logical)}\";");
+            sb.AppendLine($"        public const string {fi.FieldName}_SourcePath = \"{EscapeString(fi.Entry.SourcePath)}\";");
         }
 
         sb.AppendLine();
@@ -401,6 +435,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         public Guid AssetId;
         public string DeclaredType = string.Empty;
         public string LogicalName = string.Empty;
+        public string SourcePath = string.Empty;
         public string ArtifactLocator = string.Empty;
     }
 
@@ -464,6 +499,55 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
                 ArtifactLocator = ""
             };
         }
+    }
+
+    private static Dictionary<Guid, string> CollectSourcePaths(
+        ImmutableArray<AdditionalText> additionalFiles,
+        string projectDirectory,
+        string contentRoot,
+        CancellationToken cancellationToken)
+    {
+        var sourcePaths = new Dictionary<Guid, string>();
+        foreach (AdditionalText file in additionalFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!file.Path.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            SourceText? text = file.GetText(cancellationToken);
+            if (text is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                ManifestEntry? meta = ParseMetaEntry(text.ToString());
+                if (meta is null)
+                {
+                    continue;
+                }
+
+                string sourcePath = Path.GetFullPath(file.Path.Substring(0, file.Path.Length - ".meta".Length));
+                string root = string.IsNullOrWhiteSpace(contentRoot)
+                    ? Path.Combine(projectDirectory, "Content")
+                    : Path.GetFullPath(contentRoot);
+                root = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string rootPrefix = root + Path.DirectorySeparatorChar;
+                if (sourcePath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    sourcePath = "Content/" + sourcePath.Substring(rootPrefix.Length);
+                }
+                sourcePaths[meta.AssetId] = sourcePath.Replace(Path.DirectorySeparatorChar, '/');
+            }
+            catch
+            {
+                // Ignore unrelated or malformed metadata files.
+            }
+        }
+        return sourcePaths;
     }
 
     private static string ToFieldName(string logicalName) => CodegenHelpers.ToFieldName(logicalName);

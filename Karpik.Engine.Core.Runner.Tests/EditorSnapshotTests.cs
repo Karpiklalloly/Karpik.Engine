@@ -30,8 +30,7 @@ public sealed class EditorSnapshotTests
         Assert.Equal(entity, entitySnapshot.EntityId);
         var component = Assert.Single(entitySnapshot.Components);
         Assert.Contains(nameof(EditorSnapshotPosition), component.TypeName, StringComparison.Ordinal);
-        Assert.Contains("X = 12", component.DisplayValue, StringComparison.Ordinal);
-        Assert.Contains("Y = -4", component.DisplayValue, StringComparison.Ordinal);
+        Assert.Equal($"X = 12{Environment.NewLine}Y = -4", component.DisplayValue);
 
         runner.Destroy();
     }

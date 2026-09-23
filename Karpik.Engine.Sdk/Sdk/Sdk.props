@@ -28,7 +28,7 @@
   <!-- Подключает генератор content-кода и metadata-файлы, когда Content Pipeline включён. -->
   <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
     <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Content.Codegen.dll" />
-    <AdditionalFiles Include="**\*.json.meta" />
+    <AdditionalFiles Include="$(KarpikContentSourceRoot)\**\*.meta" />
     <Reference Include="Karpik.Content.Runtime">
       <HintPath>$(KarpikContentRuntimeDll)</HintPath>
     </Reference>

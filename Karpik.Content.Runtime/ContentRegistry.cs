@@ -187,6 +187,14 @@ public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store)
             return (T)(object)bytes;
         }
 
+        if (typeof(T) == typeof(RawJsonPayload))
+        {
+            return (T)(object)new RawJsonPayload
+            {
+                Json = System.Text.Encoding.UTF8.GetString(bytes.Span),
+            };
+        }
+
         // Empty payload is invalid for JSON types — fault with KCR202 (except fast paths above)
         if (bytes.Length == 0)
         {

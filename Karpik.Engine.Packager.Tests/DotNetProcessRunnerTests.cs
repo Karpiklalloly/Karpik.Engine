@@ -35,7 +35,7 @@ public sealed class DotNetProcessRunnerTests
             new NeverExitsProcessFactory(),
             executionTimeout: TimeSpan.FromMilliseconds(20),
             terminationTimeout: TimeSpan.FromMilliseconds(20));
-        var builder = new EnginePayloadBuilder(runner);
+        var builder = new EnginePayloadBuilder(runner, temporary.RootPath);
 
         Assert.Throws<DotNetProcessTerminationException>(
             () => builder.Build(repository, output, "0.6.0-dev", "0.6.0-sdk"));
