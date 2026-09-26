@@ -295,18 +295,37 @@ public class IpcServer : IDisposable
             // Ignore pipe disposal errors during worker restart/shutdown.
         }
 
-        try
+        if (_listenTask is { IsCompleted: false } listenTask)
         {
-            if (_listenTask is { IsCompleted: false })
-            {
-                _listenTask.Wait(TimeSpan.FromMilliseconds(250));
-            }
-        }
-        catch
-        {
-            // The listen loop is expected to observe cancellation or a disposed pipe.
+            _ = listenTask.ContinueWith(
+                static (_, state) => ((IpcServer)state!).DisposeListenerResources(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return;
         }
 
+        DisposeListenerResources();
+    }
+
+    internal async Task WaitForListenerAsync()
+    {
+        if (_listenTask is { } listenTask)
+        {
+            try
+            {
+                await listenTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Listener failures were handled at the receive boundary.
+            }
+        }
+    }
+
+    private void DisposeListenerResources()
+    {
         _cts.Dispose();
         _ownedLoggerFactory?.Dispose();
     }

@@ -301,6 +301,7 @@ internal class ProcessManager : IDisposable
 
     private void HandleWorkerMessage(WorkerGeneration generation, IpcMessage msg)
     {
+        bool ready = false;
         bool reloadRequested = false;
         generation.TryRun(() =>
         {
@@ -311,24 +312,37 @@ internal class ProcessManager : IDisposable
 
             if (msg.Type == IpcMessageType.WorkerReady)
             {
-                _logger.LogInformation("Worker is ready");
-                CleanupCompletedModuleVersions(msg.Payload);
-                generation.Readiness.MarkReady();
-                Action? ready = OnWorkerReady;
-                if (ready is not null)
-                {
-                    QueueGenerationCallback(generation, ready);
-                }
+                ready = true;
             }
             else if (msg.Type == IpcMessageType.HotReloadRequest)
             {
-                _logger.LogInformation("Worker requested hot reload");
                 reloadRequested = true;
             }
         });
 
+        if (ready)
+        {
+            _logger.LogInformation("Worker is ready");
+            CleanupCompletedModuleVersions(msg.Payload);
+            generation.TryRun(() =>
+            {
+                if (!IsCurrentGeneration(generation))
+                {
+                    return;
+                }
+
+                generation.Readiness.MarkReady();
+                Action? readyCallback = OnWorkerReady;
+                if (readyCallback is not null)
+                {
+                    QueueGenerationCallback(generation, readyCallback);
+                }
+            });
+        }
+
         if (reloadRequested)
         {
+            _logger.LogInformation("Worker requested hot reload");
             _ = HandleWorkerReloadRequestAsync(generation);
         }
     }
@@ -359,6 +373,8 @@ internal class ProcessManager : IDisposable
 
     private void HandleWorkerExited(WorkerGeneration generation)
     {
+        int? exitCode = null;
+        int processId = -1;
         generation.TryRun(() =>
         {
             if (!IsCurrentGeneration(generation) || generation.Process is not { } process)
@@ -366,20 +382,34 @@ internal class ProcessManager : IDisposable
                 return;
             }
 
-            int exitCode = process.ExitCode;
-            int processId = generation.ProcessId >= 0
+            exitCode = process.ExitCode;
+            processId = generation.ProcessId >= 0
                 ? generation.ProcessId
                 : process.Id;
-            _logger.LogInformation("Worker process exited with code {ExitCode}", exitCode);
+        });
+
+        if (exitCode is not { } code)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Worker process exited with code {ExitCode}", code);
+        CleanupWorkerShadowCopies(processId);
+        generation.TryRun(() =>
+        {
+            if (!IsCurrentGeneration(generation))
+            {
+                return;
+            }
+
             generation.Readiness.Stop();
-            CleanupWorkerShadowCopies(processId);
             Action<int>? exited = OnWorkerExited;
             WorkerExitNotification? exitNotification = generation.ExitNotification;
             if (exitNotification is not null
-                && !exitNotification.TryHandleExit(exitCode)
+                && !exitNotification.TryHandleExit(code)
                 && exited is not null)
             {
-                QueueGenerationCallback(generation, () => exited(exitCode));
+                QueueGenerationCallback(generation, () => exited(code));
             }
         });
     }
@@ -836,7 +866,7 @@ internal class ProcessManager : IDisposable
                 null,
                 generation.Readiness);
         }
-        return callbacksDrained;
+        return Task.WhenAll(callbacksDrained, ipcServer.WaitForListenerAsync());
     }
 
     private void TryLifecycleCleanup(Action cleanup, string resource)

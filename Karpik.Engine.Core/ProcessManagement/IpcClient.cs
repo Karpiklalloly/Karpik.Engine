@@ -14,6 +14,7 @@ internal class IpcClient : IDisposable
     private MainThreadScheduler? _scheduler;
     private readonly ILogger<IpcClient> _logger;
     private readonly ILoggerFactory? _ownedLoggerFactory;
+    private int _disposeRequested;
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
@@ -239,8 +240,53 @@ internal class IpcClient : IDisposable
     
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeRequested, 1) != 0)
+        {
+            return;
+        }
+
         _cts.Cancel();
-        _pipe?.Dispose();
+        try
+        {
+            _pipe?.Dispose();
+        }
+        catch
+        {
+            // The listener observes cancellation or the disposed pipe.
+        }
+
+        if (_listenTask is { IsCompleted: false } listenTask)
+        {
+            _ = listenTask.ContinueWith(
+                static (_, state) => ((IpcClient)state!).DisposeListenerResources(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return;
+        }
+
+        DisposeListenerResources();
+    }
+
+    public async Task StopAsync()
+    {
+        Dispose();
+        if (_listenTask is { } listenTask)
+        {
+            try
+            {
+                await listenTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Listener failures were handled at the receive boundary.
+            }
+        }
+    }
+
+    private void DisposeListenerResources()
+    {
         _cts.Dispose();
         _ownedLoggerFactory?.Dispose();
     }
