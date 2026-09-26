@@ -6,9 +6,11 @@ Replace ordinary diagnostic console output in KarpikEngine runtime code with `Mi
 
 ## Scope
 
-The refactor covers engine runtime and engine modules: `Karpik.Engine.Core`, `Karpik.Engine.Core.Runner`, and the client/server/shared runtime modules containing diagnostic `Console` calls.
+The refactor covers engine runtime and engine modules: `Karpik.Engine.Core`, `Karpik.Engine.Core.Runner`, client/server/shared runtime modules containing diagnostic `Console` calls, and the engine-owned runtime integrations in `first-parties/Karpik.Jobs/Karpik.Jobs` and `first-parties/DragonECS.Karpik.Extensions`.
 
-Keep direct console access where it is part of a user-facing CLI/TUI, console input, redirected child-process transport, editor log protocol, or third-party/test code. Do not migrate standalone tools, templates, or vendored dependencies as part of this change.
+Keep direct console access where it is part of a user-facing CLI/TUI, console input, redirected child-process transport, editor log protocol, standalone library sample, or third-party/test code. Do not migrate standalone tools, templates, or vendored dependencies as part of this change.
+
+The standalone Karpik.Jobs API remains usable without an engine logger. When the engine initializes it, job failures are forwarded to the engine's `ILogger`; the sample program and standalone library behavior stay outside this migration.
 
 ## Design
 
