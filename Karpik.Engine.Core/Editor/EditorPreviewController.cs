@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 public enum EditorPreviewState
@@ -12,6 +14,7 @@ public enum EditorPreviewState
 public sealed class EditorPreviewController : IDisposable
 {
     private readonly ProcessManager _processManager;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly object _stateGate = new();
     private EditorPreviewState _state = EditorPreviewState.Stopped;
@@ -42,8 +45,14 @@ public sealed class EditorPreviewController : IDisposable
     public event Action<string>? OutputReceived;
 
     public EditorPreviewController(RuntimeLaunchOptions launchOptions)
+        : this(launchOptions, loggerFactory: null)
+    {
+    }
+
+    public EditorPreviewController(RuntimeLaunchOptions launchOptions, ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(launchOptions);
+        _ownedLoggerFactory = loggerFactory is null ? HostLogging.CreateDefaultFactory() : null;
         Side = launchOptions.Side;
         _processManager = new ProcessManager(
             launchOptions,
@@ -53,14 +62,20 @@ public sealed class EditorPreviewController : IDisposable
                 WorkerExecutablePath = launchOptions.RunnerExecutablePath,
                 CaptureWorkerOutput = true,
                 CaptureEditorLogs = true
-            });
+            }, null, loggerFactory ?? _ownedLoggerFactory!);
         _processManager.OnWorkerOutput += HandleWorkerOutput;
         _processManager.OnWorkerExited += HandleWorkerExited;
     }
 
     [Obsolete("Legacy monorepository compatibility only. External previews must provide RuntimeLaunchOptions.")]
     public EditorPreviewController(Side side, string workerExecutablePath)
+        : this(side, workerExecutablePath, loggerFactory: null)
     {
+    }
+
+    public EditorPreviewController(Side side, string workerExecutablePath, ILoggerFactory? loggerFactory)
+    {
+        _ownedLoggerFactory = loggerFactory is null ? HostLogging.CreateDefaultFactory() : null;
         Side = side;
         _processManager = new ProcessManager(
             side,
@@ -70,7 +85,7 @@ public sealed class EditorPreviewController : IDisposable
                 WorkerExecutablePath = workerExecutablePath,
                 CaptureWorkerOutput = true,
                 CaptureEditorLogs = true
-            });
+            }, null, loggerFactory ?? _ownedLoggerFactory!);
         _processManager.OnWorkerOutput += HandleWorkerOutput;
         _processManager.OnWorkerExited += HandleWorkerExited;
     }
@@ -254,5 +269,6 @@ public sealed class EditorPreviewController : IDisposable
         _processManager.OnWorkerOutput -= HandleWorkerOutput;
         _processManager.OnWorkerExited -= HandleWorkerExited;
         _processManager.Dispose();
+        _ownedLoggerFactory?.Dispose();
     }
 }

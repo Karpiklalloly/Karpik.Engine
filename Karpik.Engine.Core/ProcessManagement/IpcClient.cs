@@ -1,5 +1,7 @@
 using System.IO.Pipes;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 internal class IpcClient : IDisposable
@@ -10,6 +12,8 @@ internal class IpcClient : IDisposable
     private readonly SemaphoreSlim _sendGate = new(1, 1);
     private Task? _listenTask;
     private MainThreadScheduler? _scheduler;
+    private readonly ILogger<IpcClient> _logger;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
@@ -19,8 +23,20 @@ internal class IpcClient : IDisposable
     public Action? OnShutdownRequest { get; set; }
     
     public IpcClient(string pipeName)
+        : this(pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
+    {
+    }
+
+    public IpcClient(string pipeName, ILoggerFactory loggerFactory)
+        : this(pipeName, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private IpcClient(string pipeName, ILoggerFactory loggerFactory, bool ownsFactory)
     {
         _pipeName = pipeName;
+        _logger = loggerFactory.CreateLogger<IpcClient>();
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
     }
     
     public void SetScheduler(MainThreadScheduler scheduler)
@@ -36,9 +52,9 @@ internal class IpcClient : IDisposable
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
         
-        Console.WriteLine($"[IpcClient] Connecting to watcher on pipe: {_pipeName}");
+        _logger.LogInformation("Connecting to watcher on pipe {PipeName}", _pipeName);
         await _pipe.ConnectAsync(TimeSpan.FromSeconds(30), cancellationToken);
-        Console.WriteLine("[IpcClient] Connected to watcher!");
+        _logger.LogInformation("Connected to watcher");
         
         _listenTask = ListenLoop(_cts.Token);
     }
@@ -65,7 +81,7 @@ internal class IpcClient : IDisposable
     {
         var payload = System.Text.Encoding.UTF8.GetBytes(moduleDirectory);
         await SendAsync(new IpcMessage(IpcMessageType.WorkerReady, payload), cancellationToken);
-        Console.WriteLine("[IpcClient] Sent WorkerReady signal");
+        _logger.LogInformation("Sent WorkerReady signal");
     }
     
     public async Task SendStateResponseAsync(HotReloadState? state, CancellationToken cancellationToken = default)
@@ -82,7 +98,7 @@ internal class IpcClient : IDisposable
     public async Task RequestHotReloadAsync(CancellationToken cancellationToken = default)
     {
         await SendAsync(new IpcMessage(IpcMessageType.HotReloadRequest), cancellationToken);
-        Console.WriteLine("[IpcClient] Sent HotReloadRequest to watcher");
+        _logger.LogInformation("Sent HotReloadRequest to watcher");
     }
     
     private async Task ListenLoop(CancellationToken cancellationToken)
@@ -97,7 +113,7 @@ internal class IpcClient : IDisposable
                 var bytesRead = await _pipe.ReadAsync(headerBuffer.AsMemory(0, 5), cancellationToken);
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("[IpcClient] Watcher disconnected");
+                    _logger.LogInformation("Watcher disconnected");
                     break;
                 }
                 
@@ -144,11 +160,11 @@ internal class IpcClient : IDisposable
         }
         catch (IOException ex)
         {
-            Console.WriteLine($"[IpcClient] Pipe error: {ex.Message}");
+            _logger.LogError(ex, "Pipe error");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[IpcClient] Listen error: {ex}");
+            _logger.LogError(ex, "Listen error");
         }
     }
     
@@ -157,7 +173,7 @@ internal class IpcClient : IDisposable
         switch (message.Type)
         {
             case IpcMessageType.StateRequest:
-                Console.WriteLine("[IpcClient] Received StateRequest");
+                _logger.LogInformation("Received StateRequest");
                 HotReloadState? state = null;
                 
                 if (OnStateRequest != null)
@@ -177,7 +193,7 @@ internal class IpcClient : IDisposable
                 break;
                 
             case IpcMessageType.ShutdownRequest:
-                Console.WriteLine("[IpcClient] Received ShutdownRequest");
+                _logger.LogInformation("Received ShutdownRequest");
                 await SendShutdownAckAsync(cancellationToken);
                 OnShutdownRequest?.Invoke();
                 break;
@@ -208,7 +224,7 @@ internal class IpcClient : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[IpcClient] Editor snapshot failed: {ex.Message}");
+                    _logger.LogError(ex, "Editor snapshot failed");
                     snapshotPayload = Array.Empty<byte>();
                 }
 
@@ -226,5 +242,6 @@ internal class IpcClient : IDisposable
         _cts.Cancel();
         _pipe?.Dispose();
         _cts.Dispose();
+        _ownedLoggerFactory?.Dispose();
     }
 }

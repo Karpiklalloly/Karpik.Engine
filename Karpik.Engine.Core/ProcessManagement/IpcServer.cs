@@ -1,5 +1,7 @@
 using System.IO.Pipes;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 public class IpcServer : IDisposable
@@ -13,13 +15,27 @@ public class IpcServer : IDisposable
     private readonly SemaphoreSlim _shutdownRequestGate = new(1, 1);
     private int _disposeRequested;
     private Task? _listenTask;
+    private readonly ILogger<IpcServer> _logger;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
     
     public IpcServer(string pipeName)
+        : this(pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
+    {
+    }
+
+    public IpcServer(string pipeName, ILoggerFactory loggerFactory)
+        : this(pipeName, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private IpcServer(string pipeName, ILoggerFactory loggerFactory, bool ownsFactory)
     {
         _pipeName = pipeName;
+        _logger = loggerFactory.CreateLogger<IpcServer>();
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
     }
     
     public async Task WaitForConnectionAsync(CancellationToken cancellationToken = default)
@@ -31,9 +47,9 @@ public class IpcServer : IDisposable
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
         
-        Console.WriteLine($"[IpcServer] Waiting for worker connection on pipe: {_pipeName}");
+        _logger.LogInformation("Waiting for worker connection on pipe {PipeName}", _pipeName);
         await _pipe.WaitForConnectionAsync(cancellationToken);
-        Console.WriteLine("[IpcServer] Worker connected!");
+        _logger.LogInformation("Worker connected");
         
         // Start listening for messages
         _listenTask = ListenLoop(_cts.Token);
@@ -108,7 +124,7 @@ public class IpcServer : IDisposable
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("[IpcServer] Timeout waiting for StateResponse");
+                _logger.LogWarning("Timeout waiting for StateResponse");
                 return (false, null);
             }
         }
@@ -183,11 +199,11 @@ public class IpcServer : IDisposable
             try
             {
                 await tcs.Task.WaitAsync(cts.Token);
-                Console.WriteLine("[IpcServer] Worker acknowledged shutdown");
+                _logger.LogInformation("Worker acknowledged shutdown");
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("[IpcServer] Timeout waiting for ShutdownAck, will force kill");
+                _logger.LogWarning("Timeout waiting for ShutdownAck; will force kill");
             }
         }
         finally
@@ -209,7 +225,7 @@ public class IpcServer : IDisposable
                 var bytesRead = await _pipe.ReadAsync(headerBuffer.AsMemory(0, 5), cancellationToken);
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("[IpcServer] Worker disconnected");
+                    _logger.LogInformation("Worker disconnected");
                     break;
                 }
                 
@@ -253,11 +269,11 @@ public class IpcServer : IDisposable
         }
         catch (IOException ex)
         {
-            Console.WriteLine($"[IpcServer] Pipe error: {ex.Message}");
+            _logger.LogError(ex, "Pipe error");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[IpcServer] Listen error: {ex}");
+            _logger.LogError(ex, "Listen error");
         }
     }
     
@@ -292,5 +308,6 @@ public class IpcServer : IDisposable
         }
 
         _cts.Dispose();
+        _ownedLoggerFactory?.Dispose();
     }
 }

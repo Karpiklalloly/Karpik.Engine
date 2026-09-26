@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 internal class ProcessManager : IDisposable
@@ -14,6 +16,10 @@ internal class ProcessManager : IDisposable
     private readonly string _pipeName;
     private readonly Side _side;
     private readonly HotReloadOptions _options;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
+    private readonly ILogger<ProcessManager> _logger;
+    private readonly ModuleStagingCleanup _moduleStagingCleanup;
     private bool _hasStartedWorker;
     private int _reloadInProgress;
     private int _stopRequestCount;
@@ -65,8 +71,22 @@ internal class ProcessManager : IDisposable
     public int WorkerProcessId => Volatile.Read(ref _workerGeneration)?.ProcessId ?? -1;
     
     public ProcessManager(RuntimeLaunchOptions launchOptions, HotReloadOptions options, string? pipeName = null)
+        : this(launchOptions, options, pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
+    {
+    }
+
+    public ProcessManager(RuntimeLaunchOptions launchOptions, HotReloadOptions options, string? pipeName, ILoggerFactory loggerFactory)
+        : this(launchOptions, options, pipeName, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private ProcessManager(RuntimeLaunchOptions launchOptions, HotReloadOptions options, string? pipeName, ILoggerFactory loggerFactory, bool ownsFactory)
     {
         ArgumentNullException.ThrowIfNull(launchOptions);
+        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
+        _logger = loggerFactory.CreateLogger<ProcessManager>();
+        _moduleStagingCleanup = new ModuleStagingCleanup(loggerFactory);
         _options = options;
         _workerExePath = launchOptions.RunnerExecutablePath;
         _bundlePath = launchOptions.BundlePath;
@@ -77,9 +97,23 @@ internal class ProcessManager : IDisposable
 
     [Obsolete("Legacy monorepository compatibility only. External runtimes must provide RuntimeLaunchOptions.")]
     public ProcessManager(Side side, HotReloadOptions options, string? pipeName = null)
+        : this(side, options, pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
     {
+    }
+
+    public ProcessManager(Side side, HotReloadOptions options, string? pipeName, ILoggerFactory loggerFactory)
+        : this(side, options, pipeName, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private ProcessManager(Side side, HotReloadOptions options, string? pipeName, ILoggerFactory loggerFactory, bool ownsFactory)
+    {
+        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
+        _logger = loggerFactory.CreateLogger<ProcessManager>();
+        _moduleStagingCleanup = new ModuleStagingCleanup(loggerFactory);
         _options = options;
-        _workerExePath = options.WorkerExecutablePath ?? GetDefaultWorkerPath();
+        _workerExePath = options.WorkerExecutablePath ?? GetDefaultWorkerPath(_logger);
         _bundlePath = AppContext.BaseDirectory;
         _engineRoot = AppContext.BaseDirectory;
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
@@ -119,7 +153,7 @@ internal class ProcessManager : IDisposable
 
         if (IsWorkerRunning)
         {
-            Console.WriteLine("[ProcessManager] Worker is already running");
+            _logger.LogInformation("Worker is already running");
             return;
         }
         
@@ -171,7 +205,7 @@ internal class ProcessManager : IDisposable
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
         var readiness = new WorkerReadiness();
-        var ipcServer = new IpcServer(_pipeName);
+        var ipcServer = new IpcServer(_pipeName, _loggerFactory);
         var generation = new WorkerGeneration(readiness, ipcServer);
         Volatile.Write(ref _workerGeneration, generation);
         Volatile.Write(ref _workerReadiness, readiness);
@@ -187,8 +221,8 @@ internal class ProcessManager : IDisposable
         {
             Task ipcTask = ipcServer.WaitForConnectionAsync(connectionCts.Token);
 
-            Console.WriteLine($"[ProcessManager] Starting worker: {_workerExePath}");
-            Console.WriteLine($"[ProcessManager] Arguments: {string.Join(" ", startInfo.ArgumentList)}");
+            _logger.LogInformation("Starting worker {WorkerPath}", _workerExePath);
+            _logger.LogInformation("Worker arguments: {Arguments}", string.Join(" ", startInfo.ArgumentList));
 
             workerProcess = new Process
             {
@@ -238,7 +272,7 @@ internal class ProcessManager : IDisposable
                 workerProcess.BeginErrorReadLine();
             }
 
-            Console.WriteLine($"[ProcessManager] Worker started with PID: {generation.ProcessId}");
+            _logger.LogInformation("Worker started with PID {ProcessId}", generation.ProcessId);
             await ipcTask;
         }
         catch
@@ -277,7 +311,7 @@ internal class ProcessManager : IDisposable
 
             if (msg.Type == IpcMessageType.WorkerReady)
             {
-                Console.WriteLine("[ProcessManager] Worker is ready");
+                _logger.LogInformation("Worker is ready");
                 CleanupCompletedModuleVersions(msg.Payload);
                 generation.Readiness.MarkReady();
                 Action? ready = OnWorkerReady;
@@ -288,7 +322,7 @@ internal class ProcessManager : IDisposable
             }
             else if (msg.Type == IpcMessageType.HotReloadRequest)
             {
-                Console.WriteLine("[ProcessManager] Worker requested hot reload");
+                _logger.LogInformation("Worker requested hot reload");
                 reloadRequested = true;
             }
         });
@@ -336,7 +370,7 @@ internal class ProcessManager : IDisposable
             int processId = generation.ProcessId >= 0
                 ? generation.ProcessId
                 : process.Id;
-            Console.WriteLine($"[ProcessManager] Worker process exited with code: {exitCode}");
+            _logger.LogInformation("Worker process exited with code {ExitCode}", exitCode);
             generation.Readiness.Stop();
             CleanupWorkerShadowCopies(processId);
             Action<int>? exited = OnWorkerExited;
@@ -408,7 +442,7 @@ internal class ProcessManager : IDisposable
         {
             if (!TryBeginReload())
             {
-                Console.WriteLine("[ProcessManager] Hot reload is already in progress");
+                _logger.LogInformation("Hot reload is already in progress");
                 return;
             }
             reloadOwned = true;
@@ -436,7 +470,7 @@ internal class ProcessManager : IDisposable
             {
                 if (!TryBeginReload())
                 {
-                    Console.WriteLine("[ProcessManager] Hot reload is already in progress");
+                    _logger.LogInformation("Hot reload is already in progress");
                     return;
                 }
                 reloadOwned = true;
@@ -452,11 +486,11 @@ internal class ProcessManager : IDisposable
                 || exitNotification is null
                 || !IsProcessRunning(workerProcess))
             {
-                Console.WriteLine("[ProcessManager] Cannot hot reload: worker not running");
+                _logger.LogWarning("Cannot hot reload: worker not running");
                 return;
             }
 
-            Console.WriteLine("[ProcessManager] Starting hot reload...");
+            _logger.LogInformation("Starting hot reload");
 
             // The runner exits immediately after sending its state. Defer exit publication
             // before requesting that state so the process cannot outrun the planned-exit marker.
@@ -468,7 +502,7 @@ internal class ProcessManager : IDisposable
 
             if (!receivedState || state == null)
             {
-                Console.WriteLine("[ProcessManager] Hot reload aborted: failed to collect ECS state. Existing worker remains running.");
+                _logger.LogWarning("Hot reload aborted: failed to collect ECS state. Existing worker remains running");
                 return;
             }
 
@@ -507,7 +541,7 @@ internal class ProcessManager : IDisposable
 
             if (!exited)
             {
-                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+                _logger.LogWarning("Worker did not exit gracefully; killing");
                 await KillAndConfirmExitAsync(workerProcess);
             }
 
@@ -525,7 +559,7 @@ internal class ProcessManager : IDisposable
 
             if (!ShouldStopTransition && IsWorkerRunning)
             {
-                Console.WriteLine("[ProcessManager] Hot reload complete!");
+                _logger.LogInformation("Hot reload complete");
             }
         }
         finally
@@ -582,7 +616,7 @@ internal class ProcessManager : IDisposable
         IpcServer? ipcServer = generation.IpcServer;
         if (workerProcess is not null && IsProcessRunning(workerProcess))
         {
-            Console.WriteLine("[ProcessManager] Stopping worker...");
+            _logger.LogInformation("Stopping worker");
 
             bool exited = false;
             if (ipcServer != null && ipcServer.IsConnected)
@@ -600,7 +634,7 @@ internal class ProcessManager : IDisposable
 
             if (!exited)
             {
-                Console.WriteLine("[ProcessManager] Worker didn't exit gracefully, killing...");
+                _logger.LogWarning("Worker did not exit gracefully; killing");
                 await KillAndConfirmExitAsync(workerProcess);
             }
         }
@@ -805,7 +839,7 @@ internal class ProcessManager : IDisposable
         return callbacksDrained;
     }
 
-    private static void TryLifecycleCleanup(Action cleanup, string resource)
+    private void TryLifecycleCleanup(Action cleanup, string resource)
     {
         try
         {
@@ -813,8 +847,7 @@ internal class ProcessManager : IDisposable
         }
         catch (Exception exception)
         {
-            Console.WriteLine(
-                $"[ProcessManager] Failed to release {resource}: {exception.Message}");
+            _logger.LogWarning(exception, "Failed to release {Resource}", resource);
         }
     }
 
@@ -873,7 +906,7 @@ internal class ProcessManager : IDisposable
         }
     }
     
-    private static string GetDefaultWorkerPath()
+    private static string GetDefaultWorkerPath(ILogger logger)
     {
         var exeName = OperatingSystem.IsWindows() 
             ? "Karpik.Engine.Core.Runner.exe" 
@@ -890,14 +923,13 @@ internal class ProcessManager : IDisposable
             var fullPath = Path.GetFullPath(Path.Combine(searchPath, exeName));
             if (File.Exists(fullPath))
             {
-                Console.WriteLine($"[ProcessManager] Found worker at: {fullPath}");
+                logger.LogInformation("Found worker at {WorkerPath}", fullPath);
                 return fullPath;
             }
         }
         
         var fallbackPath = Path.Combine(AppContext.BaseDirectory, exeName);
-        Console.WriteLine($"[ProcessManager] Worker not found in any search location. Expected at: {fallbackPath}");
-        Console.WriteLine("[ProcessManager] Make sure Karpik.Engine.Core.Runner is built and copied to the output directory.");
+        logger.LogWarning("Worker not found in any search location. Expected at {WorkerPath}. Make sure Karpik.Engine.Core.Runner is built and copied to the output directory", fallbackPath);
         return fallbackPath;
     }
 
@@ -946,7 +978,7 @@ internal class ProcessManager : IDisposable
         {
             if (++candidates > RuntimeBundleLayout.MaxTreeEntries)
             {
-                Console.WriteLine("[ProcessManager] Worker shadow cleanup exceeded the candidate bound.");
+                _logger.LogWarning("Worker shadow cleanup exceeded the candidate bound");
                 return;
             }
             try
@@ -957,15 +989,15 @@ internal class ProcessManager : IDisposable
                     || !suffix.All(Uri.IsHexDigit)
                     || !RuntimeBundleLayout.IsBoundedTreeWithoutReparsePoints(directory))
                 {
-                    Console.WriteLine($"[ProcessManager] Refusing unproven worker shadow directory: {directory}");
+                    _logger.LogWarning("Refusing unproven worker shadow directory {Directory}", directory);
                     continue;
                 }
                 Directory.Delete(directory, recursive: true);
-                Console.WriteLine($"[ProcessManager] Removed worker shadow directory: {directory}");
+                _logger.LogInformation("Removed worker shadow directory {Directory}", directory);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ProcessManager] Failed to remove worker shadow directory '{directory}': {ex.Message}");
+                _logger.LogWarning(ex, "Failed to remove worker shadow directory {Directory}", directory);
             }
         }
     }
@@ -997,7 +1029,7 @@ internal class ProcessManager : IDisposable
                                           || exception is IOException
                                           || exception is UnauthorizedAccessException)
         {
-            Console.WriteLine($"[ProcessManager] Ignoring invalid worker module staging directory: {exception.Message}");
+            _logger.LogWarning(exception, "Ignoring invalid worker module staging directory");
             return;
         }
 
@@ -1006,11 +1038,11 @@ internal class ProcessManager : IDisposable
             : StringComparison.Ordinal;
         if (!string.Equals(activeDirectory, expectedDirectory, comparison))
         {
-            Console.WriteLine($"[ProcessManager] Ignoring worker module directory that does not exactly match the resolved bundle directory: {activeDirectory}");
+            _logger.LogWarning("Ignoring worker module directory that does not exactly match the resolved bundle directory: {ActiveDirectory}", activeDirectory);
             return;
         }
 
-        ModuleStagingCleanup.CleanupCompletedVersions(_bundlePath, activeDirectory);
+        _moduleStagingCleanup.Cleanup(_bundlePath, activeDirectory);
     }
 
     internal static ProcessStartInfo CreateStartInfo(
@@ -1123,10 +1155,10 @@ internal class ProcessManager : IDisposable
         });
     }
 
-    private static void QueueLifecycleCallback(Action callback)
+    private void QueueLifecycleCallback(Action callback)
     {
         ThreadPool.QueueUserWorkItem(
-            static action =>
+            action =>
             {
                 try
                 {
@@ -1134,7 +1166,7 @@ internal class ProcessManager : IDisposable
                 }
                 catch (Exception exception)
                 {
-                    Console.WriteLine($"[ProcessManager] Lifecycle callback failed: {exception.Message}");
+                    _logger.LogError(exception, "Lifecycle callback failed");
                 }
             },
             callback,
@@ -1196,7 +1228,7 @@ internal class ProcessManager : IDisposable
                     }
                     else
                     {
-                        Console.WriteLine($"[ProcessManager] Worker process {processId} did not confirm exit during disposal.");
+                        _logger.LogWarning("Worker process {ProcessId} did not confirm exit during disposal", processId);
                     }
                 }
             }
@@ -1214,6 +1246,7 @@ internal class ProcessManager : IDisposable
         {
             _transitionGate.Release();
             _cts.Dispose();
+            _ownedLoggerFactory?.Dispose();
         }
     }
 
