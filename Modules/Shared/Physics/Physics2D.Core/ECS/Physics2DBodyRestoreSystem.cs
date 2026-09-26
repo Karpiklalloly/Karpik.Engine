@@ -2,10 +2,11 @@ using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
 using Karpik.Engine.Shared.Spatial2D;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public sealed class Physics2DBodyRestoreSystem(DefaultWorld world) : ISystemInit
+public sealed class Physics2DBodyRestoreSystem(DefaultWorld world, ILogger<Physics2DBodyRestoreSystem> log) : ISystemInit
 {
     private class RuntimeBodyAspect : EcsAspect
     {
@@ -53,8 +54,7 @@ public sealed class Physics2DBodyRestoreSystem(DefaultWorld world) : ISystemInit
 
         if (clearedRuntimeRefs > 0 || queuedBodies > 0 || missingDefinitions > 0)
         {
-            Console.WriteLine(
-                $"[Physics2D] Cleared {clearedRuntimeRefs} runtime body refs, queued {queuedBodies} body restores, missing definitions {missingDefinitions}");
+            log.LogDebug("Cleared {clearedRuntimeRefs} runtime body refs, queued {queuedBodies} body restores, missing definitions {missingDefinitions}", clearedRuntimeRefs, queuedBodies, missingDefinitions);
         }
     }
 }

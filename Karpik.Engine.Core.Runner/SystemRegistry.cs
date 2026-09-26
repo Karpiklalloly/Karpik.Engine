@@ -6,11 +6,22 @@ namespace Karpik.Engine.Core.Runner;
 internal class SystemRegistry : ISystemRegistry
 {
     private readonly List<SystemDescriptor> _descriptors = [];
+    private readonly List<Action<IBuilder>> _pipelineConfigurations = [];
     private readonly HashSet<Type> _registeredTypes = [];
 
     private bool _registrationsApplied;
     private bool _systemsResolved;
     private bool _typeRegistrationsSuppressed;
+
+    public void ConfigurePipeline(Action<IBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        if (_registrationsApplied)
+        {
+            throw new InvalidOperationException("Pipeline configuration cannot be added after registrations were applied.");
+        }
+        _pipelineConfigurations.Add(configure);
+    }
 
     public void Add<TSystem>(string layer = "BASIC_LAYER", int order = 0) where TSystem : class, ISystem
     {
@@ -93,6 +104,11 @@ internal class SystemRegistry : ISystemRegistry
         }
 
         ReadOnlySpan<SystemDescriptor> descriptors = CollectionsMarshal.AsSpan(_descriptors);
+
+        for (int i = 0; i < _pipelineConfigurations.Count; i++)
+        {
+            _pipelineConfigurations[i](builder);
+        }
 
         for (int i = 0; i < descriptors.Length; i++)
         {

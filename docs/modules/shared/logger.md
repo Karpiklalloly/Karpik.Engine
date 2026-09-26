@@ -28,9 +28,10 @@
 
 ```
 LoggerModule/
-├── LoggerInstaller.cs   # Инсталлер модуля
-├── Logger.cs            # Реализация логгера
-└── ConsoleChangers.cs   # Цветной вывод в консоль
+├── LoggerModuleInstaller.cs          # Регистрация ILoggerFactory
+├── ILoggerFactoryModifier.cs         # Настройка провайдеров игрой
+├── EditorConsoleLoggerExtensions.cs  # Передача логов в редактор
+└── ConsoleChangers.cs                # Цветной вывод в консоль
 ```
 
 ## 🔗 Зависимости

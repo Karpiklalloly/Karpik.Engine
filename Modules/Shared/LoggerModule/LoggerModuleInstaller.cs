@@ -11,17 +11,10 @@ public class LoggerModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register(context => LoggerFactory.Create(logging =>
+        builder.Register(static context => LoggerFactory.Create(logging =>
             {
                 logging.ClearProviders();
                 logging.AddSimpleConsole();
-                if (string.Equals(
-                        Environment.GetEnvironmentVariable("KARPIK_EDITOR_LOG_CAPTURE"),
-                        "1",
-                        StringComparison.Ordinal))
-                {
-                    logging.AddEditorConsole();
-                }
                 logging.SetMinimumLevel(LogLevel.Trace);
 
                 foreach (var modifier in context.Resolve<IEnumerable<ILoggerFactoryModifier>>())

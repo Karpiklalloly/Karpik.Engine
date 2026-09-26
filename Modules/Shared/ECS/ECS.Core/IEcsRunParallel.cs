@@ -43,12 +43,6 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
         {
             _dependencyHandleBuffers[i] = new JobHandle[_executionNodes[i].DependencyCount];
         }
-
-        foreach (var node in _executionNodes)
-        {
-            Console.WriteLine($"{node.System.GetType().Name} deps ({node.DependencyCount}) : " +
-                              $"{string.Join(", ", node.Dependencies.Select(d => d.System.GetType().Name))}");
-        }
     }
 
     internal static SystemExecutionNode[] CreateDependencyGraph(IReadOnlyList<IEcsRunParallel> systems)

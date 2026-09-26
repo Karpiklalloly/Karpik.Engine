@@ -2,10 +2,11 @@
 using DCFApixels.DragonECS.Core;
 using DragonExtensions;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core.Runner;
 
-public class Builder(EcsPipeline.Builder builder) : IBuilder
+public class Builder(EcsPipeline.Builder builder, ILogger<Builder> logger) : IBuilder
 {
     private readonly List<ISystemAsyncInit> _asyncInitializers = [];
     private readonly List<ISystemAsyncDestroy> _asyncDestroyers = [];
@@ -77,7 +78,7 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
             added = true;
         }
 
-        if (!added && system is IEcsProcess process)
+        if (system is IEcsProcess process)
         {
             builder.Add(process, layer, order);
             added = true;
@@ -85,7 +86,7 @@ public class Builder(EcsPipeline.Builder builder) : IBuilder
 
         if (!added)
         {
-            Console.WriteLine($"[Builder] Warning: System of type {system.GetType().FullName} does not implement any known system interfaces and will not be added to the pipeline.");
+            logger.LogError("System of type {Type} does not implement any known system interfaces and will not be added to the pipeline.", system.GetType().FullName);
         }
         
         return this;
