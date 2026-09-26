@@ -67,6 +67,7 @@ internal class ProcessManager : IDisposable
     public bool IsReloadInProgress => Volatile.Read(ref _reloadInProgress) != 0;
 
     private bool IsDisposeRequested => Volatile.Read(ref _disposeRequested) != 0;
+    internal Task DisposalCompletion => _disposeCompleted.Task;
 
     private bool ShouldStopTransition =>
         IsDisposeRequested || Volatile.Read(ref _stopRequestCount) != 0;
@@ -304,49 +305,35 @@ internal class ProcessManager : IDisposable
 
     private void HandleWorkerMessage(WorkerGeneration generation, IpcMessage msg)
     {
-        bool ready = false;
-        bool reloadRequested = false;
-        generation.TryRun(() =>
+        if (msg.Type == IpcMessageType.WorkerReady)
         {
-            if (!IsCurrentGeneration(generation))
+            QueueGenerationCallback(generation, () =>
             {
-                return;
-            }
-
-            if (msg.Type == IpcMessageType.WorkerReady)
-            {
-                ready = true;
-            }
-            else if (msg.Type == IpcMessageType.HotReloadRequest)
-            {
-                reloadRequested = true;
-            }
-        });
-
-        if (ready)
-        {
-            _logger.LogInformation("Worker is ready");
-            CleanupCompletedModuleVersions(msg.Payload);
-            generation.TryRun(() =>
-            {
-                if (!IsCurrentGeneration(generation))
+                _logger.LogInformation("Worker is ready");
+                CleanupCompletedModuleVersions(msg.Payload);
+                generation.TryRun(() =>
                 {
-                    return;
-                }
+                    if (!IsCurrentGeneration(generation))
+                    {
+                        return;
+                    }
 
-                generation.Readiness.MarkReady();
-                Action? readyCallback = OnWorkerReady;
-                if (readyCallback is not null)
-                {
-                    QueueGenerationCallback(generation, readyCallback);
-                }
+                    generation.Readiness.MarkReady();
+                    Action? readyCallback = OnWorkerReady;
+                    if (readyCallback is not null)
+                    {
+                        QueueGenerationCallback(generation, readyCallback);
+                    }
+                });
             });
         }
-
-        if (reloadRequested)
+        else if (msg.Type == IpcMessageType.HotReloadRequest)
         {
-            _logger.LogInformation("Worker requested hot reload");
-            _ = HandleWorkerReloadRequestAsync(generation);
+            QueueGenerationCallback(generation, () =>
+            {
+                _logger.LogInformation("Worker requested hot reload");
+                _ = HandleWorkerReloadRequestAsync(generation);
+            });
         }
     }
 
@@ -376,8 +363,6 @@ internal class ProcessManager : IDisposable
 
     private void HandleWorkerExited(WorkerGeneration generation)
     {
-        int? exitCode = null;
-        int processId = -1;
         generation.TryRun(() =>
         {
             if (!IsCurrentGeneration(generation) || generation.Process is not { } process)
@@ -385,35 +370,32 @@ internal class ProcessManager : IDisposable
                 return;
             }
 
-            exitCode = process.ExitCode;
-            processId = generation.ProcessId >= 0
+            int exitCode = process.ExitCode;
+            int processId = generation.ProcessId >= 0
                 ? generation.ProcessId
                 : process.Id;
-        });
-
-        if (exitCode is not { } code)
-        {
-            return;
-        }
-
-        _logger.LogInformation("Worker process exited with code {ExitCode}", code);
-        CleanupWorkerShadowCopies(processId);
-        generation.TryRun(() =>
-        {
-            if (!IsCurrentGeneration(generation))
+            QueueGenerationCallback(generation, () =>
             {
-                return;
-            }
+                _logger.LogInformation("Worker process exited with code {ExitCode}", exitCode);
+                CleanupWorkerShadowCopies(processId);
+                generation.TryRun(() =>
+                {
+                    if (!IsCurrentGeneration(generation))
+                    {
+                        return;
+                    }
 
-            generation.Readiness.Stop();
-            Action<int>? exited = OnWorkerExited;
-            WorkerExitNotification? exitNotification = generation.ExitNotification;
-            if (exitNotification is not null
-                && !exitNotification.TryHandleExit(code)
-                && exited is not null)
-            {
-                QueueGenerationCallback(generation, () => exited(code));
-            }
+                    generation.Readiness.Stop();
+                    Action<int>? exited = OnWorkerExited;
+                    WorkerExitNotification? exitNotification = generation.ExitNotification;
+                    if (exitNotification is not null
+                        && !exitNotification.TryHandleExit(exitCode)
+                        && exited is not null)
+                    {
+                        QueueGenerationCallback(generation, () => exited(exitCode));
+                    }
+                });
+            });
         });
     }
 
@@ -1149,15 +1131,16 @@ internal class ProcessManager : IDisposable
         WorkerGeneration generation,
         Action callback)
     {
-        QueueLifecycleCallback(() =>
+        if (!generation.TryReserveCallback(() => IsCurrentGeneration(generation)))
         {
-            if (!generation.TryReserveCallback(
-                    () => IsCurrentGeneration(generation)))
-            {
-                return;
-            }
-            bool reservationOutstanding = true;
-            try
+            return;
+        }
+
+        bool reservationOutstanding = true;
+        bool committed = false;
+        try
+        {
+            QueueLifecycleCallback(() =>
             {
                 Volatile.Read(ref _beforeLifecycleCallbackCommit)?.Invoke();
                 if (!generation.TryCommitCallback())
@@ -1166,44 +1149,66 @@ internal class ProcessManager : IDisposable
                     return;
                 }
                 reservationOutstanding = false;
-                ProcessManager? previousOwner = s_lifecycleCallbackOwner.Value;
-                s_lifecycleCallbackOwner.Value = this;
-                try
-                {
-                    callback();
-                }
-                finally
-                {
-                    s_lifecycleCallbackOwner.Value = previousOwner;
-                    generation.CompleteCommittedCallback();
-                }
-            }
-            finally
+                committed = true;
+                callback();
+            }, () =>
             {
                 if (reservationOutstanding)
                 {
                     generation.CancelReservedCallback();
                 }
-            }
-        });
+                if (committed)
+                {
+                    generation.CompleteCommittedCallback();
+                }
+            }, generationCallback: true);
+        }
+        catch
+        {
+            generation.CancelReservedCallback();
+            throw;
+        }
     }
 
-    private void QueueLifecycleCallback(Action callback)
+    private void QueueLifecycleCallback(Action callback, Action? onCompleted = null, bool generationCallback = false)
     {
-        ThreadPool.QueueUserWorkItem(
+        if (!ThreadPool.QueueUserWorkItem(
             action =>
             {
+                ProcessManager? previousOwner = s_lifecycleCallbackOwner.Value;
+                if (generationCallback)
+                {
+                    s_lifecycleCallbackOwner.Value = this;
+                }
                 try
                 {
                     action();
                 }
                 catch (Exception exception)
                 {
-                    _logger.LogError(exception, "Lifecycle callback failed");
+                    try
+                    {
+                        _logger.LogError(exception, "Lifecycle callback failed");
+                    }
+                    catch
+                    {
+                        // A failing provider must not strand a committed callback.
+                    }
+                }
+                finally
+                {
+                    if (generationCallback)
+                    {
+                        s_lifecycleCallbackOwner.Value = previousOwner;
+                    }
+                    onCompleted?.Invoke();
                 }
             },
             callback,
-            preferLocal: false);
+            preferLocal: false))
+        {
+            throw new InvalidOperationException("Could not queue lifecycle callback.");
+        }
     }
     
     public void Dispose()
@@ -1440,24 +1445,41 @@ internal class ProcessManager : IDisposable
 
         public bool TryCommitCallback()
         {
+            TaskCompletionSource<bool>? drained = null;
+            bool committed;
             lock (_gate)
             {
                 _reservedCallbacks--;
                 if (!_active)
                 {
-                    return false;
+                    if (_reservedCallbacks == 0 && _committedCallbacks == 0)
+                    {
+                        drained = _drained;
+                    }
+                    committed = false;
                 }
-                _committedCallbacks++;
-                return true;
+                else
+                {
+                    _committedCallbacks++;
+                    committed = true;
+                }
             }
+            drained?.TrySetResult(true);
+            return committed;
         }
 
         public void CancelReservedCallback()
         {
+            TaskCompletionSource<bool>? drained = null;
             lock (_gate)
             {
                 _reservedCallbacks--;
+                if (!_active && _reservedCallbacks == 0 && _committedCallbacks == 0)
+                {
+                    drained = _drained;
+                }
             }
+            drained?.TrySetResult(true);
         }
 
         public void CompleteCommittedCallback()
@@ -1466,7 +1488,7 @@ internal class ProcessManager : IDisposable
             lock (_gate)
             {
                 _committedCallbacks--;
-                if (!_active && _committedCallbacks == 0)
+                if (!_active && _reservedCallbacks == 0 && _committedCallbacks == 0)
                 {
                     drained = _drained;
                 }
@@ -1485,7 +1507,7 @@ internal class ProcessManager : IDisposable
 
                 _active = false;
                 Readiness.Stop();
-                if (_committedCallbacks == 0)
+                if (_reservedCallbacks == 0 && _committedCallbacks == 0)
                 {
                     return Task.CompletedTask;
                 }

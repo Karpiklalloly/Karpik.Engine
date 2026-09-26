@@ -19,6 +19,7 @@ public sealed class EditorPreviewController : IDisposable
     private readonly object _stateGate = new();
     private EditorPreviewState _state = EditorPreviewState.Stopped;
     private bool _disposed;
+    private int _disposeRequested;
     private int _hotReloadInProgress;
 
     public Side Side { get; }
@@ -260,15 +261,30 @@ public sealed class EditorPreviewController : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeRequested, 1) != 0)
         {
+            _processManager.Dispose();
             return;
         }
 
         _disposed = true;
         _processManager.OnWorkerOutput -= HandleWorkerOutput;
         _processManager.OnWorkerExited -= HandleWorkerExited;
-        _processManager.Dispose();
-        _ownedLoggerFactory?.Dispose();
+        try
+        {
+            _processManager.Dispose();
+        }
+        finally
+        {
+            if (_ownedLoggerFactory is { } loggerFactory)
+            {
+                _ = _processManager.DisposalCompletion.ContinueWith(
+                    static (_, state) => ((ILoggerFactory)state!).Dispose(),
+                    loggerFactory,
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+        }
     }
 }
