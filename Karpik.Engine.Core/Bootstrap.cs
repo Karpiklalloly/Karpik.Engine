@@ -15,6 +15,7 @@ internal class Bootstrap : IClientSimulationLoop
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILoggerFactory? _ownedLoggerFactory;
     private readonly ILogger<Bootstrap> _logger;
+    private Jobs.JobSystem? _jobSystem;
 
     /// <summary>Runner-assembly seam for static composition registration.</summary>
     internal IEngineRunner Runner => _runner;
@@ -80,7 +81,8 @@ internal class Bootstrap : IClientSimulationLoop
 
     private Task SetupAsync(Dictionary<string, byte[]>? hotReloadData)
     {
-        Job.Initialize(new Jobs.JobSystem(onJobError: exception => _logger.LogError(exception, "Job failed")));
+        _jobSystem = new Jobs.JobSystem(onJobError: exception => _runner.LogJobError(exception, _logger));
+        Job.Initialize(_jobSystem);
 
         return _runner.SetupAsync(
             _application,
@@ -126,7 +128,7 @@ internal class Bootstrap : IClientSimulationLoop
         }
         finally
         {
-            _ownedLoggerFactory?.Dispose();
+            ReleaseOwnedResources();
         }
     }
 
@@ -135,6 +137,22 @@ internal class Bootstrap : IClientSimulationLoop
         try
         {
             await _runner.DestroyAsync();
+        }
+        finally
+        {
+            ReleaseOwnedResources();
+        }
+    }
+
+    private void ReleaseOwnedResources()
+    {
+        try
+        {
+            if (_jobSystem is { } jobSystem)
+            {
+                Job.ShutdownIfCurrent(jobSystem);
+                _jobSystem = null;
+            }
         }
         finally
         {

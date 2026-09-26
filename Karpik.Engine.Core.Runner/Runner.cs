@@ -501,6 +501,12 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
     public Task DestroyAsync() => DestroyAsyncCore(clearRegistrations: true).AsTask();
 
+    public void LogJobError(Exception exception, ILogger fallback)
+    {
+        ILogger logger = _engineContainer is null ? fallback : _runtimeLogger;
+        logger.LogError(exception, "Job failed");
+    }
+
     public Dictionary<string, byte[]> GetHotReloadData()
     {
         IServiceResolver services = _serviceResolver
