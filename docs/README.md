@@ -6,6 +6,7 @@
 
 | Раздел | Описание |
 |--------|----------|
+| [Ключевые особенности KarpikEngine](../wiki/ru/engine-capabilities.md) | Модули, SDK, Content Pipeline, сервисы и настройка журналирования |
 | [Roadmap](roadmap.md) | Задачи и приоритеты |
 | [Architecture](architecture/overview.md) | Обзор архитектуры |
 | [Modules](modules/README.md) | Документация модулей |
