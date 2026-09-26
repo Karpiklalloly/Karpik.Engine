@@ -24,6 +24,9 @@ internal class ProcessManager : IDisposable
     private int _reloadInProgress;
     private int _stopRequestCount;
     private int _disposeRequested;
+    private int _disposingThreadId;
+    private readonly TaskCompletionSource _disposeCompleted =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private WorkerExitNotification? _workerExitNotification;
     private readonly SemaphoreSlim _transitionGate = new(1, 1);
     private readonly object _transitionIntentGate = new();
@@ -1205,17 +1208,28 @@ internal class ProcessManager : IDisposable
     
     public void Dispose()
     {
+        bool alreadyRequested;
         lock (_transitionIntentGate)
         {
-            if (IsDisposeRequested)
+            alreadyRequested = IsDisposeRequested;
+            if (!alreadyRequested)
+                Volatile.Write(ref _disposeRequested, 1);
+        }
+
+        if (alreadyRequested)
+        {
+            if (!IpcServer.IsInListenerContext
+                && !ReferenceEquals(s_lifecycleCallbackOwner.Value, this)
+                && Environment.CurrentManagedThreadId != Volatile.Read(ref _disposingThreadId))
             {
-                return;
+                _disposeCompleted.Task.GetAwaiter().GetResult();
             }
-            Volatile.Write(ref _disposeRequested, 1);
+            return;
         }
 
         _cts.Cancel();
-        if (ReferenceEquals(s_lifecycleCallbackOwner.Value, this))
+        if (ReferenceEquals(s_lifecycleCallbackOwner.Value, this)
+            || IpcServer.IsInListenerContext)
         {
             QueueLifecycleCallback(DisposeCore);
             return;
@@ -1225,58 +1239,67 @@ internal class ProcessManager : IDisposable
 
     private void DisposeCore()
     {
-        _transitionGate.Wait();
+        Volatile.Write(ref _disposingThreadId, Environment.CurrentManagedThreadId);
         try
         {
-            WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
-            Process? workerProcess = generation?.Process;
-            if (generation is not null)
-            {
-                ReleaseWorkerGeneration(
-                        generation,
-                        disposeProcess: false,
-                        cleanupShadowCopies: false)
-                    .GetAwaiter()
-                    .GetResult();
-            }
-
-            bool canDisposeWorker = true;
+            _transitionGate.Wait();
             try
             {
-                if (workerProcess is not null && IsProcessRunning(workerProcess))
+                WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
+                Process? workerProcess = generation?.Process;
+                if (generation is not null)
                 {
-                    int processId = workerProcess.Id;
-                    workerProcess.Kill(entireProcessTree: true);
-                    int timeoutMilliseconds = (int)Math.Clamp(
-                        _options.GracefulShutdownTimeout.TotalMilliseconds,
-                        1,
-                        int.MaxValue);
-                    canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
-                    if (canDisposeWorker)
+                    ReleaseWorkerGeneration(
+                            generation,
+                            disposeProcess: false,
+                            cleanupShadowCopies: false)
+                        .GetAwaiter()
+                        .GetResult();
+                }
+
+                bool canDisposeWorker = true;
+                try
+                {
+                    if (workerProcess is not null && IsProcessRunning(workerProcess))
                     {
-                        CleanupWorkerShadowCopies(processId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Worker process {ProcessId} did not confirm exit during disposal", processId);
+                        int processId = workerProcess.Id;
+                        workerProcess.Kill(entireProcessTree: true);
+                        int timeoutMilliseconds = (int)Math.Clamp(
+                            _options.GracefulShutdownTimeout.TotalMilliseconds,
+                            1,
+                            int.MaxValue);
+                        canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
+                        if (canDisposeWorker)
+                        {
+                            CleanupWorkerShadowCopies(processId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Worker process {ProcessId} did not confirm exit during disposal", processId);
+                        }
                     }
                 }
-            }
-            catch
-            {
-                canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
-            }
+                catch
+                {
+                    canDisposeWorker = workerProcess is null || !IsProcessRunning(workerProcess);
+                }
 
-            if (canDisposeWorker)
+                if (canDisposeWorker)
+                {
+                    workerProcess?.Dispose();
+                }
+            }
+            finally
             {
-                workerProcess?.Dispose();
+                _transitionGate.Release();
+                _cts.Dispose();
+                _ownedLoggerFactory?.Dispose();
             }
         }
         finally
         {
-            _transitionGate.Release();
-            _cts.Dispose();
-            _ownedLoggerFactory?.Dispose();
+            Volatile.Write(ref _disposingThreadId, 0);
+            _disposeCompleted.TrySetResult();
         }
     }
 

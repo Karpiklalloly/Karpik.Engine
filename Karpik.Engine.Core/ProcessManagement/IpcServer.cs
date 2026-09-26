@@ -6,6 +6,7 @@ namespace Karpik.Engine.Core;
 
 public class IpcServer : IDisposable
 {
+    private static readonly AsyncLocal<bool> s_inListener = new();
     private NamedPipeServerStream? _pipe;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
@@ -20,6 +21,7 @@ public class IpcServer : IDisposable
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
+    internal static bool IsInListenerContext => s_inListener.Value;
     
     public IpcServer(string pipeName)
         : this(pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
@@ -215,6 +217,7 @@ public class IpcServer : IDisposable
     
     private async Task ListenLoop(CancellationToken cancellationToken)
     {
+        s_inListener.Value = true;
         var headerBuffer = new byte[5]; // 4 bytes length + 1 byte type
         
         try
@@ -274,6 +277,10 @@ public class IpcServer : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Listen error");
+        }
+        finally
+        {
+            s_inListener.Value = false;
         }
     }
     
