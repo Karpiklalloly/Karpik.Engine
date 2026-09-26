@@ -7,11 +7,29 @@ using DragonExtensions;
 using Karpik.Engine.Core.Runner;
 using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.DragonECS;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core;
 
 public class EngineRunner : IEngineRunner, IStaticModuleRegistry
 {
+    private readonly ILoggerFactory _hostLoggerFactory;
+    private readonly ILoggerFactory? _ownedHostLoggerFactory;
+    private readonly ILogger<EngineRunner> _hostLogger;
+    private ILogger<EngineRunner> _runtimeLogger;
+
+    public EngineRunner() : this(HostLogging.CreateDefaultFactory(), true) { }
+
+    public EngineRunner(ILoggerFactory hostLoggerFactory) : this(hostLoggerFactory, false) { }
+
+    private EngineRunner(ILoggerFactory hostLoggerFactory, bool ownsFactory)
+    {
+        _hostLoggerFactory = hostLoggerFactory ?? throw new ArgumentNullException(nameof(hostLoggerFactory));
+        _ownedHostLoggerFactory = ownsFactory ? hostLoggerFactory : null;
+        _hostLogger = hostLoggerFactory.CreateLogger<EngineRunner>();
+        _runtimeLogger = _hostLogger;
+    }
+
     private readonly List<IModuleInstaller> _modules = new();
     private readonly HashSet<Type> _registeredTypes = [];
     private readonly Dictionary<Assembly, int> _assemblyLoadRanks = new();
@@ -208,6 +226,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         }
         RegisterInstallerServices(engineBuilder, ModuleScope.Engine);
         _engineContainer = engineBuilder.Build();
+        _runtimeLogger = _engineContainer.ResolveOptional<ILogger<EngineRunner>>() ?? _hostLogger;
 
         _modSetScope = _engineContainer.BeginLifetimeScope(builder =>
         {
@@ -244,7 +263,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         RestoreRestartWorkerState(_serviceResolver, hotReloadData);
 
         EcsPipeline.Builder pipelineBuilder = EcsPipeline.New();
-        var moduleBuilder = new Builder(pipelineBuilder);
+        var moduleBuilder = new Builder(pipelineBuilder,
+            _serviceResolver.GetService(typeof(ILogger<Builder>)) as ILogger<Builder>
+            ?? _hostLoggerFactory.CreateLogger<Builder>());
         pipelineBuilder.AddModule(new JobSystemModule());
         pipelineBuilder
             .Layers.Add(CustomLayers.BEGIN_PROGRAM_LAYER).Before(EcsConsts.PRE_BEGIN_LAYER).Back
@@ -263,7 +284,9 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         _renderPrepareRunner = _pipeline.GetRunner<EcsRenderPrepareRunner>();
         ConfigureEcsRenderPrepareScheduler(_renderPrepareRunner);
         _renderRunner = _pipeline.GetRunner<EcsRenderRunner>();
-        _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application);
+        _fixedRunTicker = new FixedRunTicker(_fixedRunner, _application,
+            _serviceResolver.GetService(typeof(ILogger<FixedRunTicker>)) as ILogger<FixedRunTicker>
+            ?? _hostLoggerFactory.CreateLogger<FixedRunTicker>());
 
         _asyncDestroyers = moduleBuilder.AsyncDestroyers.ToArray();
         for (int index = 0; index < moduleBuilder.AsyncInitializers.Count; index++)
@@ -545,7 +568,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             return;
         }
 
-        Console.WriteLine($"Register module {moduleInstaller.Name}");
+        _hostLogger.LogInformation("Register module {ModuleName}", moduleInstaller.Name);
         bool isStatic = _staticServices is not null;
         _modules.Add(moduleInstaller);
         Type installerType = moduleInstaller.GetType();
@@ -638,7 +661,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         {
             if (GetModuleAttribute(installer).Scope == scope)
             {
-                Console.WriteLine($"On Register Services for module {installer.Name}");
+                _hostLogger.LogInformation("On Register Services for module {ModuleName}", installer.Name);
                 installer.OnRegisterServices(builder);
             }
         }
@@ -668,7 +691,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         return providers;
     }
 
-    private static void RestoreRestartWorkerState(
+    private void RestoreRestartWorkerState(
         IServiceResolver services,
         IReadOnlyDictionary<string, byte[]>? state)
     {
@@ -678,7 +701,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             return;
         }
 
-        Console.WriteLine("[Runner] Applying initial state from previous worker process");
+        _runtimeLogger.LogInformation("Applying initial state from previous worker process");
         foreach (IRestartWorkerStateProvider provider in providers)
         {
             if (state.TryGetValue(provider.Key, out byte[]? data))
@@ -747,6 +770,12 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             _staticServices = null;
             _nextAssemblyLoadRank = 0;
             _nextRegistrationRank = 0;
+        }
+
+        _runtimeLogger = _hostLogger;
+        if (clearRegistrations)
+        {
+            _ownedHostLoggerFactory?.Dispose();
         }
 
         if (errors is { Count: > 0 })

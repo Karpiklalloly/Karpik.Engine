@@ -1,4 +1,5 @@
 using Karpik.Engine.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -18,17 +19,26 @@ public static class StaticEngineHost
     {
         ArgumentNullException.ThrowIfNull(composition);
 
-        Console.WriteLine("[Worker] Starting...");
+        RunnerLaunchArguments launch;
         try
         {
-            RunnerLaunchArguments launch = StaticLaunchArguments.Parse(args, side);
+            launch = StaticLaunchArguments.Parse(args, side);
+        }
+        catch (Exception ex)
+        {
+            using ILoggerFactory loggerFactory = HostLogging.CreateDefaultFactory();
+            loggerFactory.CreateLogger<WorkerHost>().LogError(ex, "Invalid static worker launch");
+            return 1;
+        }
+
+        try
+        {
             await new WorkerHost().RunAsync(
                 launch,
                 (hostSide, _, _, bootstrap) =>
                 {
                     var runner = (EngineRunner)bootstrap.Runner;
                     runner.RegisterStaticComposition(composition);
-                    Console.WriteLine($"[StaticHost] Registered static composition for side {hostSide}");
                     return new WorkerRuntimeConfiguration(ResolveModuleDirectory(launch.BundlePath), null);
                 },
                 cancellationToken);
@@ -38,9 +48,8 @@ public static class StaticEngineHost
         {
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"[Worker] Engine crashed: {ex}");
             return 1;
         }
     }

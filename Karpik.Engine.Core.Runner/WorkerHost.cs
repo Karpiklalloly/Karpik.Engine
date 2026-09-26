@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Karpik.Engine.Core.Hot;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -25,12 +26,19 @@ internal delegate WorkerRuntimeConfiguration ConfigureWorkerRuntime(
 /// </summary>
 internal sealed class WorkerHost
 {
+    private readonly ILoggerFactory _hostLoggerFactory = HostLogging.CreateDefaultFactory();
+    private readonly ILogger<WorkerHost> _logger;
     private readonly Ref<bool> _isRunning = new(true);
     private IpcClient? _ipcClient;
     private Bootstrap _bootstrap = null!;
     private HotReloadState? _initialState;
     private volatile bool _stateCollected;
     private ClientSimulationWorker? _clientSimulationWorker;
+
+    public WorkerHost()
+    {
+        _logger = _hostLoggerFactory.CreateLogger<WorkerHost>();
+    }
 
     public void Run(string[] args, ConfigureWorkerRuntime configureRuntime) =>
         RunAsync(args, configureRuntime).GetAwaiter().GetResult();
@@ -44,13 +52,58 @@ internal sealed class WorkerHost
         CancellationToken cancellationToken) =>
         RunAsync(launch, configureRuntime, cancellationToken).GetAwaiter().GetResult();
 
-    public Task RunAsync(string[] args, ConfigureWorkerRuntime configureRuntime) =>
-        RunAsync(RunnerLaunchArguments.Parse(args), configureRuntime);
+    public Task RunAsync(string[] args, ConfigureWorkerRuntime configureRuntime)
+    {
+        RunnerLaunchArguments launch;
+        try
+        {
+            launch = RunnerLaunchArguments.Parse(args);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Invalid worker launch");
+            _hostLoggerFactory.Dispose();
+            throw;
+        }
+        return RunAsync(launch, configureRuntime);
+    }
 
     public Task RunAsync(RunnerLaunchArguments launch, ConfigureWorkerRuntime configureRuntime) =>
         RunAsync(launch, configureRuntime, CancellationToken.None);
 
     public async Task RunAsync(
+        RunnerLaunchArguments launch,
+        ConfigureWorkerRuntime configureRuntime,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Worker starting");
+        try
+        {
+            await RunCoreAsync(launch, configureRuntime, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Worker engine crashed");
+            throw;
+        }
+        finally
+        {
+            try
+            {
+                if (_ipcClient is not null)
+                {
+                    await _ipcClient.StopAsync();
+                    _ipcClient = null;
+                }
+            }
+            finally
+            {
+                _hostLoggerFactory.Dispose();
+            }
+        }
+    }
+
+    private async Task RunCoreAsync(
         RunnerLaunchArguments launch,
         ConfigureWorkerRuntime configureRuntime,
         CancellationToken cancellationToken)
@@ -67,12 +120,12 @@ internal sealed class WorkerHost
 
         if (waitForDebugger)
         {
-            Console.WriteLine("[Worker] Waiting for debugger to attach...");
+            _logger.LogInformation("Waiting for debugger to attach");
             while (!Debugger.IsAttached)
             {
                 Thread.Sleep(100);
             }
-            Console.WriteLine("[Worker] Debugger attached!");
+            _logger.LogInformation("Debugger attached");
         }
 
         if (!string.IsNullOrEmpty(stateFile))
@@ -81,11 +134,11 @@ internal sealed class WorkerHost
             {
                 var stateBytes = File.ReadAllBytes(stateFile);
                 _initialState = HotReloadState.Deserialize(stateBytes);
-                Console.WriteLine($"[Worker] Loaded initial state with {_initialState.ModuleStates.Count} modules");
+                _logger.LogInformation("Loaded initial state with {ModuleCount} modules", _initialState.ModuleStates.Count);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Worker] Failed to deserialize initial state file '{stateFile}': {ex.Message}");
+                _logger.LogError(ex, "Failed to deserialize initial state file {StateFile}", stateFile);
             }
             finally
             {
@@ -98,23 +151,23 @@ internal sealed class WorkerHost
             {
                 var stateBytes = Convert.FromBase64String(stateBase64);
                 _initialState = HotReloadState.Deserialize(stateBytes);
-                Console.WriteLine($"[Worker] Loaded initial state with {_initialState.ModuleStates.Count} modules");
+                _logger.LogInformation("Loaded initial state with {ModuleCount} modules", _initialState.ModuleStates.Count);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Worker] Failed to deserialize initial state: {ex.Message}");
+                _logger.LogError(ex, "Failed to deserialize initial state");
             }
         }
 
         if (!string.IsNullOrEmpty(pipeName))
         {
-            _ipcClient = new IpcClient(pipeName);
+            _ipcClient = new IpcClient(pipeName, _hostLoggerFactory);
 
             _ipcClient.OnStateRequest = GetHotReloadState;
             _ipcClient.OnEditorSnapshotRequest = GetEditorSnapshot;
             _ipcClient.OnShutdownRequest = () =>
             {
-                Console.WriteLine("[Worker] Shutdown requested");
+                _logger.LogInformation("Shutdown requested");
                 _isRunning.Value = false;
                 _stateCollected = true;
             };
@@ -125,14 +178,14 @@ internal sealed class WorkerHost
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Worker] Failed to connect to watcher: {ex.Message}");
-                Console.WriteLine("[Worker] Running in standalone mode (no IPC)");
+                _logger.LogWarning(ex, "Failed to connect to watcher; running in standalone mode");
+                await _ipcClient.StopAsync();
                 _ipcClient = null;
             }
         }
         else
         {
-            Console.WriteLine("[Worker] No pipe name provided, running in standalone mode");
+            _logger.LogInformation("No pipe name provided; running in standalone mode");
         }
 
         WorkerRuntimeConfiguration? runtimeConfiguration = null;
@@ -148,7 +201,6 @@ internal sealed class WorkerHost
         finally
         {
             runtimeConfiguration?.RuntimeLifetime?.Dispose();
-            _ipcClient?.Dispose();
             _bootstrap = null!;
         }
     }
@@ -157,11 +209,11 @@ internal sealed class WorkerHost
     {
         if (_ipcClient == null)
         {
-            Console.WriteLine("[Worker] Cannot request hot reload: IPC not connected");
+            _logger.LogWarning("Cannot request hot reload: IPC is not connected");
             return;
         }
 
-        Console.WriteLine("[Worker] Requesting hot reload from watcher...");
+        _logger.LogInformation("Requesting hot reload from watcher");
         _ = _ipcClient.RequestHotReloadAsync();
     }
 
@@ -173,8 +225,24 @@ internal sealed class WorkerHost
         CancellationToken cancellationToken)
     {
         HotReloadHandler.OnUpdateApplication += RequestHotReload;
+        try
+        {
+            return RunEngineCoreAsync(side, bundleRoot, engineRoot, configureRuntime, cancellationToken);
+        }
+        finally
+        {
+            HotReloadHandler.OnUpdateApplication -= RequestHotReload;
+        }
+    }
 
-        _bootstrap = new Bootstrap(side, new EngineRunner());
+    private Task<WorkerRuntimeConfiguration> RunEngineCoreAsync(
+        Side side,
+        string bundleRoot,
+        string engineRoot,
+        ConfigureWorkerRuntime configureRuntime,
+        CancellationToken cancellationToken)
+    {
+        _bootstrap = new Bootstrap(side, new EngineRunner(_hostLoggerFactory), _hostLoggerFactory);
         WorkerRuntimeConfiguration runtimeConfiguration =
             configureRuntime(side, bundleRoot, engineRoot, _bootstrap);
 
@@ -182,10 +250,10 @@ internal sealed class WorkerHost
         if (_initialState != null && _initialState.ModuleStates.Count > 0)
         {
             initialHotReloadData = _initialState.ModuleStates;
-            Console.WriteLine($"[Worker] Will apply hot reload state from {_initialState.ModuleStates.Count} modules");
+            _logger.LogInformation("Will apply hot reload state from {ModuleCount} modules", _initialState.ModuleStates.Count);
         }
 
-        Console.WriteLine(Environment.CurrentManagedThreadId);
+        _logger.LogDebug("Worker main thread: {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
         mainThreadScheduler.Execute();
         // The game loop must remain on the thread that owns this scheduler.
@@ -221,16 +289,15 @@ internal sealed class WorkerHost
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
 
-        HotReloadHandler.OnUpdateApplication -= RequestHotReload;
         _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
 
-        Console.WriteLine("[Worker] Exited cleanly");
+        _logger.LogInformation("Worker exited cleanly");
         return Task.FromResult(runtimeConfiguration);
     }
 
     private HotReloadState? GetHotReloadState()
     {
-        Console.WriteLine("[Worker] Collecting hot reload state...");
+        _logger.LogInformation("Collecting hot reload state");
 
         try
         {
@@ -244,10 +311,10 @@ internal sealed class WorkerHost
             foreach (var (moduleName, data) in moduleData)
             {
                 state.ModuleStates[moduleName] = data;
-                Console.WriteLine($"[Worker] Collected state from module: {moduleName} ({data.Length} bytes)");
+                _logger.LogInformation("Collected state from module {ModuleName} ({ByteCount} bytes)", moduleName, data.Length);
             }
 
-            Console.WriteLine($"[Worker] Total modules with state: {state.ModuleStates.Count}");
+            _logger.LogInformation("Total modules with state: {ModuleCount}", state.ModuleStates.Count);
 
             _stateCollected = true;
             _isRunning.Value = false;
@@ -256,7 +323,7 @@ internal sealed class WorkerHost
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Worker] Failed to collect hot reload state: {ex.Message}");
+            _logger.LogError(ex, "Failed to collect hot reload state");
             return null;
         }
     }
@@ -272,7 +339,7 @@ internal sealed class WorkerHost
     private EditorRuntimeSnapshot? CaptureEditorSnapshotOnCurrentThread() =>
         _bootstrap?.CaptureEditorSnapshot();
 
-    private static void TryDeleteStateFile(string path)
+    private void TryDeleteStateFile(string path)
     {
         try
         {
@@ -280,7 +347,7 @@ internal sealed class WorkerHost
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Worker] Failed to delete state file '{path}': {ex.Message}");
+            _logger.LogWarning(ex, "Failed to delete state file {StateFile}", path);
         }
     }
 
@@ -288,6 +355,7 @@ internal sealed class WorkerHost
     {
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
+        bool overloaded = false;
 
         while (_isRunning.Value && !cancellationToken.IsCancellationRequested)
         {
@@ -314,7 +382,15 @@ internal sealed class WorkerHost
 
             if (loops >= 5)
             {
-                Console.WriteLine($"Server overloading! Fixed tick backlog preserved. Lag: {currentTime - nextTickTime:F4}s");
+                if (!overloaded)
+                {
+                    _logger.LogWarning("Server fixed ticks overloaded; backlog preserved. Lag: {LagSeconds:F4}s", currentTime - nextTickTime);
+                    overloaded = true;
+                }
+            }
+            else
+            {
+                overloaded = false;
             }
 
             double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;

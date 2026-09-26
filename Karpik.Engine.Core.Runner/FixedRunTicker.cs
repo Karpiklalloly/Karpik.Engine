@@ -1,19 +1,23 @@
 ﻿using System.Diagnostics;
 using Karpik.Engine.Shared.DragonECS;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core.Runner;
 
 internal class FixedRunTicker
 {
     private readonly EcsFixedRunner _runner;
+    private readonly ILogger<FixedRunTicker> _logger;
     private Action _fixedRun = null!;
+    private bool _overloaded;
     
     private Stopwatch _stopwatch = Stopwatch.StartNew();
     private double _nextTickTime = 0;
 
-    public FixedRunTicker(EcsFixedRunner runner, Application application)
+    public FixedRunTicker(EcsFixedRunner runner, Application application, ILogger<FixedRunTicker> logger)
     {
         _runner = runner;
+        _logger = logger;
         if (application.ApplicationSide == Side.Server)
         {
             _fixedRun = () => _runner.FixedRun();
@@ -35,8 +39,16 @@ internal class FixedRunTicker
             
                 if (loops >= 5)
                 {
-                    Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - _nextTickTime:F4}s");
+                    if (!_overloaded)
+                    {
+                        _logger.LogWarning("Client fixed ticks overloaded; skipping ticks. Lag: {LagSeconds:F4}s", currentTime - _nextTickTime);
+                        _overloaded = true;
+                    }
                     _nextTickTime = currentTime + Application.TICK_DT;
+                }
+                else
+                {
+                    _overloaded = false;
                 }
             };
         }

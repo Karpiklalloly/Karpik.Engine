@@ -7,15 +7,9 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-        Console.WriteLine("[Worker] Starting...");
         try
         {
             await new WorkerHost().RunAsync(args, LoadDynamicModules);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Worker] Engine crashed: {ex}");
-            throw;
         }
         finally
         {
