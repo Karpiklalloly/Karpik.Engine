@@ -1,11 +1,18 @@
 namespace Karpik.Editor;
 
+public enum BuildConfiguration
+{
+    Debug,
+    Release
+}
+
 public sealed record ProjectRuntimeDescriptor(
     string EngineRoot,
     string ClientBundlePath,
     string ServerBundlePath,
     string ClientRunnerPath,
-    string ServerRunnerPath);
+    string ServerRunnerPath,
+    BuildConfiguration Configuration = BuildConfiguration.Debug);
 
 public sealed record ProjectOpenResult
 {

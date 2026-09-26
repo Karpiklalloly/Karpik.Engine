@@ -665,6 +665,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private Action<Exception>? _backgroundOperationFailedHandler;
     private string? _projectPath;
     private string _status = "Проект не открыт";
+    private bool _isReleaseConfiguration;
     private Task? _snapshotLoop;
     private ProjectGeneration _snapshotGeneration;
     private bool _runtimeReady;
@@ -697,8 +698,31 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     public bool IsProjectOpening
     {
         get => _isProjectOpening;
-        private set => this.RaiseAndSetIfChanged(ref _isProjectOpening, value);
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _isProjectOpening, value);
+            this.RaisePropertyChanged(nameof(CanSelectConfiguration));
+        }
     }
+
+    public bool IsReleaseConfiguration
+    {
+        get => _isReleaseConfiguration;
+        set
+        {
+            if (_isReleaseConfiguration == value)
+            {
+                return;
+            }
+
+            this.RaiseAndSetIfChanged(ref _isReleaseConfiguration, value);
+            this.RaisePropertyChanged(nameof(CanCheckRuntime));
+        }
+    }
+
+    public bool CanSelectConfiguration => !IsProjectOpening;
+    private BuildConfiguration SelectedBuildConfiguration =>
+        IsReleaseConfiguration ? BuildConfiguration.Release : BuildConfiguration.Debug;
 
     public bool CanStartServer
     {
@@ -717,7 +741,9 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     public bool CanStopAll => _sessionManager?.Sessions.Any(session => session.State != EditorPreviewState.Stopped) == true;
     public bool CanBuild => ProjectPath is not null;
     public bool CanPublish => ProjectPath is not null;
-    public bool CanCheckRuntime => ProjectPath is not null && !_runtimeReady;
+    public bool CanCheckRuntime => ProjectPath is not null
+                                   && (!_runtimeReady
+                                       || _projectCoordinator?.ActiveProject?.Runtime.Configuration != SelectedBuildConfiguration);
 
     public ReactiveCommand<RxVoid, RxVoid> StartServerCommand { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddClientCommand { get; }
@@ -858,7 +884,11 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         Status = "Проверка MSBuild…";
         try
         {
-            ProjectOpenResult result = await coordinator.SwitchAsync(fullPath, cancellationToken, evaluateRuntime);
+            ProjectOpenResult result = await coordinator.SwitchAsync(
+                fullPath,
+                cancellationToken,
+                evaluateRuntime,
+                IsReleaseConfiguration ? BuildConfiguration.Release : BuildConfiguration.Debug);
             if (!result.IsSuccess)
             {
                 Status = string.Join(Environment.NewLine, result.Diagnostics);
@@ -1050,6 +1080,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     {
         try
         {
+            if (!await EnsureSelectedRuntimeAsync())
+            {
+                return;
+            }
             SessionCommandBinding binding = await ExecuteSessionCommandAsync(
                 static (manager, token) => manager.StartServerAsync(token));
             EnsureSnapshotLoop(binding);
@@ -1064,6 +1098,10 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     {
         try
         {
+            if (!await EnsureSelectedRuntimeAsync())
+            {
+                return;
+            }
             SessionCommandBinding binding = await ExecuteSessionCommandAsync(
                 static (manager, token) => manager.AddClientAsync(token));
             EnsureSnapshotLoop(binding);
@@ -1072,6 +1110,27 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         {
             EnqueueOutput($"Не удалось запустить клиент: {ex.Message}");
         }
+    }
+
+    private async Task<bool> EnsureSelectedRuntimeAsync()
+    {
+        ProjectSwitchCoordinator? coordinator = _projectCoordinator;
+        ActiveProjectContext? active = coordinator?.ActiveProject;
+        if (active is null)
+        {
+            return false;
+        }
+
+        if (active.Runtime.Configuration != SelectedBuildConfiguration)
+        {
+            ProjectOpenResult result = await OpenProjectAsync(active.SolutionPath, _lifetime.Token);
+            if (!result.IsSuccess)
+            {
+                return false;
+            }
+        }
+
+        return coordinator?.ActiveProject?.IsRuntimeReady == true;
     }
 
     private async Task StopAllAsync()
@@ -1101,7 +1160,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             Status = "Сборка...";
             await coordinator.ExecuteCommandAsync(
                 generation,
-                (context, token) => context.BuildAsync(static _ => { }, token),
+                (context, token) => context.BuildAsync(SelectedBuildConfiguration, static _ => { }, token),
                 _lifetime.Token);
             if (!coordinator.TryAcceptOutput(generation))
             {
@@ -1148,7 +1207,7 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
             Status = "Публикация...";
             await coordinator.ExecuteCommandAsync(
                 generation,
-                (context, token) => context.PublishAsync(static _ => { }, token),
+                (context, token) => context.PublishAsync(SelectedBuildConfiguration, static _ => { }, token),
                 _lifetime.Token);
             if (!coordinator.TryAcceptOutput(generation))
             {

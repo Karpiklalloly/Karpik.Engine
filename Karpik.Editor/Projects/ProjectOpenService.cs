@@ -15,6 +15,14 @@ public interface IProjectOpenService
         ProjectGeneration generation,
         CancellationToken cancellationToken,
         bool evaluateRuntime) => OpenAsync(solutionPath, generation, cancellationToken);
+
+    Task<ProjectOpenResult> OpenAsync(
+        string solutionPath,
+        ProjectGeneration generation,
+        CancellationToken cancellationToken,
+        bool evaluateRuntime,
+        BuildConfiguration configuration) =>
+        OpenAsync(solutionPath, generation, cancellationToken, evaluateRuntime);
 }
 
 public sealed record EngineInstallationSelection(
@@ -76,18 +84,40 @@ public sealed class ProjectOpenService : IProjectOpenService
         string solutionPath,
         ProjectGeneration generation,
         CancellationToken cancellationToken) =>
-        await OpenAsync(solutionPath, generation, cancellationToken, evaluateRuntime: true);
+        await OpenAsync(
+            solutionPath,
+            generation,
+            cancellationToken,
+            evaluateRuntime: true,
+            configuration: BuildConfiguration.Debug);
 
     public async Task<ProjectOpenResult> OpenAsync(
         string solutionPath,
         ProjectGeneration generation,
         CancellationToken cancellationToken,
-        bool evaluateRuntime)
+        bool evaluateRuntime) =>
+        await OpenAsync(
+            solutionPath,
+            generation,
+            cancellationToken,
+            evaluateRuntime,
+            BuildConfiguration.Debug);
+
+    public async Task<ProjectOpenResult> OpenAsync(
+        string solutionPath,
+        ProjectGeneration generation,
+        CancellationToken cancellationToken,
+        bool evaluateRuntime,
+        BuildConfiguration configuration)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!generation.IsValid)
         {
             throw new ArgumentOutOfRangeException(nameof(generation));
+        }
+        if (!Enum.IsDefined(configuration))
+        {
+            throw new ArgumentOutOfRangeException(nameof(configuration));
         }
 
         string normalizedPath;
@@ -162,6 +192,7 @@ public sealed class ProjectOpenService : IProjectOpenService
                 solution,
                 engineRoot,
                 generation,
+                configuration,
                 "Runtime не проверен. Нажмите «Проверить runtime» перед запуском.");
         }
 
@@ -174,6 +205,7 @@ public sealed class ProjectOpenService : IProjectOpenService
                     evaluationSolution,
                     engineRoot,
                     cancellationToken,
+                    configuration,
                     stableLease);
             evaluations = stableLease.RemapEvaluations(rawEvaluations);
         }
@@ -187,6 +219,7 @@ public sealed class ProjectOpenService : IProjectOpenService
                 solution,
                 engineRoot,
                 generation,
+                configuration,
                 $"MSBuild evaluation failed: {exception.Message}");
         }
 
@@ -207,7 +240,8 @@ public sealed class ProjectOpenService : IProjectOpenService
             Path.GetFullPath(client.RuntimeBundlePath),
             Path.GetFullPath(server.RuntimeBundlePath),
             GetRuntimeHostPath(evaluations, client, engineRoot, "client"),
-            GetRuntimeHostPath(evaluations, server, engineRoot, "server"));
+            GetRuntimeHostPath(evaluations, server, engineRoot, "server"),
+            configuration);
 
         ActiveProjectContext candidate;
         try
@@ -227,13 +261,14 @@ public sealed class ProjectOpenService : IProjectOpenService
         KarpikSolutionModel solution,
         string engineRoot,
         ProjectGeneration generation,
+        BuildConfiguration configuration,
         string diagnostic)
     {
         try
         {
             ActiveProjectContext candidate = _contextFactory.Create(
                 solution,
-                CreateUnavailableRuntime(engineRoot),
+                CreateUnavailableRuntime(engineRoot, configuration),
                 generation,
                 isRuntimeReady: false);
             return ProjectOpenResult.Success(candidate, [diagnostic]);
@@ -246,7 +281,9 @@ public sealed class ProjectOpenService : IProjectOpenService
         }
     }
 
-    private static ProjectRuntimeDescriptor CreateUnavailableRuntime(string engineRoot)
+    private static ProjectRuntimeDescriptor CreateUnavailableRuntime(
+        string engineRoot,
+        BuildConfiguration configuration)
     {
         string unavailable = Path.Combine(engineRoot, ".runtime-unavailable");
         return new ProjectRuntimeDescriptor(
@@ -254,7 +291,8 @@ public sealed class ProjectOpenService : IProjectOpenService
             unavailable,
             unavailable,
             unavailable,
-            unavailable);
+            unavailable,
+            configuration);
     }
 
     private static IReadOnlyList<string> ValidateEvaluations(

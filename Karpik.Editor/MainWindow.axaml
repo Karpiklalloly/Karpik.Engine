@@ -185,15 +185,16 @@
     </Menu>
 
     <Border Grid.Row="1" Classes="editor-toolbar">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
         <Button Content="▶S" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
         <Button Grid.Column="1" Content="▶C" Command="{Binding AddClientCommand}" IsEnabled="{Binding CanAddClient}" />
         <Button Grid.Column="2" Content="■" Command="{Binding StopAllCommand}" IsEnabled="{Binding CanStopAll}" />
         <Button Grid.Column="3" Content="Build" Command="{Binding BuildProjectCommand}" IsEnabled="{Binding CanBuild}" />
         <Button Grid.Column="4" Content="Publish" Command="{Binding PublishProjectCommand}" IsEnabled="{Binding CanPublish}" />
         <Button Grid.Column="5" Content="Runtime" Command="{Binding CheckRuntimeCommand}" IsEnabled="{Binding CanCheckRuntime}" />
-        <TextBlock Grid.Column="6" Text="{Binding ProjectPath, FallbackValue=No project open}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <CheckBox Grid.Column="6" Content="Release" IsChecked="{Binding IsReleaseConfiguration}" IsEnabled="{Binding CanSelectConfiguration}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="7" Text="{Binding ProjectPath, FallbackValue=No project open}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <ProgressBar Width="72" Height="4" IsIndeterminate="True" IsVisible="{Binding IsProjectOpening}" />
           <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
         </StackPanel>

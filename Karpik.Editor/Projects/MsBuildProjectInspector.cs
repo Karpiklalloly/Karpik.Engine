@@ -25,6 +25,14 @@ public interface IMsBuildProjectInspector
         string engineRoot,
         CancellationToken cancellationToken,
         ProjectInputLease? inputLease = null);
+
+    Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
+        KarpikSolutionModel solution,
+        string engineRoot,
+        CancellationToken cancellationToken,
+        BuildConfiguration configuration,
+        ProjectInputLease? inputLease = null) =>
+        InspectAsync(solution, engineRoot, cancellationToken, inputLease);
 }
 
 public interface IMsBuildProcessFactory
@@ -104,13 +112,30 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
     public Task DrainRetainedProcessesAsync(CancellationToken cancellationToken = default) =>
         _reaper.DrainAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
+    public Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
         KarpikSolutionModel solution,
         string engineRoot,
         CancellationToken cancellationToken,
         ProjectInputLease? inputLease = null)
+        => InspectAsync(
+            solution,
+            engineRoot,
+            cancellationToken,
+            BuildConfiguration.Debug,
+            inputLease);
+
+    public async Task<IReadOnlyList<MsBuildProjectEvaluation>> InspectAsync(
+        KarpikSolutionModel solution,
+        string engineRoot,
+        CancellationToken cancellationToken,
+        BuildConfiguration configuration,
+        ProjectInputLease? inputLease = null)
     {
         ArgumentNullException.ThrowIfNull(solution);
+        if (!Enum.IsDefined(configuration))
+        {
+            throw new ArgumentOutOfRangeException(nameof(configuration));
+        }
         if (string.IsNullOrWhiteSpace(engineRoot) || !Path.IsPathFullyQualified(engineRoot))
         {
             throw new ArgumentException("Engine root must be absolute.", nameof(engineRoot));
@@ -128,6 +153,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
                 project.ProjectPath,
                 Path.GetFullPath(engineRoot),
                 solutionRoot,
+                configuration,
                 cancellationToken,
                 inputLease));
         }
@@ -138,6 +164,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         string projectPath,
         string engineRoot,
         string solutionRoot,
+        BuildConfiguration configuration,
         CancellationToken cancellationToken,
         ProjectInputLease? inputLease)
     {
@@ -162,6 +189,7 @@ public sealed class MsBuildProjectInspector : IMsBuildProjectInspector
         startInfo.ArgumentList.Add("-m:1");
         startInfo.ArgumentList.Add("-nr:false");
         startInfo.ArgumentList.Add($"-p:KarpikEngineRoot={engineRoot}");
+        startInfo.ArgumentList.Add($"-p:Configuration={configuration}");
         AddScopedImplicitInput(
             startInfo,
             projectPath,

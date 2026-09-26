@@ -21,7 +21,11 @@ public interface IEditorProjectLifetime : IActiveProjectLifetime
 {
     EditorSessionManager SessionManager { get; }
     Task BuildAsync(Action<string> output, CancellationToken cancellationToken);
+    Task BuildAsync(BuildConfiguration configuration, Action<string> output, CancellationToken cancellationToken) =>
+        BuildAsync(output, cancellationToken);
     Task PublishAsync(Action<string> output, CancellationToken cancellationToken);
+    Task PublishAsync(BuildConfiguration configuration, Action<string> output, CancellationToken cancellationToken) =>
+        PublishAsync(output, cancellationToken);
 }
 
 public sealed class NullActiveProjectLifetime : IActiveProjectLifetime
@@ -82,8 +86,20 @@ public sealed class ActiveProjectContext : IAsyncDisposable
     internal Task BuildAsync(Action<string> output, CancellationToken cancellationToken) =>
         GetEditorLifetime().BuildAsync(output, cancellationToken);
 
+    internal Task BuildAsync(
+        BuildConfiguration configuration,
+        Action<string> output,
+        CancellationToken cancellationToken) =>
+        GetEditorLifetime().BuildAsync(configuration, output, cancellationToken);
+
     internal Task PublishAsync(Action<string> output, CancellationToken cancellationToken) =>
         GetEditorLifetime().PublishAsync(output, cancellationToken);
+
+    internal Task PublishAsync(
+        BuildConfiguration configuration,
+        Action<string> output,
+        CancellationToken cancellationToken) =>
+        GetEditorLifetime().PublishAsync(configuration, output, cancellationToken);
 
     internal Task CancelActiveBuildAsync(CancellationToken cancellationToken) =>
         _lifetime.CancelActiveBuildAsync(cancellationToken);
