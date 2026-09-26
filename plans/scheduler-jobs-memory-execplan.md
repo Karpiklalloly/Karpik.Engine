@@ -10,9 +10,9 @@ The release is complete only when unmanaged memory primitives, standalone no-GC 
 
 This master plan records the cross-cutting contract and release gates. Implementation proceeds through four self-contained child ExecPlans in strict order:
 
-1. [`plans/native-memory-foundation-execplan.md`](native-memory-foundation-execplan.md)
-2. [`plans/jobs-runtime-execplan.md`](jobs-runtime-execplan.md)
-3. [`plans/ecs-update-scheduler-execplan.md`](ecs-update-scheduler-execplan.md)
+1. Native memory foundation (completed).
+2. Standalone jobs runtime (completed).
+3. ECS update scheduler (completed).
 4. [`plans/client-threading-render-pipeline-execplan.md`](client-threading-render-pipeline-execplan.md)
 
 Do not begin a later child against temporary APIs from unfinished earlier children. Update this master plan after every child plan closes.
@@ -198,7 +198,7 @@ After all four children close:
 
 ### Milestone 1: Native memory foundation
 
-Complete `plans/native-memory-foundation-execplan.md`.
+Native memory foundation is complete; its ownership contract is recorded in `docs/02_ADR/native-memory-ownership.md`.
 
 Gate:
 
@@ -208,7 +208,7 @@ Gate:
 
 ### Milestone 2: Standalone jobs runtime
 
-Complete `plans/jobs-runtime-execplan.md`.
+Standalone jobs runtime is complete.
 
 Gate:
 
@@ -218,7 +218,7 @@ Gate:
 
 ### Milestone 3: ECS update scheduler and codegen
 
-Complete `plans/ecs-update-scheduler-execplan.md`.
+ECS update scheduler is complete.
 
 Gate:
 
@@ -318,9 +318,9 @@ If a child exposes a contract flaw in an earlier child, update the earlier child
 
 Required child plans:
 
-- `plans/native-memory-foundation-execplan.md`
-- `plans/jobs-runtime-execplan.md`
-- `plans/ecs-update-scheduler-execplan.md`
+- Native memory foundation (completed)
+- Standalone jobs runtime (completed)
+- ECS update scheduler (completed)
 - `plans/client-threading-render-pipeline-execplan.md`
 
 Expected ADRs before close:

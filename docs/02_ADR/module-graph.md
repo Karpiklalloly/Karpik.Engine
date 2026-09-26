@@ -13,7 +13,6 @@ tags:
 > Status: accepted
 > Date: 2026-05-31
 > Owners: developer and AI assistant
-> Related ExecPlan: [[../../plans/module-graph-execplan]]
 
 ## Context
 
@@ -76,5 +75,4 @@ discover or choose a different engine module graph at runtime.
 
 ## Links
 
-- ExecPlan: [[../../plans/module-graph-execplan]]
 - Related code: `Directory.Build.targets`, `Configurator/`, `Karpik.Engine.Core.Runner/Runner.cs`

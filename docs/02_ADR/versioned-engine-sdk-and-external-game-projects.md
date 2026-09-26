@@ -184,6 +184,4 @@ Deferred because the current editor directly depends on engine contracts. Mainta
 - Related ADR: [[module-graph]]
 - Delivery ExecPlan: [[../../plans/versioned-sdk-external-projects-execplan]]
 - Delivery board: [[../04_Roadmap/kanban-versioned-sdk-external-projects]]
-- Related plan: [[../../plans/editor-first-slice-execplan]]
-- Related plan: [[../../plans/editor-multisession-launch-execplan]]
 - Related code: `Karpik.Editor/`, `Configurator/`, `Directory.Build.props`, `Directory.Build.targets`, `Plugins.targets`

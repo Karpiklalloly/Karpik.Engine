@@ -13,7 +13,6 @@ tags:
 > Status: accepted
 > Date: 2026-08-27
 > Owners: developer and AI assistant
-> Related ExecPlan: [[../../plans/content-pipeline-foundation-execplan]]
 
 ## Context
 
@@ -127,6 +126,4 @@ consumers.
 
 ## Links
 
-- ExecPlan: [[../../plans/content-pipeline-foundation-execplan]]
-- Existing runtime loader: [[../modules/shared/asset-management]]
 - Previous design board: [[../04_Roadmap/kanban-content-pipeline-approach-2]]

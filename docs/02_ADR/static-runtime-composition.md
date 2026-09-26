@@ -13,7 +13,6 @@ tags:
 > Status: accepted
 > Date: 2026-08-23
 > Owners: engine core / SDK
-> Related ExecPlan: [[../../plans/static-composition-nativeaot-execplan]]
 
 ## Context
 
