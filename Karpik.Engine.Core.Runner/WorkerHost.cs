@@ -325,7 +325,14 @@ internal sealed class WorkerHost
                     }
                     finally
                     {
-                        Volatile.Write(ref _clientSimulationWorker, null);
+                        try
+                        {
+                            StopIpc();
+                        }
+                        finally
+                        {
+                            Volatile.Write(ref _clientSimulationWorker, null);
+                        }
                     }
                 }
                 break;
