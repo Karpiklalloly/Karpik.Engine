@@ -34,6 +34,8 @@ internal sealed class WorkerHost
     private HotReloadState? _initialState;
     private volatile bool _stateCollected;
     private ClientSimulationWorker? _clientSimulationWorker;
+    private MainThreadScheduler? _mainThreadScheduler;
+    private WorkerRuntimeConfiguration? _runtimeConfiguration;
 
     public WorkerHost()
     {
@@ -90,11 +92,7 @@ internal sealed class WorkerHost
         {
             try
             {
-                if (_ipcClient is not null)
-                {
-                    await _ipcClient.StopAsync();
-                    _ipcClient = null;
-                }
+                StopIpc();
             }
             finally
             {
@@ -179,8 +177,7 @@ internal sealed class WorkerHost
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to connect to watcher; running in standalone mode");
-                await _ipcClient.StopAsync();
-                _ipcClient = null;
+                StopIpc();
             }
         }
         else
@@ -188,10 +185,9 @@ internal sealed class WorkerHost
             _logger.LogInformation("No pipe name provided; running in standalone mode");
         }
 
-        WorkerRuntimeConfiguration? runtimeConfiguration = null;
         try
         {
-            runtimeConfiguration = await RunEngineAsync(
+            await RunEngineAsync(
                 launch.Side,
                 launch.BundlePath,
                 launch.EngineRoot,
@@ -200,8 +196,58 @@ internal sealed class WorkerHost
         }
         finally
         {
-            runtimeConfiguration?.RuntimeLifetime?.Dispose();
-            _bootstrap = null!;
+            try
+            {
+                StopIpc();
+            }
+            finally
+            {
+                try
+                {
+                    if (_bootstrap is not null)
+                    {
+                        _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
+                    }
+                }
+                finally
+                {
+                    _runtimeConfiguration?.RuntimeLifetime?.Dispose();
+                    _runtimeConfiguration = null;
+                    _bootstrap = null!;
+                    _mainThreadScheduler = null;
+                }
+            }
+        }
+        _logger.LogInformation("Worker exited cleanly");
+    }
+
+    private void StopIpc()
+    {
+        IpcClient? client = _ipcClient;
+        if (client is null)
+        {
+            return;
+        }
+
+        Task stop = client.StopAsync();
+        Exception? schedulerError = null;
+        while (!stop.IsCompleted && _mainThreadScheduler is { } scheduler)
+        {
+            try
+            {
+                scheduler.Execute();
+            }
+            catch (Exception ex)
+            {
+                schedulerError ??= ex;
+            }
+            Thread.Yield();
+        }
+        stop.GetAwaiter().GetResult();
+        _ipcClient = null;
+        if (schedulerError is not null)
+        {
+            throw schedulerError;
         }
     }
 
@@ -245,6 +291,7 @@ internal sealed class WorkerHost
         _bootstrap = new Bootstrap(side, new EngineRunner(_hostLoggerFactory), _hostLoggerFactory);
         WorkerRuntimeConfiguration runtimeConfiguration =
             configureRuntime(side, bundleRoot, engineRoot, _bootstrap);
+        _runtimeConfiguration = runtimeConfiguration;
 
         Dictionary<string, byte[]>? initialHotReloadData = null;
         if (_initialState != null && _initialState.ModuleStates.Count > 0)
@@ -255,6 +302,7 @@ internal sealed class WorkerHost
 
         _logger.LogDebug("Worker main thread: {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
+        _mainThreadScheduler = mainThreadScheduler;
         mainThreadScheduler.Execute();
         // The game loop must remain on the thread that owns this scheduler.
         // Awaiting in a console host may resume on a thread-pool thread instead.
@@ -289,9 +337,6 @@ internal sealed class WorkerHost
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
 
-        _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
-
-        _logger.LogInformation("Worker exited cleanly");
         return Task.FromResult(runtimeConfiguration);
     }
 
