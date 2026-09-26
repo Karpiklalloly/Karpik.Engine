@@ -13,8 +13,7 @@ public static class Job
         LifecycleGate.Wait();
         try
         {
-            _jobSystem?.WaitForCompletion();
-            _jobSystem?.Shutdown();
+            _jobSystem?.DrainAndShutdown();
             _jobSystem = jobSystem;
         }
         finally
@@ -29,8 +28,7 @@ public static class Job
         try
         {
             if (!ReferenceEquals(_jobSystem, jobSystem)) return;
-            jobSystem.WaitForCompletion();
-            jobSystem.Shutdown();
+            jobSystem.DrainAndShutdown();
             _jobSystem = null!;
         }
         finally
