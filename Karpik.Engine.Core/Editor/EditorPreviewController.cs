@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core;
@@ -20,6 +22,9 @@ public sealed class EditorPreviewController : IDisposable
     private EditorPreviewState _state = EditorPreviewState.Stopped;
     private bool _disposed;
     private int _disposeRequested;
+    private int _factoryDisposingThreadId;
+    private readonly TaskCompletionSource<Exception?> _factoryDisposalCompleted =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _hotReloadInProgress;
 
     public Side Side { get; }
@@ -264,6 +269,7 @@ public sealed class EditorPreviewController : IDisposable
         if (Interlocked.Exchange(ref _disposeRequested, 1) != 0)
         {
             _processManager.Dispose();
+            WaitForFactoryDisposal();
             return;
         }
 
@@ -276,15 +282,53 @@ public sealed class EditorPreviewController : IDisposable
         }
         finally
         {
-            if (_ownedLoggerFactory is { } loggerFactory)
+            if (_ownedLoggerFactory is not null)
             {
                 _ = _processManager.DisposalCompletion.ContinueWith(
-                    static (_, state) => ((ILoggerFactory)state!).Dispose(),
-                    loggerFactory,
+                    static (_, state) => ((EditorPreviewController)state!).DisposeOwnedLoggerFactory(),
+                    this,
                     CancellationToken.None,
                     TaskContinuationOptions.ExecuteSynchronously,
                     TaskScheduler.Default);
             }
+            else
+            {
+                _factoryDisposalCompleted.TrySetResult(null);
+            }
+        }
+        WaitForFactoryDisposal();
+    }
+
+    private void DisposeOwnedLoggerFactory()
+    {
+        Exception? failure = null;
+        try
+        {
+            Volatile.Write(ref _factoryDisposingThreadId, Environment.CurrentManagedThreadId);
+            _ownedLoggerFactory!.Dispose();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        finally
+        {
+            Volatile.Write(ref _factoryDisposingThreadId, 0);
+            _factoryDisposalCompleted.TrySetResult(failure);
+        }
+    }
+
+    private void WaitForFactoryDisposal()
+    {
+        if (_processManager.IsInLifecycleCallbackContext
+            || Environment.CurrentManagedThreadId == Volatile.Read(ref _factoryDisposingThreadId))
+        {
+            return;
+        }
+
+        if (_factoryDisposalCompleted.Task.GetAwaiter().GetResult() is { } failure)
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 }

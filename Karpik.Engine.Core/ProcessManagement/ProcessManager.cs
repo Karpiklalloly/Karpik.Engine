@@ -68,6 +68,10 @@ internal class ProcessManager : IDisposable
 
     private bool IsDisposeRequested => Volatile.Read(ref _disposeRequested) != 0;
     internal Task DisposalCompletion => _disposeCompleted.Task;
+    internal bool IsInLifecycleCallbackContext =>
+        IpcServer.IsInListenerContext
+        || ReferenceEquals(s_lifecycleCallbackOwner.Value, this)
+        || Environment.CurrentManagedThreadId == Volatile.Read(ref _disposingThreadId);
 
     private bool ShouldStopTransition =>
         IsDisposeRequested || Volatile.Read(ref _stopRequestCount) != 0;
