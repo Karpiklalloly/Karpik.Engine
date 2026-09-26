@@ -1,5 +1,6 @@
 ﻿using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Network.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Network.Server.LiteNetLib.Systems;
 
@@ -11,31 +12,7 @@ public class InitNetworkClientSystem(
     public void Init()
     {
         manager.ConfigureProtocolSchema(protocolSchema.ProtocolSchemaHash);
-        manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
-        manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
-        manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
-        manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
         manager.Start(config.Port);
-    }
-
-    internal static void ManagerOnConnectionRequestEvent(IConnectionRequest request)
-    {
-        Console.WriteLine("OnConnectionRequest");
-    }
-
-    internal static void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
-    {
-        
-    }
-    
-    internal static void ManagerOnPeerConnectedEvent(IPeer peer)
-    {
-        Console.WriteLine("OnPeerConnected");
-    }
-    
-    internal static void ManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
-    {
-        Console.WriteLine("OnPeerDisconnected");
     }
 }
 
@@ -47,15 +24,47 @@ public class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
     }
 }
 
-public class DestroyNetworkClientSystem(INetworkManager manager) : ISystemDestroy
+public class DestroyNetworkClientSystem : ISystemDestroy
 {
+    private readonly INetworkManager _manager;
+    private readonly ILogger<DestroyNetworkClientSystem> _logger;
+
+    public DestroyNetworkClientSystem(INetworkManager manager, ILogger<DestroyNetworkClientSystem> logger)
+    {
+        _manager = manager;
+        _logger = logger;
+        manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
+        manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
+        manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
+        manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
+    }
+
+    private void ManagerOnConnectionRequestEvent(IConnectionRequest request)
+    {
+        _logger.LogInformation("Connection request received");
+    }
+
+    private void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
+    {
+    }
+
+    private void ManagerOnPeerConnectedEvent(IPeer peer)
+    {
+        _logger.LogInformation("Peer {PeerId} connected", peer.Id);
+    }
+
+    private void ManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
+    {
+        _logger.LogInformation("Peer {PeerId} disconnected", peer.Id);
+    }
+
     public void Destroy()
     {
-        manager.NetworkReceiveEvent -= InitNetworkClientSystem.ManagerOnNetworkReceiveEvent;
-        manager.PeerConnectedEvent -= InitNetworkClientSystem.ManagerOnPeerConnectedEvent;
-        manager.PeerDisconnectedEvent -= InitNetworkClientSystem.ManagerOnPeerDisconnectedEvent;
-        manager.ConnectionRequestEvent -= InitNetworkClientSystem.ManagerOnConnectionRequestEvent;
-        manager.Stop();
+        _manager.NetworkReceiveEvent -= ManagerOnNetworkReceiveEvent;
+        _manager.PeerConnectedEvent -= ManagerOnPeerConnectedEvent;
+        _manager.PeerDisconnectedEvent -= ManagerOnPeerDisconnectedEvent;
+        _manager.ConnectionRequestEvent -= ManagerOnConnectionRequestEvent;
+        _manager.Stop();
     }
 }
 

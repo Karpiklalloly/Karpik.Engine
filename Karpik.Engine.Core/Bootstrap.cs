@@ -80,7 +80,7 @@ internal class Bootstrap : IClientSimulationLoop
 
     private Task SetupAsync(Dictionary<string, byte[]>? hotReloadData)
     {
-        Job.Initialize(new Jobs.JobSystem());
+        Job.Initialize(new Jobs.JobSystem(onJobError: exception => _logger.LogError(exception, "Job failed")));
 
         return _runner.SetupAsync(
             _application,
