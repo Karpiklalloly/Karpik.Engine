@@ -11,7 +11,7 @@ public class LoggerModuleInstaller : IModuleInstaller
 
     public void OnRegisterServices(ContainerBuilder builder)
     {
-        builder.Register(_ => LoggerFactory.Create(logging =>
+        builder.Register(context => LoggerFactory.Create(logging =>
             {
                 logging.ClearProviders();
                 logging.AddSimpleConsole();
@@ -23,6 +23,11 @@ public class LoggerModuleInstaller : IModuleInstaller
                     logging.AddEditorConsole();
                 }
                 logging.SetMinimumLevel(LogLevel.Trace);
+
+                foreach (var modifier in context.Resolve<IEnumerable<ILoggerFactoryModifier>>())
+                {
+                    modifier.Modify(logging);
+                }
             }))
             .As<ILoggerFactory>()
             .SingleInstance();

@@ -16,7 +16,9 @@
 
 | Интерфейс | Реализация | Описание |
 |-----------|------------|----------|
-| `ILogger` | `Logger` | Синглтон логгера |
+| `ILoggerFactory` | `LoggerFactory` | Engine-scoped factory |
+| `ILogger<T>` | Microsoft `Logger<T>` | Typed logger |
+| `ILoggerFactoryModifier` | Game-provided | Optional factory configuration |
 
 ## 🔧 ECS-системы
 
@@ -35,18 +37,29 @@ LoggerModule/
 
 Нет внешних зависимостей.
 
-## 💡 Использование
+## 💡 Настройка провайдеров
 
 ```csharp
-var logger = services.Get<ILogger>();
-
-logger.Info("Game started");
-logger.Warning("Low memory");
-logger.Error("Failed to load asset");
+[Export(typeof(ILoggerFactoryModifier))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public sealed class GameLoggingModifier : ILoggerFactoryModifier
+{
+    public void Modify(ILoggingBuilder builder)
+    {
+        builder.AddProvider(new GameLoggerProvider());
+    }
+}
 ```
+
+The logger module adds the simple console provider, optional editor-capture
+provider, and Trace minimum level before invoking exported modifiers once during
+factory creation. A modifier can add providers or deliberately call
+`ClearProviders()` to replace the defaults. The factory owns and disposes its
+configured providers; modifiers run during engine construction, outside gameplay
+and ECS hot paths.
 
 ## ⚠️ Особенности
 
-- Singleton паттерн
-- Цветной вывод в консоль
-- Уровни логирования: Info, Warning, Error
+- Simple console output is enabled by default.
+- Editor capture is enabled when `KARPIK_EDITOR_LOG_CAPTURE=1`.
+- The factory disposes providers configured by its modifiers.
