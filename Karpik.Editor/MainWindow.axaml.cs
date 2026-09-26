@@ -26,15 +26,15 @@ public sealed partial class MainWindow : Window
     private bool _closeConfirmed;
 
     public MainWindow()
-        : this(null)
+        : this(new EditorStartupOptions(null, null), new EditorShellViewModel(WorkspaceStore.CreateDefault()))
     {
     }
 
-    public MainWindow(EditorStartupOptions? startupOptions)
+    public MainWindow(EditorStartupOptions startupOptions, EditorShellViewModel viewModel)
     {
-        _startupOptions = startupOptions ?? new EditorStartupOptions(null, null);
+        _startupOptions = startupOptions;
         InitializeComponent();
-        _viewModel = new EditorShellViewModel(WorkspaceStore.CreateDefault(), _startupOptions);
+        _viewModel = viewModel;
         _currentLayoutStore = DockLayoutStore.CreateCurrent();
         _customLayoutStore = DockLayoutStore.CreateCustom();
         DataContext = _viewModel;

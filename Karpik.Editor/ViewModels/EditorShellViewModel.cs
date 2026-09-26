@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel.Composition;
 using System.ComponentModel;
 using System.Reactive.Linq;
 using System.Text.Json;
@@ -19,6 +20,7 @@ public sealed class EditorEntityViewModel
     public required IReadOnlyList<EditorComponentSnapshot> Components { get; init; }
 }
 
+[Export]
 public sealed class ProjectViewModel : ReactiveObject
 {
     private string? _path;
@@ -352,6 +354,7 @@ public sealed class AssetMetaEditorViewModel : ReactiveObject
     }
 }
 
+[Export]
 public sealed class HierarchyViewModel : ReactiveObject
 {
     private EditorEntityViewModel? _selectedEntity;
@@ -366,6 +369,7 @@ public sealed class HierarchyViewModel : ReactiveObject
     }
 }
 
+[Export]
 public sealed class InspectorViewModel : ReactiveObject
 {
     private IReadOnlyList<EditorComponentSnapshot> _components = [];
@@ -405,6 +409,7 @@ public sealed class InspectorViewModel : ReactiveObject
     }
 }
 
+[Export]
 public sealed class ConsoleViewModel : ReactiveObject
 {
     public const string AllSessions = "Все сессии";
@@ -537,6 +542,7 @@ public sealed class ConsoleViewModel : ReactiveObject
     };
 }
 
+[Export]
 public sealed class PreviewViewModel : ReactiveObject
 {
     private string _message = "Откройте проект и запустите сервер.";
@@ -642,10 +648,12 @@ public sealed class SessionsViewModel : ReactiveObject
     }
 }
 
+[Export]
+[Export(typeof(IActiveProjectPublisher))]
 public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveProjectPublisher
 {
     private readonly WorkspaceStore _workspaceStore;
-    private readonly EditorLogArchive _logArchive = new();
+    private readonly EditorLogArchive _logArchive;
     private EditorSessionManager? _sessionManager;
     private readonly CancellationTokenSource _lifetime = new();
     private ProjectSwitchCoordinator? _projectCoordinator;
@@ -667,11 +675,11 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     private EditorSessionManager SessionManager => _sessionManager
         ?? throw new InvalidOperationException("No active project session manager is available.");
 
-    public HierarchyViewModel Hierarchy { get; } = new();
-    public ProjectViewModel Project { get; } = new();
-    public InspectorViewModel Inspector { get; } = new();
-    public ConsoleViewModel Console { get; } = new();
-    public PreviewViewModel Preview { get; } = new();
+    public HierarchyViewModel Hierarchy { get; }
+    public ProjectViewModel Project { get; }
+    public InspectorViewModel Inspector { get; }
+    public ConsoleViewModel Console { get; }
+    public PreviewViewModel Preview { get; }
     public SessionsViewModel Sessions { get; }
 
     public string? ProjectPath
@@ -744,7 +752,24 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         WorkspaceStore workspaceStore,
         IProjectOpenService projectOpenService,
         IProjectHandoffService handoffService)
-        : this(workspaceStore, new UnavailableEditorBackendFactory())
+        : this(workspaceStore, projectOpenService, handoffService,
+            new HierarchyViewModel(), new ProjectViewModel(), new InspectorViewModel(),
+            new ConsoleViewModel(), new PreviewViewModel(), new EditorLogArchive())
+    {
+    }
+
+    public EditorShellViewModel(
+        WorkspaceStore workspaceStore,
+        IProjectOpenService projectOpenService,
+        IProjectHandoffService handoffService,
+        HierarchyViewModel hierarchy,
+        ProjectViewModel project,
+        InspectorViewModel inspector,
+        ConsoleViewModel console,
+        PreviewViewModel preview,
+        EditorLogArchive logArchive)
+        : this(workspaceStore, new UnavailableEditorBackendFactory(),
+            hierarchy, project, inspector, console, preview, logArchive)
     {
         EditorSessionManager? placeholder = _sessionManager;
         DetachSessionManager();
@@ -757,8 +782,29 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
     }
 
     internal EditorShellViewModel(WorkspaceStore workspaceStore, IEditorBackendFactory backendFactory)
+        : this(workspaceStore, backendFactory,
+            new HierarchyViewModel(), new ProjectViewModel(), new InspectorViewModel(),
+            new ConsoleViewModel(), new PreviewViewModel(), new EditorLogArchive())
+    {
+    }
+
+    private EditorShellViewModel(
+        WorkspaceStore workspaceStore,
+        IEditorBackendFactory backendFactory,
+        HierarchyViewModel hierarchy,
+        ProjectViewModel project,
+        InspectorViewModel inspector,
+        ConsoleViewModel console,
+        PreviewViewModel preview,
+        EditorLogArchive logArchive)
     {
         _workspaceStore = workspaceStore;
+        _logArchive = logArchive;
+        Hierarchy = hierarchy;
+        Project = project;
+        Inspector = inspector;
+        Console = console;
+        Preview = preview;
         Sessions = new SessionsViewModel(SelectSession);
         AttachSessionManager(new EditorSessionManager(backendFactory), default);
 
@@ -865,12 +911,12 @@ public sealed class EditorShellViewModel : ReactiveObject, IDisposable, IActiveP
         return Task.CompletedTask;
     }
 
-    private static IProjectOpenService CreateProjectOpenService(WorkspaceStore workspaceStore) =>
+    internal static IProjectOpenService CreateProjectOpenService(WorkspaceStore workspaceStore) =>
         new ProjectOpenService(
             contextFactory: new ActiveProjectContextFactory(
                 (solution, runtime) => new EditorProjectLifetime(workspaceStore, solution, runtime)));
 
-    private static IProjectHandoffService CreateProjectHandoffService(EditorStartupOptions startupOptions)
+    internal static IProjectHandoffService CreateProjectHandoffService(EditorStartupOptions startupOptions)
     {
         ArgumentNullException.ThrowIfNull(startupOptions);
         if (string.IsNullOrWhiteSpace(startupOptions.HandoffPath))
