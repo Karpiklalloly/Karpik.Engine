@@ -14,10 +14,12 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     public override string? DefaultPath => _fileSystem.Combine(_fileSystem.ContentPath, "Player.json");
     
     private readonly IFileSystem _fileSystem;
+    private readonly ILogger<ComponentArrayConverter> _logger;
     
     public ComponentsTemplateLoader(IFileSystem fileSystem, ILogger<ComponentArrayConverter> converterLogger)
     {
         _fileSystem = fileSystem;
+        _logger = converterLogger;
         Serializer.Converters.Add(new ComponentArrayConverter(converterLogger));
     }
 
@@ -46,5 +48,9 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     
     protected override ComponentsTemplateAsset EmptyAsset() => new();
 
-    protected override void SetValue(IAssetLoadContext context, ComponentsTemplateAsset asset, ComponentsTemplate value) => asset.Template = value;
+    protected override void SetValue(IAssetLoadContext context, ComponentsTemplateAsset asset, ComponentsTemplate value)
+    {
+        value.Materialize(_logger);
+        asset.Template = value;
+    }
 }

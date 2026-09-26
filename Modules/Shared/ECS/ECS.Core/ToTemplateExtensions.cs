@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.ECS;
 
@@ -10,7 +11,7 @@ public static class ToTemplateExtensions
     // Кэш для конструкторов ComponentTemplate<T>(T)
     private static readonly ConcurrentDictionary<Type, ConstructorInfo> ConstructorCache = new();
 
-    public static ComponentTemplateBase ToComponentTemplate(this IEcsComponent component)
+    public static ComponentTemplateBase? ToComponentTemplate(this IEcsComponent component, ILogger log)
     {
         var componentType = component.GetType();
 
@@ -39,10 +40,10 @@ public static class ToTemplateExtensions
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ToComponentTemplateReflection] Error creating template for {componentType.FullName}: {ex}");
+            log.LogError(ex, "Error creating template for {name}: {error}", componentType.FullName, ex);
             if (ex.InnerException != null)
             {
-                 Console.WriteLine($"Inner Exception: {ex.InnerException}");
+                log.LogError(ex.InnerException, "Inner Exception: {error}", ex.InnerException);
             }
             return null;
         }
@@ -62,7 +63,7 @@ public static class ToTemplateExtensions2
     // Кэш для конструкторов ComponentTemplate<T>(T)
     private static readonly ConcurrentDictionary<Type, ConstructorInfo> ConstructorCache = new();
     
-    public static ComponentTemplateBase ToComponentTemplate(this IEcsTagComponent component)
+    public static ComponentTemplateBase? ToComponentTemplate(this IEcsTagComponent component, ILogger log)
     {
         var componentType = component.GetType();
 
@@ -91,10 +92,10 @@ public static class ToTemplateExtensions2
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ToComponentTemplateReflection] Error creating template for {componentType.FullName}: {ex}");
+            log.LogError(ex, "Error creating template for {name}: {error}", componentType.FullName, ex);
             if (ex.InnerException != null)
             {
-                Console.WriteLine($"Inner Exception: {ex.InnerException}");
+                log.LogError(ex.InnerException, "Inner Exception: {error}", ex.InnerException);
             }
             return null;
         }

@@ -54,8 +54,8 @@ public class EcsRestartWorkerStateProvider(
     {
         var hotReloadData =
             System.Text.Json.JsonSerializer.Deserialize(Encoding.UTF8.GetString(data), HotReloadInfoJsonContext.Default.HotReloadInfo)!;
-        EcsWorld.FromSnapshot(world, hotReloadData!.EcsDefaultWorldJson, resolver, _converter).GetAwaiter().GetResult();
-        EcsWorld.FromSnapshot(eventWorld, hotReloadData.EcsEventWorldJson, resolver, _converter).GetAwaiter().GetResult();
-        EcsWorld.FromSnapshot(metaWorld, hotReloadData.EcsMetaWorldJson, resolver, _converter).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(world, hotReloadData!.EcsDefaultWorldJson, resolver, _converter, logger).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(eventWorld, hotReloadData.EcsEventWorldJson, resolver, _converter, logger).GetAwaiter().GetResult();
+        EcsWorld.FromSnapshot(metaWorld, hotReloadData.EcsMetaWorldJson, resolver, _converter, logger).GetAwaiter().GetResult();
     }
 }

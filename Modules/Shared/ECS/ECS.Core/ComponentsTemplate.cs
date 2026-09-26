@@ -2,6 +2,7 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Karpik.Engine.Shared.ECS;
@@ -13,20 +14,42 @@ public class ComponentsTemplate
     public ComponentTemplateBase[] Components;
     [JsonProperty("Components")]
     private IEcsComponentMember[] _components;
+    private bool _isMaterialized;
 
     public ComponentsTemplate()
     {
         Components = [];
+        _components = [];
+        _isMaterialized = true;
     }
 
     public ComponentsTemplate(params ComponentTemplateBase[] components)
     {
         Components = components;
+        _components = [];
+        _isMaterialized = true;
     }
 
-    public ComponentsTemplate(params IEcsComponentMember[] components)
+    public ComponentsTemplate(ILogger log, params IEcsComponentMember[] components)
     {
-        Components = Convert(components);
+        _components = components;
+        Components = Convert(components, log);
+        _isMaterialized = true;
+    }
+
+    internal static ComponentsTemplate FromRawComponents(IEcsComponentMember[] components)
+    {
+        if (components.Any(component => component is not IEcsComponent and not IEcsTagComponent))
+        {
+            throw new InvalidOperationException("Snapshot contains an unsupported ECS component member.");
+        }
+
+        return new ComponentsTemplate
+        {
+            _components = components,
+            Components = [],
+            _isMaterialized = false
+        };
     }
 
     public async JobHandle ApplyTo(int entityID, EcsWorld world, IServiceResolver container)
@@ -41,27 +64,42 @@ public class ComponentsTemplate
     [OnSerializing]
     private void OnSerialize(StreamingContext context)
     {
-        _components = Components.Select(x => (IEcsComponentMember)x.GetRaw()).ToArray();
+        if (_isMaterialized)
+        {
+            _components = Components.Select(x => (IEcsComponentMember)x.GetRaw()).ToArray();
+        }
     }
     
     [OnDeserialized]
     private void OnDeserialize(StreamingContext context)
     {
-        Components = Convert(_components);
+        Components = [];
+        _isMaterialized = false;
     }
 
-    private ComponentTemplateBase[] Convert(params IEcsComponentMember[] components)
+    internal void Materialize(ILogger log)
     {
-        var c = components.Select(ConvertFrom).Where(x => x is not null).ToArray();
+        if (_isMaterialized)
+        {
+            return;
+        }
+
+        Components = Convert(_components, log);
+        _isMaterialized = true;
+    }
+
+    private static ComponentTemplateBase[] Convert(IEcsComponentMember[] components, ILogger log)
+    {
+        var c = components.Select(component => ConvertFrom(component, log)).Where(x => x is not null).ToArray();
         return c;
     }
 
-    private ComponentTemplateBase ConvertFrom(IEcsComponentMember x)
+    private static ComponentTemplateBase? ConvertFrom(IEcsComponentMember x, ILogger log)
     {
         return x switch
         {
-            IEcsComponent component => component.ToComponentTemplate(),
-            IEcsTagComponent tagComponent => tagComponent.ToComponentTemplate(),
+            IEcsComponent component => component.ToComponentTemplate(log),
+            IEcsTagComponent tagComponent => tagComponent.ToComponentTemplate(log),
             _ => throw new InvalidOperationException($"Unknown component member type: {x.GetType().FullName}"),
         };
     }

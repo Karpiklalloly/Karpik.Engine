@@ -4,6 +4,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
@@ -24,7 +25,7 @@ public static class EcsWorldExtensions
                 snapshot.Id = e;
                 List<object> objs = [];
                 world.GetComponentsFor(e, objs);
-                snapshot.Components = new ComponentsTemplate(objs.Cast<IEcsComponentMember>().ToArray());
+                snapshot.Components = ComponentsTemplate.FromRawComponents(objs.Cast<IEcsComponentMember>().ToArray());
                 entitySnapshots.Add(snapshot);
             }
                 
@@ -38,7 +39,12 @@ public static class EcsWorldExtensions
             });
         }
 
-        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IServiceResolver container, ComponentArrayConverter converter)
+        public static async JobHandle FromSnapshot(
+            EcsWorld newWorld,
+            string snapshots,
+            IServiceResolver container,
+            ComponentArrayConverter converter,
+            ILogger<ComponentArrayConverter> logger)
         {
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
@@ -49,6 +55,13 @@ public static class EcsWorldExtensions
                 Converters = [converter],
                 ContractResolver = new DefaultContractResolver()
             })!;
+
+            // Convert every component before mutating the world. A bad snapshot must not erase
+            // the currently running world before restore fails.
+            foreach (var entitySnapshot in list)
+            {
+                entitySnapshot.Components.Materialize(logger);
+            }
 
             var entities = newWorld.Entities;
             foreach (var e in entities)
