@@ -429,3 +429,7 @@ kilo.json
 
 # Graphify generated index output
 graphify-out/
+
+# Understand Anything generated graph and local analysis state
+.ua/
+.understand-anything/

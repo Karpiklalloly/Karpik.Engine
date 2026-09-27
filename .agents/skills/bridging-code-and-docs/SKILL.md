@@ -7,7 +7,7 @@ description: Use when debugging, modifying, extending, or refactoring an existin
 
 ## Purpose
 
-Coordinate source-code intelligence from CBM with project-documentation
+Coordinate source-code intelligence from understand-anything with project-documentation
 retrieval from QMD.
 
 Do not replace Superpowers workflows.
@@ -34,12 +34,13 @@ Treat each source differently:
 - Source code and tests = current implemented behavior.
 - Project documentation/specs/ADRs = intended behavior, requirements,
   architecture and historical design decisions.
-- CBM = index and structural/semantic understanding of current source code.
+- understand-anything = generated graph of source structure and relationships at an analyzed point in time.
 - QMD = retrieval/index over project documentation.
 
 Documentation is NOT proof of current runtime behavior.
 
-CBM is NOT proof that a discovered path is actually exercised at runtime.
+The graph may omit recent code changes or relationships it could not infer. A
+graph edge is NOT proof that a path is exercised at runtime.
 
 Actual source, tests and runtime evidence must be inspected when correctness
 depends on them.
@@ -53,9 +54,13 @@ Determine whether:
 3. requirements changed;
 4. both require an update.
 
-## CBM policy
+## understand-anything policy
 
-Use CBM for non-trivial work in an existing codebase.
+Use an existing understand-anything graph when structural context would help.
+It is stored in `.ua/knowledge-graph.json` (or the legacy
+`.understand-anything/knowledge-graph.json`). Before relying on it, check its
+commit metadata against the current repository and account for staged,
+unstaged and untracked changes. A graph at `HEAD` can still miss worktree edits.
 
 Typical triggers:
 
@@ -70,7 +75,18 @@ Typical triggers:
 - changes spanning multiple symbols/files;
 - architecture-sensitive changes.
 
-Use CBM to identify:
+Choose the operation that matches the question:
+
+- `understand-anything:understand-chat` for finding related components and
+  exploring graph relationships;
+- `understand-anything:understand-explain` for a specific file, function or
+  module, alongside its actual source;
+- `understand-anything:understand-diff` for impact analysis of existing changes;
+- `understand-anything:understand` to create or refresh the graph when the
+  existing graph is missing or materially stale and the analysis is useful.
+  Prefer its incremental update; do not force a full rebuild for routine edits.
+
+Use graph nodes and edges to suggest:
 
 - relevant symbols;
 - callers/callees;
@@ -80,9 +96,11 @@ Use CBM to identify:
 - affected areas;
 - related implementation.
 
-Then inspect the actual relevant source before editing it.
+These are leads, not a complete caller list or an exact control-flow trace.
+Inspect the relevant source and tests; verify exact callers and change impact
+against the current checkout before editing.
 
-Skip or minimize CBM for clearly localized mechanical work:
+Skip graph exploration for clearly localized mechanical work:
 
 - typo fixes;
 - formatting;
@@ -90,8 +108,8 @@ Skip or minimize CBM for clearly localized mechanical work:
 - renaming a local variable;
 - editing an explicitly known isolated location with no behavioral impact.
 
-Do not use repeated grep/read exploration when CBM can answer the structural
-question directly.
+If the graph is missing, stale or lacks the relevant symbol, proceed with
+targeted source inspection. Do not block the task on graph generation.
 
 ## QMD policy
 
@@ -111,7 +129,7 @@ Use QMD when one or more conditions apply:
 - multiple subsystems are affected;
 - the user references previous design/decision/specification;
 - understanding WHY something was designed this way matters;
-- CBM reveals a non-obvious architectural pattern;
+- the graph suggests a non-obvious architectural pattern;
 - the change may invalidate existing documentation;
 - debugging suggests current behavior may differ from intended behavior.
 
@@ -128,7 +146,8 @@ Skip QMD for:
 
 For non-trivial work:
 
-1. Use CBM first to locate the relevant implementation.
+1. If an applicable graph exists, check freshness and query it for candidate
+   components or affected areas. Otherwise locate them in the current source.
 2. Identify important concepts:
    - subsystem names;
    - types;
@@ -139,22 +158,23 @@ For non-trivial work:
 4. If QMD is necessary, search using:
    - conceptual terms from the user's task;
    - subsystem terminology;
-   - important symbols discovered through CBM.
+   - important symbols discovered through the graph or source.
 5. Retrieve only the most relevant documents/sections.
-6. Map documentation claims back to current code using CBM.
-7. Inspect the actual source and tests.
+6. Map documentation claims back to current source and tests; use graph
+   relationships to find related code when they are available and current.
+7. Verify behavior and change impact from source, tests or runtime evidence.
 8. Continue with the active Superpowers workflow.
 
 The desired model is:
 
-    CBM = what the code currently is
+    understand-anything = a navigable snapshot of possible code relationships
     QMD = what was intended/decided/documented
     Superpowers = how to perform the engineering work
     Bridge = when/how to combine those contexts
 
 ## Debugging behavior
 
-For bugs, CBM should help answer:
+For bugs, use the graph to suggest where to look:
 
 - Where can this behavior originate?
 - What calls this code?
@@ -178,7 +198,9 @@ before applying a fix.
 
 For a feature/refactor in an established subsystem:
 
-1. Use CBM to understand current implementation and blast radius.
+1. Use a current graph, when available, to find related components and likely
+   impact. Verify against the checkout; use `understand-anything:understand-diff`
+   when there are existing changes to analyze.
 2. Determine if there may be related design/ADR/spec context.
 3. If yes, query QMD.
 4. Feed the resulting context into the normal Superpowers
@@ -205,12 +227,14 @@ If documentation changed:
 Avoid duplicate work.
 
 - QMD is not a second source-code search engine.
-- CBM is not a documentation search engine.
-- Prefer CBM graph/navigation over large grep/read exploration.
+- Graph document nodes are summaries; use QMD and original documents for
+  documentation claims.
+- Use graph navigation for candidate relationships, then inspect only the
+  relevant current code. Do not treat absent edges as proof of no dependency.
 - Prefer one broad QMD semantic query followed by targeted retrieval.
 - Retrieve specific sections instead of whole documents where possible.
 - Do not load large amounts of context without reason.
 - Do not query QMD if documentation is clearly irrelevant.
-- Do not rebuild CBM fully after each edit.
+- Refresh the graph when its staleness affects a decision, not after every edit.
 
 The goal is the minimum context necessary for a correct engineering decision.

@@ -137,7 +137,7 @@ Validation: run asset manager tests, shader/font loading tests, dependency-loadi
 
 Remove obsolete compatibility interfaces after all consumers migrate. Update module architecture documentation and create an ADR for the accepted scope and ownership model.
 
-Validation: run targeted builds for Core, Runner, AssetManagement, Graphics, Client, and Server, followed by the relevant test projects. Refresh the codebase-memory index after code changes.
+Validation: run targeted builds for Core, Runner, AssetManagement, Graphics, Client, and Server, followed by the relevant test projects. Refresh the understand-anything graph after code changes.
 
 ## Concrete Steps
 
@@ -155,7 +155,7 @@ Run the smallest relevant test projects after each milestone rather than waiting
 
 After implementation changes stabilize, update the repository graph:
 
-    # refresh the codebase-memory index
+    # refresh the understand-anything graph
 
 ## Validation and Acceptance
 

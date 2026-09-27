@@ -716,7 +716,7 @@ Exit criteria: `Network.Codegen` contains none of the six deleted sample assembl
 #### Milestone 8F: Final acceptance and documentation
 
 - Run the complete automatic validation set below, both opt-in external suites, and the manual two-SDK launcher/editor smoke.
-- Update `README.md`, `README-ENG.md`, the accepted ADR, this ExecPlan, the kanban board, and the codebase-memory index.
+- Update `README.md`, `README-ENG.md`, the accepted ADR, this ExecPlan, the kanban board, and the understand-anything graph.
 - Inspect the final diff for game-specific paths and confirm no new work entered real-time hot paths.
 
 Exit criteria: every acceptance item in this plan passes, the engine and external game build independently, and Milestone 8 plus the parent ExecPlan can be marked complete.
@@ -747,7 +747,7 @@ Validation from the repository root:
     dotnet test Karpik.Launcher.Tests\Karpik.Launcher.Tests.csproj -m:1 -nr:false
     dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore
     git diff --check
-    # refresh the codebase-memory index
+    # refresh the understand-anything graph
 
 Then run both opt-in external SDK and editor switching suites and the manual cross-version launcher smoke described above.
 

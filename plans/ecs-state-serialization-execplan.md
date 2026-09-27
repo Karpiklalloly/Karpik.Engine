@@ -115,7 +115,7 @@ Then run `Static_server_host_publishes_and_runs_under_NativeAot_with_ten_reload_
 
 All commands run from `C:\Users\artem\RiderProjects\KarpikEngine`. Follow TDD for each milestone: add one failing behavioral test, record its expected failure in `Progress`, implement the smallest production change, rerun the targeted command, then update this document before continuing.
 
-Use `rg` only for literal/config searches after CBM identifies candidate symbols. Before deleting converters or roots, run repository-wide caller and `PackageReference` checks. Build/test commands use `-m:1 -nr:false`.
+Use `rg` only for literal/config searches after understand-anything identifies candidate symbols. Before deleting converters or roots, run repository-wide caller and `PackageReference` checks. Build/test commands use `-m:1 -nr:false`.
 
 ## Validation and Acceptance
 
