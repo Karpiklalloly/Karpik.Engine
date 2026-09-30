@@ -138,12 +138,14 @@ public sealed class EnginePayloadBuilderTests
         Assert.False(Directory.Exists(Path.Combine(temporary.RootPath, "output", "Engines", "0.6.0")));
     }
 
-    [Fact]
-    public void BuilderMergesModuleNativeRuntimesToSharedRuntimes()
+    [Theory]
+    [InlineData("runtimes/win-x64/native")]
+    [InlineData("native/win-x64")]
+    public void BuilderMergesModuleNativeRuntimesToSharedRuntimes(string nativePath)
     {
         using var temporary = new PackagerTemporaryDirectory();
         string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
-        string moduleNative = Path.Combine(source, "modules", "Module", "runtimes", "win-x64", "native", "Native.dll");
+        string moduleNative = Path.Combine(source, "modules", "Module", nativePath, "Native.dll");
         Directory.CreateDirectory(Path.GetDirectoryName(moduleNative)!);
         File.WriteAllText(moduleNative, "shared-native");
 
@@ -158,8 +160,8 @@ public sealed class EnginePayloadBuilderTests
         Assert.True(validation.IsValid, validation.Message);
         Assert.Equal(
             "shared-native",
-            File.ReadAllText(Path.Combine(result.DestinationDirectory, "shared", "runtimes", "win-x64", "native", "Native.dll")));
-        Assert.False(Directory.Exists(Path.Combine(result.DestinationDirectory, "modules", "Module", "runtimes")));
+            File.ReadAllText(Path.Combine(result.DestinationDirectory, "shared", nativePath, "Native.dll")));
+        Assert.False(Directory.Exists(Path.Combine(result.DestinationDirectory, "modules", "Module", nativePath)));
     }
 
     [Fact]
@@ -423,14 +425,12 @@ public sealed class EnginePayloadBuilderTests
         Assert.True(File.Exists(Path.Combine(moduleA, "TestModuleA.dll")));
         Assert.True(File.Exists(Path.Combine(moduleB, "TestModuleB.dll")));
         Assert.Equal(
-            "Shared\tTestModuleA\nShared\tTestModuleB\n",
-            File.ReadAllText(Path.Combine(first.DestinationDirectory, "modules", EngineModuleCatalog.FileName)));
-        Assert.True(File.Exists(Path.Combine(moduleA, "SharedDependency.dll")));
-        Assert.True(File.Exists(Path.Combine(moduleB, "SharedDependency.dll")));
-        Assert.True(
-            File.ReadAllBytes(Path.Combine(moduleA, "SharedDependency.dll"))
-                .AsSpan()
-                .SequenceEqual(File.ReadAllBytes(Path.Combine(moduleB, "SharedDependency.dll"))));
+            ["TestModuleA", "TestModuleB"],
+            EngineModuleCatalog.Read(Path.Combine(first.DestinationDirectory, "modules"))
+                .Select(entry => entry.ModuleId));
+        Assert.True(File.Exists(Path.Combine(first.DestinationDirectory, "shared", "SharedDependency.dll")));
+        Assert.False(File.Exists(Path.Combine(moduleA, "SharedDependency.dll")));
+        Assert.False(File.Exists(Path.Combine(moduleB, "SharedDependency.dll")));
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Sdk.Tasks.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.ProjectModel.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Tooling.dll");
@@ -534,7 +534,7 @@ public sealed class EnginePayloadBuilderTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             new EnginePayloadBuilder(temporary.RootPath).Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
 
-        Assert.Contains("same identity", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Conflicting shared payload files", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -548,7 +548,7 @@ public sealed class EnginePayloadBuilderTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             new EnginePayloadBuilder(temporary.RootPath).Build(repository, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk"));
 
-        Assert.Contains("same simple name", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Conflicting shared payload files", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyDictionary<string, string> SnapshotFiles(string root) =>

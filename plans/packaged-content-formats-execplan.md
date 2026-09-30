@@ -61,7 +61,7 @@ does the same without source paths to this repository.
 - [x] (2026-09-13) Enable the template and add stable sidecars.
 - [x] (2026-09-14) Enable the shared game Content root for both Client and
   Server; each cooks into its own intermediate output and runtime bundle.
-- [ ] (2026-09-13) Validate the packed external-template workflow.
+- [x] (2026-09-30) Validate the packed external-template content workflow: a package-only ContentRefs.All consumer compiles; freshly materialized Static Client/Server launchers each build and publish a manifest plus eight cooked artifacts. Validation logs are under `artifacts/validation/static-final4-*` and `owned-sdk-content.trx`.
 - [x] (2026-09-13) Update user-facing documentation.
 
 ## Surprises & Discoveries

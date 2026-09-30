@@ -5,6 +5,34 @@ using Xunit;
 public sealed class EditorIpcTests
 {
     [Fact]
+    public async Task ShutdownRequest_UsesTheMainThreadScheduler()
+    {
+        var pipeName = $"KarpikShutdownThreadTests_{Guid.NewGuid():N}";
+        using var server = new IpcServer(pipeName);
+        var callbackThread = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var client = new IpcClient(pipeName)
+        {
+            OnShutdownRequest = () => callbackThread.TrySetResult(Environment.CurrentManagedThreadId)
+        };
+        Task connection = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await connection;
+        await Task.Run(() =>
+        {
+            int owner = Environment.CurrentManagedThreadId;
+            using var scheduler = new MainThreadScheduler(owner);
+            client.SetScheduler(scheduler);
+            server.SendShutdownRequestAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                scheduler.Execute();
+                return callbackThread.Task.IsCompleted;
+            }, TimeSpan.FromSeconds(5)));
+            Assert.Equal(owner, callbackThread.Task.GetAwaiter().GetResult());
+        });
+    }
+
+    [Fact]
     public async Task TryRequestStateAsync_ImmediateResponsesAreNotLost()
     {
         var pipeName = $"KarpikStateTests_{Guid.NewGuid():N}";

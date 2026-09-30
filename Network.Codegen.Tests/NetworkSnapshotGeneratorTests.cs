@@ -59,6 +59,7 @@ public sealed class NetworkSnapshotGeneratorTests
 
         result.AssertNoErrors();
         Assert.Contains("ServerCommandDispatcher.g.cs", result.GeneratedSources.Keys);
+        Assert.NotNull(result.Compilation.GetTypeByMetadataName("Karpik.Engine.Generated.CommandDispatcher"));
     }
 
     [Fact]
@@ -72,6 +73,7 @@ public sealed class NetworkSnapshotGeneratorTests
 
         result.AssertNoErrors();
         Assert.Contains("TargetClientRpcDispatcher.g.cs", result.GeneratedSources.Keys);
+        Assert.NotNull(result.Compilation.GetTypeByMetadataName("Karpik.Engine.Generated.TargetClientRpcDispatcher"));
     }
 
     [Theory]

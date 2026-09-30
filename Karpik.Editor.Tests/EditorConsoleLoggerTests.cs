@@ -59,6 +59,8 @@ public sealed class EditorConsoleLoggerTests
                 Environment.SetEnvironmentVariable("KARPIK_EDITOR_LOG_CAPTURE", editorCapture ? "1" : null);
                 Console.SetOut(output);
                 var builder = new ContainerBuilder();
+                // The runtime discovers this export before installer registrations.
+                builder.RegisterType<EditorConsoleLoggerModifier>().As<ILoggerFactoryModifier>();
                 new LoggerModuleInstaller().OnRegisterServices(builder);
                 using IContainer container = builder.Build();
                 ILoggerFactory factory = container.Resolve<ILoggerFactory>();

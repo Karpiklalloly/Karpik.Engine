@@ -126,15 +126,19 @@ public static class PayloadLayout
                 }
                 MoveFileToShared(file, Path.Combine(sharedRoot, Path.GetFileName(file)));
             }
-            string runtimesSource = Path.Combine(moduleDirectory, "runtimes");
-            if (Directory.Exists(runtimesSource))
+            foreach (string dependencyDirectory in new[] { "runtimes", NativeDirectory })
             {
-                foreach (string file in EnumerateFilesSafe(runtimesSource).Order(StringComparer.Ordinal))
+                string dependencySource = Path.Combine(moduleDirectory, dependencyDirectory);
+                if (!Directory.Exists(dependencySource))
                 {
-                    string relative = NormalizeRelativePath(Path.GetRelativePath(runtimesSource, file));
-                    MoveFileToShared(file, Path.Combine(sharedRoot, "runtimes", relative.Replace('/', Path.DirectorySeparatorChar)));
+                    continue;
                 }
-                Directory.Delete(runtimesSource, recursive: true);
+                foreach (string file in EnumerateFilesSafe(dependencySource).Order(StringComparer.Ordinal))
+                {
+                    string relative = NormalizeRelativePath(Path.GetRelativePath(dependencySource, file));
+                    MoveFileToShared(file, Path.Combine(sharedRoot, dependencyDirectory, relative.Replace('/', Path.DirectorySeparatorChar)));
+                }
+                Directory.Delete(dependencySource, recursive: true);
             }
             string[] leftovers = Directory.EnumerateFileSystemEntries(moduleDirectory).ToArray();
             if (leftovers.Length != 1 ||

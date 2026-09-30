@@ -24,7 +24,7 @@ public sealed class EditorProjectLifetimeTests
             await lifetime.BuildAsync(static _ => { }, TestContext.Current.CancellationToken);
 
             ProcessStartInfo startInfo = Assert.Single(processes.StartInfos);
-            Assert.Equal(["build", solutionPath, "-nr:false"], startInfo.ArgumentList);
+            Assert.Equal(["build", solutionPath, "-nr:false", "-c", "Debug"], startInfo.ArgumentList);
         }
         finally
         {
@@ -60,10 +60,10 @@ public sealed class EditorProjectLifetimeTests
             Assert.Collection(
                 processes.StartInfos,
                 item => Assert.Equal(
-                    ["publish", clientPath, "-nr:false"],
+                    ["publish", clientPath, "-nr:false", "-c", "Debug"],
                     item.ArgumentList),
                 item => Assert.Equal(
-                    ["publish", serverPath, "-nr:false"],
+                    ["publish", serverPath, "-nr:false", "-c", "Debug"],
                     item.ArgumentList));
         }
         finally

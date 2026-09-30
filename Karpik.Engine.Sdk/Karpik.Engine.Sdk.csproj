@@ -22,6 +22,7 @@
     <!-- Payload нужен только пакету SDK; обычный build не должен проходить весь этот граф. -->
     <ItemGroup>
         <KarpikSdkPayloadProject Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj" />
+        <KarpikSdkPayloadProject Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
         <KarpikSdkPayloadProject Include="..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" />
         <KarpikSdkPayloadProject Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj" />
         <KarpikSdkPayloadProject Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
@@ -60,7 +61,7 @@
         <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
     </ItemGroup>
 
-    <Target Name="PrepareKarpikSdkPackage" BeforeTargets="_GetPackageFiles">
+    <Target Name="PrepareKarpikSdkPackage" BeforeTargets="_GetPackageFiles" Condition="'$(NoBuild)' != 'true'">
         <MSBuild Projects="@(KarpikSdkPayloadProject)"
                  Targets="Build"
                  Properties="Configuration=$(Configuration)" />

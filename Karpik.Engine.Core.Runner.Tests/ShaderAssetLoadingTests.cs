@@ -62,8 +62,7 @@ public sealed class ShaderAssetLoadingTests
         finally
         {
             Environment.CurrentDirectory = originalWorkingDirectory;
-            jobs.WaitForCompletion();
-            jobs.Shutdown();
+            Job.ShutdownIfCurrent(jobs);
             Directory.Delete(bundleRoot, recursive: true);
         }
     }

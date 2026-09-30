@@ -30,12 +30,29 @@
     <ProjectReference Include="..\KarpikGame.Shared\KarpikGame.Shared.csproj"
                       ReferenceOutputAssembly="false"
                       Private="false" />
-    <Content Include="..\KarpikGame.Server\bin\$(Configuration)\$(TargetFramework)\Content\manifest.json"
-             Link="Content\manifest.json"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             Condition="'$(KarpikCompositionMode)' == 'Static'" />
   </ItemGroup>
+
+  <!-- Enumerate after the runtime build: cooked files do not exist at evaluation
+       time on a clean checkout. Both build and publish consume these items. -->
+  <Target Name="_KarpikCollectStaticRuntimeContent"
+          BeforeTargets="_GetCopyToOutputDirectoryItemsFromThisProject;GetCopyToPublishDirectoryItems"
+          DependsOnTargets="ResolveProjectReferences"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <ItemGroup>
+      <_KarpikRuntimeAssembly Include="@(_ResolvedProjectReferencePaths->WithMetadataValue('Filename', 'KarpikGame.Server'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_KarpikRuntimeDirectory>@(_KarpikRuntimeAssembly->'%(RootDir)%(Directory)')</_KarpikRuntimeDirectory>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(_KarpikRuntimeDirectory)' != ''">
+      <_KarpikRuntimeContent Include="$(_KarpikRuntimeDirectory)Content\manifest.json" />
+      <_KarpikRuntimeContent Include="$(_KarpikRuntimeDirectory)Content\**\*.cooked" />
+      <ContentWithTargetPath Include="@(_KarpikRuntimeContent)"
+                             TargetPath="Content\%(_KarpikRuntimeContent.RecursiveDir)%(_KarpikRuntimeContent.Filename)%(_KarpikRuntimeContent.Extension)"
+                             CopyToOutputDirectory="PreserveNewest"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
   <!-- Static composition turns the launcher into the game-specific host executable:
        the whole side graph is compiled in and copied next to the host so the

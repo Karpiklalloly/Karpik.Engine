@@ -37,7 +37,9 @@
 - [x] (2026-09-20) Реализовать Editor Settings с отдельным окном, плотностью и выбором раскладки.
 - [x] (2026-09-20) Реализовать компактную тему, меню, toolbar и native hotkeys.
 - [x] (2026-09-20) Закрыть review findings по сохранению Custom, legacy migration, split/floating Dock wrappers и nullable загрузке.
-- [ ] Полная проверка: финальный editor-only compile проходит без warnings/errors, но полный build/test и ручной smoke заблокированы неполным checkout/отсутствующими runtime artifacts.
+- [x] (2026-09-30) Полный editor suite: 141 passed, 8 явных capability/opt-in skips, 0 failed. Editor build: 0 warnings/errors. Устаревшие ожидания build configuration и регистрации console logger исправлены в fixtures.
+- [x] (2026-09-30) Полный editor suite с реальным переключением двух внешних проектов: 142 passed, 7 capability skips, 0 failed (`artifacts/validation/editor-verified.trx`).
+- [ ] (2026-09-30) Ручная приёмка: подтверждены первый запуск Compact + Unity, Scene/Game/Preview и Project/Console, перестановка вкладок и сохранение порядка/размеров после перезапуска, Debug/Custom и сохранение плотности. Полный UI runtime/build/publish и выбор backend в Hierarchy/Inspector ещё не подтверждены. Оригинальные настройки пользователя восстановлены.
 
 ## Surprises & Discoveries
 
@@ -71,7 +73,7 @@
 
 Implementation outcome: workspace settings, Unity/Debug/Custom dock presets, custom-layout migration, Editor Settings, compact graphite shell, toolbar commands and native hotkeys реализованы. Scoped reviews approved all implementation slices; follow-up fixes закрыли Custom seeding/preservation, split/floating/pinned Dock wrappers, legacy Scene/Game titles, failed-Custom recovery, density-only apply и nullable loading. Custom layout is persisted separately and restored through the MainWindow selection path.
 
-Validation outcome: changed editor sources compile cleanly with project references disabled (0 warnings, 0 errors), and `git diff --check` passes. Full editor build and test execution remain blocked by missing first-party projects and runner output artifacts in this checkout; manual launch/docking/runtime smoke was not claimed or performed here. The next validation pass should restore those artifacts, run the full commands, and execute the manual scenario from Task 5.
+Validation outcome (2026-09-30): the full editor build succeeds, and the complete test suite passes 142 tests with seven explicit capability skips, including real server/two-client teardown and external-project replacement. Desktop checks confirm initial Compact/Unity layout, tab order and splitter persistence, Debug/Custom restoration, and density persistence. Full UI runtime/build/publish and Hierarchy/Inspector backend selection remain open; Task 5 is not declared complete.
 
 ## Context and Orientation
 

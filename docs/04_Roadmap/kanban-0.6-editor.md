@@ -59,7 +59,7 @@ kanban-plugin: board
 	  - Результат: editor пригоден для обычной настольной работы на Windows, macOS и Linux.
 - [x] **Сделать компактную Unity-подобную оболочку редактора**
 	  - Что сделано: добавлены графитовая тема, компактные контролы, меню File/Edit/Assets/GameObject/Window/Help, toolbar `▶S`/`▶C`/stop/build, native hotkeys и отдельное окно Editor Settings с плотностью и раскладками Unity/Debug/Custom.
-	  - Результат: UI-слой и пользовательская dock-раскладка не затрагивают Client/Server/Shared или игровой Content. Полный build/test и ручной smoke требуют восстановления отсутствующих first-party/runtime artifacts.
+	  - Результат: UI-слой и пользовательская dock-раскладка не затрагивают Client/Server/Shared или игровой Content. Полный suite с реальным переключением проекта прошёл 142 теста с 7 явными skips, build — без ошибок/предупреждений (2026-09-30). В ручном smoke подтверждены Compact/Unity при первом запуске, расположение и перестановка вкладок, сохранение splitter после перезапуска, Debug/Custom и плотность. Приёмка UI runtime/build/publish, выбора backend и двух SDK пока открыта; исходные настройки пользователя восстановлены.
 
 ## Проект и ассеты
 

@@ -162,6 +162,11 @@ internal sealed class WorkerHost
             _ipcClient = new IpcClient(pipeName, _hostLoggerFactory);
 
             _ipcClient.OnStateRequest = GetHotReloadState;
+            _ipcClient.OnMessageReceived += message =>
+            {
+                if (message.Type == IpcMessageType.StateRequest && _stateCollected)
+                    _isRunning.Value = false;
+            };
             _ipcClient.OnEditorSnapshotRequest = GetEditorSnapshot;
             _ipcClient.OnShutdownRequest = () =>
             {
@@ -369,7 +374,6 @@ internal sealed class WorkerHost
             _logger.LogInformation("Total modules with state: {ModuleCount}", state.ModuleStates.Count);
 
             _stateCollected = true;
-            _isRunning.Value = false;
 
             return state;
         }
@@ -429,7 +433,8 @@ internal sealed class WorkerHost
 
             if (_stateCollected)
             {
-                break;
+                Thread.Yield();
+                continue;
             }
 
             if (loops >= 5)
@@ -476,7 +481,8 @@ internal sealed class WorkerHost
 
             if (_stateCollected)
             {
-                break;
+                Thread.Yield();
+                continue;
             }
 
             simulationWorker.ThrowIfFaulted();

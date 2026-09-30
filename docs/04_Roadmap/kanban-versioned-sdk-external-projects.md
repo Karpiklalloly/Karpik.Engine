@@ -77,10 +77,11 @@ kanban-plugin: board
 - [x] **Milestone 8D — убрать `MyGame` и игровые launcher-ы из engine root**
 	  - Перенести полезный sample в game template; удалить `MyGame`, `ClientLauncher`, `ServerLauncher` и их solution/build ссылки.
 	  - Результат: внешний шаблон доказал server + два clients, ECS, bundle-owned `Content/`/`Mods/` и hot reload; реальный editor switch доказал teardown; engine build graph и Configurator не содержат game-specific composition roots.
-- [ ] **Milestone 8E — завершить модернизацию Configurator и `Network.Codegen`**
-	  - Сохранить engine module catalog для SDK payload и вынести оставшиеся исторические `MyGame.*.Main` assumptions из `Network.Codegen` в отдельную будущую работу.
+- [x] **Milestone 8E — завершить модернизацию Configurator и `Network.Codegen`**
+	  - Engine module catalog сохранён; оставшиеся RPC namespaces переведены в `Karpik.Engine.Generated`. Проверки компиляции с внешними assembly identities и полный Network.Codegen suite проходят 24/24 (2026-09-30).
 	  - Не менять уже завершённую engine-only генерацию `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` иначе чем через Configurator.
 - [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
+	  - Подтверждено 2026-09-30: Runner 140/140, Editor с реальным switch 142 passed/7 skips, packed SDK 24 passed/3 skips, solution build без ошибок; Static/Dynamic CLI, content/publish, ECS restart и чистый shutdown проходят.
 	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, обновление индекса кода.
 	  - Desktop smoke: Launcher → project A → server + два clients → switch → project B → compatible editor.
 	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles; ExecPlan можно закрыть.

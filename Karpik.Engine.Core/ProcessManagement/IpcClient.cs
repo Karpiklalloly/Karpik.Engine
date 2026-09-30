@@ -196,7 +196,17 @@ internal class IpcClient : IDisposable
             case IpcMessageType.ShutdownRequest:
                 _logger.LogInformation("Received ShutdownRequest");
                 await SendShutdownAckAsync(cancellationToken);
-                OnShutdownRequest?.Invoke();
+                if (OnShutdownRequest is { } shutdown)
+                {
+                    if (_scheduler is { } scheduler)
+                    {
+                        scheduler.InvokeAsync(shutdown).GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        shutdown();
+                    }
+                }
                 break;
                 
             case IpcMessageType.PingRequest:

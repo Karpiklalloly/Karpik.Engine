@@ -14,8 +14,8 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
     private const string TargetRpcInterface = "Karpik.Engine.Shared.Network.Core.ITargetRpcCommand";
     private const string ClientRpcInterface = "Karpik.Engine.Shared.Network.Core.IClientRpcCommand";
     
-    // Настройка: Где искать ваш ручной Dispatcher на клиенте
-    private const string ClientDispatcherNamespace = "Karpik.Engine.MyGame.Client.Main";
+    // Match the engine-owned namespace used by the generated snapshot registry.
+    private const string ClientDispatcherNamespace = "Karpik.Engine.Generated";
     private const string ClientDispatcherClass = "TargetClientRpcDispatcher";
 
     // Настройка: Ваше имя интерфейса ITargetRpcSender

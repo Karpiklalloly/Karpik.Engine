@@ -16,8 +16,8 @@ public class RpcGenerator : IIncrementalGenerator
     private const string EventCommandInterface = "Karpik.Engine.Shared.Network.Core.IEventCommand";
     private const string StateCommandInterface = "Karpik.Engine.Shared.Network.Core.IStateCommand";
 
-    // Настройка: Где искать ваш ручной Dispatcher на сервере
-    private const string ServerDispatcherNamespace = "Karpik.Engine.MyGame.Server.Main";
+    // Match the engine-owned namespace used by the generated snapshot registry.
+    private const string ServerDispatcherNamespace = "Karpik.Engine.Generated";
     private const string ServerDispatcherClass = "CommandDispatcher";
 
     // Настройка: Полное имя вашего ручного интерфейса IRpc

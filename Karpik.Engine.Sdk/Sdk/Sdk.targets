@@ -92,6 +92,11 @@
         <HintPath>$(KarpikEngineRoot)\runners\server\System.Composition.AttributedModel.dll</HintPath>
         <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
+      <Reference Include="Microsoft.Extensions.Logging.Abstractions"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
       <!-- The generated network snapshot registry always implements
            Karpik.Engine.Shared.Network.Core.INetworkProtocolSchema, so every Dynamic
            Runtime compilation needs the shared network contract assembly. -->
@@ -147,11 +152,6 @@
       <Reference Include="Microsoft.Extensions.Logging"
                  Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll')">
         <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll</HintPath>
-        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
-      </Reference>
-      <Reference Include="Microsoft.Extensions.Logging.Abstractions"
-                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll')">
-        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
         <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
       </Reference>
       <Reference Include="DragonECS.Karpik.Extensions"
@@ -248,7 +248,7 @@
       <!-- Dynamic mode stages managed module payloads; Static output never
            carries managed modules or a module manifest, so staging is skipped. -->
       <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
-                             Condition="'$(KarpikCompositionMode)' != 'Static' And '%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+                             Condition="'$(KarpikCompositionMode)' != 'Static' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
       <_KarpikBundleContent Include="$(TargetDir)Content\**\*" />
       <_KarpikBundleMod Include="$(TargetDir)Mods\**\*" />
       <_KarpikBundleContent Update="@(_KarpikBundleContent)"

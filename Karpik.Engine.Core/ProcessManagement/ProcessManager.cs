@@ -689,32 +689,16 @@ internal class ProcessManager : IDisposable
         TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Handler(object? sender, EventArgs e)
-        {
-            tcs.TrySetResult(true);
-        }
-
-        process.Exited += Handler;
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
         try
         {
-            if (process.HasExited)
-            {
-                return true;
-            }
-
-            Task timeoutTask = Task.Delay(timeout, cancellationToken);
-            Task completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
-            if (completedTask == tcs.Task)
-            {
-                return true;
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            return process.HasExited;
+            await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
+            return true;
         }
-        finally
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            process.Exited -= Handler;
+            return process.HasExited;
         }
     }
 
@@ -775,7 +759,7 @@ internal class ProcessManager : IDisposable
         return ReferenceEquals(Volatile.Read(ref _workerGeneration), generation);
     }
 
-    private Task ReleaseWorkerGeneration(
+    private async Task ReleaseWorkerGeneration(
         WorkerGeneration generation,
         bool disposeProcess,
         bool cleanupShadowCopies)
@@ -819,19 +803,6 @@ internal class ProcessManager : IDisposable
         }
 
         TryLifecycleCleanup(ipcServer.Dispose, "IPC server");
-        if (cleanupShadowCopies && generation.ProcessId >= 0)
-        {
-            TryLifecycleCleanup(
-                () => CleanupWorkerShadowCopies(generation.ProcessId),
-                "worker shadow copies");
-        }
-        if (disposeProcess)
-        {
-            TryLifecycleCleanup(
-                () => process?.Dispose(),
-                "worker process");
-        }
-
         if (ReferenceEquals(_ipcServer, ipcServer))
         {
             _ipcServer = null;
@@ -855,7 +826,17 @@ internal class ProcessManager : IDisposable
                 null,
                 generation.Readiness);
         }
-        return Task.WhenAll(callbacksDrained, ipcServer.WaitForListenerAsync());
+        await Task.WhenAll(callbacksDrained, ipcServer.WaitForListenerAsync()).ConfigureAwait(false);
+        if (disposeProcess)
+        {
+            TryLifecycleCleanup(
+                () => process?.Dispose(),
+                "worker process");
+        }
+        if (cleanupShadowCopies && generation.ProcessId >= 0)
+        {
+            await CleanupWorkerShadowCopiesWithRetryAsync(generation.ProcessId).ConfigureAwait(false);
+        }
     }
 
     private void TryLifecycleCleanup(Action cleanup, string resource)
@@ -981,14 +962,31 @@ internal class ProcessManager : IDisposable
         return path;
     }
 
-    private void CleanupWorkerShadowCopies(int processId)
+    private async Task CleanupWorkerShadowCopiesWithRetryAsync(int processId)
+    {
+        // Windows can retain a mapped DLL briefly after the process exits. Bound cold-path retries to 775 ms.
+        try
+        {
+            for (int delay = 25; !CleanupWorkerShadowCopies(processId) && delay <= 400; delay *= 2)
+            {
+                await Task.Delay(delay).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Failed to release worker shadow copies");
+        }
+    }
+
+    private bool CleanupWorkerShadowCopies(int processId)
     {
         var shadowRoot = Path.Combine(_bundlePath, "reload", "shadow");
         if (!Directory.Exists(shadowRoot))
         {
-            return;
+            return true;
         }
 
+        bool completed = true;
         int candidates = 0;
         foreach (string directory in Directory.EnumerateDirectories(
                      shadowRoot,
@@ -998,7 +996,7 @@ internal class ProcessManager : IDisposable
             if (++candidates > RuntimeBundleLayout.MaxTreeEntries)
             {
                 _logger.LogWarning("Worker shadow cleanup exceeded the candidate bound");
-                return;
+                return true;
             }
             try
             {
@@ -1016,9 +1014,14 @@ internal class ProcessManager : IDisposable
             }
             catch (Exception ex)
             {
+                if (ex is IOException or UnauthorizedAccessException)
+                {
+                    completed = false;
+                }
                 _logger.LogWarning(ex, "Failed to remove worker shadow directory {Directory}", directory);
             }
         }
+        return completed;
     }
 
     internal void CleanupCompletedModuleVersions(byte[] payload)
@@ -1271,20 +1274,15 @@ internal class ProcessManager : IDisposable
                 {
                     if (workerProcess is not null && IsProcessRunning(workerProcess))
                     {
-                        int processId = workerProcess.Id;
                         workerProcess.Kill(entireProcessTree: true);
                         int timeoutMilliseconds = (int)Math.Clamp(
                             _options.GracefulShutdownTimeout.TotalMilliseconds,
                             1,
                             int.MaxValue);
                         canDisposeWorker = workerProcess.WaitForExit(timeoutMilliseconds);
-                        if (canDisposeWorker)
+                        if (!canDisposeWorker)
                         {
-                            CleanupWorkerShadowCopies(processId);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Worker process {ProcessId} did not confirm exit during disposal", processId);
+                            _logger.LogWarning("Worker process {ProcessId} did not confirm exit during disposal", generation!.ProcessId);
                         }
                     }
                 }
@@ -1296,6 +1294,12 @@ internal class ProcessManager : IDisposable
                 if (canDisposeWorker)
                 {
                     workerProcess?.Dispose();
+                    if (generation is not null && generation.ProcessId >= 0)
+                    {
+                        TryLifecycleCleanup(
+                            () => CleanupWorkerShadowCopiesWithRetryAsync(generation.ProcessId).GetAwaiter().GetResult(),
+                            "worker shadow copies");
+                    }
                 }
             }
             finally

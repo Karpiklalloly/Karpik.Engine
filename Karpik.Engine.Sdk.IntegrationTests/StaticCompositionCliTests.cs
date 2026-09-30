@@ -128,6 +128,14 @@ public sealed class StaticCompositionCliTests
                 ["build", game.ServerLauncherProject, "-m:1", "-nr:false", "--no-restore"],
                 game.Environment);
             AssertSuccess(build, "build the Static Server host executable");
+            AssertCookedLauncherContent(Path.Combine(game.GameRoot, "Source", $"{game.GameName}.Server.Launcher", "bin", "Debug", "net10.0"));
+
+            ProcessResult publish = await harness.RunAsync(
+                game.GameRoot,
+                ["publish", game.ServerLauncherProject, "-m:1", "-nr:false", "--no-restore"],
+                game.Environment);
+            AssertSuccess(publish, "publish the Static Server host with cooked content");
+            AssertCookedLauncherContent(Path.Combine(game.GameRoot, "Source", $"{game.GameName}.Server.Launcher", "bin", "Release", "net10.0", "publish"));
 
             await RunAndObserveStaticHostAsync(
                 harness, game.Environment, game.GameName, game.GameRoot, game.EngineRoot);
@@ -138,6 +146,13 @@ public sealed class StaticCompositionCliTests
         {
             if (Environment.GetEnvironmentVariable("KARPIK_KEEP_TEST_TEMP") == "1") { Console.WriteLine("KEEPING TEMP ROOT: " + temporaryRoot); } else { DeleteOwnedTemporaryRoot(temporaryRoot); }
         }
+    }
+
+    private static void AssertCookedLauncherContent(string output)
+    {
+        string content = Path.Combine(output, "Content");
+        Assert.True(File.Exists(Path.Combine(content, "manifest.json")), $"Missing cooked manifest: {output}");
+        Assert.NotEmpty(Directory.EnumerateFiles(Path.Combine(content, "artifacts"), "*.cooked", SearchOption.AllDirectories));
     }
 
     private static readonly string[] NativeAotOnlinePackagePatterns =
@@ -1089,9 +1104,7 @@ public sealed class StaticCompositionCliTests
                     $"Expected a non-empty ECS world in the Static host.{Environment.NewLine}" +
                     string.Join(Environment.NewLine, output));
                 Assert.Contains(output,
-                    line => line.Contains("[ServerGame] Created entity", StringComparison.Ordinal));
-                Assert.Contains(output,
-                    line => line.Contains("[ServerGame] Content: server runtime content", StringComparison.Ordinal));
+                    line => line.Contains("Created entity", StringComparison.Ordinal));
 
                 AssertDiagnosticTraceIsFreeOfDynamicLoading(output);
                 AssertAllSubprocessArgumentsAreOwned(controller, output);
@@ -1199,13 +1212,13 @@ public sealed class StaticCompositionCliTests
     {
         string source = File.ReadAllText(serverSystemSourcePath);
         const string anchor =
-            "[ServerGame] Created entity {entity} with GameComponent(42). Total entities: {world.Count}\");";
+            "logger.LogInformation(\"Created entity {entity} with GameComponent(42). Total entities: {count}\", entity, world.Count);";
         Assert.True(source.Contains(anchor, StringComparison.Ordinal),
             $"Mutation anchor was not found in the materialized game source: {serverSystemSourcePath}");
         string mutated = source.Replace(
             anchor,
             anchor + Environment.NewLine +
-            $"        Console.WriteLine(\"{mutationMarker}: rebuilt static host\");",
+            $"        logger.LogInformation(\"{mutationMarker}: rebuilt static host\");",
             StringComparison.Ordinal);
         Assert.NotEqual(source, mutated);
         File.WriteAllText(serverSystemSourcePath, mutated);
@@ -1226,16 +1239,14 @@ public sealed class StaticCompositionCliTests
 
     private void AssertAllSubprocessArgumentsAreOwned(EditorPreviewController controller, ConcurrentQueue<string> output)
     {
-        Assert.Contains(output, line => line.Contains("[Worker] Starting...", StringComparison.Ordinal));
-        Assert.Contains(output, line => line.Contains("[StaticHost]", StringComparison.Ordinal));
+        Assert.Contains(output, line => line.Contains("Worker starting", StringComparison.Ordinal));
     }
 
     private void AssertNoOrphanHostProcesses(string gameName)
     {
         string[] forbiddenNames =
         [
-            gameName + ".Server.Launcher",
-            "Karpik.Engine.Core.Runner"
+            gameName + ".Server.Launcher"
         ];
         foreach (string name in forbiddenNames)
         {

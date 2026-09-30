@@ -280,6 +280,7 @@ public sealed class ProcessManagerLifecycleTests
         {
             oldOutputHandler(oldProcess, CreateDataReceivedEventArgs("reserved old output"));
             Assert.True(callbackReserved.Wait(TimeSpan.FromSeconds(10)));
+            manager.SetLifecycleCallbackCommitHook(null);
 
             oldProcess.Exited -= oldExitHandler;
             oldProcess.Kill(entireProcessTree: true);
@@ -289,7 +290,6 @@ public sealed class ProcessManagerLifecycleTests
             await manager.StartWorkerAsync();
             Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
 
-            manager.SetLifecycleCallbackCommitHook(null);
             resumeCallback.Set();
             await Task.Delay(200);
 
@@ -448,6 +448,90 @@ public sealed class ProcessManagerLifecycleTests
         Assert.Equal(0, ProcessSubscriberCount(workerProcess, "OutputDataReceived"));
         Assert.Equal(0, ProcessSubscriberCount(workerProcess, "ErrorDataReceived"));
         Assert.True(IsProcessHandleClosed(workerProcess));
+    }
+
+    [Fact]
+    public async Task DisposeAfterWorkerAlreadyExited_RemovesShadowLeftByFailedExitCleanup()
+    {
+        if (!OperatingSystem.IsWindows()) return; // FileShare prevents deletion on Windows.
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.OnWorkerExited += _ => exited.TrySetResult();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        Process worker = GetPrivateField<Process>(manager, "_workerProcess");
+        string shadow = Path.Combine(runtime.BundlePath, "reload", "shadow", $"{worker.Id}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(shadow);
+        using (var locked = new FileStream(Path.Combine(shadow, "Game.dll"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
+        {
+            worker.Kill(entireProcessTree: true);
+            await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(Directory.Exists(shadow));
+        }
+
+        manager.Dispose();
+
+        Assert.False(Directory.Exists(shadow));
+    }
+
+    [Fact]
+    public async Task StopWorker_RetriesShadowDeletionAfterTransientFileLock()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager();
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        Process worker = GetPrivateField<Process>(manager, "_workerProcess");
+        string shadow = Path.Combine(runtime.BundlePath, "reload", "shadow", $"{worker.Id}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(shadow);
+        Task stop;
+        using (var locked = new FileStream(Path.Combine(shadow, "Game.dll"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
+        {
+            stop = manager.StopWorkerAsync();
+            await WaitUntilAsync(() => IsProcessHandleClosed(worker));
+            await Task.Delay(100);
+        }
+        await stop;
+        Assert.False(Directory.Exists(shadow));
+    }
+
+    [Fact]
+    public async Task StopWorker_CleansShadowAfterCommittedCallbacksDrain()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(captureWorkerOutput: true);
+        using var resume = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        Process worker = GetPrivateField<Process>(manager, "_workerProcess");
+        string shadow = Path.Combine(runtime.BundlePath, "reload", "shadow", $"{worker.Id}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(shadow);
+        manager.OnWorkerOutput += line =>
+        {
+            if (line != "hold-shadow") return;
+            using var locked = new FileStream(Path.Combine(shadow, "Game.dll"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+            entered.TrySetResult();
+            Assert.True(resume.Wait(TimeSpan.FromSeconds(10)));
+        };
+        GetProcessHandler<DataReceivedEventHandler>(worker, "OutputDataReceived")(
+            worker, CreateDataReceivedEventArgs("hold-shadow"));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Task stop = manager.StopWorkerAsync();
+        try
+        {
+            await WaitUntilAsync(() => GetPrivateField<object?>(manager, "_ipcServer") is null);
+            Assert.False(stop.IsCompleted);
+        }
+        finally
+        {
+            resume.Set();
+        }
+        await stop;
+        Assert.False(Directory.Exists(shadow));
     }
 
     [Fact]

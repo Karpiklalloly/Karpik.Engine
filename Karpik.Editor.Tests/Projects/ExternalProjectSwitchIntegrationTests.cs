@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security;
 using Karpik.Editor;
@@ -9,6 +10,8 @@ using ReactiveUI.Builder;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using Xunit;
+
+[assembly: CaptureConsole]
 
 namespace Karpik.Editor.Tests.Projects;
 
@@ -50,6 +53,7 @@ public sealed class ExternalProjectSwitchIntegrationTests
             await BuildGameAsync(secondRoot, packageFeed, engineRoot);
 
             var created = new List<(string SolutionPath, ProjectRuntimeDescriptor Runtime, EditorProjectLifetime Lifetime)>();
+            var output = new ConcurrentQueue<string>();
             var contextFactory = new ActiveProjectContextFactory(
                 (solution, runtime) =>
                 {
@@ -58,6 +62,7 @@ public sealed class ExternalProjectSwitchIntegrationTests
                         solution,
                         runtime);
                     created.Add((solution.SolutionPath, runtime, lifetime));
+                    lifetime.SessionManager.OutputReceived += (_, line) => output.Enqueue(line);
                     return lifetime;
                 });
             var opener = new ProjectOpenService(
@@ -74,6 +79,7 @@ public sealed class ExternalProjectSwitchIntegrationTests
                 TestContext.Current.CancellationToken);
             Assert.True(firstOpen.IsSuccess, string.Join(Environment.NewLine, firstOpen.Diagnostics));
             await viewModel.StartServerCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
+            Assert.True(viewModel.CanAddClient, string.Join(Environment.NewLine, output));
             await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
             await viewModel.AddClientCommand.Execute().FirstAsync().ToTask(TestContext.Current.CancellationToken);
             EditorProjectLifetime firstLifetime = Assert.Single(created).Lifetime;
@@ -213,6 +219,11 @@ public sealed class ExternalProjectSwitchIntegrationTests
         string source = Path.Combine(repositoryRoot, "templates", "Karpik.Game");
         string destination = Path.Combine(temporaryRoot, name);
         CopyDirectory(source, destination);
+        string globalJson = Path.Combine(destination, "global.json");
+        File.WriteAllText(globalJson, File.ReadAllText(globalJson)
+            .Replace("KarpikSdkVersionPlaceholder", "0.6.0-local", StringComparison.Ordinal));
+        File.WriteAllText(Path.Combine(destination, "Directory.Build.props"),
+            "<Project><PropertyGroup><KarpikCompositionMode>Dynamic</KarpikCompositionMode></PropertyGroup></Project>");
         File.WriteAllText(
             Path.Combine(destination, "KarpikGame.slnx"),
             """
@@ -357,7 +368,8 @@ public sealed class ExternalProjectSwitchIntegrationTests
         Assert.False(
             Directory.Exists(path)
             && Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories).Any(),
-            $"Reload tree retained artifacts: {path}");
+            $"Reload tree retained artifacts: {path}{Environment.NewLine}" +
+            (Directory.Exists(path) ? string.Join(Environment.NewLine, Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories).Take(20).Select(entry => $"{entry} [{File.GetAttributes(entry)}]")) : string.Empty));
     }
 
     private static void AssertRepresentativeBundleFilesAreExclusivelyOpenable(
