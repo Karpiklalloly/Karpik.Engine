@@ -1,6 +1,9 @@
 param(
-    [Parameter(Mandatory)]
-    [string] $InstallationRoot,
+    [string] $InstallationRoot = "",
+
+    [string] $SdkVersion = "",
+
+    [string] $EngineVersion = "0.6.0-dev",
 
     [string] $Output = (Join-Path $PSScriptRoot "..\artifacts\distribution")
 )
@@ -18,8 +21,24 @@ $ErrorActionPreference = "Stop"
     published outward; copy the bundles to other machines and run setup.
     Install order on the target machine: 1. SDK bundle, 2. Launcher+Editor.
 .EXAMPLE
+    ./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"
+.EXAMPLE
     ./_scripts/New-KarpikDistribution.ps1 -InstallationRoot "$env:LOCALAPPDATA\Karpik\Engines\0.6.0-dev-xyz"
 #>
+
+if ([string]::IsNullOrWhiteSpace($InstallationRoot)) {
+    if ([string]::IsNullOrWhiteSpace($SdkVersion)) {
+        throw "Provide either -InstallationRoot or -SdkVersion (with optional -EngineVersion)."
+    }
+    Write-Host "Building engine installation (SDK $SdkVersion, engine $EngineVersion)..."
+    $built = & (Join-Path $PSScriptRoot "Update-KarpikSdk.ps1") -SdkVersion $SdkVersion -EngineVersion $EngineVersion |
+        Where-Object { $_ -is [string] -and (Test-Path -LiteralPath (Join-Path $_ "engine-installation.json") -PathType Leaf) } |
+        Select-Object -Last 1
+    if ([string]::IsNullOrWhiteSpace($built)) {
+        throw "Update-KarpikSdk.ps1 did not report an installation directory."
+    }
+    $InstallationRoot = $built
+}
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $InstallationRoot = [IO.Path]::GetFullPath($InstallationRoot)

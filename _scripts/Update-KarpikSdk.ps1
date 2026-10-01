@@ -1,18 +1,33 @@
+param(
+    [string] $SdkVersion = "",
+    [string] $EngineVersion = "0.6.0-dev",
+    [string] $Output = ""
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $PublishStopwatch = [Diagnostics.Stopwatch]::StartNew()
 
 # Change this value when the MSBuild SDK version changes.
 $SdkVersionBase = "0.6.0-local"
-$SdkVersion = "$SdkVersionBase-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+if ([string]::IsNullOrWhiteSpace($SdkVersion)) {
+    $SdkVersion = "$SdkVersionBase-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+}
 
 # Development engine versions are content-hash qualified by the packager.
-$EngineVersion = "0.6.0-dev"
+if ([string]::IsNullOrWhiteSpace($EngineVersion)) {
+    $EngineVersion = "0.6.0-dev"
+}
 
 $RepositoryRoot = $pwd
 $PackagerProject = Join-Path $RepositoryRoot "Karpik.Engine.Packager\Karpik.Engine.Packager.csproj"
 $EnvironmentModule = Join-Path $RepositoryRoot "Karpik.Sdk.Environment.psm1"
-$KarpikHome = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Karpik"
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    $KarpikHome = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Karpik"
+}
+else {
+    $KarpikHome = [IO.Path]::GetFullPath($Output)
+}
 $EnginesRoot = Join-Path $KarpikHome "Engines"
 $ArchiveRoot = Join-Path $KarpikHome "ArchivedEngines"
 $NuGetSourceName = "KarpikEngine-$SdkVersion"
@@ -220,3 +235,4 @@ Write-Host "KarpikEngine SDK update completed."
 Write-Host "Publication duration: $($PublishStopwatch.Elapsed.ToString('hh\:mm\:ss\.fff'))"
 Write-Host "SDK version: $SdkVersion"
 Write-Host "Installation: $installationRoot"
+Write-Output $installationRoot
