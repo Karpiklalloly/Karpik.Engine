@@ -93,6 +93,7 @@
   <Project Path="Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj" />
   <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
   <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
+  <Project Path="Karpik.Engine.Setup/Karpik.Engine.Setup.csproj" />
   <Project Path="Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj" />
   <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
   <Project Path="Karpik.Engine.Templates/Karpik.Engine.Templates.csproj" />
