@@ -1,0 +1,17 @@
+﻿{
+  "Components": [
+    {
+      "$type": "Position",
+      "X": 10.0,
+      "Y": 20.0,
+      "Z": -15.0
+    },
+    {
+      "$type": "Health",
+      "Value": 255.0
+    },
+    {
+      "$type": "Player"
+    }
+  ]
+}

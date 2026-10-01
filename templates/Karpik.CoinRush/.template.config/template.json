@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "KarpikEngine",
+  "classifications": [
+    "Karpik",
+    "Game",
+    "Sample"
+  ],
+  "identity": "Karpik.CoinRush",
+  "name": "Karpik CoinRush",
+  "shortName": "karpik-coinrush",
+  "sourceName": "SSSuperGame",
+  "symbols": {
+    "karpikSdkVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "Exact Karpik.Engine.Sdk version for the generated game.",
+      "replaces": "KarpikSdkVersionPlaceholder",
+      "defaultValue": "0.6.0-local"
+    }
+  },
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".template.config/**/*",
+            "**/bin/**",
+            "**/obj/**"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+<Project Sdk="Karpik.Engine.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <KarpikProjectKind>Test</KarpikProjectKind>
+    <KarpikSide>Client</KarpikSide>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Source\SSSuperGame.Client\SSSuperGame.Client.csproj" />
+    <ProjectReference Include="..\..\Source\SSSuperGame.Shared\SSSuperGame.Shared.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <KarpikTestSdkVersion>0.6.0-local-20260926-230753</KarpikTestSdkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <_KarpikTestEngineSdk Include="$(LOCALAPPDATA)/Karpik/Engines/*/sdk/Karpik.Engine.Sdk.$(KarpikTestSdkVersion).nupkg" />
+  </ItemGroup>
+  <Target Name="ResolveKarpikTestEngine" BeforeTargets="ResolveAssemblyReferences">
+    <Warning Condition="@(_KarpikTestEngineSdk->Count()) != 1"
+             Text="KarpikTestEngine: expected exactly one engine installation for SDK $(KarpikTestSdkVersion), found @(_KarpikTestEngineSdk->Count())." />
+    <PropertyGroup>
+      <_KarpikTestSdkNupkg>@(_KarpikTestEngineSdk)</_KarpikTestSdkNupkg>
+      <_KarpikTestSdkDir>$([System.IO.Path]::GetDirectoryName('$(_KarpikTestSdkNupkg)'))</_KarpikTestSdkDir>
+      <KarpikTestEngineRoot>$([System.IO.Path]::GetDirectoryName('$(_KarpikTestSdkDir)'))</KarpikTestEngineRoot>
+      <KarpikTestEngineShared>$([System.IO.Path]::Combine('$(KarpikTestEngineRoot)', 'shared'))</KarpikTestEngineShared>
+    </PropertyGroup>
+    <ItemGroup>
+      <Reference Include="DragonECS">
+        <HintPath>$(KarpikTestEngineShared)/DragonECS.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Autofac">
+        <HintPath>$(KarpikTestEngineShared)/Autofac.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Network.Shared.Core">
+        <HintPath>$(KarpikTestEngineShared)/Network.Shared.Core.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Physics2D.Core">
+        <HintPath>$(KarpikTestEngineShared)/Physics2D.Core.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Karpik.Engine.Core">
+        <HintPath>$(KarpikTestEngineShared)/Karpik.Engine.Core.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Spatial2D">
+        <HintPath>$(KarpikTestEngineShared)/Spatial2D.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="OpenTK.Mathematics">
+        <HintPath>$(KarpikTestEngineShared)/OpenTK.Mathematics.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="LiteNetLib">
+        <HintPath>$(KarpikTestEngineShared)/LiteNetLib.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Microsoft.Extensions.Logging.Abstractions">
+        <HintPath>$(KarpikTestEngineShared)/Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Karpik.Content.Runtime">
+        <HintPath>$(NuGetPackageRoot)karpik.engine.sdk/$(KarpikTestSdkVersion)/tools/net10.0/content/Karpik.Content.Runtime.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Karpik.Content.Core">
+        <HintPath>$(NuGetPackageRoot)karpik.engine.sdk/$(KarpikTestSdkVersion)/tools/net10.0/content/Karpik.Content.Core.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <KarpikTestModule Include="AssetManagement.Core;DebugModule;ECS.Core;Graphics.Core;Graphics.OpenGL;Input;LoggerModule;Modding.Core;Modding.Lua;Network.Client.Core;Network.Client.LiteNetLib;Network.Server.Core;Network.Server.LiteNetLib;Network.Shared.LiteNetLib;Physics2D.Aether2D;Tween.Core;Window.Core;Window.Sdl2" />
+      <Reference Include="@(KarpikTestModule)">
+        <HintPath>$(KarpikTestEngineRoot)/modules/%(Identity)/%(Identity).dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+</Project>

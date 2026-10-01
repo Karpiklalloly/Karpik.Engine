@@ -1,0 +1,47 @@
+﻿<Project Sdk="Karpik.Engine.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <KarpikProjectKind>Tool</KarpikProjectKind>
+    <KarpikSide>Server</KarpikSide>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="..\SSSuperGame.Launcher\EngineLauncher.cs" Link="EngineLauncher.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="StaticEntry.cs"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
+    <ProjectReference Include="..\SSSuperGame.Server\SSSuperGame.Server.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+    <ProjectReference Include="..\SSSuperGame.Shared\SSSuperGame.Shared.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+    <Content Include="..\SSSuperGame.Server\bin\$(Configuration)\$(TargetFramework)\Content\manifest.json"
+             Link="Content\manifest.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
+    <Content Include="..\SSSuperGame.Server\bin\$(Configuration)\$(TargetFramework)\karpik-bundle\Content\artifacts\**\*"
+             Link="Content\artifacts\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
+  </ItemGroup>
+
+  <Target Name="_KarpikEnableStaticRuntimeReference"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <ItemGroup>
+      <ProjectReference>
+        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+        <Private>true</Private>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
+</Project>

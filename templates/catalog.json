@@ -6,6 +6,13 @@
       "description": "Creates a Karpik game solution.",
       "shortName": "karpik-game",
       "packageId": "Karpik.Engine.Templates"
+    },
+    {
+      "id": "karpik-coinrush",
+      "name": "Karpik CoinRush",
+      "description": "Creates a working multiplayer CoinRush sample game.",
+      "shortName": "karpik-coinrush",
+      "packageId": "Karpik.Engine.Templates"
     }
   ]
 }

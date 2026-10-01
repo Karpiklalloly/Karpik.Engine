@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Source/">
+    <Project Path="Source/SSSuperGame.Client/SSSuperGame.Client.csproj" />
+    <Project Path="Source/SSSuperGame.Client.Launcher/SSSuperGame.Client.Launcher.csproj" />
+    <Project Path="Source/SSSuperGame.Server/SSSuperGame.Server.csproj" />
+    <Project Path="Source/SSSuperGame.Server.Launcher/SSSuperGame.Server.Launcher.csproj" />
+    <Project Path="Source/SSSuperGame.Shared/SSSuperGame.Shared.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/SSSuperGame.Tests/SSSuperGame.Tests.csproj" />
+  </Folder>
+</Solution>

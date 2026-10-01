@@ -1,0 +1,12 @@
+{
+  "Title": "COIN RUSH",
+  "Waiting": "Waiting for players (need 2)...",
+  "Countdown": "Get ready!",
+  "Finished": "Time!",
+  "Draw": "Draw!",
+  "Player0": "P1",
+  "Player1": "P2",
+  "ControlsHint": "A/D or Arrows: move, Space/W/Up: jump",
+  "RestartHint": "R: request restart (debug)",
+  "NewRoundHint": "Press Enter for next round"
+}
