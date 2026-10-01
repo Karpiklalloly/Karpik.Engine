@@ -63,7 +63,7 @@ kanban-plugin: board
 	  - Проверка: Runner 98/98, Tooling 41/41, Packager 17/17, Configurator 9/9 + `--validate`, editor resolver 5/5, внешний smoke на свежем layout-v2 installed Runner 1/1; прежняя ошибка `Not found service ... EcsDefaultWorld` отсутствует.
 - [x] **Milestone 8B — доказать полноценный внешний runtime**
  	  - Внешняя игра запускает server + два clients, использует ECS и content, отдаёт snapshot и проходит hot reload с непустым state.
- 	  - Тест проверяет сохранение ECS state: TotalEntityCount после reload = before + 1 (state restored + новая entity от OnConfigureComplete), GameComponent(42) присутствует в снимках до и после.
+	  - Тест проверяет сохранение ECS state: TotalEntityCount после reload равен before при идемпотентной инициализации восстановленного мира; GameComponent(42) присутствует в снимках до и после.
  	  - Вывод обоих Client собирается и проверяется на отсутствие Engine crashed.
  	  - Чтение content верифицируется: Content/runtime.txt выводится в лог и проверяется тестом.
  	  - Добавлен switch между двумя проектами: второй game материалзируется, строится, проходит полный multi-worker цикл.
@@ -80,11 +80,11 @@ kanban-plugin: board
 - [x] **Milestone 8E — завершить модернизацию Configurator и `Network.Codegen`**
 	  - Engine module catalog сохранён; оставшиеся RPC namespaces переведены в `Karpik.Engine.Generated`. Проверки компиляции с внешними assembly identities и полный Network.Codegen suite проходят 24/24 (2026-09-30).
 	  - Не менять уже завершённую engine-only генерацию `Generated/KarpikModuleCatalog.props` и `Generated/ModuleLoader.cs` иначе чем через Configurator.
-- [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
+- [x] **Milestone 8F — пройти полную приёмку и обновить документацию**
 	  - Подтверждено 2026-09-30: Runner 140/140, Editor с реальным switch 142 passed/7 skips, packed SDK 24 passed/3 skips, solution build без ошибок; Static/Dynamic CLI, content/publish, ECS restart и чистый shutdown проходят.
 	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, обновление индекса кода.
 	  - Desktop smoke пройден 2026-10-01: Release Launcher → installed editor A → server + два clients → File/Open B → compatible installed editor B. Старые PID завершены; B отрисовал кадр и остановлен. Исходные Content и настройки пользователя сохранены.
-	  - Остался индекс кода: strict symbol gate после единственного repair retry блокирует четыре неоднозначные baseline overload identities; candidate/диагностика сохранены, опубликованный граф не изменён.
+	  - Индекс кода обновлён: 4 080 узлов, 6 003 связи, 10 слоёв, 12 шагов обзора. Четыре legacy overload families подтверждены по AST, все ID сохранены; strict merge/save gates проходят. Временный helper восстановлен, 17 отрицательных проверок сохраняют отказ.
 	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles; ExecPlan можно закрыть.
 
 ## Не входит в этот ExecPlan
