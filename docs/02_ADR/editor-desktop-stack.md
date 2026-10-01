@@ -72,6 +72,12 @@ Rejected as the default. ReactiveUI better fits composed editor events such as d
 - Start one server and at least two clients, verify distinct processes and two server-side connections, switch snapshot source between all sessions, then stop the server and verify cascade shutdown.
 - Open a second external game through the real project coordinator while the first server and two clients are active; verify all old processes, reload artifacts, and module-file locks are released before the second project is published, and verify runners remain installation-owned while bundles remain game-owned.
 
+## Recorded acceptance
+
+On 2026-09-30, the complete Editor suite passed 142 tests with seven explicit capability skips, including real external-project replacement and server/two-client teardown. On 2026-10-01, Windows desktop smoke verified workspace persistence, UI start/stop/build and Debug/Release publish, session-selected Hierarchy/Inspector, and Release Launcher handoff between two distinct SDK installations. All observed old worker PIDs exited, both games' source Content remained unchanged, and original user settings were restored. This records Windows delivery evidence; cross-platform and runtime-allocation measurements above remain separate requirements.
+
+See `plans/0.6-tail-acceptance-execplan.md` for detailed results and the remaining code-graph publication gate.
+
 ## Links
 
 - Related roadmap: [[../04_Roadmap/karpikengine-1.0-roadmap]]

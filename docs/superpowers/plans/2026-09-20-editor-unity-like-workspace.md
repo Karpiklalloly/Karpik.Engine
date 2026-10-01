@@ -39,7 +39,7 @@
 - [x] (2026-09-20) Закрыть review findings по сохранению Custom, legacy migration, split/floating Dock wrappers и nullable загрузке.
 - [x] (2026-09-30) Полный editor suite: 141 passed, 8 явных capability/opt-in skips, 0 failed. Editor build: 0 warnings/errors. Устаревшие ожидания build configuration и регистрации console logger исправлены в fixtures.
 - [x] (2026-09-30) Полный editor suite с реальным переключением двух внешних проектов: 142 passed, 7 capability skips, 0 failed (`artifacts/validation/editor-verified.trx`).
-- [ ] (2026-09-30) Ручная приёмка: подтверждены первый запуск Compact + Unity, Scene/Game/Preview и Project/Console, перестановка вкладок и сохранение порядка/размеров после перезапуска, Debug/Custom и сохранение плотности. Полный UI runtime/build/publish и выбор backend в Hierarchy/Inspector ещё не подтверждены. Оригинальные настройки пользователя восстановлены.
+- [x] (2026-10-01) Ручная приёмка завершена: первый запуск Compact + Unity, Scene/Game/Preview и Project/Console, перестановка вкладок, восстановление порядка/размеров, Debug/Custom и плотность; server + два clients, Stop all, Build, Debug/Release Publish. Server Hierarchy/Inspector показывают Entity 1 и GameComponent.Value=42; пустой client очищает обе панели, возврат к server восстанавливает сущность. Source Content не изменён, исходные настройки пользователя восстановлены и проверены по hash.
 
 ## Surprises & Discoveries
 
@@ -73,7 +73,7 @@
 
 Implementation outcome: workspace settings, Unity/Debug/Custom dock presets, custom-layout migration, Editor Settings, compact graphite shell, toolbar commands and native hotkeys реализованы. Scoped reviews approved all implementation slices; follow-up fixes закрыли Custom seeding/preservation, split/floating/pinned Dock wrappers, legacy Scene/Game titles, failed-Custom recovery, density-only apply и nullable loading. Custom layout is persisted separately and restored through the MainWindow selection path.
 
-Validation outcome (2026-09-30): the full editor build succeeds, and the complete test suite passes 142 tests with seven explicit capability skips, including real server/two-client teardown and external-project replacement. Desktop checks confirm initial Compact/Unity layout, tab order and splitter persistence, Debug/Custom restoration, and density persistence. Full UI runtime/build/publish and Hierarchy/Inspector backend selection remain open; Task 5 is not declared complete.
+Validation outcome (2026-10-01): the full editor build succeeds, and the complete test suite passes 142 tests with seven explicit capability skips, including real server/two-client teardown and external-project replacement. Desktop checks confirm initial Compact/Unity layout, tab order and splitter persistence, Debug/Custom restoration, density persistence, UI server/two-client start and Stop all, Build, Debug/Release Publish, and session-selected Hierarchy/Inspector. Selecting the server exposes Entity 1 and GameComponent.Value=42; the empty client clears both panels and returning to the server restores the entity/component. Source Content is unchanged and original settings are restored. Task 5 acceptance is complete; local evidence is `artifacts/validation/desktop-tail-20261001.md`.
 
 ## Context and Orientation
 
@@ -390,7 +390,7 @@ git commit -m "feat(editor): add compact Unity-like shell"
 - Modify: `docs/04_Roadmap/kanban-0.6-editor.md` only for completed scope/checkmarks after validation.
 - Modify: `docs/superpowers/plans/2026-09-20-editor-unity-like-workspace.md` to record progress and results.
 
-- [ ] **Step 1: Run the complete editor test project**
+- [x] **Step 1: Run the complete editor test project**
 
 ```powershell
 dotnet test Karpik.Editor.Tests/Karpik.Editor.Tests.csproj -m:1 -nr:false
@@ -398,7 +398,7 @@ dotnet test Karpik.Editor.Tests/Karpik.Editor.Tests.csproj -m:1 -nr:false
 
 Expected: all existing editor tests and new layout/settings tests pass.
 
-- [ ] **Step 2: Run the editor build**
+- [x] **Step 2: Run the editor build**
 
 ```powershell
 dotnet build Karpik.Editor/Karpik.Editor.csproj -m:1 -nr:false
@@ -406,7 +406,7 @@ dotnet build Karpik.Editor/Karpik.Editor.csproj -m:1 -nr:false
 
 Expected: zero errors and no new runtime project references.
 
-- [ ] **Step 3: Execute the manual workspace scenario**
+- [x] **Step 3: Execute the manual workspace scenario**
 
 From the repository root, launch the editor and verify:
 
@@ -419,11 +419,11 @@ From the repository root, launch the editor and verify:
 7. switch sessions and confirm Hierarchy/Inspector still follow the selected backend;
 8. verify no new files appear under the game Content directory and no runtime process lifecycle changes occur.
 
-- [ ] **Step 4: Record results in the living plan**
+- [x] **Step 4: Record results in the living plan**
 
 Update `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` with command output summaries and any layout compatibility findings before closing the plan.
 
-- [ ] **Step 5: Commit final documentation updates**
+- [x] **Step 5: Commit final documentation updates**
 
 ```powershell
 git add docs/04_Roadmap/kanban-0.6-editor.md docs/superpowers/plans/2026-09-20-editor-unity-like-workspace.md

@@ -83,7 +83,8 @@ kanban-plugin: board
 - [ ] **Milestone 8F — пройти полную приёмку и обновить документацию**
 	  - Подтверждено 2026-09-30: Runner 140/140, Editor с реальным switch 142 passed/7 skips, packed SDK 24 passed/3 skips, solution build без ошибок; Static/Dynamic CLI, content/publish, ECS restart и чистый shutdown проходят.
 	  - Все unit/integration tests, `dotnet build KarpikEngine.slnx -m:1 -nr:false --no-restore`, `git diff --check`, обновление индекса кода.
-	  - Desktop smoke: Launcher → project A → server + два clients → switch → project B → compatible editor.
+	  - Desktop smoke пройден 2026-10-01: Release Launcher → installed editor A → server + два clients → File/Open B → compatible installed editor B. Старые PID завершены; B отрисовал кадр и остановлен. Исходные Content и настройки пользователя сохранены.
+	  - Остался индекс кода: strict symbol gate после единственного repair retry блокирует четыре неоднозначные baseline overload identities; candidate/диагностика сохранены, опубликованный граф не изменён.
 	  - Результат: нет orphan processes, IPC, watchers, locked files или смешанных bundles; ExecPlan можно закрыть.
 
 ## Не входит в этот ExecPlan
