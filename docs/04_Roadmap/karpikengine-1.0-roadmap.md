@@ -263,7 +263,7 @@ Allocation gates для runtime subsystems ведутся в их собстве
 
 ## 0.6 2D Runtime Core
 
-Цель: сделать удобное и стабильное 2D ядро: renderer, camera, input, content pipeline.
+Цель: завершить текущий SDK/content/editor workflow и правила координат. Новые возможности renderer, input, базовых утилит, атласов и камер перенесены в 0.7.
 
 ### Basic Editor Foundation
 
@@ -289,6 +289,40 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] минимизация precision issues;
   - [ ] documented coordinate rules.
 - [ ] Если Physics2D backend остается float-based в 1.0, явно задокументировать boundary и вынести full-double physics в post-1.0.
+
+### Отложено до 0.7
+
+Renderer façade/API/diagnostics, рендеринг текста, дальнейшее развитие Camera2D и build-time sprite atlases перенесены в 0.7. Существующие возможности renderer, Camera2D и keyboard/mouse input сохраняются в 0.6.
+
+### Content Pipeline Base
+
+- [ ] Asset manifest.
+- [ ] Typed asset handles.
+- [ ] Asset dependency graph.
+- [ ] Stable asset IDs/references needed by scenes/prefabs.
+- [ ] Processors for:
+  - [ ] textures;
+  - [ ] fonts;
+  - [ ] shaders;
+  - [ ] data/json;
+  - [ ] tilemaps.
+- [ ] CLI command for asset build.
+- [ ] Asset validation.
+- [ ] Hot reload notification.
+- [ ] Asset dependency invalidation.
+
+### Done Criteria
+
+- [ ] Можно запустить и проверить 2D игру с существующими camera/sprites/text/keyboard/mouse API.
+- [ ] Есть typed asset handles и stable references.
+- [ ] Существующий keyboard/mouse snapshot input не аллоцирует в steady state.
+- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state.
+
+## 0.7 Authoring Content
+
+Цель: завершить перенесённые из 0.6 renderer/input/runtime utilities и сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
+
+Перенос согласован 2026-10-01. Координаты, оставшиеся задачи editor и приёмка текущей версии остаются в 0.6. Доска перенесённых задач: [0.7 — Runtime Extensions](kanban-0.7-runtime-extensions.md).
 
 ### Renderer Facade
 
@@ -364,23 +398,6 @@ Allocation gates для runtime subsystems ведутся в их собстве
 - [ ] No-GC steady-state rendering.
 - [ ] Fallback glyph diagnostics.
 
-### Content Pipeline Base
-
-- [ ] Asset manifest.
-- [ ] Typed asset handles.
-- [ ] Asset dependency graph.
-- [ ] Stable asset IDs/references needed by scenes/prefabs.
-- [ ] Processors for:
-  - [ ] textures;
-  - [ ] fonts;
-  - [ ] shaders;
-  - [ ] data/json;
-  - [ ] tilemaps.
-- [ ] CLI command for asset build.
-- [ ] Asset validation.
-- [ ] Hot reload notification.
-- [ ] Asset dependency invalidation.
-
 ### Input
 
 - [x] Перевести input module на no-GC snapshot API.
@@ -431,20 +448,7 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] tile grid debug;
   - [ ] camera/debug overlay integration.
 
-### Done Criteria
 
-- [ ] Можно сделать 2D игру с camera/sprites/text/input.
-- [ ] Renderer удобнее прямого command buffer.
-- [ ] Есть typed asset handles и stable references.
-- [ ] Input не аллоцирует в steady state.
-- [ ] Есть renderer diagnostics.
-- [ ] Есть save/config foundation.
-- [ ] Есть примеры renderer/camera/text/input.
-- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state.
-
-## 0.7 Authoring Content
-
-Цель: сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
 
 ### Scenes
 
@@ -507,6 +511,12 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] stream state.
 
 ### Done Criteria
+
+- [ ] Renderer удобнее прямого command buffer.
+- [ ] Есть renderer diagnostics.
+- [ ] Есть save/config foundation.
+- [ ] Есть примеры renderer/camera/text/input.
+- [ ] Есть gamepad lifecycle, actions/bindings и сохраняемые input profiles без выделений в steady state.
 
 - [ ] Можно описать сцену ассетом.
 - [ ] Можно создавать prefab entities.
