@@ -263,18 +263,20 @@ Allocation gates для runtime subsystems ведутся в их собстве
 
 ## 0.6 2D Runtime Core
 
-Цель: завершить текущий SDK/content/editor workflow и правила координат. Новые возможности renderer, input, базовых утилит, атласов и камер перенесены в 0.7.
+Цель: закрыть SDK/content workflow acceptance (выполнено, см. Done Criteria). Весь остаток, включая базовый editor, перенесён в 0.7 решением разработчика 2026-10-01: игру собрать можно (SSSuperGame), а Scene/Game views, Asset Browser на stable IDs, tilemap-процессор, content hot reload notification, dependency invalidation и 2D-math investigation доделываются в 0.7.
 
 ### Basic Editor Foundation
 
-- [ ] Отдельное editor-приложение поверх client tooling, не влияющее на runtime hot paths.
+- [x] Отдельное editor-приложение поверх client tooling, не влияющее на runtime hot paths.
 - [x] Выбран desktop stack: Avalonia 12 + Dock 12 + ReactiveUI; ImGui остаётся runtime/debug overlay. См. [ADR](../02_ADR/editor-desktop-stack.md).
-- [ ] Первый срез до content pipeline: открыть существующий проект, восстановить dock layout, запустить/остановить preview, просмотреть Console/log, Hierarchy/entities и read-only ECS Inspector.
-- [ ] Первый срез передаёт bounded runtime snapshots и не читает live ECS storage; он не включает Asset Browser, импорт ассетов, scene authoring или изменение компонентов.
-- [ ] После content pipeline: Project/Asset Browser работает со stable asset IDs и manifest.
-- [ ] Dockable Scene view и Game view развиваются после готовности первого среза; редактирование компонентов и scene authoring остаются задачами 0.7/1.1.
+- [x] Первый срез до content pipeline: открыть существующий проект, восстановить dock layout, запустить/остановить preview, просмотреть Console/log, Hierarchy/entities и read-only ECS Inspector.
+- [x] Первый срез передаёт bounded runtime snapshots и не читает live ECS storage; он не включает Asset Browser, импорт ассетов, scene authoring или изменение компонентов.
+- [ ] После content pipeline: Project/Asset Browser работает со stable asset IDs и manifest. → перенесено в 0.7.
+- [ ] Dockable Scene view и Game view развиваются после готовности первого среза; редактирование компонентов и scene authoring остаются задачами 0.7/1.1. → перенесено в 0.7 (Scene/Game сейчас заглушки, см. `EditorDockFactory.cs`).
 
 ### 2D Math
+
+Перенесено в 0.7 целиком решением разработчика 2026-10-01 (ни один пункт не закрыт в коде):
 
 - [ ] Провести investigation текущей Physics2D backend/libraries на поддержку `double`.
 - [ ] В runtime использовать `double` для:
@@ -296,33 +298,47 @@ Renderer façade/API/diagnostics, рендеринг текста, дальне�
 
 ### Content Pipeline Base
 
-- [ ] Asset manifest.
-- [ ] Typed asset handles.
-- [ ] Asset dependency graph.
-- [ ] Stable asset IDs/references needed by scenes/prefabs.
-- [ ] Processors for:
-  - [ ] textures;
-  - [ ] fonts;
-  - [ ] shaders;
-  - [ ] data/json;
-  - [ ] tilemaps.
-- [ ] CLI command for asset build.
-- [ ] Asset validation.
-- [ ] Hot reload notification.
-- [ ] Asset dependency invalidation.
+Закрыто в 0.6 (Content 111/111, manifest + 8 cooked файлов на Static launcher, `ContentBuildCoordinator` валидирует зависимости):
+
+- [x] Asset manifest.
+- [x] Typed asset handles.
+- [x] Asset dependency graph.
+- [x] Stable asset IDs/references needed by scenes/prefabs.
+- [x] Processors for:
+  - [x] textures;
+  - [x] fonts;
+  - [x] shaders;
+  - [x] data/json;
+  - [ ] tilemaps. → перенесено в 0.7 (процессора нет, 0 хитов `Tilemap` в `Content.*`).
+- [x] CLI command for asset build.
+- [x] Asset validation.
+- [ ] Hot reload notification. → перенесено в 0.7 (в `Content.*` только engine `RestartWorker`, content-нотификации нет).
+- [ ] Asset dependency invalidation. → перенесено в 0.7 (есть валидация зависимостей, инкрементальной инвалидации нет).
 
 ### Done Criteria
 
-- [ ] Можно запустить и проверить 2D игру с существующими camera/sprites/text/keyboard/mouse API.
-- [ ] Есть typed asset handles и stable references.
-- [ ] Существующий keyboard/mouse snapshot input не аллоцирует в steady state.
-- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state.
+Закрыто 2026-10-01 решением разработчика: игра собирается (SSSuperGame: Client/Server/Shared + Content). Пункт про базовый editor перенесён в 0.7.
+
+- [x] Можно запустить и проверить 2D игру с существующими camera/sprites/text/keyboard/mouse API.
+- [x] Есть typed asset handles и stable references.
+- [x] Существующий keyboard/mouse snapshot input не аллоцирует в steady state.
+- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state. → перенесено в 0.7 (Scene/Game сейчас заглушки).
 
 ## 0.7 Authoring Content
 
 Цель: завершить перенесённые из 0.6 renderer/input/runtime utilities и сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
 
-Перенос согласован 2026-10-01. Координаты, оставшиеся задачи editor и приёмка текущей версии остаются в 0.6. Доска перенесённых задач: [0.7 — Runtime Extensions](kanban-0.7-runtime-extensions.md).
+Перенос согласован 2026-10-01 и расширен решением разработчика 2026-10-01 (остаток 0.6 — см. раздел ниже). Приёмка 0.6 закрыта через Done Criteria. Канбан-доски удалены 2026-10-01 как дубли roadmap; полный перечень перенесённого — в разделе «Перенесено из 0.6» ниже.
+
+### Перенесено из 0.6 (2026-10-01)
+
+- [ ] Editor: Project/Asset Browser на stable asset IDs и manifest.
+- [ ] Editor: Dockable Scene view и Game view (сейчас заглушки `"пока недоступно"` в `EditorDockFactory.cs`); редактирование компонентов и scene authoring — 0.7/1.1.
+- [ ] Editor Done-критерий 0.6: базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state — закрывается после двух пунктов выше.
+- [ ] Content: tilemap-процессор.
+- [ ] Content: hot reload notification (content → runtime).
+- [ ] Content: asset dependency invalidation (инкрементальная, сейчас только валидация).
+- [ ] 2D Math: investigation Physics2D backend под `double`, `double`-координаты, camera-relative render boundary и документированные правила (или явный fallback в post-1.0).
 
 ### Renderer Facade
 
