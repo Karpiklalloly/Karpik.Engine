@@ -71,15 +71,13 @@ foreach ($bundle in @("sdk", "editor-launcher")) {
 Write-Host "Publishing setup executable..."
 $setupPublish = Join-Path ([IO.Path]::GetTempPath()) ("karpik-setup-pub-" + [Guid]::NewGuid().ToString("N"))
 & dotnet publish (Join-Path $RepositoryRoot "Karpik.Engine.Setup\Karpik.Engine.Setup.csproj") `
-    -c Release -r win-x64 --self-contained -p:PublishSingleFile=true `
-    -m:1 -nr:false -o $setupPublish
+    -c Release -m:1 -nr:false -o $setupPublish
 if ($LASTEXITCODE -ne 0) { throw "Setup publish failed." }
 
 Write-Host "Publishing launcher..."
 $launcherPublish = Join-Path ([IO.Path]::GetTempPath()) ("karpik-launcher-pub-" + [Guid]::NewGuid().ToString("N"))
 & dotnet publish (Join-Path $RepositoryRoot "Karpik.Launcher\Karpik.Launcher.csproj") `
-    -c Release -r win-x64 --self-contained -p:PublishSingleFile=true `
-    -m:1 -nr:false -o $launcherPublish
+    -c Release -m:1 -nr:false -o $launcherPublish
 if ($LASTEXITCODE -ne 0) { throw "Launcher publish failed." }
 
 try {
@@ -100,7 +98,8 @@ try {
         }
     }
     $sdkBundle = Join-Path $DistRoot "sdk"
-    Copy-Item -LiteralPath $setupExe -Destination (Join-Path $sdkBundle "setup.exe") -Force
+    Copy-Item -Path (Join-Path $setupPublish "*") -Destination $sdkBundle -Recurse -Force -Exclude "*.pdb"
+    if (-not (Test-Path -LiteralPath (Join-Path $sdkBundle "setup.exe") -PathType Leaf)) { throw "Setup publish produced no setup.exe." }
     Compress-Archive -Path (Join-Path $sdkStage "*") -DestinationPath (Join-Path $sdkBundle "sdk-payload.zip") -Force
     Remove-Item -LiteralPath $sdkStage -Recurse -Force
 
@@ -110,17 +109,14 @@ try {
     Copy-Item -LiteralPath (Join-Path $InstallationRoot "editor") -Destination (Join-Path $editorStage "editor") -Recurse -Force
     Set-Content -LiteralPath (Join-Path $editorStage "editor-version.txt") -Value $manifest.engineVersion -NoNewline
     $editorBundle = Join-Path $DistRoot "editor-launcher"
-    Copy-Item -LiteralPath $setupExe -Destination (Join-Path $editorBundle "setup.exe") -Force
+    Copy-Item -Path (Join-Path $setupPublish "*") -Destination $editorBundle -Recurse -Force -Exclude "*.pdb"
     Compress-Archive -Path (Join-Path $editorStage "*") -DestinationPath (Join-Path $editorBundle "editor-payload.zip") -Force
     Remove-Item -LiteralPath $editorStage -Recurse -Force
 
     Write-Host "Packing launcher files..."
     $launcherFiles = Join-Path $editorBundle "launcher-files"
     New-Item -ItemType Directory -Path $launcherFiles -Force | Out-Null
-    foreach ($file in Get-ChildItem -LiteralPath $launcherPublish -File) {
-        if ($file.Extension -in ".pdb") { continue }
-        Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $launcherFiles $file.Name) -Force
-    }
+    Copy-Item -Path (Join-Path $launcherPublish "*") -Destination $launcherFiles -Recurse -Force -Exclude "*.pdb"
     if (-not (Test-Path -LiteralPath (Join-Path $launcherFiles "Karpik.Launcher.exe") -PathType Leaf)) {
         throw "Launcher publish produced no Karpik.Launcher.exe."
     }
