@@ -248,41 +248,29 @@ Post-1.0 цель - развивать KarpikEngine из сильного 2D run
 
 Цель: сделать управляемый и безопасный modding API.
 
+Базовый срез перенесён в 0.7 решением разработчика 2026-10-02: attributed C# API registry, экспорт API в Lua/JS, Client/Server/Shared policy, API versioning, restricted API surface, file/network access policy, mod manifest, dependencies, version constraints, load order, enable/disable, mod hot reload и API docs generation. Актуальный checklist находится в разделе 0.7 основного roadmap. Ниже остаётся расширение платформы; CPU/time и memory budgets нужны для защиты от зависания и исчерпания памяти.
+
 ### Unified Mod API
 
-- [ ] Attributed C# API registry.
-- [ ] Expose approved APIs to Lua/JS.
-- [ ] Side policy: Client, Server, Shared.
 - [ ] Permissions.
 - [ ] Capability checks.
-- [ ] Versioning.
 - [ ] Diagnostics for exposed APIs.
 - [ ] Serialization-safe exposed types.
 
 ### Sandbox
 
-- [ ] Restricted API surface.
-- [ ] File access policy.
-- [ ] Network access policy.
 - [ ] CPU/time budget where practical.
 - [ ] Memory budget where practical.
 
 ### Mod Packaging
 
-- [ ] Mod manifest.
-- [ ] Dependencies.
-- [ ] Version constraints.
-- [ ] Load order.
 - [ ] Conflicts.
-- [ ] Enable/disable mods.
 
 ### Mod Tooling
 
 - [ ] Validation CLI.
 - [ ] Mod template.
-- [ ] Hot reload.
 - [ ] Debug logs.
-- [ ] API docs generation.
 
 ## 1.7 AI Runtime
 
