@@ -326,7 +326,7 @@ Renderer façade/API/diagnostics, рендеринг текста, дальне�
 
 ## 0.7 Authoring Content
 
-Цель: завершить перенесённые из 0.6 renderer/input/runtime utilities и сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
+Цель: завершить перенесённые из 0.6 renderer/input/runtime utilities, сделать нормальный workflow для сцен, prefabs, tilemaps и audio и добавить базовую платформу модов.
 
 Перенос согласован 2026-10-01 и расширен решением разработчика 2026-10-01 (остаток 0.6 — см. раздел ниже). Приёмка 0.6 закрыта через Done Criteria. Канбан-доски удалены 2026-10-01 как дубли roadmap; полный перечень перенесённого — в разделе «Перенесено из 0.6» ниже.
 
@@ -339,6 +339,27 @@ Renderer façade/API/diagnostics, рендеринг текста, дальне�
 - [ ] Content: hot reload notification (content → runtime).
 - [ ] Content: asset dependency invalidation (инкрементальная, сейчас только валидация).
 - [ ] 2D Math: investigation Physics2D backend под `double`, `double`-координаты, camera-relative render boundary и документированные правила (или явный fallback в post-1.0).
+
+### Modding (перенесено из 1.6, 2026-10-02)
+
+Состав согласован разработчиком 2026-10-02. Расширенные возможности остаются в разделе 1.6 Modding Platform в post-1.0 roadmap.
+
+- [ ] Attributed C# API registry.
+- [ ] Expose approved APIs to Lua/JS.
+- [ ] Side policy: Client, Server, Shared.
+- [ ] API versioning.
+- [ ] Restricted API surface.
+- [ ] File access policy.
+- [ ] Network access policy.
+- [ ] Mod manifest.
+- [ ] Dependencies.
+- [ ] Version constraints.
+- [ ] Load order.
+- [ ] Enable/disable mods.
+- [ ] Mod hot reload.
+- [ ] API docs generation.
+
+Sandbox 0.7 ограничивает доступные API, файловый и сетевой доступ, но без CPU/time и memory budgets не гарантирует защиту от зависания или исчерпания памяти. Эти ограничения ресурсов остаются в 1.6.
 
 ### Renderer Facade
 
