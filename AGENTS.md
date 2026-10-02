@@ -38,6 +38,18 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 - Do not run plain `dotnet build` unless parallel MSBuild worker processes are explicitly needed; in this workspace it can leave many idle `dotnet.exe` build nodes alive for a long time.
 - For targeted validation, build the smallest relevant project instead of the full solution.
 
+## Branches and Pull Requests
+
+- Make all repository changes, including documentation and configuration, in a dedicated task branch. Never commit directly to `main` or another integration branch.
+- Create each task branch from the current integration branch, normally `main`. Use `codex/<short-task-name>` for agent-created branches.
+- One branch and one PR must cover one independently reviewable feature, fix, or maintenance task. Include its necessary tests and documentation; do not accumulate a whole release or unrelated changes in that branch.
+- When already on a task branch, continue that task there. Do not create another task branch from it or reuse it for an unrelated task; start unrelated work from the integration branch.
+- Branching from a task branch is allowed only with explicit developer approval: a dependent PR genuinely requires unmerged changes, or a temporary experimental branch is needed to isolate a risky approach. Record the reason and parent branch. Dependent PRs initially target the parent branch and must be retargeted to the integration branch after the parent merges, with the diff checked for inherited changes. Experimental branches must not become containers for unrelated work or release-wide changes.
+- After completing and verifying the task, push the branch and create a PR against the integration branch (except approved dependent PRs). If publishing is blocked by permissions or unavailable tooling, report the blocker and provide the prepared PR title and description; do not claim the PR exists.
+- PR titles must describe the resulting behavior or concrete change, for example `fix: Preserve ECS state during hot reload` or `docs: Require one task per branch and pull request`. Avoid titles such as `Updates`, `Misc fixes`, or a version number alone.
+- PR descriptions must explain the problem, resulting change, verification, and any compatibility or migration impact. Before merge, ensure the title describes the final scope and apply the repository's change-category labels; explicitly identify breaking changes.
+- GitHub-generated release notes use merged PRs. Labels and `.github/release.yml` control grouping and exclusions; title prefixes alone do not configure categories. Release-note generation does not update the repository's `CHANGELOG.md`; follow the changelog skill when that file needs changes.
+
 ## Skills
 Large domain-specific rules live in repo-local skills:
 
