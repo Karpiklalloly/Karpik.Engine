@@ -6,7 +6,7 @@
 
 KarpikEngine — экспериментальный open-source движок для разработки 2D-игр. Основные приоритеты: data-oriented архитектура, отсутствие аллокаций в hot paths, предсказуемый lifecycle и возможность начать с single-player логики без блокировки дальнейшего перехода к мультиплееру.
 
-Последний changelog: **v0.5** — [Changelog_0.5_ru.md](Changelog_0.5_ru.md). Текущая разработка: **v0.6**, внешние игры, версионированный SDK и desktop editor.
+Последний changelog: **v0.6** — [Changelog_0.6.md](Changelog_0.6.md) ([на русском](Changelog_0.6_ru.md)).
 
 ## ✨ Ключевые особенности
 
@@ -50,26 +50,35 @@ KarpikEngine — экспериментальный open-source движок д�
 ### Требования
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) или выше
 
-### Установка и запуск
+### Установка и запуск (разработка движка)
 1. Клонируйте репозиторий:
    ```bash
    git clone https://github.com/Karpiklalloly/Karpik.Engine.git KarpikEngine
    cd KarpikEngine
    ```
 
-2. На Windows опубликуйте локальный SDK и установите шаблон:
+2. На Windows опубликуйте локальный SDK:
    ```powershell
    ./_scripts/Update-KarpikSdk.ps1
-   dotnet new install ./templates/Karpik.Game
    ```
    Скрипт выводит точную версию SDK, публикует immutable engine payload и регистрирует локальный NuGet feed.
 
-3. Создайте игру вне репозитория движка, указав выведенную версию:
+3. Создайте игру вне репозитория движка — из лаунчера или шаблоном, указав выведенную версию:
    ```powershell
    dotnet new karpik-game --name MyGame --output ../MyGame --karpik-sdk-version <sdk-version>
    cd ../MyGame
    dotnet build MyGame.slnx -m:1 -nr:false
    ```
+   Шаблонов два: `karpik-game` (минимальная игра) и `karpik-coinrush` (рабочий мультиплеерный семпл CoinRush).
+
+### Установка из дистрибутива (разработка игры, без исходников движка)
+Возьмите два каталога нужной версии (`<версия>-sdk` и `<версия>-editor-launcher`) и выполните по порядку — требуется .NET 10 SDK:
+```powershell
+sdk\setup.exe sdk --payload sdk\sdk-payload.zip
+editor-launcher\setup.exe editor --payload editor-launcher\editor-payload.zip
+editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
+```
+Дальше — запустите лаунчер из меню «Пуск» и создайте игру из шаблона. Сборка дистрибутива из исходников: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"`.
 
 4. Запустите Static launcher сервера и затем клиента в другом терминале:
    ```powershell
@@ -89,6 +98,19 @@ KarpikEngine — экспериментальный open-source движок д�
 
 ## 🗺️ Состояние проекта
 
+### ✅ Реализовано в v0.5
+- No-GC value jobs (`IJob`/`IJobFor`, `JobScheduler`), unmanaged memory primitives (`Karpik.Memory`)
+- Параллельный планировщик ECS `ISystemUpdate` со статической кодогенерацией и Roslyn-валидацией
+- Threaded client pipeline: симуляция в отдельном потоке, triple-buffered render-команды
+
+### ✅ Реализовано в v0.6
+- Статическая композиция рантайма по умолчанию, NativeAOT-публикация static-хостов
+- Внешний версионированный MSBuild SDK, шаблоны `karpik-game` и `karpik-coinrush`
+- DI через конструкторы (`[Export]` + `[ServiceRegistration]`, скопы Engine/ModSet/Simulation)
+- Контент-пайплайн (`AssetRef`/`Lease`, `ContentRegistry`, кодогенерация `ContentRefs`)
+- Типизированный реестр сетевых снапшотов с хешем схемы протокола
+- Unity-like редактор, диагностика на `ILogger`, exe-дистрибуция (SDK и Launcher+Editor бандлы)
+
 ### ✅ Реализовано в v0.4
 - ECS core, world-фасады и engine-owned lifecycle систем
 - Client / Server / Shared границы и Configurator validation
@@ -99,7 +121,6 @@ KarpikEngine — экспериментальный open-source движок д�
 - Тесты lifecycle, ECS component lifecycle и графа модулей
 
 ### 🔮 Следующие направления
-- `v0.6`: editor, content pipeline, 2D runtime и инструменты разработки
 - Развитие 2D renderer, asset pipeline, input и audio API
 - Новый UI API вместо удалённого prototype UI Toolkit
 - Инструменты разработчика, профилирование и расширение сетевого sample
@@ -114,9 +135,11 @@ KarpikEngine — экспериментальный open-source движок д�
 - `Modules/Client` — rendering, input и client-side presentation
 - `Modules/Server` — серверная логика и validation
 - `Modules/Shared` — общая логика без зависимости от runtime side
-- `templates/Karpik.Game` — шаблон внешней игры со Static launcher-ами и контентом
+- `templates/Karpik.Game` — минимальный шаблон внешней игры со Static launcher-ами и контентом
+- `templates/Karpik.CoinRush` — шаблон мультиплеерного семпла CoinRush
 - `Karpik.Editor`, `Karpik.Launcher` — desktop workspace и выбор версии editor
 - `Karpik.Engine.Sdk`, `Karpik.Engine.Packager` — NuGet SDK и публикация engine payload
+- `Karpik.Engine.Setup`, `_scripts/New-KarpikDistribution.ps1` — exe-установщик и сборка дистрибутива (SDK и Launcher+Editor бандлы)
 - `Configurator` — validation и генерация графа модулей
 
 ### Добавление зависимости

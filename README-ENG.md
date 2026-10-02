@@ -6,7 +6,7 @@
 
 KarpikEngine is an experimental open-source engine for developing 2D games. Its priorities are data-oriented architecture, zero allocations in hot paths, predictable lifecycle behavior, and the ability to start with single-player logic without blocking a later move to multiplayer.
 
-Latest changelog: **v0.5** — [Changelog_0.5.md](Changelog_0.5.md). Current development: **v0.6**, external games, versioned SDK, and desktop editor.
+Latest changelog: **v0.6** — [Changelog_0.6.md](Changelog_0.6.md).
 
 ## ✨ Key Features
 
@@ -50,26 +50,35 @@ Latest changelog: **v0.5** — [Changelog_0.5.md](Changelog_0.5.md). Current dev
 ### Requirements
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or higher
 
-### Installation and Launch
+### Installation (engine development)
 1. Clone the repository:
    ```bash
    git clone https://github.com/Karpiklalloly/Karpik.Engine.git KarpikEngine
    cd KarpikEngine
    ```
 
-2. On Windows, publish the local SDK and install the template:
+2. On Windows, publish the local SDK:
    ```powershell
    ./_scripts/Update-KarpikSdk.ps1
-   dotnet new install ./templates/Karpik.Game
    ```
    The script reports the exact SDK version, publishes an immutable engine payload, and registers its local NuGet feed.
 
-3. Create a game outside the engine repository using that version:
+3. Create a game outside the engine repository — from the launcher or from a template using that version:
    ```powershell
    dotnet new karpik-game --name MyGame --output ../MyGame --karpik-sdk-version <sdk-version>
    cd ../MyGame
    dotnet build MyGame.slnx -m:1 -nr:false
    ```
+   There are two templates: `karpik-game` (minimal game) and `karpik-coinrush` (working multiplayer CoinRush sample).
+
+### Installation from a distribution (game development, no engine sources)
+Take both directories of the required version (`<version>-sdk` and `<version>-editor-launcher`) and run in order — .NET 10 SDK required:
+```powershell
+sdk\setup.exe sdk --payload sdk\sdk-payload.zip
+editor-launcher\setup.exe editor --payload editor-launcher\editor-payload.zip
+editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
+```
+Then start the launcher from the Start Menu and create a game from a template. Building a distribution from sources: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"`.
 
 4. Start the Static server launcher and then the client in another terminal:
    ```powershell
@@ -89,6 +98,19 @@ In Debug builds, enable automatic IDE debugger attachment to child processes if 
 
 ## 🗺️ Project Status
 
+### ✅ Implemented in v0.5
+- No-GC value jobs (`IJob`/`IJobFor`, `JobScheduler`), unmanaged memory primitives (`Karpik.Memory`)
+- Parallel ECS `ISystemUpdate` scheduler with static codegen and Roslyn validation
+- Threaded client pipeline: off-thread simulation, triple-buffered render commands
+
+### ✅ Implemented in v0.6
+- Default static runtime composition, NativeAOT publishing of static hosts
+- External versioned MSBuild SDK, `karpik-game` and `karpik-coinrush` templates
+- Constructor DI (`[Export]` + `[ServiceRegistration]`, Engine/ModSet/Simulation scopes)
+- Content pipeline (`AssetRef`/`Lease`, `ContentRegistry`, `ContentRefs` codegen)
+- Typed network snapshot registry with protocol schema hash
+- Unity-like editor, `ILogger` diagnostics, exe distribution (SDK and Launcher+Editor bundles)
+
 ### ✅ Implemented in v0.4
 - ECS core, world facades, and engine-owned system lifecycle
 - Client / Server / Shared boundaries and Configurator validation
@@ -99,7 +121,6 @@ In Debug builds, enable automatic IDE debugger attachment to child processes if 
 - Tests for lifecycle phases, ECS component lifecycle, and the module graph
 
 ### 🔮 Next Directions
-- `v0.6`: editor, content pipeline, 2D runtime, and developer tools
 - Further development of the 2D renderer, asset pipeline, input, and audio APIs
 - A new UI API replacing the removed prototype UI Toolkit
 - Developer tools, profiling, and networking sample improvements
@@ -114,9 +135,11 @@ The repository contains the engine, reusable modules, and tools. Games are creat
 - `Modules/Client` — rendering, input, and client-side presentation
 - `Modules/Server` — server logic and validation
 - `Modules/Shared` — common logic independent of runtime side
-- `templates/Karpik.Game` — external game template with Static launchers and content
+- `templates/Karpik.Game` — minimal external game template with Static launchers and content
+- `templates/Karpik.CoinRush` — multiplayer CoinRush sample template
 - `Karpik.Editor`, `Karpik.Launcher` — desktop workspace and editor version selection
 - `Karpik.Engine.Sdk`, `Karpik.Engine.Packager` — NuGet SDK and engine payload publication
+- `Karpik.Engine.Setup`, `_scripts/New-KarpikDistribution.ps1` — exe installer and distribution builds (SDK and Launcher+Editor bundles)
 - `Configurator` — module-graph validation and generation
 
 ### Adding a Dependency
