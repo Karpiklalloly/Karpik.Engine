@@ -71,7 +71,7 @@ foreach ($bundle in @("sdk", "editor-launcher")) {
 Write-Host "Publishing setup executable..."
 $setupPublish = Join-Path ([IO.Path]::GetTempPath()) ("karpik-setup-pub-" + [Guid]::NewGuid().ToString("N"))
 & dotnet publish (Join-Path $RepositoryRoot "Karpik.Engine.Setup\Karpik.Engine.Setup.csproj") `
-    -c Release -m:1 -nr:false -o $setupPublish
+    -c Release -p:PublishSingleFile=true -p:SelfContained=false -m:1 -nr:false -o $setupPublish
 if ($LASTEXITCODE -ne 0) { throw "Setup publish failed." }
 
 Write-Host "Publishing launcher..."
