@@ -8,11 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="DragonExtensions" />
-      <KarpikModuleDependency Include="Dragon" />
-      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
-      <KarpikModuleDependency Include="Karpik.Engine.Core" />
-      <KarpikModuleDependency Include="Karpik.Jobs" />
+      <ProjectReference Include="..\..\..\..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
+      <ProjectReference Include="..\..\..\..\third-parties\DragonECS\DragonECS.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\..\..\..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />
       <KarpikModuleDependency Include="AssetManagement" />
       <KarpikModuleDependency Include="Network.Shared" />
     </ItemGroup>
@@ -20,5 +20,4 @@
     <ItemGroup>
       <PackageReference Include="Newtonsoft.Json" />
     </ItemGroup>
-
 </Project>

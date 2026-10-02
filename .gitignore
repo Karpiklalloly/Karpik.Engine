@@ -417,3 +417,19 @@ FodyWeavers.xsd
 *.msm
 *.msp
 .idea/.idea.KarpikEngine/.idea/workspace.xml
+
+# Local isolated feature worktrees
+.worktrees/
+
+# Local subagent-driven development ledger and handoff artifacts
+.superpowers/
+kilo.json
+.kilo
+.obsidian
+
+# Graphify generated index output
+graphify-out/
+
+# Understand Anything generated graph and local analysis state
+.ua/
+.understand-anything/

@@ -1,0 +1,8 @@
+{
+  "Player": 1,
+  "Platform": 2,
+  "Crate": 4,
+  "Sensor": 8,
+  "PlayerMask": 14,
+  "CrateMask": 15
+}

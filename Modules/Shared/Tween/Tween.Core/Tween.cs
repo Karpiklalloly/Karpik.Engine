@@ -1,9 +1,12 @@
-using System.Runtime.CompilerServices;
+using System.Composition;
 using GTweens.Contexts;
 using GTweens.Tweens;
+using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Tweening;
 
+[Export(typeof(Tween))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public class Tween
 {
     private readonly GTweensContext _context = new();

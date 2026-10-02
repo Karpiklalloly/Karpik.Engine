@@ -4,7 +4,10 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public sealed class GraphicsLoadTestRenderPrepareSystem : ISystemRenderPrepare
+public sealed class GraphicsLoadTestRenderPrepareSystem(
+    GraphicsLoadTestSettings settings,
+    GraphicsLoadTestResources resources)
+    : ISystemRenderPrepare
 {
     private const int Columns = 128;
     private const float QuadSize = 6f;
@@ -13,19 +16,16 @@ public sealed class GraphicsLoadTestRenderPrepareSystem : ISystemRenderPrepare
     private const int TextureBatchQuadCount = 64;
     private static readonly Color StressColor = Color.Red;
 
-    [DI] private GraphicsLoadTestSettings _settings = null!;
-    [DI] private GraphicsLoadTestResources _resources = null!;
-
     public void RenderPrepare()
     {
-        int quadCount = _settings.QuadCount;
+        int quadCount = settings.QuadCount;
         if (quadCount == 0)
         {
             return;
         }
 
         ICommandBuffer buffer = GraphicsContext.Buffer;
-        GraphicsLoadTestScenario scenario = _settings.Scenario;
+        GraphicsLoadTestScenario scenario = settings.Scenario;
         for (int i = 0; i < quadCount; i++)
         {
             int column = i % Columns;
@@ -64,7 +64,7 @@ public sealed class GraphicsLoadTestRenderPrepareSystem : ISystemRenderPrepare
     private void AddTexture(ICommandBuffer buffer, RectangleF rectangle, int textureIndex, ulong sortKey)
     {
         buffer.AddTexture(
-            _resources.GetTexture(textureIndex),
+            resources.GetTexture(textureIndex),
             new Vector2(rectangle.X, rectangle.Y),
             new Vector2(rectangle.Width, rectangle.Height),
             Color.White,

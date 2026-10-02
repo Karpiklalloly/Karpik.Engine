@@ -1,15 +1,22 @@
 ﻿using System.Collections.Concurrent;
+using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
-using Karpik.Engine.Shared.Log;
+using Karpik.Engine.Core.FileSystem;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
 
-internal class AssetsManager : IAssetsManager
+[Export(typeof(IAssetsManager))]
+[Export(typeof(AssetsManager))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+// Public: static composition emits direct factories for attributed services, so the
+// implementation must be visible from the host assembly.
+public class AssetsManager : IAssetsManager
 {
-    public string RootPath => AppDomain.CurrentDomain.BaseDirectory;
-    public string ContentPath => Path.Combine(RootPath, "Content");
-    public string ModsPath => Path.Combine(RootPath, "Mods");
+    public string RootPath => FileSystem.RootPath;
+    public string ContentPath => FileSystem.ContentPath;
+    public string ModsPath => FileSystem.ModsPath;
     public IFileSystem FileSystem => _fileSystem;
     
     // [Hash, Asset Type] -> [Asset Instance]
@@ -20,13 +27,18 @@ internal class AssetsManager : IAssetsManager
     
     // [Asset Type] -> [Saver]
     private readonly ConcurrentDictionary<Type, IAssetSaver> _savers = new();
-    
-    private readonly IFileSystem _fileSystem;
-    [DI] private IServiceProvider _serviceProvider = null!;
 
-    public AssetsManager(IFileSystem fileSystem)
+    private readonly ILogger<AssetsManager> _logger;
+    private readonly IFileSystem _fileSystem;
+    private readonly AssetLoadContext _assetLoadContext;
+
+    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
     {
+        _logger = logger;
         _fileSystem = fileSystem;
+        _assetLoadContext = new AssetLoadContext(this);
+        RegisterSavers(savers);
+        RegisterLoaders(loaders);
     }
     
     public void RegisterSaver(IAssetSaver saver)
@@ -39,51 +51,27 @@ internal class AssetsManager : IAssetsManager
         RegisterLoaderInternal(loader);
     }
 
-    public void RegisterSavers(Assembly assembly)
+    private void RegisterSavers(IAssetSaver[] savers)
     {
-        var loaderTypes = assembly.GetTypes()
-            .Where(type => typeof(IAssetSaver).IsAssignableFrom(type)
-                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
-
-        foreach (var loaderType in loaderTypes)
+        foreach (var saver in savers)
         {
-            try
-            {
-                var loaderInstance = (IAssetSaver)Activator.CreateInstance(loaderType)!;
-                RegisterSaverInternal(loaderInstance);
-            }
-            catch (Exception e)
-            {
-                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register saver {loaderType.Name}: {e.Message}", LogLevel.Error);
-            }
+            RegisterSaver(saver);
         }
     }
-
-    public void RegisterLoaders(Assembly assembly)
+    
+    private void RegisterLoaders(IAssetLoader[] loaders)
     {
-        var loaderTypes = assembly.GetTypes()
-            .Where(type => typeof(IAssetLoader).IsAssignableFrom(type)
-                           && type is { IsInterface: false, IsAbstract: false, IsGenericType: false });
-
-        foreach (var loaderType in loaderTypes)
+        foreach (var loader in loaders)
         {
-            try
-            {
-                var loaderInstance = (IAssetLoader)Activator.CreateInstance(loaderType)!;
-                RegisterLoaderInternal(loaderInstance);
-            }
-            catch (Exception e)
-            {
-                Logger.Instance.Log(nameof(AssetsManager), $"Failed to auto-register loader {loaderType.Name}: {e.Message}", LogLevel.Error);
-            }
+            RegisterLoader(loader);
         }
     }
 
     private void RegisterLoaderInternal(IAssetLoader loader)
     {
-        _serviceProvider.Inject(loader);
         foreach (var extension in loader.SupportedExtensions)
         {
+            // TODO: Подумать, что делать с перезаписью (мб приоритет в интерфейсе сделать)
             string safeExt = NormalizeExtension(extension);
             _loaders[(safeExt, loader.AssetType)] = loader;
         }
@@ -91,7 +79,6 @@ internal class AssetsManager : IAssetsManager
     
     private void RegisterSaverInternal(IAssetSaver saver)
     {
-        _serviceProvider.Inject(saver);
         _savers[saver.AssetType] = saver;
     }
     
@@ -150,7 +137,7 @@ internal class AssetsManager : IAssetsManager
         if (!_fileSystem.Exists(targetPath))
         {
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
-            await Logger.Instance.Log(nameof(AssetsManager), $"Not found {targetPath}, loading default asset {loader.DefaultPath}.", LogLevel.Warning);
+            _logger.LogWarning("Not found {TargetPath}, loading default asset {LoaderDefaultPath}.", targetPath, loader.DefaultPath);
             targetPath = loader.DefaultPath;
         }
         
@@ -164,7 +151,7 @@ internal class AssetsManager : IAssetsManager
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);
 
-        var newAsset = await loader.LoadAsync(stream, targetPath);
+        var newAsset = await loader.LoadAsync(_assetLoadContext, stream, targetPath);
         newAsset.Id = id;
         newAsset.Path = targetPath;
         newAsset.Type = assetType;
@@ -225,7 +212,7 @@ internal class AssetsManager : IAssetsManager
             {
                 _loadedAssets.TryAdd(newKey, asset);
 
-                await Logger.Instance.Log(nameof(AssetsManager), $"Cache updated: moved from {oldId} to {newId}");
+                _logger.LogDebug("Cache updated: moved from {OldId} to {NewId}", oldId, newId);
             }
             else
             {
@@ -237,8 +224,34 @@ internal class AssetsManager : IAssetsManager
             asset.Type = assetType;
         }
 
-        await Logger.Instance.Log($"{asset} saved to {targetPath}");
+        _logger.LogDebug("{Asset} saved to {TargetPath}", asset, targetPath);
         return new AssetHandle<T>(asset, this);
+    }
+
+    public bool TryAddDependency(Asset? parent, Asset? child)
+    {
+        if (parent is null || child is null) return false;
+        
+#if DEBUG
+        bool ChildHasDependencyOnParent(Asset parent, Asset child)
+        {
+            if (child.Dependencies.Contains(parent)) return true;
+            foreach (var dep in child.Dependencies)
+            {
+                if (ChildHasDependencyOnParent(parent, dep)) return true;
+            }
+            return false;
+        }
+        if (ChildHasDependencyOnParent(parent, child)) return false;
+        #endif
+
+        if (parent.Dependencies.Contains(child)) return false;
+        
+        parent.Dependencies.Add(child);
+        child.IncrementRef();
+        _logger.LogDebug("Added dependency: {ParentPath} -> {ChildPath}", parent.Path, child.Path);
+        return true;
+
     }
 
     void IAssetsManager.ReleaseAsset(Asset asset)
@@ -260,7 +273,7 @@ internal class AssetsManager : IAssetsManager
         var assets = _loadedAssets.Values;
         foreach (var asset in assets)
         {
-            if (asset.RefCount > 0)
+            while (asset.RefCount > 0)
             {
                 ReleaseAsset(asset);
             }
@@ -269,8 +282,13 @@ internal class AssetsManager : IAssetsManager
     
     private string NormalizeExtension(string ext)
     {
-        return ext.StartsWith(".", StringComparison.InvariantCultureIgnoreCase)
+        return ext.StartsWith('.')
             ? ext.ToLowerInvariant()
             : "." + ext.ToLowerInvariant();
+    }
+
+    public void Dispose()
+    {
+        ReleaseAll();
     }
 }

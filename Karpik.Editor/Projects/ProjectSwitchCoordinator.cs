@@ -1,0 +1,333 @@
+namespace Karpik.Editor;
+
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
+public interface IActiveProjectPublisher
+{
+    Task PublishAsync(ActiveProjectContext context, CancellationToken cancellationToken);
+}
+
+public sealed class NullActiveProjectPublisher : IActiveProjectPublisher
+{
+    public static NullActiveProjectPublisher Instance { get; } = new();
+
+    private NullActiveProjectPublisher()
+    {
+    }
+
+    public Task PublishAsync(ActiveProjectContext context, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+}
+
+public sealed class ProjectSwitchCoordinator : IAsyncDisposable, INotifyPropertyChanged
+{
+    private readonly IProjectOpenService _projectOpenService;
+    private readonly IActiveProjectPublisher _publisher;
+    private readonly IProjectHandoffService _handoffService;
+    private readonly object _stateGate = new();
+    private readonly SemaphoreSlim _commandGate = new(1, 1);
+    private readonly SemaphoreSlim _disposeGate = new(1, 1);
+    private ActiveProjectContext? _ownedContext;
+    private ActiveProjectContext? _activeProject;
+    private long _nextGeneration;
+    private int _switchInProgress;
+    private int _shutdownRequested;
+    private int _disposed;
+    private bool _commandsEnabled;
+
+    public ProjectSwitchCoordinator(
+        IProjectOpenService projectOpenService,
+        IActiveProjectPublisher? publisher = null,
+        ActiveProjectContext? initialContext = null,
+        IProjectHandoffService? handoffService = null)
+    {
+        ArgumentNullException.ThrowIfNull(projectOpenService);
+        _projectOpenService = projectOpenService;
+        _publisher = publisher ?? NullActiveProjectPublisher.Instance;
+        _handoffService = handoffService ?? NullProjectHandoffService.Instance;
+        _ownedContext = initialContext;
+        _activeProject = initialContext;
+        _commandsEnabled = initialContext is not null;
+        _nextGeneration = initialContext?.Generation.Value ?? 0;
+    }
+
+    public ActiveProjectContext? ActiveProject
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return _activeProject;
+            }
+        }
+    }
+
+    public bool CommandsEnabled
+    {
+        get
+        {
+            lock (_stateGate)
+            {
+                return Volatile.Read(ref _shutdownRequested) == 0 && _commandsEnabled;
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public async Task<ProjectOpenResult> SwitchAsync(
+        string solutionPath,
+        CancellationToken cancellationToken = default,
+        bool evaluateRuntime = true,
+        BuildConfiguration configuration = BuildConfiguration.Debug)
+    {
+        ThrowIfShutdownRequested();
+        if (Interlocked.CompareExchange(ref _switchInProgress, 1, 0) != 0)
+        {
+            throw new InvalidOperationException("A project switch is already in progress.");
+        }
+
+        ActiveProjectContext? candidate = null;
+        bool commandGateAcquired = false;
+        try
+        {
+            ThrowIfShutdownRequested();
+            ProjectHandoffResult handoff = _handoffService.Prepare(solutionPath);
+            if (handoff.Code == ProjectHandoffCode.Failure)
+            {
+                return ProjectOpenResult.Failure(handoff.Message);
+            }
+
+            ActiveProjectContext? previous;
+            lock (_stateGate)
+            {
+                _commandsEnabled = false;
+                previous = _ownedContext;
+                _activeProject = null;
+            }
+            OnPropertyChanged(nameof(CommandsEnabled));
+            OnPropertyChanged(nameof(ActiveProject));
+
+            if (previous is not null)
+            {
+                await previous.CancelActiveBuildAsync(cancellationToken);
+            }
+
+            await _commandGate.WaitAsync(cancellationToken);
+            commandGateAcquired = true;
+            ThrowIfShutdownRequested();
+            if (previous is not null)
+            {
+                await TeardownAfterBuildCancellationAsync(previous, cancellationToken);
+                lock (_stateGate)
+                {
+                    if (ReferenceEquals(_ownedContext, previous))
+                    {
+                        _ownedContext = null;
+                    }
+                }
+            }
+
+            if (handoff.Code == ProjectHandoffCode.Requested)
+            {
+                return ProjectOpenResult.HandoffRequested(handoff.Message);
+            }
+
+            var generation = new ProjectGeneration(Interlocked.Increment(ref _nextGeneration));
+            ProjectOpenResult openResult = await _projectOpenService.OpenAsync(
+                solutionPath,
+                generation,
+                cancellationToken,
+                evaluateRuntime,
+                configuration);
+            if (!openResult.IsSuccess)
+            {
+                return openResult;
+            }
+
+            candidate = openResult.Candidate
+                        ?? throw new InvalidOperationException(
+                            "Successful project open did not return a candidate context.");
+            if (candidate.Generation != generation ||
+                !PathComparer.Equals(
+                    candidate.SolutionPath,
+                    Path.GetFullPath(solutionPath)))
+            {
+                throw new InvalidOperationException(
+                    "Project candidate identity or generation does not match the switch request.");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShutdownRequested();
+            await _publisher.PublishAsync(candidate, cancellationToken);
+
+            lock (_stateGate)
+            {
+                _ownedContext = candidate;
+                _activeProject = candidate;
+                _commandsEnabled = true;
+            }
+            OnPropertyChanged(nameof(ActiveProject));
+            OnPropertyChanged(nameof(CommandsEnabled));
+            candidate = null;
+            return openResult;
+        }
+        finally
+        {
+            try
+            {
+                if (candidate is not null)
+                {
+                    await candidate.DisposeAsync();
+                }
+            }
+            finally
+            {
+                if (commandGateAcquired)
+                {
+                    _commandGate.Release();
+                }
+                Volatile.Write(ref _switchInProgress, 0);
+            }
+        }
+    }
+
+    public bool IsCurrent(ProjectGeneration generation)
+    {
+        lock (_stateGate)
+        {
+            return _commandsEnabled
+                   && _activeProject is { } active
+                   && active.Generation == generation
+                   && !active.IsDisposed;
+        }
+    }
+
+    public bool TryAcceptOutput(ProjectGeneration generation) => IsCurrent(generation);
+
+    public async Task ExecuteCommandAsync(
+        ProjectGeneration generation,
+        Func<ActiveProjectContext, CancellationToken, Task> command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ThrowIfShutdownRequested();
+        if (Volatile.Read(ref _switchInProgress) != 0)
+        {
+            throw new InvalidOperationException("Project commands are blocked during a switch.");
+        }
+
+        await _commandGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfShutdownRequested();
+            ActiveProjectContext context;
+            lock (_stateGate)
+            {
+                if (!_commandsEnabled ||
+                    _activeProject is not { } active ||
+                    active.Generation != generation ||
+                    active.IsDisposed)
+                {
+                    throw new InvalidOperationException(
+                        "The command targets no active project or a stale project generation.");
+                }
+                context = active;
+            }
+            await command(context, cancellationToken);
+        }
+        finally
+        {
+            _commandGate.Release();
+        }
+    }
+
+    private static async Task TeardownAfterBuildCancellationAsync(
+        ActiveProjectContext context,
+        CancellationToken cancellationToken)
+    {
+        await context.StopClientsAsync(cancellationToken);
+        await context.StopServerAsync(cancellationToken);
+        await context.DisposeProjectServicesAsync(cancellationToken);
+        await context.SaveWorkspaceAsync(cancellationToken);
+        await context.DisposeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
+        Volatile.Write(ref _shutdownRequested, 1);
+        lock (_stateGate)
+        {
+            _commandsEnabled = false;
+            _activeProject = null;
+        }
+        OnPropertyChanged(nameof(CommandsEnabled));
+        OnPropertyChanged(nameof(ActiveProject));
+
+        await _disposeGate.WaitAsync();
+        try
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+            {
+                return;
+            }
+
+            ActiveProjectContext? context;
+            lock (_stateGate)
+            {
+                context = _ownedContext;
+            }
+            if (context is not null)
+            {
+                await context.CancelActiveBuildAsync(CancellationToken.None);
+            }
+
+            await _commandGate.WaitAsync();
+            try
+            {
+                if (context is not null)
+                {
+                    await TeardownAfterBuildCancellationAsync(context, CancellationToken.None);
+                    lock (_stateGate)
+                    {
+                        if (ReferenceEquals(_ownedContext, context))
+                        {
+                            _ownedContext = null;
+                        }
+                    }
+                }
+                Volatile.Write(ref _disposed, 1);
+            }
+            finally
+            {
+                _commandGate.Release();
+            }
+        }
+        finally
+        {
+            _disposeGate.Release();
+        }
+    }
+
+    private void ThrowIfShutdownRequested()
+    {
+        ObjectDisposedException.ThrowIf(
+            Volatile.Read(ref _shutdownRequested) != 0
+            || Volatile.Read(ref _disposed) != 0,
+            this);
+    }
+
+    private static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+}

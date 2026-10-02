@@ -1,3 +1,4 @@
+using Autofac;
 using DCFApixels.DragonECS;
 using DragonExtensions;
 using Karpik.Engine.Core;
@@ -329,7 +330,7 @@ sealed class ReadA : IEcsRunParallel
 {
     private sealed class Aspect : EcsAspect
     {
-        public EcsReadonlyPool<ComponentA> Component = default;
+        public ReadonlyEcsPool<ComponentA> Component = default;
     }
 
     public void RunParallel()
@@ -346,18 +347,26 @@ sealed class UnknownAccess : IEcsRunParallel
 
 public sealed class LifecycleFixture : IDisposable
 {
-    public ServiceProvider Services { get; } = new();
+    private readonly IContainer _container;
+    public IServiceResolver Services { get; }
     public EcsDefaultWorld Backend { get; } = new();
     public DefaultWorld World { get; }
 
     public LifecycleFixture()
     {
+        var builder = new ContainerBuilder();
+        builder.Register(context => new AutofacServiceResolver(context.Resolve<ILifetimeScope>()))
+            .As<IServiceResolver>()
+            .SingleInstance();
+        _container = builder.Build();
+        Services = _container.Resolve<IServiceResolver>();
         World = new DefaultWorld(Backend, Services);
     }
 
     public void Dispose()
     {
         Backend.Destroy();
+        _container.Dispose();
     }
 }
 
@@ -367,7 +376,7 @@ static class ComponentLifecycleTrace
     public static int DisableCalls;
     public static int PoolValueObservedByEnable;
     public static int PoolValueObservedByDisable;
-    public static IServiceContainer? Services;
+    public static IServiceResolver? Services;
     public static EcsWorld? World;
     public static int EntityId;
     public static bool FailEnable;

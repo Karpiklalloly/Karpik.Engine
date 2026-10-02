@@ -12,6 +12,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="NeoVeldrid" Version="1.2.0" />
         <PackageReference Include="xunit" Version="2.9.2" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
             <PrivateAssets>all</PrivateAssets>
@@ -20,10 +21,11 @@
     </ItemGroup>
 
     <ItemGroup>
-        <KarpikModuleDependency Include="Karpik.Engine.Core" />
+        <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="..\Graphics.Core\Sets\TextureResources.cs" Link="Graphics.Core\Sets\TextureResources.cs" />
         <Compile Include="..\Graphics.Core\Camera\Camera2D.cs" Link="Graphics.Core\Camera\Camera2D.cs" />
         <Compile Include="..\Graphics.Core\CommandBufferDrawExtensions.cs" Link="Graphics.Core\CommandBufferDrawExtensions.cs" />
         <Compile Include="..\Graphics.Core\Context\GraphicsContext.cs" Link="Graphics.Core\Context\GraphicsContext.cs" />

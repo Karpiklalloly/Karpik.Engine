@@ -189,10 +189,3 @@ Goal: Не отправлять всё каждый тик
 2. **Фаза 2** — предикция — если лаги при высоком пинге критичны
 
 ---
-
-## Дополнительные ресурсы
-
-- [Network.Shared модуль](modules/shared/network-shared.md)
-- [Network.Server модуль](modules/server/network-server.md)
-- [Network.Client модуль](modules/client/network-client.md)
-- [ECS документация](modules/shared/ecs.md)

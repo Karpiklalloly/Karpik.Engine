@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "KarpikEngine",
+  "classifications": [
+    "Karpik",
+    "Game"
+  ],
+  "identity": "Karpik.Game",
+  "name": "Karpik Game",
+  "shortName": "karpik-game",
+  "sourceName": "KarpikGame",
+  "symbols": {
+    "karpikSdkVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "Exact Karpik.Engine.Sdk version for the generated game.",
+      "replaces": "KarpikSdkVersionPlaceholder",
+      "defaultValue": "0.6.0-local"
+    }
+  },
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".template.config/**/*",
+            "**/bin/**",
+            "**/obj/**"
+          ]
+        }
+      ]
+    }
+  ]
+}

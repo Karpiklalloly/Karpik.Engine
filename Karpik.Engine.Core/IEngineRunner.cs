@@ -2,6 +2,9 @@
 
 internal interface IEngineRunner
 {
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
+        Dictionary<string, byte[]>? hotReloadData = null);
+
     public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null);
 
@@ -21,5 +24,12 @@ internal interface IEngineRunner
 
     public void Destroy();
 
+    public Task DestroyAsync();
+
+    public void LogJobError(Exception exception, Microsoft.Extensions.Logging.ILogger fallback) =>
+        Microsoft.Extensions.Logging.LoggerExtensions.LogError(fallback, exception, "Job failed");
+
     public Dictionary<string, byte[]> GetHotReloadData();
+
+    public EditorRuntimeSnapshot CaptureEditorSnapshot();
 }

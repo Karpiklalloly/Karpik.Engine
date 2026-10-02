@@ -8,9 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Veldrid.SDL2" />
-      <KarpikModuleDependency Include="Veldrid.StartupUtilities" />
       <KarpikModuleDependency Include="Window" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NeoVeldrid.SDL2" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
     </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@
 
 This file defines the required format for an ExecPlan: a living design and implementation document that a coding agent can follow to deliver a working feature, refactor, investigation, or system change.
 
-This local standard follows the OpenAI Cookbook guidance for `PLANS.md` and adapts it to KarpikEngine's real-time, ECS, client/server, and low-allocation constraints.
+This local standard defines the `PLANS.md` guidance adapted to KarpikEngine's real-time, ECS, client/server, and low-allocation constraints.
 
 ## When to Use an ExecPlan
 

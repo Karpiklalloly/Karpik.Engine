@@ -1,12 +1,16 @@
+using System.Composition;
 using Karpik.Engine.Client.Graphics.Core;
+using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Client.Graphics.Headless;
 
+[Export(typeof(IGraphicsBackend))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class HeadlessGraphicsBackend : IGraphicsBackend
 {
     public bool IsHeadless => true;
-
-    public void Initialize()
+    
+    public void Start()
     {
     }
 
@@ -15,7 +19,7 @@ public sealed class HeadlessGraphicsBackend : IGraphicsBackend
         GraphicsContext.BeginFrame();
     }
 
-    public void BeginMerge()
+    public void BeginMerge(in Camera2D camera)
     {
     }
 

@@ -1,4 +1,4 @@
-﻿using DCFApixels.DragonECS.RunnersCore;
+﻿using DCFApixels.DragonECS.Core;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Shared.ECS;
@@ -42,12 +42,6 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
         for (int i = 0; i < _executionNodes.Length; i++)
         {
             _dependencyHandleBuffers[i] = new JobHandle[_executionNodes[i].DependencyCount];
-        }
-
-        foreach (var node in _executionNodes)
-        {
-            Console.WriteLine($"{node.System.GetType().Name} deps ({node.DependencyCount}) : " +
-                              $"{string.Join(", ", node.Dependencies.Select(d => d.System.GetType().Name))}");
         }
     }
 

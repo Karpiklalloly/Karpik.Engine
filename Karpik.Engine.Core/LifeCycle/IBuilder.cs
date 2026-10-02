@@ -19,5 +19,5 @@ public interface IBuilder
 
 public interface IModule
 {
-    public void Import(IBuilder builder);
+    public void Add(ISystemRegistry systems);
 }

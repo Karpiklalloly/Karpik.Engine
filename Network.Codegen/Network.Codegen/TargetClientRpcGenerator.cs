@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Network.Codegen;
@@ -13,8 +14,8 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
     private const string TargetRpcInterface = "Karpik.Engine.Shared.Network.Core.ITargetRpcCommand";
     private const string ClientRpcInterface = "Karpik.Engine.Shared.Network.Core.IClientRpcCommand";
     
-    // Настройка: Где искать ваш ручной Dispatcher на клиенте
-    private const string ClientDispatcherNamespace = "Karpik.Engine.MyGame.Client.Main";
+    // Match the engine-owned namespace used by the generated snapshot registry.
+    private const string ClientDispatcherNamespace = "Karpik.Engine.Generated";
     private const string ClientDispatcherClass = "TargetClientRpcDispatcher";
 
     // Настройка: Ваше имя интерфейса ITargetRpcSender
@@ -22,14 +23,25 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterSourceOutput(context.CompilationProvider, Execute);
+        var input = context.CompilationProvider.Combine(context.AnalyzerConfigOptionsProvider);
+        context.RegisterSourceOutput(input, static (productionContext, pair) =>
+            Execute(productionContext, pair.Left, pair.Right));
     }
 
-    private void Execute(SourceProductionContext context, Compilation compilation)
+    private static void Execute(
+        SourceProductionContext context,
+        Compilation compilation,
+        AnalyzerConfigOptionsProvider optionsProvider)
     {
-        var assemblyName = compilation.AssemblyName ?? "Shared";
+        if (!ProjectTypeDetector.TryGetProjectProperties(optionsProvider, context, out var properties) ||
+            !properties.IsRuntime)
+        {
+            return;
+        }
+
+        var assemblyName = compilation.AssemblyName ?? "GeneratedAssembly";
         var safeAssemblyName = assemblyName.Replace(".", "_");
-        var projectType = ProjectTypeDetector.DetectProjectType(assemblyName);
+        var projectType = properties.Side;
 
         // 1. Локальные команды (Extensions генерируем везде)
         var localTarget = FindCommands(compilation, context.CancellationToken, TargetRpcInterface, true);
@@ -41,16 +53,19 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         var allClient = FindCommands(compilation, context.CancellationToken, ClientRpcInterface, false);
 
         // A. Extensions (Везде)
-        context.AddSource($"RpcSenderExtensions_{safeAssemblyName}.g.cs", SourceText.From(GenerateExtensions(safeAssemblyName, localTarget, localClient), Encoding.UTF8));
+        if (localAll.Count != 0)
+        {
+            context.AddSource($"RpcSenderExtensions_{safeAssemblyName}.g.cs", SourceText.From(GenerateExtensions(safeAssemblyName, localTarget, localClient), Encoding.UTF8));
+        }
 
         // B. Client Dispatcher (Только ClientApp)
-        if (projectType == ProjectTypeDetector.ProjectType.Client)
+        if (projectType == ProjectTypeDetector.ProjectType.Client && (allTarget.Count != 0 || allClient.Count != 0))
         {
             context.AddSource("TargetClientRpcDispatcher.g.cs", SourceText.From(GenerateClientDispatcher(allTarget, allClient), Encoding.UTF8));
         }
     }
 
-    private string GenerateExtensions(string safeAsmName, List<CommandInfo> targetCmds, List<CommandInfo> clientCmds)
+    private static string GenerateExtensions(string safeAsmName, List<CommandInfo> targetCmds, List<CommandInfo> clientCmds)
     {
         var sb = new StringBuilder();
         foreach (var cmd in targetCmds) sb.Append(GenerateMethod(cmd, "TargetRpc"));
@@ -70,7 +85,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             """;
     }
 
-    private string GenerateMethod(CommandInfo cmd, string prefix)
+    private static string GenerateMethod(CommandInfo cmd, string prefix)
     {
         var paramName = cmd.Name.Replace(prefix, "").ToLower();
         var methodName = cmd.Name.Replace(prefix, "");
@@ -107,7 +122,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         return baseMethod;
     }
 
-    private string GenerateClientDispatcher(List<CommandInfo> tCmds, List<CommandInfo> cCmds)
+    private static string GenerateClientDispatcher(List<CommandInfo> tCmds, List<CommandInfo> cCmds)
     {
         var cases = new StringBuilder();
         foreach (var cmd in tCmds.Concat(cCmds))
@@ -137,8 +152,13 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
             {
                 public partial class {{ClientDispatcherClass}}
                 {
-                    [DI] private EcsEventWorld _eventWorld;
-            
+                    private readonly EcsEventWorld _eventWorld;
+
+                    public {{ClientDispatcherClass}}(EcsEventWorld eventWorld)
+                    {
+                        _eventWorld = eventWorld;
+                    }
+
                     public void Dispatch(IReader reader)
                     {
                         var commandId = reader.GetUShort();
@@ -153,7 +173,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
     }
 
     // --- Helpers --- (Копия из RpcGenerator)
-    private List<CommandInfo> FindCommands(Compilation c, CancellationToken ct, string ifaceName, bool local)
+    private static List<CommandInfo> FindCommands(Compilation c, CancellationToken ct, string ifaceName, bool local)
     {
         var iface = c.GetTypeByMetadataName(ifaceName);
         if (iface == null) return [];
@@ -182,7 +202,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         return dist;
     }
 
-    private void ProcessNs(INamespaceSymbol ns, INamedTypeSymbol iface, List<CommandInfo> list, CancellationToken ct)
+    private static void ProcessNs(INamespaceSymbol ns, INamedTypeSymbol iface, List<CommandInfo> list, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         foreach (var t in ns.GetTypeMembers())

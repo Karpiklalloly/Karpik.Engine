@@ -1,21 +1,30 @@
-﻿using Karpik.Engine.Shared.AssetManagement.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
+using Karpik.Engine.Core.FileSystem;
+using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.ECS;
 
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, ComponentsTemplate>
 {
-    public override string? DefaultPath => AssetsManager.FileSystem.Combine(AssetsManager.ContentPath, "Player.json");
+    public override string? DefaultPath => _fileSystem.Combine(_fileSystem.ContentPath, "Player.json");
     
-    public ComponentsTemplateLoader()
+    private readonly IFileSystem _fileSystem;
+    private readonly ILogger<ComponentArrayConverter> _logger;
+    
+    public ComponentsTemplateLoader(IFileSystem fileSystem, ILogger<ComponentArrayConverter> converterLogger)
     {
-        Serializer.Converters.Add(new ComponentArrayConverter());
+        _fileSystem = fileSystem;
+        _logger = converterLogger;
+        Serializer.Converters.Add(new ComponentArrayConverter(converterLogger));
     }
 
-    protected override async JobHandle OnAssetLoadedAsync(ComponentsTemplateAsset asset)
+    protected override async JobHandle OnAssetLoadedAsync(ComponentsTemplateAsset asset, IAssetLoadContext context)
     {
-        asset.Template.OnLoad(ServiceContainer);
-        
         if (asset.Template.Components.Length == 0) return;
 
         foreach (var component in asset.Template.Components)
@@ -26,11 +35,11 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
             {
                 foreach (var path in hasDependencies.GetDependencyPaths())
                 {
-                    using var handle = await AssetsManager.LoadAssetByPathAsync(path);
+                    using var handle = await context.Manager.LoadAssetByPathAsync(path);
 
                     if (handle.IsValid)
                     {
-                        asset.AddDependency(handle.Asset);
+                        context.Manager.TryAddDependency(asset, handle.Asset);
                     }
                 }
             }
@@ -39,5 +48,9 @@ public class ComponentsTemplateLoader : JsonLoader<ComponentsTemplateAsset, Comp
     
     protected override ComponentsTemplateAsset EmptyAsset() => new();
 
-    protected override void SetValue(ComponentsTemplateAsset asset, ComponentsTemplate value) => asset.Template = value;
+    protected override void SetValue(IAssetLoadContext context, ComponentsTemplateAsset asset, ComponentsTemplate value)
+    {
+        value.Materialize(_logger);
+        asset.Template = value;
+    }
 }

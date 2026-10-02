@@ -1,5 +1,10 @@
+using System.Composition;
+using Karpik.Engine.Core;
+
 namespace Karpik.Engine.Modules.Window.Core;
 
+[Export(typeof(InputCaptureState))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class InputCaptureState
 {
     public bool Mouse { get; private set; }

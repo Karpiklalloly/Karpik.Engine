@@ -1,13 +1,16 @@
-﻿using Karpik.Engine.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
-using Veldrid.Sdl2;
+using NeoVeldrid;
+using NeoVeldrid.Sdl2;
 
 namespace Karpik.Engine.Modules.Window.Sdl2;
 
+[Export(typeof(IWindow))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class SDL2Window : IWindow
 {
-    [DI] private Application _application = null!;
+    private readonly Application _application;
     private readonly Sdl2Window _window;
     private bool _isResized;
 
@@ -41,8 +44,9 @@ public class SDL2Window : IWindow
         }
     }
 
-    public SDL2Window(Sdl2Window window)
+    public SDL2Window(Sdl2Window window, Application application)
     {
+        _application = application;
         _window = window;
         _window.Resized += WindowOnResized;
         _window.Closed += WindowOnClosed;

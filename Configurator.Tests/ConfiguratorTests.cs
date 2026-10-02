@@ -41,6 +41,31 @@ public sealed class ConfiguratorTests
     }
 
     [Fact]
+    public void ParserAndGenerator_ResolveProjectAlias()
+    {
+        using var repository = new TestRepository();
+        var provider = repository.AddPlugin(ProjectSide.Shared, "Provider");
+        repository.AddPlugin(ProjectSide.Shared, "Consumer", dependencyIds: [("LegacyProvider", false)]);
+        repository.Alias("LegacyProvider", provider);
+        repository.Select("Provider");
+        repository.Select("Consumer");
+
+        var model = repository.Load();
+        var graph = GraphValidator.Validate(model);
+        var catalog = ArtifactGenerator.BuildArtifacts(model, graph)
+            .Single(artifact => artifact.Key.EndsWith("KarpikModuleCatalog.props", StringComparison.Ordinal))
+            .Value;
+
+        Assert.True(graph.IsValid, string.Join(Environment.NewLine, graph.Errors));
+        Assert.EndsWith(
+            provider.Replace('/', Path.DirectorySeparatorChar),
+            model.Modules["Consumer"].Standalone!.Project.Dependencies.Single().TargetPath,
+            StringComparison.Ordinal);
+        Assert.Contains("Update=\"LegacyProvider\"", catalog, StringComparison.Ordinal);
+        Assert.Contains(provider.Replace('/', '\\'), catalog, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Parser_RejectsUnknownAndAmbiguousDependencyIds()
     {
         using var unknownRepository = new TestRepository();
@@ -58,7 +83,7 @@ public sealed class ConfiguratorTests
     }
 
     [Fact]
-    public void Validator_RejectsInvalidAssemblyNameAndDirectProjectReference()
+    public void Validator_RejectsInvalidAssemblyNameAndDirectModuleProjectReference()
     {
         using var repository = new TestRepository();
         var dependency = repository.AddPlugin(ProjectSide.Shared, "Dependency");
@@ -69,7 +94,52 @@ public sealed class ConfiguratorTests
         var graph = GraphValidator.Validate(repository.Load());
 
         Assert.Contains(graph.Errors, error => error.Contains("AssemblyName must match", StringComparison.Ordinal));
-        Assert.Contains(graph.Errors, error => error.Contains("direct ProjectReference is forbidden", StringComparison.Ordinal));
+        Assert.Contains(graph.Errors, error => error.Contains("module-to-module ProjectReference is forbidden", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validator_AllowsLibraryProjectReferenceAndRejectsModuleDependencyToLibrary()
+    {
+        using var directRepository = new TestRepository();
+        var library = directRepository.AddLibrary("Utility");
+        directRepository.AddPlugin(ProjectSide.Shared, "Consumer", directReference: library);
+        directRepository.Select("Consumer");
+
+        var directGraph = GraphValidator.Validate(directRepository.Load());
+
+        Assert.True(directGraph.IsValid, string.Join(Environment.NewLine, directGraph.Errors));
+
+        using var moduleDependencyRepository = new TestRepository();
+        moduleDependencyRepository.AddLibrary("Utility");
+        moduleDependencyRepository.AddPlugin(
+            ProjectSide.Shared,
+            "Consumer",
+            dependencyIds: [("Utility", false)]);
+        moduleDependencyRepository.Select("Consumer");
+
+        var moduleDependencyGraph = GraphValidator.Validate(moduleDependencyRepository.Load());
+
+        Assert.Contains(moduleDependencyGraph.Errors,
+            error => error.Contains(
+                "KarpikModuleDependency 'Utility' targets non-module project",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validator_AllowsTestProjectReferenceToRuntimeModule()
+    {
+        using var repository = new TestRepository();
+        var module = repository.AddPlugin(ProjectSide.Shared, "RuntimeModule");
+        repository.AddPlugin(
+            ProjectSide.Shared,
+            "RuntimeModule.Tests",
+            isTest: true,
+            directReference: module);
+        repository.Select("RuntimeModule");
+
+        var graph = GraphValidator.Validate(repository.Load());
+
+        Assert.True(graph.IsValid, string.Join(Environment.NewLine, graph.Errors));
     }
 
     [Fact]
@@ -138,7 +208,7 @@ public sealed class ConfiguratorTests
     }
 
     [Fact]
-    public void Generator_IsDeterministicAndIncludesGameRootsInBothSides()
+    public void Generator_IsDeterministicForEngineOnlyRepository()
     {
         using var repository = new TestRepository();
         var provider = repository.AddPlugin(ProjectSide.Shared, "Provider");
@@ -153,14 +223,84 @@ public sealed class ConfiguratorTests
         var loader = first.Single(artifact => artifact.Key.EndsWith("ModuleLoader.cs", StringComparison.Ordinal)).Value;
 
         Assert.True(graph.IsValid);
-        Assert.Equal(first.Values, second.Values);
+        Assert.DoesNotContain(typeof(RepositoryModel).GetProperties(), property => property.Name == "GameRoots");
+        Assert.All(model.ProjectsByPath.Values,
+            project => Assert.StartsWith("Modules/", project.RelativePath, StringComparison.Ordinal));
+        Assert.Equal(
+            first.OrderBy(artifact => artifact.Key, StringComparer.OrdinalIgnoreCase),
+            second.OrderBy(artifact => artifact.Key, StringComparer.OrdinalIgnoreCase));
         Assert.True(graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Provider") <
                     graph.ClientLoadOrder.FindIndex(project => project.PluginId == "Consumer"));
-        Assert.Contains("MyGame.Client.Main", loader);
-        Assert.Contains("MyGame.Server.Main", loader);
-        Assert.Contains("MyGameResources", loader);
         Assert.Contains("modules.version.*", loader);
         Assert.Contains(".complete", loader);
+        Assert.Contains("public ModuleLoader(string bundleRoot)", loader);
+        Assert.Contains("RuntimeBundleLayout.ResolveModuleDirectory(_bundleRoot)", loader);
+        Assert.Contains("Path.Combine(_bundleRoot ?? AppContext.BaseDirectory, \"reload\", \"shadow\")", loader);
+        Assert.Contains("public sealed partial class ModuleLoader", loader);
+        Assert.Contains("_loadContext = CreateLoadContext(_shadowCopyDirectory)", loader);
+        Assert.Contains("LoadedAssemblies = LoadComposedAssemblies(requiredAssemblies)", loader);
+        string[] retiredIdentifiers =
+        [
+            string.Concat("My", "Game"),
+            string.Concat("Client", "Launcher"),
+            string.Concat("Server", "Launcher")
+        ];
+        foreach (var artifact in first.Values)
+        {
+            Assert.DoesNotContain(retiredIdentifiers, identifier => artifact.Contains(identifier, StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void Generator_CatalogAndPluginTargetsExcludeLibrariesAndDisabledModules()
+    {
+        using var repository = new TestRepository();
+        var library = repository.AddLibrary("DisabledOnlyLibrary");
+        repository.AddPlugin(ProjectSide.Shared, "Disabled", directReference: library);
+        repository.AddPlugin(ProjectSide.Shared, "Enabled");
+        repository.Select("Disabled", enabled: false);
+        repository.Select("Enabled");
+
+        var model = repository.Load();
+        var graph = GraphValidator.Validate(model);
+        var artifacts = ArtifactGenerator.BuildArtifacts(model, graph);
+        var catalog = artifacts.Single(artifact =>
+                artifact.Key.EndsWith("KarpikModuleCatalog.props", StringComparison.Ordinal))
+            .Value;
+        var targets = artifacts.Single(artifact =>
+                artifact.Key.EndsWith("AutoGenerated.targets", StringComparison.Ordinal))
+            .Value;
+
+        Assert.True(graph.IsValid, string.Join(Environment.NewLine, graph.Errors));
+        Assert.Contains("Update=\"Enabled\"", catalog, StringComparison.Ordinal);
+        Assert.Contains("Update=\"Disabled\"", catalog, StringComparison.Ordinal);
+        Assert.DoesNotContain("DisabledOnlyLibrary", catalog, StringComparison.Ordinal);
+        Assert.Contains("Enabled.csproj", targets, StringComparison.Ordinal);
+        Assert.DoesNotContain("Disabled.csproj", targets, StringComparison.Ordinal);
+        Assert.DoesNotContain("DisabledOnlyLibrary", targets, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PackageCatalogContainsAllProductionPluginsInStableOrder()
+    {
+        using var repository = new TestRepository();
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Core");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.OpenGL");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Vulkan");
+        repository.AddPlugin(ProjectSide.Shared, "Graphics.Core.Tests", isTest: true);
+        repository.AddPlugin(ProjectSide.Shared, "Tools", executable: true);
+        repository.Select("Graphics", implementation: "OpenGL");
+
+        RepositoryModel model = repository.Load();
+        string first = ArtifactGenerator.BuildPackageCatalog(model);
+        string second = ArtifactGenerator.BuildPackageCatalog(model);
+
+        Assert.Equal(first, second);
+        Assert.Contains("Graphics.OpenGL", first, StringComparison.Ordinal);
+        Assert.Contains("Graphics.Vulkan", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("Graphics.Core.Tests", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tools", first, StringComparison.Ordinal);
+        Assert.True(first.IndexOf("Graphics.Core", StringComparison.Ordinal) < first.IndexOf("Graphics.OpenGL", StringComparison.Ordinal));
     }
 }
 
@@ -170,15 +310,12 @@ internal sealed class TestRepository : IDisposable
     private readonly Dictionary<string, XElement> _projectDocuments = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<XElement> _selections = [];
     private readonly List<XElement> _settings = [];
+    private readonly List<XElement> _aliases = [];
 
     public TestRepository()
     {
         RootPath = Path.Combine(Path.GetTempPath(), "KarpikConfiguratorTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(RootPath);
-        AddGameRoot("MyGame/MyGameResources/MyGameResources.csproj");
-        AddGameRoot("MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj");
-        AddGameRoot("MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj");
-        AddGameRoot("MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj");
     }
 
     public string RootPath { get; }
@@ -225,6 +362,16 @@ internal sealed class TestRepository : IDisposable
         return relativePath;
     }
 
+    public string AddLibrary(string projectId)
+    {
+        var relativePath = $"Libraries/{projectId}/{projectId}.csproj";
+        var project = new XElement("Project",
+            new XAttribute("Sdk", "Microsoft.NET.Sdk"),
+            new XElement("PropertyGroup", new XElement("TargetFramework", "net10.0")));
+        AddProject(relativePath, project);
+        return relativePath;
+    }
+
     public void ReplaceDependencies(string projectPath, (string Target, bool Optional)[] dependencies)
     {
         var project = _projectDocuments[projectPath];
@@ -248,6 +395,13 @@ internal sealed class TestRepository : IDisposable
             new XAttribute("Value", value)));
     }
 
+    public void Alias(string id, string projectPath)
+    {
+        _aliases.Add(new XElement("KarpikModuleAlias",
+            new XAttribute("Include", id),
+            new XAttribute("Project", projectPath)));
+    }
+
     public RepositoryModel Load()
     {
         foreach (var project in _projectDocuments)
@@ -259,6 +413,7 @@ internal sealed class TestRepository : IDisposable
         new XDocument(new XElement("Solution", _projects.Select(path =>
             new XElement("Project", new XAttribute("Path", path))))).Save(Path.Combine(RootPath, "Test.slnx"));
         new XDocument(new XElement("Project",
+            new XElement("ItemGroup", _aliases),
             new XElement("ItemGroup", new XAttribute("Label", "ProjectConfigurator"), _selections.Concat(_settings))))
             .Save(Path.Combine(RootPath, "Directory.Build.props"));
         return RepositoryParser.Load(RootPath, Path.Combine(RootPath, "Test.slnx"));
@@ -270,12 +425,6 @@ internal sealed class TestRepository : IDisposable
         {
             Directory.Delete(RootPath, recursive: true);
         }
-    }
-
-    private void AddGameRoot(string relativePath)
-    {
-        AddProject(relativePath, new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
-            new XElement("PropertyGroup", new XElement("TargetFramework", "net10.0"))));
     }
 
     private void AddProject(string relativePath, XElement project)

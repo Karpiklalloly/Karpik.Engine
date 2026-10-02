@@ -127,9 +127,7 @@ public sealed class InputBehaviorTests
 
     private static Input CreateInput(FakeInputSource source)
     {
-        var input = new Input();
-        input.Init(source, new InputCaptureState());
-        return input;
+        return new Input(source, new InputCaptureState());
     }
 
     private sealed class FakeInputSource : IInputSource

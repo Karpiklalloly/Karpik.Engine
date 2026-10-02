@@ -1,13 +1,16 @@
+using System.Composition;
 using System.Diagnostics;
 using ImGuiNET;
 using Karpik.Engine.Client.Graphics.Core;
 using Karpik.Engine.Client.Graphics.Core.Presets;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.OpenGL;
 
+[Export(typeof(IGraphicsBackend))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class OpenGLGraphicsBackend : IGraphicsBackend
 {
     private readonly GraphicsDevice _device;
@@ -20,7 +23,6 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     private readonly Time _time;
     private readonly ClientFrameMetrics _clientFrameMetrics;
     private bool _sceneSubmittedForPresent;
-    private int _lastGpuTimestampSequence;
 
     public OpenGLGraphicsBackend(
         GraphicsDevice device,
@@ -45,10 +47,11 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
     }
 
     public bool IsHeadless => false;
-
-    public void Initialize()
+    
+    public void Start()
     {
         _pipeline.Init();
+        _mergeThread.Init();
         _graphicsLoadTestResources.Initialize(_device, _pipeline.TextureLayout);
         _imgui.Init(_device, _window);
     }
@@ -65,9 +68,16 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         GraphicsContext.BeginFrame();
     }
 
-    public void BeginMerge()
+    public void BeginMerge(in Camera2D camera)
     {
-        _mergeThread.TryBeginMerge();
+        Framebuffer framebuffer = _device.MainSwapchain.Framebuffer;
+        uint width = framebuffer.Width;
+        uint height = framebuffer.Height;
+
+        Camera2D normalizedCamera = camera.Normalized(width, height);
+        var view = new RenderView(normalizedCamera, width, height);
+
+        _mergeThread.TryBeginMerge(in view);
     }
 
     public void SubmitScene()
@@ -77,10 +87,6 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         {
             _clientFrameMetrics.PublishMergeAvailability(isReady: true);
             _device.ResetFence(submitFence);
-            if (_device is IGpuTimestampProvider provider)
-            {
-                provider.TryRequestGpuTimestamp(commandList);
-            }
             _device.SubmitCommands(commandList, submitFence);
             _sceneSubmittedForPresent = true;
         }
@@ -120,25 +126,10 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         long startedAt = Stopwatch.GetTimestamp();
         _device.SwapBuffers();
         _clientFrameMetrics.PublishPresent(Stopwatch.GetTimestamp() - startedAt);
-        PublishGpuTimestampIfAvailable();
         _sceneSubmittedForPresent = false;
     }
 
     public void Dispose()
     {
-        _graphicsLoadTestResources.Dispose();
-    }
-
-    private void PublishGpuTimestampIfAvailable()
-    {
-        if (_device is not IGpuTimestampProvider provider
-            || !provider.TryGetLatestGpuTimestamp(out GpuTimestampSample sample)
-            || sample.Sequence == _lastGpuTimestampSequence)
-        {
-            return;
-        }
-
-        _lastGpuTimestampSequence = sample.Sequence;
-        _clientFrameMetrics.PublishGpuCommandNanoseconds(sample.Nanoseconds);
     }
 }

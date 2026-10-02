@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AvaloniaProject">
+    <option name="projectPerEditor">
+      <map>
+        <entry key="Karpik.Editor/MainWindow.axaml" value="Karpik.Editor/Karpik.Editor.csproj" />
+        <entry key="Karpik.Launcher/App.axaml" value="Karpik.Launcher/Karpik.Launcher.csproj" />
+        <entry key="Karpik.Launcher/LauncherView.axaml" value="Karpik.Launcher/Karpik.Launcher.csproj" />
+        <entry key="Karpik.Launcher/MainWindow.axaml" value="Karpik.Launcher/Karpik.Launcher.csproj" />
+      </map>
+    </option>
+  </component>
+</project>

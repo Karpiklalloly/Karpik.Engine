@@ -66,6 +66,45 @@ public sealed class ClientSimulationWorkerTests
         Assert.Throws<InvalidOperationException>(worker.Dispose);
     }
 
+    [Fact]
+    public async Task InvokeAsync_WithoutReservedFrame_ExecutesOnSimulationThread()
+    {
+        using var loop = new BlockingSimulationLoop();
+        using var worker = new ClientSimulationWorker(loop);
+        int callerThreadId = Environment.CurrentManagedThreadId;
+
+        int executionThreadId = await worker.InvokeAsync(
+            () => Environment.CurrentManagedThreadId);
+
+        Assert.NotEqual(callerThreadId, executionThreadId);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhileFrameIsReserved_WaitsForFrameCompletion()
+    {
+        using var loop = new BlockingSimulationLoop();
+        using var worker = new ClientSimulationWorker(loop);
+        Assert.True(worker.TryReserveFrame());
+
+        try
+        {
+            Task<int> work = worker.InvokeAsync(() => 42);
+            await Task.Delay(50);
+            Assert.False(work.IsCompleted);
+
+            worker.StartReservedFrame(Application.TICK_DT);
+            Assert.True(loop.FrameStarted.Wait(TimeSpan.FromSeconds(1)));
+            Assert.False(work.IsCompleted);
+
+            loop.AllowFrameCompletion.Set();
+            Assert.Equal(42, await work.WaitAsync(TimeSpan.FromSeconds(1)));
+        }
+        finally
+        {
+            loop.AllowFrameCompletion.Set();
+        }
+    }
+
     private sealed class BlockingSimulationLoop : IClientSimulationLoop, IDisposable
     {
         public ManualResetEventSlim FrameStarted { get; } = new(false);

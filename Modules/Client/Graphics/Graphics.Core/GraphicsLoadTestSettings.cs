@@ -1,3 +1,6 @@
+using System.Composition;
+using Karpik.Engine.Core;
+
 namespace Karpik.Engine.Client.Graphics.Core;
 
 public enum GraphicsLoadTestScenario
@@ -8,6 +11,8 @@ public enum GraphicsLoadTestScenario
     TextureThrash
 }
 
+[Export(typeof(GraphicsLoadTestSettings))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class GraphicsLoadTestSettings
 {
     public const int MaxQuadCount = 8192 * 2;

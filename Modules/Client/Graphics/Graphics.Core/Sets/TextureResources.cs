@@ -1,8 +1,8 @@
-﻿using Veldrid;
+﻿using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core.Sets;
 
-public class TextureResources
+public class TextureResources : IDisposable
 {
     public ResourceSet WhiteRectResourceSet { get; private set; }
     public Texture WhiteTexture { get; private set; }
@@ -33,5 +33,20 @@ public class TextureResources
         );
         
         WhiteRectResourceSet = factory.CreateResourceSet(ref rsDesc);
+    }
+    
+    public void Dispose()
+    {
+        if (WhiteRectResourceSet is null)
+        {
+            return;
+        }
+
+        WhiteRectResourceSet.Dispose();
+        WhiteTextureView.Dispose();
+        WhiteTexture.Dispose();
+        WhiteRectResourceSet = null!;
+        WhiteTextureView = null!;
+        WhiteTexture = null!;
     }
 }

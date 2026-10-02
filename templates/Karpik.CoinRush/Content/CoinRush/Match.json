@@ -1,0 +1,8 @@
+{
+  "MatchDuration": 90.0,
+  "CountdownDuration": 3.0,
+  "CoinRespawnDelay": 5.0,
+  "MaxPlayers": 2,
+  "ServerPort": 14789,
+  "ServerKey": "coinrush"
+}

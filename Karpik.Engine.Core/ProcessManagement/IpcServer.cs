@@ -1,20 +1,43 @@
 using System.IO.Pipes;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 public class IpcServer : IDisposable
 {
+    private static readonly AsyncLocal<bool> s_inListener = new();
     private NamedPipeServerStream? _pipe;
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
+    private readonly SemaphoreSlim _stateRequestGate = new(1, 1);
+    private readonly SemaphoreSlim _editorSnapshotGate = new(1, 1);
+    private readonly SemaphoreSlim _shutdownRequestGate = new(1, 1);
+    private int _disposeRequested;
     private Task? _listenTask;
+    private readonly ILogger<IpcServer> _logger;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
+    internal static bool IsInListenerContext => s_inListener.Value;
     
     public IpcServer(string pipeName)
+        : this(pipeName, HostLogging.CreateDefaultFactory(), ownsFactory: true)
+    {
+    }
+
+    public IpcServer(string pipeName, ILoggerFactory loggerFactory)
+        : this(pipeName, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private IpcServer(string pipeName, ILoggerFactory loggerFactory, bool ownsFactory)
     {
         _pipeName = pipeName;
+        _logger = loggerFactory.CreateLogger<IpcServer>();
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
     }
     
     public async Task WaitForConnectionAsync(CancellationToken cancellationToken = default)
@@ -26,9 +49,9 @@ public class IpcServer : IDisposable
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous);
         
-        Console.WriteLine($"[IpcServer] Waiting for worker connection on pipe: {_pipeName}");
+        _logger.LogInformation("Waiting for worker connection on pipe {PipeName}", _pipeName);
         await _pipe.WaitForConnectionAsync(cancellationToken);
-        Console.WriteLine("[IpcServer] Worker connected!");
+        _logger.LogInformation("Worker connected");
         
         // Start listening for messages
         _listenTask = ListenLoop(_cts.Token);
@@ -36,12 +59,20 @@ public class IpcServer : IDisposable
     
     public async Task SendAsync(IpcMessage message, CancellationToken cancellationToken = default)
     {
-        if (_pipe == null || !_pipe.IsConnected)
-            throw new InvalidOperationException("Pipe is not connected");
-        
-        var bytes = message.ToBytes();
-        await _pipe.WriteAsync(bytes, cancellationToken);
-        await _pipe.FlushAsync(cancellationToken);
+        await _sendGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_pipe == null || !_pipe.IsConnected)
+                throw new InvalidOperationException("Pipe is not connected");
+
+            var bytes = message.ToBytes();
+            await _pipe.WriteAsync(bytes, cancellationToken);
+            await _pipe.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
     
     public async Task<HotReloadState?> RequestStateAsync(CancellationToken cancellationToken = default)
@@ -54,41 +85,91 @@ public class IpcServer : IDisposable
         TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
-        await SendAsync(new IpcMessage(IpcMessageType.StateRequest), cancellationToken);
-        
-        var tcs = new TaskCompletionSource<HotReloadState?>();
-        
+        await _stateRequestGate.WaitAsync(cancellationToken);
+        var tcs = new TaskCompletionSource<HotReloadState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         void Handler(IpcMessage msg)
         {
             if (msg.Type == IpcMessageType.StateResponse)
             {
-                OnMessageReceived -= Handler;
                 if (msg.Payload.Length > 0)
                 {
                     var state = HotReloadState.Deserialize(msg.Payload);
-                    tcs.SetResult(state);
+                    tcs.TrySetResult(state);
                 }
                 else
                 {
-                    tcs.SetResult(null);
+                    tcs.TrySetResult(null);
                 }
             }
         }
-        
+
         OnMessageReceived += Handler;
-        
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout);
-        
         try
         {
-            return (true, await tcs.Task.WaitAsync(cts.Token));
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await SendAsync(new IpcMessage(IpcMessageType.StateRequest), CancellationToken.None);
+            }
+            catch (Exception exception) when (
+                Volatile.Read(ref _disposeRequested) != 0
+                && exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                return (false, null);
+            }
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+            cts.CancelAfter(timeout);
+            try
+            {
+                return (true, await tcs.Task.WaitAsync(cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Timeout waiting for StateResponse");
+                return (false, null);
+            }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        finally
         {
             OnMessageReceived -= Handler;
-            Console.WriteLine("[IpcServer] Timeout waiting for StateResponse");
-            return (false, null);
+            _stateRequestGate.Release();
+        }
+    }
+
+    public async Task<EditorRuntimeSnapshot?> RequestEditorSnapshotAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        await _editorSnapshotGate.WaitAsync(cancellationToken);
+        var tcs = new TaskCompletionSource<EditorRuntimeSnapshot?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void Handler(IpcMessage message)
+        {
+            if (message.Type != IpcMessageType.EditorSnapshotResponse)
+            {
+                return;
+            }
+
+            OnMessageReceived -= Handler;
+            tcs.TrySetResult(
+                message.Payload.Length == 0
+                    ? null
+                    : EditorRuntimeSnapshot.Deserialize(message.Payload));
+        }
+
+        OnMessageReceived += Handler;
+        try
+        {
+            await SendAsync(new IpcMessage(IpcMessageType.EditorSnapshotRequest), cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+            cts.CancelAfter(timeout);
+            return await tcs.Task.WaitAsync(cts.Token);
+        }
+        finally
+        {
+            OnMessageReceived -= Handler;
+            _editorSnapshotGate.Release();
         }
     }
     
@@ -99,37 +180,44 @@ public class IpcServer : IDisposable
 
     public async Task SendShutdownRequestAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        await _shutdownRequestGate.WaitAsync(cancellationToken);
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         
         void Handler(IpcMessage msg)
         {
             if (msg.Type == IpcMessageType.ShutdownAck)
             {
-                OnMessageReceived -= Handler;
-                tcs.SetResult(true);
+                tcs.TrySetResult(true);
             }
         }
-        
+
         OnMessageReceived += Handler;
-        await SendAsync(new IpcMessage(IpcMessageType.ShutdownRequest), cancellationToken);
-        
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout);
-        
         try
         {
-            await tcs.Task.WaitAsync(cts.Token);
-            Console.WriteLine("[IpcServer] Worker acknowledged shutdown");
+            cancellationToken.ThrowIfCancellationRequested();
+            await SendAsync(new IpcMessage(IpcMessageType.ShutdownRequest), CancellationToken.None);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+            cts.CancelAfter(timeout);
+            try
+            {
+                await tcs.Task.WaitAsync(cts.Token);
+                _logger.LogInformation("Worker acknowledged shutdown");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Timeout waiting for ShutdownAck; will force kill");
+            }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        finally
         {
             OnMessageReceived -= Handler;
-            Console.WriteLine("[IpcServer] Timeout waiting for ShutdownAck, will force kill");
+            _shutdownRequestGate.Release();
         }
     }
     
     private async Task ListenLoop(CancellationToken cancellationToken)
     {
+        s_inListener.Value = true;
         var headerBuffer = new byte[5]; // 4 bytes length + 1 byte type
         
         try
@@ -140,7 +228,7 @@ public class IpcServer : IDisposable
                 var bytesRead = await _pipe.ReadAsync(headerBuffer.AsMemory(0, 5), cancellationToken);
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("[IpcServer] Worker disconnected");
+                    _logger.LogInformation("Worker disconnected");
                     break;
                 }
                 
@@ -184,16 +272,25 @@ public class IpcServer : IDisposable
         }
         catch (IOException ex)
         {
-            Console.WriteLine($"[IpcServer] Pipe error: {ex.Message}");
+            _logger.LogError(ex, "Pipe error");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[IpcServer] Listen error: {ex}");
+            _logger.LogError(ex, "Listen error");
+        }
+        finally
+        {
+            s_inListener.Value = false;
         }
     }
     
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeRequested, 1) != 0)
+        {
+            return;
+        }
+
         _cts.Cancel();
 
         try
@@ -205,18 +302,38 @@ public class IpcServer : IDisposable
             // Ignore pipe disposal errors during worker restart/shutdown.
         }
 
-        try
+        if (_listenTask is { IsCompleted: false } listenTask)
         {
-            if (_listenTask is { IsCompleted: false })
-            {
-                _listenTask.Wait(TimeSpan.FromMilliseconds(250));
-            }
-        }
-        catch
-        {
-            // The listen loop is expected to observe cancellation or a disposed pipe.
+            _ = listenTask.ContinueWith(
+                static (_, state) => ((IpcServer)state!).DisposeListenerResources(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return;
         }
 
+        DisposeListenerResources();
+    }
+
+    internal async Task WaitForListenerAsync()
+    {
+        if (_listenTask is { } listenTask)
+        {
+            try
+            {
+                await listenTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Listener failures were handled at the receive boundary.
+            }
+        }
+    }
+
+    private void DisposeListenerResources()
+    {
         _cts.Dispose();
+        _ownedLoggerFactory?.Dispose();
     }
 }

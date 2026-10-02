@@ -1,65 +1,70 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
+﻿using Karpik.Engine.Core;
 using Karpik.Engine.Shared.Network.Core;
-using Karpik.Engine.Shared.Network.LiteNetLib.Configs;
+using Microsoft.Extensions.Logging;
 
 namespace Network.Server.LiteNetLib.Systems;
 
-internal class InitNetworkClientSystem : ISystemInit
+public class InitNetworkClientSystem(
+    INetworkManager manager,
+    INetworkProtocolSchema protocolSchema,
+    NetworkConfig config) : ISystemInit
 {
-    [DI] private INetworkManager _manager = null!;
-    [DI] private NetworkConfig _config = null!;
-    
     public void Init()
     {
-        _manager.Start(_config.Port);
-        _manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
-        _manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
-        _manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
-        _manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
-    }
-
-    internal static void ManagerOnConnectionRequestEvent(IConnectionRequest request)
-    {
-        Console.WriteLine("OnConnectionRequest");
-    }
-
-    internal static void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
-    {
-        
-    }
-    
-    internal static void ManagerOnPeerConnectedEvent(IPeer peer)
-    {
-        Console.WriteLine("OnPeerConnected");
-    }
-    
-    internal static void ManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
-    {
-        Console.WriteLine("OnPeerDisconnected");
+        manager.ConfigureProtocolSchema(protocolSchema.ProtocolSchemaHash);
+        manager.Start(config.Port);
     }
 }
 
-internal class UpdateNetworkClientSystem : ISystemBegin
+public class UpdateNetworkClientSystem(INetworkManager manager) : ISystemBegin
 {
-    [DI] private INetworkManager _manager = null!;
-    
     public void Begin()
     {
-        _manager.PollEvents();
+        manager.PollEvents();
     }
 }
 
-internal class DestroyNetworkClientSystem : ISystemDestroy
+public class DestroyNetworkClientSystem : ISystemDestroy
 {
-    [DI] private INetworkManager _manager = null!;
-    
+    private readonly INetworkManager _manager;
+    private readonly ILogger<DestroyNetworkClientSystem> _logger;
+
+    public DestroyNetworkClientSystem(INetworkManager manager, ILogger<DestroyNetworkClientSystem> logger)
+    {
+        _manager = manager;
+        _logger = logger;
+        manager.NetworkReceiveEvent += ManagerOnNetworkReceiveEvent;
+        manager.PeerConnectedEvent += ManagerOnPeerConnectedEvent;
+        manager.PeerDisconnectedEvent += ManagerOnPeerDisconnectedEvent;
+        manager.ConnectionRequestEvent += ManagerOnConnectionRequestEvent;
+    }
+
+    private void ManagerOnConnectionRequestEvent(IConnectionRequest request)
+    {
+        _logger.LogInformation("Connection request received");
+    }
+
+    private void ManagerOnNetworkReceiveEvent(IPeer peer, IReader reader, byte channel, DeliveryMethod deliveryMethod)
+    {
+    }
+
+    private void ManagerOnPeerConnectedEvent(IPeer peer)
+    {
+        _logger.LogInformation("Peer {PeerId} connected", peer.Id);
+    }
+
+    private void ManagerOnPeerDisconnectedEvent(IPeer peer, IDisconnectInfo info)
+    {
+        _logger.LogInformation("Peer {PeerId} disconnected", peer.Id);
+    }
+
     public void Destroy()
     {
-        _manager.NetworkReceiveEvent -= InitNetworkClientSystem.ManagerOnNetworkReceiveEvent;
-        _manager.PeerConnectedEvent -= InitNetworkClientSystem.ManagerOnPeerConnectedEvent;
-        _manager.PeerDisconnectedEvent -= InitNetworkClientSystem.ManagerOnPeerDisconnectedEvent;
-        _manager.ConnectionRequestEvent -= InitNetworkClientSystem.ManagerOnConnectionRequestEvent;
+        _manager.NetworkReceiveEvent -= ManagerOnNetworkReceiveEvent;
+        _manager.PeerConnectedEvent -= ManagerOnPeerConnectedEvent;
+        _manager.PeerDisconnectedEvent -= ManagerOnPeerDisconnectedEvent;
+        _manager.ConnectionRequestEvent -= ManagerOnConnectionRequestEvent;
         _manager.Stop();
     }
 }
+

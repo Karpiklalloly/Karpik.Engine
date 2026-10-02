@@ -1,3 +1,4 @@
+using Autofac;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.Runner;
@@ -6,6 +7,52 @@ using Xunit;
 public sealed class EngineRunnerLifecycleTests
 {
     [Fact]
+    public async Task EngineRunner_AsyncLifecycle_RunsAroundSynchronousLifecycle()
+    {
+        LifecycleTrace.Clear();
+
+        var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+        var runner = new EngineRunner();
+        runner.RegisterModule(new AsyncLifecycleSmokeModuleInstaller());
+
+        Task setup = runner.SetupAsync(new Application(Side.Server), scheduler);
+        scheduler.Execute();
+        await setup;
+        await runner.DestroyAsync();
+
+        AssertSequence(["Init", "AsyncInit", "AsyncDestroy", "Destroy"], LifecycleTrace.Items);
+    }
+
+    [Fact]
+    public async Task EngineRunner_SetupAsync_WaitsForAsyncInitializer()
+    {
+        LifecycleTrace.Clear();
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        AsyncLifecycleSmokeSystem.InitializationGate = gate.Task;
+
+        try
+        {
+            var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+            var runner = new EngineRunner();
+            runner.RegisterModule(new AsyncLifecycleSmokeModuleInstaller());
+
+            Task setup = runner.SetupAsync(new Application(Side.Server), scheduler);
+            scheduler.Execute();
+
+            Assert.False(setup.IsCompleted);
+            gate.SetResult();
+            await setup;
+            await runner.DestroyAsync();
+
+            AssertSequence(["Init", "AsyncInit", "AsyncDestroy", "Destroy"], LifecycleTrace.Items);
+        }
+        finally
+        {
+            AsyncLifecycleSmokeSystem.InitializationGate = null;
+        }
+    }
+
+    [Fact]
     public void EngineRunner_Run_ExecutesLifecyclePhasesIn04Order()
     {
         LifecycleTrace.Clear();
@@ -13,7 +60,7 @@ public sealed class EngineRunnerLifecycleTests
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         var runner = new EngineRunner();
 
-        runner.RegisterModule(new LifecycleSmokeInstaller());
+        runner.RegisterModule(new LifecycleSmokeModuleInstaller());
         runner.Setup(new Application(Side.Server), scheduler);
         scheduler.Execute();
 
@@ -21,7 +68,7 @@ public sealed class EngineRunnerLifecycleTests
         runner.Destroy();
 
         AssertSequence(
-            ["Init", "Begin", "DragonRun", "FixedUpdate", "Update", "LateUpdate", "Render", "Destroy"],
+            ["Init", "Begin", "FixedUpdate", "Update", "LateUpdate", "Render", "Destroy"],
             LifecycleTrace.Items);
     }
 
@@ -29,7 +76,7 @@ public sealed class EngineRunnerLifecycleTests
     public void EngineRunner_Setup_SortsEqualPriorityInstallersByTypeName()
     {
         OrderTrace.Clear();
-        var runner = Setup(new ZetaInstaller(), new AlphaInstaller());
+        var runner = Setup(new ZetaModuleInstaller(), new AlphaModuleInstaller());
 
         AssertSequence(["Alpha.Register", "Zeta.Register"], OrderTrace.Items);
         runner.Destroy();
@@ -39,25 +86,13 @@ public sealed class EngineRunnerLifecycleTests
     public void EngineRunner_Setup_UsesPriorityBeforeTypeName()
     {
         OrderTrace.Clear();
-        var runner = Setup(new AlphaLateInstaller(), new ZetaEarlyInstaller());
+        var runner = Setup(new AlphaLateModuleInstaller(), new ZetaEarlyModuleInstaller());
 
         AssertSequence(["ZetaEarly.Register", "AlphaLate.Register"], OrderTrace.Items);
         runner.Destroy();
     }
 
-    [Fact]
-    public void EngineRunner_Destroy_DestroysInstallersInReverseInitOrder()
-    {
-        OrderTrace.Clear();
-        var runner = Setup(new ZetaInstaller(), new AlphaInstaller());
-        OrderTrace.Clear();
-
-        runner.Destroy();
-
-        AssertSequence(["Zeta.Destroy", "Alpha.Destroy"], OrderTrace.Items);
-    }
-
-    private static EngineRunner Setup(params IInstaller[] installers)
+    private static EngineRunner Setup(params IModuleInstaller[] installers)
     {
         var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
         var runner = new EngineRunner();
@@ -97,36 +132,32 @@ static class OrderTrace
     public static void Add(string phase) => _items.Add(phase);
 }
 
-[Module]
-sealed class AlphaInstaller : IInstallerDestroy
+[Module(ModuleScope.Simulation)]
+sealed class AlphaModuleInstaller : IModuleInstaller
 {
-    public string Name => nameof(AlphaInstaller);
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer) => OrderTrace.Add("Alpha.Register");
-    public void Destroy() => OrderTrace.Add("Alpha.Destroy");
+    public string Name => nameof(AlphaModuleInstaller);
+    public void OnRegisterServices(ContainerBuilder builder) => OrderTrace.Add("Alpha.Register");
 }
 
-[Module]
-sealed class ZetaInstaller : IInstallerDestroy
+[Module(ModuleScope.Simulation)]
+sealed class ZetaModuleInstaller : IModuleInstaller
 {
-    public string Name => nameof(ZetaInstaller);
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer) => OrderTrace.Add("Zeta.Register");
-    public void Destroy() => OrderTrace.Add("Zeta.Destroy");
+    public string Name => nameof(ZetaModuleInstaller);
+    public void OnRegisterServices(ContainerBuilder builder) => OrderTrace.Add("Zeta.Register");
 }
 
-[Module(10)]
-sealed class AlphaLateInstaller : IInstallerDestroy
+[Module(ModuleScope.Simulation, 10)]
+sealed class AlphaLateModuleInstaller : IModuleInstaller
 {
-    public string Name => nameof(AlphaLateInstaller);
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer) => OrderTrace.Add("AlphaLate.Register");
-    public void Destroy() => OrderTrace.Add("AlphaLate.Destroy");
+    public string Name => nameof(AlphaLateModuleInstaller);
+    public void OnRegisterServices(ContainerBuilder builder) => OrderTrace.Add("AlphaLate.Register");
 }
 
-[Module(-10)]
-sealed class ZetaEarlyInstaller : IInstallerDestroy
+[Module(ModuleScope.Simulation, -10)]
+sealed class ZetaEarlyModuleInstaller : IModuleInstaller
 {
-    public string Name => nameof(ZetaEarlyInstaller);
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer) => OrderTrace.Add("ZetaEarly.Register");
-    public void Destroy() => OrderTrace.Add("ZetaEarly.Destroy");
+    public string Name => nameof(ZetaEarlyModuleInstaller);
+    public void OnRegisterServices(ContainerBuilder builder) => OrderTrace.Add("ZetaEarly.Register");
 }
 
 static class LifecycleTrace
@@ -146,30 +177,23 @@ static class LifecycleTrace
     }
 }
 
-sealed class LifecycleSmokeInstaller : IInstallerConfiguratable
+[Module(ModuleScope.Simulation)]
+sealed class LifecycleSmokeModuleInstaller : IModuleInstaller
 {
-    public string Name => nameof(LifecycleSmokeInstaller);
+    public string Name => nameof(LifecycleSmokeModuleInstaller);
 
-    public void OnRegisterServices(IServiceRegister services, IServiceContainer serviceContainer)
+    public void OnRegisterServices(ContainerBuilder builder)
     {
     }
 
-    public void OnConfigure(IServiceContainer services, IServiceRegister container, out IModule? module)
-    {
-        module = new LifecycleSmokeModule();
-    }
-
-    public void OnConfigureComplete(IServiceContainer services)
-    {
-    }
+    public IModule CreateModule() => new LifecycleSmokeModule();
 }
 
 sealed class LifecycleSmokeModule : IModule
 {
-    public void Import(IBuilder builder)
+    public void Add(ISystemRegistry systems)
     {
-        builder.Add((object)new LifecycleSmokeSystem());
-        builder.Add(new LegacyDragonRunSystem());
+        systems.Add<LifecycleSmokeSystem>();
     }
 }
 
@@ -191,7 +215,41 @@ sealed class LifecycleSmokeSystem :
     public void Destroy() => LifecycleTrace.Add("Destroy");
 }
 
-sealed class LegacyDragonRunSystem : IEcsRun
+[Module(ModuleScope.Simulation)]
+sealed class AsyncLifecycleSmokeModuleInstaller : IModuleInstaller
 {
-    public void Run() => LifecycleTrace.Add("DragonRun");
+    public string Name => nameof(AsyncLifecycleSmokeModuleInstaller);
+
+    public IModule CreateModule() => new AsyncLifecycleSmokeModule();
+}
+
+sealed class AsyncLifecycleSmokeModule : IModule
+{
+    public void Add(ISystemRegistry systems)
+    {
+        systems.Add<AsyncLifecycleSmokeSystem>();
+    }
+}
+
+sealed class AsyncLifecycleSmokeSystem : ISystemInit, ISystemAsyncInit, ISystemAsyncDestroy, ISystemDestroy
+{
+    internal static Task? InitializationGate;
+
+    public void Init() => LifecycleTrace.Add("Init");
+    public async ValueTask InitAsync(CancellationToken cancellationToken)
+    {
+        if (InitializationGate is { } gate)
+        {
+            await gate;
+        }
+        LifecycleTrace.Add("AsyncInit");
+    }
+
+    public ValueTask DestroyAsync()
+    {
+        LifecycleTrace.Add("AsyncDestroy");
+        return ValueTask.CompletedTask;
+    }
+
+    public void Destroy() => LifecycleTrace.Add("Destroy");
 }

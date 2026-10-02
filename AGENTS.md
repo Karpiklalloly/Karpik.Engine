@@ -30,7 +30,7 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 - `Server` - server logic and validation.
 - `Shared` - common code independent of runtime side.
 - Modules are independent, expose clear APIs, and depend on interfaces rather than concrete modules.
-- Use DI through `[DI]` fields and interfaces; avoid singleton/service locator patterns for replaceable logic.
+- Register services with `[Export]` + `[ServiceRegistration]` or explicitly in `IModuleInstaller.OnRegisterServices`; inject services and systems through constructors. Do not add `[DI]` field/property injection or service locators for statically known dependencies.
 
 ## Build / Verification
 - When running `dotnet build` from an agent shell, prefer single-node builds with MSBuild node reuse disabled:
@@ -41,22 +41,22 @@ You are a lead game engine architect and low-level C# engineer. The primary filt
 ## Skills
 Large domain-specific rules live in repo-local skills:
 
-- `.codex/skills/karpik-engine-performance` - hot paths, zero allocation, DOD, SIMD, low-level .NET.
-- `.codex/skills/karpik-engine-architecture` - Client/Server/Shared, modules, tick system, DI.
-- `.codex/skills/karpik-dragon-ecs` - Dragon ECS, components, pools, aspects, systems.
-- `.codex/skills/karpik-networking` - RPC, serialization, peer/connection management.
-- `.codex/skills/karpik-hot-reload` - Hot Reload, IPC, PluginLoadContext, ECS state preservation.
-- `.codex/skills/karpik-testing` - unit/integration/edge/PBT/performance testing.
-- `.codex/skills/maintaining-changelogs` - CHANGELOG.md structure and semantic release versioning.
+- `skills/karpik-engine-performance/SKILL.md` - hot paths, zero allocation, DOD, SIMD, low-level .NET.
+- `skills/karpik-engine-architecture/SKILL.md` - Client/Server/Shared, modules, tick system, DI.
+- `skills/karpik-dragon-ecs/SKILL.md` - Dragon ECS, components, pools, aspects, systems.
+- `skills/karpik-networking/SKILL.md` - RPC, serialization, peer/connection management.
+- `skills/karpik-hot-reload/SKILL.md` - Hot Reload, IPC, PluginLoadContext, ECS state preservation.
+- `skills/karpik-testing/SKILL.md` - unit/integration/edge/PBT/performance testing.
+- `skills/maintaining-changelogs/SKILL.md` - CHANGELOG.md structure and semantic release versioning.
 
 Before working on a specific subsystem, load the matching skill and follow it. This root file contains only project-wide invariants.
 
-## Superpowers Adaptation
-Use `superpowers:brainstorming` for new subsystems, architectural changes, cross-module APIs, and changes with significant unknowns.
+## Planning
+For new subsystems, architectural changes, cross-module APIs, and changes with significant unknowns, clarify the design before implementation.
 
-- Do not require brainstorming for narrow fixes, local refactors, or self-contained algorithms unless the developer explicitly asks for it.
-- For substantial KarpikEngine work, write specifications and plans using the existing ExecPlan format from `plans/PLANS.md`. Do not create `docs/superpowers/*`.
-- During architecture evaluation, apply the relevant `karpik-*` skills after the brainstorming workflow. KarpikEngine real-time constraints take priority over generic abstraction and TDD guidance.
+- Do not require a formal design phase for narrow fixes, local refactors, or self-contained algorithms unless the developer explicitly asks for it.
+- For substantial KarpikEngine work, write specifications and plans using the existing ExecPlan format from `plans/PLANS.md`.
+- During architecture evaluation, apply the relevant `karpik-*` skills. KarpikEngine real-time constraints take priority over generic abstraction and TDD guidance.
 - Use subagents and worktrees only when the task benefits from independent parallel work or isolated branches.
 
 ## ExecPlans
@@ -73,15 +73,14 @@ Use `docs/knowledge` for compact reusable notes that are not active plans and no
 
 After a large task, investigation, or architectural discussion, propose 3-7 short learnings that may be worth recording in `docs/knowledge`. Do not write them automatically unless the developer confirms.
 
-## graphify
+## Code and documentation context
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+For non-trivial debugging, feature work, refactoring, or behavioral changes in existing code, consult the relevant project documentation before changing code.
 
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+Use available structural and semantic code-discovery tools before broad text search.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Consult project documentation, ADRs, specifications, previous design decisions, ownership/lifetime notes, and public contracts when they can affect the implementation.
+
+Do not use documentation search as a second code search engine.
+
+Do not perform redundant repository exploration when structural tools can answer the question directly.

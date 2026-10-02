@@ -2,7 +2,7 @@
 
 internal class HotReloadInfo
 {
-    public string EcsDefaultWorldJson;
-    public string EcsEventWorldJson;
-    public string EcsMetaWorldJson;
+    public string EcsDefaultWorldJson { get; set; } = string.Empty;
+    public string EcsEventWorldJson { get; set; } = string.Empty;
+    public string EcsMetaWorldJson { get; set; } = string.Empty;
 }

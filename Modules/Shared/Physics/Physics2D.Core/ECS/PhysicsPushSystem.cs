@@ -2,10 +2,11 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
+using OpenTK.Mathematics;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public class PhysicsPushSystem : ISystemBegin
+public class PhysicsPushSystem(IPhysicsWorld2D physics, DefaultWorld world) : ISystemBegin
 {
     class TeleportAspect : EcsAspect 
     {
@@ -19,13 +20,11 @@ public class PhysicsPushSystem : ISystemBegin
         public EcsPool<SetVelocityRequest> VelocityRequests = Inc;
     }
 
-    [DI] private IPhysicsWorld2D _physics = null!;
-    [DI] private DefaultWorld _world = null!;
-    
     private PhysicsBodyHandle[] _handlesBuf = new PhysicsBodyHandle[1024];
-    private Vector2[] _vecBuf = new Vector2[1024];
+    private Vector2d[] _vecBuf = new Vector2d[1024];
     private float[] _floatBuf = new float[1024];
-    
+    private double[] _doubleBuf = new double[1024];
+
     public void Begin()
     {
         ProcessTeleports();
@@ -34,7 +33,7 @@ public class PhysicsPushSystem : ISystemBegin
     
     private void ProcessTeleports()
     {
-        var span = _world.Where(out TeleportAspect aspect);
+        var span = world.Where(out TeleportAspect aspect);
         int count = span.Count;
         if (count == 0) return;
 
@@ -52,7 +51,7 @@ public class PhysicsPushSystem : ISystemBegin
             aspect.Teleports.Del(entity);
         }
 
-        _physics.SetTransforms(
+        physics.SetTransforms(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
             _floatBuf.AsSpan(0, count)
@@ -61,7 +60,7 @@ public class PhysicsPushSystem : ISystemBegin
     
     private void ProcessVelocities()
     {
-        var query = _world.Where(out VelocityAspect aspect);
+        var query = world.Where(out VelocityAspect aspect);
         int count = query.Count;
         if (count == 0) return;
 
@@ -74,15 +73,15 @@ public class PhysicsPushSystem : ISystemBegin
             
             ref var req = ref aspect.VelocityRequests.Get(entity);
             _vecBuf[i] = req.Linear;
-            _floatBuf[i] = req.Angular;
+            _doubleBuf[i] = req.Angular;
 
             aspect.VelocityRequests.Del(entity);
         }
 
-        _physics.SetVelocities(
+        physics.SetVelocities(
             _handlesBuf.AsSpan(0, count), 
             _vecBuf.AsSpan(0, count), 
-            _floatBuf.AsSpan(0, count)
+            _doubleBuf.AsSpan(0, count)
         );
     }
     
@@ -94,6 +93,7 @@ public class PhysicsPushSystem : ISystemBegin
             Array.Resize(ref _handlesBuf, newSize);
             Array.Resize(ref _vecBuf, newSize);
             Array.Resize(ref _floatBuf, newSize);
+            Array.Resize(ref _doubleBuf, newSize);
         }
     }
 }

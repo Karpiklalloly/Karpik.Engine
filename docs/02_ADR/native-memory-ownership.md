@@ -13,8 +13,7 @@ tags:
 
 > Status: accepted
 > Date: 2026-06-03
-> Owners: developer and Codex
-> Related ExecPlan: [[../../plans/native-memory-foundation-execplan]]
+> Owners: developer and AI assistant
 
 ## Context
 
@@ -82,5 +81,4 @@ Release benchmark smoke on 2026-06-03:
 
 ## Links
 
-- ExecPlan: [[../../plans/native-memory-foundation-execplan]]
 - Related code: `Karpik.Memory/`, `Karpik.Memory.Tests/`, `Karpik.Memory.Benchmarks/`, `Karpik.Jobs/SimpleNativeArray.cs`

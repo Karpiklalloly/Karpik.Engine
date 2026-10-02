@@ -1,0 +1,13 @@
+<Project Sdk="Karpik.Engine.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <KarpikProjectKind>Runtime</KarpikProjectKind>
+    <KarpikSide>Shared</KarpikSide>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Content\**\*" CopyToOutputDirectory="PreserveNewest" Link="Content\%(RecursiveDir)%(Filename)%(Extension)" TargetPath="Content\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

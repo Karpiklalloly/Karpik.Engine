@@ -5,14 +5,6 @@ namespace ProjectConfigurator;
 
 public static class RepositoryParser
 {
-    private static readonly HashSet<string> GameRootPaths = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "MyGame/MyGameResources/MyGameResources.csproj",
-        "MyGame/Shared/MyGame.Shared.Main/MyGame.Shared.Main.csproj",
-        "MyGame/Client/MyGame.Client.Main/MyGame.Client.Main.csproj",
-        "MyGame/Server/MyGame.Server.Main/MyGame.Server.Main.csproj"
-    };
-
     public static RepositoryModel Load(string rootPath, string solutionPath)
     {
         var errors = new List<string>();
@@ -85,29 +77,11 @@ public static class RepositoryParser
             }
         }
 
-        ResolveDependencies(projects.Values, plugins, errors);
-
         var propsPath = Path.Combine(rootPath, "Directory.Build.props");
+        var aliases = ReadAliases(rootPath, propsPath, projects, errors);
+        ResolveDependencies(projects.Values, plugins, aliases, errors);
+
         var (selections, settingValues) = ReadProfile(propsPath, errors);
-        var gameRoots = projects.Values
-            .Where(project => GameRootPaths.Contains(project.RelativePath))
-            .OrderBy(project => project.PluginId, StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var path in GameRootPaths)
-        {
-            if (!gameRoots.Any(project => project.RelativePath.Equals(path, StringComparison.OrdinalIgnoreCase)))
-            {
-                errors.Add($"Required game root is missing from the solution: {path}");
-            }
-        }
-
-        foreach (var project in projects.Values.Where(project =>
-                     project.RelativePath.StartsWith("MyGame/", StringComparison.OrdinalIgnoreCase) &&
-                     !GameRootPaths.Contains(project.RelativePath)))
-        {
-            errors.Add($"Unknown game project: {project.RelativePath}");
-        }
 
         return new RepositoryModel
         {
@@ -115,9 +89,9 @@ public static class RepositoryParser
             SolutionPath = solutionPath,
             PropsPath = propsPath,
             ProjectsByPath = projects,
+            ProjectAliases = aliases,
             Plugins = plugins,
             Modules = modules,
-            GameRoots = gameRoots,
             Selections = selections,
             SettingValues = settingValues,
             ParseErrors = errors
@@ -214,6 +188,7 @@ public static class RepositoryParser
     private static void ResolveDependencies(
         IEnumerable<ProjectInfo> projects,
         IEnumerable<PluginInfo> plugins,
+        IReadOnlyDictionary<string, ProjectInfo> aliases,
         List<string> errors)
     {
         var projectsById = new Dictionary<string, List<ProjectInfo>>(StringComparer.Ordinal);
@@ -224,6 +199,10 @@ public static class RepositoryParser
         foreach (var plugin in plugins.Where(plugin => plugin.Kind == PluginKind.Core))
         {
             Add(plugin.ModuleId, plugin.Project);
+        }
+        foreach (var alias in aliases)
+        {
+            Add(alias.Key, alias.Value);
         }
         foreach (var pair in projectsById.Where(pair => pair.Value.Count > 1))
         {
@@ -266,6 +245,38 @@ public static class RepositoryParser
                 matches.Add(project);
             }
         }
+    }
+
+    private static Dictionary<string, ProjectInfo> ReadAliases(
+        string rootPath,
+        string propsPath,
+        IReadOnlyDictionary<string, ProjectInfo> projects,
+        List<string> errors)
+    {
+        var aliases = new Dictionary<string, ProjectInfo>(StringComparer.Ordinal);
+        var document = XDocument.Load(propsPath);
+        foreach (var element in document.Descendants().Where(element => element.Name.LocalName == "KarpikModuleAlias"))
+        {
+            var id = element.Attribute("Include")?.Value;
+            var projectPath = element.Attribute("Project")?.Value;
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(projectPath))
+            {
+                errors.Add("KarpikModuleAlias requires Include and Project.");
+                continue;
+            }
+
+            var absolutePath = Path.GetFullPath(Path.Combine(rootPath, projectPath));
+            if (!projects.TryGetValue(absolutePath, out var project))
+            {
+                errors.Add($"KarpikModuleAlias '{id}' targets a project outside the solution: {projectPath}.");
+                continue;
+            }
+            if (!aliases.TryAdd(id, project))
+            {
+                errors.Add($"Duplicate KarpikModuleAlias: {id}.");
+            }
+        }
+        return aliases;
     }
 
     private static PluginInfo InferPlugin(ProjectInfo project, HashSet<string> coreModuleIds)
@@ -379,19 +390,15 @@ public static class RepositoryParser
     public static ProjectSide GetSide(string path)
     {
         var normalized = NormalizeRelativePath(path);
-        if (normalized.StartsWith("Modules/Client/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Client/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Client/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Client;
         }
-        if (normalized.StartsWith("Modules/Server/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Server/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Server/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Server;
         }
-        if (normalized.StartsWith("Modules/Shared/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/Shared/", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("MyGame/MyGameResources/", StringComparison.OrdinalIgnoreCase))
+        if (normalized.StartsWith("Modules/Shared/", StringComparison.OrdinalIgnoreCase))
         {
             return ProjectSide.Shared;
         }

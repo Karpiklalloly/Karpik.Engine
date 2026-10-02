@@ -1,16 +1,32 @@
 ﻿using System.Collections.Concurrent;
 using Karpik.Jobs;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
-public class MainThreadScheduler
+public class MainThreadScheduler : IDisposable
 {
     private readonly ConcurrentQueue<Action> _actions = new();
     private readonly int _mainThreadId;
+    private readonly ILogger<MainThreadScheduler> _logger;
+    private readonly ILoggerFactory? _ownedLoggerFactory;
 
     public MainThreadScheduler(int mainThreadId)
+        : this(mainThreadId, HostLogging.CreateDefaultFactory(), ownsFactory: true)
+    {
+    }
+
+    public MainThreadScheduler(int mainThreadId, ILoggerFactory loggerFactory)
+        : this(mainThreadId, loggerFactory, ownsFactory: false)
+    {
+    }
+
+    private MainThreadScheduler(int mainThreadId, ILoggerFactory loggerFactory, bool ownsFactory)
     {
         _mainThreadId = mainThreadId;
+        _logger = loggerFactory.CreateLogger<MainThreadScheduler>();
+        _ownedLoggerFactory = ownsFactory ? loggerFactory : null;
     }
     
     public JobHandle<T> InvokeAsync<T>(Func<T> work)
@@ -48,6 +64,25 @@ public class MainThreadScheduler
     public void Schedule(Action action)
     {
         _actions.Enqueue(action);
+    }
+
+    public Task ScheduleAsync(Func<Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _actions.Enqueue(() =>
+        {
+            try
+            {
+                _ = CompleteAsync(action(), completion);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        });
+        return completion.Task;
     }
     
     public JobHandle InvokeAsync(Action work)
@@ -93,9 +128,28 @@ public class MainThreadScheduler
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, "Main-thread action failed");
                 throw;
             }
+        }
+    }
+
+    public void Dispose() => _ownedLoggerFactory?.Dispose();
+
+    private static async Task CompleteAsync(Task task, TaskCompletionSource completion)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            completion.TrySetCanceled();
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
         }
     }
 }

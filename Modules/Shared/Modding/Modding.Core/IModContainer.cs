@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Shared.Modding;
 
-public interface IModContainer
+public interface IModContainer : IDisposable
 {
     
 }

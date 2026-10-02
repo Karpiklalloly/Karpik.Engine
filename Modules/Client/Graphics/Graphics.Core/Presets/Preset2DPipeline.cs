@@ -1,15 +1,18 @@
-﻿using Karpik.Engine.Client.Graphics.Core.AssetManagement;
+﻿using System.Composition;
+using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Client.Graphics.Core.Sets;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
-using Veldrid;
-using Veldrid.SPIRV;
-using Pipeline = Veldrid.Pipeline;
+using NeoVeldrid;
+using NeoVeldrid.SPIRV;
+using Pipeline = NeoVeldrid.Pipeline;
 
 namespace Karpik.Engine.Client.Graphics.Core.Presets;
 
-public class Preset2DPipeline
+[Export(typeof(Preset2DPipeline))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public class Preset2DPipeline : IDisposable
 {
     public Pipeline RectPipeline { get; private set; } = null!;
     public Pipeline TexturePipeline { get; private set; } = null!;
@@ -18,10 +21,17 @@ public class Preset2DPipeline
     
     public ResourceSet WhiteRectResourceSet => _textureResources.WhiteRectResourceSet;
 
-    [DI] private IAssetsManager _assetsManager = null!;
-    [DI] private GraphicsDevice _device = null!;
+    private readonly IAssetsManager _assetsManager;
+    private readonly GraphicsDevice _device;
     private TextureResources _textureResources = new();
     private ResourceLayout _textureLayout = null!;
+    private readonly List<Shader> _shaders = [];
+
+    public Preset2DPipeline(IAssetsManager assetsManager, GraphicsDevice device)
+    {
+        _assetsManager = assetsManager;
+        _device = device;
+    }
 
     public void Init()
     {
@@ -40,6 +50,7 @@ public class Preset2DPipeline
             new ShaderDescription(ShaderStages.Vertex, vertexShaderHandle.Asset.ShaderBytes, "main"),
             new ShaderDescription(ShaderStages.Fragment, fragmentShaderHandle.Asset.ShaderBytes, "main"));
 
+        _shaders.AddRange(shaders);
         var resourceLayoutDesc = new ResourceLayoutDescription(
             new ResourceLayoutElementDescription("Tex", ResourceKind.TextureReadOnly, ShaderStages.Fragment),
             new ResourceLayoutElementDescription("Samp", ResourceKind.Sampler, ShaderStages.Fragment)
@@ -75,6 +86,7 @@ public class Preset2DPipeline
             new ShaderDescription(ShaderStages.Vertex, vertexShaderHandle.Asset.ShaderBytes, "main"),
             new ShaderDescription(ShaderStages.Fragment, fragmentShaderHandle.Asset.ShaderBytes, "main"));
 
+        _shaders.AddRange(shaders);
         var pipelineDesc = new GraphicsPipelineDescription
         {
             BlendState = BlendStateDescription.SingleAlphaBlend,
@@ -90,5 +102,22 @@ public class Preset2DPipeline
         };
     
         return factory.CreateGraphicsPipeline(ref pipelineDesc);
+    }
+
+    public void Dispose()
+    {
+        TextPipeline?.Dispose();
+        TexturePipeline?.Dispose();
+        RectPipeline?.Dispose();
+
+        _textureResources.Dispose();
+        _textureLayout?.Dispose();
+
+        foreach (Shader shader in _shaders)
+        {
+            shader.Dispose();
+        }
+
+        _shaders.Clear();
     }
 }

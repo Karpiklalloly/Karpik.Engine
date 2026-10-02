@@ -1,0 +1,26 @@
+<Project>
+  <ItemGroup Label="KarpikModuleSelection">
+    <KarpikModuleSelection Include="AssetManagement" Enabled="true" />
+    <KarpikModuleSelection Include="DebugModule" Enabled="true" />
+    <KarpikModuleSelection Include="ECS" Enabled="true" />
+    <KarpikModuleSelection Include="LoggerModule" Enabled="true" />
+    <KarpikModuleSelection Include="Modding" Enabled="true" Implementation="Lua" />
+    <KarpikModuleSelection Include="Network.Shared" Enabled="true" Implementation="LiteNetLib" />
+    <KarpikModuleSelection Include="Physics2D" Enabled="true" Implementation="Aether2D" />
+    <KarpikModuleSelection Include="Spatial2D" Enabled="true" />
+    <KarpikModuleSelection Include="StatAndAbilities" Enabled="true" />
+    <KarpikModuleSelection Include="Tween" Enabled="true" />
+    <KarpikModuleSelection Include="UnsafeUtilities" Enabled="true" />
+  </ItemGroup>
+
+  <ItemGroup Label="KarpikClientModuleSelection" Condition="'$(KarpikSide)' == 'Client'">
+    <KarpikModuleSelection Include="Graphics" Enabled="true" Implementation="OpenGL" />
+    <KarpikModuleSelection Include="Input" Enabled="true" />
+    <KarpikModuleSelection Include="Network.Client" Enabled="true" Implementation="LiteNetLib" />
+    <KarpikModuleSelection Include="Window" Enabled="true" Implementation="Sdl2" />
+  </ItemGroup>
+
+  <ItemGroup Label="KarpikServerModuleSelection" Condition="'$(KarpikSide)' == 'Server'">
+    <KarpikModuleSelection Include="Network.Server" Enabled="true" Implementation="LiteNetLib" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,30 @@
+{
+  "KillY": -12.0,
+  "PlayerSpawns": [
+    { "X": -11.0, "Y": 2.0 },
+    { "X": 11.0, "Y": 2.0 }
+  ],
+  "Platforms": [
+    { "X": 0.0, "Y": -2.0, "Width": 30.0, "Height": 1.0, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": -10.0, "Y": 1.5, "Width": 6.0, "Height": 0.6, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": 10.0, "Y": 1.5, "Width": 6.0, "Height": 0.6, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": 0.0, "Y": 4.5, "Width": 8.0, "Height": 0.6, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": -4.0, "Y": 7.5, "Width": 4.0, "Height": 0.5, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": 4.0, "Y": 7.5, "Width": 4.0, "Height": 0.5, "IsMover": false, "ToX": 0.0, "ToY": 0.0, "Speed": 0.0 },
+    { "X": 0.0, "Y": 7.5, "Width": 3.0, "Height": 0.5, "IsMover": true, "ToX": 0.0, "ToY": 4.5, "Speed": 1.6 }
+  ],
+  "Crates": [
+    { "X": -3.0, "Y": 0.0, "Size": 1.1 },
+    { "X": 3.0, "Y": 0.0, "Size": 1.1 },
+    { "X": 0.0, "Y": 5.6, "Size": 1.0 }
+  ],
+  "Spikes": [
+    { "X": -6.5, "Y": -1.2, "Width": 2.4, "Height": 0.5 },
+    { "X": 6.5, "Y": -1.2, "Width": 2.4, "Height": 0.5 }
+  ],
+  "Checkpoints": [
+    { "X": -10.0, "Y": 2.6, "Radius": 1.2 },
+    { "X": 10.0, "Y": 2.6, "Radius": 1.2 },
+    { "X": 0.0, "Y": 5.6, "Radius": 1.2 }
+  ]
+}

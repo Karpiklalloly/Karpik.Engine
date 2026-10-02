@@ -1,11 +1,15 @@
 ﻿using System.Collections.Immutable;
+using System.Composition;
 using System.Numerics;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
-using Veldrid.Sdl2;
+using NeoVeldrid;
+using NeoVeldrid.Sdl2;
 
 namespace Karpik.Engine.Modules.Window.Sdl2;
 
+[Export(typeof(IInputSource))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public class SDL2InputSource : IInputSource
 {
     private readonly Sdl2Window _window;

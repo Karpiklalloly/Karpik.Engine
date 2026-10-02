@@ -152,18 +152,13 @@ System dependency graph для публичных `ISystem*` перенесён 
 - [x] Хранить generated manifest внутри `Generated/ModuleLoader.cs`.
 - [x] Покрыть module graph тестами.
 
-Подробный план: [`plans/module-graph-execplan.md`](../../plans/module-graph-execplan.md).
 
 ## 0.5 Scheduler / Jobs / Memory
 
 > Source of truth for the accepted `0.5` architecture and implementation order:
 > [`plans/scheduler-jobs-memory-execplan.md`](../../plans/scheduler-jobs-memory-execplan.md).
 >
-> The release is implemented through four ordered child ExecPlans:
-> [`native-memory-foundation-execplan.md`](../../plans/native-memory-foundation-execplan.md),
-> [`jobs-runtime-execplan.md`](../../plans/jobs-runtime-execplan.md),
-> [`ecs-update-scheduler-execplan.md`](../../plans/ecs-update-scheduler-execplan.md), and
-> [`client-threading-render-pipeline-execplan.md`](../../plans/client-threading-render-pipeline-execplan.md).
+> The release was implemented through four ordered child ExecPlans. The client-threading plan remains available at [`client-threading-render-pipeline-execplan.md`](../../plans/client-threading-render-pipeline-execplan.md).
 >
 > Accepted scope clarification: worker scheduling in `0.5` applies to `ISystemUpdate` and read-only
 > `ISystemRenderPrepare`. `ISystemFixedUpdate` remains sequential. Client rendering reuses the existing
@@ -268,9 +263,20 @@ Allocation gates для runtime subsystems ведутся в их собстве
 
 ## 0.6 2D Runtime Core
 
-Цель: сделать удобное и стабильное 2D ядро: renderer, camera, input, content pipeline.
+Цель: закрыть SDK/content workflow acceptance (выполнено, см. Done Criteria). Весь остаток, включая базовый editor, перенесён в 0.7 решением разработчика 2026-10-01: игру собрать можно (SSSuperGame), а Scene/Game views, Asset Browser на stable IDs, tilemap-процессор, content hot reload notification, dependency invalidation и 2D-math investigation доделываются в 0.7.
+
+### Basic Editor Foundation
+
+- [x] Отдельное editor-приложение поверх client tooling, не влияющее на runtime hot paths.
+- [x] Выбран desktop stack: Avalonia 12 + Dock 12 + ReactiveUI; ImGui остаётся runtime/debug overlay. См. [ADR](../02_ADR/editor-desktop-stack.md).
+- [x] Первый срез до content pipeline: открыть существующий проект, восстановить dock layout, запустить/остановить preview, просмотреть Console/log, Hierarchy/entities и read-only ECS Inspector.
+- [x] Первый срез передаёт bounded runtime snapshots и не читает live ECS storage; он не включает Asset Browser, импорт ассетов, scene authoring или изменение компонентов.
+- [ ] После content pipeline: Project/Asset Browser работает со stable asset IDs и manifest. → перенесено в 0.7.
+- [ ] Dockable Scene view и Game view развиваются после готовности первого среза; редактирование компонентов и scene authoring остаются задачами 0.7/1.1. → перенесено в 0.7 (Scene/Game сейчас заглушки, см. `EditorDockFactory.cs`).
 
 ### 2D Math
+
+Перенесено в 0.7 целиком решением разработчика 2026-10-01 (ни один пункт не закрыт в коде):
 
 - [ ] Провести investigation текущей Physics2D backend/libraries на поддержку `double`.
 - [ ] В runtime использовать `double` для:
@@ -285,6 +291,54 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] минимизация precision issues;
   - [ ] documented coordinate rules.
 - [ ] Если Physics2D backend остается float-based в 1.0, явно задокументировать boundary и вынести full-double physics в post-1.0.
+
+### Отложено до 0.7
+
+Renderer façade/API/diagnostics, рендеринг текста, дальнейшее развитие Camera2D и build-time sprite atlases перенесены в 0.7. Существующие возможности renderer, Camera2D и keyboard/mouse input сохраняются в 0.6.
+
+### Content Pipeline Base
+
+Закрыто в 0.6 (Content 111/111, manifest + 8 cooked файлов на Static launcher, `ContentBuildCoordinator` валидирует зависимости):
+
+- [x] Asset manifest.
+- [x] Typed asset handles.
+- [x] Asset dependency graph.
+- [x] Stable asset IDs/references needed by scenes/prefabs.
+- [x] Processors for:
+  - [x] textures;
+  - [x] fonts;
+  - [x] shaders;
+  - [x] data/json;
+  - [ ] tilemaps. → перенесено в 0.7 (процессора нет, 0 хитов `Tilemap` в `Content.*`).
+- [x] CLI command for asset build.
+- [x] Asset validation.
+- [ ] Hot reload notification. → перенесено в 0.7 (в `Content.*` только engine `RestartWorker`, content-нотификации нет).
+- [ ] Asset dependency invalidation. → перенесено в 0.7 (есть валидация зависимостей, инкрементальной инвалидации нет).
+
+### Done Criteria
+
+Закрыто 2026-10-01 решением разработчика: игра собирается (SSSuperGame: Client/Server/Shared + Content). Пункт про базовый editor перенесён в 0.7.
+
+- [x] Можно запустить и проверить 2D игру с существующими camera/sprites/text/keyboard/mouse API.
+- [x] Есть typed asset handles и stable references.
+- [x] Существующий keyboard/mouse snapshot input не аллоцирует в steady state.
+- [ ] Есть базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state. → перенесено в 0.7 (Scene/Game сейчас заглушки).
+
+## 0.7 Authoring Content
+
+Цель: завершить перенесённые из 0.6 renderer/input/runtime utilities и сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
+
+Перенос согласован 2026-10-01 и расширен решением разработчика 2026-10-01 (остаток 0.6 — см. раздел ниже). Приёмка 0.6 закрыта через Done Criteria. Канбан-доски удалены 2026-10-01 как дубли roadmap; полный перечень перенесённого — в разделе «Перенесено из 0.6» ниже.
+
+### Перенесено из 0.6 (2026-10-01)
+
+- [ ] Editor: Project/Asset Browser на stable asset IDs и manifest.
+- [ ] Editor: Dockable Scene view и Game view (сейчас заглушки `"пока недоступно"` в `EditorDockFactory.cs`); редактирование компонентов и scene authoring — 0.7/1.1.
+- [ ] Editor Done-критерий 0.6: базовый editor для навигации по проекту, просмотра сцены, ассетов и ECS state — закрывается после двух пунктов выше.
+- [ ] Content: tilemap-процессор.
+- [ ] Content: hot reload notification (content → runtime).
+- [ ] Content: asset dependency invalidation (инкрементальная, сейчас только валидация).
+- [ ] 2D Math: investigation Physics2D backend под `double`, `double`-координаты, camera-relative render boundary и документированные правила (или явный fallback в post-1.0).
 
 ### Renderer Facade
 
@@ -360,23 +414,6 @@ Allocation gates для runtime subsystems ведутся в их собстве
 - [ ] No-GC steady-state rendering.
 - [ ] Fallback glyph diagnostics.
 
-### Content Pipeline Base
-
-- [ ] Asset manifest.
-- [ ] Typed asset handles.
-- [ ] Asset dependency graph.
-- [ ] Stable asset IDs/references needed by scenes/prefabs.
-- [ ] Processors for:
-  - [ ] textures;
-  - [ ] fonts;
-  - [ ] shaders;
-  - [ ] data/json;
-  - [ ] tilemaps.
-- [ ] CLI command for asset build.
-- [ ] Asset validation.
-- [ ] Hot reload notification.
-- [ ] Asset dependency invalidation.
-
 ### Input
 
 - [x] Перевести input module на no-GC snapshot API.
@@ -427,19 +464,7 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] tile grid debug;
   - [ ] camera/debug overlay integration.
 
-### Done Criteria
 
-- [ ] Можно сделать 2D игру с camera/sprites/text/input.
-- [ ] Renderer удобнее прямого command buffer.
-- [ ] Есть typed asset handles и stable references.
-- [ ] Input не аллоцирует в steady state.
-- [ ] Есть renderer diagnostics.
-- [ ] Есть save/config foundation.
-- [ ] Есть примеры renderer/camera/text/input.
-
-## 0.7 Authoring Content
-
-Цель: сделать нормальный workflow для сцен, prefabs, tilemaps и audio.
 
 ### Scenes
 
@@ -502,6 +527,12 @@ Allocation gates для runtime subsystems ведутся в их собстве
   - [ ] stream state.
 
 ### Done Criteria
+
+- [ ] Renderer удобнее прямого command buffer.
+- [ ] Есть renderer diagnostics.
+- [ ] Есть save/config foundation.
+- [ ] Есть примеры renderer/camera/text/input.
+- [ ] Есть gamepad lifecycle, actions/bindings и сохраняемые input profiles без выделений в steady state.
 
 - [ ] Можно описать сцену ассетом.
 - [ ] Можно создавать prefab entities.
@@ -882,4 +913,3 @@ KarpikEngine 1.0 считается готовым, если:
 | Tools/Templates | CLI, templates, samples, quickstart, troubleshooting |
 | 3D | Not planned for 1.0 |
 | MonoGame API compatibility | Not planned for core; possible post-1.0 compatibility layer |
-

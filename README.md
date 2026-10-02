@@ -6,7 +6,7 @@
 
 KarpikEngine — экспериментальный open-source движок для разработки 2D-игр. Основные приоритеты: data-oriented архитектура, отсутствие аллокаций в hot paths, предсказуемый lifecycle и возможность начать с single-player логики без блокировки дальнейшего перехода к мультиплееру.
 
-Актуальный релиз: **v0.4**. Подробности: [Changelog_0.4.md](Changelog_0.4.md).
+Последний changelog: **v0.5** — [Changelog_0.5_ru.md](Changelog_0.5_ru.md). Текущая разработка: **v0.6**, внешние игры, версионированный SDK и desktop editor.
 
 ## ✨ Ключевые особенности
 
@@ -43,7 +43,7 @@ KarpikEngine — экспериментальный open-source движок д�
 ### ⚡ Производительность
 - Runtime проектируется без аллокаций после warm-up в frame, fixed-update, render и network hot paths
 - `Karpik.Jobs` уже используется внутри движка
-- Безопасный scheduler для параллельного выполнения пользовательских ECS-систем запланирован на `v0.5`
+- Добавлены scheduler ECS-систем, no-GC value jobs и unmanaged memory primitives в `v0.5`
 
 ## 🚀 Быстрый старт
 
@@ -53,30 +53,35 @@ KarpikEngine — экспериментальный open-source движок д�
 ### Установка и запуск
 1. Клонируйте репозиторий:
    ```bash
-   git clone https://github.com/your-username/KarpikEngine.git
+   git clone https://github.com/Karpiklalloly/Karpik.Engine.git KarpikEngine
    cd KarpikEngine
    ```
 
-2. Соберите launchers:
-   ```bash
-   dotnet build ServerLauncher/ServerLauncher.csproj -m:1 -nr:false
-   dotnet build ClientLauncher/ClientLauncher.csproj -m:1 -nr:false
+2. На Windows опубликуйте локальный SDK и установите шаблон:
+   ```powershell
+   ./_scripts/Update-KarpikSdk.ps1
+   dotnet new install ./templates/Karpik.Game
+   ```
+   Скрипт выводит точную версию SDK, публикует immutable engine payload и регистрирует локальный NuGet feed.
+
+3. Создайте игру вне репозитория движка, указав выведенную версию:
+   ```powershell
+   dotnet new karpik-game --name MyGame --output ../MyGame --karpik-sdk-version <sdk-version>
+   cd ../MyGame
+   dotnet build MyGame.slnx -m:1 -nr:false
    ```
 
-3. Запустите сервер:
-   ```bash
-   dotnet run --project ServerLauncher/ServerLauncher.csproj
+4. Запустите Static launcher сервера и затем клиента в другом терминале:
+   ```powershell
+   dotnet run --project Source/MyGame.Server.Launcher/MyGame.Server.Launcher.csproj --no-build
+   dotnet run --project Source/MyGame.Client.Launcher/MyGame.Client.Launcher.csproj --no-build
    ```
+   Для desktop workflow запустите `Karpik.Launcher` из engine checkout и откройте `.slnx` игры. Launcher выбирает editor по версии SDK в `global.json`. Режимы Static/Dynamic описаны в [шаблоне игры](templates/Karpik.Game/README.md).
 
-4. В другом терминале запустите клиент:
-   ```bash
-   dotnet run --project ClientLauncher/ClientLauncher.csproj
-   ```
-
-### Горячая перезагрузка
-1. Измените код и соберите соответствующий launcher.
-2. Нажмите `Hot Reload` в клиентской debug-панели или клавишу `R` в консоли launcher.
-3. Новый worker-процесс восстановит ECS-состояние.
+### Пересборка и перезапуск
+1. Остановите сессии игры в editor.
+2. Измените код и соберите соответствующий launcher.
+3. Перезапустите сервер и добавьте клиентов в editor. Обычный stop/start создаёт новое ECS-состояние.
 
 В Debug-режиме включите автоматическое подключение IDE debugger к дочерним процессам, если хотите отлаживать worker после рестарта.
 
@@ -94,7 +99,7 @@ KarpikEngine — экспериментальный open-source движок д�
 - Тесты lifecycle, ECS component lifecycle и графа модулей
 
 ### 🔮 Следующие направления
-- `v0.5`: scheduler, стабилизация `Karpik.Jobs`, no-GC scheduling и memory allocators
+- `v0.6`: editor, content pipeline, 2D runtime и инструменты разработки
 - Развитие 2D renderer, asset pipeline, input и audio API
 - Новый UI API вместо удалённого prototype UI Toolkit
 - Инструменты разработчика, профилирование и расширение сетевого sample
@@ -103,17 +108,19 @@ KarpikEngine — экспериментальный open-source движок д�
 
 ## 🏗️ Архитектура проекта
 
-Проект разделён на переиспользуемые **модули** и игровые проекты **MyGame**. Обе группы делятся на Client, Server и Shared части.
+Репозиторий содержит движок, переиспользуемые модули и инструменты. Игры создаются из шаблона и живут в отдельных каталогах; их Client, Server и Shared проекты используют `Karpik.Engine.Sdk`.
 
 ### Основные каталоги
 - `Modules/Client` — rendering, input и client-side presentation
 - `Modules/Server` — серверная логика и validation
 - `Modules/Shared` — общая логика без зависимости от runtime side
-- `MyGame` — sample game с клиентской, серверной и общей частями
+- `templates/Karpik.Game` — шаблон внешней игры со Static launcher-ами и контентом
+- `Karpik.Editor`, `Karpik.Launcher` — desktop workspace и выбор версии editor
+- `Karpik.Engine.Sdk`, `Karpik.Engine.Packager` — NuGet SDK и публикация engine payload
 - `Configurator` — validation и генерация графа модулей
 
 ### Добавление зависимости
-В проектах внутри `Modules` и `MyGame` используйте `KarpikModuleDependency`, а не прямой `ProjectReference`:
+В проектах движка внутри `Modules` используйте `KarpikModuleDependency`:
 
 ```xml
 <KarpikModuleDependency Include="Physics2D" />
@@ -127,6 +134,8 @@ dotnet run --project Configurator/Configurator.csproj -- --validate
 ```
 
 Добавление существующего идентификатора зависимости требует только reload проекта или сборки.
+
+Во внешней игре выбирайте модули через `KarpikModuleSelection` в `Directory.Build.targets`; зависимости между игровыми проектами задавайте обычным literal `ProjectReference`. Configurator запускается только для графа движка. SDK проверяет граф игры, границы сторон и создаёт runtime bundles в output самой игры.
 
 ## 🤝 Участие в разработке
 

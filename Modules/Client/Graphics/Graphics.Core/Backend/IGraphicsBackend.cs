@@ -1,14 +1,14 @@
+using Autofac;
+
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public interface IGraphicsBackend : IDisposable
+public interface IGraphicsBackend : IDisposable, IStartable
 {
     bool IsHeadless { get; }
 
-    void Initialize();
-
     void BeginFrame();
 
-    void BeginMerge();
+    void BeginMerge(in Camera2D camera);
 
     void SubmitScene();
 

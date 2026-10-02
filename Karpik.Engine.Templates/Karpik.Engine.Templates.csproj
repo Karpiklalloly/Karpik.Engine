@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageId>Karpik.Engine.Templates</PackageId>
+    <PackageType>Template</PackageType>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">0.6.0-local</PackageVersion>
+    <Authors>KarpikEngine</Authors>
+    <Description>KarpikEngine game project templates.</Description>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <ContentTargetFolders>content</ContentTargetFolders>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="**\*" />
+    <Content Include="..\templates\Karpik.Game\**\*" Exclude="..\templates\Karpik.Game\**\bin\**;..\templates\Karpik.Game\**\obj\**" Pack="true" PackagePath="content\Karpik.Game\" />
+    <Content Include="..\templates\Karpik.CoinRush\**\*" Exclude="..\templates\Karpik.CoinRush\**\bin\**;..\templates\Karpik.CoinRush\**\obj\**" Pack="true" PackagePath="content\Karpik.CoinRush\" />
+  </ItemGroup>
+</Project>

@@ -1,25 +1,34 @@
-﻿using DCFApixels.DragonECS;
-using Karpik.Engine.Core;
-using Karpik.Engine.Shared.ECS;
+﻿using Karpik.Engine.Core;
+using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-internal class InitSystem : ISystemInit
+// Public: static composition emits direct factories for module systems, so every
+// ECS system must be visible from the host assembly.
+public sealed class InitSystem(
+    IModManager modManager,
+    IAssetsManager assetsManager,
+    Application application)
+    : ISystemInit
 {
-    [DI] private ModManager _modManager = null!;
-    
     public void Init()
     {
-        _modManager.StartMods();
+        var side = application.ApplicationSide == Side.Server
+            ? ExecutionSide.Server
+            : ExecutionSide.Client;
+
+        modManager.Init(side);
+        modManager.LoadMods(assetsManager.ModsPath)
+            .GetAwaiter()
+            .GetResult();
+        modManager.StartMods();
     }
 }
 
-internal class UpdateSystem : ISystemLateUpdate
+public class UpdateSystem(IModManager modManager) : ISystemLateUpdate
 {
-    [DI] private ModManager _modManager = null!;
-    
     public void LateUpdate()
     {
-        _modManager.UpdateMods();
+        modManager.UpdateMods();
     }
 }

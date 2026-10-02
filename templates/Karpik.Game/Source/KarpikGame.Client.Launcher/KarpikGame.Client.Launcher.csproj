@@ -1,0 +1,73 @@
+﻿<Project Sdk="Karpik.Engine.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <KarpikProjectKind>Tool</KarpikProjectKind>
+    <KarpikSide>Client</KarpikSide>
+    <!-- The Dynamic and Static entry points each carry top-level statements;
+         only one of them may be part of the compilation. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- No NoWarn here, by design: every trim/AOT warning must reach the publish
+         output so the gated AOT acceptance tests can classify it against the
+         exact (code -> originating assembly[/member]) inventory documented in
+         docs/02_ADR/static-runtime-composition.md. Third-party payload origins
+         (Aether.Physics2D, MoonSharp.Interpreter, Newtonsoft.Json, DragonECS,
+         ImGui.NET, Silk.NET) stay whitelisted with per-origin justification;
+         anything outside the whitelist fails the gate - fix first-party
+         warnings at source instead of suppressing them project-wide. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="..\KarpikGame.Launcher\EngineLauncher.cs" Link="EngineLauncher.cs"
+             Condition="'$(KarpikCompositionMode)' != 'Static'" />
+    <Compile Include="StaticEntry.cs"
+             Condition="'$(KarpikCompositionMode)' == 'Static'" />
+    <ProjectReference Include="..\KarpikGame.Client\KarpikGame.Client.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+    <ProjectReference Include="..\KarpikGame.Shared\KarpikGame.Shared.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+  </ItemGroup>
+
+  <!-- Enumerate after the runtime build: cooked files do not exist at evaluation
+       time on a clean checkout. Both build and publish consume these items. -->
+  <Target Name="_KarpikCollectStaticRuntimeContent"
+          BeforeTargets="_GetCopyToOutputDirectoryItemsFromThisProject;GetCopyToPublishDirectoryItems"
+          DependsOnTargets="ResolveProjectReferences"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <ItemGroup>
+      <_KarpikRuntimeAssembly Include="@(_ResolvedProjectReferencePaths->WithMetadataValue('Filename', 'KarpikGame.Client'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_KarpikRuntimeDirectory>@(_KarpikRuntimeAssembly->'%(RootDir)%(Directory)')</_KarpikRuntimeDirectory>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(_KarpikRuntimeDirectory)' != ''">
+      <_KarpikRuntimeContent Include="$(_KarpikRuntimeDirectory)Content\manifest.json" />
+      <_KarpikRuntimeContent Include="$(_KarpikRuntimeDirectory)Content\**\*.cooked" />
+      <ContentWithTargetPath Include="@(_KarpikRuntimeContent)"
+                             TargetPath="Content\%(_KarpikRuntimeContent.RecursiveDir)%(_KarpikRuntimeContent.Filename)%(_KarpikRuntimeContent.Extension)"
+                             CopyToOutputDirectory="PreserveNewest"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Static composition turns the launcher into the game-specific host executable:
+       the whole side graph is compiled in and copied next to the host so the
+       generated host can reach every installer and service. In Dynamic mode the
+       references stay build-only and the external runner path is used unchanged. -->
+  <Target Name="_KarpikEnableStaticRuntimeReference"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <ItemGroup>
+      <ProjectReference>
+        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+        <Private>true</Private>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
+</Project>

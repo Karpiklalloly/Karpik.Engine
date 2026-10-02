@@ -1,8 +1,12 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 
+[Export(typeof(IWindow))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class HeadlessWindow : IWindow
 {
     private int _width = 800;
@@ -48,5 +52,10 @@ public sealed class HeadlessWindow : IWindow
     public void Close()
     {
         Exists = false;
+    }
+
+    public void Dispose()
+    {
+        Close();
     }
 }

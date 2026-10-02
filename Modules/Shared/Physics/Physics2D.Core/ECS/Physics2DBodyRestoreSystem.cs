@@ -1,32 +1,32 @@
 using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS;
+using Karpik.Engine.Shared.Spatial2D;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
-public sealed class Physics2DBodyRestoreSystem : ISystemInit
+public sealed class Physics2DBodyRestoreSystem(DefaultWorld world, ILogger<Physics2DBodyRestoreSystem> log) : ISystemInit
 {
     private class RuntimeBodyAspect : EcsAspect
     {
         public EcsPool<PhysicsBodyRef> BodyRefs = Inc;
-        public EcsReadonlyPool<PhysicsBodyDefinition> Definitions = Opt;
+        public ReadonlyEcsPool<PhysicsBodyDefinition> Definitions = Opt;
     }
 
     private class DefinitionAspect : EcsAspect
     {
-        public EcsReadonlyPool<PhysicsBodyDefinition> Definitions = Inc;
-        public EcsReadonlyPool<Transform2D> Transforms = Inc;
+        public ReadonlyEcsPool<PhysicsBodyDefinition> Definitions = Inc;
+        public ReadonlyEcsPool<Transform2D> Transforms = Inc;
         public EcsPool<CreateBodyRequest> Requests = Opt;
         public EcsPool<PhysicsBodyRef> BodyRefs = Exc;
     }
-
-    [DI] private DefaultWorld _world = null!;
 
     public void Init()
     {
         int clearedRuntimeRefs = 0;
         int missingDefinitions = 0;
-        foreach (var entity in _world.Where(out RuntimeBodyAspect runtimeBody))
+        foreach (var entity in world.Where(out RuntimeBodyAspect runtimeBody))
         {
             if (!runtimeBody.Definitions.Has(entity))
             {
@@ -38,7 +38,7 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
         }
 
         int queuedBodies = 0;
-        foreach (var entity in _world.Where(out DefinitionAspect definition))
+        foreach (var entity in world.Where(out DefinitionAspect definition))
         {
             if (definition.Requests.Has(entity))
             {
@@ -54,8 +54,7 @@ public sealed class Physics2DBodyRestoreSystem : ISystemInit
 
         if (clearedRuntimeRefs > 0 || queuedBodies > 0 || missingDefinitions > 0)
         {
-            Console.WriteLine(
-                $"[Physics2D] Cleared {clearedRuntimeRefs} runtime body refs, queued {queuedBodies} body restores, missing definitions {missingDefinitions}");
+            log.LogDebug("Cleared {clearedRuntimeRefs} runtime body refs, queued {queuedBodies} body restores, missing definitions {missingDefinitions}", clearedRuntimeRefs, queuedBodies, missingDefinitions);
         }
     }
 }

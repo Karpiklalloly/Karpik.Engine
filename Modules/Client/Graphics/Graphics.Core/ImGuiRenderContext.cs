@@ -1,8 +1,12 @@
+using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
+[Export(typeof(ImGuiRenderContext))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class ImGuiRenderContext : IDisposable
 {
     private GraphicsDevice _device = null!;

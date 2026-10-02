@@ -1,26 +1,37 @@
-﻿using Karpik.Engine.Core;
+﻿using System.Composition;
+using Karpik.Engine.Core;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 using StbImageSharp;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core.AssetManagement;
 
-public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>, IOnInjectedDI
+[Export(typeof(IAssetLoader))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>
 {
     public override string? DefaultPath => "Sprites/default.jpg";
     public override string[] SupportedExtensions => [".jpg", ".png", ".bmp", ".tga", ".psd", ".gif", ".hdr"];
 
-    [DI] private GraphicsDevice _device = null!;
-    private ResourceFactory _factory = null!;
-    
-    public void OnInjected()
+    // TODO: Убрать нулабл отсюда, временное решение для перехода на DI
+    private readonly GraphicsDevice? _device;
+    private readonly ResourceFactory? _factory;
+
+    public TextureLoader(GraphicsDevice? device = null)
     {
-        _factory = _device.ResourceFactory;
+        _device = device;
+        _factory = _device?.ResourceFactory;
     }
     
-    protected override JobHandle<ITexture2D?> OnLoadAsync(Stream stream, string assetName)
+    protected override JobHandle<ITexture2D?> OnLoadAsync(IAssetLoadContext context, Stream stream, string assetName)
     {
+        if (_device is null || _factory is null)
+        {
+            throw new NotSupportedException("Texture loading is unavailable. No GraphicsDevice or ResourceFactory");
+            return JobHandle<ITexture2D?>.FromResult(null);
+        }
+
         return Job.Run<ITexture2D?>(() =>
         {
             ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
@@ -46,7 +57,7 @@ public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>, IOnInjec
             ResourceSet set = _factory.CreateResourceSet(new ResourceSetDescription(
                 layout, view, sampler));
             
-            VeldridTexture2D? texture2D = new(texture, set);
+            VeldridTexture2D texture2D = new(texture, set);
 
             return texture2D;
         });
@@ -54,7 +65,7 @@ public class TextureLoader : BaseAssetLoader<TextureAsset, ITexture2D>, IOnInjec
 
     protected override TextureAsset EmptyAsset() => new();
 
-    protected override void SetValue(TextureAsset asset, ITexture2D value)
+    protected override void SetValue(IAssetLoadContext context, TextureAsset asset, ITexture2D value)
     {
         asset.Texture = value;
     }

@@ -8,10 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Dragon" />
-      <KarpikModuleDependency Include="Veldrid.SDL2" />
-      <KarpikModuleDependency Include="Karpik.Engine.Core.Runner" />
-      <KarpikModuleDependency Include="Karpik.Engine.Core" />
+      <ProjectReference Include="..\..\..\..\third-parties\DragonECS\DragonECS.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NeoVeldrid" Version="1.2.0" />
     </ItemGroup>
 
 </Project>

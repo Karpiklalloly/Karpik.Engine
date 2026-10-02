@@ -37,7 +37,6 @@ public readonly struct ClientFrameTimingSnapshot
     public readonly AllocationSummary MergeAllocations;
     public readonly TimingSummary PresentCpu;
     public readonly TimingSummary PresentInterval;
-    public readonly TimingSummary GpuCommand;
     public readonly MergeAvailabilitySummary MergeAvailability;
 
     internal ClientFrameTimingSnapshot(
@@ -55,7 +54,6 @@ public readonly struct ClientFrameTimingSnapshot
         AllocationSummary mergeAllocations,
         TimingSummary presentCpu,
         TimingSummary presentInterval,
-        TimingSummary gpuCommand,
         MergeAvailabilitySummary mergeAvailability)
     {
         MainThreadFrame = mainThreadFrame;
@@ -72,7 +70,6 @@ public readonly struct ClientFrameTimingSnapshot
         MergeAllocations = mergeAllocations;
         PresentCpu = presentCpu;
         PresentInterval = presentInterval;
-        GpuCommand = gpuCommand;
         MergeAvailability = mergeAvailability;
     }
 }
@@ -352,7 +349,6 @@ public sealed class ClientFrameMetrics
     private readonly FrameAllocationWindow _mergeAllocations = new();
     private readonly FrameTimingWindow _presentCpu = new();
     private readonly FrameTimingWindow _presentInterval = new();
-    private readonly FrameTimingWindow _gpuCommand = new();
     private readonly FrameCounterWindow _mergeAvailability = new();
     private long _lastPresentTimestamp = -1;
 
@@ -391,11 +387,6 @@ public sealed class ClientFrameMetrics
         }
     }
 
-    public void PublishGpuCommandNanoseconds(long nanoseconds)
-    {
-        _gpuCommand.Publish(NanosecondsToStopwatchTicks(nanoseconds), Stopwatch.GetTimestamp());
-    }
-
     public ClientFrameTimingSnapshot GetSnapshot() => new(
         _mainThreadFrame.GetSummary(),
         _mainThreadBegin.GetSummary(),
@@ -411,7 +402,6 @@ public sealed class ClientFrameMetrics
         _mergeAllocations.GetSummary(),
         _presentCpu.GetSummary(),
         _presentInterval.GetSummary(),
-        _gpuCommand.GetSummary(),
         _mergeAvailability.GetSummary());
 
     public static double ToMilliseconds(long ticks) => ticks * (1000.0 / Stopwatch.Frequency);

@@ -1,8 +1,8 @@
-﻿using Veldrid;
+﻿using NeoVeldrid;
 
 namespace Karpik.Engine.Modules.Window.Core;
 
-public interface IWindow
+public interface IWindow : IDisposable
 {
     public event Action Resized;
     

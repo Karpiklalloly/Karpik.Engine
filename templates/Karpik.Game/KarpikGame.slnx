@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Source/">
+    <Project Path="Source/KarpikGame.Client/KarpikGame.Client.csproj" />
+    <Project Path="Source/KarpikGame.Client.Launcher/KarpikGame.Client.Launcher.csproj" />
+    <Project Path="Source/KarpikGame.Server/KarpikGame.Server.csproj" />
+    <Project Path="Source/KarpikGame.Server.Launcher/KarpikGame.Server.Launcher.csproj" />
+    <Project Path="Source/KarpikGame.Shared/KarpikGame.Shared.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/KarpikGame.Tests/KarpikGame.Tests.csproj" />
+  </Folder>
+</Solution>

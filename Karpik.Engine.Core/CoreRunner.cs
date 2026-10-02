@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
 public class CoreRunner
@@ -8,84 +10,107 @@ public class CoreRunner
     private static Bootstrap _bootstrap = null!;
     private static Ref<bool> _isRunning = new(true);
     private static volatile bool _stateCollected = false;
+    private ILogger<CoreRunner> _logger = null!;
     
     public void Start(Ref<bool> isRunning, Side side) => Start(isRunning, side, HotReloadOptions.Default);
 
     public void Start(Ref<bool> isRunning, Side side, HotReloadOptions options)
     {
+        using ILoggerFactory loggerFactory = HostLogging.CreateDefaultFactory();
+        Start(isRunning, side, options, loggerFactory);
+    }
+
+    public void Start(Ref<bool> isRunning, Side side, HotReloadOptions options, ILoggerFactory loggerFactory)
+    {
         ArgumentNullException.ThrowIfNull(isRunning);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+        _logger = loggerFactory.CreateLogger<CoreRunner>();
 
-        if (options.Mode == HotReloadMode.RestartWorker)
+        try
         {
-            RunWithWorkerRestart(isRunning, side, options);
-            return;
-        }
+            if (options.Mode == HotReloadMode.RestartWorker)
+            {
+                RunWithWorkerRestart(isRunning, side, options, loggerFactory);
+                return;
+            }
 
-        RunEngine(isRunning, side);
+            RunEngine(isRunning, side, loggerFactory);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Engine host failed");
+            throw;
+        }
     }
     
     internal ProcessManager? GetProcessManager() => _processManager;
 
-    private void RunWithWorkerRestart(Ref<bool> isRunning, Side side, HotReloadOptions options)
+    private void RunWithWorkerRestart(Ref<bool> isRunning, Side side, HotReloadOptions options, ILoggerFactory loggerFactory)
     {
-        Console.WriteLine("[Watcher] Starting restart-worker hot reload...");
+        _logger.LogInformation("Starting restart-worker hot reload");
 
-        _processManager = new ProcessManager(side, options);
+        _processManager = new ProcessManager(side, options, null, loggerFactory);
         _processManager.OnWorkerExited += (exitCode) =>
         {
-            Console.WriteLine($"[Watcher] Worker exited with code: {exitCode}");
+            _logger.LogInformation("Worker exited with code {ExitCode}", exitCode);
             if (exitCode != 0 && isRunning.Value)
             {
-                Console.WriteLine("[Watcher] Worker crashed, restarting...");
+                _logger.LogWarning("Worker crashed, restarting");
                 _ = RestartWorkerAsync();
             }
         };
 
         _processManager.OnWorkerReady += () =>
         {
-            Console.WriteLine("[Watcher] Worker is ready!");
+            _logger.LogInformation("Worker is ready");
         };
 
-        _processManager.StartWorkerAsync().Wait();
-
-        Console.WriteLine("[Watcher] Press 'R' to hot reload, 'Q' to quit");
-
-        while (isRunning.Value
-               && (_processManager.IsWorkerRunning
-                   || _processManager.IsWorkerReady
-                   || _processManager.IsReloadInProgress))
+        try
         {
-            if (Console.KeyAvailable)
+            _processManager.StartWorkerAsync().Wait();
+
+            Console.WriteLine("[Watcher] Press 'R' to hot reload, 'Q' to quit");
+
+            while (isRunning.Value
+                   && (_processManager.IsWorkerRunning
+                       || _processManager.IsWorkerReady
+                       || _processManager.IsReloadInProgress))
             {
-                var key = Console.ReadKey(true).Key;
-                if (key == ConsoleKey.Q)
+                if (Console.KeyAvailable)
                 {
-                    Console.WriteLine("[Watcher] Quit requested by user");
-                    isRunning.Value = false;
-                }
-                else if (key == ConsoleKey.R)
-                {
-                    Console.WriteLine("[Watcher] Hot reload requested by user");
-                    try
+                    var key = Console.ReadKey(true).Key;
+                    if (key == ConsoleKey.Q)
                     {
-                        _processManager.HotReloadAsync().GetAwaiter().GetResult();
+                        _logger.LogInformation("Quit requested by user");
+                        isRunning.Value = false;
                     }
-                    catch (Exception ex)
+                    else if (key == ConsoleKey.R)
                     {
-                        Console.WriteLine($"[Watcher] Hot reload failed: {ex.Message}");
+                        _logger.LogInformation("Hot reload requested by user");
+                        try
+                        {
+                            _processManager.HotReloadAsync().GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Hot reload failed");
+                        }
                     }
                 }
+
+                Thread.Sleep(100);
             }
 
-            Thread.Sleep(100);
+            _logger.LogInformation("Shutting down");
+            _processManager.StopWorkerAsync().Wait();
+
+            _logger.LogInformation("Exited");
         }
-
-        Console.WriteLine("[Watcher] Shutting down...");
-        _processManager?.StopWorkerAsync().Wait();
-        _processManager?.Dispose();
-
-        Console.WriteLine("[Watcher] Exited");
+        finally
+        {
+            _processManager?.Dispose();
+        }
     }
 
     private async Task RestartWorkerAsync()
@@ -98,15 +123,15 @@ public class CoreRunner
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Watcher] Failed to restart worker: {ex.Message}");
+            _logger.LogError(ex, "Failed to restart worker");
         }
     }
 
-    private static void RunEngine(Ref<bool> isRunning, Side side)
+    private void RunEngine(Ref<bool> isRunning, Side side, ILoggerFactory loggerFactory)
     {
         _isRunning = isRunning;
         _stateCollected = false;
-        _bootstrap = new Bootstrap(side);
+        _bootstrap = new Bootstrap(side, loggerFactory);
         var loader = new ModuleLoader();
         switch (side)
         {
@@ -122,8 +147,10 @@ public class CoreRunner
         var types = GetTypes(loader);
         _bootstrap.RegisterTypes(types);
         
-        Console.WriteLine(Environment.CurrentManagedThreadId);
+        _logger.LogInformation("Engine main thread {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning);
+        mainThreadScheduler.Execute();
+        _bootstrap.Startup.GetAwaiter().GetResult();
 
         switch (side)
         {
@@ -131,15 +158,15 @@ public class CoreRunner
                 ClientLoop(mainThreadScheduler);
                 break;
             case Side.Server:
-                ServerLoop(mainThreadScheduler);
+                ServerLoop(mainThreadScheduler, _logger);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
         }
         
-        _bootstrap.Shutdown();
+        _bootstrap.ShutdownAsync().GetAwaiter().GetResult();
         
-        Console.WriteLine("[Worker] Exited cleanly");
+        _logger.LogInformation("Worker exited cleanly");
     }
     
     private static Type[] GetTypes(ModuleLoader loader)
@@ -149,10 +176,11 @@ public class CoreRunner
             .ToArray();
     }
     
-    private static void ServerLoop(MainThreadScheduler mainThreadScheduler)
+    private static void ServerLoop(MainThreadScheduler mainThreadScheduler, ILogger logger)
     {
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
+        bool overloadWarned = false;
         
         while (_isRunning.Value)
         {
@@ -169,8 +197,16 @@ public class CoreRunner
             
             if (loops >= 5)
             {
-                Console.WriteLine($"Server overloading! Skipping ticks. Lag: {currentTime - nextTickTime:F4}s");
+                if (!overloadWarned)
+                {
+                    logger.LogWarning("Server overloading; skipping ticks. Lag: {LagSeconds:F4}s", currentTime - nextTickTime);
+                    overloadWarned = true;
+                }
                 nextTickTime = currentTime + Application.TICK_DT;
+            }
+            else
+            {
+                overloadWarned = false;
             }
             
             double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;
@@ -235,4 +271,10 @@ public class CoreRunner
         }
     }
 
+}
+
+internal static class HostLogging
+{
+    internal static ILoggerFactory CreateDefaultFactory() =>
+        LoggerFactory.Create(logging => logging.AddSimpleConsole());
 }

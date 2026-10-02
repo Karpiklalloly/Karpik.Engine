@@ -19,14 +19,12 @@ internal static class HotReloadHandler
     
     public static void TriggerUpdateManually()
     {
-        Console.WriteLine("[HotReloadHandler-DEBUG] Manual update triggered.");
         OnUpdateApplication?.Invoke();
     }
     
     // --- RELEASE: Система со встроенным .NET Hot Reload ---
     public static void UpdateApplication(Type[]? updatedTypes)
     {
-        Console.WriteLine("[HotReloadHandler-RELEASE] Metadata update detected. Triggering light reload...");
         OnUpdateApplication?.Invoke();
     }
 }

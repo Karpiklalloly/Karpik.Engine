@@ -3,66 +3,66 @@ using System.Diagnostics;
 using ImGuiNET;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public sealed class ImGuiBeginSystem : ISystemMainThreadBegin
+public sealed class ImGuiBeginSystem(
+    IInputSource inputSource,
+    ImGuiOverlayState overlay,
+    IGraphicsBackend backend,
+    InputCaptureState inputCapture)
+    : ISystemMainThreadBegin
 {
-    [DI] private IInputSource _inputSource = null!;
-    [DI] private ImGuiOverlayState _overlay = null!;
-    [DI] private IGraphicsBackend _backend = null!;
-    [DI] private InputCaptureState _inputCapture = null!;
-
     public void MainThreadBegin()
     {
-        IReadOnlyList<KeyEvent> keyEvents = _inputSource.KeyEvents;
+        IReadOnlyList<KeyEvent> keyEvents = inputSource.KeyEvents;
         for (int i = 0; i < keyEvents.Count; i++)
         {
             KeyEvent keyEvent = keyEvents[i];
             if (keyEvent is { Key: Key.F1, Down: true })
             {
-                _overlay.Toggle();
+                overlay.Toggle();
                 break;
             }
         }
 
-        if (!_overlay.Enabled)
+        if (!overlay.Enabled)
         {
-            _overlay.ClearCapture();
-            _inputCapture.Clear();
+            overlay.ClearCapture();
+            inputCapture.Clear();
             return;
         }
 
-        _backend.UpdateImGui(out bool wantsMouse, out bool wantsKeyboard, out bool wantsText);
-        _overlay.SetCapture(wantsMouse, wantsKeyboard, wantsText);
-        _inputCapture.Set(wantsMouse, wantsKeyboard, wantsText);
+        backend.UpdateImGui(out bool wantsMouse, out bool wantsKeyboard, out bool wantsText);
+        overlay.SetCapture(wantsMouse, wantsKeyboard, wantsText);
+        inputCapture.Set(wantsMouse, wantsKeyboard, wantsText);
     }
 }
 
-public sealed class ImGuiDebugPanelSystem : ISystemRender
+public sealed class ImGuiDebugPanelSystem(
+    ImGuiOverlayState overlay,
+    IInputSource inputSource,
+    Time time,
+    ClientFrameMetrics clientFrameMetrics,
+    GraphicsLoadTestSettings graphicsLoadTestSettings)
+    : ISystemRender
 {
-    [DI] private ImGuiOverlayState _overlay = null!;
-    [DI] private IInputSource _inputSource = null!;
-    [DI] private Time _time = null!;
-    [DI] private ClientFrameMetrics _clientFrameMetrics = null!;
-    [DI] private GraphicsLoadTestSettings _graphicsLoadTestSettings = null!;
-
     private string _text = string.Empty;
 
     public void Render()
     {
-        if (!_overlay.Enabled)
+        if (!overlay.Enabled)
         {
             return;
         }
 
         ImGui.Begin("Karpik Debug");
         ImGui.TextUnformatted("ImGui overlay is running.");
-        ImGui.Text($"Frame dt: {_time.DeltaTime * 1000.0:0.00} ms");
-        ImGui.Text($"FPS: {1 / _time.DeltaTime:0}");
-        ImGui.Text($"Mouse: {_inputSource.MousePosition.X:0}, {_inputSource.MousePosition.Y:0}");
-        ClientFrameTimingSnapshot timings = _clientFrameMetrics.GetSnapshot();
+        ImGui.Text($"Frame dt: {time.DeltaTime * 1000.0:0.00} ms");
+        ImGui.Text($"FPS: {1 / time.DeltaTime:0}");
+        ImGui.Text($"Mouse: {inputSource.MousePosition.X:0}, {inputSource.MousePosition.Y:0}");
+        ClientFrameTimingSnapshot timings = clientFrameMetrics.GetSnapshot();
         ImGui.SeparatorText("Threaded frame timings");
         ImGui.TextUnformatted("Last completed 1-second window: avg / p95 / p99 / max");
         DrawTimingSummary("Main frame", timings.MainThreadFrame);
@@ -79,33 +79,32 @@ public sealed class ImGuiDebugPanelSystem : ISystemRender
         DrawAllocationSummary("Merge allocations", timings.MergeAllocations);
         DrawTimingSummary("Present CPU", timings.PresentCpu);
         DrawTimingSummary("Present interval", timings.PresentInterval);
-        DrawTimingSummary("GPU command", timings.GpuCommand);
         ImGui.Text($"Present 1% low: {ToFramesPerSecond(timings.PresentInterval.P99Ticks):0} FPS");
         ImGui.Text($"Merge command list unavailable: {timings.MergeAvailability.UnavailableCount} / {timings.MergeAvailability.PollCount} ({GetPercent(timings.MergeAvailability):0.0}%)");
         if (ImGui.Button("Copy timings"))
         {
-            ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, _graphicsLoadTestSettings.QuadCount, _graphicsLoadTestSettings.Scenario));
+            ImGui.SetClipboardText(FrameTimingClipboardFormatter.Format(timings, graphicsLoadTestSettings.QuadCount, graphicsLoadTestSettings.Scenario));
         }
-        int stressQuadCount = _graphicsLoadTestSettings.QuadCount;
+        int stressQuadCount = graphicsLoadTestSettings.QuadCount;
         if (ImGui.SliderInt("Stress quads", ref stressQuadCount, 0, GraphicsLoadTestSettings.MaxQuadCount))
         {
-            _graphicsLoadTestSettings.QuadCount = stressQuadCount;
+            graphicsLoadTestSettings.QuadCount = stressQuadCount;
         }
-        if (ImGui.Button("Stress 1k")) _graphicsLoadTestSettings.QuadCount = 1024;
+        if (ImGui.Button("Stress 1k")) graphicsLoadTestSettings.QuadCount = 1024;
         ImGui.SameLine();
-        if (ImGui.Button("Stress 4k")) _graphicsLoadTestSettings.QuadCount = 4096;
+        if (ImGui.Button("Stress 4k")) graphicsLoadTestSettings.QuadCount = 4096;
         ImGui.SameLine();
-        if (ImGui.Button("Stress max")) _graphicsLoadTestSettings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount;
+        if (ImGui.Button("Stress max")) graphicsLoadTestSettings.QuadCount = GraphicsLoadTestSettings.MaxQuadCount;
         ImGui.SameLine();
-        if (ImGui.Button("Clear stress")) _graphicsLoadTestSettings.QuadCount = 0;
-        ImGui.Text($"Stress scenario: {GraphicsLoadTestSettings.GetScenarioName(_graphicsLoadTestSettings.Scenario)}");
-        if (ImGui.Button("Sorted rects")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.SortedRects;
+        if (ImGui.Button("Clear stress")) graphicsLoadTestSettings.QuadCount = 0;
+        ImGui.Text($"Stress scenario: {GraphicsLoadTestSettings.GetScenarioName(graphicsLoadTestSettings.Scenario)}");
+        if (ImGui.Button("Sorted rects")) graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.SortedRects;
         ImGui.SameLine();
-        if (ImGui.Button("Unsorted rects")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.UnsortedRects;
+        if (ImGui.Button("Unsorted rects")) graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.UnsortedRects;
         ImGui.SameLine();
-        if (ImGui.Button("Texture batches")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureBatches;
+        if (ImGui.Button("Texture batches")) graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureBatches;
         ImGui.SameLine();
-        if (ImGui.Button("Texture thrash")) _graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureThrash;
+        if (ImGui.Button("Texture thrash")) graphicsLoadTestSettings.Scenario = GraphicsLoadTestScenario.TextureThrash;
         ImGui.InputText("Text", ref _text, 128);
         ImGui.End();
     }

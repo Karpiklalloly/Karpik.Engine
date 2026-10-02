@@ -2,7 +2,7 @@
 
 namespace Karpik.Engine.Shared.Modding;
 
-public interface IModManager
+public interface IModManager : IDisposable
 {
     public void Init(ExecutionSide side);
 
@@ -12,6 +12,4 @@ public interface IModManager
 
     public void StartMods();
     public void UpdateMods();
-
-    public void Destroy();
 }

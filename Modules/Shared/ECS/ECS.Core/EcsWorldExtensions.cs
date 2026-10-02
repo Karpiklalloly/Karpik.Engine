@@ -4,6 +4,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Core.Hot;
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
@@ -14,34 +15,36 @@ public static class EcsWorldExtensions
 {
     extension(EcsWorld world)
     {
-        public string Snapshot
+        public string ToSnapshot(ComponentArrayConverter converter)
         {
-            get
+            List<EntitySnapshot> entitySnapshots = [];
+            var entities = world.Entities;
+            foreach (var e in entities)
             {
-                List<EntitySnapshot> entitySnapshots = [];
-                var entities = world.Entities;
-                foreach (var e in entities)
-                {
-                    EntitySnapshot snapshot = new EntitySnapshot();
-                    snapshot.Id = e;
-                    List<object> objs = [];
-                    world.GetComponentsFor(e, objs);
-                    snapshot.Components = new ComponentsTemplate(objs.Cast<IEcsComponentMember>().ToArray());
-                    entitySnapshots.Add(snapshot);
-                }
-                
-                return JsonConvert.SerializeObject(entitySnapshots, new JsonSerializerSettings()
-                {
-                    Formatting = Formatting.Indented,
-                    TypeNameHandling = TypeNameHandling.Objects,
-                    TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-                    Converters = [new ComponentArrayConverter()],
-                    ContractResolver = new DefaultContractResolver()
-                });
+                EntitySnapshot snapshot = new EntitySnapshot();
+                snapshot.Id = e;
+                List<object> objs = [];
+                world.GetComponentsFor(e, objs);
+                snapshot.Components = ComponentsTemplate.FromRawComponents(objs.Cast<IEcsComponentMember>().ToArray());
+                entitySnapshots.Add(snapshot);
             }
+                
+            return JsonConvert.SerializeObject(entitySnapshots, new JsonSerializerSettings()
+            {
+                Formatting = Formatting.Indented,
+                TypeNameHandling = TypeNameHandling.Objects,
+                TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
+                Converters = [converter],
+                ContractResolver = new DefaultContractResolver()
+            });
         }
 
-        public static async JobHandle FromSnapshot(EcsWorld newWorld, string snapshots, IServiceContainer container)
+        public static async JobHandle FromSnapshot(
+            EcsWorld newWorld,
+            string snapshots,
+            IServiceResolver container,
+            ComponentArrayConverter converter,
+            ILogger<ComponentArrayConverter> logger)
         {
             var list = JsonConvert.DeserializeObject<List<EntitySnapshot>>(snapshots, new JsonSerializerSettings()
             {
@@ -49,9 +52,16 @@ public static class EcsWorldExtensions
                 TypeNameHandling = TypeNameHandling.Objects,
                 TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
                 SerializationBinder = new LooseAssemblyNameBinder(),
-                Converters = [new ComponentArrayConverter()],
+                Converters = [converter],
                 ContractResolver = new DefaultContractResolver()
             })!;
+
+            // Convert every component before mutating the world. A bad snapshot must not erase
+            // the currently running world before restore fails.
+            foreach (var entitySnapshot in list)
+            {
+                entitySnapshot.Components.Materialize(logger);
+            }
 
             var entities = newWorld.Entities;
             foreach (var e in entities)
@@ -62,8 +72,7 @@ public static class EcsWorldExtensions
             await foreach (var entitySnapshot in list.ToAsyncEnumerable())
             {
                 newWorld.NewEntity(entitySnapshot.Id);
-                entitySnapshot.Components.OnLoad(container);
-                await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld);
+                await entitySnapshot.Components.ApplyTo(entitySnapshot.Id, newWorld, container);
             }
         }
     }

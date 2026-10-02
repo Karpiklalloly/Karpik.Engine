@@ -5,10 +5,10 @@ namespace Karpik.Engine.Client.Network.LiteNetLib;
 
 internal class NetworkClientModule : IModule
 {
-    public void Import(IBuilder b)
+    public void Add(ISystemRegistry systems)
     {
-        b.Add(new InitNetworkClientSystem());
-        b.Add(new DestroyNetworkClientSystem());
-        b.Add(new UpdateNetworkClientSystem(), CustomLayers.BEGIN_PROGRAM_LAYER);
+        systems.Add<InitNetworkClientSystem>();
+        systems.Add<DestroyNetworkClientSystem>();
+        systems.Add<UpdateNetworkClientSystem>(CustomLayers.BEGIN_PROGRAM_LAYER);
     }
 }

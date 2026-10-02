@@ -1,0 +1,71 @@
+<Project>
+  <!-- Базовые значения SDK: имя runtime bundle, режим композиции и проверка AOT. -->
+  <PropertyGroup>
+    <KarpikRuntimeBundleDirectoryName>karpik-bundle</KarpikRuntimeBundleDirectoryName>
+    <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Static</KarpikCompositionMode>
+    <KarpikEnableNativeAotValidation Condition="'$(KarpikEnableNativeAotValidation)' == ''">false</KarpikEnableNativeAotValidation>
+  </PropertyGroup>
+  
+  <!-- Передаёт выбранные MSBuild-свойства в исходные генераторы. -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="KarpikSide" />
+    <CompilerVisibleProperty Include="KarpikProjectKind" />
+    <CompilerVisibleProperty Include="KarpikCompositionMode" />
+  </ItemGroup>
+  
+  <!-- Подключает стандартные свойства .NET SDK после установки значений Karpik. -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  
+  <!-- Настраивает Content Pipeline и его промежуточные артефакты. -->
+  <PropertyGroup>
+    <KarpikContentNamespace Condition="'$(KarpikContentNamespace)' == '' and '$(KarpikContentEnabled)' == 'true'">game</KarpikContentNamespace>
+    <KarpikContentSourceRoot Condition="'$(KarpikContentSourceRoot)' == ''">$(MSBuildProjectDirectory)\Content</KarpikContentSourceRoot>
+    <KarpikContentToolDll Condition="'$(KarpikContentToolDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\content.dll</KarpikContentToolDll>
+    <KarpikContentRuntimeDll Condition="'$(KarpikContentRuntimeDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\Karpik.Content.Runtime.dll</KarpikContentRuntimeDll>
+    <KarpikContentCoreDll Condition="'$(KarpikContentCoreDll)' == ''">$(MSBuildThisFileDirectory)..\tools\net10.0\content\Karpik.Content.Core.dll</KarpikContentCoreDll>
+  </PropertyGroup>
+  
+  <!-- Подключает генератор content-кода и metadata-файлы, когда Content Pipeline включён. -->
+  <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
+    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Content.Codegen.dll" />
+    <AdditionalFiles Include="$(KarpikContentSourceRoot)\**\*.meta" />
+    <Reference Include="Karpik.Content.Runtime">
+      <HintPath>$(KarpikContentRuntimeDll)</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Content.Core">
+      <HintPath>$(KarpikContentCoreDll)</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Static launchers compile generated factories for runtime systems. Those
+       factories can mention content contracts from their referenced Runtime
+       projects, but ProjectReference does not propagate the contracts to the
+       host compilation. Keep this as references only: a launcher must not run
+       the content pipeline for its own (nonexistent) Content directory. -->
+  <ItemGroup Condition="'$(KarpikProjectKind)' == 'Tool' and '$(KarpikCompositionMode)' == 'Static'">
+    <Reference Include="Karpik.Content.Runtime">
+      <HintPath>$(KarpikContentRuntimeDll)</HintPath>
+    </Reference>
+    <Reference Include="Karpik.Content.Core">
+      <HintPath>$(KarpikContentCoreDll)</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <!-- Строит manifest контента до компиляции, чтобы генератор видел актуальные входные данные. -->
+  <Target Name="KarpikContentBuild" BeforeTargets="BeforeCompile" Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and ('$(KarpikSide)' == 'Client' or '$(KarpikSide)' == 'Server') and Exists('$(KarpikContentSourceRoot)') and Exists('$(KarpikContentToolDll)')">
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; &quot;$(KarpikContentToolDll)&quot; build --source &quot;$(KarpikContentSourceRoot)&quot; --output &quot;$(KarpikContentOutput)&quot; --namespace $(KarpikContentNamespace) --target $(KarpikSide)" />
+  </Target>
+
+  <Target Name="KarpikContentCopyToRuntimeOutput"
+          BeforeTargets="BuildKarpikRuntimeBundle"
+          DependsOnTargets="KarpikContentBuild"
+          Condition="('$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != '') and '$(KarpikProjectKind)' == 'Runtime' and ('$(KarpikSide)' == 'Client' or '$(KarpikSide)' == 'Server') and Exists('$(KarpikContentManifest)')">
+    <ItemGroup>
+      <_KarpikCookedContent Include="$(KarpikContentOutput)\**\*" />
+      <_KarpikCookedContent Remove="$(KarpikContentOutput)\.karpik-content-inputs.v1" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_KarpikCookedContent)"
+          DestinationFiles="@(_KarpikCookedContent-&gt;'$(TargetDir)Content\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

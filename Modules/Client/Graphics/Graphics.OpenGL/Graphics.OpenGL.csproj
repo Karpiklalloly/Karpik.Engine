@@ -8,16 +8,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <KarpikModuleDependency Include="Veldrid.SPIRV" />
-        <KarpikModuleDependency Include="Veldrid.Utilities" />
         <KarpikModuleDependency Include="ECS" />
         <KarpikModuleDependency Include="Graphics" />
-        <KarpikModuleDependency Include="Veldrid" />
-        <KarpikModuleDependency Include="Veldrid.SDL2" />
     </ItemGroup>
 
     <ItemGroup>
       <Folder Include="AssetManagement\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
     </ItemGroup>
 
 </Project>

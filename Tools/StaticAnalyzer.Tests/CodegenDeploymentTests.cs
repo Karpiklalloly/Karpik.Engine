@@ -6,7 +6,7 @@ namespace StaticAnalyzer.Tests;
 public sealed class CodegenDeploymentTests
 {
     [Fact]
-    public void DirectoryBuildProps_DeploysCoreCodegenToModuleAndGameProjects()
+    public void DirectoryBuildProps_DeploysCoreCodegenToModuleProjects()
     {
         string repositoryRoot = FindRepositoryRoot();
         XDocument props = XDocument.Load(Path.Combine(repositoryRoot, "Directory.Build.props"));
@@ -22,7 +22,7 @@ public sealed class CodegenDeploymentTests
                     "Karpik.Engine.Core.Codegen",
                     StringComparison.Ordinal));
 
-        Assert.True(deployed, "Karpik.Engine.Core.Codegen must run in Modules and MyGame projects.");
+        Assert.True(deployed, "Karpik.Engine.Core.Codegen must run in Modules projects.");
     }
 
     private static string FindRepositoryRoot()

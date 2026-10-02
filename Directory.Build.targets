@@ -16,6 +16,8 @@
 
     <ItemGroup>
         <PackageReference Update="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"
+                          Condition="'$(MSBuildProjectName)' == 'Veldrid' OR '$(MSBuildProjectName)' == 'Veldrid.SDL2' OR '$(MSBuildProjectName)' == 'Veldrid.RenderDoc'" />
     </ItemGroup>
 
     <Target Name="KarpikValidateProjectGraph"
@@ -23,9 +25,7 @@
             Condition="
               '$(KarpikSkipValidation)' != 'true'
               AND (
-                '$(MSBuildProjectName)' == 'ClientLauncher'
-                OR '$(MSBuildProjectName)' == 'ServerLauncher'
-                OR '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
+                '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
                 OR '$(MSBuildProjectName)' == 'Karpik.Engine.Server.Publish'
               )">
         <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)Configurator/Configurator.csproj&quot; -- --validate"

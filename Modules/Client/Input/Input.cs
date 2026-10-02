@@ -1,9 +1,13 @@
+using System.Composition;
 using System.Numerics;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Client.InputModule;
 
+[Export(typeof(Input))]
+[ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public class Input
 {
     private const int DefaultEventCapacity = 256;
@@ -73,6 +77,13 @@ public class Input
     public bool IsMouseLocked => _isMouseLocked;
     internal bool OverflowedLastFrame { get; private set; }
 
+    public Input(IInputSource source, InputCaptureState captureState)
+    {
+        _source = source;
+        _captureState = captureState;
+        ClearAllState();
+    }
+
     public bool IsPressed(Key key)
     {
         int index = KeyIndex(key);
@@ -117,13 +128,6 @@ public class Input
     {
         _isMouseLocked = false;
         Volatile.Write(ref _cursorRequest, (int)CursorRequest.Unlocked);
-    }
-
-    internal void Init(IInputSource source, InputCaptureState captureState)
-    {
-        _source = source;
-        _captureState = captureState;
-        ClearAllState();
     }
 
     internal void Destroy()

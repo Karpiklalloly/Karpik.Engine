@@ -1,10 +1,14 @@
 using System.Collections.Immutable;
+using System.Composition;
 using System.Numerics;
+using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
-using Veldrid;
+using NeoVeldrid;
 
 namespace Karpik.Engine.Modules.Window.Headless;
 
+[Export(typeof(IInputSource))]
+[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
 public sealed class HeadlessInputSource : IInputSource
 {
     private readonly HeadlessInputController _controller;

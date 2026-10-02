@@ -1,4 +1,5 @@
 using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Engine.Core.FileSystem;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Loaders;
 

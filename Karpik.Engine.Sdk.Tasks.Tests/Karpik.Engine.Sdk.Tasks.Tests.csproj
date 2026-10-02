@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Build.Framework" Version="17.11.31" />
+        <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.8.3" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit.v3" Version="3.2.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj" />
+        <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+        <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\Karpik.Engine.Sdk\Sdk\Sdk.targets"
+              Link="Sdk.targets"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Sdk\Sdk.props"
+              Link="Sdk.props"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Sdk\Solution.targets"
+              Link="Solution.targets"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Templates\Directory.Solution.targets"
+              Link="Directory.Solution.targets"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj"
+              Link="Karpik.Engine.Sdk.csproj"
+              CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Remove="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
+    </ItemGroup>
+
+</Project>

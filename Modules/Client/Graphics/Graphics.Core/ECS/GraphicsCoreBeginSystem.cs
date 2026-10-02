@@ -1,80 +1,61 @@
-using DCFApixels.DragonECS;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
-public class GraphicsCoreInitSystem : ISystemInit
+public class GraphicsCoreBeginSystem(
+    IGraphicsBackend backend,
+    ImGuiOverlayState overlayState,
+    InputCaptureState captureState)
+    : ISystemMainThreadFrameBegin
 {
-    [DI] private IGraphicsBackend _backend = null!;
-
-    public void Init()
-    {
-        _backend.Initialize();
-    }
-}
-
-// TODO: не инжектится после рефаторинга
-public class GraphicsCoreBeginSystem : ISystemMainThreadFrameBegin
-{
-    [DI] private IGraphicsBackend _backend = null!;
-    [DI] private ImGuiOverlayState _imguiOverlay = null!;
-    [DI] private InputCaptureState _inputCapture = null!;
-
     public void MainThreadFrameBegin()
     {
-        _backend.BeginFrame();
+        backend.BeginFrame();
 
-        if (!_imguiOverlay.Enabled)
+        if (!overlayState.Enabled)
         {
-            _imguiOverlay.ClearCapture();
-            _inputCapture.Clear();
+            overlayState.ClearCapture();
+            captureState.Clear();
         }
     }
 }
 
-public class GraphicsCoreMergeSystem : ISystemMainThreadFrameBegin
+public class GraphicsCoreMergeSystem(
+    IGraphicsBackend backend,
+    GraphicsCameraState cameraState) : ISystemMainThreadFrameBegin
 {
-    [DI] private IGraphicsBackend _backend = null!;
-
     public void MainThreadFrameBegin()
     {
-        _backend.BeginMerge();
+        backend.BeginMerge(cameraState.ActiveCamera);
     }
 }
 
-public class GraphicsCoreSubmitSceneSystem : ISystemRender
+public class GraphicsCoreSubmitSceneSystem(IGraphicsBackend backend) : ISystemRender
 {
-    [DI] private IGraphicsBackend _backend = null!;
-
     public void Render()
     {
-        _backend.SubmitScene();
+        backend.SubmitScene();
     }
 }
 
-public class ImGuiRenderSystem : ISystemRender
+public class ImGuiRenderSystem(ImGuiOverlayState overlay, IGraphicsBackend backend) : ISystemRender
 {
-    [DI] private ImGuiOverlayState _overlay = null!;
-    [DI] private IGraphicsBackend _backend = null!;
-
     public void Render()
     {
-        if (!_overlay.Enabled)
+        if (!overlay.Enabled)
         {
             return;
         }
 
-        _backend.RenderImGui();
+        backend.RenderImGui();
     }
 }
 
-public class GraphicsCoreSwapBuffersSystem : ISystemRender
+public class GraphicsCoreSwapBuffersSystem(IGraphicsBackend backend) : ISystemRender
 {
-    [DI] private IGraphicsBackend _backend = null!;
-
     public void Render()
     {
-        _backend.SwapBuffers();
+        backend.SwapBuffers();
     }
 }

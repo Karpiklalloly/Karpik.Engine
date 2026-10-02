@@ -1,7 +1,8 @@
-﻿using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using DCFApixels.DragonECS;
 using Karpik.Engine.Shared.Network.Core;
+using OpenTK.Mathematics;
+using Vector2 = System.Numerics.Vector2;
 
 namespace Karpik.Engine.Shared.Physics.Core;
 
@@ -42,35 +43,34 @@ public enum ShapeType : byte { Box, Circle }
 public struct BodyConfig 
 {
     public BodyType Type;
-    public float Mass;
-    public float Friction;
-    public float Restitution;
+    public double Mass;
+    public double Friction;
+    public double Restitution;
     public bool IsSensor;
     public bool IgnoreGravity;
     public uint CategoryBits;
     public uint MaskBits;
 }
 
-[StructLayout(LayoutKind.Explicit, Size = 12)]
+[StructLayout(LayoutKind.Explicit, Size = 20)]
 public struct ShapeConfig 
 {
     [FieldOffset(0)] 
     public ShapeType Type;
 
-    // Эти поля делят одни и те же 8 байт памяти!
     [FieldOffset(4)] 
-    public float CircleRadius;
+    public double CircleRadius;
 
     [FieldOffset(4)] 
-    public Vector2 BoxSize;
+    public Vector2d BoxSize;
 
     // Фабричные методы для удобства и защиты от ошибок
-    public static ShapeConfig Circle(float radius) => new ShapeConfig { 
+    public static ShapeConfig Circle(double radius) => new ShapeConfig { 
         Type = ShapeType.Circle, 
         CircleRadius = radius 
     };
 
-    public static ShapeConfig Box(Vector2 size) => new ShapeConfig { 
+    public static ShapeConfig Box(Vector2d size) => new ShapeConfig { 
         Type = ShapeType.Box, 
         BoxSize = size 
     };
@@ -80,8 +80,8 @@ public struct RaycastHit2D
 {
     public int Entity;              // Какую ECS-сущность задели
     public PhysicsBodyHandle Body;  // Какое физическое тело задели
-    public Vector2 Point;           // Точка попадания
-    public Vector2 Normal;          // Нормаль поверхности
+    public Vector2d Point;           // Точка попадания
+    public Vector2d Normal;          // Нормаль поверхности
     public float Fraction;          // Дистанция (0.0 до 1.0 от начала луча)
 }
 
@@ -89,8 +89,8 @@ public struct CollisionEvent
 {
     public int EntityA;
     public int EntityB;
-    public Vector2 Normal;
-    public float Impulse;
+    public Vector2d Normal;
+    public double Impulse;
 }
 
 public readonly struct PhysicsLayerMask : IEquatable<PhysicsLayerMask>
@@ -111,21 +111,10 @@ public readonly struct PhysicsLayerMask : IEquatable<PhysicsLayerMask>
     public bool Equals(PhysicsLayerMask other) => Value == other.Value;
 }
 
-[NetworkedComponent]
-public struct Transform2D : IEcsComponent 
-{
-    [NetworkedField]
-    public Vector2 Position;
-    [NetworkedField]
-    public float Rotation;
-        
-    public Vector2 Forward => new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
-}
-
 public struct Velocity2D : IEcsComponent 
 {
-    public Vector2 Linear;
-    public float Angular;
+    public Vector2d Linear;
+    public double Angular;
 }
 
 public struct PhysicsBodyRef : IEcsComponent 
@@ -149,12 +138,12 @@ public struct DestroyBodyRequest : IEcsComponent;
 
 public struct TeleportRequest : IEcsComponent 
 {
-    public Vector2 Position;
+    public Vector2d Position;
     public float Rotation;
 }
 
 public struct SetVelocityRequest : IEcsComponent 
 {
-    public Vector2 Linear;
-    public float Angular;
+    public Vector2d Linear;
+    public double Angular;
 }

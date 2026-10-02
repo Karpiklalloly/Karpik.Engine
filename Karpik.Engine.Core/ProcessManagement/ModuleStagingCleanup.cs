@@ -1,8 +1,23 @@
+using Microsoft.Extensions.Logging;
+
 namespace Karpik.Engine.Core;
 
-internal static class ModuleStagingCleanup
+internal sealed class ModuleStagingCleanup
 {
+    private readonly ILogger<ModuleStagingCleanup> _logger;
+
+    public ModuleStagingCleanup(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger<ModuleStagingCleanup>();
+    }
+
     public static void CleanupCompletedVersions(string baseDirectory, string activeDirectory)
+    {
+        using ILoggerFactory loggerFactory = HostLogging.CreateDefaultFactory();
+        new ModuleStagingCleanup(loggerFactory).Cleanup(baseDirectory, activeDirectory);
+    }
+
+    public void Cleanup(string baseDirectory, string activeDirectory)
     {
         if (!Directory.Exists(baseDirectory))
         {
@@ -21,11 +36,11 @@ internal static class ModuleStagingCleanup
             try
             {
                 Directory.Delete(directory, recursive: true);
-                Console.WriteLine($"[ProcessManager] Removed stale module staging directory: {directory}");
+                _logger.LogInformation("Removed stale module staging directory {Directory}", directory);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ProcessManager] Failed to remove stale module staging directory '{directory}': {ex.Message}");
+                _logger.LogWarning(ex, "Failed to remove stale module staging directory {Directory}", directory);
             }
         }
     }

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="9.3.1" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="10.0.10" />
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Dock.Avalonia" Version="12.1.0.4" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.4" />
+    <PackageReference Include="Dock.Model.ReactiveUI" Version="12.1.0.4" />
+    <PackageReference Include="Dock.Serializer.SystemTextJson" Version="12.1.0.4" />
+    <PackageReference Include="ReactiveUI.Avalonia" Version="12.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Karpik.Content.Core\Karpik.Content.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.ProjectModel\Karpik.Engine.ProjectModel.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
+    <ProjectReference Include="..\Tools\StaticAnalyzer\StaticAnalyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="9.3.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+    <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
+    <!-- Full production module selections (mirror Generated/ModuleLoader.cs
+         ClientModules/ServerModules) so parity tests compile the same module
+         graph real template hosts reference. -->
+    <ProjectReference Include="..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\DebugModule\DebugModule.csproj" />
+    <ProjectReference Include="..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\LoggerModule\LoggerModule.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Modding\Modding.Lua\Modding.Lua.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Network.Shared.LiteNetLib\Network.Shared.LiteNetLib.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Physics\Physics2D.Aether2D\Physics2D.Aether2D.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Spatial2D\Spatial2D.csproj" />
+    <ProjectReference Include="..\Modules\Shared\StatAndAbilities\StatAndAbilities.csproj" />
+    <ProjectReference Include="..\Modules\Shared\Tween\Tween.Core\Tween.Core.csproj" />
+    <ProjectReference Include="..\Modules\Shared\UnsafeUtilities\UnsafeUtilities.csproj" />
+    <ProjectReference Include="..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj" />
+    <ProjectReference Include="..\Modules\Client\Graphics\Graphics.OpenGL\Graphics.OpenGL.csproj" />
+    <ProjectReference Include="..\Modules\Client\Input\Input.csproj" />
+    <ProjectReference Include="..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj" />
+    <ProjectReference Include="..\Modules\Client\Network.Client\Network.Client.LiteNetLib\Network.Client.LiteNetLib.csproj" />
+    <ProjectReference Include="..\Modules\Client\Window\Window.Core\Window.Core.csproj" />
+    <ProjectReference Include="..\Modules\Client\Window\Window.Sdl2\Window.Sdl2.csproj" />
+    <ProjectReference Include="..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj" />
+    <ProjectReference Include="..\Modules\Server\Network.Server\Network.Server.LiteNetLib\Network.Server.LiteNetLib.csproj" />
+  </ItemGroup>
+</Project>

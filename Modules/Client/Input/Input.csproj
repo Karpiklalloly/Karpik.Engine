@@ -8,8 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <KarpikModuleDependency Include="Karpik.Engine.Core" />
-      <KarpikModuleDependency Include="Graphics" />
+      <ProjectReference Include="..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <KarpikModuleDependency Include="Window" />
     </ItemGroup>
 

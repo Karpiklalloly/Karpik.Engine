@@ -1,0 +1,288 @@
+<Project>
+  <!-- Вычисляет расположение SDK-задач и анализаторов внутри установленного NuGet-пакета. -->
+  <PropertyGroup>
+    <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
+    <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
+    <_KarpikNetworkCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Network.Codegen.dll</_KarpikNetworkCodegenAssembly>
+    <_KarpikMsBuildSdkVersion>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildThisFileDirectory)'))))))</_KarpikMsBuildSdkVersion>
+  </PropertyGroup>
+
+  <!-- Подключает генераторы core-кода и runtime network-кода. -->
+  <ItemGroup>
+    <Analyzer Include="$(_KarpikCoreCodegenAssembly)"
+              Condition="Exists('$(_KarpikCoreCodegenAssembly)')" />
+    <Analyzer Include="$(_KarpikNetworkCodegenAssembly)"
+              Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(_KarpikNetworkCodegenAssembly)')" />
+  </ItemGroup>
+
+  <!-- Регистрирует задачи SDK, вызываемые целями ниже. -->
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikEngineRootTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikStaticReferencesTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+
+  <!-- Подключает стандартные цели .NET SDK. -->
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <KarpikContentOutput Condition="'$(KarpikContentOutput)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)Content'))</KarpikContentOutput>
+    <KarpikContentManifest Condition="'$(KarpikContentManifest)' == ''">$([System.IO.Path]::GetFullPath('$(KarpikContentOutput)\manifest.json'))</KarpikContentManifest>
+  </PropertyGroup>
+
+  <Target Name="_KarpikEmitSideAssemblyMetadata"
+          BeforeTargets="GenerateAssemblyInfo"
+          Condition="'$(KarpikSide)' != ''">
+    <ItemGroup>
+      <AssemblyMetadata Include="KarpikSide" Value="$(KarpikSide)" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup Condition="'$(KarpikContentEnabled)' == 'true' or '$(KarpikContentNamespace)' != ''">
+    <CompilerVisibleProperty Include="KarpikContentManifest" />
+    <CompilerVisibleProperty Include="KarpikContentNamespace" />
+    <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
+  </ItemGroup>
+
+  <!-- Задаёт каталог готового runtime bundle, если пользователь не переопределил его. -->
+  <PropertyGroup>
+    <KarpikRuntimeBundlePath Condition="'$(KarpikRuntimeBundlePath)' == ''">$([System.IO.Path]::GetFullPath('$(TargetDir)$(KarpikRuntimeBundleDirectoryName)'))</KarpikRuntimeBundlePath>
+  </PropertyGroup>
+
+  <!-- Проверяет допустимый режим композиции: Static или Dynamic. -->
+  <Target Name="ValidateKarpikCompositionMode"
+          BeforeTargets="PrepareForBuild;Restore">
+    <PropertyGroup>
+      <KarpikCompositionMode Condition="'$(KarpikCompositionMode)' == ''">Static</KarpikCompositionMode>
+    </PropertyGroup>
+    <Error Condition="'$(KarpikCompositionMode)' != 'Dynamic' And '$(KarpikCompositionMode)' != 'Static'"
+           Code="KARPIK010"
+           Text="KARPIK010: KarpikCompositionMode must be exactly 'Dynamic' or 'Static'; actual value: '$(KarpikCompositionMode)'." />
+  </Target>
+
+  <!-- Разрешает установку движка и добавляет базовые DLL для Runtime и Static Tool. -->
+  <Target Name="_KarpikResolveEngineReferenceAssemblies" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(KarpikProjectKind)' == 'Runtime' Or ('$(KarpikProjectKind)' == 'Tool' And '$(KarpikCompositionMode)' == 'Static')">
+    <ResolveKarpikEngineRootTask SdkVersion="$(_KarpikMsBuildSdkVersion)"
+                                 ExplicitRoot="$(KarpikEngineRoot)"
+                                 LocalApplicationDataRoot="$(KarpikLocalApplicationDataRoot)">
+      <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
+    </ResolveKarpikEngineRootTask>
+    <ItemGroup>
+      <Reference Include="Autofac">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Autofac.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="DragonECS">
+        <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="Karpik.Engine.Core">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="Karpik.Engine.Core.Runner"
+                 Condition="'$(KarpikProjectKind)' == 'Tool'">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Karpik.Engine.Core.Runner.dll</HintPath>
+      </Reference>
+      <Reference Include="System.Composition.AttributedModel">
+        <HintPath>$(KarpikEngineRoot)\runners\server\System.Composition.AttributedModel.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="Microsoft.Extensions.Logging.Abstractions"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <!-- The generated network snapshot registry always implements
+           Karpik.Engine.Shared.Network.Core.INetworkProtocolSchema, so every Dynamic
+           Runtime compilation needs the shared network contract assembly. -->
+      <Reference Include="Network.Shared.Core"
+                 Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(KarpikEngineRoot)\modules\Network.Shared.Core\Network.Shared.Core.dll')">
+        <HintPath>$(KarpikEngineRoot)\modules\Network.Shared.Core\Network.Shared.Core.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+  <!-- Добавляет статически выбранные модули и их транзитивные контракты. -->
+  <Target Name="_KarpikResolveStaticModuleReferences"
+          BeforeTargets="ResolveAssemblyReferences"
+          DependsOnTargets="_KarpikResolveEngineReferenceAssemblies"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
+    <ResolveKarpikEngineRootTask Condition="'$(KarpikProjectKind)' == 'Tool'"
+                                 SdkVersion="$(_KarpikMsBuildSdkVersion)"
+                                 ExplicitRoot="$(KarpikEngineRoot)"
+                                 LocalApplicationDataRoot="$(KarpikLocalApplicationDataRoot)">
+      <Output TaskParameter="ResolvedRoot" PropertyName="KarpikEngineRoot" />
+    </ResolveKarpikEngineRootTask>
+    <ResolveKarpikStaticReferencesTask EngineRoot="$(KarpikEngineRoot)"
+                                       Side="$(KarpikSide)"
+                                       RequireSelection="true"
+                                       ModuleSelections="@(KarpikModuleSelection)">
+      <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
+      <Output TaskParameter="PayloadAssemblies" ItemName="_KarpikStaticModulePayloadAssembly" />
+    </ResolveKarpikStaticReferencesTask>
+    <!-- Runtime projects keep the assemblies out of the bundle payload; a Static
+         Tool launcher is the executable itself, so its graph must be copy-local. -->
+    <ItemGroup>
+      <Reference Include="%(_KarpikStaticModuleReference.AssemblyIdentity)">
+        <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="OpenTK.Mathematics"
+                 Condition="Exists('$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll')">
+        <HintPath>$(KarpikEngineRoot)\modules\Spatial2D\OpenTK.Mathematics.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="@(_KarpikStaticModulePayloadAssembly)">
+        <!-- Third-party payload DLLs ship inside the installation shared
+             directory (payload layout v3) or inside each module directory
+             (layout v2); generated static composition factories mention their
+             types transitively. -->
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <!-- Generated static composition factories mention every service constructor
+           parameter type (for example Microsoft.Extensions.Logging.ILogger<T>), so
+           Static compilations need the logging contract assemblies that ship with
+           the installed runner payload. -->
+      <Reference Include="Microsoft.Extensions.Logging"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\Microsoft.Extensions.Logging.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+      <Reference Include="DragonECS.Karpik.Extensions"
+                 Condition="Exists('$(KarpikEngineRoot)\runners\server\DragonECS.Karpik.Extensions.dll')">
+        <HintPath>$(KarpikEngineRoot)\runners\server\DragonECS.Karpik.Extensions.dll</HintPath>
+        <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+  <!-- Отклоняет недопустимые ProjectReference до restore. -->
+  <Target Name="ValidateKarpikProjectReferencesBeforeRestore"
+          BeforeTargets="_GenerateRestoreProjectPathWalk"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
+                                         ProjectReferences="@(ProjectReference->'%(FullPath)')" />
+  </Target>
+
+  <!-- The SDK deliberately imposes NO project-wide AOT/trimming NoWarn on
+       consumers. Host projects that publish with PublishAot=true opt in to a
+       narrow, documented suppression list in their own csproj (see
+       templates/Karpik.Game launcher projects and
+       docs/02_ADR/static-runtime-composition.md for the exact inventory and
+       justification). Anything a host does not suppress fails its publish,
+       which is the acceptance contract: no unexplained IL2xxx/IL3xxx/IL3050. -->
+
+  <Target Name="_KarpikRootStaticGraphReflectionMetadata"
+          BeforeTargets="PrepareForILLink"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true') And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
+    <!-- Minimal trim roots for Static hosts. The blanket root over every
+         installed module payload assembly is gone: ECS scheduling registries
+         are delivered through generated composition providers, component
+         template instantiations are rooted by the generated
+         TouchAotComponentTemplateRoots call, and editor snapshots use a
+         source-generated System.Text.Json context.
+         What remains rooted is exactly the reflection surface of the
+         Newtonsoft-based hot-reload state pipeline (until a source-generated
+         ECS state serializer replaces it):
+          - ECS.Core: ComponentTemplate<T>/ToTemplateExtensions build template
+            instances via MakeGenericType at runtime, EntitySnapshot/
+            ComponentsTemplate records are deserialized by Newtonsoft.
+          - DragonECS: world/aspect internals referenced from snapshot strings.
+          - Newtonsoft.Json: TypeNameHandling.Objects over arbitrary components.
+          - Game ProjectReferences: they define the component structs that
+            travel through the snapshot with type names embedded. -->
+    <ItemGroup>
+      <TrimmerRootAssembly Include="ECS.Core" />
+      <TrimmerRootAssembly Include="DragonECS" />
+      <TrimmerRootAssembly Include="Newtonsoft.Json" />
+      <!-- AssemblyIdentity/full simple-name handling: ProjectReference filenames
+           are already simple names. -->
+      <TrimmerRootAssembly Include="@(ProjectReference->'%(Filename)')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_KarpikStageStaticLauncherNatives"
+          BeforeTargets="GetCopyToPublishDirectoryItems;CopyFilesToOutputDirectory"
+          Condition="'$(KarpikCompositionMode)' == 'Static' And '$(KarpikProjectKind)' == 'Tool' And '$(KarpikEngineRoot)' != '' And Exists('$(KarpikEngineRoot)\native')">
+    <!-- A Static Tool launcher is the self-contained game executable: native
+         dependencies staged by the engine installation must be reachable from
+         it. The installation keeps them under native\<rid>\ and native\
+         runtimes\<rid>\native\; stage the full tree AND flatten the current
+         RID's binaries into the output root so loaders that only probe the
+         application directory succeed. -->
+    <ItemGroup>
+      <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\**\*" />
+
+      <!-- win-x64 host: flatten every current-RID native next to the executable -->
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native', '*.dll'))"
+                                       Condition="'$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == ''" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\win-x64', '*.dll'))"
+                                       Condition="Exists('$(KarpikEngineRoot)\native\win-x64')" />
+      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\runtimes\win-x64\native', '*'))"
+                                       Condition="Exists('$(KarpikEngineRoot)\native\runtimes\win-x64\native')" />
+    </ItemGroup>
+    <ItemGroup>
+      <!-- ContentWithTargetPath is consumed by GetCopyToPublishDirectoryItems;
+           plain None items added this late would miss AssignTargetPaths. -->
+      <ContentWithTargetPath Include="@(_KarpikStaticLauncherNativeFlat)"
+                             TargetPath="%(_KarpikStaticLauncherNativeFlat.Filename)%(_KarpikStaticLauncherNativeFlat.Extension)"
+                             CopyToPublishDirectory="PreserveNewest"
+                             Visible="false" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_KarpikStaticLauncherNativeFlat)"
+          DestinationFiles="@(_KarpikStaticLauncherNativeFlat->'$(TargetDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Собирает Runtime bundle из приложения, контента, модов и native-файлов. -->
+  <Target Name="BuildKarpikRuntimeBundle"
+          AfterTargets="CopyFilesToOutputDirectory"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(KarpikProjectKind)' == 'Runtime' And ('$(KarpikSide)' == 'Client' Or '$(KarpikSide)' == 'Server')">
+    <ItemGroup>
+      <!-- Dynamic mode stages managed module payloads; Static output never
+           carries managed modules or a module manifest, so staging is skipped. -->
+      <_KarpikBundleAssembly Include="@(ReferenceCopyLocalPaths)"
+                             Condition="'$(KarpikCompositionMode)' != 'Static' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+      <_KarpikBundleContent Include="$(TargetDir)Content\**\*" />
+      <_KarpikBundleMod Include="$(TargetDir)Mods\**\*" />
+      <_KarpikBundleContent Update="@(_KarpikBundleContent)"
+                            TargetPath="%(_KarpikBundleContent.RecursiveDir)%(_KarpikBundleContent.Filename)%(_KarpikBundleContent.Extension)" />
+      <_KarpikBundleMod Update="@(_KarpikBundleMod)"
+                        TargetPath="%(_KarpikBundleMod.RecursiveDir)%(_KarpikBundleMod.Filename)%(_KarpikBundleMod.Extension)" />
+    </ItemGroup>
+    <ItemGroup>
+      <_KarpikBundleNative Include="@(NativeCopyLocalItems)"
+                           Condition="'$(KarpikCompositionMode)' == 'Static'" />
+      <_KarpikBundleNative Update="@(_KarpikBundleNative)"
+                           TargetPath="%(_KarpikBundleNative.DestinationSubPath)" />
+      <_KarpikBundleNative Update="@(_KarpikBundleNative)"
+                           Condition="'%(_KarpikBundleNative.TargetPath)' == ''"
+                           TargetPath="native\%(_KarpikBundleNative.Filename)%(_KarpikBundleNative.Extension)" />
+    </ItemGroup>
+    <BuildKarpikRuntimeBundleTask Side="$(KarpikSide)"
+                                  CompositionMode="$(KarpikCompositionMode)"
+                                  EngineRoot="$(KarpikEngineRoot)"
+                                  RequireEngineModuleSelection="true"
+                                  EngineModuleSelections="@(KarpikModuleSelection)"
+                                  PrimaryAssembly="$(TargetPath)"
+                                  BundlePath="$(KarpikRuntimeBundlePath)"
+                                  Assemblies="@(_KarpikBundleAssembly)"
+                                  Content="@(_KarpikBundleContent)"
+                                  Mods="@(_KarpikBundleMod)"
+                                  NativeFiles="@(_KarpikBundleNative)" />
+  </Target>
+
+  <!-- Повторяет проверку ProjectReference перед началом сборки. -->
+  <Target Name="ValidateKarpikProjectReferencesBeforeBuild"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ValidateKarpikProjectReferencesTask ProjectPath="$(MSBuildProjectFullPath)"
+                                         ProjectReferences="@(ProjectReference->'%(FullPath)')" />
+  </Target>
+</Project>
