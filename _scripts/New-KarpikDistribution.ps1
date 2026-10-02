@@ -61,9 +61,10 @@ if ($manifest.engineVersion -ne $manifest.editorVersion) {
     throw "Manifest engine/editor versions diverge; bundles require a matched build."
 }
 
-$DistRoot = [IO.Path]::GetFullPath((Join-Path $Output $InstallName))
-foreach ($bundle in @("sdk", "editor-launcher")) {
-    $dir = Join-Path $DistRoot $bundle
+$DistRoot = [IO.Path]::GetFullPath($Output)
+$SdkDist = Join-Path $DistRoot "$InstallName-sdk"
+$EditorDist = Join-Path $DistRoot "$InstallName-editor-launcher"
+foreach ($dir in @($SdkDist, $EditorDist)) {
     if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
 }
@@ -97,7 +98,7 @@ try {
             Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $sdkRoot $entry.Name) -Force
         }
     }
-    $sdkBundle = Join-Path $DistRoot "sdk"
+    $sdkBundle = $SdkDist
     Copy-Item -Path (Join-Path $setupPublish "*") -Destination $sdkBundle -Recurse -Force -Exclude "*.pdb"
     if (-not (Test-Path -LiteralPath (Join-Path $sdkBundle "setup.exe") -PathType Leaf)) { throw "Setup publish produced no setup.exe." }
     Compress-Archive -Path (Join-Path $sdkStage "*") -DestinationPath (Join-Path $sdkBundle "sdk-payload.zip") -Force
@@ -108,7 +109,7 @@ try {
     New-Item -ItemType Directory -Path $editorStage -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $InstallationRoot "editor") -Destination (Join-Path $editorStage "editor") -Recurse -Force
     Set-Content -LiteralPath (Join-Path $editorStage "editor-version.txt") -Value $manifest.engineVersion -NoNewline
-    $editorBundle = Join-Path $DistRoot "editor-launcher"
+    $editorBundle = $EditorDist
     Copy-Item -Path (Join-Path $setupPublish "*") -Destination $editorBundle -Recurse -Force -Exclude "*.pdb"
     Compress-Archive -Path (Join-Path $editorStage "*") -DestinationPath (Join-Path $editorBundle "editor-payload.zip") -Force
     Remove-Item -LiteralPath $editorStage -Recurse -Force
@@ -121,14 +122,35 @@ try {
         throw "Launcher publish produced no Karpik.Launcher.exe."
     }
 
-    Set-Content -LiteralPath (Join-Path $DistRoot "README.txt") -Value @"
-KarpikEngine distribution ($InstallName)
-SDK $($manifest.msBuildSdkVersion), engine/editor $($manifest.engineVersion).
+    Set-Content -LiteralPath (Join-Path $SdkDist "README.txt") -Value @"
+KarpikEngine SDK bundle ($InstallName)
+SDK $($manifest.msBuildSdkVersion), engine $($manifest.engineVersion).
 
-Install order on the target machine (.NET 10 SDK required for game builds):
-  1. sdk\setup.exe sdk --payload sdk\sdk-payload.zip
-  2. editor-launcher\setup.exe editor --payload editor-launcher\editor-payload.zip
-  3. editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
+Contents: setup.exe (installer), sdk-payload.zip (engine payload without the editor).
+Requires .NET 10 (setup itself runs on it; game builds need the SDK).
+
+Install (distribute this folder on its own):
+  setup.exe sdk --payload sdk-payload.zip
+
+This registers a local NuGet source for the SDK. Games additionally need
+the Launcher+Editor bundle ($InstallName-editor-launcher) for the editor.
+"@
+
+    Set-Content -LiteralPath (Join-Path $EditorDist "README.txt") -Value @"
+KarpikEngine Launcher+Editor bundle ($InstallName)
+Editor $($manifest.editorVersion), pairs with SDK $($manifest.msBuildSdkVersion).
+
+Contents: setup.exe (installer), editor-payload.zip (editor payload),
+launcher-files/ (launcher application).
+
+Requires .NET 10 and the installed SDK bundle version '$($manifest.engineVersion)'
+(install that bundle first). Distribute this folder on its own.
+
+Install:
+  setup.exe editor --payload editor-payload.zip
+  setup.exe launcher --source launcher-files
+
+Then start the launcher from the Start Menu and create a game from a template.
 "@
 }
 finally {
