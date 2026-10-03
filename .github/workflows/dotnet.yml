@@ -1,0 +1,30 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+    - name: Generate module catalog
+      run: dotnet run --project Configurator/Configurator.csproj -- --generate
+    - name: Restore dependencies
+      run: dotnet restore KarpikEngine.slnx -m:1 -nr:false
+    - name: Build
+      run: dotnet build KarpikEngine.slnx -c Release --no-restore -m:1 -nr:false
+    - name: Test
+      run: dotnet test KarpikEngine.slnx -c Release --no-build --no-restore -m:1 -nr:false
