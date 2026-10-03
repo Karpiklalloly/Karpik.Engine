@@ -36,22 +36,22 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using DCFApixels.DragonECS;
+                    using DCFApixels.DragonECS;
 
-                public struct ProbeComponent : IEcsComponent
-                {
-                    public int Value;
-                }
+                    public struct ProbeComponent : IEcsComponent
+                    {
+                        public int Value;
+                    }
 
-                public struct ProbeTagComponent : IEcsTagComponent { }
+                    public struct ProbeTagComponent : IEcsTagComponent { }
 
-                [Karpik.Engine.Core.Module(Karpik.Engine.Core.ModuleScope.Simulation)]
-                public sealed class ProbeInstaller : Karpik.Engine.Core.IModuleInstaller
-                {
-                    public string Name => nameof(ProbeInstaller);
-                    public Karpik.Engine.Core.IModule CreateModule() => null!;
-                }
-                """,
+                    [Karpik.Engine.Core.Module(Karpik.Engine.Core.ModuleScope.Simulation)]
+                    public sealed class ProbeInstaller : Karpik.Engine.Core.IModuleInstaller
+                    {
+                        public string Name => nameof(ProbeInstaller);
+                        public Karpik.Engine.Core.IModule CreateModule() => null!;
+                    }
+                    """,
             side: "Server",
             additionalReferences: references);
 
@@ -79,15 +79,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using DCFApixels.DragonECS;
+                    using DCFApixels.DragonECS;
 
-                public struct OpenGenericComponent<T> : IEcsComponent
-                {
-                    public T Value;
-                }
+                    public struct OpenGenericComponent<T> : IEcsComponent
+                    {
+                        public T Value;
+                    }
 
-                public struct ConcreteComponent : IEcsComponent { }
-                """,
+                    public struct ConcreteComponent : IEcsComponent { }
+                    """,
             side: "Server",
             additionalReferences: references);
 
@@ -186,7 +186,8 @@ public sealed class RuntimeCompositionGeneratorTests
         result.AssertNoErrors();
         Assert.True(result.HasCompositionSource);
         Assert.Contains("namespace Karpik.Engine.Generated", result.CompositionSource, StringComparison.Ordinal);
-        Assert.Contains("registry.Add(new global::Mods.RefInstaller())", result.CompositionSource, StringComparison.Ordinal);
+        Assert.Contains("registry.Add(new global::Mods.RefInstaller())", result.CompositionSource,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("Activator", result.CompositionSource, StringComparison.Ordinal);
         Assert.DoesNotContain("GetType()", result.CompositionSource, StringComparison.Ordinal);
     }
@@ -287,27 +288,27 @@ public sealed class RuntimeCompositionGeneratorTests
         // unchanged, so an identity-only key would serve stale models on the
         // next host compilation within one IDE session.
         const string moduleSourceV1 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace FpMods;
+                                      namespace FpMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.Engine)]
-            public class ProbeService : IProbe { }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.Engine)]
+                                      public class ProbeService : IProbe { }
+                                      """;
         const string moduleSourceV2 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace FpMods;
+                                      namespace FpMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.ModSet)]
-            public class ProbeService : IProbe { }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.ModSet)]
+                                      public class ProbeService : IProbe { }
+                                      """;
         var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
 
         GeneratorResult first = GeneratorTestHarness.Run(
@@ -316,7 +317,8 @@ public sealed class RuntimeCompositionGeneratorTests
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
                 exportReference,
-                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV1, [exportReference]).ToMetadataReference(),
+                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV1, [exportReference])
+                    .ToMetadataReference(),
             ]);
 
         first.AssertNoErrors();
@@ -332,7 +334,8 @@ public sealed class RuntimeCompositionGeneratorTests
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
                 exportReference,
-                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV2, [exportReference]).ToMetadataReference(),
+                GeneratorTestHarness.CreateModuleCompilation("FingerprintModules", moduleSourceV2, [exportReference])
+                    .ToMetadataReference(),
             ]);
 
         second.AssertNoErrors();
@@ -350,20 +353,20 @@ public sealed class RuntimeCompositionGeneratorTests
         // symbols can change the referenced assembly while every source byte and
         // assembly identity remains identical.
         const string moduleSource = """
-            using Karpik.Engine.Core;
+                                    using Karpik.Engine.Core;
 
-            namespace ParseOptionMods;
+                                    namespace ParseOptionMods;
 
-            public interface IProbe { }
+                                    public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            #if USE_MODSET
-            [ServiceRegistration(ModuleScope.ModSet)]
-            #else
-            [ServiceRegistration(ModuleScope.Engine)]
-            #endif
-            public class ProbeService : IProbe { }
-            """;
+                                    [System.Composition.Export(typeof(IProbe))]
+                                    #if USE_MODSET
+                                    [ServiceRegistration(ModuleScope.ModSet)]
+                                    #else
+                                    [ServiceRegistration(ModuleScope.Engine)]
+                                    #endif
+                                    public class ProbeService : IProbe { }
+                                    """;
         var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
         var engineCompilation = GeneratorTestHarness.CreateModuleCompilation(
             "ParseOptionFingerprintModules",
@@ -420,30 +423,30 @@ public sealed class RuntimeCompositionGeneratorTests
         // its assembly identity, so an identity-only key serves the previous
         // generation's models from the compiler server cache.
         const string moduleSourceV1 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace PeMods;
+                                      namespace PeMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.Engine)]
-            public class ProbeService : IProbe { }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.Engine)]
+                                      public class ProbeService : IProbe { }
+                                      """;
         const string moduleSourceV2 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace PeMods;
+                                      namespace PeMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.ModSet)]
-            public class ProbeService : IProbe
-            {
-                public int ExtraMember => 42;
-            }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.ModSet)]
+                                      public class ProbeService : IProbe
+                                      {
+                                          public int ExtraMember => 42;
+                                      }
+                                      """;
         var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
         string directory = Path.Combine(Path.GetTempPath(), "PeFingerprint_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -453,7 +456,8 @@ public sealed class RuntimeCompositionGeneratorTests
         {
             File.WriteAllBytes(
                 dllPath,
-                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV1, [exportReference]).Image);
+                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV1, [exportReference])
+                    .Image);
 
             GeneratorResult first = GeneratorTestHarness.Run(
                 CreateGenerator(),
@@ -474,7 +478,8 @@ public sealed class RuntimeCompositionGeneratorTests
             // Rebuild in place: same path, same identity, different content.
             File.WriteAllBytes(
                 dllPath,
-                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV2, [exportReference]).Image);
+                GeneratorTestHarness.CompileModuleAssembly("PeFingerprintModules", moduleSourceV2, [exportReference])
+                    .Image);
 
             GeneratorResult second = GeneratorTestHarness.Run(
                 CreateGenerator(),
@@ -508,33 +513,33 @@ public sealed class RuntimeCompositionGeneratorTests
         // generation's models. The key must come from metadata the reference
         // already carries (module MVID), not from filesystem stat.
         const string moduleSourceV1 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace PeStatMods;
+                                      namespace PeStatMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.Engine)]
-            public class ProbeService : IProbe
-            {
-                public const int ProbeValue = 1;
-            }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.Engine)]
+                                      public class ProbeService : IProbe
+                                      {
+                                          public const int ProbeValue = 1;
+                                      }
+                                      """;
         const string moduleSourceV2 = """
-            using Karpik.Engine.Core;
+                                      using Karpik.Engine.Core;
 
-            namespace PeStatMods;
+                                      namespace PeStatMods;
 
-            public interface IProbe { }
+                                      public interface IProbe { }
 
-            [System.Composition.Export(typeof(IProbe))]
-            [ServiceRegistration(ModuleScope.ModSet)]
-            public class ProbeService : IProbe
-            {
-                public const int ProbeValue = 2;
-            }
-            """;
+                                      [System.Composition.Export(typeof(IProbe))]
+                                      [ServiceRegistration(ModuleScope.ModSet)]
+                                      public class ProbeService : IProbe
+                                      {
+                                          public const int ProbeValue = 2;
+                                      }
+                                      """;
         var exportReference = GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>();
         string directory = Path.Combine(Path.GetTempPath(), "PeStatFingerprint_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -544,7 +549,8 @@ public sealed class RuntimeCompositionGeneratorTests
         try
         {
             byte[] firstImage =
-                GeneratorTestHarness.CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV1, [exportReference]).Image;
+                GeneratorTestHarness
+                    .CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV1, [exportReference]).Image;
             File.WriteAllBytes(dllPath, firstImage);
             File.SetLastWriteTimeUtc(dllPath, sharedTimestamp);
             Assert.Equal(sharedTimestamp, File.GetLastWriteTimeUtc(dllPath));
@@ -567,7 +573,8 @@ public sealed class RuntimeCompositionGeneratorTests
 
             // Same path, different content, but FORCED identical stat values.
             byte[] secondImage =
-                GeneratorTestHarness.CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV2, [exportReference]).Image;
+                GeneratorTestHarness
+                    .CompileModuleAssembly("PeStatFingerprintModules", moduleSourceV2, [exportReference]).Image;
             Assert.True(
                 firstImage.Length == secondImage.Length,
                 $"Test precondition: rebuilt image must keep the file length " +
@@ -623,20 +630,21 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                [Module(ModuleScope.Engine)]
-                public class HostInstaller : IModuleInstaller
-                {
-                    public string Name => "Host";
-                }
-                """,
+                    [Module(ModuleScope.Engine)]
+                    public class HostInstaller : IModuleInstaller
+                    {
+                        public string Name => "Host";
+                    }
+                    """,
             additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
 
         result.AssertNoErrors();
-        Assert.Contains("registry.Add(new global::Host.HostInstaller())", result.CompositionSource, StringComparison.Ordinal);
+        Assert.Contains("registry.Add(new global::Host.HostInstaller())", result.CompositionSource,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -645,15 +653,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public class NotAModule : IModuleInstaller
-                {
-                    public string Name => "Nope";
-                }
-                """,
+                    public class NotAModule : IModuleInstaller
+                    {
+                        public string Name => "Nope";
+                    }
+                    """,
             additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
 
         result.AssertNoErrors();
@@ -665,53 +673,53 @@ public sealed class RuntimeCompositionGeneratorTests
     public void Run_OrdersByScopeThenPriorityThenAssemblyIdentityThenFullName()
     {
         var first = GeneratorTestHarness.CompileModuleAssembly("OrderM1", """
-            using Karpik.Engine.Core;
+                                                                          using Karpik.Engine.Core;
 
-            namespace M1;
+                                                                          namespace M1;
 
-            [Module(ModuleScope.Engine)]
-            public class ZedInstaller : IModuleInstaller
-            {
-                public string Name => "Zed";
-            }
+                                                                          [Module(ModuleScope.Engine)]
+                                                                          public class ZedInstaller : IModuleInstaller
+                                                                          {
+                                                                              public string Name => "Zed";
+                                                                          }
 
-            [Module(ModuleScope.Simulation)]
-            public class AlphaInstaller : IModuleInstaller
-            {
-                public string Name => "Alpha";
-            }
-            """);
+                                                                          [Module(ModuleScope.Simulation)]
+                                                                          public class AlphaInstaller : IModuleInstaller
+                                                                          {
+                                                                              public string Name => "Alpha";
+                                                                          }
+                                                                          """);
         var second = GeneratorTestHarness.CompileModuleAssembly("OrderM2", """
-            using Karpik.Engine.Core;
+                                                                           using Karpik.Engine.Core;
 
-            namespace M2;
+                                                                           namespace M2;
 
-            [Module(ModuleScope.ModSet, 5)]
-            public class MidInstaller : IModuleInstaller
-            {
-                public string Name => "Mid";
-            }
+                                                                           [Module(ModuleScope.ModSet, 5)]
+                                                                           public class MidInstaller : IModuleInstaller
+                                                                           {
+                                                                               public string Name => "Mid";
+                                                                           }
 
-            [Module(ModuleScope.Engine)]
-            public class AardvarkInstaller : IModuleInstaller
-            {
-                public string Name => "Aardvark";
-            }
-            """);
+                                                                           [Module(ModuleScope.Engine)]
+                                                                           public class AardvarkInstaller : IModuleInstaller
+                                                                           {
+                                                                               public string Name => "Aardvark";
+                                                                           }
+                                                                           """);
 
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                [Module(ModuleScope.Engine, -100)]
-                public class HostEarlyInstaller : IModuleInstaller
-                {
-                    public string Name => "HostEarly";
-                }
-                """,
+                    [Module(ModuleScope.Engine, -100)]
+                    public class HostEarlyInstaller : IModuleInstaller
+                    {
+                        public string Name => "HostEarly";
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -725,7 +733,10 @@ public sealed class RuntimeCompositionGeneratorTests
             .ToArray();
 
         Assert.Equal(
-            ["Host.HostEarlyInstaller", "M1.ZedInstaller", "M2.AardvarkInstaller", "M2.MidInstaller", "M1.AlphaInstaller"],
+            [
+                "Host.HostEarlyInstaller", "M1.ZedInstaller", "M2.AardvarkInstaller", "M2.MidInstaller",
+                "M1.AlphaInstaller"
+            ],
             registrations);
     }
 
@@ -733,27 +744,27 @@ public sealed class RuntimeCompositionGeneratorTests
     public void Run_HonorsNamedPriorityArgument_WhenOrdering()
     {
         var first = GeneratorTestHarness.CompileModuleAssembly("NamedP1", """
-            using Karpik.Engine.Core;
+                                                                          using Karpik.Engine.Core;
 
-            namespace N1;
+                                                                          namespace N1;
 
-            [Module(ModuleScope.Engine, Priority = 5)]
-            public class AaaInstaller : IModuleInstaller
-            {
-                public string Name => "Aaa";
-            }
-            """);
+                                                                          [Module(ModuleScope.Engine, Priority = 5)]
+                                                                          public class AaaInstaller : IModuleInstaller
+                                                                          {
+                                                                              public string Name => "Aaa";
+                                                                          }
+                                                                          """);
         var second = GeneratorTestHarness.CompileModuleAssembly("NamedP2", """
-            using Karpik.Engine.Core;
+                                                                           using Karpik.Engine.Core;
 
-            namespace N2;
+                                                                           namespace N2;
 
-            [Module(ModuleScope.Engine)]
-            public class ZzzInstaller : IModuleInstaller
-            {
-                public string Name => "Zzz";
-            }
-            """);
+                                                                           [Module(ModuleScope.Engine)]
+                                                                           public class ZzzInstaller : IModuleInstaller
+                                                                           {
+                                                                               public string Name => "Zzz";
+                                                                           }
+                                                                           """);
 
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
@@ -821,20 +832,22 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: $$"""
-                using Karpik.Engine.Core;
+                      using Karpik.Engine.Core;
 
-                namespace Host;
+                      namespace Host;
 
-                [Module(ModuleScope.Engine)]
-                {{modifier}} class BadInstaller : IModuleInstaller
-                {
-                    public string Name => "Bad";
-                }
-                """,
+                      [Module(ModuleScope.Engine)]
+                      {{modifier}} class BadInstaller : IModuleInstaller
+                      {
+                          public string Name => "Bad";
+                      }
+                      """,
             additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
 
         Assert.Single(result.DiagnosticsById(InvalidInstallerDiagnostic));
-        Assert.False(result.Compilation.GetDiagnostics().Any(static d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && !d.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+        Assert.False(result.Compilation.GetDiagnostics().Any(static d =>
+            d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error &&
+            !d.Id.StartsWith("KCORE", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -843,16 +856,16 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                [Module(ModuleScope.Engine)]
-                public class GenericInstaller<T> : IModuleInstaller
-                {
-                    public string Name => "Generic";
-                }
-                """,
+                    [Module(ModuleScope.Engine)]
+                    public class GenericInstaller<T> : IModuleInstaller
+                    {
+                        public string Name => "Generic";
+                    }
+                    """,
             additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
 
         Assert.Single(result.DiagnosticsById(InvalidInstallerDiagnostic));
@@ -864,18 +877,18 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                [Module(ModuleScope.Engine)]
-                public class NoDefaultCtorInstaller : IModuleInstaller
-                {
-                    public NoDefaultCtorInstaller(int value) { }
+                    [Module(ModuleScope.Engine)]
+                    public class NoDefaultCtorInstaller : IModuleInstaller
+                    {
+                        public NoDefaultCtorInstaller(int value) { }
 
-                    public string Name => "NoCtor";
-                }
-                """,
+                        public string Name => "NoCtor";
+                    }
+                    """,
             additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
 
         Assert.Single(result.DiagnosticsById(InvalidInstallerDiagnostic));
@@ -885,16 +898,16 @@ public sealed class RuntimeCompositionGeneratorTests
     public void Run_DuplicateModuleIdentityAcrossAssemblies_ReportsDiagnostic()
     {
         var source = """
-            using Karpik.Engine.Core;
+                     using Karpik.Engine.Core;
 
-            namespace Duplicated;
+                     namespace Duplicated;
 
-            [Module(ModuleScope.Engine)]
-            public class SameNameInstaller : IModuleInstaller
-            {
-                public string Name => "Same";
-            }
-            """;
+                     [Module(ModuleScope.Engine)]
+                     public class SameNameInstaller : IModuleInstaller
+                     {
+                         public string Name => "Same";
+                     }
+                     """;
         var first = GeneratorTestHarness.CompileModuleAssembly("DupFirst", source);
         var second = GeneratorTestHarness.CompileModuleAssembly("DupSecond", source);
 
@@ -919,22 +932,22 @@ public sealed class RuntimeCompositionGeneratorTests
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
                 GeneratorTestHarness.CompileModuleAssembly("HierarchyModules", """
-                    using Karpik.Engine.Core;
+                                                                               using Karpik.Engine.Core;
 
-                    namespace Hierarchy;
+                                                                               namespace Hierarchy;
 
-                    [Module(ModuleScope.Engine)]
-                    public class BaseInstaller : IModuleInstaller
-                    {
-                        public string Name => "Base";
-                    }
+                                                                               [Module(ModuleScope.Engine)]
+                                                                               public class BaseInstaller : IModuleInstaller
+                                                                               {
+                                                                                   public string Name => "Base";
+                                                                               }
 
-                    [Module(ModuleScope.Engine)]
-                    public class DerivedInstaller : BaseInstaller
-                    {
-                        public string Name => "Derived";
-                    }
-                    """),
+                                                                               [Module(ModuleScope.Engine)]
+                                                                               public class DerivedInstaller : BaseInstaller
+                                                                               {
+                                                                                   public string Name => "Derived";
+                                                                               }
+                                                                               """),
             ]);
 
         Assert.Single(result.DiagnosticsById(AmbiguousImplementationDiagnostic));
@@ -981,6 +994,7 @@ public sealed class RuntimeCompositionGeneratorTests
                 contracts = [];
                 generatedContractsByImpl.Add(impl, contracts);
             }
+
             contracts.Add(match.Groups["contract"].Value);
         }
 
@@ -1025,19 +1039,24 @@ public sealed class RuntimeCompositionGeneratorTests
                 "ModSet" => 1,
                 _ => 2,
             };
-            dynamicSequence.Add((scopeRank, type.Assembly.GetName().FullName ?? string.Empty, type.FullName!, lifetime));
+            dynamicSequence.Add((scopeRank, type.Assembly.GetName().FullName ?? string.Empty, type.FullName!,
+                lifetime));
             Type systemType = type;
             var exportedContracts = new HashSet<string>(StringComparer.Ordinal);
-            foreach (System.Composition.ExportAttribute export in systemType.GetCustomAttributes<System.Composition.ExportAttribute>())
+            foreach (System.Composition.ExportAttribute export in systemType
+                         .GetCustomAttributes<System.Composition.ExportAttribute>())
             {
                 exportedContracts.Add(export.ContractType?.FullName ?? systemType.FullName!);
             }
+
             dynamicContractsByImpl[type.FullName!] = exportedContracts;
         }
 
         // Full SET equality in both directions - no documented deviations.
-        Assert.Empty(generatedRegistrations.Except(dynamicRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal));
-        Assert.Empty(dynamicRegistrations.Except(generatedRegistrations).OrderBy(static entry => entry, StringComparer.Ordinal));
+        Assert.Empty(generatedRegistrations.Except(dynamicRegistrations)
+            .OrderBy(static entry => entry, StringComparer.Ordinal));
+        Assert.Empty(dynamicRegistrations.Except(generatedRegistrations)
+            .OrderBy(static entry => entry, StringComparer.Ordinal));
 
         // Full SEQUENCE equality (second audit, finding 4): the RAW emitted
         // order must equal the canonical Dynamic discovery order
@@ -1083,7 +1102,9 @@ public sealed class RuntimeCompositionGeneratorTests
     /// </summary>
     private static readonly Type[] SharedSelectionAnchors =
     [
+#if DEBUG
         typeof(DebugModule.DebugThings),
+#endif
         typeof(Karpik.Engine.Shared.Log.LoggerModuleInstaller),
         typeof(Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller),
         typeof(Karpik.Engine.Shared.Network.LiteNetLib.NetworkModuleInstaller),
@@ -1103,7 +1124,7 @@ public sealed class RuntimeCompositionGeneratorTests
     {
         ["Client"] =
         [
-            ..SharedSelectionAnchors,
+            .. SharedSelectionAnchors,
             typeof(Karpik.Engine.Client.Network.LiteNetLib.NetworkClientModuleInstaller),
             typeof(Karpik.Engine.Modules.Window.Core.WindowCoreModuleInstaller),
             typeof(Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller),
@@ -1114,7 +1135,7 @@ public sealed class RuntimeCompositionGeneratorTests
         ],
         ["Server"] =
         [
-            ..SharedSelectionAnchors,
+            .. SharedSelectionAnchors,
             typeof(Network.Server.LiteNetLib.NetworkServerModuleInstaller),
         ],
     };
@@ -1155,17 +1176,23 @@ public sealed class RuntimeCompositionGeneratorTests
         {
             GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
             GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.ECS.EcsModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
-            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
+            GeneratorTestHarness
+                .AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreSimulationModuleInstaller>(),
+            GeneratorTestHarness
+                .AssemblyReference<Karpik.Engine.Client.Graphics.Core.GraphicsCoreEngineModuleInstaller>(),
+            GeneratorTestHarness
+                .AssemblyReference<Karpik.Engine.Shared.AssetManagement.Core.AssetManagementModuleInstaller>(),
             GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Log.LoggerModuleInstaller>(),
             GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.Modding.ModdingModuleInstaller>(),
         };
 
         var result = GeneratorTestHarness.Run(CreateGenerator(), side: "Client", additionalReferences: references);
-        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+        Assert.Empty(result.Diagnostics.Where(static diagnostic =>
+            diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error &&
+            diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
 
-        string[] generatedSequence = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+        string[] generatedSequence = Regex
+            .Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
             .Select(match => match.Groups[1].Value)
             .ToArray();
         Assert.NotEmpty(generatedSequence);
@@ -1198,11 +1225,14 @@ public sealed class RuntimeCompositionGeneratorTests
         var references = CreateFullSelectionReferences(side);
 
         var result = GeneratorTestHarness.Run(CreateGenerator(), side: side, additionalReferences: references);
-        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+        Assert.Empty(result.Diagnostics.Where(static diagnostic =>
+            diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error &&
+            diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
 
         // The generated emission sequence is the canonical Static registration
         // order: Scope asc -> Priority asc -> assembly identity -> full name.
-        string[] generatedSequence = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
+        string[] generatedSequence = Regex
+            .Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
             .Select(match => match.Groups[1].Value)
             .ToArray();
         Assert.NotEmpty(generatedSequence);
@@ -1258,9 +1288,13 @@ public sealed class RuntimeCompositionGeneratorTests
             }
         }
 
-        public void RegisterServices(IStaticServiceRegistry registry) { }
+        public void RegisterServices(IStaticServiceRegistry registry)
+        {
+        }
 
-        public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
+        public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry)
+        {
+        }
     }
 
     [Theory]
@@ -1276,7 +1310,9 @@ public sealed class RuntimeCompositionGeneratorTests
         // compilation does not carry every transitive reference a real host has;
         // this parity check therefore asserts on generator diagnostics and emitted
         // registration order rather than emitting the assembly.
-        Assert.Empty(result.Diagnostics.Where(static diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error && diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
+        Assert.Empty(result.Diagnostics.Where(static diagnostic =>
+            diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error &&
+            diagnostic.Id.StartsWith("KCORE", StringComparison.Ordinal)));
 
         var staticIds = Regex.Matches(result.CompositionSource, @"registry\.Add\(new global::([\w.]+)\(\)\);")
             .Select(match => match.Groups[1].Value)
@@ -1285,13 +1321,14 @@ public sealed class RuntimeCompositionGeneratorTests
         var runner = new Karpik.Engine.Core.EngineRunner();
         runner.RegisterTypes(
         [
-            ..SelectionAnchorsBySide[side].Where(static type =>
+            .. SelectionAnchorsBySide[side].Where(static type =>
                 typeof(Karpik.Engine.Core.IModuleInstaller).IsAssignableFrom(type) &&
                 type is { IsAbstract: false, IsGenericTypeDefinition: false } &&
                 type.GetCustomAttribute<Karpik.Engine.Core.ModuleAttribute>() is not null),
             typeof(NotAModuleType),
         ]);
-        var dynamicIds = runner.GetModules().Select(static module => module.GetType().FullName!).ToHashSet(StringComparer.Ordinal);
+        var dynamicIds = runner.GetModules().Select(static module => module.GetType().FullName!)
+            .ToHashSet(StringComparer.Ordinal);
 
         Assert.Equal(dynamicIds, staticIds);
     }
@@ -1368,15 +1405,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IPerCall { }
-                [System.Composition.Export(typeof(IPerCall))]
-                [ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Transient)]
-                public class PerCall : IPerCall { }
-                """,
+                    public interface IPerCall { }
+                    [System.Composition.Export(typeof(IPerCall))]
+                    [ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Transient)]
+                    public class PerCall : IPerCall { }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1398,19 +1435,19 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Autofac;
-                using Karpik.Engine.Core;
+                    using Autofac;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IStartedService { }
-                [System.Composition.Export(typeof(IStartedService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class StartedService : IStartedService, IStartable
-                {
-                    public void Start() { }
-                }
-                """,
+                    public interface IStartedService { }
+                    [System.Composition.Export(typeof(IStartedService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class StartedService : IStartedService, IStartable
+                    {
+                        public void Start() { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1432,15 +1469,15 @@ public sealed class RuntimeCompositionGeneratorTests
             CreateGenerator(),
             side: "Server",
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public class ProbeSystem : ISystemInit
-                {
-                    public void Init() { }
-                }
-                """,
+                    public class ProbeSystem : ISystemInit
+                    {
+                        public void Init() { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1464,20 +1501,20 @@ public sealed class RuntimeCompositionGeneratorTests
             CreateGenerator(),
             side: "Server",
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public class ProbeUpdateSystem : ISystemUpdate
-                {
-                    public void Update() { }
-                }
+                    public class ProbeUpdateSystem : ISystemUpdate
+                    {
+                        public void Update() { }
+                    }
 
-                public class ProbeSystem
-                {
-                    public void Init() { }
-                }
-                """,
+                    public class ProbeSystem
+                    {
+                        public void Init() { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1492,7 +1529,8 @@ public sealed class RuntimeCompositionGeneratorTests
             "public void RegisterEcsRegistryProviders(global::Karpik.Engine.Core.IStaticEcsRegistryProviders registry)",
             source,
             StringComparison.Ordinal);
-        Assert.Contains("registry.AddUpdate(new GeneratedEcsUpdateRegistryProvider());", source, StringComparison.Ordinal);
+        Assert.Contains("registry.AddUpdate(new GeneratedEcsUpdateRegistryProvider());", source,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("registry.AddRenderPrepare(", source, StringComparison.Ordinal);
 
         Assert.Contains(
@@ -1565,7 +1603,8 @@ public sealed class RuntimeCompositionGeneratorTests
             .Select(static registration => registration.ContractType!.FullName)
             .ToHashSet(StringComparer.Ordinal);
 
-        Assert.Equal(new[] { "Host.Consumer", "Host.IConsumer" }, consumerContracts.OrderBy(static name => name, StringComparer.Ordinal).ToArray());
+        Assert.Equal(new[] { "Host.Consumer", "Host.IConsumer" },
+            consumerContracts.OrderBy(static name => name, StringComparer.Ordinal).ToArray());
     }
 
     [Fact]
@@ -1574,13 +1613,13 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class NoExportService { }
-                """,
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class NoExportService { }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1596,15 +1635,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public abstract class BadService : IService { }
-                """,
+                    public interface IService { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public abstract class BadService : IService { }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1620,15 +1659,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                internal class InternalHostService : IService { }
-                """,
+                    public interface IService { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    internal class InternalHostService : IService { }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1648,15 +1687,15 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService<T> { }
-                [System.Composition.Export(typeof(IService<>))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class GenericService<T> : IService<T> { }
-                """,
+                    public interface IService<T> { }
+                    [System.Composition.Export(typeof(IService<>))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class GenericService<T> : IService<T> { }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1698,18 +1737,18 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class PrivateCtorService : IService
-                {
-                    private PrivateCtorService() { }
-                }
-                """,
+                    public interface IService { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class PrivateCtorService : IService
+                    {
+                        private PrivateCtorService() { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1725,19 +1764,19 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class AmbiguousService : IService
-                {
-                    public AmbiguousService() { }
-                    public AmbiguousService(int value) { }
-                }
-                """,
+                    public interface IService { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class AmbiguousService : IService
+                    {
+                        public AmbiguousService() { }
+                        public AmbiguousService(int value) { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1753,18 +1792,18 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class ScalarService : IService
-                {
-                    public ScalarService(int value) { }
-                }
-                """,
+                    public interface IService { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class ScalarService : IService
+                    {
+                        public ScalarService(int value) { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1780,19 +1819,19 @@ public sealed class RuntimeCompositionGeneratorTests
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
             source: """
-                using Karpik.Engine.Core;
+                    using Karpik.Engine.Core;
 
-                namespace Host;
+                    namespace Host;
 
-                public interface IService { }
-                public sealed class UnknownRuntimeDependency { }
-                [System.Composition.Export(typeof(IService))]
-                [ServiceRegistration(ModuleScope.Engine)]
-                public class Consumer : IService
-                {
-                    public Consumer(UnknownRuntimeDependency dependency) { }
-                }
-                """,
+                    public interface IService { }
+                    public sealed class UnknownRuntimeDependency { }
+                    [System.Composition.Export(typeof(IService))]
+                    [ServiceRegistration(ModuleScope.Engine)]
+                    public class Consumer : IService
+                    {
+                        public Consumer(UnknownRuntimeDependency dependency) { }
+                    }
+                    """,
             additionalReferences:
             [
                 GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
@@ -1803,29 +1842,29 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     internal const string ServiceHostSource = """
-        using Karpik.Engine.Core;
+                                              using Karpik.Engine.Core;
 
-        namespace Host;
+                                              namespace Host;
 
-        public interface IDep { }
-        [System.Composition.Export(typeof(IDep))]
-        [ServiceRegistration(ModuleScope.Engine)]
-        public class Dep : IDep { }
-        public interface IConsumer { }
-        [System.Composition.Export(typeof(IConsumer))]
-        [System.Composition.Export(typeof(Consumer))]
-        [ServiceRegistration(ModuleScope.ModSet, ServiceLifetime.Transient)]
-        public class Consumer : IConsumer
-        {
-            public IDep Dependency { get; }
+                                              public interface IDep { }
+                                              [System.Composition.Export(typeof(IDep))]
+                                              [ServiceRegistration(ModuleScope.Engine)]
+                                              public class Dep : IDep { }
+                                              public interface IConsumer { }
+                                              [System.Composition.Export(typeof(IConsumer))]
+                                              [System.Composition.Export(typeof(Consumer))]
+                                              [ServiceRegistration(ModuleScope.ModSet, ServiceLifetime.Transient)]
+                                              public class Consumer : IConsumer
+                                              {
+                                                  public IDep Dependency { get; }
 
-            public Consumer(IDep dep, Dep concrete)
-            {
-                Dependency = dep;
-                _ = concrete;
-            }
-        }
-        """;
+                                                  public Consumer(IDep dep, Dep concrete)
+                                                  {
+                                                      Dependency = dep;
+                                                      _ = concrete;
+                                                  }
+                                              }
+                                              """;
 
     private sealed class RecordingStaticRegistry : IStaticServiceRegistry
     {
@@ -1878,16 +1917,16 @@ public sealed class RuntimeCompositionGeneratorTests
 
     private static CompiledModule ReferencedInstallerAssembly(string assemblyName) =>
         GeneratorTestHarness.CompileModuleAssembly(assemblyName, """
-            using Karpik.Engine.Core;
+                                                                 using Karpik.Engine.Core;
 
-            namespace Mods;
+                                                                 namespace Mods;
 
-            [Module(ModuleScope.Simulation, 10)]
-            public class RefInstaller : IModuleInstaller
-            {
-                public string Name => "Ref";
-            }
-            """);
+                                                                 [Module(ModuleScope.Simulation, 10)]
+                                                                 public class RefInstaller : IModuleInstaller
+                                                                 {
+                                                                     public string Name => "Ref";
+                                                                 }
+                                                                 """);
 
     private sealed class RecordingRegistry : IStaticModuleRegistry
     {
@@ -1898,4 +1937,3 @@ public sealed class RuntimeCompositionGeneratorTests
 
     private sealed class NotAModuleType;
 }
-
