@@ -20,7 +20,7 @@ public sealed class ExternalProcessHarnessTests
                 "owned-temp",
                 () => ExternalProcessTermination.EnsureStoppedAsync(
                     process,
-                    TimeSpan.FromMilliseconds(10)),
+                    TimeSpan.FromSeconds(5)),
                 _ => deleted = true));
 
         Assert.Equal(1, process.KillCount);
