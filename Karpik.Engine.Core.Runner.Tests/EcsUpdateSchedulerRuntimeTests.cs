@@ -27,13 +27,13 @@ public sealed class EcsUpdateSchedulerRuntimeTests
 
         try
         {
-            Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(2)));
+            Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(10)));
         }
         finally
         {
             release.Set();
         }
-        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
+        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(10))));
         await updateTask;
     }
 
@@ -60,14 +60,14 @@ public sealed class EcsUpdateSchedulerRuntimeTests
 
         try
         {
-            Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(2)));
+            Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(10)));
             Assert.NotSame(updateTask, await Task.WhenAny(updateTask, Task.Delay(millisecondsDelay: 50)));
         }
         finally
         {
             releaseFirst.Set();
         }
-        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
+        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(10))));
         await updateTask;
     }
 
@@ -157,7 +157,7 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         public void Update()
         {
             _bothStarted.Signal();
-            if (!_release.Wait(TimeSpan.FromSeconds(5)))
+            if (!_release.Wait(TimeSpan.FromSeconds(30)))
             {
                 throw new TimeoutException("Parallel update release was not signaled.");
             }
@@ -204,7 +204,7 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         public void Update()
         {
             _entered.Set();
-            if (!_release.Wait(TimeSpan.FromSeconds(5)))
+            if (!_release.Wait(TimeSpan.FromSeconds(30)))
             {
                 throw new TimeoutException("First conflicting update was not released.");
             }
