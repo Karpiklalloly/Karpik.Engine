@@ -60,9 +60,8 @@ public sealed class ProcessManagerLifecycleTests
 
         Task reload = manager.HotReloadAsync();
         await runtime.WaitForAsync("state-requested");
-        runtime.ReleaseState();
-        await runtime.WaitForAsync("state-response-sent");
         Task stop = manager.StopWorkerAsync();
+        runtime.ReleaseState();
         await Task.WhenAll(reload, stop);
 
         Assert.False(manager.IsWorkerRunning);
