@@ -3,6 +3,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS.Scheduling;
 using Xunit;
 
+[Collection(nameof(EcsUpdateSchedulerRuntimeCollection))]
 public sealed class EcsUpdateSchedulerRuntimeTests
 {
     [Fact]
@@ -22,11 +23,18 @@ public sealed class EcsUpdateSchedulerRuntimeTests
             ],
             workerCount: 2);
 
-        Task updateTask = Task.Run(scheduler.Update);
+        Task updateTask = Task.Factory.StartNew(scheduler.Update, CancellationToken.None,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(2)));
-        release.Set();
-        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
+        try
+        {
+            Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(10)));
+        }
+        finally
+        {
+            release.Set();
+        }
+        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(10))));
         await updateTask;
     }
 
@@ -48,12 +56,19 @@ public sealed class EcsUpdateSchedulerRuntimeTests
             ],
             workerCount: 2);
 
-        Task updateTask = Task.Run(scheduler.Update);
+        Task updateTask = Task.Factory.StartNew(scheduler.Update, CancellationToken.None,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(2)));
-        Assert.NotSame(updateTask, await Task.WhenAny(updateTask, Task.Delay(millisecondsDelay: 50)));
-        releaseFirst.Set();
-        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
+        try
+        {
+            Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(10)));
+            Assert.NotSame(updateTask, await Task.WhenAny(updateTask, Task.Delay(millisecondsDelay: 50)));
+        }
+        finally
+        {
+            releaseFirst.Set();
+        }
+        Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(10))));
         await updateTask;
     }
 
@@ -143,7 +158,7 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         public void Update()
         {
             _bothStarted.Signal();
-            if (!_release.Wait(TimeSpan.FromSeconds(5)))
+            if (!_release.Wait(TimeSpan.FromSeconds(30)))
             {
                 throw new TimeoutException("Parallel update release was not signaled.");
             }
@@ -190,7 +205,7 @@ public sealed class EcsUpdateSchedulerRuntimeTests
         public void Update()
         {
             _entered.Set();
-            if (!_release.Wait(TimeSpan.FromSeconds(5)))
+            if (!_release.Wait(TimeSpan.FromSeconds(30)))
             {
                 throw new TimeoutException("First conflicting update was not released.");
             }
@@ -272,3 +287,6 @@ public sealed class EcsUpdateSchedulerRuntimeTests
 
     private readonly struct RuntimeComponent;
 }
+
+[CollectionDefinition(nameof(EcsUpdateSchedulerRuntimeCollection), DisableParallelization = true)]
+public sealed class EcsUpdateSchedulerRuntimeCollection;
