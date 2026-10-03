@@ -22,10 +22,17 @@ public sealed class EcsUpdateSchedulerRuntimeTests
             ],
             workerCount: 2);
 
-        Task updateTask = Task.Run(scheduler.Update);
+        Task updateTask = Task.Factory.StartNew(scheduler.Update, CancellationToken.None,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(2)));
-        release.Set();
+        try
+        {
+            Assert.True(bothStarted.Wait(TimeSpan.FromSeconds(2)));
+        }
+        finally
+        {
+            release.Set();
+        }
         Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
         await updateTask;
     }
@@ -48,11 +55,18 @@ public sealed class EcsUpdateSchedulerRuntimeTests
             ],
             workerCount: 2);
 
-        Task updateTask = Task.Run(scheduler.Update);
+        Task updateTask = Task.Factory.StartNew(scheduler.Update, CancellationToken.None,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(2)));
-        Assert.NotSame(updateTask, await Task.WhenAny(updateTask, Task.Delay(millisecondsDelay: 50)));
-        releaseFirst.Set();
+        try
+        {
+            Assert.True(firstEntered.Wait(TimeSpan.FromSeconds(2)));
+            Assert.NotSame(updateTask, await Task.WhenAny(updateTask, Task.Delay(millisecondsDelay: 50)));
+        }
+        finally
+        {
+            releaseFirst.Set();
+        }
         Assert.Same(updateTask, await Task.WhenAny(updateTask, Task.Delay(TimeSpan.FromSeconds(2))));
         await updateTask;
     }
