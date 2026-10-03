@@ -3,6 +3,7 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS.Scheduling;
 using Xunit;
 
+[Collection(nameof(EcsUpdateSchedulerRuntimeCollection))]
 public sealed class EcsUpdateSchedulerRuntimeTests
 {
     [Fact]
@@ -286,3 +287,6 @@ public sealed class EcsUpdateSchedulerRuntimeTests
 
     private readonly struct RuntimeComponent;
 }
+
+[CollectionDefinition(nameof(EcsUpdateSchedulerRuntimeCollection), DisableParallelization = true)]
+public sealed class EcsUpdateSchedulerRuntimeCollection;
