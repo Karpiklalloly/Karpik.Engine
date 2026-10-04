@@ -2,108 +2,143 @@
   <ItemGroup>
     <KarpikModuleDependency Update="AssetManagement">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="AssetManagement.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\AssetManagement\AssetManagement.Core\AssetManagement.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="DebugModule">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\DebugModule\DebugModule.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="ECS">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="ECS.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Graphics">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Graphics.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Core\Graphics.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Graphics.Headless">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.Headless\Graphics.Headless.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>false</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Graphics.OpenGL">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Graphics\Graphics.OpenGL\Graphics.OpenGL.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Input">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Input\Input.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="LoggerModule">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\LoggerModule\LoggerModule.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Modding">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Modding.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Core\Modding.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Modding.Lua">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Modding\Modding.Lua\Modding.Lua.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Client">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Client.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.Core\Network.Client.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Client.LiteNetLib">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Network.Client\Network.Client.LiteNetLib\Network.Client.LiteNetLib.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Server">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Server.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.Core\Network.Server.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Server.LiteNetLib">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Server\Network.Server\Network.Server.LiteNetLib\Network.Server.LiteNetLib.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Shared">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Shared.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Network.Shared.LiteNetLib">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared.LiteNetLib\Network.Shared.LiteNetLib.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Physics2D">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Physics2D.Aether2D">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Aether2D\Physics2D.Aether2D.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Physics2D.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Physics\Physics2D.Core\Physics2D.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Spatial2D">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Spatial2D\Spatial2D.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="StatAndAbilities">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\StatAndAbilities\StatAndAbilities.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Tween">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Tween\Tween.Core\Tween.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Tween.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\Tween\Tween.Core\Tween.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="UnsafeUtilities">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Shared\UnsafeUtilities\UnsafeUtilities.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Core\Window.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window.Core">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Core\Window.Core.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window.Headless">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Headless\Window.Headless.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>false</ResolvedModuleSelected>
     </KarpikModuleDependency>
     <KarpikModuleDependency Update="Window.Sdl2">
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Sdl2\Window.Sdl2.csproj</ResolvedProjectPath>
+      <ResolvedModuleSelected>true</ResolvedModuleSelected>
     </KarpikModuleDependency>
   </ItemGroup>
   <PropertyGroup>

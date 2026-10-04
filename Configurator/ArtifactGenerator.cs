@@ -83,6 +83,8 @@ public static class ArtifactGenerator
 
     private static string BuildCatalog(RepositoryModel model, GraphResult graph)
     {
+        var selectedPaths = graph.ActivePlugins.Select(plugin => plugin.Project.RelativePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var modulePaths = model.Plugins
             .Select(plugin => plugin.Project.AbsolutePath)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -103,7 +105,8 @@ public static class ArtifactGenerator
             group.Add(new XElement("KarpikModuleDependency",
                 new XAttribute("Update", project.Id),
                 new XElement("ResolvedProjectPath",
-                    $"$(MSBuildThisFileDirectory)..\\{project.RelativePath.Replace('/', '\\')}")));
+                    $"$(MSBuildThisFileDirectory)..\\{project.RelativePath.Replace('/', '\\')}"),
+                new XElement("ResolvedModuleSelected", selectedPaths.Contains(project.RelativePath) ? "true" : "false")));
         }
         var root = new XElement("Project", group);
         foreach (var side in graph.ActivePlugins.GroupBy(plugin => plugin.Project.Side).OrderBy(group => group.Key))

@@ -7,6 +7,61 @@ namespace Karpik.Engine.Tooling.Tests;
 public sealed class EngineModuleSelectionTests
 {
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ResolverDoesNotSelectOptionalModulesUnlessIndependentlyRequested(bool selectProvider, bool providerFirst)
+    {
+        EngineModuleCatalogEntry[] catalog =
+        [
+            new("Consumer", "Consumer", EngineModuleKind.Standalone, EngineModuleSide.Shared, null,
+                [new EngineModuleDependency("Provider", true)]),
+            new("Provider", "Provider", EngineModuleKind.Standalone, EngineModuleSide.Shared, null,
+                [new EngineModuleDependency("ProviderDependency", false)]),
+            new("ProviderDependency", "ProviderDependency", EngineModuleKind.Standalone, EngineModuleSide.Shared, null, [])
+        ];
+        var selections = new List<EngineModuleSelection> { new("Consumer", true, null) };
+        if (selectProvider) selections.Insert(providerFirst ? 0 : 1, new("Provider", true, null));
+        Assert.Equal(selectProvider ? ["Consumer", "Provider", "ProviderDependency"] : ["Consumer"],
+            EngineModuleSelectionResolver.Resolve(catalog, selections, EngineModuleSide.Shared).Select(entry => entry.ModuleId));
+    }
+
+    [Fact]
+    public void ResolverOptionalBackendDoesNotOverrideIndependentlySelectedImplementation()
+    {
+        EngineModuleCatalogEntry[] catalog =
+        [
+            new("Consumer", "Consumer", EngineModuleKind.Standalone, EngineModuleSide.Client, null,
+                [new EngineModuleDependency("Graphics.Headless", true)]),
+            new("Graphics.Core", "Graphics", EngineModuleKind.Core, EngineModuleSide.Client, null, []),
+            new("Graphics.OpenGL", "Graphics", EngineModuleKind.Implementation, EngineModuleSide.Client, "OpenGL", []),
+            new("Graphics.Headless", "Graphics", EngineModuleKind.Implementation, EngineModuleSide.Client, "Headless", [])
+        ];
+        Assert.Equal(["Consumer", "Graphics.Core", "Graphics.OpenGL"],
+            EngineModuleSelectionResolver.Resolve(catalog,
+                [new("Consumer", true, null), new("Graphics", true, "OpenGL")], EngineModuleSide.Client)
+                .Select(entry => entry.ModuleId));
+    }
+
+    [Fact]
+    public void ResolverKeepsOptionalProviderSelectedThroughAnotherRequiredDependency()
+    {
+        EngineModuleCatalogEntry[] catalog =
+        [
+            new("Consumer", "Consumer", EngineModuleKind.Standalone, EngineModuleSide.Shared, null,
+                [new EngineModuleDependency("Provider", true)]),
+            new("RequiredConsumer", "RequiredConsumer", EngineModuleKind.Standalone, EngineModuleSide.Shared, null,
+                [new EngineModuleDependency("Provider", false)]),
+            new("Provider", "Provider", EngineModuleKind.Standalone, EngineModuleSide.Shared, null, [])
+        ];
+        Assert.Equal(["Consumer", "Provider", "RequiredConsumer"],
+            EngineModuleSelectionResolver.Resolve(catalog,
+                [new("Consumer", true, null), new("RequiredConsumer", true, null)], EngineModuleSide.Shared)
+                .Select(entry => entry.ModuleId));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void ResolverHonorsExplicitlyDisabledDependencies(bool optional)

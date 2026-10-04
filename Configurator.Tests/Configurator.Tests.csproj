@@ -19,6 +19,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Configurator\Configurator.csproj" />
+        <None Include="..\Directory.Build.targets" Link="Repository.Directory.Build.targets" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>

@@ -108,8 +108,11 @@ public sealed class RuntimeBundleTaskTests
             Karpik.Engine.Core.Side.Server));
     }
 
-    [Fact]
-    public void Execute_DynamicModeWritesSelectedEngineModuleManifest()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Execute_DynamicModeWritesSelectedEngineModuleManifest(bool? selectOptional)
     {
         using var tree = new TemporaryTree();
         string engineRoot = Path.Combine(tree.Root, "engine");
@@ -117,7 +120,8 @@ public sealed class RuntimeBundleTaskTests
         File.WriteAllText(
             Path.Combine(engineRoot, "modules", Karpik.Engine.Tooling.EngineModuleCatalog.FileName),
             Karpik.Engine.Tooling.EngineModuleCatalog.Serialize([
-                new("ECS.Core", "ECS", Karpik.Engine.Tooling.EngineModuleKind.Core, Karpik.Engine.Tooling.EngineModuleSide.Shared, null, []),
+                new("ECS.Core", "ECS", Karpik.Engine.Tooling.EngineModuleKind.Core, Karpik.Engine.Tooling.EngineModuleSide.Shared, null,
+                    [new Karpik.Engine.Tooling.EngineModuleDependency("Optional.Core", true)]),
                 new("Optional.Core", "Optional", Karpik.Engine.Tooling.EngineModuleKind.Standalone, Karpik.Engine.Tooling.EngineModuleSide.Shared, null, [])
             ]));
         string primary = tree.Write("output/Game.Server.dll", "game");
@@ -126,14 +130,14 @@ public sealed class RuntimeBundleTaskTests
         var ecs = new TaskItem("ECS");
         ecs.SetMetadata("Enabled", "true");
         var optional = new TaskItem("Optional");
-        optional.SetMetadata("Enabled", "false");
+        optional.SetMetadata("Enabled", (selectOptional == true).ToString());
         var task = new BuildKarpikRuntimeBundleTask
         {
             BuildEngine = new FakeBuildEngine(),
             Side = "Server",
             EngineRoot = engineRoot,
             RequireEngineModuleSelection = true,
-            EngineModuleSelections = [ecs, optional],
+            EngineModuleSelections = selectOptional.HasValue ? [ecs, optional] : [ecs],
             PrimaryAssembly = primary,
             BundlePath = bundle,
             Assemblies = [new TaskItem(primary)],
@@ -142,7 +146,7 @@ public sealed class RuntimeBundleTaskTests
 
         Assert.True(task.Execute());
         Assert.Equal(
-            "ECS.Core\n",
+            selectOptional == true ? "ECS.Core\nOptional.Core\n" : "ECS.Core\n",
             File.ReadAllText(Path.Combine(bundle, "modules.version.1", Karpik.Engine.Core.RuntimeBundleLayout.EngineModuleManifestFileName)));
     }
 
