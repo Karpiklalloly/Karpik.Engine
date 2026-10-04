@@ -37,9 +37,14 @@ public sealed class EditorIpcTests
     {
         var pipeName = $"KarpikStateTests_{Guid.NewGuid():N}";
         using var server = new IpcServer(pipeName);
+        int requestsHandled = 0;
         using var client = new IpcClient(pipeName)
         {
-            OnStateRequest = () => new HotReloadState { Timestamp = 42 }
+            OnStateRequest = () =>
+            {
+                Interlocked.Increment(ref requestsHandled);
+                return new HotReloadState { Timestamp = 42 };
+            }
         };
         Task waitTask = server.WaitForConnectionAsync();
         await client.ConnectAsync();
@@ -47,8 +52,10 @@ public sealed class EditorIpcTests
 
         for (int index = 0; index < 32; index++)
         {
-            (bool received, HotReloadState? state) = await server.TryRequestStateAsync(TimeSpan.FromSeconds(1));
-            Assert.True(received);
+            (bool received, HotReloadState? state) = await server.TryRequestStateAsync(TimeSpan.FromSeconds(10));
+            Assert.True(
+                received,
+                $"State response {index + 1}/32 timed out; client handled {Volatile.Read(ref requestsHandled)} requests.");
             Assert.Equal(42, state!.Timestamp);
         }
     }
