@@ -108,11 +108,11 @@
     </ItemGroup>
   </Target>
 
-  <!-- Добавляет статически выбранные модули и их транзитивные контракты. -->
+  <!-- Emits selected module symbols in both modes; Static also resolves DLLs. -->
   <Target Name="_KarpikResolveStaticModuleReferences"
           BeforeTargets="ResolveAssemblyReferences"
           DependsOnTargets="_KarpikResolveEngineReferenceAssemblies"
-          Condition="'$(KarpikCompositionMode)' == 'Static' And ('$(KarpikProjectKind)' == 'Runtime' Or '$(KarpikProjectKind)' == 'Tool')">
+          Condition="'$(KarpikProjectKind)' == 'Runtime' Or ('$(KarpikCompositionMode)' == 'Static' And '$(KarpikProjectKind)' == 'Tool')">
     <ResolveKarpikEngineRootTask Condition="'$(KarpikProjectKind)' == 'Tool'"
                                  SdkVersion="$(_KarpikMsBuildSdkVersion)"
                                  ExplicitRoot="$(KarpikEngineRoot)"
@@ -122,13 +122,18 @@
     <ResolveKarpikStaticReferencesTask EngineRoot="$(KarpikEngineRoot)"
                                        Side="$(KarpikSide)"
                                        RequireSelection="true"
+                                       ResolveReferences="$([System.String]::Equals('$(KarpikCompositionMode)', 'Static'))"
                                        ModuleSelections="@(KarpikModuleSelection)">
       <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
       <Output TaskParameter="PayloadAssemblies" ItemName="_KarpikStaticModulePayloadAssembly" />
+      <Output TaskParameter="ModuleDefines" PropertyName="_KarpikModuleDefines" />
     </ResolveKarpikStaticReferencesTask>
+    <PropertyGroup>
+      <DefineConstants>$(DefineConstants);$(_KarpikModuleDefines)</DefineConstants>
+    </PropertyGroup>
     <!-- Runtime projects keep the assemblies out of the bundle payload; a Static
          Tool launcher is the executable itself, so its graph must be copy-local. -->
-    <ItemGroup>
+    <ItemGroup Condition="'$(KarpikCompositionMode)' == 'Static'">
       <Reference Include="%(_KarpikStaticModuleReference.AssemblyIdentity)">
         <HintPath>%(_KarpikStaticModuleReference.Identity)</HintPath>
         <Private Condition="'$(KarpikProjectKind)' == 'Runtime'">false</Private>

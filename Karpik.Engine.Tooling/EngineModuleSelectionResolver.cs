@@ -29,6 +29,9 @@ public static class EngineModuleSelectionResolver
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(selections);
+        EngineModuleSelection[] selectionItems = selections.ToArray();
+        var disabledModules = selectionItems.Where(selection => !selection.Enabled)
+            .Select(selection => selection.LogicalModuleId).ToHashSet(StringComparer.Ordinal);
         EngineModuleCatalogEntry[] entries = catalog.ToArray();
         if (entries.Any(entry => !entry.HasSelectionMetadata))
         {
@@ -44,7 +47,7 @@ public static class EngineModuleSelectionResolver
         var byId = entries.ToDictionary(entry => entry.ModuleId, ModuleLayoutPolicy.ModuleIdComparer);
         var selected = new HashSet<string>(ModuleLayoutPolicy.ModuleIdComparer);
         var requestedImplementations = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (EngineModuleSelection selection in selections)
+        foreach (EngineModuleSelection selection in selectionItems)
         {
             if (!groups.TryGetValue(selection.LogicalModuleId, out EngineModuleCatalogEntry[]? group))
             {
@@ -133,6 +136,15 @@ public static class EngineModuleSelectionResolver
                         continue;
                     }
                     throw Error(EngineModuleSelectionErrorCode.SideLeak, $"Module '{entry.ModuleId}' requires {side}-incompatible module '{dependency.ModuleId}'.");
+                }
+                if (disabledModules.Contains(dependencyEntry.LogicalModuleId!))
+                {
+                    if (dependency.Optional)
+                    {
+                        continue;
+                    }
+                    throw Error(EngineModuleSelectionErrorCode.MissingRequiredDependency,
+                        $"Module '{entry.ModuleId}' requires explicitly disabled module '{dependency.ModuleId}'.");
                 }
                 Add(dependencyEntry);
             }

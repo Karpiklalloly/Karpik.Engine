@@ -36,6 +36,20 @@ Runtime installer lifecycle ordering remains priority-first. Equal priorities us
 
 ## Consequences
 
+Selected runtime modules expose C# compilation symbols named `KARPIK_MODULE_<PLUGIN_ID>`.
+Plugin ids are uppercased and dots/hyphens become underscores: `Graphics.OpenGL`
+produces `KARPIK_MODULE_GRAPHICS_OPENGL`, `Graphics.Core` produces
+`KARPIK_MODULE_GRAPHICS_CORE`, and standalone `Input` produces `KARPIK_MODULE_INPUT`.
+Disabled modules and unselected implementations have no symbol. Shared compilations
+receive Shared symbols; Client and Server also receive symbols for their own side.
+Configurator emits these into `Generated/KarpikModuleCatalog.props`, imported by
+`Directory.Build.targets`. External SDK Runtime projects (Static and Dynamic) and
+Static Tool launchers obtain the same symbols from their resolved module graph
+before compilation. Existing user `DefineConstants` are preserved.
+The SDK resolver respects explicit `Enabled="false"` dependency selections:
+optional dependencies are skipped and required dependencies fail validation
+instead of silently re-enabling the disabled module.
+
 - New modules must be added explicitly to the structured profile.
 - Adding or moving a project requires regenerating the tracked catalog.
 - Invalid naming, dependency-kind mismatches, side leaks, missing dependencies, disabled required module dependencies, cycles, and stale artifacts fail before runtime.

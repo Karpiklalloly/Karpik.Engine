@@ -6,6 +6,32 @@ namespace Karpik.Engine.Tooling.Tests;
 
 public sealed class EngineModuleSelectionTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ResolverHonorsExplicitlyDisabledDependencies(bool optional)
+    {
+        EngineModuleCatalogEntry[] catalog =
+        [
+            new("Consumer", "Consumer", EngineModuleKind.Standalone, EngineModuleSide.Shared, null,
+                [new EngineModuleDependency("Disabled", optional)]),
+            new("Disabled", "Disabled", EngineModuleKind.Standalone, EngineModuleSide.Shared, null, [])
+        ];
+        EngineModuleSelection[] selections =
+        [new("Consumer", true, null), new("Disabled", false, null)];
+        if (optional)
+        {
+            Assert.Equal(["Consumer"], EngineModuleSelectionResolver.Resolve(catalog, selections, EngineModuleSide.Shared)
+                .Select(entry => entry.ModuleId));
+        }
+        else
+        {
+            var error = Assert.Throws<EngineModuleSelectionException>(() =>
+                EngineModuleSelectionResolver.Resolve(catalog, selections, EngineModuleSide.Shared));
+            Assert.Equal(EngineModuleSelectionErrorCode.MissingRequiredDependency, error.Code);
+        }
+    }
+
     [Fact]
     public void ExtendedCatalogRoundTripsCanonicalMetadata()
     {
