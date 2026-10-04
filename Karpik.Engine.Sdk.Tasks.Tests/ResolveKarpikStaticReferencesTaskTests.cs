@@ -13,6 +13,104 @@ namespace Karpik.Engine.Sdk.Tasks.Tests;
 
 public sealed class ResolveKarpikStaticReferencesTaskTests
 {
+    [Theory]
+    [InlineData("Static")]
+    [InlineData("Dynamic")]
+    public async System.Threading.Tasks.Task Sdk_CompilesConditionalCodeUsingResolvedModuleDefines(string mode)
+    {
+        using var tree = new Tree();
+        tree.AddSelected("ECS.Core", "ECS", EngineModuleKind.Core, EngineModuleSide.Shared);
+        tree.AddSelected("Input", "Input", EngineModuleKind.Standalone, EngineModuleSide.Client);
+        tree.AddSelected("Disabled", "Disabled", EngineModuleKind.Standalone, EngineModuleSide.Shared);
+        tree.WriteCatalog();
+        string Escape(string value) => System.Security.SecurityElement.Escape(value)!;
+        string projectPath = Path.Combine(tree.Root, "Probe.csproj");
+        File.WriteAllText(projectPath, $$"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <KarpikProjectKind>Runtime</KarpikProjectKind>
+                <KarpikSide>Client</KarpikSide>
+                <KarpikCompositionMode>{{mode}}</KarpikCompositionMode>
+                <KarpikEngineRoot>{{Escape(tree.Root)}}</KarpikEngineRoot>
+                <DefineConstants>$(DefineConstants);USER_SYMBOL</DefineConstants>
+                <DesignTimeBuild>true</DesignTimeBuild>
+              </PropertyGroup>
+              <ItemGroup>
+                <KarpikModuleSelection Include="ECS" Enabled="true" />
+                <KarpikModuleSelection Include="Input" Enabled="true" />
+                <KarpikModuleSelection Include="Disabled" Enabled="false" />
+              </ItemGroup>
+              <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikStaticReferencesTask"
+                         AssemblyFile="{{Escape(typeof(ResolveKarpikStaticReferencesTask).Assembly.Location)}}" />
+              <Import Project="{{Escape(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"))}}" />
+              <Target Name="_KarpikResolveEngineReferenceAssemblies" />
+              <Target Name="BuildKarpikRuntimeBundle" />
+            </Project>
+            """);
+        File.WriteAllText(Path.Combine(tree.Root, "Probe.cs"), """
+            #if !KARPIK_MODULE_ECS_CORE || !KARPIK_MODULE_INPUT || !USER_SYMBOL
+            #error Selected module symbols or existing user symbols were lost.
+            #endif
+            #if KARPIK_MODULE_DISABLED || KARPIK_MODULE_NETWORK_SERVER_LITENETLIB
+            #error Disabled or opposite-side module symbols leaked into compilation.
+            #endif
+            public static class Probe { }
+            """);
+        var info = new ProcessStartInfo("dotnet") { WorkingDirectory = tree.Root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (string argument in new[] { "build", projectPath, "-m:1", "-nr:false", "--nologo" }) info.ArgumentList.Add(argument);
+        using var process = Process.Start(info)!;
+        var token = TestContext.Current.CancellationToken;
+        var output = process.StandardOutput.ReadToEndAsync(token);
+        var error = process.StandardError.ReadToEndAsync(token);
+        await process.WaitForExitAsync(token);
+        Assert.True(process.ExitCode == 0, await output + await error);
+    }
+
+    [Theory]
+    [InlineData("Client", true)]
+    [InlineData("Client", false)]
+    [InlineData("Server", true)]
+    [InlineData("Server", false)]
+    [InlineData("Shared", true)]
+    [InlineData("Shared", false)]
+    public void Execute_EmitsSidePureDefinesForSelectedGraph(string side, bool resolveReferences)
+    {
+        using var tree = new Tree();
+        tree.AddSelected("ECS.Core", "ECS", EngineModuleKind.Core, EngineModuleSide.Shared);
+        tree.AddSelected("Input", "Input", EngineModuleKind.Standalone, EngineModuleSide.Client);
+        tree.AddSelected("Graphics.Core", "Graphics", EngineModuleKind.Core, EngineModuleSide.Client);
+        tree.AddSelected("Graphics.OpenGL", "Graphics", EngineModuleKind.Implementation, EngineModuleSide.Client, "OpenGL");
+        tree.AddSelected("Graphics.Headless", "Graphics", EngineModuleKind.Implementation, EngineModuleSide.Client, "Headless");
+        tree.AddSelected("Disabled", "Disabled", EngineModuleKind.Standalone, EngineModuleSide.Shared);
+        tree.AddSelected("Network.Server.LiteNetLib", "Network.Server", EngineModuleKind.Implementation, EngineModuleSide.Server, "LiteNetLib");
+        tree.WriteCatalog();
+        TaskItem Select(string id, bool enabled = true, string? backend = null)
+        {
+            var item = new TaskItem(id);
+            item.SetMetadata("Enabled", enabled.ToString());
+            if (backend != null) item.SetMetadata("Implementation", backend);
+            return item;
+        }
+        var selections = new List<ITaskItem> { Select("ECS"), Select("Disabled", false) };
+        if (side == "Client") { selections.Add(Select("Input")); selections.Add(Select("Graphics", backend: "OpenGL")); }
+        if (side == "Server") selections.Add(Select("Network.Server", backend: "LiteNetLib"));
+        var task = new ResolveKarpikStaticReferencesTask
+        {
+            BuildEngine = new Engine(), EngineRoot = tree.Root, Side = side,
+            RequireSelection = true, ResolveReferences = resolveReferences, ModuleSelections = selections.ToArray()
+        };
+        Assert.True(task.Execute());
+        string expected = side switch
+        {
+            "Client" => "KARPIK_MODULE_ECS_CORE;KARPIK_MODULE_GRAPHICS_CORE;KARPIK_MODULE_GRAPHICS_OPENGL;KARPIK_MODULE_INPUT",
+            "Server" => "KARPIK_MODULE_ECS_CORE;KARPIK_MODULE_NETWORK_SERVER_LITENETLIB",
+            _ => "KARPIK_MODULE_ECS_CORE"
+        };
+        Assert.Equal(expected, task.ModuleDefines);
+        if (!resolveReferences) { Assert.Empty(task.References); Assert.Empty(task.PayloadAssemblies); }
+    }
+
     [Fact]
     public void Sdk_UsesClrIdentityForStaticReferences()
     {
@@ -185,6 +283,7 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
         Assert.Contains(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "ECS.Core");
         Assert.Contains(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "Selected");
         Assert.DoesNotContain(task.References, item => Path.GetFileNameWithoutExtension(item.ItemSpec) == "Unselected");
+        Assert.Equal("KARPIK_MODULE_ECS_CORE;KARPIK_MODULE_SELECTED", task.ModuleDefines);
     }
 
     [Fact]

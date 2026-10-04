@@ -5,6 +5,35 @@ using Xunit;
 public sealed class ConfiguratorTests
 {
     [Fact]
+    public void Generator_EmitsOnlyActiveModuleDefinesWithSideConditions()
+    {
+        using var repository = new TestRepository();
+        repository.AddPlugin(ProjectSide.Shared, "ECS.Core");
+        repository.AddPlugin(ProjectSide.Client, "Graphics.Core");
+        repository.AddPlugin(ProjectSide.Client, "Graphics.OpenGL");
+        repository.AddPlugin(ProjectSide.Client, "Graphics.Headless");
+        repository.AddPlugin(ProjectSide.Client, "Input");
+        repository.AddPlugin(ProjectSide.Server, "ServerFeature");
+        repository.AddPlugin(ProjectSide.Shared, "Disabled");
+        repository.Select("ECS");
+        repository.Select("Graphics", implementation: "OpenGL");
+        repository.Select("Input");
+        repository.Select("ServerFeature");
+        repository.Select("Disabled", enabled: false);
+        var model = repository.Load();
+        var graph = GraphValidator.Validate(model);
+        Assert.True(graph.IsValid, string.Join("\n", graph.Errors));
+        var catalog = XDocument.Parse(ArtifactGenerator.BuildArtifacts(model, graph)
+            .Single(pair => pair.Key.EndsWith("KarpikModuleCatalog.props", StringComparison.Ordinal)).Value);
+        var groups = catalog.Root!.Elements("PropertyGroup").ToArray();
+        Assert.Contains(groups, group => group.Element("DefineConstants")?.Value == "$(DefineConstants);KARPIK_MODULE_ECS_CORE" && group.Attribute("Condition") == null);
+        Assert.Contains(groups, group => group.Element("DefineConstants")?.Value == "$(DefineConstants);KARPIK_MODULE_GRAPHICS_CORE;KARPIK_MODULE_GRAPHICS_OPENGL;KARPIK_MODULE_INPUT" && ((string?)group.Attribute("Condition"))!.Contains("Client"));
+        Assert.Contains(groups, group => group.Element("DefineConstants")?.Value == "$(DefineConstants);KARPIK_MODULE_SERVERFEATURE" && ((string?)group.Attribute("Condition"))!.Contains("Server"));
+        Assert.DoesNotContain("KARPIK_MODULE_DISABLED", catalog.ToString());
+        Assert.DoesNotContain("KARPIK_MODULE_GRAPHICS_HEADLESS", catalog.ToString());
+    }
+
+    [Fact]
     public void Parser_InfersPluginKindsAndExcludesTestsAndExecutables()
     {
         using var repository = new TestRepository();

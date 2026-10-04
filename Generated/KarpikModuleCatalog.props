@@ -106,4 +106,13 @@
       <ResolvedProjectPath>$(MSBuildThisFileDirectory)..\Modules\Client\Window\Window.Sdl2\Window.Sdl2.csproj</ResolvedProjectPath>
     </KarpikModuleDependency>
   </ItemGroup>
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);KARPIK_MODULE_ASSETMANAGEMENT_CORE;KARPIK_MODULE_DEBUGMODULE;KARPIK_MODULE_ECS_CORE;KARPIK_MODULE_LOGGERMODULE;KARPIK_MODULE_MODDING_CORE;KARPIK_MODULE_MODDING_LUA;KARPIK_MODULE_NETWORK_SHARED_CORE;KARPIK_MODULE_NETWORK_SHARED_LITENETLIB;KARPIK_MODULE_PHYSICS2D_AETHER2D;KARPIK_MODULE_PHYSICS2D_CORE;KARPIK_MODULE_SPATIAL2D;KARPIK_MODULE_STATANDABILITIES;KARPIK_MODULE_TWEEN_CORE;KARPIK_MODULE_UNSAFEUTILITIES</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(KarpikSide)' == 'Client' Or '$(IsClient)' == 'true' Or $([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/').Contains('/Modules/Client/'))">
+    <DefineConstants>$(DefineConstants);KARPIK_MODULE_GRAPHICS_CORE;KARPIK_MODULE_GRAPHICS_OPENGL;KARPIK_MODULE_INPUT;KARPIK_MODULE_NETWORK_CLIENT_CORE;KARPIK_MODULE_NETWORK_CLIENT_LITENETLIB;KARPIK_MODULE_WINDOW_CORE;KARPIK_MODULE_WINDOW_SDL2</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(KarpikSide)' == 'Server' Or '$(IsServer)' == 'true' Or $([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/').Contains('/Modules/Server/'))">
+    <DefineConstants>$(DefineConstants);KARPIK_MODULE_NETWORK_SERVER_CORE;KARPIK_MODULE_NETWORK_SERVER_LITENETLIB</DefineConstants>
+  </PropertyGroup>
 </Project>

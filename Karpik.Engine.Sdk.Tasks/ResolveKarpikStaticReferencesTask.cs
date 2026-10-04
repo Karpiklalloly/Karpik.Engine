@@ -28,6 +28,12 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     /// <summary>Требует явный KarpikModuleSelection для внешнего проекта.</summary>
     public bool RequireSelection { get; set; }
 
+    /// <summary>Static resolves DLLs; Dynamic only emits the selected graph's symbols.</summary>
+    public bool ResolveReferences { get; set; } = true;
+
+    [Output]
+    public string ModuleDefines { get; set; } = string.Empty;
+
     /// <summary>
     /// Получает ссылки на первичные сборки выбранных модулей вместе с CLR-идентичностью.
     /// </summary>
@@ -53,10 +59,12 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     {
         References = [];
         PayloadAssemblies = [];
+        ModuleDefines = string.Empty;
         try
         {
-            References = Resolve(out ITaskItem[] payloadAssemblies);
+            References = Resolve(out ITaskItem[] payloadAssemblies, out string moduleDefines);
             PayloadAssemblies = payloadAssemblies;
+            ModuleDefines = moduleDefines;
             return true;
         }
         catch (Exception exception) when (exception is ArgumentException or BadImageFormatException or IOException or
@@ -72,7 +80,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
     /// </summary>
     /// <param name="payloadAssemblies">Получает DLL-пакеты, лежащие рядом с первичными сборками.</param>
     /// <returns>Ссылки на первичные сборки модулей.</returns>
-    private ITaskItem[] Resolve(out ITaskItem[] payloadAssemblies)
+    private ITaskItem[] Resolve(out ITaskItem[] payloadAssemblies, out string moduleDefines)
     {
         if (!Path.IsPathFullyQualified(EngineRoot))
         {
@@ -94,6 +102,14 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             .Select(entry => ModuleLayoutPolicy.GetPrimaryAssemblyFileName(entry.ModuleId))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         EngineModuleCatalogEntry[] selected = ResolveSelectedEntries(catalog, side);
+        moduleDefines = string.Join(";", selected.Select(entry =>
+            "KARPIK_MODULE_" + entry.ModuleId.ToUpperInvariant().Replace('.', '_').Replace('-', '_'))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
+        if (!ResolveReferences)
+        {
+            payloadAssemblies = [];
+            return [];
+        }
 
         List<ITaskItem> references = new List<ITaskItem>();
         List<ITaskItem> payloads = new List<ITaskItem>();
