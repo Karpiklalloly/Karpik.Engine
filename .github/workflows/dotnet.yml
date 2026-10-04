@@ -28,7 +28,15 @@ jobs:
       run: dotnet restore KarpikEngine.slnx -m:1 -nr:false
     - name: Build
       run: dotnet build KarpikEngine.slnx -c Release --no-restore -m:1 -nr:false
-    - name: Check scheduler separately
-      run: dotnet test Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter "FullyQualifiedName~EcsUpdateSchedulerRuntimeTests"
+    - name: Check runner repeatedly with resource sampling
+      shell: pwsh
+      run: ./.github/scripts/Test-RunnerWithResources.ps1
     - name: Test
       run: dotnet test KarpikEngine.slnx -c Release --no-build --no-restore -m:1 -nr:false --filter "Category!=Integration"
+    - name: Upload runner diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: runner-resource-diagnostics
+        path: artifacts/runner-tests
+        if-no-files-found: warn
