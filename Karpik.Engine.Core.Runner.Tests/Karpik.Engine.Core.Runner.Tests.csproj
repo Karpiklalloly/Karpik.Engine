@@ -37,6 +37,12 @@
       <Compile Remove="NativeAotSmoke\**\*.cs" />
     </ItemGroup>
 
+    <ItemGroup Condition="'$(CI)' == 'true'">
+      <None Include="..\.github\runner-tests.xunit.json"
+            TargetPath="xunit.runner.json"
+            CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
     <ItemGroup>
       <None Include="..\Karpik.Engine.Core.Runner\StaticComposition\**\*.cs"
             LinkBase="StaticCompositionSources"
