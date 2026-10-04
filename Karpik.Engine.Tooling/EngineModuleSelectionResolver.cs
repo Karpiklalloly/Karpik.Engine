@@ -121,28 +121,22 @@ public static class EngineModuleSelectionResolver
             }
             foreach (EngineModuleDependency dependency in entry.Dependencies)
             {
+                // Optional edges describe integrations with an independently selected
+                // module; they never expand the selected graph or choose its backend.
+                if (dependency.Optional)
+                {
+                    continue;
+                }
                 if (!byId.TryGetValue(dependency.ModuleId, out EngineModuleCatalogEntry dependencyEntry))
                 {
-                    if (dependency.Optional)
-                    {
-                        continue;
-                    }
                     throw Error(EngineModuleSelectionErrorCode.MissingRequiredDependency, $"Module '{entry.ModuleId}' requires missing module '{dependency.ModuleId}'.");
                 }
                 if (!IsAvailable(dependencyEntry, side))
                 {
-                    if (dependency.Optional)
-                    {
-                        continue;
-                    }
                     throw Error(EngineModuleSelectionErrorCode.SideLeak, $"Module '{entry.ModuleId}' requires {side}-incompatible module '{dependency.ModuleId}'.");
                 }
                 if (disabledModules.Contains(dependencyEntry.LogicalModuleId!))
                 {
-                    if (dependency.Optional)
-                    {
-                        continue;
-                    }
                     throw Error(EngineModuleSelectionErrorCode.MissingRequiredDependency,
                         $"Module '{entry.ModuleId}' requires explicitly disabled module '{dependency.ModuleId}'.");
                 }

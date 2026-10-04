@@ -14,12 +14,15 @@ namespace Karpik.Engine.Sdk.Tasks.Tests;
 public sealed class ResolveKarpikStaticReferencesTaskTests
 {
     [Theory]
-    [InlineData("Static")]
-    [InlineData("Dynamic")]
-    public async System.Threading.Tasks.Task Sdk_CompilesConditionalCodeUsingResolvedModuleDefines(string mode)
+    [InlineData("Static", true)]
+    [InlineData("Dynamic", true)]
+    [InlineData("Static", false)]
+    [InlineData("Dynamic", false)]
+    public async System.Threading.Tasks.Task Sdk_CompilesConditionalCodeUsingResolvedModuleDefines(string mode, bool selectInput)
     {
         using var tree = new Tree();
-        tree.AddSelected("ECS.Core", "ECS", EngineModuleKind.Core, EngineModuleSide.Shared);
+        tree.AddSelected("ECS.Core", "ECS", EngineModuleKind.Core, EngineModuleSide.Shared,
+            dependencies: [new EngineModuleDependency("Input", true)]);
         tree.AddSelected("Input", "Input", EngineModuleKind.Standalone, EngineModuleSide.Client);
         tree.AddSelected("Disabled", "Disabled", EngineModuleKind.Standalone, EngineModuleSide.Shared);
         tree.WriteCatalog();
@@ -38,7 +41,7 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
               </PropertyGroup>
               <ItemGroup>
                 <KarpikModuleSelection Include="ECS" Enabled="true" />
-                <KarpikModuleSelection Include="Input" Enabled="true" />
+                {{(selectInput ? "<KarpikModuleSelection Include=\"Input\" Enabled=\"true\" />" : string.Empty)}}
                 <KarpikModuleSelection Include="Disabled" Enabled="false" />
               </ItemGroup>
               <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikStaticReferencesTask"
@@ -48,9 +51,12 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
               <Target Name="BuildKarpikRuntimeBundle" />
             </Project>
             """);
-        File.WriteAllText(Path.Combine(tree.Root, "Probe.cs"), """
-            #if !KARPIK_MODULE_ECS_CORE || !KARPIK_MODULE_INPUT || !USER_SYMBOL
+        File.WriteAllText(Path.Combine(tree.Root, "Probe.cs"), $$"""
+            #if !KARPIK_MODULE_ECS_CORE || !USER_SYMBOL
             #error Selected module symbols or existing user symbols were lost.
+            #endif
+            #if {{(selectInput ? "!KARPIK_MODULE_INPUT" : "KARPIK_MODULE_INPUT")}}
+            #error Optional module symbol does not match the independent selection.
             #endif
             #if KARPIK_MODULE_DISABLED || KARPIK_MODULE_NETWORK_SERVER_LITENETLIB
             #error Disabled or opposite-side module symbols leaked into compilation.
@@ -349,7 +355,7 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
         public Tree() { Root = Path.Combine(Path.GetTempPath(), "KarpikStaticTask", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(Path.Combine(Root, "modules")); }
         public string Root { get; }
         public void Add(string id, string assembly, EngineModuleSide side = EngineModuleSide.Shared) { _entries.Add(new(id, side)); string dir = Path.Combine(Root, "modules", id); Directory.CreateDirectory(dir); File.Copy(assembly, Path.Combine(dir, id + ".dll")); }
-        public void AddSelected(string id, string logicalId, EngineModuleKind kind, EngineModuleSide side, string? implementation = null) { _entries.Add(new(id, logicalId, kind, side, implementation, [])); string dir = Path.Combine(Root, "modules", id); Directory.CreateDirectory(dir); File.Copy(typeof(EngineModuleCatalog).Assembly.Location, Path.Combine(dir, id + ".dll")); }
+        public void AddSelected(string id, string logicalId, EngineModuleKind kind, EngineModuleSide side, string? implementation = null, EngineModuleDependency[]? dependencies = null) { _entries.Add(new(id, logicalId, kind, side, implementation, dependencies ?? [])); string dir = Path.Combine(Root, "modules", id); Directory.CreateDirectory(dir); File.Copy(typeof(EngineModuleCatalog).Assembly.Location, Path.Combine(dir, id + ".dll")); }
         public void AddMissing(string id, EngineModuleSide side = EngineModuleSide.Shared) => _entries.Add(new(id, side));
         public void WriteCatalog() => File.WriteAllText(Path.Combine(Root, "modules", EngineModuleCatalog.FileName), EngineModuleCatalog.Serialize(_entries), new UTF8Encoding(false));
         public void Dispose() => Directory.Delete(Root, true);

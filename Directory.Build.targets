@@ -4,7 +4,10 @@
             Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
 
     <ItemGroup>
-        <ProjectReference Include="@(KarpikModuleDependency->'%(ResolvedProjectPath)')"
+        <_KarpikCompileModuleDependency Include="@(KarpikModuleDependency)" />
+        <_KarpikCompileModuleDependency Remove="@(KarpikModuleDependency->WithMetadataValue('Optional', 'true'))" />
+        <_KarpikCompileModuleDependency Include="@(KarpikModuleDependency->WithMetadataValue('Optional', 'true')->WithMetadataValue('ResolvedModuleSelected', 'true'))" />
+        <ProjectReference Include="@(_KarpikCompileModuleDependency->'%(ResolvedProjectPath)')"
                           Visible="true" />
     </ItemGroup>
 

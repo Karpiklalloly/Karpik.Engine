@@ -50,6 +50,20 @@ The SDK resolver respects explicit `Enabled="false"` dependency selections:
 optional dependencies are skipped and required dependencies fail validation
 instead of silently re-enabling the disabled module.
 
+`Optional="true"` dependencies never select or build their target module by themselves.
+In the SDK, the target must already belong to the graph through an explicit selection
+or another required dependency. Optional edges do not choose implementations or add
+the target's dependencies. In the repository, optional `ProjectReference` items are
+emitted only for targets selected by the Configurator profile; the generated catalog
+records this as `ResolvedModuleSelected` for concrete plugin ids and their aliases.
+Code that uses optional module types must be guarded by the target's
+`KARPIK_MODULE_*` symbol. Independently selected optional targets keep their ordinary
+references and ordering. Required dependencies retain their existing behavior.
+
+Compatibility: configurations that relied on optional dependencies automatically
+including a module must now select that module explicitly and regenerate the
+repository artifacts with `Configurator --generate` when applicable.
+
 - New modules must be added explicitly to the structured profile.
 - Adding or moving a project requires regenerating the tracked catalog.
 - Invalid naming, dependency-kind mismatches, side leaks, missing dependencies, disabled required module dependencies, cycles, and stale artifacts fail before runtime.
