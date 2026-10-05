@@ -12,8 +12,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="NeoVeldrid.SDL2" Version="1.2.0" />
-      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.SDL2" />
+      <PackageReference Include="NeoVeldrid.StartupUtilities" />
     </ItemGroup>
 
 </Project>

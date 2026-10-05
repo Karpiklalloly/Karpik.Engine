@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
+      <PackageReference Include="NeoVeldrid.StartupUtilities" />
     </ItemGroup>
 
 </Project>

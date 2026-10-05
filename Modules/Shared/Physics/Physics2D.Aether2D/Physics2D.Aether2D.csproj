@@ -13,7 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Aether.Physics2D" Version="2.2.0" />
+      <PackageReference Include="Aether.Physics2D" />
     </ItemGroup>
 
 </Project>

@@ -9,8 +9,8 @@
 
     <!-- Подключает API MSBuild только для компиляции задач, не поставляя их вместе с результатом. -->
     <ItemGroup>
-        <PackageReference Include="Microsoft.Build.Framework" Version="17.8.3" PrivateAssets="all" ExcludeAssets="runtime" />
-        <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.8.3" PrivateAssets="all" ExcludeAssets="runtime" />
+        <PackageReference Include="Microsoft.Build.Framework" PrivateAssets="all" ExcludeAssets="runtime" />
+        <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" ExcludeAssets="runtime" />
     </ItemGroup>
 
     <!-- Подключает модель проектов и tooling, используемые задачами SDK. -->

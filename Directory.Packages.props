@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <!-- Central versions for engine projects. Templates and submodules own their dependencies. -->
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <!-- Also used by legacy references in independently managed projects. -->
+        <KarpikNewtonsoftJsonVersion>13.0.4</KarpikNewtonsoftJsonVersion>
+        <ManagePackageVersionsCentrally Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)templates')) OR $(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)first-parties')) OR $(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)third-parties'))">false</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+
+    <!-- Conditions preserve existing project versions; this migration does not upgrade packages. -->
+    <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' == 'true'">
+        <PackageVersion Include="Aether.Physics2D" Version="2.2.0" />
+        <PackageVersion Include="Autofac" Version="9.3.1" />
+        <PackageVersion Include="Avalonia" Version="12.1.2" />
+        <PackageVersion Update="Avalonia" Version="12.1.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Launcher'" />
+        <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
+        <PackageVersion Update="Avalonia.Desktop" Version="12.1.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Launcher'" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+        <PackageVersion Update="Avalonia.Fonts.Inter" Version="12.1.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Launcher'" />
+        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+        <PackageVersion Update="Avalonia.Themes.Fluent" Version="12.1.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Launcher'" />
+        <PackageVersion Include="Dock.Avalonia" Version="12.1.0.4" />
+        <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.4" />
+        <PackageVersion Include="Dock.Model.ReactiveUI" Version="12.1.0.4" />
+        <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.0.4" />
+        <PackageVersion Include="LiteNetLib" Version="1.3.1" />
+        <PackageVersion Include="Microsoft.Build.Framework" Version="17.11.31" />
+        <PackageVersion Update="Microsoft.Build.Framework" Version="17.8.3" Condition="'$(MSBuildProjectName)' == 'Karpik.Engine.Sdk.Tasks'" />
+        <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.8.3" />
+        <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+        <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" />
+        <PackageVersion Update="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Content.Codegen' OR '$(MSBuildProjectName)' == 'Karpik.Content.Runtime.Tests' OR '$(MSBuildProjectName)' == 'StaticAnalyzer' OR '$(MSBuildProjectName)' == 'StaticAnalyzer.Tests'" />
+        <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.3.0" />
+        <PackageVersion Update="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" Condition="'$(MSBuildProjectName)' == 'StaticAnalyzer'" />
+        <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+        <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageVersion Update="Microsoft.NET.Test.Sdk" Version="18.0.1" Condition="'$(MSBuildProjectName)' == 'Karpik.Editor.Tests' OR '$(MSBuildProjectName)' == 'Karpik.Engine.Sdk.IntegrationTests' OR '$(MSBuildProjectName)' == 'Karpik.Launcher.Tests'" />
+        <PackageVersion Include="MoonSharp" Version="2.0.0" />
+        <PackageVersion Include="NeoVeldrid" Version="1.2.0" />
+        <PackageVersion Include="NeoVeldrid.ImGui" Version="1.2.0" />
+        <PackageVersion Include="NeoVeldrid.SDL2" Version="1.2.0" />
+        <PackageVersion Include="NeoVeldrid.SPIRV" Version="1.2.0" />
+        <PackageVersion Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
+        <PackageVersion Include="Newtonsoft.Json" Version="$(KarpikNewtonsoftJsonVersion)" />
+        <PackageVersion Include="OpenTK.Mathematics" Version="4.9.4" />
+        <PackageVersion Include="ReactiveUI.Avalonia" Version="12.1.2" />
+        <PackageVersion Update="ReactiveUI.Avalonia" Version="12.1.0" Condition="'$(MSBuildProjectName)' == 'Karpik.Launcher'" />
+        <PackageVersion Include="StbImageSharp" Version="2.30.15" />
+        <PackageVersion Include="System.ComponentModel.Composition" Version="10.0.10" />
+        <PackageVersion Include="System.Composition" Version="10.0.10" />
+        <PackageVersion Include="System.Text.Json" Version="8.0.5" />
+        <PackageVersion Include="xunit" Version="2.9.2" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageVersion Update="xunit.runner.visualstudio" Version="3.1.5" Condition="'$(MSBuildProjectName)' == 'Karpik.Editor.Tests' OR '$(MSBuildProjectName)' == 'Karpik.Engine.Core.Generator.Tests' OR '$(MSBuildProjectName)' == 'Karpik.Engine.Sdk.IntegrationTests' OR '$(MSBuildProjectName)' == 'Karpik.Engine.Sdk.Tasks.Tests' OR '$(MSBuildProjectName)' == 'Karpik.Launcher.Tests' OR '$(MSBuildProjectName)' == 'Network.Codegen.Tests'" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    </ItemGroup>
+</Project>

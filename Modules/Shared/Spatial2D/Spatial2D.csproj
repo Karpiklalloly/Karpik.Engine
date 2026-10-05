@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="OpenTK.Mathematics" Version="4.9.4" />
+      <PackageReference Include="OpenTK.Mathematics" />
     </ItemGroup>
 
 </Project>
