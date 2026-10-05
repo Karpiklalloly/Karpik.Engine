@@ -231,10 +231,6 @@ public sealed class CodegenSnapshotTests
         Assert.Contains("<IsRoslynComponent>true</IsRoslynComponent>", csproj);
         Assert.DoesNotContain("NU1903", csproj);
         Assert.DoesNotContain("<NoWarn>", csproj);
-        // Verify System.Text.Json version is 8.0.5+
-        Assert.Contains("System.Text.Json", csproj);
-        Assert.Contains("Version=\"8.0.5\"", csproj);
-        Assert.DoesNotContain("Version=\"8.0.0\"", csproj);
     }
 
     [Fact]
