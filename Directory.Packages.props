@@ -11,37 +11,37 @@
     <!-- Each package has one version shared by all engine projects. -->
     <ItemGroup Condition="'$(ManagePackageVersionsCentrally)' == 'true'">
         <PackageVersion Include="Aether.Physics2D" Version="2.2.0" />
-        <PackageVersion Include="Autofac" Version="9.3.1" />
-        <PackageVersion Include="Avalonia" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.2" />
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
-        <PackageVersion Include="Dock.Avalonia" Version="12.1.0.4" />
-        <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.4" />
-        <PackageVersion Include="Dock.Model.ReactiveUI" Version="12.1.0.4" />
-        <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.0.4" />
-        <PackageVersion Include="LiteNetLib" Version="1.3.1" />
+        <PackageVersion Include="Autofac" Version="9.3.4" />
+        <PackageVersion Include="Avalonia" Version="12.1.3" />
+        <PackageVersion Include="Avalonia.Desktop" Version="12.1.3" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.3" />
+        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.3" />
+        <PackageVersion Include="Dock.Avalonia" Version="12.1.0.7" />
+        <PackageVersion Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.7" />
+        <PackageVersion Include="Dock.Model.ReactiveUI" Version="12.1.0.7" />
+        <PackageVersion Include="Dock.Serializer.SystemTextJson" Version="12.1.0.7" />
+        <PackageVersion Include="LiteNetLib" Version="2.1.4" />
         <PackageVersion Include="Microsoft.Build.Framework" Version="17.8.3" />
         <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.8.3" />
         <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
         <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
         <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
-        <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-        <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+        <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+        <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
         <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
         <PackageVersion Include="MoonSharp" Version="2.0.0" />
-        <PackageVersion Include="NeoVeldrid" Version="1.2.0" />
-        <PackageVersion Include="NeoVeldrid.ImGui" Version="1.2.0" />
-        <PackageVersion Include="NeoVeldrid.SDL2" Version="1.2.0" />
-        <PackageVersion Include="NeoVeldrid.SPIRV" Version="1.2.0" />
-        <PackageVersion Include="NeoVeldrid.StartupUtilities" Version="1.2.0" />
+        <PackageVersion Include="NeoVeldrid" Version="1.2.1" />
+        <PackageVersion Include="NeoVeldrid.ImGui" Version="1.2.1" />
+        <PackageVersion Include="NeoVeldrid.SDL2" Version="1.2.1" />
+        <PackageVersion Include="NeoVeldrid.SPIRV" Version="1.2.1" />
+        <PackageVersion Include="NeoVeldrid.StartupUtilities" Version="1.2.1" />
         <PackageVersion Include="Newtonsoft.Json" Version="$(KarpikNewtonsoftJsonVersion)" />
         <PackageVersion Include="OpenTK.Mathematics" Version="4.9.4" />
-        <PackageVersion Include="ReactiveUI.Avalonia" Version="12.1.2" />
-        <PackageVersion Include="StbImageSharp" Version="2.30.15" />
-        <PackageVersion Include="System.ComponentModel.Composition" Version="10.0.10" />
-        <PackageVersion Include="System.Composition" Version="10.0.10" />
-        <PackageVersion Include="System.Text.Json" Version="8.0.5" />
+        <PackageVersion Include="ReactiveUI.Avalonia" Version="12.1.6" />
+        <PackageVersion Include="StbImageSharp" Version="2.30.16" />
+        <PackageVersion Include="System.ComponentModel.Composition" Version="10.0.12" />
+        <PackageVersion Include="System.Composition" Version="10.0.12" />
+        <PackageVersion Include="System.Text.Json" Version="10.0.12" />
         <PackageVersion Include="xunit" Version="2.9.2" />
         <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
         <PackageVersion Include="xunit.v3" Version="3.2.2" />
