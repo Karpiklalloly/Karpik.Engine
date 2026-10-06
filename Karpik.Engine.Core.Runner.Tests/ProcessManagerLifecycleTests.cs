@@ -7,15 +7,17 @@ using Xunit;
 
 public sealed class ProcessManagerLifecycleTests
 {
-    [Fact]
-    public async Task WorkerRequestedReload_RacingStop_DoesNotStartReplacement()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public async Task WorkerRequestedReload_RacingStop_DoesNotStartReplacement(int signalWriteDelayMilliseconds)
     {
         using var runtime = new LifecycleRuntime();
         using var manager = runtime.CreateManager();
         await manager.StartWorkerAsync();
         Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
         runtime.PauseNextStateResponse();
-        runtime.RequestReload();
+        runtime.RequestReload(signalWriteDelayMilliseconds);
         await runtime.WaitForAsync("state-response-ready");
 
         Task stop = manager.StopWorkerAsync();
@@ -253,12 +255,13 @@ public sealed class ProcessManagerLifecycleTests
     }
 
     [Fact]
-    public async Task ReservedOldOutputCallback_CannotCommitAfterReplacementPublished()
+    public async Task ReservedOldOutputCallback_CannotCommitAfterGenerationDeactivated()
     {
         using var runtime = new LifecycleRuntime();
         using var manager = runtime.CreateManager(captureWorkerOutput: true);
         using var callbackReserved = new ManualResetEventSlim();
         using var resumeCallback = new ManualResetEventSlim();
+        var callbackResumed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         int output = 0;
         manager.OnWorkerOutput += _ => Interlocked.Increment(ref output);
         await manager.StartWorkerAsync();
@@ -272,7 +275,7 @@ public sealed class ProcessManagerLifecycleTests
             () =>
             {
                 callbackReserved.Set();
-                Assert.True(resumeCallback.Wait(TimeSpan.FromSeconds(10)));
+                callbackResumed.TrySetResult(resumeCallback.Wait(TimeSpan.FromSeconds(10)));
             });
 
         try
@@ -286,11 +289,13 @@ public sealed class ProcessManagerLifecycleTests
             Assert.True(await ProcessManager.WaitForExitAsync(
                 oldProcess,
                 TimeSpan.FromSeconds(10)));
-            await manager.StartWorkerAsync();
-            Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
-
+            Task replacement = manager.StartWorkerAsync();
+            await WaitUntilAsync(() => GetPrivateField<object?>(manager, "_workerGeneration") is null);
+            Assert.False(replacement.IsCompleted);
             resumeCallback.Set();
-            await Task.Delay(200);
+            await replacement;
+            Assert.True(await callbackResumed.Task);
+            Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
 
             Assert.Equal(0, Volatile.Read(ref output));
             Assert.True(manager.IsWorkerReady);
@@ -777,10 +782,20 @@ public sealed class ProcessManagerLifecycleTests
                 "release");
         }
 
-        public void RequestReload()
+        public void RequestReload(int signalWriteDelayMilliseconds = 0)
         {
             Directory.CreateDirectory(_controlPath);
-            File.WriteAllText(Path.Combine(_controlPath, "request-reload"), "reload");
+            string trigger = Path.Combine(_controlPath, "request-reload");
+            string pending = trigger + ".pending";
+            // Publish only after closing the handle: the worker deletes the signal on receipt.
+            using (File.Create(pending))
+            {
+                if (signalWriteDelayMilliseconds > 0)
+                {
+                    Thread.Sleep(signalWriteDelayMilliseconds);
+                }
+            }
+            File.Move(pending, trigger);
             ReleaseState();
         }
 

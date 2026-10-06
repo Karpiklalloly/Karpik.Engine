@@ -22,10 +22,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="NeoVeldrid" Version="1.2.0" />
-      <PackageReference Include="NeoVeldrid.ImGui" Version="1.2.0" />
-      <PackageReference Include="NeoVeldrid.SPIRV" Version="1.2.0" />
-      <PackageReference Include="StbImageSharp" Version="2.30.15" />
+      <PackageReference Include="NeoVeldrid" />
+      <PackageReference Include="NeoVeldrid.ImGui" />
+      <PackageReference Include="NeoVeldrid.SPIRV" />
+      <PackageReference Include="StbImageSharp" />
     </ItemGroup>
 
 </Project>

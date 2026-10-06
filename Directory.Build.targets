@@ -18,9 +18,12 @@
     </Target>
 
     <ItemGroup>
-        <PackageReference Update="Newtonsoft.Json" Version="13.0.4" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"
-                          Condition="'$(MSBuildProjectName)' == 'Veldrid' OR '$(MSBuildProjectName)' == 'Veldrid.SDL2' OR '$(MSBuildProjectName)' == 'Veldrid.RenderDoc'" />
+        <PackageReference Update="Newtonsoft.Json" Version="$(KarpikNewtonsoftJsonVersion)"
+                          Condition="'$(ManagePackageVersionsCentrally)' != 'true'" />
+        <PackageReference Include="Newtonsoft.Json"
+                          Condition="'$(MSBuildProjectName)' == 'Veldrid' OR '$(MSBuildProjectName)' == 'Veldrid.SDL2' OR '$(MSBuildProjectName)' == 'Veldrid.RenderDoc'">
+            <Version Condition="'$(ManagePackageVersionsCentrally)' != 'true'">$(KarpikNewtonsoftJsonVersion)</Version>
+        </PackageReference>
     </ItemGroup>
 
     <Target Name="KarpikValidateProjectGraph"
