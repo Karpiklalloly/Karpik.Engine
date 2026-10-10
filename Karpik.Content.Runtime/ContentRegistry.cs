@@ -13,35 +13,62 @@ namespace Karpik.Content.Runtime;
 public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store) : IContentRegistry, IStartable
 {
     private readonly Dictionary<AssetId, ContentSlot> _slots = new();
+    private readonly object _initializationLock = new();
+    private Dictionary<string, (string Locator, IContentStore Store)> _artifacts = new(StringComparer.Ordinal);
     private readonly IFileSystem _fileSystem = fileSystem;
     private readonly IContentStore _startupStore = store;
     private IContentStore? _store;
 
     public void Start()
     {
-        string manifestPath = Path.Combine(_fileSystem.ContentPath, "manifest.json");
-        using Stream stream = _fileSystem.OpenRead(manifestPath);
-        RegisterManifest(ContentManifest.Load(stream), _startupStore);
+        lock (_initializationLock)
+        {
+            if (_store is not null) return;
+            string manifestPath = Path.Combine(_fileSystem.ContentPath, "manifest.json");
+            using Stream stream = _fileSystem.OpenRead(manifestPath);
+            RegisterManifest(ContentManifest.Load(stream), _startupStore);
+        }
     }
 
     public void RegisterManifest(ContentManifest manifest, IContentStore store)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(store);
-        _store = store;
-        _slots.Clear();
-        foreach (var e in manifest.Entries.OrderBy(x => x.AssetId.Value))
+        lock (_initializationLock)
         {
-            _slots[e.AssetId] = new ContentSlot
+            var artifacts = manifest.Entries.ToDictionary(e => e.LogicalName, e => (e.ArtifactLocator, store), StringComparer.Ordinal);
+            _slots.Clear();
+            foreach (var e in manifest.Entries.OrderBy(x => x.AssetId.Value))
             {
-                Id = e.AssetId,
-                State = SlotState.Unloaded,
-                Version = 0,
-                ArtifactLocator = e.ArtifactLocator,
-                DeclaredType = e.DeclaredType,
-                Dependencies = e.Dependencies.ToArray()
-            };
+                _slots[e.AssetId] = new ContentSlot
+                {
+                    Id = e.AssetId,
+                    State = SlotState.Unloaded,
+                    Version = 0,
+                    ArtifactLocator = e.ArtifactLocator,
+                    DeclaredType = e.DeclaredType,
+                    Dependencies = e.Dependencies.ToArray()
+                };
+            }
+            Volatile.Write(ref _artifacts, artifacts);
+            Volatile.Write(ref _store, store);
         }
+    }
+
+    public bool TryResolveArtifact(string logicalName, out string artifactLocator, out IContentStore store)
+    {
+        // A startable graphics backend can request an asset before Autofac starts this registry.
+        if (Volatile.Read(ref _store) is null
+            && _fileSystem.Exists(Path.Combine(_fileSystem.ContentPath, "manifest.json"))) Start();
+        if (Volatile.Read(ref _artifacts).TryGetValue(logicalName, out var artifact))
+        {
+            artifactLocator = artifact.Locator;
+            store = artifact.Store;
+            return true;
+        }
+        artifactLocator = null!;
+        store = null!;
+        return false;
     }
 
     public bool IsAlive<T>(AssetRef<T> r) => IsAlive(r.Id, r.Version);

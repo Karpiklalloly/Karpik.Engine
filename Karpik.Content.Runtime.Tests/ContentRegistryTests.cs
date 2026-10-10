@@ -11,6 +11,35 @@ namespace Karpik.Content.Runtime.Tests;
 public sealed class ContentRegistryTests
 {
     [Fact]
+    public async Task ResolveBeforeStart_InitializesOnceAndRetainsLoadedAssets()
+    {
+        var id = new AssetId(Guid.NewGuid());
+        var fileSystem = new FakeFileSystem(MakeManifest((id, "game/config", "artifacts/config.cooked")).ToCanonicalJson());
+        var registry = new ContentRegistry(fileSystem, new CountingStore());
+
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(index => Task.Run(() =>
+        {
+            Assert.True(registry.TryResolveArtifact("game/config", out string locator, out _));
+            Assert.Equal("artifacts/config.cooked", locator);
+        })));
+        var asset = new AssetRef<RawJsonPayload>(id, 1);
+        await registry.LoadAsync(asset);
+        registry.Start();
+
+        Assert.Single(fileSystem.OpenReadPaths);
+        Assert.True(registry.TryGet(asset, out _));
+        Assert.False(registry.TryResolveArtifact("game/missing", out _, out _));
+
+        var replacementStore = new CountingStore(payload: "replacement");
+        registry.RegisterManifest(MakeManifest((id, "game/renamed", "artifacts/new.cooked")), replacementStore);
+        Assert.False(registry.TryResolveArtifact("game/config", out _, out _));
+        Assert.True(registry.TryResolveArtifact("game/renamed", out string renamed, out IContentStore resolvedStore));
+        Assert.Equal("artifacts/new.cooked", renamed);
+        using var reader = new StreamReader(resolvedStore.OpenRead(renamed));
+        Assert.Equal("replacement", reader.ReadToEnd());
+    }
+
+    [Fact]
     public async Task Start_RegistersManifest_WithoutReadingArtifacts()
     {
         var knownId = new AssetId(Guid.NewGuid());
@@ -41,6 +70,7 @@ public sealed class ContentRegistryTests
 
     private sealed class CountingStore : IContentStore
     {
+        public Stream OpenRead(string artifactLocator) => new MemoryStream(Get(artifactLocator).ToArray(), writable: false);
         public int Calls;
         private readonly int _delayMs;
         private readonly ReadOnlyMemory<byte> _bytes;
@@ -68,6 +98,7 @@ public sealed class ContentRegistryTests
 
     private sealed class FailingStore : IContentStore
     {
+        public Stream OpenRead(string artifactLocator) => new MemoryStream(Get(artifactLocator).ToArray(), writable: false);
         public int Calls;
         private readonly ReadOnlyMemory<byte> _bytes;
         private readonly bool _failFirst;
@@ -97,6 +128,7 @@ public sealed class ContentRegistryTests
 
     private sealed class FlakyStore : IContentStore
     {
+        public Stream OpenRead(string artifactLocator) => new MemoryStream(Get(artifactLocator).ToArray(), writable: false);
         public int Calls;
         private readonly ReadOnlyMemory<byte> _bytes;
         private int _failCount;

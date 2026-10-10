@@ -9,9 +9,6 @@ public sealed class AssetsManagerRuntimeBundleTests
     [Fact]
     public void Paths_AreRootedAtRuntimeBundleWorkingDirectory()
     {
-        var fileSystem = new Karpik.Engine.Core.FileSystem.PhysicalFileSystem();
-        Assert.NotNull(fileSystem);
-
         string originalWorkingDirectory = Environment.CurrentDirectory;
         string bundleRoot = Path.Combine(
             Path.GetTempPath(),
@@ -20,6 +17,7 @@ public sealed class AssetsManagerRuntimeBundleTests
         try
         {
             Environment.CurrentDirectory = bundleRoot;
+            var fileSystem = new PhysicalFileSystem();
 
             Assert.Equal(bundleRoot, fileSystem.RootPath);
             Assert.Equal(Path.Combine(bundleRoot, "Content"), fileSystem.ContentPath);
