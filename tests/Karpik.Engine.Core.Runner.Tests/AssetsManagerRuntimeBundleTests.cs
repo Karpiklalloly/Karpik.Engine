@@ -21,15 +21,8 @@ public sealed class AssetsManagerRuntimeBundleTests
         {
             Environment.CurrentDirectory = bundleRoot;
 
-            var manager = new AssetsManager(
-                NullLogger<AssetsManager>.Instance,
-                new PhysicalFileSystem(),
-                [],
-                []);
-
-            Assert.Equal(bundleRoot, manager.RootPath);
-            Assert.Equal(Path.Combine(bundleRoot, "Content"), manager.ContentPath);
-            Assert.Equal(Path.Combine(bundleRoot, "Mods"), manager.ModsPath);
+            Assert.Equal(bundleRoot, fileSystem.RootPath);
+            Assert.Equal(Path.Combine(bundleRoot, "Content"), fileSystem.ContentPath);
         }
         finally
         {

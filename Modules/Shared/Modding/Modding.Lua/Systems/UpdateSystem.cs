@@ -1,34 +1,48 @@
 ﻿using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Core;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-// Public: static composition emits direct factories for module systems, so every
-// ECS system must be visible from the host assembly.
 public sealed class InitSystem(
-    IModManager modManager,
-    IAssetsManager assetsManager,
+    IModsRegistry registry,
+    IModsLifecycleManager lifecycle,
     Application application)
-    : ISystemInit
+    : ISystemAsyncInit
 {
-    public void Init()
+    public async ValueTask InitAsync(CancellationToken cancellationToken)
     {
-        var side = application.ApplicationSide == Side.Server
-            ? ExecutionSide.Server
-            : ExecutionSide.Client;
+        cancellationToken.ThrowIfCancellationRequested();
+        
+        ExecutionSide side = application.ApplicationSide switch
+        {
+            Side.Client => ExecutionSide.Client,
+            Side.Server => ExecutionSide.Server,
+            _ => throw new InvalidOperationException("Unsupported application side.")
+        };
 
-        modManager.Init(side);
-        modManager.LoadMods(assetsManager.ModsPath)
-            .GetAwaiter()
-            .GetResult();
-        modManager.StartMods();
+        await registry.Scan(side);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // TODO: ID order for dependency-free prototype; replace with dependency order.
+        ModDefinition[] definitions = registry.GetMods()
+            .OrderBy(mod => mod.MetaData.Id, StringComparer.Ordinal)
+            .ToArray();
+
+        await lifecycle.Load(definitions, side);
+
+        cancellationToken.ThrowIfCancellationRequested();
     }
 }
 
-public class UpdateSystem(IModManager modManager) : ISystemLateUpdate
+public sealed class BeginSystem(IModsLifecycleManager lifecycle) : ISystemBegin
 {
-    public void LateUpdate()
+    public void Begin()
     {
-        modManager.UpdateMods();
+        IReadOnlyList<ModContainer> containers = lifecycle.Containers;
+
+        for (int i = 0; i < containers.Count; i++)
+        {
+            containers[i].Start();
+        }
     }
 }

@@ -14,11 +14,6 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 // implementation must be visible from the host assembly.
 public class AssetsManager : IAssetsManager
 {
-    public string RootPath => FileSystem.RootPath;
-    public string ContentPath => FileSystem.ContentPath;
-    public string ModsPath => FileSystem.ModsPath;
-    public IFileSystem FileSystem => _fileSystem;
-    
     // [Hash, Asset Type] -> [Asset Instance]
     private readonly ConcurrentDictionary<(int, Type), Asset> _loadedAssets = new();
     
@@ -87,7 +82,7 @@ public class AssetsManager : IAssetsManager
         var asset = await LoadAssetInternal(path, typeof(T));
         return new AssetHandle<T>((T)asset, this);
     }
-
+    
     public async JobHandle<AssetHandle<Asset>> LoadAssetByPathAsync(string path)
     {
         var ext = NormalizeExtension(Path.GetExtension(path));
@@ -125,28 +120,12 @@ public class AssetsManager : IAssetsManager
         }
         
         string targetPath = path;
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
-        }
 
         if (!_fileSystem.Exists(targetPath))
         {
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
             _logger.LogWarning("Not found {TargetPath}, loading default asset {LoaderDefaultPath}.", targetPath, loader.DefaultPath);
             targetPath = loader.DefaultPath;
-        }
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
         }
 
         await using Stream stream = _fileSystem.OpenRead(targetPath);
@@ -171,17 +150,9 @@ public class AssetsManager : IAssetsManager
         {
             throw new InvalidOperationException("Cannot save asset: Path is missing.");
         }
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
-        }
 
         Type type = asset.GetType();
-        if (!_savers.TryGetValue(type, out IAssetSaver saver))
+        if (!_savers.TryGetValue(type, out IAssetSaver? saver))
         {
             throw new NotSupportedException($"No saver registered for type '{type.Name}'");
         }
