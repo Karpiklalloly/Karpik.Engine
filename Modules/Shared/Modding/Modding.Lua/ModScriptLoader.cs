@@ -1,4 +1,3 @@
-using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Engine.Core.FileSystem;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Loaders;
@@ -7,36 +6,53 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModScriptLoader : ScriptLoaderBase
 {
-    public IFileSystem FileSystem => _container.FileSystem;
-    
-    private readonly string _modBasePath;
-    private readonly ModContainer _container;
+    private readonly string _root;
+    private readonly string _side;
+    private readonly IFileSystem _fileSystem;
 
-    public ModScriptLoader(string modBasePath, ModContainer container)
+    public ModScriptLoader(string root, IFileSystem fileSystem, ExecutionSide side)
     {
-        _modBasePath = modBasePath;
-        _container = container;
-        ModulePaths = ["?.lua", "?/init.lua"];
+        _root = root;
+        _fileSystem = fileSystem;
+        _side = side switch
+        {
+            ExecutionSide.Client => "Client",
+            ExecutionSide.Server => "Server",
+            _ => throw new ArgumentOutOfRangeException(nameof(side))
+        };
+
+        IgnoreLuaPathGlobal = true;
+        ModulePaths =
+        [
+            "Shared/?.lua",
+            "Shared/?/init.lua",
+            $"{_side}/?.lua",
+            $"{_side}/?/init.lua"
+        ];
     }
 
     public override object LoadFile(string file, Table globalContext)
     {
-        string path = FileSystem.Combine(_modBasePath, file);
-        return FileSystem.Exists(path) ? FileSystem.OpenRead(path) : null;
+        using Stream stream = _fileSystem.OpenRead(ResolvePath(file));
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
-    public override string ResolveFileName(string filename, Table globalContext)
-    {
-        return FileSystem.Combine(_modBasePath, filename);
-    }
+    public override bool ScriptFileExists(string name) => _fileSystem.Exists(ResolvePath(name));
 
-    public override string ResolveModuleName(string modname, Table globalContext)
+    private string ResolvePath(string file)
     {
-        return modname.Replace('.', FileSystem.DirectorySeparatorChar) + ".lua";
-    }
+        string relative = file.Replace('\\', '/');
+        string[] parts = relative.Split('/');
 
-    public override bool ScriptFileExists(string name)
-    {
-        return FileSystem.Exists(FileSystem.Combine(_modBasePath, name));
+        if (_fileSystem.IsPathRooted(relative)
+            || relative.Contains(':')
+            || parts.Any(part => part is "" or "." or "..")
+            || (parts[0] != "Shared" && parts[0] != _side))
+        {
+            throw new InvalidOperationException($"Script path is not allowed: '{file}'.");
+        }
+
+        return _fileSystem.Combine(_root, relative);
     }
 }

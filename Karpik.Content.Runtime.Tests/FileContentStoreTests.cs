@@ -62,7 +62,6 @@ public sealed class FileContentStoreTests
         public string? LastExistsPath { get; private set; }
         public string RootPath => Path.GetPathRoot(ContentPath)!;
         public string ContentPath { get; }
-        public string ModsPath => Path.Combine(RootPath, "Mods");
         public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
 
         public bool Exists(string path)
@@ -84,5 +83,6 @@ public sealed class FileContentStoreTests
         public Span<string> GetFiles(string path) => [];
         public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption) => [];
         public string GetFileName(string path) => Path.GetFileName(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
     }
 }

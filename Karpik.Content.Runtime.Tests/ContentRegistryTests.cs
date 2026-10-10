@@ -149,7 +149,6 @@ public sealed class ContentRegistryTests
         public List<string> OpenReadPaths { get; } = [];
         public string RootPath => "C:/game";
         public string ContentPath => "C:/game/Content";
-        public string ModsPath => "C:/game/Mods";
         public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
         public bool Exists(string path) => path == Path.Combine(ContentPath, "manifest.json");
         public string GetExtension(string path) => Path.GetExtension(path);
@@ -167,6 +166,7 @@ public sealed class ContentRegistryTests
         public Span<string> GetFiles(string path) => [];
         public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption) => [];
         public string GetFileName(string path) => Path.GetFileName(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
     }
 
     private static Type? GetExportContract(object attribute) =>
