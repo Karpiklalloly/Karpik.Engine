@@ -1,14 +1,7 @@
-﻿using Karpik.Engine.Core.FileSystem;
-
-namespace Karpik.Engine.Shared.AssetManagement.Core;
+﻿namespace Karpik.Engine.Shared.AssetManagement.Core;
 
 public interface IAssetsManager : IDisposable
 {
-    public string RootPath { get; }
-    public string ContentPath { get; }
-    public string ModsPath { get; }
-    public IFileSystem FileSystem { get; }
-
     public void RegisterSaver(IAssetSaver saver);
     public void RegisterLoader(IAssetLoader loader);
 

@@ -7,6 +7,29 @@ using Xunit;
 public sealed class FileContentStoreTests
 {
     [Fact]
+    public void OpenRead_ContainedLocator_ReturnsArtifactStream()
+    {
+        var fileSystem = new FakeFileSystem("C:/game/Content", ("artifacts/a.cooked", "data"));
+        using Stream stream = new FileContentStore(fileSystem).OpenRead("artifacts/a.cooked");
+        using var reader = new StreamReader(stream);
+
+        Assert.Equal("data", reader.ReadToEnd());
+        Assert.Equal(1, fileSystem.OpenReadCalls);
+    }
+
+    [Theory]
+    [InlineData("../secret")]
+    [InlineData("artifacts/missing.cooked")]
+    public void OpenRead_InvalidLocator_ThrowsBeforeOpeningFile(string locator)
+    {
+        var fileSystem = new FakeFileSystem("C:/game/Content");
+
+        Assert.Throws<InvalidDataException>(() => new FileContentStore(fileSystem).OpenRead(locator));
+
+        Assert.Equal(0, fileSystem.OpenReadCalls);
+    }
+
+    [Fact]
     public void Get_ContainedLocator_ReadsThroughFileSystem()
     {
         var fileSystem = new FakeFileSystem("C:/game/Content", ("artifacts/a.cooked", "data"));
@@ -62,7 +85,6 @@ public sealed class FileContentStoreTests
         public string? LastExistsPath { get; private set; }
         public string RootPath => Path.GetPathRoot(ContentPath)!;
         public string ContentPath { get; }
-        public string ModsPath => Path.Combine(RootPath, "Mods");
         public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
 
         public bool Exists(string path)
@@ -84,5 +106,6 @@ public sealed class FileContentStoreTests
         public Span<string> GetFiles(string path) => [];
         public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption) => [];
         public string GetFileName(string path) => Path.GetFileName(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
     }
 }
