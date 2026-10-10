@@ -11,7 +11,7 @@ public sealed class FileContentStore(IFileSystem fileSystem) : IContentStore
 {
     private readonly string _root = Path.GetFullPath(fileSystem.ContentPath);
 
-    public ReadOnlyMemory<byte> Get(string locator)
+    public Stream OpenRead(string locator)
     {
         string combined = Path.Combine(_root, locator.Replace('/', fileSystem.DirectorySeparatorChar));
         string fullPath = Path.GetFullPath(combined);
@@ -25,7 +25,12 @@ public sealed class FileContentStore(IFileSystem fileSystem) : IContentStore
             throw new InvalidDataException($"KCR201 Missing artifact {locator}");
         }
 
-        using Stream input = fileSystem.OpenRead(fullPath);
+        return fileSystem.OpenRead(fullPath);
+    }
+
+    public ReadOnlyMemory<byte> Get(string locator)
+    {
+        using Stream input = OpenRead(locator);
         using var output = new MemoryStream();
         input.CopyTo(output);
         return output.ToArray();

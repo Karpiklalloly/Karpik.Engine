@@ -3,6 +3,7 @@ using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
+using Karpik.Content.Runtime;
 using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
@@ -25,12 +26,17 @@ public class AssetsManager : IAssetsManager
 
     private readonly ILogger<AssetsManager> _logger;
     private readonly IFileSystem _fileSystem;
+    private readonly IContentRegistry _contentRegistry;
+    private readonly IContentStore _contentStore;
     private readonly AssetLoadContext _assetLoadContext;
 
-    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
+    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IContentRegistry contentRegistry,
+        IContentStore contentStore, IAssetSaver[] savers, IAssetLoader[] loaders)
     {
         _logger = logger;
         _fileSystem = fileSystem;
+        _contentRegistry = contentRegistry;
+        _contentStore = contentStore;
         _assetLoadContext = new AssetLoadContext(this);
         RegisterSavers(savers);
         RegisterLoaders(loaders);
@@ -120,15 +126,17 @@ public class AssetsManager : IAssetsManager
         }
         
         string targetPath = path;
+        Stream? input = TryOpenAsset(targetPath);
 
-        if (!_fileSystem.Exists(targetPath))
+        if (input is null)
         {
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
             _logger.LogWarning("Not found {TargetPath}, loading default asset {LoaderDefaultPath}.", targetPath, loader.DefaultPath);
             targetPath = loader.DefaultPath;
+            input = TryOpenAsset(targetPath) ?? throw new FileNotFoundException($"Asset not found: {targetPath}");
         }
 
-        await using Stream stream = _fileSystem.OpenRead(targetPath);
+        await using Stream stream = input;
 
         var newAsset = await loader.LoadAsync(_assetLoadContext, stream, targetPath);
         newAsset.Id = id;
@@ -139,6 +147,22 @@ public class AssetsManager : IAssetsManager
         _loadedAssets.TryAdd(cacheKey, newAsset);
         newAsset.Load();
         return newAsset;
+    }
+
+    private Stream? TryOpenAsset(string path)
+    {
+        if (_fileSystem.Exists(path)) return _fileSystem.OpenRead(path);
+        if (_fileSystem.IsPathRooted(path)) return null;
+
+        if (_fileSystem.Exists(_fileSystem.Combine(_fileSystem.ContentPath, path)))
+            return _contentStore.OpenRead(path);
+
+        string logicalName = path.Replace('\\', '/');
+        if (_contentRegistry.TryResolveArtifact(logicalName, out string locator, out IContentStore store)
+            || _contentRegistry.TryResolveArtifact("game/" + logicalName, out locator, out store))
+            return store.OpenRead(locator);
+
+        return null;
     }
     
     public async JobHandle<AssetHandle<T>> SaveAssetAsync<T>(T asset, string? path = null)  where T : Asset
