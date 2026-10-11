@@ -2,13 +2,16 @@
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
 using Karpik.Jobs;
+using Microsoft.Extensions.Logging;
 using MoonSharp.Interpreter;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Export(typeof(IScriptLoader))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-public class LuaScriptLoader(IFileSystem fileSystem) : IScriptLoader
+public class LuaScriptLoader(
+    IFileSystem fileSystem,
+    ILogger<IScriptLoader> logger) : IScriptLoader
 {
     public async JobHandle<IScriptRuntime> Load(ModDefinition definition, ExecutionSide side)
     {
@@ -20,6 +23,10 @@ public class LuaScriptLoader(IFileSystem fileSystem) : IScriptLoader
         };
 
         var script = new Script(CoreModules.Preset_SoftSandbox);
+        script.Options.DebugPrint = message =>
+        {
+            logger.LogInformation("[Mod: {mod_id}] {Message}", definition.MetaData.Id, message);
+        };
         script.Options.ScriptLoader = new ModScriptLoader(definition.Directory, fileSystem, side);
         
         var entryPoints = new List<Table>(2);
