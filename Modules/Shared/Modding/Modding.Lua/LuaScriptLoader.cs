@@ -36,8 +36,7 @@ public class LuaScriptLoader(
         
         if (entryPoints.Count == 0)
         {
-            throw new FileNotFoundException(
-                $"Mod '{definition.MetaData.Id}' has no main.lua entry point.");
+            logger.LogWarning("Mod '{Id}' has no main.lua entry point.", definition.MetaData.Id);
         }
         
         return new LuaScriptRuntime(script, entryPoints.ToArray());
@@ -49,10 +48,30 @@ public class LuaScriptLoader(
             if (!fileSystem.Exists(path))
                 return;
 
-            using Stream stream = fileSystem.OpenRead(path);
-            DynValue result = script.DoStream(stream);
+            try
+            {
+                using Stream stream = fileSystem.OpenRead(path);
 
-            entryPoints.Add(ReadCallbacks(result, path));
+                DynValue result = script.DoStream(
+                    stream, codeFriendlyName: path);
+
+                entryPoints.Add(ReadCallbacks(result, path));
+            }
+            catch (Exception error)
+            {
+                string diagnostic = error is InterpreterException luaError
+                    ? luaError.DecoratedMessage
+                    : error.Message;
+
+                logger.LogError(
+                    error,
+                    "[Mod: {ModId}] Failed to prepare {Path}: {Diagnostic}",
+                    definition.MetaData.Id,
+                    path,
+                    diagnostic);
+
+                throw;
+            }
         }
     }
     
