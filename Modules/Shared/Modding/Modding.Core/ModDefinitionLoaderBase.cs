@@ -2,11 +2,11 @@
 using Karpik.Engine.Shared.AssetManagement.Core;
 using Karpik.Jobs;
 
-namespace Karpik.Engine.Shared.Modding.Lua;
+namespace Karpik.Engine.Shared.Modding;
 
-public class ModDefinitionLoader(IFileSystem fileSystem, IAssetsManager assetsManager)
+public abstract class ModDefinitionLoaderBase(IFileSystem fileSystem, IAssetsManager assetsManager) : IModDefinitionLoader
 {
-    public async JobHandle<Optional<ModDefinition, string>> Load(string modDirectory)
+    public virtual async JobHandle<Optional<ModDefinition, string>> Load(string modDirectory)
     {
         if (!fileSystem.ExistsDirectory(modDirectory))
         {
@@ -32,8 +32,8 @@ public class ModDefinitionLoader(IFileSystem fileSystem, IAssetsManager assetsMa
         ModMetaData assetMetaData = handle.Asset.MetaData;
         return new(new(assetMetaData, modDirectory));
     }
-
-    private static Optional<ModDefinition, string> Error(string modDirectory, string why)
+    
+    protected virtual Optional<ModDefinition, string> Error(string modDirectory, string why)
     {
         return new Optional<ModDefinition, string>(default, $"Could not load mod {modDirectory}: {why}.");
     }

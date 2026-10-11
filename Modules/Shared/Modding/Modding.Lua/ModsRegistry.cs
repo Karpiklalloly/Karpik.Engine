@@ -13,7 +13,7 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 public class ModsRegistry : IModsRegistry
 {
     private readonly IFileSystem _fileSystem;
-    private readonly ModDefinitionLoader _definitionLoader;
+    private readonly LuaModDefinitionLoader _definitionLoader;
     private readonly ConcurrentDictionary<string, ModDefinition> _mods = [];
     private readonly ILogger<IModsRegistry> _logger;
 
@@ -22,7 +22,7 @@ public class ModsRegistry : IModsRegistry
     {
         _logger = logger;
         _fileSystem = new PhysicalFileSystem();
-        _definitionLoader = new ModDefinitionLoader(_fileSystem, assetsManager);
+        _definitionLoader = new LuaModDefinitionLoader(_fileSystem, assetsManager);
     }
 
     public async JobHandle Scan(ExecutionSide side)
