@@ -3,7 +3,7 @@ param(
 
     [string] $SdkVersion = "",
 
-    [string] $EngineVersion = "0.6.0-dev",
+    [string] $EngineVersion = "0.7.0-dev",
 
     [string] $Output = (Join-Path $PSScriptRoot "..\artifacts\distribution")
 )
@@ -21,9 +21,9 @@ $ErrorActionPreference = "Stop"
     published outward; copy the bundles to other machines and run setup.
     Install order on the target machine: 1. SDK bundle, 2. Launcher+Editor.
 .EXAMPLE
-    ./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"
+    ./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.7.0" -EngineVersion "0.7.0"
 .EXAMPLE
-    ./_scripts/New-KarpikDistribution.ps1 -InstallationRoot "$env:LOCALAPPDATA\Karpik\Engines\0.6.0-dev-xyz"
+    ./_scripts/New-KarpikDistribution.ps1 -InstallationRoot "$env:LOCALAPPDATA\Karpik\Engines\0.7.0-dev-xyz"
 #>
 
 if ([string]::IsNullOrWhiteSpace($InstallationRoot)) {

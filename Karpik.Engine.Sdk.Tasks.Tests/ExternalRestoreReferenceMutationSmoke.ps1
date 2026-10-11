@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $PackageFeed,
 
-    [string] $PackageVersion = "0.6.0-local"
+    [string] $PackageVersion = "0.7.0"
 )
 
 $ErrorActionPreference = "Stop"

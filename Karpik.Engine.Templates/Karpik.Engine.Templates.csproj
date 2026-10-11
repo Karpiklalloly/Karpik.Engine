@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <PackageId>Karpik.Engine.Templates</PackageId>
     <PackageType>Template</PackageType>
-    <PackageVersion Condition="'$(PackageVersion)' == ''">0.6.0-local</PackageVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">0.7.0</PackageVersion>
     <Authors>KarpikEngine</Authors>
     <Description>KarpikEngine game project templates.</Description>
     <IncludeBuildOutput>false</IncludeBuildOutput>

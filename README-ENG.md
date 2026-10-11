@@ -78,7 +78,7 @@ sdk\setup.exe sdk --payload sdk\sdk-payload.zip
 editor-launcher\setup.exe editor --payload editor-launcher\editor-payload.zip
 editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
 ```
-Then start the launcher from the Start Menu and create a game from a template. Building a distribution from sources: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"`.
+Then start the launcher from the Start Menu and create a game from a template. Building a distribution from sources: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.7.0" -EngineVersion "0.7.0"`.
 
 4. Start the Static server launcher and then the client in another terminal:
    ```powershell

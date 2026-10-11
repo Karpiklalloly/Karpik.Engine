@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
     payload, no NuGet source, no environment changes. Publishing the resulting
     .nupkg files (dotnet nuget push or a file feed) is a separate manual step.
 .EXAMPLE
-    ./_scripts/New-KarpikSdkPackages.ps1 -SdkVersion "0.6.0"
+    ./_scripts/New-KarpikSdkPackages.ps1 -SdkVersion "0.7.0"
 #>
 
 if ([string]::IsNullOrWhiteSpace($SdkVersion) -or

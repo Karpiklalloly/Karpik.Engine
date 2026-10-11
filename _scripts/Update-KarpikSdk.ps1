@@ -1,6 +1,6 @@
 param(
     [string] $SdkVersion = "",
-    [string] $EngineVersion = "0.6.0-dev",
+    [string] $EngineVersion = "0.7.0-dev",
     [string] $Output = ""
 )
 
@@ -9,14 +9,14 @@ $ErrorActionPreference = "Stop"
 $PublishStopwatch = [Diagnostics.Stopwatch]::StartNew()
 
 # Change this value when the MSBuild SDK version changes.
-$SdkVersionBase = "0.6.0-local"
+$SdkVersionBase = "0.7.0-local"
 if ([string]::IsNullOrWhiteSpace($SdkVersion)) {
     $SdkVersion = "$SdkVersionBase-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 }
 
 # Development engine versions are content-hash qualified by the packager.
 if ([string]::IsNullOrWhiteSpace($EngineVersion)) {
-    $EngineVersion = "0.6.0-dev"
+    $EngineVersion = "0.7.0-dev"
 }
 
 $RepositoryRoot = $pwd

@@ -7,7 +7,7 @@
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
         <PackageId>Karpik.Engine.Sdk</PackageId>
-        <PackageVersion Condition="'$(PackageVersion)' == ''">0.6.0-local</PackageVersion>
+        <PackageVersion Condition="'$(PackageVersion)' == ''">0.7.0</PackageVersion>
         <Authors>KarpikEngine</Authors>
         <Description>MSBuild SDK for validated external KarpikEngine game projects.</Description>
         <PackageReadmeFile>README.md</PackageReadmeFile>

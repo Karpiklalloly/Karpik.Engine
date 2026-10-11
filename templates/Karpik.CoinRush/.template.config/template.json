@@ -16,7 +16,7 @@
       "datatype": "text",
       "description": "Exact Karpik.Engine.Sdk version for the generated game.",
       "replaces": "KarpikSdkVersionPlaceholder",
-      "defaultValue": "0.6.0-local"
+      "defaultValue": "0.7.0"
     }
   },
   "preferNameDirectory": true,

@@ -78,7 +78,7 @@ sdk\setup.exe sdk --payload sdk\sdk-payload.zip
 editor-launcher\setup.exe editor --payload editor-launcher\editor-payload.zip
 editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
 ```
-Дальше — запустите лаунчер из меню «Пуск» и создайте игру из шаблона. Сборка дистрибутива из исходников: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.6.0" -EngineVersion "0.6.0"`.
+Дальше — запустите лаунчер из меню «Пуск» и создайте игру из шаблона. Сборка дистрибутива из исходников: `./_scripts/New-KarpikDistribution.ps1 -SdkVersion "0.7.0" -EngineVersion "0.7.0"`.
 
 4. Запустите Static launcher сервера и затем клиента в другом терминале:
    ```powershell
