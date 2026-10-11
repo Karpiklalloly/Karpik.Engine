@@ -9,5 +9,7 @@ internal class ModdingLuaModule : IModule
     {
         systems.Add<InitSystem>();
         systems.Add<BeginSystem>();
+        systems.Add<UpdateSystem>();
+        systems.Add<FixedUpdateSystem>();
     }
 }

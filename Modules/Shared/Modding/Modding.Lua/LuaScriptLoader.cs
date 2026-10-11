@@ -22,7 +22,7 @@ public class LuaScriptLoader(
             _ => throw new ArgumentOutOfRangeException(nameof(side))
         };
 
-        var script = new Script(CoreModules.Preset_SoftSandbox);
+        var script = new Script(CoreModules.Preset_SoftSandbox | CoreModules.LoadMethods);
         script.Options.DebugPrint = message =>
         {
             logger.LogInformation("[Mod: {mod_id}] {Message}", definition.MetaData.Id, message);
