@@ -15,13 +15,13 @@
     <!-- Применяем только если имя проекта НЕ содержит "Codegen" -->
     <ItemGroup Condition="  !$(MSBuildProjectName.Contains('Codegen'))                             AND                             !$(MSBuildProjectName.Contains('Karpik.Engine.Core'))                             AND                             !$(MSBuildProjectName.Contains('.Publish'))                             AND                             $(MSBuildProjectName.Contains('Karpik.Engine'))">
 
-        <ProjectReference Include="$(KarpikRepositoryRoot)Network.Codegen\Network.Codegen\Network.Codegen.csproj">
+        <ProjectReference Include="$(KarpikRepositoryRoot)src\Network.Codegen\Network.Codegen\Network.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
         </ProjectReference>
 
-        <ProjectReference Include="$(KarpikRepositoryRoot)StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
+        <ProjectReference Include="$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
@@ -31,13 +31,13 @@
 
     <ItemGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)Modules'))">
 
-        <ProjectReference Include="$(KarpikRepositoryRoot)Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj">
+        <ProjectReference Include="$(KarpikRepositoryRoot)src\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>
         </ProjectReference>
 
-        <ProjectReference Include="$(KarpikRepositoryRoot)Tools\StaticAnalyzer\StaticAnalyzer.csproj">
+        <ProjectReference Include="$(KarpikRepositoryRoot)src\StaticAnalyzer\StaticAnalyzer.csproj">
             <OutputItemType>Analyzer</OutputItemType>
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <ExcludeAssets>runtime</ExcludeAssets>

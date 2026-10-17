@@ -23,7 +23,7 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Generate module catalog
-      run: dotnet run --project Configurator/Configurator.csproj -- --generate
+      run: dotnet run --project src/Configurator/Configurator.csproj -- --generate
     - name: Restore dependencies
       run: dotnet restore KarpikEngine.slnx -m:1 -nr:false
     - name: Build

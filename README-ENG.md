@@ -8,6 +8,18 @@ KarpikEngine is an experimental open-source engine for developing 2D games. Its 
 
 Latest changelog: **v0.6** — [Changelog_0.6.md](Changelog_0.6.md).
 
+## Repository layout
+
+- `src/` — engine, Editor, Launcher, SDK, Configurator and tool projects.
+- `tests/` — engine project tests and the TestWorker helper.
+- `Modules/` — Client / Server / Shared modules and their local tests.
+- `templates/` — game templates; `first-parties/` and `third-parties/` — dependencies.
+- `_scripts/` — build and packaging scripts; `Generated/` — Configurator output.
+- `docs/`, `plans/`, `skills/` — documentation, plans and instructions.
+
+The solution and shared `Directory.*` files stay at the root. Generate the module catalog with
+`dotnet run --project src/Configurator/Configurator.csproj -- --generate`.
+
 ## ✨ Key Features
 
 ### 🏗️ ECS and Lifecycle
@@ -152,8 +164,8 @@ Use `KarpikModuleDependency` in engine projects under `Modules`:
 After adding, removing, or moving a project, run:
 
 ```bash
-dotnet run --project Configurator/Configurator.csproj -- --generate
-dotnet run --project Configurator/Configurator.csproj -- --validate
+dotnet run --project src/Configurator/Configurator.csproj -- --generate
+dotnet run --project src/Configurator/Configurator.csproj -- --validate
 ```
 
 Adding an existing dependency identifier only requires a project reload or build.

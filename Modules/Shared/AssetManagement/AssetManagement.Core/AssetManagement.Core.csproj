@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+      <ProjectReference Include="..\..\..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\..\..\..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />
       <KarpikModuleDependency Include="LoggerModule" />
     </ItemGroup>

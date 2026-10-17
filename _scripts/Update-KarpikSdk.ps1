@@ -20,7 +20,7 @@ if ([string]::IsNullOrWhiteSpace($EngineVersion)) {
 }
 
 $RepositoryRoot = $pwd
-$PackagerProject = Join-Path $RepositoryRoot "Karpik.Engine.Packager\Karpik.Engine.Packager.csproj"
+$PackagerProject = Join-Path $RepositoryRoot "src\Karpik.Engine.Packager\Karpik.Engine.Packager.csproj"
 $EnvironmentModule = Join-Path $RepositoryRoot "Karpik.Sdk.Environment.psm1"
 if ([string]::IsNullOrWhiteSpace($Output)) {
     $KarpikHome = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Karpik"

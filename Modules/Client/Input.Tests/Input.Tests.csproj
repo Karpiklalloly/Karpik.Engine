@@ -23,7 +23,7 @@
         <ProjectReference Include="..\Input\Input.csproj" />
         <ProjectReference Include="..\Window\Window.Core\Window.Core.csproj" />
         <ProjectReference Include="..\Window\Window.Headless\Window.Headless.csproj" />
-        <ProjectReference Include="..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+        <ProjectReference Include="..\..\..\src\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
     </ItemGroup>
 
 </Project>

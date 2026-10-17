@@ -71,13 +71,13 @@ foreach ($dir in @($SdkDist, $EditorDist)) {
 
 Write-Host "Publishing setup executable..."
 $setupPublish = Join-Path ([IO.Path]::GetTempPath()) ("karpik-setup-pub-" + [Guid]::NewGuid().ToString("N"))
-& dotnet publish (Join-Path $RepositoryRoot "Karpik.Engine.Setup\Karpik.Engine.Setup.csproj") `
+& dotnet publish (Join-Path $RepositoryRoot "src\Karpik.Engine.Setup\Karpik.Engine.Setup.csproj") `
     -c Release -p:PublishSingleFile=true -p:SelfContained=false -m:1 -nr:false -o $setupPublish
 if ($LASTEXITCODE -ne 0) { throw "Setup publish failed." }
 
 Write-Host "Publishing launcher..."
 $launcherPublish = Join-Path ([IO.Path]::GetTempPath()) ("karpik-launcher-pub-" + [Guid]::NewGuid().ToString("N"))
-& dotnet publish (Join-Path $RepositoryRoot "Karpik.Launcher\Karpik.Launcher.csproj") `
+& dotnet publish (Join-Path $RepositoryRoot "src\Karpik.Launcher\Karpik.Launcher.csproj") `
     -c Release -m:1 -nr:false -o $launcherPublish
 if ($LASTEXITCODE -ne 0) { throw "Launcher publish failed." }
 

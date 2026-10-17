@@ -8,6 +8,18 @@ KarpikEngine — экспериментальный open-source движок д�
 
 Последний changelog: **v0.6** — [Changelog_0.6.md](Changelog_0.6.md) ([на русском](Changelog_0.6_ru.md)).
 
+## Структура репозитория
+
+- `src/` — проекты движка, Editor, Launcher, SDK, Configurator и инструменты.
+- `tests/` — тесты проектов движка и вспомогательный TestWorker.
+- `Modules/` — модули Client / Server / Shared и их локальные тесты.
+- `templates/` — игровые шаблоны; `first-parties/` и `third-parties/` — зависимости.
+- `_scripts/` — скрипты сборки и упаковки; `Generated/` — результаты Configurator.
+- `docs/`, `plans/`, `skills/` — документация, планы и инструкции.
+
+Solution и общие `Directory.*` находятся в корне. Пример генерации каталога:
+`dotnet run --project src/Configurator/Configurator.csproj -- --generate`.
+
 ## ✨ Ключевые особенности
 
 ### 🏗️ ECS и lifecycle
@@ -152,8 +164,8 @@ editor-launcher\setup.exe launcher --source editor-launcher\launcher-files
 После добавления, удаления или перемещения проекта выполните:
 
 ```bash
-dotnet run --project Configurator/Configurator.csproj -- --generate
-dotnet run --project Configurator/Configurator.csproj -- --validate
+dotnet run --project src/Configurator/Configurator.csproj -- --generate
+dotnet run --project src/Configurator/Configurator.csproj -- --validate
 ```
 
 Добавление существующего идентификатора зависимости требует только reload проекта или сборки.
