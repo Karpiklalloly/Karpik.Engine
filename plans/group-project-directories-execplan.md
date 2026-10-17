@@ -4,9 +4,9 @@ This ExecPlan is maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
-- Статус: выполняется.
-- Сейчас: перенос и проверки завершены; подготовка коммита и PR.
-- Далее: публикация ветки и PR в main.
+- Статус: завершено.
+- Сейчас: перенос и проверки завершены; опубликован PR #102 в main.
+- Далее: ревью и CI в PR; слияние выполняется отдельно.
 - Блокеры: нет.
 
 ## Purpose / Big Picture
@@ -20,7 +20,7 @@ This ExecPlan is maintained according to `plans/PLANS.md`.
 - [x] (2026-10-17) Структура согласована; создана ветка `codex/group-project-directories` от чистой `main`.
 - [x] (2026-10-17) M1: 38 каталогов перенесены; solution, ссылки, CI, скрипты и актуальная документация обновлены. `Configurator --generate/--validate` и `_scripts/Update-Modules.ps1` успешны; проверены буквальные пути project/import/solution. Независимое ревью не нашло регрессий.
 - [x] (2026-10-17) M2: Release-сборка — 0 ошибок; финальный non-integration прогон solution — 955 passed / 9 skipped / 0 failed в 17 тестовых сборках. SDK и templates упакованы, состав пакетов проверен, imported-reference smoke успешен. Известное ограничение старого положительного solution smoke описано ниже.
-- [ ] M3: изменения проверены и опубликованы отдельным PR.
+- [x] (2026-10-17) M3: коммит `87ae931`, ветка `codex/group-project-directories`, [PR #102](https://github.com/Karpiklalloly/Karpik.Engine/pull/102) в main с категорией enhancement. CI после публикации проверяется отдельно; main не изменена.
 
 ## Surprises & Discoveries
 

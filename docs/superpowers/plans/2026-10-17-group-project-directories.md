@@ -36,5 +36,5 @@ Root discovery from moved test outputs; module references into moved projects; g
 ## Task 3: Deliver
 
 - [x] Update both plans with executed commands and results.
-- [ ] Review diff and whitespace, commit only task changes.
-- [ ] Push and create a PR against main with the applicable change-category label; report actual publication outcome.
+- [x] Review diff and whitespace, commit only task changes (`87ae931`).
+- [x] Push `codex/group-project-directories` and create [PR #102](https://github.com/Karpiklalloly/Karpik.Engine/pull/102) against main, labeled enhancement. Initial sandbox publication refusal was resolved by verifying origin is the user's PUBLIC repository and the authenticated account has ADMIN permission; the permitted retry succeeded. Merge remains separate.
