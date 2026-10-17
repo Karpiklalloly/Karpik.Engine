@@ -47,7 +47,6 @@
   </Folder>
   <Folder Name="/Modules/Shared/ECS/">
     <Project Path="Modules/Shared/ECS/ECS.Core/ECS.Core.csproj" />
-    <Project Path="ECS.Core.Tests/ECS.Core.Tests.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Modding/">
     <Project Path="Modules/Shared/Modding/Modding.Core/Modding.Core.csproj" />
@@ -68,42 +67,44 @@
   <Folder Name="/third-parties/">
     <Project Path="third-parties/DragonECS/DragonECS.csproj" />
   </Folder>
-  <Folder Name="/Content/">
-    <Project Path="Karpik.Content.Core/Karpik.Content.Core.csproj" />
-    <Project Path="Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
-    <Project Path="Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
-    <Project Path="Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
-    <Project Path="Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
-    <Project Path="Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Configurator/Configurator.csproj" />
+    <Project Path="src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
+    <Project Path="src/Karpik.Content.Core/Karpik.Content.Core.csproj" />
+    <Project Path="src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
+    <Project Path="src/Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
+    <Project Path="src/Karpik.Editor/Karpik.Editor.csproj" />
+    <Project Path="src/Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
+    <Project Path="src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
+    <Project Path="src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
+    <Project Path="src/Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
+    <Project Path="src/Karpik.Engine.Packager/Karpik.Engine.Packager.csproj" />
+    <Project Path="src/Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
+    <Project Path="src/Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
+    <Project Path="src/Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
+    <Project Path="src/Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
+    <Project Path="src/Karpik.Engine.Setup/Karpik.Engine.Setup.csproj" />
+    <Project Path="src/Karpik.Engine.Templates/Karpik.Engine.Templates.csproj" />
+    <Project Path="src/Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
+    <Project Path="src/Karpik.Launcher/Karpik.Launcher.csproj" />
+    <Project Path="src/Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
+    <Project Path="src/StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
+    <Project Path="src/StaticAnalyzer/StaticAnalyzer.csproj" />
   </Folder>
-  
-  <Project Path="Configurator.Tests/Configurator.Tests.csproj" />
-  <Project Path="Configurator/Configurator.csproj" />
-  <Project Path="Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
-  <Project Path="Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
-  <Project Path="Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
-  <Project Path="Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
-  <Project Path="Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
-  <Project Path="Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
-  <Project Path="Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj" />
-  <Project Path="Karpik.Engine.Packager/Karpik.Engine.Packager.csproj" />
-  <Project Path="Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj" />
-  <Project Path="Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
-  <Project Path="Karpik.Engine.Sdk.IntegrationTests/Karpik.Engine.Sdk.IntegrationTests.csproj" />
-  <Project Path="Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj" />
-  <Project Path="Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
-  <Project Path="Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
-  <Project Path="Karpik.Engine.Setup/Karpik.Engine.Setup.csproj" />
-  <Project Path="Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj" />
-  <Project Path="Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
-  <Project Path="Karpik.Engine.Templates/Karpik.Engine.Templates.csproj" />
-  <Project Path="Karpik.Editor/Karpik.Editor.csproj" />
-  <Project Path="Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
-  <Project Path="Karpik.Launcher/Karpik.Launcher.csproj" />
-  <Project Path="Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
-  <Project Path="Karpik.Engine.Server.Publish/Karpik.Engine.Server.Publish.csproj" />
-  <Project Path="Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
-  <Project Path="Network.Codegen.Tests/Network.Codegen.Tests.csproj" />
-  <Project Path="StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
-  <Project Path="Tools/StaticAnalyzer/StaticAnalyzer.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/Configurator.Tests/Configurator.Tests.csproj" />
+    <Project Path="tests/ECS.Core.Tests/ECS.Core.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
+    <Project Path="tests/Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.Packager.Tests/Karpik.Engine.Packager.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.ProjectModel.Tests/Karpik.Engine.ProjectModel.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.Sdk.IntegrationTests/Karpik.Engine.Sdk.IntegrationTests.csproj" />
+    <Project Path="tests/Karpik.Engine.Sdk.Tasks.Tests/Karpik.Engine.Sdk.Tasks.Tests.csproj" />
+    <Project Path="tests/Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj" />
+    <Project Path="tests/Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
+    <Project Path="tests/Network.Codegen.Tests/Network.Codegen.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -94,13 +94,13 @@ discover or choose a different engine module graph at runtime.
 ## Validation
 
 - `dotnet msbuild Modules\Shared\StatAndAbilities\StatAndAbilities.csproj -getItem:KarpikModuleDependency -getItem:ProjectReference -m:1 -nr:false`
-- `dotnet test Configurator.Tests\Configurator.Tests.csproj -m:1 -nr:false`
-- `dotnet test Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false`
-- `dotnet run --project Configurator\Configurator.csproj -- --validate`
+- `dotnet test tests\Configurator.Tests\Configurator.Tests.csproj -m:1 -nr:false`
+- `dotnet test tests\Karpik.Engine.Core.Runner.Tests\Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false`
+- `dotnet run --project src\Configurator\Configurator.csproj -- --validate`
 - `dotnet test KarpikEngine.slnx -m:1 -nr:false --no-restore`
 - `dotnet build ClientLauncher\ClientLauncher.csproj -m:1 -nr:false --no-restore`
 - `dotnet build ServerLauncher\ServerLauncher.csproj -m:1 -nr:false --no-restore`
 
 ## Links
 
-- Related code: `Directory.Build.targets`, `Configurator/`, `Karpik.Engine.Core.Runner/Runner.cs`
+- Related code: `Directory.Build.targets`, `src/Configurator/`, `src/Karpik.Engine.Core.Runner/Runner.cs`

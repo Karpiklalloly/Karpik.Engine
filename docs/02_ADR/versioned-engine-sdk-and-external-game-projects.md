@@ -100,7 +100,7 @@ An editor owns one active game project. Switching to a project supported by the 
 
 ### Runtime bundles belong to games
 
-Runners belong to the selected engine SDK. Game assemblies and project-specific client/server bundles belong to the game build output. They must no longer be assembled under `Karpik.Editor/bin`.
+Runners belong to the selected engine SDK. Game assemblies and project-specific client/server bundles belong to the game build output. They must no longer be assembled under `src/Karpik.Editor/bin`.
 
 The SDK build flow is:
 
@@ -184,4 +184,4 @@ Deferred because the current editor directly depends on engine contracts. Mainta
 - Related ADR: [[module-graph]]
 - Delivery ExecPlan: [[../../plans/versioned-sdk-external-projects-execplan]]
 - Delivery board: [[../04_Roadmap/kanban-versioned-sdk-external-projects]]
-- Related code: `Karpik.Editor/`, `Configurator/`, `Directory.Build.props`, `Directory.Build.targets`, `Plugins.targets`
+- Related code: `src/Karpik.Editor/`, `src/Configurator/`, `Directory.Build.props`, `Directory.Build.targets`, `Plugins.targets`

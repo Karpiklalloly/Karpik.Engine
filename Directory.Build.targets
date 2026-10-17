@@ -3,6 +3,12 @@
     <Import Project="$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props"
             Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
 
+    <!-- The extension submodule still references the former root-level core project. -->
+    <ItemGroup Condition="'$(MSBuildProjectName)' == 'DragonECS.Karpik.Extensions'">
+        <ProjectReference Remove="..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+        <ProjectReference Include="$(KarpikRepositoryRoot)src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+    </ItemGroup>
+
     <ItemGroup>
         <_KarpikCompileModuleDependency Include="@(KarpikModuleDependency)" />
         <_KarpikCompileModuleDependency Remove="@(KarpikModuleDependency->WithMetadataValue('Optional', 'true'))" />
@@ -34,7 +40,7 @@
                 '$(MSBuildProjectName)' == 'Karpik.Engine.Client.Publish'
                 OR '$(MSBuildProjectName)' == 'Karpik.Engine.Server.Publish'
               )">
-        <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)Configurator/Configurator.csproj&quot; -- --validate"
+        <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)src/Configurator/Configurator.csproj&quot; -- --validate"
               WorkingDirectory="$(MSBuildThisFileDirectory)" />
     </Target>
 </Project>
