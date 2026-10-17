@@ -15,7 +15,7 @@
 
     <ItemGroup>
       <KarpikModuleDependency Include="ECS" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\..\..\..\src\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <KarpikModuleDependency Include="AssetManagement" />
       <KarpikModuleDependency Include="Window" />
       <ProjectReference Include="..\..\..\..\first-parties\Karpik.Jobs\Karpik.Jobs\Karpik.Jobs.csproj" />

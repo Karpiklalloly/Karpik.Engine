@@ -30,16 +30,16 @@ if ([string]::IsNullOrWhiteSpace($SdkVersion) -or
 
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $PayloadProjects = @(
-    "Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj",
-    "Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj",
-    "Karpik.Content.Tool\Karpik.Content.Tool.csproj",
-    "Karpik.Content.Codegen\Karpik.Content.Codegen.csproj",
-    "Karpik.Content.Runtime\Karpik.Content.Runtime.csproj",
-    "Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+    "src\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj",
+    "src\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj",
+    "src\Karpik.Content.Tool\Karpik.Content.Tool.csproj",
+    "src\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj",
+    "src\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj",
+    "src\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
 )
 $PackProjects = @(
-    "Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj",
-    "Karpik.Engine.Templates\Karpik.Engine.Templates.csproj"
+    "src\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj",
+    "src\Karpik.Engine.Templates\Karpik.Engine.Templates.csproj"
 )
 
 foreach ($project in ($PayloadProjects + $PackProjects)) {

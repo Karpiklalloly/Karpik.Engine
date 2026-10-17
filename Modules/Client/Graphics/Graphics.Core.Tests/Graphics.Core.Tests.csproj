@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
+        <ProjectReference Include="..\..\..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>

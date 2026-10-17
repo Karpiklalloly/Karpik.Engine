@@ -41,7 +41,7 @@ $failed = $false
 try {
     for ($runIndex = 1; $runIndex -le $RepeatCount; $runIndex++) {
         Write-Host "Runner tests: run $runIndex/$RepeatCount"
-        & dotnet test Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj `
+        & dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj `
             -c Release --no-build --no-restore -m:1 -nr:false `
             --filter 'Category!=Integration' `
             --logger "trx;LogFileName=runner-$runIndex.trx" `

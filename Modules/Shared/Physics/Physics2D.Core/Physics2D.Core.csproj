@@ -10,7 +10,7 @@
     <ItemGroup>
       <ProjectReference Include="..\..\..\..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
       <ProjectReference Include="..\..\..\..\third-parties\DragonECS\DragonECS.csproj" />
-      <ProjectReference Include="..\..\..\..\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="..\..\..\..\src\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
       <KarpikModuleDependency Include="ECS" />
       <KarpikModuleDependency Include="Network.Shared" />
       <KarpikModuleDependency Include="Spatial2D" />
