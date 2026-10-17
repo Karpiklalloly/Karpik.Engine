@@ -8,6 +8,8 @@ internal class ModdingLuaModule : IModule
     public void Add(ISystemRegistry systems)
     {
         systems.Add<InitSystem>();
+        systems.Add<BeginSystem>();
         systems.Add<UpdateSystem>();
+        systems.Add<FixedUpdateSystem>();
     }
 }
