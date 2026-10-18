@@ -3,5 +3,6 @@
 public interface ISystemRegistry
 {
     public void Add<T>(string layer = "BASIC_LAYER", int order = 0) where T : class, ISystem;
+    public void AddInstance(string systemId, ISystem system, string layer = "BASIC_LAYER", int order = 0);
     public void ConfigurePipeline(Action<IBuilder> configure);
 }

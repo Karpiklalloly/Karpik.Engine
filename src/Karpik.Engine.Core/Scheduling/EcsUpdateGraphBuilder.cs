@@ -2,6 +2,36 @@ namespace Karpik.Engine.Shared.ECS.Scheduling;
 
 public static class EcsUpdateGraphBuilder
 {
+    public static EcsUpdateGraph BuildInstances(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
+    {
+        if (descriptors.IsEmpty) return EcsUpdateGraph.Empty;
+
+        var instanceIds = new Dictionary<string, int>(descriptors.Length, StringComparer.Ordinal);
+        var systemIds = new Dictionary<Type, int>(descriptors.Length);
+        var systemTypes = new Type[descriptors.Length];
+        for (int i = 0; i < descriptors.Length; i++)
+        {
+            EcsUpdateSystemDescriptor descriptor = descriptors[i];
+            if (string.IsNullOrWhiteSpace(descriptor.SystemId))
+                throw new EcsUpdateGraphBuildException("Instance descriptor requires a nonempty system ID.");
+            if (descriptor.SystemType is null)
+                throw new EcsUpdateGraphBuildException($"System '{descriptor.SystemId}' requires a system type.");
+            if (!instanceIds.TryAdd(descriptor.SystemId, i))
+                throw new EcsUpdateGraphBuildException($"Duplicate system ID '{descriptor.SystemId}'.");
+
+            systemTypes[i] = descriptor.SystemType;
+            if (!systemIds.TryAdd(descriptor.SystemType, i)) systemIds[descriptor.SystemType] = -1;
+        }
+
+        Type[] componentTypes = BuildComponentTypes(descriptors);
+        Dictionary<Type, int> componentIds = BuildComponentIds(componentTypes);
+        SystemAccess[] accesses = BuildSystemAccess(descriptors, componentIds, componentTypes.Length);
+        bool[] dependencyBits = BuildDependencyBits(descriptors, accesses, systemIds, instanceIds);
+        return new EcsUpdateGraph(systemTypes, componentTypes,
+            BuildNodes(accesses, dependencyBits, descriptors.Length),
+            BuildExecutionOrder(dependencyBits, descriptors.Length));
+    }
+
     public static EcsUpdateGraph Build(
         ReadOnlySpan<Type> registeredSystemTypes,
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
@@ -162,23 +192,13 @@ public static class EcsUpdateGraphBuilder
     private static bool[] BuildDependencyBits(
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
         SystemAccess[] accesses,
-        Dictionary<Type, int> systemIds)
+        Dictionary<Type, int> systemIds,
+        Dictionary<string, int>? instanceIds = null)
     {
         int systemCount = descriptors.Length;
         var dependencyBits = new bool[systemCount * systemCount];
 
-        for (int previous = 0; previous < systemCount; previous++)
-        {
-            for (int subsequent = previous + 1; subsequent < systemCount; subsequent++)
-            {
-                if (accesses[previous].IsSequential ||
-                    accesses[subsequent].IsSequential ||
-                    HasConflict(accesses[previous], accesses[subsequent]))
-                {
-                    SetDependency(dependencyBits, systemCount, subsequent, previous);
-                }
-            }
-        }
+        if (instanceIds is null) AddAccessDependencies(accesses, dependencyBits, default);
 
         for (int systemId = 0; systemId < systemCount; systemId++)
         {
@@ -186,11 +206,7 @@ public static class EcsUpdateGraphBuilder
             for (int i = 0; i < orders.Length; i++)
             {
                 EcsSystemOrderDescriptor order = orders[i];
-                if (!systemIds.TryGetValue(order.TargetSystemType, out int targetSystemId))
-                {
-                    throw new EcsUpdateGraphBuildException(
-                        $"ECS update order target '{order.TargetSystemType.FullName}' is not registered.");
-                }
+                int targetSystemId = ResolveOrderTarget(order, systemIds, instanceIds);
 
                 if (order.Kind == EcsOrderKind.After)
                 {
@@ -203,12 +219,50 @@ public static class EcsUpdateGraphBuilder
                 else
                 {
                     throw new EcsUpdateGraphBuildException(
-                        $"Unsupported ECS update order kind '{order.Kind}' for target '{order.TargetSystemType.FullName}'.");
+                        $"Unsupported ECS update order kind '{order.Kind}' for target '{order.TargetSystemId ?? order.TargetSystemType?.FullName}'.");
                 }
             }
         }
 
+        if (instanceIds is not null)
+        {
+            // Orient barriers along explicit order so a backwards ID dependency cannot create a false cycle.
+            AddAccessDependencies(accesses, dependencyBits, BuildExecutionOrder(dependencyBits, systemCount));
+        }
         return dependencyBits;
+    }
+
+    private static int ResolveOrderTarget(EcsSystemOrderDescriptor order,
+        Dictionary<Type, int> systemIds, Dictionary<string, int>? instanceIds)
+    {
+        if (order.TargetSystemId is string id)
+        {
+            if (instanceIds is not null && instanceIds.TryGetValue(id, out int instanceIndex))
+                return instanceIndex;
+            throw new EcsUpdateGraphBuildException($"ECS update order target ID '{id}' is not registered in an instance graph.");
+        }
+
+        if (order.TargetSystemType is not Type type)
+            throw new EcsUpdateGraphBuildException("ECS update order requires a target type or instance ID.");
+        if (!systemIds.TryGetValue(type, out int index))
+            throw new EcsUpdateGraphBuildException($"ECS update order target '{type.FullName}' is not registered.");
+        if (index < 0)
+            throw new EcsUpdateGraphBuildException($"ECS update order target type '{type.FullName}' is ambiguous; use an instance ID.");
+        return index;
+    }
+
+    private static void AddAccessDependencies(SystemAccess[] accesses, bool[] dependencyBits, ReadOnlySpan<int> order)
+    {
+        for (int previous = 0; previous < accesses.Length; previous++)
+        {
+            int left = order.IsEmpty ? previous : order[previous];
+            for (int subsequent = previous + 1; subsequent < accesses.Length; subsequent++)
+            {
+                int right = order.IsEmpty ? subsequent : order[subsequent];
+                if (accesses[left].IsSequential || accesses[right].IsSequential || HasConflict(accesses[left], accesses[right]))
+                    SetDependency(dependencyBits, accesses.Length, right, left);
+            }
+        }
     }
 
     private static bool HasConflict(SystemAccess previous, SystemAccess subsequent)

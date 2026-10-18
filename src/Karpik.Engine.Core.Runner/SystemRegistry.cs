@@ -6,8 +6,11 @@ namespace Karpik.Engine.Core.Runner;
 internal class SystemRegistry : ISystemRegistry
 {
     private readonly List<SystemDescriptor> _descriptors = [];
+    private readonly List<SystemInstanceDescriptor> _instanceDescriptors = [];
     private readonly List<Action<IBuilder>> _pipelineConfigurations = [];
     private readonly HashSet<Type> _registeredTypes = [];
+    private readonly HashSet<string> _registeredIds = [];
+    private readonly Dictionary<ISystem, string> _registeredInstances = new(ReferenceEqualityComparer.Instance);
 
     private bool _registrationsApplied;
     private bool _systemsResolved;
@@ -18,8 +21,10 @@ internal class SystemRegistry : ISystemRegistry
         ArgumentNullException.ThrowIfNull(configure);
         if (_registrationsApplied)
         {
-            throw new InvalidOperationException("Pipeline configuration cannot be added after registrations were applied.");
+            throw new InvalidOperationException(
+                "Pipeline configuration cannot be added after registrations were applied.");
         }
+
         _pipelineConfigurations.Add(configure);
     }
 
@@ -39,10 +44,45 @@ internal class SystemRegistry : ISystemRegistry
                 $"System '{systemType.FullName}' was added more than once.");
         }
 
-        _descriptors.Add(new SystemDescriptor(
-            systemType,
-            layer,
-            order));
+        _descriptors.Add(new SystemDescriptor(systemType, layer, order));
+    }
+
+    public void AddInstance(string systemId, ISystem system, string layer = "BASIC_LAYER", int order = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(systemId);
+        ArgumentNullException.ThrowIfNull(system);
+        
+        if (_systemsResolved)
+        {
+            throw new InvalidOperationException(
+                "Systems cannot be added after system resolving were applied.");
+        }
+        
+        if (_registeredIds.Contains(systemId))
+        {
+            throw new InvalidOperationException(
+                $"System '{systemId}' was added more than once.");
+        }
+
+        if (_registeredInstances.ContainsKey(system))
+            throw new InvalidOperationException("The same system instance cannot be registered more than once.");
+
+        _registeredIds.Add(systemId);
+        _registeredInstances.Add(system, systemId);
+        
+        _instanceDescriptors.Add(new SystemInstanceDescriptor(systemId, system, layer, order));
+    }
+
+    internal bool TryGetInstanceId(ISystem system, out string systemId)
+    {
+        ArgumentNullException.ThrowIfNull(system);
+        if (_registeredInstances.TryGetValue(system, out string? id))
+        {
+            systemId = id;
+            return true;
+        }
+        systemId = string.Empty;
+        return false;
     }
 
     /// <summary>
@@ -83,7 +123,7 @@ internal class SystemRegistry : ISystemRegistry
 
         _registrationsApplied = true;
     }
-    
+
     public void ResolveAndAdd(
         IBuilder builder,
         IServiceResolver services)
@@ -116,10 +156,16 @@ internal class SystemRegistry : ISystemRegistry
 
             object system = services.Resolve(descriptor.SystemType);
 
-            builder.Add(
-                system,
-                descriptor.Layer,
-                descriptor.Order);
+            builder.Add(system, descriptor.Layer, descriptor.Order);
+        }
+        
+        ReadOnlySpan<SystemInstanceDescriptor> instanceDescriptors = CollectionsMarshal.AsSpan(_instanceDescriptors);
+
+        for (int i = 0; i < instanceDescriptors.Length; i++)
+        {
+            ref readonly SystemInstanceDescriptor descriptor = ref instanceDescriptors[i];
+
+            builder.Add(descriptor.System, descriptor.Layer, descriptor.Order);
         }
 
         _systemsResolved = true;

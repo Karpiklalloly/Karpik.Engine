@@ -279,7 +279,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         _beginRunner = _pipeline.GetRunner<EcsBeginRunner>();
         _fixedRunner = _pipeline.GetRunner<EcsFixedRunner>();
         _updateRunner = _pipeline.GetRunner<EcsUpdateRunner>();
-        ConfigureEcsUpdateScheduler(_updateRunner);
+        ConfigureEcsUpdateScheduler(_updateRunner, systemRegistry);
         _lateRunner = _pipeline.GetRunner<EcsLateRunner>();
         _renderPrepareRunner = _pipeline.GetRunner<EcsRenderPrepareRunner>();
         ConfigureEcsRenderPrepareScheduler(_renderPrepareRunner);
@@ -809,13 +809,46 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         return newBuilder.Build();
     }
 
-    private void ConfigureEcsUpdateScheduler(EcsUpdateRunner updateRunner)
+    private void ConfigureEcsUpdateScheduler(EcsUpdateRunner updateRunner, SystemRegistry registry)
     {
         ISystemUpdate[] systems = ExtractUpdateSystems(updateRunner);
         EcsUpdateSystemDescriptor[] descriptors = _staticEcsProviders is not null
             ? _staticEcsProviders.CollectUpdateDescriptors()
             : DynamicCompositionDiscovery.CollectUpdateDescriptors(systems);
+        foreach (ISystemUpdate system in systems)
+        {
+            if (registry.TryGetInstanceId(system, out _))
+            {
+                _ecsUpdateScheduler.InitializeInstances(systems,
+                    BindUpdateDescriptors(systems, descriptors, registry), UpdateSchedulerMode);
+                return;
+            }
+        }
         _ecsUpdateScheduler.Initialize(systems, descriptors, UpdateSchedulerMode);
+    }
+
+    internal static EcsUpdateSystemDescriptor[] BindUpdateDescriptors(
+        ReadOnlySpan<ISystemUpdate> systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        SystemRegistry registry)
+    {
+        var byType = new Dictionary<Type, EcsUpdateSystemDescriptor>(descriptors.Length);
+        foreach (EcsUpdateSystemDescriptor descriptor in descriptors)
+            if (!byType.TryAdd(descriptor.SystemType, descriptor))
+                throw new EcsUpdateGraphBuildException($"Duplicate update descriptor for '{descriptor.SystemType.FullName}'.");
+
+        var bound = new EcsUpdateSystemDescriptor[systems.Length];
+        for (int i = 0; i < systems.Length; i++)
+        {
+            Type type = systems[i].GetType();
+            if (!byType.TryGetValue(type, out EcsUpdateSystemDescriptor descriptor))
+                throw new EcsUpdateGraphBuildException($"Missing generated update descriptor for '{type.FullName}'.");
+            string id = registry.TryGetInstanceId(systems[i], out string registeredId)
+                ? registeredId : $"engine:{type.FullName}";
+            bound[i] = new EcsUpdateSystemDescriptor(type, descriptor.IsSequential,
+                descriptor.Accesses, descriptor.Orders, id);
+        }
+        return bound;
     }
 
     private static ISystemUpdate[] ExtractUpdateSystems(EcsUpdateRunner updateRunner)

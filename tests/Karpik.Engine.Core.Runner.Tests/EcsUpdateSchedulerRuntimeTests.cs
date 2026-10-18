@@ -6,6 +6,78 @@ using Xunit;
 [Collection(nameof(EcsUpdateSchedulerRuntimeCollection))]
 public sealed class EcsUpdateSchedulerRuntimeTests
 {
+    [Theory]
+    [InlineData(EcsUpdateSchedulerMode.Deterministic)]
+    [InlineData(EcsUpdateSchedulerMode.Parallel)]
+    public void InitializeInstances_RepeatedType_ExecutesInIdDependencyOrder(EcsUpdateSchedulerMode mode)
+    {
+        var log = new ConcurrentQueue<string>();
+        using var scheduler = new EcsUpdateScheduler();
+        scheduler.InitializeInstances(
+            [new InstanceOrderedSystem("b", log), new InstanceOrderedSystem("a", log)],
+            [new(typeof(InstanceOrderedSystem), false, default,
+                new EcsSystemOrderDescriptor[] { new("mod:a", EcsOrderKind.After) }, "mod:b"),
+             new(typeof(InstanceOrderedSystem), false, default, default, "mod:a")], mode, workerCount: 2);
+        scheduler.Update();
+        Assert.Equal(["a", "b"], log.ToArray());
+    }
+
+    [Fact]
+    public void InitializeInstances_DescriptorCountMismatch_ThrowsBeforeReplacingValidState()
+    {
+        var system = new CountingUpdateSystem();
+        using var scheduler = new EcsUpdateScheduler();
+        scheduler.Initialize([system], [Descriptor<CountingUpdateSystem>()], EcsUpdateSchedulerMode.Deterministic);
+        Assert.Throws<ArgumentException>(() => scheduler.InitializeInstances([system], []));
+        Assert.Throws<ArgumentException>(() => scheduler.InitializeInstances([], [Descriptor<CountingUpdateSystem>()]));
+        scheduler.Update();
+        Assert.Equal(1, system.Count);
+    }
+
+    [Fact]
+    public void InitializeInstances_DescriptorTypeMismatch_Throws()
+    {
+        using var scheduler = new EcsUpdateScheduler();
+        Assert.Throws<ArgumentException>(() => scheduler.InitializeInstances([new CountingUpdateSystem()],
+            [new(typeof(ThreadRecordingSystem), false, default, default, "mod:a")]));
+    }
+
+    [Fact]
+    public void InitializeInstances_NullSystem_Throws()
+    {
+        using var scheduler = new EcsUpdateScheduler();
+        Assert.Throws<ArgumentNullException>(() => scheduler.InitializeInstances([null!],
+            [new(typeof(CountingUpdateSystem), false, default, default, "mod:a")]));
+    }
+
+    [Fact]
+    public void InitializeInstances_Empty_IsSafe()
+    {
+        using var scheduler = new EcsUpdateScheduler();
+        scheduler.InitializeInstances([], []);
+        scheduler.Update();
+        Assert.Empty(scheduler.Graph.Nodes.ToArray());
+    }
+
+    [Fact]
+    public void InitializeInstances_AfterWarmup_DoesNotAllocateOnCallingThread()
+    {
+        var system = new CountingUpdateSystem();
+        using var scheduler = new EcsUpdateScheduler();
+        scheduler.InitializeInstances([system],
+            [new(typeof(CountingUpdateSystem), false, default, default, "mod:a")], workerCount: 1);
+        for (int i = 0; i < 100; i++) scheduler.Update();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++) scheduler.Update();
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.Equal(200, system.Count);
+    }
+
+    internal sealed class InstanceOrderedSystem(string name, ConcurrentQueue<string> log) : ISystemUpdate
+    {
+        public void Update() => log.Enqueue(name);
+    }
+
     [Fact]
     public async Task ParallelMode_DisjointSystems_StartsBothBeforeEitherCompletes()
     {
