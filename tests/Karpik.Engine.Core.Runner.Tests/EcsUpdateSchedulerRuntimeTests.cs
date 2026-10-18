@@ -9,7 +9,7 @@ public sealed class EcsUpdateSchedulerRuntimeTests
     [Theory]
     [InlineData(EcsUpdateSchedulerMode.Deterministic)]
     [InlineData(EcsUpdateSchedulerMode.Parallel)]
-    public void InitializeInstances_RepeatedType_ExecutesInIdDependencyOrder(EcsUpdateSchedulerMode mode)
+    public async Task InitializeInstances_RepeatedType_ExecutesInIdDependencyOrder(EcsUpdateSchedulerMode mode)
     {
         var log = new ConcurrentQueue<string>();
         using var scheduler = new EcsUpdateScheduler();
@@ -18,8 +18,16 @@ public sealed class EcsUpdateSchedulerRuntimeTests
             [new(typeof(InstanceOrderedSystem), false, default,
                 new EcsSystemOrderDescriptor[] { new("mod:a", EcsOrderKind.After) }, "mod:b"),
              new(typeof(InstanceOrderedSystem), false, default, default, "mod:a")], mode, workerCount: 2);
-        scheduler.Update();
-        Assert.Equal(["a", "b"], log.ToArray());
+        Task updates = Task.Factory.StartNew(() =>
+        {
+            for (int iteration = 0; iteration < 1000; iteration++)
+            {
+                scheduler.Update();
+                Assert.Equal(["a", "b"], log.ToArray());
+                log.Clear();
+            }
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        await updates.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     [Fact]
