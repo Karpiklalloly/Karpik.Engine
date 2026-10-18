@@ -13,6 +13,82 @@ public sealed class RegisteredInstanceRunnerTests
     [InlineData(false, EcsUpdateSchedulerMode.Parallel)]
     [InlineData(true, EcsUpdateSchedulerMode.Deterministic)]
     [InlineData(true, EcsUpdateSchedulerMode.Parallel)]
+    public void Runner_UsesInstanceOrderInsteadOfGeneratedTypeOrder(bool useStatic, EcsUpdateSchedulerMode mode)
+    {
+        var log = new ConcurrentQueue<string>();
+        var installer = new CounterInstaller(new InstanceCounter("a", log), new InstanceCounter("b", log), log,
+            explicitMetadata: true);
+        var runner = new EngineRunner { UpdateSchedulerMode = mode };
+        if (useStatic) runner.RegisterStaticComposition(new CounterComposition(installer, log));
+        else runner.RegisterModule(installer);
+        var mainThread = new MainThreadScheduler(Environment.CurrentManagedThreadId);
+        try
+        {
+            runner.Setup(new Application(Side.Server), mainThread);
+            mainThread.Execute();
+            runner.RunGameplayFrame(0.001);
+            runner.RunGameplayFrame(0.001);
+            Assert.Equal(["native", "a", "b", "native", "a", "b"], log.ToArray());
+        }
+        finally { runner.Destroy(); }
+    }
+
+    [Fact]
+    public void BindUpdateDescriptors_ExplicitMetadataIsPerInstance_AndDoesNotRequireGeneratedMetadata()
+    {
+        var first = new InstanceCounter("a", new());
+        var second = new InstanceCounter("b", new());
+        var native = new NativeCounter(new());
+        var registry = new SystemRegistry();
+        var firstMetadata = new EcsUpdateSystemDescriptor(typeof(InstanceCounter), false,
+            new EcsComponentAccessDescriptor[] { new(typeof(int), EcsAccessMode.Write) }, default, "mod:a");
+        var secondMetadata = new EcsUpdateSystemDescriptor(typeof(InstanceCounter), true,
+            new EcsComponentAccessDescriptor[] { new(typeof(int), EcsAccessMode.Read) },
+            new EcsSystemOrderDescriptor[] { new("mod:a", EcsOrderKind.After) }, "mod:b");
+        registry.AddInstance(first, firstMetadata);
+        registry.AddInstance(second, secondMetadata);
+        EcsUpdateSystemDescriptor[] generated = [new(typeof(NativeCounter), true, default, default)];
+
+        EcsUpdateSystemDescriptor[] bound = EngineRunner.BindUpdateDescriptors([second, native, first], generated, registry);
+
+        Assert.Equal(secondMetadata, bound[0]);
+        Assert.Equal(firstMetadata, bound[2]);
+        Assert.Equal($"engine:{typeof(NativeCounter).FullName}", bound[1].SystemId);
+        Assert.True(registry.TryGetUpdateDescriptor(first, out var stored));
+        Assert.Equal(firstMetadata, stored);
+        Assert.False(registry.TryGetUpdateDescriptor(native, out _));
+    }
+
+    [Fact]
+    public void Registry_InvalidExplicitMetadata_DoesNotReserveIdOrInstance()
+    {
+        var registry = new SystemRegistry();
+        var instance = new InstanceCounter("a", new());
+        var valid = new EcsUpdateSystemDescriptor(typeof(InstanceCounter), false, default, default, "mod:a");
+        Assert.Throws<ArgumentNullException>(() => registry.AddInstance(null!, valid));
+        Assert.Throws<ArgumentException>(() => registry.AddInstance(instance, default));
+        Assert.Throws<ArgumentException>(() => registry.AddInstance(instance,
+            new EcsUpdateSystemDescriptor(typeof(NativeCounter), false, default, default, "mod:a")));
+        Assert.Throws<ArgumentException>(() => registry.AddInstance(new NonUpdateSystem(),
+            new EcsUpdateSystemDescriptor(typeof(NonUpdateSystem), false, default, default, "mod:a")));
+        registry.AddInstance(instance, valid);
+
+        var other = new InstanceCounter("b", new());
+        Assert.Throws<InvalidOperationException>(() => registry.AddInstance(other, valid));
+        var otherMetadata = new EcsUpdateSystemDescriptor(typeof(InstanceCounter), false, default, default, "mod:b");
+        Assert.Throws<InvalidOperationException>(() => registry.AddInstance(instance, otherMetadata));
+        registry.AddInstance(other, otherMetadata);
+        Assert.True(registry.TryGetUpdateDescriptor(instance, out var stored));
+        Assert.Equal(valid, stored);
+    }
+
+    private sealed class NonUpdateSystem : ISystem;
+
+    [Theory]
+    [InlineData(false, EcsUpdateSchedulerMode.Deterministic)]
+    [InlineData(false, EcsUpdateSchedulerMode.Parallel)]
+    [InlineData(true, EcsUpdateSchedulerMode.Deterministic)]
+    [InlineData(true, EcsUpdateSchedulerMode.Parallel)]
     public void Runner_ExecutesRepeatedTypeInstancesAndNativeSystem_InPipelineOrder(bool useStatic, EcsUpdateSchedulerMode mode)
     {
         var log = new ConcurrentQueue<string>();
@@ -87,19 +163,31 @@ public sealed class RegisteredInstanceRunnerTests
     }
 
     [Module(ModuleScope.Simulation)]
-    private sealed class CounterInstaller(InstanceCounter first, InstanceCounter second, ConcurrentQueue<string> log) : IModuleInstaller
+    private sealed class CounterInstaller(InstanceCounter first, InstanceCounter second, ConcurrentQueue<string> log,
+        bool explicitMetadata = false) : IModuleInstaller
     {
         public string Name => nameof(CounterInstaller);
-        public IModule CreateModule() => new CounterModule(first, second);
+        public IModule CreateModule() => new CounterModule(first, second, explicitMetadata);
         public void OnRegisterServices(ContainerBuilder builder) => builder.RegisterInstance(log).AsSelf();
     }
 
-    private sealed class CounterModule(InstanceCounter first, InstanceCounter second) : IModule
+    private sealed class CounterModule(InstanceCounter first, InstanceCounter second, bool explicitMetadata) : IModule
     {
         public void Add(ISystemRegistry systems)
         {
-            systems.AddInstance("mod:a", first, order: 20);
-            systems.AddInstance("mod:b", second, order: 10);
+            if (explicitMetadata)
+            {
+                systems.AddInstance(first, new EcsUpdateSystemDescriptor(typeof(InstanceCounter), false,
+                    new EcsComponentAccessDescriptor[] { new(typeof(int), EcsAccessMode.Write) }, default, "mod:a"), order: 20);
+                systems.AddInstance(second, new EcsUpdateSystemDescriptor(typeof(InstanceCounter), false,
+                    new EcsComponentAccessDescriptor[] { new(typeof(int), EcsAccessMode.Read) },
+                    new EcsSystemOrderDescriptor[] { new("mod:a", EcsOrderKind.After) }, "mod:b"), order: 10);
+            }
+            else
+            {
+                systems.AddInstance("mod:a", first, order: 20);
+                systems.AddInstance("mod:b", second, order: 10);
+            }
             systems.Add<NativeCounter>();
         }
     }

@@ -840,6 +840,11 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         var bound = new EcsUpdateSystemDescriptor[systems.Length];
         for (int i = 0; i < systems.Length; i++)
         {
+            if (registry.TryGetUpdateDescriptor(systems[i], out EcsUpdateSystemDescriptor instanceDescriptor))
+            {
+                bound[i] = instanceDescriptor;
+                continue;
+            }
             Type type = systems[i].GetType();
             if (!byType.TryGetValue(type, out EcsUpdateSystemDescriptor descriptor))
                 throw new EcsUpdateGraphBuildException($"Missing generated update descriptor for '{type.FullName}'.");

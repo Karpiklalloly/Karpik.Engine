@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Autofac;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -11,6 +12,7 @@ internal class SystemRegistry : ISystemRegistry
     private readonly HashSet<Type> _registeredTypes = [];
     private readonly HashSet<string> _registeredIds = [];
     private readonly Dictionary<ISystem, string> _registeredInstances = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<ISystem, EcsUpdateSystemDescriptor> _updateDescriptors = new(ReferenceEqualityComparer.Instance);
 
     private bool _registrationsApplied;
     private bool _systemsResolved;
@@ -71,6 +73,26 @@ internal class SystemRegistry : ISystemRegistry
         _registeredInstances.Add(system, systemId);
         
         _instanceDescriptors.Add(new SystemInstanceDescriptor(systemId, system, layer, order));
+    }
+
+    public void AddInstance(ISystem system, EcsUpdateSystemDescriptor descriptor, string layer = "BASIC_LAYER", int order = 0)
+    {
+        ArgumentNullException.ThrowIfNull(system);
+        if (string.IsNullOrWhiteSpace(descriptor.SystemId))
+            throw new ArgumentException("An instance update descriptor must have a nonempty SystemId.", nameof(descriptor));
+        if (descriptor.SystemType != system.GetType())
+            throw new ArgumentException("The descriptor type must match the system instance type.", nameof(descriptor));
+        if (system is not ISystemUpdate)
+            throw new ArgumentException("Update metadata requires an ISystemUpdate instance.", nameof(system));
+
+        AddInstance(descriptor.SystemId, system, layer, order);
+        _updateDescriptors.Add(system, descriptor);
+    }
+
+    internal bool TryGetUpdateDescriptor(ISystem system, out EcsUpdateSystemDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(system);
+        return _updateDescriptors.TryGetValue(system, out descriptor);
     }
 
     internal bool TryGetInstanceId(ISystem system, out string systemId)
