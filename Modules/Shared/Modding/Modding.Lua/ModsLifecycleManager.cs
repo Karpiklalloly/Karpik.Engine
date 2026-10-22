@@ -15,9 +15,11 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
     private bool _loaded;
     private bool _disposed;
     
-    public async JobHandle Load(IReadOnlyList<ModDefinition> definitions, ExecutionSide side)
+    public async JobHandle Load(IReadOnlyList<ModDefinition> definitions, ExecutionSide side,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_loading || _loaded)
             throw new InvalidOperationException("Mods are already loading or loaded.");
@@ -29,15 +31,18 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
         {
             foreach (ModDefinition definition in definitions)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 IScriptRuntime runtime = await scriptLoader.Load(definition, side);
 
                 ModContainer container = new ModContainer(definition, runtime);
                 pending.Add(container);
 
                 ObjectDisposedException.ThrowIf(_disposed, this);
+                cancellationToken.ThrowIfCancellationRequested();
                 container.Load();
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             _containers.AddRange(pending);
             _loaded = true;
         }

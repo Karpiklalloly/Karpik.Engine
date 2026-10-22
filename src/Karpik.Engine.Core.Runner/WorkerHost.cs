@@ -308,10 +308,9 @@ internal sealed class WorkerHost
         _logger.LogDebug("Worker main thread: {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
         _mainThreadScheduler = mainThreadScheduler;
-        mainThreadScheduler.Execute();
+        mainThreadScheduler.RunUntilCompleted(_bootstrap.Startup);
         // The game loop must remain on the thread that owns this scheduler.
         // Awaiting in a console host may resume on a thread-pool thread instead.
-        _bootstrap.Startup.GetAwaiter().GetResult();
 
         _ipcClient?.SetScheduler(mainThreadScheduler);
 

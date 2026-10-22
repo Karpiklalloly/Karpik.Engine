@@ -119,11 +119,16 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
         scheduler.Schedule(() =>
         {
+            var cancellation = new CancellationTokenSource();
+            bool cleanupDeferred = false;
             try
             {
-                Task setup = SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData);
+                Task setup = SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData, cancellation.Token);
                 if (!setup.IsCompleted)
                 {
+                    cleanupDeferred = true;
+                    cancellation.Cancel();
+                    _ = FinishRejectedSynchronousSetupAsync(setup, cancellation, scheduler);
                     throw new InvalidOperationException(
                         "Asynchronous system initialization requires SetupAsync to be awaited by the host.");
                 }
@@ -131,22 +136,51 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             }
             catch
             {
-                DestroyAsyncCore(clearRegistrations: false).AsTask().GetAwaiter().GetResult();
+                if (!cleanupDeferred)
+                    DestroyAsyncCore(clearRegistrations: false).AsTask().GetAwaiter().GetResult();
                 throw;
             }
             finally
             {
-                _setupPending = false;
+                if (!cleanupDeferred)
+                {
+                    cancellation.Dispose();
+                    _setupPending = false;
+                }
             }
         });
     }
 
-    public Task SetupAsync(Application application, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null)
+    private async Task FinishRejectedSynchronousSetupAsync(Task setup, CancellationTokenSource cancellation,
+        MainThreadScheduler scheduler)
     {
-        return SetupAsync(application, scheduler, new ClientFrameMetrics(), hotReloadData);
+        try
+        {
+            await setup;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception) { _runtimeLogger.LogError(exception, "Rejected synchronous setup failed"); }
+        finally
+        {
+            try
+            {
+                Task cleanup = await scheduler.InvokeAsync(() => DestroyAsyncCore(clearRegistrations: false).AsTask());
+                await cleanup;
+            }
+            catch (Exception exception) { _hostLogger.LogError(exception, "Rejected synchronous setup cleanup failed"); }
+            cancellation.Dispose();
+            _setupPending = false;
+        }
     }
 
-    public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics, Dictionary<string, byte[]>? hotReloadData = null)
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, Dictionary<string, byte[]>? hotReloadData = null,
+        CancellationToken cancellationToken = default)
+    {
+        return SetupAsync(application, scheduler, new ClientFrameMetrics(), hotReloadData, cancellationToken);
+    }
+
+    public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics, Dictionary<string, byte[]>? hotReloadData = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(scheduler);
@@ -165,11 +199,12 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         {
             try
             {
-                await SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData);
+                await SetupCoreAsync(application, scheduler, clientFrameMetrics, hotReloadData, cancellationToken);
             }
             catch
             {
-                await DestroyAsyncCore(clearRegistrations: false);
+                Task cleanup = await scheduler.InvokeAsync(() => DestroyAsyncCore(clearRegistrations: false).AsTask());
+                await cleanup;
                 throw;
             }
             finally
@@ -183,8 +218,10 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         Application application,
         MainThreadScheduler scheduler,
         ClientFrameMetrics clientFrameMetrics,
-        Dictionary<string, byte[]>? hotReloadData)
+        Dictionary<string, byte[]>? hotReloadData,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         SortModulesForVerification();
 
         bool isStatic = _staticServices is not null;
@@ -243,28 +280,66 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             RegisterInstallerServices(builder, ModuleScope.ModSet);
         });
 
-        _simulationScope = _modSetScope.BeginLifetimeScope(builder =>
+        foreach (IModSetPreparation preparation in _modSetScope.Resolve<IEnumerable<IModSetPreparation>>())
         {
-            RegisterResolver(builder);
-            if (isStatic)
+            cancellationToken.ThrowIfCancellationRequested();
+            ValueTask operation = await scheduler.InvokeAsync(() => preparation.PrepareAsync(cancellationToken));
+            await operation;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ISimulationPreparation[] simulationPreparations = await scheduler.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _simulationScope = _modSetScope.BeginLifetimeScope(builder =>
             {
-                _staticServices.Apply(builder, ModuleScope.Simulation);
-            }
-            else
-            {
-                AttributedServiceRegistrationProbe?.Invoke(builder, orderedTypes, ModuleScope.Simulation);
-                AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
-            }
-            RegisterInstallerServices(builder, ModuleScope.Simulation);
-            systemRegistry.RegisterTypes(builder);
+                RegisterResolver(builder);
+                if (isStatic)
+                {
+                    _staticServices.Apply(builder, ModuleScope.Simulation);
+                }
+                else
+                {
+                    AttributedServiceRegistrationProbe?.Invoke(builder, orderedTypes, ModuleScope.Simulation);
+                    AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
+                }
+                RegisterInstallerServices(builder, ModuleScope.Simulation);
+                builder.RegisterInstance(systemRegistry).As<ISystemRuntimeRegistry>();
+                systemRegistry.RegisterTypes(builder);
+            });
+            _serviceResolver = _simulationScope.Resolve<IServiceResolver>();
+            RestoreRestartWorkerState(_serviceResolver, hotReloadData);
+            return _simulationScope.Resolve<ISimulationPreparation[]>();
         });
-        _serviceResolver = _simulationScope.Resolve<IServiceResolver>();
 
-        RestoreRestartWorkerState(_serviceResolver, hotReloadData);
+        foreach (ISimulationPreparation preparation in simulationPreparations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ValueTask operation = await scheduler.InvokeAsync(() => preparation.PrepareAsync(cancellationToken));
+            await operation;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
 
+        Builder moduleBuilder = await scheduler.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return BuildSimulationPipeline(systemRegistry);
+        });
+        for (int index = 0; index < moduleBuilder.AsyncInitializers.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ISystemAsyncInit initializer = moduleBuilder.AsyncInitializers[index];
+            ValueTask operation = await scheduler.InvokeAsync(() => initializer.InitAsync(cancellationToken));
+            await operation;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private Builder BuildSimulationPipeline(SystemRegistry systemRegistry)
+    {
         EcsPipeline.Builder pipelineBuilder = EcsPipeline.New();
         var moduleBuilder = new Builder(pipelineBuilder,
-            _serviceResolver.GetService(typeof(ILogger<Builder>)) as ILogger<Builder>
+            _serviceResolver!.GetService(typeof(ILogger<Builder>)) as ILogger<Builder>
             ?? _hostLoggerFactory.CreateLogger<Builder>());
         pipelineBuilder.AddModule(new JobSystemModule());
         pipelineBuilder
@@ -289,10 +364,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             ?? _hostLoggerFactory.CreateLogger<FixedRunTicker>());
 
         _asyncDestroyers = moduleBuilder.AsyncDestroyers.ToArray();
-        for (int index = 0; index < moduleBuilder.AsyncInitializers.Count; index++)
-        {
-            await moduleBuilder.AsyncInitializers[index].InitAsync(CancellationToken.None);
-        }
+        return moduleBuilder;
     }
 
     public void Run(double dt)

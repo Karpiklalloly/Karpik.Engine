@@ -4,10 +4,21 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
-- Статус: запланировано.
-- Сейчас: решения обсуждения записаны; реализация не начата.
-- Далее: проверить возможности используемой Lua VM и расширение регистрации экземпляров.
-- Блокеры: нет для исследования; механизмы отмены, миграций и DI переключения не доказаны.
+- Статус на 2026-10-22: подготовка scopes завершена локально; общий моддинг частично реализован.
+- Сейчас: разделены `ISystemRegistry` и `ISystemRuntimeRegistry`, добавлены
+  `IModSetPreparation` и `ISimulationPreparation` с constructor injection;
+  каталог перенесён в ModSet, загрузка runtime остаётся в Simulation.
+- Проверено: Rebuild без ошибок; весь Runner-набор 189/189, review и исправления P1 завершены.
+- Далее: объявления Lua-систем, отдельные Update-адаптеры и сквозная проверка.
+- Блокеры реализации: нет. Публикация требует решения по ветке: текущая ветка уже
+  связана с PR #101 про cooked assets; отдельная дочерняя ветка требует явного разрешения.
+- Актуальная запись для продолжения: [что осталось сделать](lua-system-registration-remaining.md).
+- Загрузка модов больше не зависит от позднего InitAsync; отдельные Lua-системы
+  ещё не реализованы. MoonSharp сохранён.
+
+Остальные разделы ниже сохраняют исходный исследовательский план от 2026-10-06;
+они не являются актуальным отчётом о реализации. Текущие пути, коммиты,
+проверки и оставшиеся шаги перечислены в записи для продолжения выше.
 
 ## Purpose / Big Picture
 
@@ -21,6 +32,12 @@ API и отдельные implementation milestones. Он не является 
 
 ## Progress
 
+- [x] (2026-10-22) P1–P3: этапы подготовки, runtime-контракт и Lua-перенос;
+  `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj --no-restore -m:1 -nr:false --filter "FullyQualifiedName~Preparation|FullyQualifiedName~RegisteredInstanceRunnerTests|FullyQualifiedName~AutofacCompositionTests|FullyQualifiedName~StaticCompositionTests|FullyQualifiedName~EcsUpdateSchedulerRuntimeTests|FullyQualifiedName~EcsRenderPrepareSchedulerRuntimeTests|FullyQualifiedName~EngineRunnerLifecycleTests|FullyQualifiedName~BootstrapBoundaryTests" --blame-hang --blame-hang-timeout 30s --blame-hang-dump-type none`: 69/69.
+- [x] (2026-10-22) P4: `dotnet build tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -t:Rebuild --no-restore -m:1 -nr:false` — 0 ошибок, 44 предупреждения;
+  `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj --no-build --no-restore -m:1 -nr:false --blame-hang --blame-hang-timeout 30s --blame-hang-dump-type none` — 189/189.
+  Независимое review: два P1 исправлены с RED->GREEN регрессиями; иных важных замечаний нет.
+
 - [x] (2026-10-06) Записаны текущие договорённости и отличия от предыдущих требований.
 - [ ] T1: Проверены Lua execution, память, отмена, isolation и AOT boundaries.
 - [ ] T2: Проверен путь регистрации экземпляров адаптеров и scheduler identity.
@@ -31,6 +48,15 @@ API и отдельные implementation milestones. Он не является 
 
 ## Surprises & Discoveries
 
+- 2026-10-22: независимое review нашло два риска новой async-подготовки:
+  сборка pipeline после await могла уйти с main thread; синхронный Setup мог
+  освободить scopes, пока подготовитель ещё работает. Регрессии воспроизвели
+  неверный thread ID и преждевременный Dispose. Исправлено через существующий
+  MainThreadScheduler, кооперативную отмену и отложенную очистку.
+- 2026-10-22: оба host-а ждали Startup без прокачки scheduler. Добавлен
+  RunUntilCompleted и обновлены CoreRunner/WorkerHost, иначе возврат startup
+  на main thread мог заблокировать запуск.
+
 - Предыдущие требования включают коллекции, исключают reload первого объёма
   и отключают только ошибочную систему. Новая спецификация явно заменяет эти решения.
 - В текущем checkout `Directory.Packages.props` закрепляет MoonSharp 2.0.0.
@@ -39,6 +65,14 @@ API и отдельные implementation milestones. Он не является 
   повторные CLR types. Dragon builder допускает неуникальные экземпляры.
 
 ## Decision Log
+
+- 2026-10-22 / разработчик: разделить `ISystemRegistry` и `ISystemRuntimeRegistry`,
+  вводить runtime-реестр через конструктор; добавить подготовку ModSet и Simulation;
+  перенести каталог в ModSet. Реализация реестра остаётся общей.
+- 2026-10-22 / Codex: после await создавать child scope, вызывать подготовителей
+  и строить pipeline через main-thread scheduler. Sync Setup при незавершённой
+  подготовке отменяет запуск и запрещает retry до окончания безопасной очистки.
+  Цена: host обязан прокачивать scheduler во время ожидания Startup.
 
 - 2026-10-06 / разработчик: нет обязательного бюджета времени/инструкций;
   ограничения памяти и команд отдельных ресурсов сохраняются.
@@ -52,7 +86,13 @@ API и отдельные implementation milestones. Он не является 
 
 ## Outcomes & Retrospective
 
-Созданы документы, код runtime не менялся. Проверки выполнения, AOT, allocations
+2026-10-22: этап подготовки scopes реализован; индивидуальные Lua-системы ещё
+не реализованы. Решение: [ADR подготовки](../docs/02_ADR/runtime-preparation-scopes.md).
+Проверен реальный мод с `mod_info.json`, Shared/main.lua и MoonSharp callbacks:
+load/start/update/destroy/unload вызываются по одному разу. Это автоматический
+тест загрузки, не ручной запуск игры или NativeAOT publish.
+
+Исходный результат 2026-10-06: созданы документы, код runtime не менялся. Проверки выполнения, AOT, allocations
 и reload ещё не запускались. Документы не являются доказательством этих свойств.
 
 ## Context and Orientation

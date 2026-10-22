@@ -6,7 +6,7 @@ public interface IModsRegistry
 {
     public const string ModsDirectory = "Mods";
 
-    public JobHandle Scan(ExecutionSide side);
+    public JobHandle Scan(ExecutionSide side, CancellationToken cancellationToken = default);
 
     public IEnumerable<ModDefinition> GetMods();
 }

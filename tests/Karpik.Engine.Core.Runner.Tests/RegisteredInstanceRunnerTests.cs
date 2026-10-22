@@ -167,13 +167,24 @@ public sealed class RegisteredInstanceRunnerTests
         bool explicitMetadata = false) : IModuleInstaller
     {
         public string Name => nameof(CounterInstaller);
-        public IModule CreateModule() => new CounterModule(first, second, explicitMetadata);
-        public void OnRegisterServices(ContainerBuilder builder) => builder.RegisterInstance(log).AsSelf();
+        public IModule CreateModule() => new CounterModule();
+        public void OnRegisterServices(ContainerBuilder builder)
+        {
+            builder.RegisterInstance(log).AsSelf();
+            builder.Register(context => new CounterPreparation(context.Resolve<ISystemRuntimeRegistry>(), first, second, explicitMetadata))
+                .As<ISimulationPreparation>().SingleInstance();
+        }
     }
 
-    private sealed class CounterModule(InstanceCounter first, InstanceCounter second, bool explicitMetadata) : IModule
+    private sealed class CounterModule : IModule
     {
-        public void Add(ISystemRegistry systems)
+        public void Add(ISystemRegistry systems) => systems.Add<NativeCounter>();
+    }
+
+    private sealed class CounterPreparation(ISystemRuntimeRegistry systems, InstanceCounter first,
+        InstanceCounter second, bool explicitMetadata) : ISimulationPreparation
+    {
+        public ValueTask PrepareAsync(CancellationToken cancellationToken)
         {
             if (explicitMetadata)
             {
@@ -188,7 +199,7 @@ public sealed class RegisteredInstanceRunnerTests
                 systems.AddInstance("mod:a", first, order: 20);
                 systems.AddInstance("mod:b", second, order: 10);
             }
-            systems.Add<NativeCounter>();
+            return ValueTask.CompletedTask;
         }
     }
 

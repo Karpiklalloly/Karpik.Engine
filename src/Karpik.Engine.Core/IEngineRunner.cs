@@ -3,7 +3,7 @@
 internal interface IEngineRunner
 {
     public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
-        Dictionary<string, byte[]>? hotReloadData = null);
+        Dictionary<string, byte[]>? hotReloadData = null, CancellationToken cancellationToken = default);
 
     public void Setup(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null);

@@ -4,7 +4,7 @@ using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.Core.Runner;
 
-internal class SystemRegistry : ISystemRegistry
+internal class SystemRegistry : ISystemRegistry, ISystemRuntimeRegistry
 {
     private readonly List<SystemDescriptor> _descriptors = [];
     private readonly List<SystemInstanceDescriptor> _instanceDescriptors = [];

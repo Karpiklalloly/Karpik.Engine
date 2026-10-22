@@ -6,5 +6,6 @@ public interface IModsLifecycleManager
 {
     public IReadOnlyList<ModContainer> Containers { get; }
     
-    public JobHandle Load(IReadOnlyList<ModDefinition> definitions, ExecutionSide side);
+    public JobHandle Load(IReadOnlyList<ModDefinition> definitions, ExecutionSide side,
+        CancellationToken cancellationToken = default);
 }

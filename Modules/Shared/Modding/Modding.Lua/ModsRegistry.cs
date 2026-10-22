@@ -9,13 +9,16 @@ using Microsoft.Extensions.Logging;
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 [Export(typeof(IModsRegistry))]
-[ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
+[ServiceRegistration(ModuleScope.ModSet, ServiceLifetime.Singleton)]
 public class ModsRegistry : IModsRegistry
 {
     private readonly IFileSystem _fileSystem;
     private readonly LuaModDefinitionLoader _definitionLoader;
     private readonly ConcurrentDictionary<string, ModDefinition> _mods = [];
     private readonly ILogger<IModsRegistry> _logger;
+    private ModDefinition[] _definitions = [];
+    private bool _scanning;
+    private bool _prepared;
 
     public ModsRegistry(IAssetsManager assetsManager,
         ILogger<IModsRegistry> logger)
@@ -25,27 +28,41 @@ public class ModsRegistry : IModsRegistry
         _definitionLoader = new LuaModDefinitionLoader(_fileSystem, assetsManager);
     }
 
-    public async JobHandle Scan(ExecutionSide side)
+    public async JobHandle Scan(ExecutionSide side, CancellationToken cancellationToken = default)
     {
-        string directory = _fileSystem.Combine(_fileSystem.RootPath, IModsRegistry.ModsDirectory);
-        if (!_fileSystem.ExistsDirectory(directory))
-        {
-            return;
-        }
-        _mods.Clear();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_scanning || _prepared)
+            throw new InvalidOperationException("ModSet catalog is already scanning or prepared.");
 
-        Span<string> directories = _fileSystem.GetDirectories(directory);
-        
-        // TODO: Сделать их параллельными?
-        await foreach (var dir in directories.ToArray().ToAsyncEnumerable())
+        _scanning = true;
+        try
         {
-            await LoadModDefinition(dir);
+            _mods.Clear();
+            string directory = _fileSystem.Combine(_fileSystem.RootPath, IModsRegistry.ModsDirectory);
+            if (_fileSystem.ExistsDirectory(directory))
+            {
+                string[] directories = _fileSystem.GetDirectories(directory).ToArray();
+                foreach (string dir in directories)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await LoadModDefinition(dir);
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            _definitions = _mods.Values.OrderBy(mod => mod.MetaData.Id, StringComparer.Ordinal).ToArray();
+            _prepared = true;
+        }
+        finally
+        {
+            _scanning = false;
         }
     }
     
     public IEnumerable<ModDefinition> GetMods()
     {
-        return _mods.Values;
+        if (!_prepared)
+            throw new InvalidOperationException("ModSet catalog must be prepared before use.");
+        return _definitions;
     }
     
     private async JobHandle LoadModDefinition(string modDirectory)
