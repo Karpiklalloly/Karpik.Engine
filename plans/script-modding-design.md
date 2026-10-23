@@ -17,6 +17,16 @@
 по backend требуется только при различиях исполнения. Новый scheduler и
 отдельный цикл UpdateMods не вводятся.
 
+Типы адаптеров помечаются `[RuntimeSystem]`: они создаются при подготовке и
+регистрируются через `ISystemRuntimeRegistry.AddInstance` с метаданными каждого
+экземпляра. Маркер действует на конкретный класс, не наследуется и исключает тип
+из автоматических DI factories и общих Update/RenderPrepare registry descriptors.
+При автоматическом discovery он имеет приоритет над ServiceRegistration в
+Dynamic и Static. `ISystemRegistry.Add<T>()` для такого типа — ошибка K011;
+ручная регистрация экземпляра сохраняется. `[SequentialSystem]` отдельно сообщает
+анализатору, что доступ внутри Lua непрозрачен. LuaUpdateSystem — internal sealed
+class, поэтому boxing и обход discovery через struct больше не используются.
+
 Регистрация и граф должны различать экземпляры. Type сохраняется как metadata
 generated C# descriptors. Стабильное имя системы используется для before/after
 и диагностики; числовой индекс узла локален для графа. Порядок и зависимости

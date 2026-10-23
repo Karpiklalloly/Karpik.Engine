@@ -5,6 +5,106 @@ namespace StaticAnalyzer.Tests;
 
 public sealed class EcsUpdateSchedulerAnalyzerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RuntimeSystem_TypeRegistrationReportsUseAddInstance(bool referenced)
+    {
+        const string adapter = """
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            [RuntimeSystem, SequentialSystem]
+            public sealed class RuntimeAdapter : ISystemUpdate { public void Update() { } }
+            """;
+        const string usage = """
+            public class Usage
+            {
+                public void Register(Karpik.Engine.Core.ISystemRegistry systems) => systems.Add<RuntimeAdapter>();
+            }
+            """;
+        var diagnostics = await AnalyzeAsync(referenced ? usage : adapter + usage,
+            referenced ? [adapter] : []);
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("K011", diagnostic.Id);
+        Assert.Contains("AddInstance", diagnostic.GetMessage());
+        Assert.Contains("RuntimeAdapter", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public async Task RuntimeSystem_InstanceRegistrationIsAccepted()
+    {
+        var diagnostics = await AnalyzeAsync("""
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            [RuntimeSystem, SequentialSystem]
+            public sealed class RuntimeAdapter(int index) : ISystemUpdate { public void Update() { } }
+            public class Usage
+            {
+                public void Register(ISystemRuntimeRegistry systems)
+                {
+                    systems.AddInstance(new RuntimeAdapter(1),
+                        new EcsUpdateSystemDescriptor(typeof(RuntimeAdapter), true, default, default, "mod:a"));
+                }
+            }
+            """);
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("registry.Add<RuntimeAdapter>();", true)]
+    [InlineData("registry.Add<RuntimeAdapter>(1.0);", false)]
+    [InlineData("registry.Add<Native>();", false)]
+    public async Task RuntimeSystem_ConcreteRegistryChecksOnlyTheInterfaceMethod(string invocation, bool rejected)
+    {
+        var diagnostics = await AnalyzeAsync($$"""
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            [RuntimeSystem, SequentialSystem]
+            public sealed class RuntimeAdapter : ISystemUpdate { public void Update() { } }
+            public sealed class Native : ISystemUpdate { public void Update() { } }
+            public class Registry : ISystemRegistry
+            {
+                public void Add<T>(string layer = "BASIC_LAYER", int order = 0) where T : class, ISystem { }
+                public void Add<T>(double unrelatedOverload) { }
+                public void ConfigurePipeline(System.Action<IBuilder> configure) { }
+            }
+            public class Usage
+            {
+                public void Register(Registry registry) { {{invocation}} }
+            }
+            """);
+        if (rejected) Assert.Equal("K011", Assert.Single(diagnostics).Id);
+        else Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("Registry", true)]
+    [InlineData("TRegistry", true)]
+    [InlineData("Base", false)]
+    public async Task RuntimeSystem_InheritedMethodChecksTheReceiverContract(string receiver, bool rejected)
+    {
+        var diagnostics = await AnalyzeAsync($$"""
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            [RuntimeSystem, SequentialSystem]
+            public sealed class RuntimeAdapter : ISystemUpdate { public void Update() { } }
+            public class Base
+            {
+                public void Add<T>(string layer = "BASIC_LAYER", int order = 0) where T : class, ISystem { }
+            }
+            public class Registry : Base, ISystemRegistry
+            {
+                public void ConfigurePipeline(System.Action<IBuilder> configure) { }
+            }
+            public class Usage
+            {
+                public void Register<TRegistry>({{receiver}} registry) where TRegistry : Registry => registry.Add<RuntimeAdapter>();
+            }
+            """);
+        if (rejected) Assert.Equal("K011", Assert.Single(diagnostics).Id);
+        else Assert.Empty(diagnostics);
+    }
+
     [Fact]
     public async Task ReadonlyPoolAccessWithReadSummary_IsAccepted()
     {
@@ -17,7 +117,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
             [Reads<Position>]
             public sealed class MovementSystem : ISystemUpdate
             {
-                private EcsReadonlyPool<Position> _positions;
+                private ReadonlyEcsPool<Position> _positions;
 
                 public void Update()
                 {
@@ -76,7 +176,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
             [Reads<Position>]
             public sealed class MovementSystem : ISystemUpdate
             {
-                private EcsReadonlyPool<Position> _positions;
+                private ReadonlyEcsPool<Position> _positions;
 
                 public void Update()
                 {
@@ -682,7 +782,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
             {
                 private sealed class Aspect : EcsAspect
                 {
-                    public EcsReadonlyPool<Position> Positions = Inc;
+                    public ReadonlyEcsPool<Position> Positions = Inc;
                 }
 
                 private DefaultWorld _world;
@@ -819,7 +919,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
             {
                 private sealed class Aspect : EcsAspect
                 {
-                    public EcsReadonlyPool<NetworkId> NetworkIds = Inc;
+                    public ReadonlyEcsPool<NetworkId> NetworkIds = Inc;
                 }
 
                 private DefaultWorld _world;
@@ -896,7 +996,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
             {
                 private sealed class Aspect : EcsAspect
                 {
-                    public EcsReadonlyPool<NetworkId> NetworkIds = Inc;
+                    public ReadonlyEcsPool<NetworkId> NetworkIds = Inc;
                 }
 
                 private DefaultWorld _world;
@@ -967,7 +1067,7 @@ public sealed class EcsUpdateSchedulerAnalyzerTests
 
             public sealed class DrawSystem : ISystemRenderPrepare
             {
-                private EcsReadonlyPool<Position> _positions;
+                private ReadonlyEcsPool<Position> _positions;
 
                 public void RenderPrepare()
                 {

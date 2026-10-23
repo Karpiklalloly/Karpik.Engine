@@ -7,6 +7,52 @@
 
 ## Реализация 2026-10-23
 
+### Уточнение: RuntimeSystem вместо struct-обхода
+
+Разработчик согласовал явный `[RuntimeSystem]`: класс создаётся при подготовке,
+регистрируется через AddInstance с metadata каждого экземпляра; генераторы не
+создают DI factory и общий ECS descriptor для этого типа. Маркер применяется
+к конкретному классу и не наследуется. `[SequentialSystem]` сохраняется для K003.
+
+- [x] R1: RED-тесты исключения source/referenced runtime классов из генераторов,
+  диагностики Add<T> и сохранения обычных систем.
+- [x] R2: marker-aware discovery в обоих генераторах, K011 для Add<T>, class
+  LuaUpdateSystem. Убрать расширение SequentialSystemAttribute на Struct.
+- [x] R3: generator/analyzer/ECS/Runner проверки, Rebuild, allocations и review.
+
+Уточнения реализации: RuntimeSystem имеет приоритет и над явными ServiceRegistration
+при автоматическом discovery, одинаково в Static и Dynamic. Ручной AddInstance
+сохраняется. Дополнительно исправлен ключ кеша referenced discovery для PE-образов
+без FilePath: теперь их MVID тоже участвует в ключе; иначе тестовые сборки одного
+имени могли переиспользовать модель другого набора атрибутов.
+Для запуска StaticAnalyzer.Tests исправлена старая ссылка Dragon/Dragon.csproj
+на third-parties/DragonECS/DragonECS.csproj, существующую в текущем layout.
+Устаревшие fixtures EcsReadonlyPool переименованы в действующий ReadonlyEcsPool;
+deployment-check проверяет существующий ProjectReference с OutputItemType=Analyzer.
+Review нашло P2: Add, унаследованный от не-Registry base, обходил K011.
+Исправлено сопоставлением по receiver (включая constraints типа TRegistry);
+регрессии Registry/Base/TRegistry прошли RED→GREEN.
+
+Итог R1–R3: финальный Rebuild Runner — 0 ошибок, 47 предупреждений;
+Runner 216/216 (включая allocation и Lua interleaving), Generator 61/61,
+StaticAnalyzer 54/54, ECS.Core 50/50. Review без оставшихся P1/P2 после исправления
+receiver matching. `git diff --check` чистый. Полные команды — `dotnet test`
+для каждого из этих четырёх csproj с `--no-build --no-restore -m:1 -nr:false`;
+добавлены `--blame-hang --blame-hang-timeout 30s --blame-hang-dump-type none`.
+Ручная игра и NativeAOT не проверялись; публикация по-прежнему не выполнялась.
+Заголовок отдельного PR для этого уточнения:
+`feat: Register runtime systems explicitly with RuntimeSystem marker`.
+Описание: RuntimeSystem исключает классы из automatic DI и общих ECS descriptors
+в source/referenced Static и Dynamic discovery; K011 направляет Add<T> к AddInstance.
+LuaUpdateSystem снова class; PE MVID кешируется и для in-memory references.
+Проверки и ограничения перечислены выше; обычные DI-системы сохраняют поведение.
+
+Точки изменения: Core Scheduling/RuntimeSystemAttribute.cs; RuntimeCompositionGenerator
+own/reference discovery; EcsUpdateRegistryGenerator; EcsUpdateSchedulerAnalyzer и
+DiagnosticIds/descriptors; LuaUpdateSystem; соответствующие tests. Metadata и
+доступы runtime остаются в существующем AddInstance, без новых операций в Update.
+Откат согласованным набором: marker/discovery/diagnostic/class вместе.
+
 Согласованный контракт: entry point возвращает `systems`, плотный массив таблиц
 с `id`, `phase = "update"`, Lua-функцией `callback` и необязательными массивами
 `reads`, `writes`, `before`, `after`. ID адаптера — `<modId>:<id>`;
@@ -40,7 +86,7 @@ Lua воспроизвела три ошибки недоступного API; �
 Повторная проверка после удаления friend assembly: Rebuild — 0 ошибок,
 46 предупреждений; весь Runner — 215/215; diff-check без ошибок.
 
-Ruling 2026-10-23: `LuaUpdateSystem` — readonly struct, упакованный один раз
+Историческое решение, заменено RuntimeSystem выше: `LuaUpdateSystem` был readonly struct, упакованный один раз
 при AddInstance. Генератор считает все классы ECS-систем DI-кандидатами;
 runtime-адаптеру нужны конкретные owner/VM/index, поэтому его нельзя создавать
 из обычного typed factory. Struct исключён существующим правилом discovery,

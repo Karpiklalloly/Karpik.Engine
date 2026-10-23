@@ -4,6 +4,13 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
+- Уточнение 2026-10-23: LuaUpdateSystem возвращён в internal sealed class с
+  `[RuntimeSystem, SequentialSystem]`. Discovery учитывает marker в source,
+  references и Dynamic DI. K011 запрещает Add<T>, AddInstance сохраняется.
+  Проверено: Rebuild 0 ошибок, Runner 216/216, Generator 61/61,
+  StaticAnalyzer 54/54, ECS.Core 50/50; review без оставшихся P1/P2.
+  Прежний struct-обход отменён. Следующий объём — ECS bindings/queries.
+
 - 2026-10-23: завершены L1–L5 из [подробного плана](lua-system-registration-remaining.md#реализация-2026-10-23):
   отдельные Lua Update-системы; callback — функция; смешивание с `on_update` запрещено.
   Сейчас: локальный завершённый этап; Rebuild 0 ошибок, Runner 215/215,
@@ -40,6 +47,12 @@ API и отдельные implementation milestones. Он не является 
 весь runtime сейчас.
 
 ## Progress
+
+- [x] (2026-10-23) R1–R3: RuntimeSystem marker и class-адаптер, own/reference
+  discovery, Dynamic DI exclusion, K011 по receiver/constraints, MVID-cache.
+  Проверено: Rebuild (0 ошибок, 47 предупреждений), Runner 216/216,
+  Generator 61/61, StaticAnalyzer 54/54, ECS.Core 50/50. P2 из review
+  исправлен с RED→GREEN; оставшихся P1/P2 нет. Ручная игра/AOT не запускались.
 
 - [x] (2026-10-23) L1–L5: Lua declarations/function callbacks, validation,
   runtime struct adapters, explicit component metadata, lifecycle и legacy compatibility.
@@ -86,6 +99,10 @@ API и отдельные implementation milestones. Он не является 
   повторные CLR types. Dragon builder допускает неуникальные экземпляры.
 
 ## Decision Log
+
+- 2026-10-23 / разработчик: заменить struct-обход на явный RuntimeSystem marker,
+  исключить автоматические factory/type metadata, диагностировать Add<T>.
+  Маркер не наследуется. ModContainer public contract и владение VM не меняются.
 
 - 2026-10-23 / разработчик: убрать production `InternalsVisibleTo("Modding.Lua")`.
   Межмодульный доступ к runtime и lifecycle-gate оформлен публичными readonly
