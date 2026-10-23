@@ -6,8 +6,10 @@ public class ModContainer : IDisposable
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>The runtime owned and disposed by this container.</summary>
+    public IScriptRuntime Runtime => _runtime;
+
     private readonly IScriptRuntime _runtime;
-    internal IScriptRuntime Runtime => _runtime;
     private bool _started = false;
     private bool _loaded = false;
     private bool _disposed = false;
@@ -50,7 +52,8 @@ public class ModContainer : IDisposable
         _runtime.FixedUpdate(fixedDt);
     }
 
-    internal bool TryStartUpdate()
+    /// <summary>Starts an enabled mod once and checks whether its update may run; throws after disposal.</summary>
+    public bool TryStartUpdate()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsEnabled) return false;

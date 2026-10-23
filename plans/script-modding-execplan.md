@@ -87,6 +87,10 @@ API и отдельные implementation milestones. Он не является 
 
 ## Decision Log
 
+- 2026-10-23 / разработчик: убрать production `InternalsVisibleTo("Modding.Lua")`.
+  Межмодульный доступ к runtime и lifecycle-gate оформлен публичными readonly
+  `ModContainer.Runtime` и `TryStartUpdate()`; владение VM осталось у контейнера.
+
 - 2026-10-23 / разработчик: `systems` содержит отдельные объявления, `callback`
   принимает функцию; запретить смешивание с `on_update` на уровне всего мода.
 - 2026-10-23 / Codex: использовать явный типизированный реестр имён компонентов,
