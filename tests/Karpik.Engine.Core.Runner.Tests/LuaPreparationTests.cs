@@ -13,8 +13,77 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 
 [Collection(nameof(WorkingDirectoryCollection))]
-public sealed class LuaPreparationTests
+public sealed partial class LuaPreparationTests
 {
+    [Theory]
+    [InlineData("systems = false", "systems")]
+    [InlineData("systems = { 42 }", "systems")]
+    [InlineData("systems = { [2] = {} }", "systems")]
+    [InlineData("systems = { { id = 'a', phase = 'update', callback = 'run' } }", "callback")]
+    [InlineData("systems = { { id = '', phase = 'update', callback = function() end } }", "id")]
+    [InlineData("systems = { { id = 'a:b', phase = 'update', callback = function() end } }", "id")]
+    [InlineData("systems = { { id = 'a', phase = 'fixed_update', callback = function() end } }", "phase")]
+    [InlineData("systems = { { id = 'a', phase = 'update', callback = function() end, reads = { 1 } } }", "reads")]
+    [InlineData("systems = { { id = 'a', phase = 'update', callback = function() end, after = 'b' } }", "after")]
+    [InlineData("systems = { { id = 'a', phase = 'update', callback = function() end, typo = true } }", "typo")]
+    [InlineData("systems = { { id = 'a', phase = 'update', callback = function() end }, { id = 'a', phase = 'update', callback = function() end } }", "probe:a")]
+    [InlineData("systems = {}, on_update = function() end", "on_update")]
+    public async Task InvalidSystemDeclarations_FailDuringLoad(string fields, string diagnostic)
+    {
+        await WithLuaFiles("return { " + fields + " }", null, async (loader, definition) =>
+        {
+            Exception error = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            {
+                using IScriptRuntime runtime = await loader.Load(definition, ExecutionSide.Server);
+            });
+            Assert.Contains(diagnostic, error.ToString());
+            Assert.Contains("probe", error.ToString());
+        });
+    }
+
+    [Theory]
+    [InlineData("return { systems = {} }", "return { on_update = function() end }")]
+    [InlineData("return { on_update = function() end }", "return { systems = {} }")]
+    [InlineData("return { systems = { { id = 'a', phase = 'update', callback = function() end } } }", "return { systems = { { id = 'a', phase = 'update', callback = function() end } } }")]
+    public async Task SystemDeclarations_ValidateAcrossSharedAndSideEntries(string shared, string server)
+    {
+        await WithLuaFiles(shared, server, async (loader, definition) =>
+        {
+            Exception error = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            {
+                using IScriptRuntime runtime = await loader.Load(definition, ExecutionSide.Server);
+            });
+            Assert.Contains("probe", error.ToString());
+            Assert.Contains("Shared", error.ToString());
+            Assert.Contains("Server", error.ToString());
+        });
+    }
+
+    private static async Task WithLuaFiles(string shared, string? server,
+        Func<LuaScriptLoader, ModDefinition, Task> action)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "karpik-lua-systems-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(directory, "Shared"));
+        File.WriteAllText(Path.Combine(directory, "Shared", "main.lua"), shared);
+        if (server is not null)
+        {
+            Directory.CreateDirectory(Path.Combine(directory, "Server"));
+            File.WriteAllText(Path.Combine(directory, "Server", "main.lua"), server);
+        }
+        var jobs = new JobSystem(workerCount: 2, prefix: nameof(LuaPreparationTests));
+        try
+        {
+            Job.Initialize(jobs);
+            var loader = new LuaScriptLoader(new PhysicalFileSystem(), NullLogger<IScriptLoader>.Instance);
+            await action(loader, new ModDefinition(new ModMetaData("probe", "Probe", "test", "1", ""), directory));
+        }
+        finally
+        {
+            Job.ShutdownIfCurrent(jobs);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task RealLuaPreparation_LoadsFilesystemCatalogAndRunsCallbacksExactlyOnce()
     {
@@ -50,7 +119,8 @@ public sealed class LuaPreparationTests
             {
                 await new LuaModSetPreparation(registry, application).PrepareAsync(default);
                 Assert.Equal("probe", Assert.Single(registry.GetMods()).MetaData.Id);
-                await new LuaSimulationPreparation(registry, lifecycle, application).PrepareAsync(default);
+                await new LuaSimulationPreparation(registry, lifecycle, application,
+                    new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
                 ModContainer container = Assert.Single(lifecycle.Containers);
                 container.Start();
                 container.Start();
@@ -67,7 +137,7 @@ public sealed class LuaPreparationTests
         }
     }
 
-    private sealed class ScriptLogger : ILogger<IScriptLoader>
+    internal sealed class ScriptLogger : ILogger<IScriptLoader>
     {
         public List<string> Messages { get; } = [];
         public bool IsEnabled(LogLevel level) => true;
@@ -138,8 +208,10 @@ public sealed class LuaPreparationTests
         var second = new ModsLifecycleManager(new Loader(events));
         try
         {
-            await new LuaSimulationPreparation(registry, first, application).PrepareAsync(default);
-            await new LuaSimulationPreparation(registry, second, application).PrepareAsync(default);
+            await new LuaSimulationPreparation(registry, first, application,
+                new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
+            await new LuaSimulationPreparation(registry, second, application,
+                new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
             Assert.Equal(1, registry.Scans);
             Assert.Single(first.Containers);
             Assert.Single(second.Containers);

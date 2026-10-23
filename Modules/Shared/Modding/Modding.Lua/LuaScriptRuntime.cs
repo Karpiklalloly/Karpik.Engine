@@ -16,14 +16,27 @@ public sealed class LuaScriptRuntime : IScriptRuntime
     
     private Script _script;
     private readonly DynValue[][] _callbacks;
+    internal LuaSystemDeclaration[] Systems { get; }
+    internal bool HasDeclaredSystems { get; }
+    private readonly DynValue[] _systemCallbacks;
     private bool _disposed = false;
     
     private readonly DynValue[] _dtArguments = new DynValue[1];
     private bool _invoking;
     
-    internal LuaScriptRuntime(Script script, Table[] entryPoints)
+    internal LuaScriptRuntime(Script script, Table[] entryPoints, string modId, string[] paths)
     {
         _script = script;
+        try
+        {
+            Systems = LuaSystemDeclarations.Read(modId, entryPoints, out bool declared);
+            HasDeclaredSystems = declared;
+        }
+        catch (InvalidDataException error)
+        {
+            throw new InvalidDataException($"Mod '{modId}' ({string.Join(", ", paths)}): {error.Message}", error);
+        }
+        _systemCallbacks = Array.ConvertAll(Systems, system => system.Callback);
         _callbacks =
         [
             Bind("on_load"),
@@ -85,9 +98,16 @@ public sealed class LuaScriptRuntime : IScriptRuntime
         {
             Array.Clear(functions, 0, functions.Length);
         }
+        Array.Clear(_systemCallbacks);
+        Array.Clear(Systems);
     }
     
     private void Invoke(Callback callback, double? dt = null)
+        => Invoke(_callbacks[(int)callback], dt);
+
+    internal void InvokeSystem(int index, double dt) => Invoke(_systemCallbacks.AsSpan(index, 1), dt);
+
+    private void Invoke(ReadOnlySpan<DynValue> functions, double? dt)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -97,7 +117,6 @@ public sealed class LuaScriptRuntime : IScriptRuntime
         if (dt.HasValue && (!double.IsFinite(dt.Value) || dt.Value < 0))
             throw new ArgumentOutOfRangeException(nameof(dt));
 
-        DynValue[] functions = _callbacks[(int)callback];
         if (functions.Length == 0) return;
 
         _invoking = true;

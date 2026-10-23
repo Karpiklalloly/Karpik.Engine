@@ -4,6 +4,15 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
+- 2026-10-23: завершены L1–L5 из [подробного плана](lua-system-registration-remaining.md#реализация-2026-10-23):
+  отдельные Lua Update-системы; callback — функция; смешивание с `on_update` запрещено.
+  Сейчас: локальный завершённый этап; Rebuild 0 ошибок, Runner 215/215,
+  ECS 49/49, generator parity/factories 4/4; независимое review без P1/P2.
+  Далее: согласовать ECS bindings/queries; индивидуальный FixedUpdate отложен.
+  Ручная игра и NativeAOT не проверялись. Публикация остаётся отдельным вопросом ниже.
+
+### Предыдущий этап: 2026-10-22
+
 - Статус на 2026-10-22: подготовка scopes завершена локально; общий моддинг частично реализован.
 - Сейчас: разделены `ISystemRegistry` и `ISystemRuntimeRegistry`, добавлены
   `IModSetPreparation` и `ISimulationPreparation` с constructor injection;
@@ -32,6 +41,13 @@ API и отдельные implementation milestones. Он не является 
 
 ## Progress
 
+- [x] (2026-10-23) L1–L5: Lua declarations/function callbacks, validation,
+  runtime struct adapters, explicit component metadata, lifecycle и legacy compatibility.
+  Rebuild: 0 ошибок, 46 предупреждений. Runner 215/215, ECS.Core 49/49,
+  generator Client/Server parity и typed factories 4/4. Allocation comparison:
+  1000 adapter/runtime вызовов выделяют столько же, сколько 1000 прямых MoonSharp;
+  disabled adapter — 0 байт. Review без P1/P2; ручная игра/AOT не запускались.
+
 - [x] (2026-10-22) P1–P3: этапы подготовки, runtime-контракт и Lua-перенос;
   `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj --no-restore -m:1 -nr:false --filter "FullyQualifiedName~Preparation|FullyQualifiedName~RegisteredInstanceRunnerTests|FullyQualifiedName~AutofacCompositionTests|FullyQualifiedName~StaticCompositionTests|FullyQualifiedName~EcsUpdateSchedulerRuntimeTests|FullyQualifiedName~EcsRenderPrepareSchedulerRuntimeTests|FullyQualifiedName~EngineRunnerLifecycleTests|FullyQualifiedName~BootstrapBoundaryTests" --blame-hang --blame-hang-timeout 30s --blame-hang-dump-type none`: 69/69.
 - [x] (2026-10-22) P4: `dotnet build tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -t:Rebuild --no-restore -m:1 -nr:false` — 0 ошибок, 44 предупреждения;
@@ -47,6 +63,11 @@ API и отдельные implementation milestones. Он не является 
 - [ ] Проверены save/network интеграция и согласованный сетевой reload.
 
 ## Surprises & Discoveries
+
+- 2026-10-23: class LuaUpdateSystem конфликтовал с правилом generated DI:
+  все классы ECS-систем должны быть public DI-кандидатами. Runtime-адаптер
+  сделан readonly struct с единственным boxing при AddInstance; AttributeTargets
+  SequentialSystem расширен на Struct. Generator parity прошёл RED→GREEN.
 
 - 2026-10-22: независимое review нашло два риска новой async-подготовки:
   сборка pipeline после await могла уйти с main thread; синхронный Setup мог
@@ -65,6 +86,12 @@ API и отдельные implementation milestones. Он не является 
   повторные CLR types. Dragon builder допускает неуникальные экземпляры.
 
 ## Decision Log
+
+- 2026-10-23 / разработчик: `systems` содержит отдельные объявления, `callback`
+  принимает функцию; запретить смешивание с `on_update` на уровне всего мода.
+- 2026-10-23 / Codex: использовать явный типизированный реестр имён компонентов,
+  чтобы не добавлять reflection-discovery в Static. Общий lifecycle-gate остаётся
+  в ModContainer; адаптеры не владеют VM. Реализация разрешена сообщением «Делай».
 
 - 2026-10-22 / разработчик: разделить `ISystemRegistry` и `ISystemRuntimeRegistry`,
   вводить runtime-реестр через конструктор; добавить подготовку ModSet и Simulation;
@@ -85,6 +112,10 @@ API и отдельные implementation milestones. Он не является 
   не выдумывать API полного runtime до проверки интеграции.
 
 ## Outcomes & Retrospective
+
+2026-10-23: отдельные Lua Update-системы работают в штатном pipeline;
+согласованный формат и пример записаны в [дизайне](script-modding-design.md#стороны-и-объявления).
+Это metadata/scheduling milestone, не реализация ECS-data bindings, hot reload или AOT.
 
 2026-10-22: этап подготовки scopes реализован; индивидуальные Lua-системы ещё
 не реализованы. Решение: [ADR подготовки](../docs/02_ADR/runtime-preparation-scopes.md).

@@ -1,9 +1,77 @@
 # Что осталось для регистрации Lua-систем
 
-Состояние на 2026-10-22, ветка `codex/modding-0.7`.
+Состояние на 2026-10-23, ветка `codex/modding-0.7`.
 Это запись для продолжения работы; обзор — [ExecPlan](script-modding-execplan.md).
 Этапы подготовки ModSet/Simulation и разделение реестров реализованы;
-объявления Lua-систем и отдельные адаптеры ниже ещё не реализованы.
+объявления Lua Update-систем и отдельные адаптеры реализованы и проверены локально.
+
+## Реализация 2026-10-23
+
+Согласованный контракт: entry point возвращает `systems`, плотный массив таблиц
+с `id`, `phase = "update"`, Lua-функцией `callback` и необязательными массивами
+`reads`, `writes`, `before`, `after`. ID адаптера — `<modId>:<id>`;
+зависимости содержат полные ID. Даже пустой `systems` запрещает `on_update`
+во всех entry points того же мода. Старые моды без `systems` работают без изменений.
+
+- [x] L1: тесты реальных Lua-объявлений, неверных полей, конфликтов между entry points.
+- [x] L2: разбор в `LuaSystemDeclarations.cs`, хранение функций в `LuaScriptRuntime`,
+  внутренний `InvokeSystem(int, double)` с прежними защитами и очисткой ссылок.
+- [x] L3: `LuaUpdateSystem`, регистрация из `LuaSimulationPreparation`, общий
+  lifecycle-gate в `ModContainer`, пропуск нового формата групповым Update.
+- [x] L4: Dynamic/Static × Deterministic/Parallel: Lua A → native → Lua B,
+  disabled/re-enable, disposal, ошибочные зависимости и повторная Simulation.
+- [x] L5: Rebuild, Runner suite, сравнение allocations прямого вызова и адаптера,
+  review, актуализация документов.
+
+Решение реализации: имена CLR-компонентов задаёт явный `LuaComponentRegistry`
+с `Register<T>(name)` для struct + IEcsComponent. Не вводить reflection-поиск
+сборок в Static; неизвестное имя отклоняется до кадра. Реестр — метаданные Engine,
+runtime/функции и адаптеры принадлежат Simulation. Нет новых ECS bindings.
+Регистрация через существующий `ISystemRuntimeRegistry`; граф проверяет цели и циклы.
+Парсер создаёт массивы при загрузке; адаптер не создаёт аргументы/делегаты в Update.
+Аллокации MoonSharp остаются отдельно измеряемым ограничением.
+
+Ruling 2026-10-23: `LuaUpdateSystem` — readonly struct, упакованный один раз
+при AddInstance. Генератор считает все классы ECS-систем DI-кандидатами;
+runtime-адаптеру нужны конкретные owner/VM/index, поэтому его нельзя создавать
+из обычного typed factory. Struct исключён существующим правилом discovery,
+без изменения генератора и без дополнительного wrapper/attribute. В кадре
+используется уже упакованный ISystemUpdate; повторного boxing нет.
+`SequentialSystemAttribute` расширен на Struct, чтобы анализатор K003 сохранял
+проверку непрозрачного Lua-вызова. Проверка AttributeTargets прошла RED перед правкой.
+
+Проверки из корня: `dotnet build tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -t:Rebuild --no-restore -m:1 -nr:false`,
+затем `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj --no-build --no-restore -m:1 -nr:false --blame-hang --blame-hang-timeout 30s --blame-hang-dump-type none`.
+Откат: убрать parser/adapters и их регистрацию вместе, сохранив прежний `on_update`.
+Ручная игра и NativeAOT publish не входят в автоматический прогон.
+
+Наблюдения 2026-10-23: 15 новых отрицательных проверок сначала упали из-за
+игнорирования `systems`; после реализации Lua-набор 32/32. Rebuild успешен:
+0 ошибок, 46 предупреждений; полный Runner-набор 215/215, ECS.Core 49/49.
+Генератор: Client/Server parity и typed-factory проверки 4/4 после исправления
+конфликта class-adapter с DI-discovery. Allocation-check сравнивает 1000 прямых MoonSharp
+вызовов, вызовов через runtime и через адаптер: объёмы равны, отключённый адаптер
+даёт 0 байт. Это не обещание zero-GC Lua. Независимое review, включая повторную
+проверку struct/boxing/AttributeTargets, не нашло P1/P2. `git diff --check` чистый.
+Static проверяет регистрацию адаптеров и native interleaving; штатный групповой
+Update подключён в Dynamic-тесте. Повторная Simulation создаёт новый runtime.
+
+Команды дополнительных проверок (cwd — корень):
+`dotnet test tests/ECS.Core.Tests/ECS.Core.Tests.csproj --no-restore -m:1 -nr:false`;
+`dotnet test tests/Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj --no-restore -m:1 -nr:false --filter "FullyQualifiedName~GeneratedStaticRegistration_MatchesAttributeDiscovery_ServiceAndSystemSets|FullyQualifiedName~Run_ClientStatic_ResolvesConstructorDependenciesInDeclarationOrderViaTypedResolve|FullyQualifiedName~GeneratedServiceFactories_ConstructInstancesWithResolvedDependenciesWhenExecuted"`.
+
+Публикация: GitHub проверен 2026-10-23; PR #101 открыт, draft, head — эта ветка,
+тема cooked assets. Push не выполнялся, чтобы не расширять чужой scope PR.
+Отдельная зависимая ветка требует разрешения разработчика по AGENTS.md.
+Подготовленный заголовок: `feat: Run declared Lua systems in the ECS update pipeline`.
+Описание PR: мод объявляет отдельные Update-системы с функциями callback,
+metadata доступа и ID-зависимостями; подготовка регистрирует sequential-адаптеры,
+сохраняя enabled/start/destroy/unload и старый on_update. Ошибочные объявления
+и смешивание форматов отклоняются до кадра. Проверено: Rebuild, Runner 215/215,
+ECS 49/49, generator 4/4, allocation comparison, независимое review.
+Совместимость: прямым callers LuaSimulationPreparation нужны runtime registry,
+Time и LuaComponentRegistry; generated DI учитывает новые параметры. `systems`
+становится зарезервированным полем entry point. Ручная игра и AOT не проверялись.
 
 ## Уже сделано
 
@@ -117,13 +185,13 @@ Runtime-реестр пока используется тестовыми под
 
 ## 2. Подготовить описания отдельных Lua-систем
 
-- [ ] Согласовать минимальный формат объявления системы: локальный ID,
+- [x] Согласовать минимальный формат объявления системы: локальный ID,
   callback, фаза Update, reads/writes и зависимости before/after.
-- [ ] Предлагаемые типы: `LuaSystemDeclaration` и
+- [x] Реализованные типы: `LuaSystemDeclaration` и
   `LuaSystemDeclarations.Read(...)` внутри `Modding.Lua`.
-- [ ] Прочитать объявления из таблиц, возвращённых entry point-ами,
+- [x] Прочитать объявления из таблиц, возвращённых entry point-ами,
   и заранее связать Lua-функции и метаданные компонентов.
-- [ ] Сформировать уникальные ID в пределах Simulation, например
+- [x] Сформировать уникальные ID в пределах Simulation, например
   `<modId>:<systemId>`. Проверить дубли, отсутствующие функции, неверные типы
   полей, неизвестные компоненты и цели порядка. Ошибки сообщать до первого кадра
   с ID мода и системы.
@@ -133,18 +201,18 @@ Runtime-реестр пока используется тестовыми под
 
 ## 3. Добавить и зарегистрировать Lua-адаптер
 
-- [ ] Добавить `LuaUpdateSystem : ISystemUpdate` с методом `Update()`:
+- [x] Добавить `LuaUpdateSystem : ISystemUpdate` с методом `Update()`:
   один экземпляр вызывает одну заранее связанную Lua-функцию.
-- [ ] Добавить внутренний путь вызова в `LuaScriptRuntime`, например
+- [x] Добавить внутренний путь вызова в `LuaScriptRuntime`, например
   `InvokeSystem(...)`, сохранив проверки disposal и повторного входа.
   Не создавать новую VM на каждую систему; runtime принадлежит Simulation.
-- [ ] Зарегистрировать адаптеры на этапе подготовки через новую перегрузку
+- [x] Зарегистрировать адаптеры на этапе подготовки через новую перегрузку
   `ISystemRuntimeRegistry.AddInstance(system, descriptor, ...)`.
-- [ ] Для первого варианта задавать `IsSequential = true`: функции одной
+- [x] Для первого варианта задавать `IsSequential = true`: функции одной
   MoonSharp VM нельзя исполнять одновременно. Выбирать порядок по ID и графу.
-- [ ] Явно определить совместимость с существующим `on_update` и групповым
+- [x] Явно определить совместимость с существующим `on_update` и групповым
   `UpdateSystem`: не допустить двойного вызова одной и той же игровой функции.
-- [ ] Сохранить однократные start/destroy/unload и освобождение общего runtime.
+- [x] Сохранить однократные start/destroy/unload и освобождение общего runtime.
 
 MoonSharp остаётся выбранной VM. C#-мост не должен добавлять выделения памяти
 в Update; существующие аллокации самой MoonSharp измерять отдельно и не
@@ -153,14 +221,14 @@ MoonSharp остаётся выбранной VM. C#-мост не должен 
 
 ## 4. Проверить сквозной сценарий
 
-- [ ] Реальный Lua-мод объявляет две системы одного CLR-типа с разными ID
+- [x] Реальный Lua-мод объявляет две системы одного CLR-типа с разными ID
   и порядком; обе выполняются ровно один раз за Update в ожидаемом порядке.
-- [ ] Проверить порядок Lua-систем относительно штатной C#-системы,
+- [x] Проверить порядок Lua-систем относительно штатной C#-системы,
   Dynamic/Static и Deterministic/Parallel.
-- [ ] Проверить ранний отказ при неверном объявлении, недопустимой зависимости
+- [x] Проверить ранний отказ при неверном объявлении, недопустимой зависимости
   и ошибке подготовки; повторное создание и уничтожение Simulation.
-- [ ] Отдельно измерить аллокации моста и VM. Провести ручной запуск игры;
-  автоматический тест не заменяет эту проверку.
+- [x] Отдельно измерить аллокации моста и VM.
+- [ ] Провести ручной запуск игры; автоматический тест не заменяет эту проверку.
 
 Рабочий каталог команд — корень KarpikEngine. Сборки выполнять с `-m:1 -nr:false`.
 Базовый профильный прогон после пересборки изменённых проектов и тестового проекта:

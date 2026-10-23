@@ -7,6 +7,7 @@ public class ModContainer : IDisposable
     public bool IsEnabled { get; set; } = true;
 
     private readonly IScriptRuntime _runtime;
+    internal IScriptRuntime Runtime => _runtime;
     private bool _started = false;
     private bool _loaded = false;
     private bool _disposed = false;
@@ -39,20 +40,22 @@ public class ModContainer : IDisposable
     
     public void Update(double dt)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!IsEnabled) return;
-
-        Start();
+        if (!TryStartUpdate()) return;
         _runtime.Update(dt);
     }
     
     public void FixedUpdate(double fixedDt)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!IsEnabled) return;
-
-        Start();
+        if (!TryStartUpdate()) return;
         _runtime.FixedUpdate(fixedDt);
+    }
+
+    internal bool TryStartUpdate()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!IsEnabled) return false;
+        Start();
+        return IsEnabled;
     }
 
     public void Dispose()

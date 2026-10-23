@@ -26,9 +26,9 @@ public sealed class UpdateSystem(
         IReadOnlyList<ModContainer> containers = lifecycle.Containers;
         double dt = time.DeltaTime;
         
-        // TODO: mods run as one group; use individual adapters for interleaving.
         for (int i = 0; i < containers.Count; i++)
         {
+            if (containers[i].Runtime is LuaScriptRuntime { HasDeclaredSystems: true }) continue;
             containers[i].Update(dt);
         }
     }

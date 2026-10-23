@@ -30,6 +30,7 @@ public class LuaScriptLoader(
         script.Options.ScriptLoader = new ModScriptLoader(definition.Directory, fileSystem, side);
         
         var entryPoints = new List<Table>(2);
+        var entryPointPaths = new List<string>(2);
         
         LoadEntryPoint("Shared");
         LoadEntryPoint(sideDirectory);
@@ -39,7 +40,7 @@ public class LuaScriptLoader(
             logger.LogWarning("Mod '{Id}' has no main.lua entry point.", definition.MetaData.Id);
         }
         
-        return new LuaScriptRuntime(script, entryPoints.ToArray());
+        return new LuaScriptRuntime(script, entryPoints.ToArray(), definition.MetaData.Id, entryPointPaths.ToArray());
         
         void LoadEntryPoint(string directory)
         {
@@ -56,6 +57,7 @@ public class LuaScriptLoader(
                     stream, codeFriendlyName: path);
 
                 entryPoints.Add(ReadCallbacks(result, path));
+                entryPointPaths.Add(path);
             }
             catch (Exception error)
             {
