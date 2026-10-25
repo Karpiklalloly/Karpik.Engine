@@ -86,7 +86,7 @@ public sealed partial class LuaPreparationTests
     [Fact]
     public void ComponentNames_AreExplicitUniqueAndClosedAfterPreparation()
     {
-        var registry = new LuaComponentRegistry();
+        var registry = CreateLuaComponents();
         registry.Register<LuaPosition>("position");
         Assert.Equal(typeof(LuaPosition), registry.Resolve("position"));
         Assert.Throws<InvalidOperationException>(() => registry.Register<LuaPosition>("position"));
@@ -103,21 +103,23 @@ public sealed partial class LuaPreparationTests
             local counter = 0
             local function tick(dt) counter = counter + 1; print(counter) end
             return { systems = {
-              { id = 'a', phase = 'update', callback = tick, writes = { 'position' } },
-              { id = 'b', phase = 'update', callback = tick, reads = { 'position' }, after = { 'probe:a' } }
+              { id = 'a', phase = 'update', callback = tick, queries = { access = { opt = { ['position'] = { readonly = false } } } } },
+              { id = 'b', phase = 'update', callback = tick, queries = { access = { opt = { ['position'] = {} } } }, after = { 'probe:a' } }
             } }
             """, null, async (_, definition) =>
         {
             var logger = new ScriptLogger();
             var loader = new LuaScriptLoader(new Karpik.Engine.Core.FileSystem.PhysicalFileSystem(), logger);
             var catalog = new FixedRegistry(definition);
-            var components = new LuaComponentRegistry();
+            var components = CreateLuaComponents();
             components.Register<LuaPosition>("position");
+            var schemas = new Karpik.Engine.Shared.Modding.Bindings.ComponentSchemaRegistry();
             for (int iteration = 0; iteration < 2; iteration++)
             {
                 using var lifecycle = new ModsLifecycleManager(loader);
                 var registry = new RecordingRuntimeRegistry();
-                await new LuaSimulationPreparation(catalog, lifecycle, new Application(Side.Server), registry, new Time(), components)
+                using var bindings = new LuaBindingsTestScope(components, schemas);
+                await bindings.Create(catalog, lifecycle, new Application(Side.Server), registry, new Time())
                     .PrepareAsync(default);
                 Assert.Equal(["probe:a", "probe:b"], registry.Descriptors.Select(item => item.SystemId));
                 Assert.All(registry.Descriptors, descriptor => Assert.True(descriptor.IsSequential));
@@ -155,11 +157,20 @@ public sealed partial class LuaPreparationTests
         string source = $$"""
             local function effects(dt) assert(dt == 0.001); print('b') end
             return {
+              components = { Temperature = { version = 1, fields = { Value = 'f32' } } },
               systems = {
-                { id = 'a', phase = 'update', callback = function(dt) assert(dt == 0.001); print('a') end,
-                  before = { 'engine:{{typeof(LuaNativeSystem).FullName}}' }, writes = { 'probe:position' } },
+                { id = 'a', phase = 'update', callback = function(dt, ctx)
+                    assert(dt == 0.001)
+                    local q = ctx.queries.access
+                    for e in q:entities() do
+                      local p = q.components['probe:position']:get(e)
+                      q.components['probe:Temperature']:add(e).Value = 20-p.X*0.01
+                    end
+                    print('a')
+                  end,
+                  before = { 'engine:{{typeof(LuaNativeSystem).FullName}}' }, queries = { access = { inc = { ['probe:position'] = {} }, exc = { ['probe:Temperature'] = { readonly = false } } } } },
                 { id = 'b', phase = 'update', callback = effects,
-                  after = { 'engine:{{typeof(LuaNativeSystem).FullName}}' }, reads = { 'probe:position' } }
+                  after = { 'engine:{{typeof(LuaNativeSystem).FullName}}' }, queries = { access = { opt = { ['probe:position'] = {} } } } }
               },
               on_start = function() print('start') end,
               on_destroy = function() print('destroy') end,
@@ -185,7 +196,10 @@ public sealed partial class LuaPreparationTests
                 {
                     runner.Setup(new Application(Side.Server), mainThread);
                     mainThread.Execute();
+                    var positions = installer.Bindings!.World.GetPool<LuaPosition>();
+                    int entity = installer.Bindings.World.NewEntity(); positions.Add(entity).X = 100;
                     runner.RunGameplayFrame(0.001);
+                    Assert.Equal(19, installer.Bindings.ReadTemperature(entity));
                     ModContainer owner = Assert.Single(installer.Lifecycle!.Containers);
                     owner.IsEnabled = false;
                     runner.RunGameplayFrame(0.001);
@@ -202,7 +216,7 @@ public sealed partial class LuaPreparationTests
     }
 
     [Theory]
-    [InlineData("reads = { 'missing' }", "missing")]
+    [InlineData("queries = { access = { opt = { ['missing'] = {} } } }", "missing")]
     [InlineData("after = { 'probe:missing' }", "probe:missing")]
     [InlineData("after = { 'probe:a' }", "probe:a")]
     public async Task DeclaredLuaSystems_InvalidMetadataFailsBeforeFirstFrame(string metadata, string diagnostic)
@@ -230,17 +244,19 @@ public sealed partial class LuaPreparationTests
     {
         public string Name => nameof(LuaProbeInstaller);
         public ModsLifecycleManager? Lifecycle { get; private set; }
+        public LuaBindingsTestScope? Bindings { get; private set; }
         public IModule CreateModule() => new LuaProbeModule();
         public void OnRegisterServices(ContainerBuilder builder)
         {
             builder.RegisterInstance(logger).AsSelf();
             builder.Register(_ => Lifecycle = new ModsLifecycleManager(new LuaScriptLoader(new Karpik.Engine.Core.FileSystem.PhysicalFileSystem(), logger)))
                 .As<IModsLifecycleManager>().SingleInstance();
-            var components = new LuaComponentRegistry();
+            var components = CreateLuaComponents();
             components.Register<LuaPosition>("probe:position");
-            builder.Register(context => new LuaSimulationPreparation(new FixedRegistry(definition),
+            builder.RegisterInstance(Bindings = new LuaBindingsTestScope(components)).AsSelf();
+            builder.Register(context => context.Resolve<LuaBindingsTestScope>().Create(new FixedRegistry(definition),
                 context.Resolve<IModsLifecycleManager>(), context.Resolve<Application>(),
-                context.Resolve<ISystemRuntimeRegistry>(), context.Resolve<Time>(), components))
+                context.Resolve<ISystemRuntimeRegistry>(), context.Resolve<Time>(), logger))
                 .As<ISimulationPreparation>().SingleInstance();
         }
     }

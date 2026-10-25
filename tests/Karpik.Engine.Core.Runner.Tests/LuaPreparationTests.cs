@@ -119,8 +119,8 @@ public sealed partial class LuaPreparationTests
             {
                 await new LuaModSetPreparation(registry, application).PrepareAsync(default);
                 Assert.Equal("probe", Assert.Single(registry.GetMods()).MetaData.Id);
-                await new LuaSimulationPreparation(registry, lifecycle, application,
-                    new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
+                using var bindings = new LuaBindingsTestScope(CreateLuaComponents());
+                await bindings.Create(registry, lifecycle, application, new SystemRegistry(), new Time()).PrepareAsync(default);
                 ModContainer container = Assert.Single(lifecycle.Containers);
                 container.Start();
                 container.Start();
@@ -208,10 +208,10 @@ public sealed partial class LuaPreparationTests
         var second = new ModsLifecycleManager(new Loader(events));
         try
         {
-            await new LuaSimulationPreparation(registry, first, application,
-                new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
-            await new LuaSimulationPreparation(registry, second, application,
-                new SystemRegistry(), new Time(), new LuaComponentRegistry()).PrepareAsync(default);
+            using var firstBindings = new LuaBindingsTestScope(CreateLuaComponents());
+            using var secondBindings = new LuaBindingsTestScope(CreateLuaComponents());
+            await firstBindings.Create(registry, first, application, new SystemRegistry(), new Time()).PrepareAsync(default);
+            await secondBindings.Create(registry, second, application, new SystemRegistry(), new Time()).PrepareAsync(default);
             Assert.Equal(1, registry.Scans);
             Assert.Single(first.Containers);
             Assert.Single(second.Containers);

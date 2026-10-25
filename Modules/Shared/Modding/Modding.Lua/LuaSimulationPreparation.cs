@@ -2,6 +2,8 @@ using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS.Scheduling;
 using Karpik.Engine.Shared.Modding.Lua.Systems;
+using Karpik.Engine.Shared.Modding.Bindings;
+using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
@@ -13,7 +15,12 @@ public sealed class LuaSimulationPreparation(
     Application application,
     ISystemRuntimeRegistry systems,
     Time time,
-    LuaComponentRegistry components) : ISimulationPreparation
+    LuaComponentRegistry components,
+    ComponentSchemaRegistry schemaRegistry,
+    ComponentQueryPreparer queryPreparer,
+    ComponentCallbackScope callbackScope,
+    ScriptSystemOptions options,
+    ILogger<IScriptLoader> logger) : ISimulationPreparation
 {
     public async ValueTask PrepareAsync(CancellationToken cancellationToken)
     {
@@ -25,23 +32,29 @@ public sealed class LuaSimulationPreparation(
             _ => throw new InvalidOperationException("Unsupported application side.")
         };
         await lifecycle.Load(registry.GetMods().ToArray(), side, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var schemas = new List<ComponentSchema>();
+        foreach (ModContainer owner in lifecycle.Containers)
+            if (owner.Runtime is LuaScriptRuntime runtime) schemas.AddRange(runtime.Components);
+        foreach (var schema in schemas)
+            if (components.Bindings.TryResolveType(schema.Id, out _)) throw new InvalidDataException($"Dynamic schema '{schema.Id}' conflicts with a CLR component registration.");
+        schemaRegistry.ValidateAndFreeze(schemas.ToArray());
+        queryPreparer.Initialize();
         components.Seal();
         foreach (ModContainer owner in lifecycle.Containers)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (owner.Runtime is not LuaScriptRuntime runtime) continue;
+            runtime.PrepareEcs(queryPreparer, callbackScope, options, logger);
             for (int index = 0; index < runtime.Systems.Length; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 LuaSystemDeclaration declaration = runtime.Systems[index];
                 try
                 {
-                    var accesses = new List<EcsComponentAccessDescriptor>();
-                    foreach (string name in declaration.Reads) accesses.Add(new(components.Resolve(name), EcsAccessMode.Read));
-                    foreach (string name in declaration.Writes) accesses.Add(new(components.Resolve(name), EcsAccessMode.Write));
                     systems.AddInstance(new LuaUpdateSystem(owner, runtime, index, time),
                         new EcsUpdateSystemDescriptor(typeof(LuaUpdateSystem), true,
-                            accesses.ToArray(), declaration.Orders, declaration.Id));
+                            runtime.GetContext(index).Accesses, declaration.Orders, declaration.Id));
                 }
                 catch (InvalidDataException error)
                 {

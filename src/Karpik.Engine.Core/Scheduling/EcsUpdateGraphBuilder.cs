@@ -23,8 +23,8 @@ public static class EcsUpdateGraphBuilder
             if (!systemIds.TryAdd(descriptor.SystemType, i)) systemIds[descriptor.SystemType] = -1;
         }
 
-        Type[] componentTypes = BuildComponentTypes(descriptors);
-        Dictionary<Type, int> componentIds = BuildComponentIds(componentTypes);
+        EcsComponentAccessKey[] componentTypes = BuildComponentTypes(descriptors);
+        Dictionary<EcsComponentAccessKey, int> componentIds = BuildComponentIds(componentTypes);
         SystemAccess[] accesses = BuildSystemAccess(descriptors, componentIds, componentTypes.Length);
         bool[] dependencyBits = BuildDependencyBits(descriptors, accesses, systemIds, instanceIds);
         return new EcsUpdateGraph(systemTypes, componentTypes,
@@ -40,7 +40,7 @@ public static class EcsUpdateGraphBuilder
         {
             return new EcsUpdateGraph(
                 Array.Empty<Type>(),
-                Array.Empty<Type>(),
+                Array.Empty<EcsComponentAccessKey>(),
                 Array.Empty<EcsUpdateGraphNode>(),
                 Array.Empty<int>());
         }
@@ -79,8 +79,8 @@ public static class EcsUpdateGraphBuilder
             orderedDescriptors[i] = descriptor;
         }
 
-        Type[] componentTypes = BuildComponentTypes(orderedDescriptors);
-        Dictionary<Type, int> componentIds = BuildComponentIds(componentTypes);
+        EcsComponentAccessKey[] componentTypes = BuildComponentTypes(orderedDescriptors);
+        Dictionary<EcsComponentAccessKey, int> componentIds = BuildComponentIds(componentTypes);
         SystemAccess[] accesses = BuildSystemAccess(orderedDescriptors, componentIds, componentTypes.Length);
         bool[] dependencyBits = BuildDependencyBits(orderedDescriptors, accesses, systemIds);
         EcsUpdateGraphNode[] nodes = BuildNodes(accesses, dependencyBits, registeredSystemTypes.Length);
@@ -89,26 +89,29 @@ public static class EcsUpdateGraphBuilder
         return new EcsUpdateGraph(systemTypes, componentTypes, nodes, executionOrder);
     }
 
-    private static Type[] BuildComponentTypes(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
+    private static EcsComponentAccessKey[] BuildComponentTypes(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
     {
-        var componentTypes = new HashSet<Type>();
+        var componentTypes = new HashSet<EcsComponentAccessKey>();
         for (int i = 0; i < descriptors.Length; i++)
         {
             ReadOnlySpan<EcsComponentAccessDescriptor> accesses = descriptors[i].Accesses.Span;
             for (int j = 0; j < accesses.Length; j++)
             {
-                componentTypes.Add(accesses[j].ComponentType);
+                EcsComponentAccessKey key = accesses[j].Key;
+                if (key.ClrType is null && key.DynamicId is null)
+                    throw new EcsUpdateGraphBuildException("Empty ECS component access key.");
+                componentTypes.Add(key);
             }
         }
 
-        Type[] result = componentTypes.ToArray();
-        Array.Sort(result, TypeMetadataComparer.Instance);
+        EcsComponentAccessKey[] result = componentTypes.ToArray();
+        Array.Sort(result, AccessKeyComparer.Instance);
         return result;
     }
 
-    private static Dictionary<Type, int> BuildComponentIds(Type[] componentTypes)
+    private static Dictionary<EcsComponentAccessKey, int> BuildComponentIds(EcsComponentAccessKey[] componentTypes)
     {
-        var componentIds = new Dictionary<Type, int>(componentTypes.Length);
+        var componentIds = new Dictionary<EcsComponentAccessKey, int>(componentTypes.Length);
         for (int i = 0; i < componentTypes.Length; i++)
         {
             componentIds.Add(componentTypes[i], i);
@@ -119,7 +122,7 @@ public static class EcsUpdateGraphBuilder
 
     private static SystemAccess[] BuildSystemAccess(
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
-        Dictionary<Type, int> componentIds,
+        Dictionary<EcsComponentAccessKey, int> componentIds,
         int componentCount)
     {
         var accesses = new SystemAccess[descriptors.Length];
@@ -135,7 +138,7 @@ public static class EcsUpdateGraphBuilder
             for (int j = 0; j < descriptorAccesses.Length; j++)
             {
                 EcsComponentAccessDescriptor access = descriptorAccesses[j];
-                int componentId = componentIds[access.ComponentType];
+                int componentId = componentIds[access.Key];
                 switch (access.Mode)
                 {
                     case EcsAccessMode.Write:
@@ -149,7 +152,7 @@ public static class EcsUpdateGraphBuilder
                         break;
                     default:
                         throw new EcsUpdateGraphBuildException(
-                            $"Unsupported ECS update access mode '{access.Mode}' for component '{access.ComponentType.FullName}'.");
+                            $"Unsupported ECS update access mode '{access.Mode}' for component '{access.Key.ClrType?.FullName ?? access.Key.DynamicId}'.");
                 }
             }
 
@@ -405,6 +408,18 @@ public static class EcsUpdateGraphBuilder
     private static bool HasDependency(bool[] dependencyBits, int systemCount, int dependentId, int dependencyId)
     {
         return dependencyBits[(dependentId * systemCount) + dependencyId];
+    }
+
+    private sealed class AccessKeyComparer : IComparer<EcsComponentAccessKey>
+    {
+        internal static readonly AccessKeyComparer Instance = new();
+        public int Compare(EcsComponentAccessKey left, EcsComponentAccessKey right)
+        {
+            if (left.ClrType is not null && right.ClrType is not null) return TypeMetadataComparer.Instance.Compare(left.ClrType, right.ClrType);
+            if (left.ClrType is not null) return -1;
+            if (right.ClrType is not null) return 1;
+            return StringComparer.Ordinal.Compare(left.DynamicId, right.DynamicId);
+        }
     }
 
     private readonly struct SystemAccess

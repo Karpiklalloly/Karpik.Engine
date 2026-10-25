@@ -4,6 +4,11 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
+- 2026-10-25: экспериментальный CLR Position → mixed query → Lua → dynamic
+  Temperature(f32) реализован по отдельному [ExecPlan](lua-ecs-bindings-execplan.md).
+  Настоящие команды/метрики и дальнейшие ограничения находятся там; counts ниже
+  за 2026-10-23 являются историческими, не текущими результатами.
+
 - Уточнение 2026-10-23: LuaUpdateSystem возвращён в internal sealed class с
   `[RuntimeSystem, SequentialSystem]`. Discovery учитывает marker в source,
   references и Dynamic DI. K011 запрещает Add<T>, AddInstance сохраняется.

@@ -1,10 +1,11 @@
 using Karpik.Engine.Shared.ECS.Scheduling;
 using MoonSharp.Interpreter;
+using Karpik.Engine.Shared.Modding.Bindings;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
 internal readonly record struct LuaSystemDeclaration(
-    string Id, DynValue Callback, string[] Reads, string[] Writes, EcsSystemOrderDescriptor[] Orders);
+    string Id, DynValue Callback, ComponentQueryDefinition[] Queries, EcsSystemOrderDescriptor[] Orders);
 
 internal static class LuaSystemDeclarations
 {
@@ -32,10 +33,12 @@ internal static class LuaSystemDeclarations
                 {
                     if (!ids.Add(id))
                         throw new InvalidDataException("Duplicate system id.");
+                    if (!table.Get("reads").IsNil() || !table.Get("writes").IsNil())
+                        throw new InvalidDataException("reads/writes were replaced by component access modes in queries; migrate this system to queries.");
                     foreach (TablePair pair in table.Pairs)
                     {
                         if (pair.Key.Type != DataType.String || pair.Key.String is not
-                            ("id" or "callback" or "phase" or "reads" or "writes" or "before" or "after"))
+                            ("id" or "callback" or "phase" or "queries" or "before" or "after"))
                             throw new InvalidDataException($"Unknown system field '{pair.Key}'.");
                     }
                     if (ReadString(table.Get("phase"), "phase") != "update")
@@ -47,7 +50,7 @@ internal static class LuaSystemDeclarations
                     var orders = new List<EcsSystemOrderDescriptor>();
                     AddOrders("before", EcsOrderKind.Before);
                     AddOrders("after", EcsOrderKind.After);
-                    systems.Add(new(id, callback, ReadNames(table, "reads"), ReadNames(table, "writes"), orders.ToArray()));
+                    systems.Add(new(id, callback, LuaQueryDeclarations.Read(table.Get("queries")), orders.ToArray()));
 
                     void AddOrders(string field, EcsOrderKind kind)
                     {
@@ -74,7 +77,7 @@ internal static class LuaSystemDeclarations
     private static string[] ReadNames(Table table, string field) =>
         ReadArray(table.Get(field), field).Select(value => ReadString(value, field)).ToArray();
 
-    private static string ReadString(DynValue value, string field)
+    internal static string ReadString(DynValue value, string field)
     {
         if (value.Type != DataType.String || string.IsNullOrWhiteSpace(value.String))
             throw new InvalidDataException($"{field} must be a nonempty string.");

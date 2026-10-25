@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+- [Общий ECS-доступ Lua и экспериментальный allocation budget](lua-ecs-common-bindings.md)
+
 This folder stores durable architecture notes for Obsidian. ADRs explain why an important decision was made, what alternatives were rejected, and what consequences the project accepts.
 
 Use ADRs for decisions that should remain understandable after the implementation context is gone:

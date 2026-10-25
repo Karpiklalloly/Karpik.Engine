@@ -134,9 +134,20 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         var referenced = context.CompilationProvider.Combine(properties).Select(static (state, _) =>
             ReferencedScan.Scan(state.Left, state.Right.Side));
 
+        var servicesWithBindings = ownServices.Collect().Combine(context.CompilationProvider).Select(static (state, _) =>
+        {
+            if (state.Right.GetTypeByMetadataName("Karpik.Engine.Shared.Modding.Bindings.ClrComponentBindings") is null ||
+                ClrComponentBindingGenerator.Registrations(state.Right).Count == 0)
+                return state.Left;
+            var provider = new ServiceModel(ClrComponentBindingGenerator.ProviderName(state.Right),
+                state.Right.Assembly.Identity.GetDisplayName(), 0, 0,
+                ["Karpik.Engine.Shared.Modding.Bindings.IClrComponentBindingProvider"], [], false, true, [], null);
+            return state.Left.Add(provider);
+        });
+
         var own = ownInstallers
             .Collect()
-            .Combine(ownServices.Collect())
+            .Combine(servicesWithBindings)
             .Combine(ownSystems.Collect())
             .Combine(ownComponents.Collect());
 
