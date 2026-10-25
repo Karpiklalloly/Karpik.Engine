@@ -33,6 +33,8 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
 
     [Output]
     public string ModuleDefines { get; set; } = string.Empty;
+    [Output]
+    public ITaskItem[] SelectedModuleIds { get; set; } = [];
 
     /// <summary>
     /// Получает ссылки на первичные сборки выбранных модулей вместе с CLR-идентичностью.
@@ -60,6 +62,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
         References = [];
         PayloadAssemblies = [];
         ModuleDefines = string.Empty;
+        SelectedModuleIds = [];
         try
         {
             References = Resolve(out ITaskItem[] payloadAssemblies, out string moduleDefines);
@@ -102,6 +105,7 @@ public sealed class ResolveKarpikStaticReferencesTask : Microsoft.Build.Utilitie
             .Select(entry => ModuleLayoutPolicy.GetPrimaryAssemblyFileName(entry.ModuleId))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         EngineModuleCatalogEntry[] selected = ResolveSelectedEntries(catalog, side);
+        SelectedModuleIds = selected.Select(entry => (ITaskItem)new TaskItem(entry.ModuleId)).ToArray();
         moduleDefines = string.Join(";", selected.Select(entry =>
             "KARPIK_MODULE_" + entry.ModuleId.ToUpperInvariant().Replace('.', '_').Replace('-', '_'))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));

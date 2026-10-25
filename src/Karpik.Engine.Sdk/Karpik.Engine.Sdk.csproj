@@ -12,21 +12,15 @@
         <Description>MSBuild SDK for validated external KarpikEngine game projects.</Description>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <KarpikSdkTasksOutputPath Condition="'$(KarpikSdkTasksOutputPath)' == ''">..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\</KarpikSdkTasksOutputPath>
-        <KarpikCoreCodegenOutputPath Condition="'$(KarpikCoreCodegenOutputPath)' == ''">..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikCoreCodegenOutputPath>
-        <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikNetworkCodegenOutputPath>
         <KarpikContentToolOutputPath Condition="'$(KarpikContentToolOutputPath)' == ''">..\Karpik.Content.Tool\bin\$(Configuration)\net10.0\</KarpikContentToolOutputPath>
-        <KarpikContentCodegenOutputPath Condition="'$(KarpikContentCodegenOutputPath)' == ''">..\Karpik.Content.Codegen\bin\$(Configuration)\netstandard2.0\</KarpikContentCodegenOutputPath>
         <KarpikContentRuntimeOutputPath Condition="'$(KarpikContentRuntimeOutputPath)' == ''">..\Karpik.Content.Runtime\bin\$(Configuration)\net10.0\</KarpikContentRuntimeOutputPath>
     </PropertyGroup>
 
     <!-- Payload нужен только пакету SDK; обычный build не должен проходить весь этот граф. -->
     <ItemGroup>
         <KarpikSdkPayloadProject Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj" />
-        <KarpikSdkPayloadProject Include="..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
         <KarpikSdkPayloadProject Include="..\Karpik.Content.Tool\Karpik.Content.Tool.csproj" />
-        <KarpikSdkPayloadProject Include="..\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj" />
         <KarpikSdkPayloadProject Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
-        <KarpikSdkPayloadProject Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
     </ItemGroup>
 
     <!-- Включает targets, шаблон и готовые DLL в layout NuGet-пакета SDK. -->
@@ -45,24 +39,13 @@
         <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.Tooling.dll"
               Pack="true"
               PackagePath="tools/net10.0/" />
-        <None Include="$(KarpikCoreCodegenOutputPath)Karpik.Engine.Core.Codegen.dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs/" />
-        <None Include="$(KarpikNetworkCodegenOutputPath)Network.Codegen.dll"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs/" />
         <None Include="$(KarpikContentRuntimeOutputPath)Karpik.Content.Runtime.dll"
               Pack="true"
               PackagePath="tools/net10.0/content/" />
     </ItemGroup>
 
-    <!-- Исключает внешние генераторы из неявного графа и добавляет нужный analyzer явно. -->
-    <ItemGroup>
-        <ProjectReference Remove="$(KarpikRepositoryRoot)src\Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
-    </ItemGroup>
-
     <Target Name="PrepareKarpikSdkPackage" BeforeTargets="_GetPackageFiles" Condition="'$(NoBuild)' != 'true'">
-        <MSBuild Projects="@(KarpikSdkPayloadProject)"
+        <MSBuild Projects="@(KarpikSdkPayloadProject);@(KarpikCodegenProject)"
                  Targets="Build"
                  Properties="Configuration=$(Configuration)" />
     </Target>
@@ -72,9 +55,19 @@
             <None Include="$(KarpikContentToolOutputPath)**\*"
                   Pack="true"
                   PackagePath="tools/net10.0/content/" />
-            <None Include="$(KarpikContentCodegenOutputPath)**\*"
-                  Pack="true"
-                  PackagePath="analyzers/dotnet/cs/" />
+        </ItemGroup>
+    </Target>
+
+    <Target Name="_KarpikPackageCodegenPayload" BeforeTargets="_GetPackageFiles" DependsOnTargets="PrepareKarpikSdkPackage">
+        <MSBuild Projects="@(KarpikCodegenProject)" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+            <Output TaskParameter="TargetOutputs" ItemName="_KarpikCodegenOutput" />
+        </MSBuild>
+        <ItemGroup>
+            <_KarpikCodegenFile Include="%(_KarpikCodegenOutput.RootDir)%(_KarpikCodegenOutput.Directory)*.dll">
+                <GeneratorId>$([System.IO.Path]::GetFileNameWithoutExtension('%(_KarpikCodegenOutput.MSBuildSourceProjectFile)'))</GeneratorId>
+            </_KarpikCodegenFile>
+            <None Include="@(_KarpikCodegenFile)" Pack="true" PackagePath="codegen/%(_KarpikCodegenFile.GeneratorId)/" />
+            <None Include="$(KarpikRepositoryRoot)Generated/KarpikCodegenCatalog.json" Pack="true" PackagePath="codegen/catalog.json" />
         </ItemGroup>
     </Target>
 

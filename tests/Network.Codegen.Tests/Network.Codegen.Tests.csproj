@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Network.Codegen\Network.Codegen\Network.Codegen.csproj" />
+    <ProjectReference Include="..\..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" />
     <ProjectReference Include="..\..\Modules\Shared\Spatial2D\Spatial2D.csproj" />
     <ProjectReference Include="..\..\Modules\Shared\Network.Shared\Network.Shared.Core\Network.Shared.Core.csproj" />
     <ProjectReference Include="..\..\Modules\Shared\Network.Shared.LiteNetLib\Network.Shared.LiteNetLib.csproj" />
@@ -28,6 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Remove="$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
+    <ProjectReference Remove="$(KarpikRepositoryRoot)Modules\Shared\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
   </ItemGroup>
 </Project>

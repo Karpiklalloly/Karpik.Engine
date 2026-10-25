@@ -104,3 +104,15 @@ discover or choose a different engine module graph at runtime.
 ## Links
 
 - Related code: `Directory.Build.targets`, `src/Configurator/`, `src/Karpik.Engine.Core.Runner/Runner.cs`
+
+## Module-owned code generators (2026-10-25)
+
+A project named `<OwnerProject>.Codegen.csproj` in the solution belongs to the project `<OwnerProject>.csproj`. Keep the generator as a separate project next to its owner. It is optional and is never a runtime module candidate. Duplicate matching names and generator-to-consumer build cycles are errors.
+
+Configurator emits build-only analyzer references for direct and transitive consumers, deduplicating diamond dependencies and honoring selected optional modules. The owner does not automatically consume its own generator; an explicit analyzer reference may be used when needed and acyclic. Infrastructure owners such as `Karpik.Engine.Core` and `Karpik.Content.Runtime` retain their existing classification.
+
+`Generated/KarpikCodegenCatalog.json` describes ownership independently of the runtime module catalog. SDK packages and engine installations carry this versioned manifest as `codegen/catalog.json`, with each generator and its DLL dependencies in `codegen/<GeneratorProject>/`. The SDK resolves analyzers from actual compiler references after `ResolveReferences`. Runtime projects also apply their resolved module selection; tests and tools without their own selection inherit applicability through actual assembly references. An installation without a codegen catalog falls back to the SDK package's catalog. An unknown catalog version fails the build.
+
+Network, StatAndAbilities, Content and Core generators use this mechanism. Their generated namespaces and public contracts are preserved. Analyzer dependencies are private build assets and do not enter runtime bundles. Each generator processes its current compilation; inspecting types in referenced assemblies remains the generator's own responsibility.
+
+See [implementation and verification](../../plans/module-codegen-execplan.md).

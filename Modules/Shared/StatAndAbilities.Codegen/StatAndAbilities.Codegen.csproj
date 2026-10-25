@@ -9,8 +9,8 @@
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
 
-        <RootNamespace>Network.Codegen</RootNamespace>
-        <PackageId>Network.Codegen</PackageId>
+        <RootNamespace>StatAndAbilities.Codegen</RootNamespace>
+        <PackageId>StatAndAbilities.Codegen</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -18,8 +18,8 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all"/>
     </ItemGroup>
 
 

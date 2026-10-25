@@ -11,6 +11,21 @@ namespace Karpik.Engine.Packager.Tests;
 public sealed class EnginePayloadBuilderTests
 {
     [Fact]
+    public void BuilderPreservesBuildOnlyCodegenCatalogAndAssemblies()
+    {
+        using var temporary = new PackagerTemporaryDirectory();
+        string source = PreparedPayload.Create(Path.Combine(temporary.RootPath, "source"));
+        string directory = Path.Combine(source, "codegen", "Owner.Codegen");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(source, "codegen", "catalog.json"), "{\"Version\":1,\"Generators\":[]}");
+        File.WriteAllText(Path.Combine(directory, "Owner.Codegen.dll"), "build-only");
+        var result = new EnginePayloadBuilder().Build(source, Path.Combine(temporary.RootPath, "output"), "0.6.0", "0.6.0-sdk");
+        Assert.True(File.Exists(Path.Combine(result.DestinationDirectory, "codegen", "catalog.json")));
+        Assert.Equal("build-only", File.ReadAllText(Path.Combine(result.DestinationDirectory, "codegen", "Owner.Codegen", "Owner.Codegen.dll")));
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(result.DestinationDirectory, "modules"), "*Codegen*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public void BuilderPublishesExactCompleteLayoutWithValidHash()
     {
         using var temporary = new PackagerTemporaryDirectory();
@@ -434,10 +449,10 @@ public sealed class EnginePayloadBuilderTests
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Sdk.Tasks.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.ProjectModel.dll");
         AssertPackageContains(first.DestinationDirectory, "tools/net10.0/Karpik.Engine.Tooling.dll");
-        AssertPackageContains(first.DestinationDirectory, "analyzers/dotnet/cs/Karpik.Engine.Core.Codegen.dll");
+        AssertPackageContains(first.DestinationDirectory, "codegen/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.dll");
         AssertPackageAssemblyContainsType(
             first.DestinationDirectory,
-            "analyzers/dotnet/cs/Network.Codegen.dll",
+            "codegen/Network.Shared.Core.Codegen/Network.Shared.Core.Codegen.dll",
             "NetworkCodegenFreshMarker");
         Assert.True(second.ReusedExistingInstallation,
             $"Changed payload files: {string.Join(", ", differences)}; changed package entries: {string.Join(", ", packageDifferences)}");
@@ -669,17 +684,19 @@ internal static class FakeRepository
         WriteProject(root, "src/Karpik.Editor/Karpik.Editor.csproj", "Karpik.Editor");
         WriteProject(root, "src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj", "Karpik.Engine.Core.Runner");
         WriteProject(root, "src/Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj", "Karpik.Engine.ProjectModel");
+        WriteProject(root, "src/Karpik.Engine.Core/Karpik.Engine.Core.csproj", "Karpik.Engine.Core");
+        WriteProject(root, "src/Network.Shared.Core/Network.Shared.Core.csproj", "Network.Shared.Core");
         WriteProject(
             root,
-            "src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj",
+            "src/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj",
             "Karpik.Engine.Core.Codegen");
         WriteProject(
             root,
-            "src/Network.Codegen/Network.Codegen/Network.Codegen.csproj",
-            "Network.Codegen",
+            "Modules/Shared/Network.Shared/Network.Shared.Core.Codegen/Network.Shared.Core.Codegen.csproj",
+            "Network.Shared.Core.Codegen",
             markerSource: "public static class NetworkCodegenFreshMarker { }");
         WriteProject(root, "src/Karpik.Content.Tool/Karpik.Content.Tool.csproj", "Karpik.Content.Tool");
-        WriteProject(root, "src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj", "Karpik.Content.Codegen");
+        WriteProject(root, "src/Karpik.Content.Runtime.Codegen/Karpik.Content.Runtime.Codegen.csproj", "Karpik.Content.Runtime.Codegen");
         WriteProject(root, "src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj", "Karpik.Content.Runtime");
         WriteProject(
             root,
@@ -731,8 +748,6 @@ internal static class FakeRepository
                 <PackageId>Karpik.Engine.Sdk</PackageId>
                 <PackageVersion>0.6.0-sdk</PackageVersion>
                 <KarpikSdkTasksOutputPath Condition="'$(KarpikSdkTasksOutputPath)' == ''">..\Karpik.Engine.Sdk.Tasks\bin\$(Configuration)\net10.0\</KarpikSdkTasksOutputPath>
-                <KarpikCoreCodegenOutputPath Condition="'$(KarpikCoreCodegenOutputPath)' == ''">..\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\bin\$(Configuration)\net10.0\</KarpikCoreCodegenOutputPath>
-                <KarpikNetworkCodegenOutputPath Condition="'$(KarpikNetworkCodegenOutputPath)' == ''">..\Network.Codegen\Network.Codegen\bin\$(Configuration)\net10.0\</KarpikNetworkCodegenOutputPath>
               </PropertyGroup>
               <ItemGroup>
                 <ProjectReference Include="..\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj"
@@ -744,13 +759,10 @@ internal static class FakeRepository
                       Pack="true" PackagePath="tools/net10.0/" />
                 <None Include="$(KarpikSdkTasksOutputPath)Karpik.Engine.Tooling.dll"
                       Pack="true" PackagePath="tools/net10.0/" />
-                <None Include="$(KarpikCoreCodegenOutputPath)Karpik.Engine.Core.Codegen.dll"
-                      Pack="true" PackagePath="analyzers/dotnet/cs/" />
-                <None Include="$(KarpikNetworkCodegenOutputPath)Network.Codegen.dll"
-                      Pack="true" PackagePath="analyzers/dotnet/cs/" />
-                <ProjectReference Include="..\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
-                                  PrivateAssets="all"
-                                  ReferenceOutputAssembly="false" />
+                <None Include="$(ArtifactsPath)/bin/Karpik.Engine.Core.Codegen/release/Karpik.Engine.Core.Codegen.dll"
+                      Pack="true" PackagePath="codegen/Karpik.Engine.Core.Codegen/" />
+                <None Include="$(ArtifactsPath)/bin/Network.Shared.Core.Codegen/release/Network.Shared.Core.Codegen.dll"
+                      Pack="true" PackagePath="codegen/Network.Shared.Core.Codegen/" />
               </ItemGroup>
             </Project>
             """);
@@ -777,11 +789,13 @@ internal static class FakeRepository
               <Project Path="src/Karpik.Editor/Karpik.Editor.csproj" />
               <Project Path="src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
               <Project Path="src/Karpik.Engine.ProjectModel/Karpik.Engine.ProjectModel.csproj" />
+              <Project Path="src/Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
+              <Project Path="src/Network.Shared.Core/Network.Shared.Core.csproj" />
               <Project Path="src/Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
-              <Project Path="src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
-              <Project Path="src/Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
+              <Project Path="src/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
+              <Project Path="Modules/Shared/Network.Shared/Network.Shared.Core.Codegen/Network.Shared.Core.Codegen.csproj" />
               <Project Path="src/Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
-              <Project Path="src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
+              <Project Path="src/Karpik.Content.Runtime.Codegen/Karpik.Content.Runtime.Codegen.csproj" />
               <Project Path="src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
               <Project Path="src/Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj" />
               <Project Path="src/Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj" />
@@ -804,7 +818,7 @@ internal static class FakeRepository
         WriteStaleFile(root, "src/Karpik.Engine.Client.Publish/bin/Release/net10.0/modules.version.stale/.complete");
         WriteStaleFile(root, "src/Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/Module.dll");
         WriteStaleFile(root, "src/Karpik.Engine.Server.Publish/bin/Release/net10.0/modules.version.stale/.complete");
-        WriteStaleFile(root, "src/Network.Codegen/Network.Codegen/bin/Release/net10.0/Network.Codegen.dll");
+        WriteStaleFile(root, "Modules/Shared/Network.Shared/Network.Shared.Core.Codegen/bin/Release/net10.0/Network.Shared.Core.Codegen.dll");
         return root;
     }
 

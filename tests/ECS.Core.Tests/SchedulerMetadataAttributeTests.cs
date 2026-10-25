@@ -94,9 +94,10 @@ public sealed class SchedulerMetadataAttributeTests
         return Assert.Single(typeof(TAttribute).GetCustomAttributes<AttributeUsageAttribute>());
     }
 
+    // Fixtures must be visible to the generated registry's top-level type.
     [Reads<MetadataComponentA>]
     [Writes<MetadataComponentB>]
-    private sealed class AccessDecoratedSystem : ISystemUpdate
+    internal sealed class AccessDecoratedSystem : ISystemUpdate
     {
         public void Update()
         {
@@ -111,21 +112,21 @@ public sealed class SchedulerMetadataAttributeTests
 
     [RunsAfter<PredecessorSystem>]
     [RunsBefore<SuccessorSystem>]
-    private sealed class OrderDecoratedSystem : ISystemUpdate
+    internal sealed class OrderDecoratedSystem : ISystemUpdate
     {
         public void Update()
         {
         }
     }
 
-    private sealed class PredecessorSystem : ISystemUpdate
+    internal sealed class PredecessorSystem : ISystemUpdate
     {
         public void Update()
         {
         }
     }
 
-    private sealed class SuccessorSystem : ISystemUpdate
+    internal sealed class SuccessorSystem : ISystemUpdate
     {
         public void Update()
         {

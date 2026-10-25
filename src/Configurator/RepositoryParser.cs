@@ -28,10 +28,11 @@ public static class RepositoryParser
 
             projects[absolutePath] = ReadProject(rootPath, absolutePath, relativePath);
         }
+        ApplyReferenceOverrides(rootPath, projects.Values);
 
         var candidates = projects.Values
             .Where(project => project.RelativePath.StartsWith("Modules/", StringComparison.OrdinalIgnoreCase))
-            .Where(project => !project.IsTestProject && !project.IsExecutable)
+            .Where(project => !project.IsTestProject && !project.IsExecutable && !project.IsCodegen)
             .OrderBy(project => project.PluginId, StringComparer.Ordinal)
             .ToList();
         var coreModuleIds = candidates
@@ -80,6 +81,7 @@ public static class RepositoryParser
         var propsPath = Path.Combine(rootPath, "Directory.Build.props");
         var aliases = ReadAliases(rootPath, propsPath, projects, errors);
         ResolveDependencies(projects.Values, plugins, aliases, errors);
+        ModuleCodegen.Discover(projects.Values, errors);
 
         var (selections, settingValues) = ReadProfile(propsPath, errors);
 
@@ -147,13 +149,7 @@ public static class RepositoryParser
         };
 
         foreach (var reference in document.Descendants().Where(element => element.Name.LocalName == "ProjectReference"))
-        {
-            var target = ResolveReference(absolutePath, reference.Attribute("Include")?.Value);
-            if (target != null)
-            {
-                project.DirectProjectReferences.Add(target);
-            }
-        }
+            ReadProjectReference(rootPath, project, reference);
 
         foreach (var dependency in document.Descendants().Where(element => element.Name.LocalName == "KarpikModuleDependency"))
         {
@@ -183,6 +179,38 @@ public static class RepositoryParser
         }
 
         return project;
+    }
+
+    private static void ApplyReferenceOverrides(string rootPath, IEnumerable<ProjectInfo> projects)
+    {
+        // Keep legacy MSBuild reference redirects and discovery on the same graph.
+        string path = Path.Combine(rootPath, "Directory.Build.targets");
+        if (!File.Exists(path)) return;
+        var groups = XDocument.Load(path).Root!.Elements().Where(element => element.Name.LocalName == "ItemGroup").ToArray();
+        foreach (var project in projects)
+        foreach (var group in groups.Where(group => string.Equals(group.Attribute("Condition")?.Value.Trim(),
+                     $"'$(MSBuildProjectName)' == '{project.PluginId}'", StringComparison.Ordinal)))
+        foreach (var reference in group.Elements().Where(element => element.Name.LocalName == "ProjectReference"))
+            ReadProjectReference(rootPath, project, reference);
+    }
+
+    private static void ReadProjectReference(string rootPath, ProjectInfo project, XElement reference)
+    {
+        string? Resolve(string? include) => ResolveReference(project.AbsolutePath,
+            include?.Replace("$(KarpikRepositoryRoot)", rootPath + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+        string? removed = Resolve(reference.Attribute("Remove")?.Value);
+        if (removed != null)
+        {
+            project.DirectProjectReferences.RemoveAll(path => string.Equals(path, removed, StringComparison.OrdinalIgnoreCase));
+            project.AnalyzerProjectReferences.Remove(removed);
+        }
+        string? target = Resolve(reference.Attribute("Include")?.Value);
+        if (target == null) return;
+        if (!project.DirectProjectReferences.Contains(target, StringComparer.OrdinalIgnoreCase))
+            project.DirectProjectReferences.Add(target);
+        if (ReadMetadata(reference, "OutputItemType") == "Analyzer" ||
+            string.Equals(ReadMetadata(reference, "ReferenceOutputAssembly"), "false", StringComparison.OrdinalIgnoreCase))
+            project.AnalyzerProjectReferences.Add(target);
     }
 
     private static void ResolveDependencies(

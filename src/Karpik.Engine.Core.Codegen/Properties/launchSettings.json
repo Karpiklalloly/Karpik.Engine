@@ -3,7 +3,7 @@
   "profiles": {
     "DebugRoslynSourceGenerator": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../Karpik.Engine.Core.Generator.Sample/Karpik.Engine.Core.Generator.Sample.csproj"
+      "targetProject": "../Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj"
     }
   }
 }

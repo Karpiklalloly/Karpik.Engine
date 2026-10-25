@@ -38,10 +38,7 @@ public static class PayloadLayout
         "src/Karpik.Editor/Karpik.Editor.csproj",
         "src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj",
         "src/Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj",
-        "src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj",
-        "src/Network.Codegen/Network.Codegen/Network.Codegen.csproj",
         "src/Karpik.Content.Tool/Karpik.Content.Tool.csproj",
-        "src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj",
         "src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj"
     ];
 
@@ -103,6 +100,9 @@ public static class PayloadLayout
         {
             CopyDirectory(sharedSource, Path.Combine(stagingRoot, SharedDirectory), IsStagedPayloadFile);
         }
+        string codegenSource = Path.Combine(sourceRoot, "codegen");
+        if (Directory.Exists(codegenSource))
+            CopyDirectory(codegenSource, Path.Combine(stagingRoot, "codegen"), IsStagedPayloadFile);
     }
 
     /// <summary>Определяет, должен ли файл попасть в публикуемый payload (символы отладки не поставляются).</summary>
@@ -251,22 +251,22 @@ public static class PayloadLayout
             "-p:DebugType=None",
             pathMapProperty
         ];
-        IReadOnlyList<SelectedModuleProject> moduleProjects = ReadPackageCatalog(repositoryRoot);
+        IReadOnlyList<SelectedModuleProject> moduleProjects = ReadPackageCatalog(repositoryRoot, out RepositoryModel codegenModel);
+        var codegenProjects = codegenModel.ProjectsByPath.Values.Where(project => project.CodegenProject != null)
+            .Select(project => project.CodegenProject!).DistinctBy(project => project.AbsolutePath).ToArray();
         string buildProjectPath = Path.Combine(cacheRoot, "EnginePayload.Build.proj");
         string[] buildProjectPaths = ProductionBuildProjectPaths
             .Concat(moduleProjects.Select(module => module.ProjectPath))
+            .Concat(codegenProjects.Select(project => project.RelativePath))
             .Select(project => Path.GetFullPath(Path.Combine(repositoryRoot, project.Replace('/', Path.DirectorySeparatorChar))))
             .ToArray();
         File.WriteAllText(buildProjectPath, GenerateBuildProjectContents(buildProjectPaths));
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "restore", "KarpikEngine.slnx", "-m:1", "-nr:false", "-p:Configuration=Release");
         RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "msbuild", buildProjectPath, "-t:Build", "-graphBuild", "-m:1", "-nr:false", "-p:Configuration=Release");
         string sdkTasksOutput = GetArtifactOutput(artifacts, "src/Karpik.Engine.Sdk.Tasks/Karpik.Engine.Sdk.Tasks.csproj") + Path.DirectorySeparatorChar;
-        string coreCodegenOutput = GetArtifactOutput(artifacts, "src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj") + Path.DirectorySeparatorChar;
-        string networkCodegenOutput = GetArtifactOutput(artifacts, "src/Network.Codegen/Network.Codegen/Network.Codegen.csproj") + Path.DirectorySeparatorChar;
         string contentToolOutput = GetArtifactOutput(artifacts, "src/Karpik.Content.Tool/Karpik.Content.Tool.csproj") + Path.DirectorySeparatorChar;
-        string contentCodegenOutput = GetArtifactOutput(artifacts, "src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj") + Path.DirectorySeparatorChar;
         string contentRuntimeOutput = GetArtifactOutput(artifacts, "src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj") + Path.DirectorySeparatorChar;
-        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "src/Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", $"-p:KarpikSdkTasksOutputPath={sdkTasksOutput}", $"-p:KarpikCoreCodegenOutputPath={coreCodegenOutput}", $"-p:KarpikNetworkCodegenOutputPath={networkCodegenOutput}", $"-p:KarpikContentToolOutputPath={contentToolOutput}", $"-p:KarpikContentCodegenOutputPath={contentCodegenOutput}", $"-p:KarpikContentRuntimeOutputPath={contentRuntimeOutput}", "-o", sdkOutput);
+        RunOwnedDotNet(processRunner, repositoryRoot, deterministicProperties, "pack", "src/Karpik.Engine.Sdk/Karpik.Engine.Sdk.csproj", "-c", "Release", "--no-restore", "-m:1", "-nr:false", $"-p:PackageVersion={sdkVersion}", $"-p:KarpikSdkTasksOutputPath={sdkTasksOutput}", $"-p:KarpikContentToolOutputPath={contentToolOutput}", $"-p:KarpikContentRuntimeOutputPath={contentRuntimeOutput}", "-o", sdkOutput);
         string templateProject = Path.Combine(repositoryRoot, "src", "Karpik.Engine.Templates", "Karpik.Engine.Templates.csproj");
         if (File.Exists(templateProject))
         {
@@ -285,6 +285,12 @@ public static class PayloadLayout
         CopyDirectory(sdkOutput, Path.Combine(stagingRoot, SdkDirectory), IsStagedPayloadFile);
 
         string modulesDestination = Path.Combine(stagingRoot, ModulesDirectory);
+        foreach (var generator in codegenProjects)
+            CopyDirectory(GetArtifactOutput(artifacts, generator.RelativePath),
+                Path.Combine(stagingRoot, "codegen", generator.PluginId),
+                path => Path.GetExtension(path).Equals(".dll", StringComparison.OrdinalIgnoreCase));
+        Directory.CreateDirectory(Path.Combine(stagingRoot, "codegen"));
+        File.WriteAllText(Path.Combine(stagingRoot, "codegen", "catalog.json"), ArtifactGenerator.BuildCodegenCatalog(codegenModel), new UTF8Encoding(false));
         Directory.CreateDirectory(modulesDestination);
         foreach (SelectedModuleProject moduleProject in moduleProjects)
         {
@@ -469,14 +475,14 @@ public static class PayloadLayout
     }
 
     /// <summary>Читает полный production-каталог, сформированный Configurator.</summary>
-    private static IReadOnlyList<SelectedModuleProject> ReadPackageCatalog(string repositoryRoot)
+    private static IReadOnlyList<SelectedModuleProject> ReadPackageCatalog(string repositoryRoot, out RepositoryModel model)
     {
         string[] solutions = Directory.GetFiles(repositoryRoot, "*.slnx", SearchOption.TopDirectoryOnly);
         if (solutions.Length != 1)
         {
             throw new InvalidDataException("Repository source must contain exactly one solution for Configurator package-catalog discovery.");
         }
-        RepositoryModel model = RepositoryParser.Load(repositoryRoot, solutions[0]);
+        model = RepositoryParser.Load(repositoryRoot, solutions[0]);
         if (model.ParseErrors.Count > 0)
         {
             throw new InvalidDataException($"Configurator package-catalog validation failed:{Environment.NewLine}{string.Join(Environment.NewLine, model.ParseErrors)}");

@@ -19,6 +19,6 @@
     <ProjectReference Include="..\..\src\Karpik.Content.Core\Karpik.Content.Core.csproj" />
     <ProjectReference Include="..\..\src\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
     <ProjectReference Include="..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
-    <ProjectReference Include="..\..\src\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj" />
+    <ProjectReference Include="..\..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" />
   </ItemGroup>
 </Project>

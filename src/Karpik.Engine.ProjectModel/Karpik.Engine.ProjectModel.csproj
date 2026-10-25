@@ -7,9 +7,5 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <!-- Убирает несвязанные генераторы из графа библиотеки модели. -->
-    <ItemGroup>
-        <ProjectReference Remove="$(KarpikRepositoryRoot)src\Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
-    </ItemGroup>
 
 </Project>

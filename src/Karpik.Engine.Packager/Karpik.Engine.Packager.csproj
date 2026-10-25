@@ -13,8 +13,7 @@
     <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
   </ItemGroup>
 
-  <!-- Убирает несвязанные генераторы из графа packager. -->
   <ItemGroup>
-    <ProjectReference Remove="$(KarpikRepositoryRoot)src\Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
+    <ProjectReference Remove="$(KarpikRepositoryRoot)Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj;$(KarpikRepositoryRoot)Modules\Shared\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
   </ItemGroup>
 </Project>
