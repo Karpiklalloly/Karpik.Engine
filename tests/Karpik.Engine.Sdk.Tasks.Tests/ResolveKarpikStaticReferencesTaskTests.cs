@@ -46,6 +46,8 @@ public sealed class ResolveKarpikStaticReferencesTaskTests
               </ItemGroup>
               <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikStaticReferencesTask"
                          AssemblyFile="{{Escape(typeof(ResolveKarpikStaticReferencesTask).Assembly.Location)}}" />
+              <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikCodegenTask"
+                         AssemblyFile="{{Escape(typeof(ResolveKarpikCodegenTask).Assembly.Location)}}" />
               <Import Project="{{Escape(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"))}}" />
               <Target Name="_KarpikResolveEngineReferenceAssemblies" />
               <Target Name="BuildKarpikRuntimeBundle" />

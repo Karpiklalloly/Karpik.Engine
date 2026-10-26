@@ -1,0 +1,25 @@
+{
+  "Version": 1,
+  "Generators": [
+    {
+      "OwnerAssembly": "Karpik.Content.Runtime",
+      "ModuleId": null,
+      "AssemblyPath": "codegen/Karpik.Content.Runtime.Codegen/Karpik.Content.Runtime.Codegen.dll"
+    },
+    {
+      "OwnerAssembly": "Karpik.Engine.Core",
+      "ModuleId": null,
+      "AssemblyPath": "codegen/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.dll"
+    },
+    {
+      "OwnerAssembly": "Network.Shared.Core",
+      "ModuleId": "Network.Shared.Core",
+      "AssemblyPath": "codegen/Network.Shared.Core.Codegen/Network.Shared.Core.Codegen.dll"
+    },
+    {
+      "OwnerAssembly": "StatAndAbilities",
+      "ModuleId": "StatAndAbilities",
+      "AssemblyPath": "codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.dll"
+    }
+  ]
+}

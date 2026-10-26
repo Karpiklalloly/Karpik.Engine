@@ -225,7 +225,7 @@ public sealed class CodegenSnapshotTests
 
         // Verify csproj has IsRoslynComponent=true and no suppressed NU1903 / RS1035 etc
         string repoRoot = FindRepositoryRoot();
-        string csprojPath = Path.Combine(repoRoot, "src", "Karpik.Content.Codegen", "Karpik.Content.Codegen.csproj");
+        string csprojPath = Path.Combine(repoRoot, "src", "Karpik.Content.Runtime.Codegen", "Karpik.Content.Runtime.Codegen.csproj");
         Assert.True(File.Exists(csprojPath), $"csproj not found at {csprojPath}");
         string csproj = File.ReadAllText(csprojPath);
         Assert.Contains("<IsRoslynComponent>true</IsRoslynComponent>", csproj);
@@ -322,7 +322,7 @@ public sealed class CodegenSnapshotTests
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "src", "Karpik.Content.Codegen", "Karpik.Content.Codegen.csproj")))
+            if (File.Exists(Path.Combine(dir.FullName, "src", "Karpik.Content.Runtime.Codegen", "Karpik.Content.Runtime.Codegen.csproj")))
                 return dir.FullName;
             if (File.Exists(Path.Combine(dir.FullName, "Directory.Build.props")))
                 return dir.FullName;
@@ -332,7 +332,7 @@ public sealed class CodegenSnapshotTests
         dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir != null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "src", "Karpik.Content.Codegen", "Karpik.Content.Codegen.csproj")))
+            if (File.Exists(Path.Combine(dir.FullName, "src", "Karpik.Content.Runtime.Codegen", "Karpik.Content.Runtime.Codegen.csproj")))
                 return dir.FullName;
             dir = dir.Parent;
         }

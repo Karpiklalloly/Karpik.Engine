@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
+    <ProjectReference Include="..\..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />
     <ProjectReference Include="..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     <ProjectReference Include="..\..\src\Karpik.Engine.Core.Runner\Karpik.Engine.Core.Runner.csproj" />
     <ProjectReference Include="..\..\src\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />

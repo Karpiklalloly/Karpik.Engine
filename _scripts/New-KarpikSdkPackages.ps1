@@ -31,12 +31,13 @@ if ([string]::IsNullOrWhiteSpace($SdkVersion) -or
 $RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $PayloadProjects = @(
     "src\Karpik.Engine.Sdk.Tasks\Karpik.Engine.Sdk.Tasks.csproj",
-    "src\Karpik.Engine.Core.Generator\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj",
     "src\Karpik.Content.Tool\Karpik.Content.Tool.csproj",
-    "src\Karpik.Content.Codegen\Karpik.Content.Codegen.csproj",
-    "src\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj",
-    "src\Network.Codegen\Network.Codegen\Network.Codegen.csproj"
+    "src\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj"
 )
+$codegenCatalog = [xml](Get-Content -LiteralPath (Join-Path $RepositoryRoot "Generated/KarpikModuleCatalog.props") -Raw)
+$PayloadProjects += @($codegenCatalog.SelectNodes("//KarpikCodegenProject") | ForEach-Object {
+    $_.Include.Replace('$(MSBuildThisFileDirectory)..', '.')
+})
 $PackProjects = @(
     "src\Karpik.Engine.Sdk\Karpik.Engine.Sdk.csproj",
     "src\Karpik.Engine.Templates\Karpik.Engine.Templates.csproj"

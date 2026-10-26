@@ -18,6 +18,7 @@ public static class GraphValidator
 
         var activeProjects = SelectActiveProjects(model, result.ActivePlugins);
         ValidateDependencies(model, activeProjects, result.Errors);
+        ModuleCodegen.ValidateCycles(model, activeProjects.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase), result.Errors);
         if (result.Errors.Count > 0)
         {
             return result;

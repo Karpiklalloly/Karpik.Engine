@@ -19,9 +19,5 @@
         <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
     </ItemGroup>
 
-    <!-- Убирает генераторы, которые не должны стать частью графа задач SDK. -->
-    <ItemGroup>
-        <ProjectReference Remove="$(KarpikRepositoryRoot)src\Network.Codegen\Network.Codegen\Network.Codegen.csproj;$(KarpikRepositoryRoot)src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj" />
-    </ItemGroup>
 
 </Project>

@@ -6,21 +6,19 @@ namespace StaticAnalyzer.Tests;
 public sealed class CodegenDeploymentTests
 {
     [Fact]
-    public void DirectoryBuildProps_DeploysCoreCodegenToModuleProjects()
+    public void ModuleCatalog_DeploysCoreCodegenToDependentProjects()
     {
         string repositoryRoot = FindRepositoryRoot();
-        XDocument props = XDocument.Load(Path.Combine(repositoryRoot, "Directory.Build.props"));
+        XDocument props = XDocument.Load(Path.Combine(repositoryRoot, "Generated", "KarpikModuleCatalog.props"));
 
         bool deployed = props
             .Descendants("ItemGroup")
-            .Where(static group =>
-                ((string?)group.Attribute("Condition"))?.Contains("MSBuildProjectDirectory", StringComparison.Ordinal) == true)
-            .Elements("KarpikModuleDependency")
+            .Where(static group => group.Attribute("Condition") != null)
+            .Elements("ProjectReference")
             .Any(static dependency =>
-                string.Equals(
-                    (string?)dependency.Attribute("Include"),
-                    "Karpik.Engine.Core.Codegen",
-                    StringComparison.Ordinal));
+                ((string?)dependency.Attribute("Include"))?.EndsWith("Karpik.Engine.Core.Codegen.csproj", StringComparison.Ordinal) == true
+                && (string?)dependency.Attribute("OutputItemType") == "Analyzer"
+                && (string?)dependency.Attribute("ReferenceOutputAssembly") == "false");
 
         Assert.True(deployed, "Karpik.Engine.Core.Codegen must run in Modules projects.");
     }

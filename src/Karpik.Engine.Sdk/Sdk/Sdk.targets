@@ -2,18 +2,9 @@
   <!-- Вычисляет расположение SDK-задач и анализаторов внутри установленного NuGet-пакета. -->
   <PropertyGroup>
     <_KarpikSdkTaskAssembly>$(MSBuildThisFileDirectory)..\tools\net10.0\Karpik.Engine.Sdk.Tasks.dll</_KarpikSdkTaskAssembly>
-    <_KarpikCoreCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Karpik.Engine.Core.Codegen.dll</_KarpikCoreCodegenAssembly>
-    <_KarpikNetworkCodegenAssembly>$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Network.Codegen.dll</_KarpikNetworkCodegenAssembly>
     <_KarpikMsBuildSdkVersion>$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::TrimEndingDirectorySeparator('$(MSBuildThisFileDirectory)'))))))</_KarpikMsBuildSdkVersion>
   </PropertyGroup>
 
-  <!-- Подключает генераторы core-кода и runtime network-кода. -->
-  <ItemGroup>
-    <Analyzer Include="$(_KarpikCoreCodegenAssembly)"
-              Condition="Exists('$(_KarpikCoreCodegenAssembly)')" />
-    <Analyzer Include="$(_KarpikNetworkCodegenAssembly)"
-              Condition="'$(KarpikProjectKind)' == 'Runtime' And Exists('$(_KarpikNetworkCodegenAssembly)')" />
-  </ItemGroup>
 
   <!-- Регистрирует задачи SDK, вызываемые целями ниже. -->
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ValidateKarpikProjectReferencesTask"
@@ -24,9 +15,30 @@
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
   <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.BuildKarpikRuntimeBundleTask"
              AssemblyFile="$(_KarpikSdkTaskAssembly)" />
+  <UsingTask TaskName="Karpik.Engine.Sdk.Tasks.ResolveKarpikCodegenTask"
+             AssemblyFile="$(_KarpikSdkTaskAssembly)" />
 
   <!-- Подключает стандартные цели .NET SDK. -->
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Target Name="_KarpikResolveModuleCodegen" BeforeTargets="CoreCompile"
+          DependsOnTargets="ResolveReferences"
+          Condition="'$(KarpikProjectKind)' != 'Generator' And (Exists('$(KarpikEngineRoot)/codegen/catalog.json') Or Exists('$(MSBuildThisFileDirectory)../codegen/catalog.json'))">
+    <PropertyGroup>
+      <_KarpikRespectCodegenSelection>false</_KarpikRespectCodegenSelection>
+      <_KarpikRespectCodegenSelection Condition="'@(_KarpikSelectedModuleId)' != ''">true</_KarpikRespectCodegenSelection>
+    </PropertyGroup>
+    <ResolveKarpikCodegenTask EngineRoot="$(KarpikEngineRoot)"
+                             SdkRoot="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))"
+                             ReferencedAssemblies="@(ReferencePath)"
+                             RespectModuleSelection="$(_KarpikRespectCodegenSelection)"
+                             SelectedModuleIds="@(_KarpikSelectedModuleId)">
+      <Output TaskParameter="Analyzers" ItemName="_KarpikModuleAnalyzer" />
+    </ResolveKarpikCodegenTask>
+    <ItemGroup>
+      <Analyzer Include="@(_KarpikModuleAnalyzer)" />
+    </ItemGroup>
+  </Target>
 
   <PropertyGroup>
     <KarpikContentOutput Condition="'$(KarpikContentOutput)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)Content'))</KarpikContentOutput>
@@ -127,6 +139,7 @@
       <Output TaskParameter="References" ItemName="_KarpikStaticModuleReference" />
       <Output TaskParameter="PayloadAssemblies" ItemName="_KarpikStaticModulePayloadAssembly" />
       <Output TaskParameter="ModuleDefines" PropertyName="_KarpikModuleDefines" />
+      <Output TaskParameter="SelectedModuleIds" ItemName="_KarpikSelectedModuleId" />
     </ResolveKarpikStaticReferencesTask>
     <PropertyGroup>
       <DefineConstants>$(DefineConstants);$(_KarpikModuleDefines)</DefineConstants>

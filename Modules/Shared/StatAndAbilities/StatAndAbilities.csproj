@@ -10,8 +10,9 @@
     <ItemGroup>
       <ProjectReference Include="..\..\..\third-parties\DragonECS\DragonECS.csproj" />
       <ProjectReference
-              Include="..\..\..\src\StatAndAbilities.Codegen\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
+              Include="..\..\..\Modules\Shared\StatAndAbilities.Codegen\StatAndAbilities.Codegen.csproj"
               OutputItemType="Analyzer"
+              PrivateAssets="all"
               ReferenceOutputAssembly="false"/>
     </ItemGroup>
 

@@ -21,37 +21,16 @@ public sealed class KarpikValidationTaskTests
     }
 
     [Fact]
-    public void SdkWiresCoreCodegenAnalyzerIntoExternalProjects()
+    public void SdkResolvesOwnedGeneratorsAfterAssemblyReferences()
     {
         var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
-
-        XElement codegenPath = Assert.Single(
-            targets.Root!.Elements("PropertyGroup").Elements("_KarpikCoreCodegenAssembly"));
-        XElement analyzer = targets.Root.Elements("ItemGroup").Elements("Analyzer")
-            .Single(element => (string?)element.Attribute("Include") == "$(_KarpikCoreCodegenAssembly)");
-
-        Assert.Contains("Karpik.Engine.Core.Codegen.dll", codegenPath.Value, StringComparison.Ordinal);
-        Assert.Equal("$(_KarpikCoreCodegenAssembly)", (string?)analyzer.Attribute("Include"));
-        Assert.Equal(
-            "Exists('$(_KarpikCoreCodegenAssembly)')",
-            (string?)analyzer.Attribute("Condition"));
-    }
-
-    [Fact]
-    public void SdkWiresNetworkCodegenExactlyOnceIntoRuntimeProjects()
-    {
-        var targets = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "Sdk.targets"));
-
-        XElement codegenPath = Assert.Single(
-            targets.Root!.Elements("PropertyGroup").Elements("_KarpikNetworkCodegenAssembly"));
-        XElement analyzer = Assert.Single(
-            targets.Root.Elements("ItemGroup").Elements("Analyzer"),
-            element => (string?)element.Attribute("Include") == "$(_KarpikNetworkCodegenAssembly)");
-
-        Assert.Contains("Network.Codegen.dll", codegenPath.Value, StringComparison.Ordinal);
-        Assert.Equal(
-            "'$(KarpikProjectKind)' == 'Runtime' And Exists('$(_KarpikNetworkCodegenAssembly)')",
-            (string?)analyzer.Attribute("Condition"));
+        XElement target = targets.Root!.Elements("Target")
+            .Single(element => (string?)element.Attribute("Name") == "_KarpikResolveModuleCodegen");
+        Assert.Equal("CoreCompile", (string?)target.Attribute("BeforeTargets"));
+        Assert.Equal("ResolveReferences", (string?)target.Attribute("DependsOnTargets"));
+        Assert.Equal("@(ReferencePath)", (string?)target.Element("ResolveKarpikCodegenTask")!.Attribute("ReferencedAssemblies"));
+        Assert.Single(target.Descendants("Analyzer"));
+        Assert.Empty(targets.Root.Elements("ItemGroup").Elements("Analyzer"));
     }
 
     [Fact]

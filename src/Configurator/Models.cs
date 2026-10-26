@@ -34,8 +34,11 @@ public sealed class ProjectInfo
     public required bool IsExecutable { get; init; }
     public required bool IsTestProject { get; init; }
     public required string? AssemblyName { get; init; }
+    public bool IsCodegen => PluginId.EndsWith(".Codegen", StringComparison.Ordinal);
+    public ProjectInfo? CodegenProject { get; set; }
     public List<DependencySpec> Dependencies { get; } = [];
     public List<string> DirectProjectReferences { get; } = [];
+    public HashSet<string> AnalyzerProjectReferences { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<SettingSchema> Settings { get; } = [];
 }
 

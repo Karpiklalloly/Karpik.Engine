@@ -40,6 +40,7 @@
     <Project Path="Modules/Shared/LoggerModule/LoggerModule.csproj" />
     <Project Path="Modules/Shared/Spatial2D/Spatial2D.csproj" />
     <Project Path="Modules/Shared/StatAndAbilities/StatAndAbilities.csproj" />
+    <Project Path="Modules/Shared/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
     <Project Path="Modules/Shared/UnsafeUtilities/UnsafeUtilities.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/AssetManagement/">
@@ -56,6 +57,7 @@
   <Folder Name="/Modules/Shared/Netwok.Shared/">
     <Project Path="Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
     <Project Path="Modules/Shared/Network.Shared/Network.Shared.Core/Network.Shared.Core.csproj" />
+    <Project Path="Modules/Shared/Network.Shared/Network.Shared.Core.Codegen/Network.Shared.Core.Codegen.csproj" />
   </Folder>
   <Folder Name="/Modules/Shared/Physics/">
     <Project Path="Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj" />
@@ -69,13 +71,13 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Configurator/Configurator.csproj" />
-    <Project Path="src/Karpik.Content.Codegen/Karpik.Content.Codegen.csproj" />
+    <Project Path="src/Karpik.Content.Runtime.Codegen/Karpik.Content.Runtime.Codegen.csproj" />
     <Project Path="src/Karpik.Content.Core/Karpik.Content.Core.csproj" />
     <Project Path="src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
     <Project Path="src/Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
     <Project Path="src/Karpik.Editor/Karpik.Editor.csproj" />
     <Project Path="src/Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
-    <Project Path="src/Karpik.Engine.Core.Generator/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
+    <Project Path="src/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
     <Project Path="src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
     <Project Path="src/Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
     <Project Path="src/Karpik.Engine.Packager/Karpik.Engine.Packager.csproj" />
@@ -87,8 +89,6 @@
     <Project Path="src/Karpik.Engine.Templates/Karpik.Engine.Templates.csproj" />
     <Project Path="src/Karpik.Engine.Tooling/Karpik.Engine.Tooling.csproj" />
     <Project Path="src/Karpik.Launcher/Karpik.Launcher.csproj" />
-    <Project Path="src/Network.Codegen/Network.Codegen/Network.Codegen.csproj" />
-    <Project Path="src/StatAndAbilities.Codegen/StatAndAbilities.Codegen/StatAndAbilities.Codegen.csproj" />
     <Project Path="src/StaticAnalyzer/StaticAnalyzer.csproj" />
   </Folder>
   <Folder Name="/tests/">
