@@ -52,6 +52,11 @@ public sealed class ResolveKarpikCodegenTask : Microsoft.Build.Utilities.Task
                 if (!File.Exists(assembly)) throw new FileNotFoundException("Registered codegen assembly is missing.", assembly);
                 EnsureNotLinked(assembly);
                 paths.Add(assembly);
+                foreach (string dependency in Directory.EnumerateFiles(Path.GetDirectoryName(assembly)!, "*.dll"))
+                {
+                    EnsureNotLinked(dependency);
+                    paths.Add(dependency);
+                }
             }
             Analyzers = paths.Select(path => (ITaskItem)new TaskItem(path)).ToArray();
             return true;

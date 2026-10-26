@@ -35,6 +35,7 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 - [x] Core.Runner 141/141, ECS.Core 34/34, Core.Generator 53/53. Четыре вложенные ECS fixture сделаны internal для доступа из генерируемого top-level registry.
 - [x] После последних исправлений SDK.Tasks повторно: 105 passed / 4 skipped. Повторный запуск внутри sandbox прерывался по timeout соединения vstest/testhost; запуск вне sandbox завершился успешно.
 - [x] Финальный повторный Packager вне sandbox: 31/31, включая копирование prepared codegen payload. Проверка debug targetProject от корня каждого generator project подтвердила все три пути. `git diff --check` и staged diff check прошли.
+- [x] (2026-10-26) Исправление замечания ревью: соседние DLL генератора передаются Roslyn в source build и SDK. Регрессионные проверки сначала воспроизвели `CS8785` / `FileNotFoundException` для `Codegen.Support.dll`, затем прошли, включая повторную сборку и отсутствие helper DLL в runtime output build-only потребителя. Полные прогоны: Configurator 31/31; SDK.Tasks 105 passed / 5 skipped (проверки симлинков требуют недоступной Windows-привилегии); Core.Generator 53/53; Network.Codegen 24/24; Content 25/25. Интеграционный `Packaged_sdk_compiles_generated_content_refs` 1/1, сборка StatAndAbilities и Configurator `--validate` прошли. Независимое ревью исправления — без замечаний.
 
 ## Surprises & Discoveries
 
@@ -51,6 +52,7 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 - Решение: перенос существующих генераторов к соответствующим владельцам входит в задачу. Указание разработчика от 2026-10-25 отменяет прежнее исключение миграции из объема работ. Core/Content.Runtime сохраняют инфраструктурную классификацию; StaticAnalyzer остается анализатором правил.
 - Ruling: отдельный versioned `codegen/catalog.json` сохраняет старый формат `modules.catalog` и классификацию Core/Content.Runtime. SDK выбирает генераторы по фактическим ReferencePath после ResolveReferences; для Runtime учитывается выбранный граф, для Test/Tool без собственного выбора — фактические ссылки. Источник metadata тот же Configurator; нового resolver модулей нет.
 - Ruling: каталог и DLL входят и в engine payload, и в SDK package. При отсутствии каталога в старом payload используется каталог SDK. Source build использует catalog-generated build-only ProjectReference, SDK — Analyzer items; служебные DLL изолированы от runtime.
+- Ruling (2026-10-26): копирования helper DLL рядом с генератором недостаточно для Roslyn. Source build регистрирует соседние DLL analyzer-проектов `.Codegen.csproj` после `ResolveReferences`; SDK регистрирует DLL из каталога выбранного генератора, проверяя каждую через `EnsureNotLinked`. Формат каталога и runtime references не меняются.
 
 ## Outcomes & Retrospective
 

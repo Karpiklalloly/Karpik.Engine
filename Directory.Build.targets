@@ -3,6 +3,17 @@
     <Import Project="$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props"
             Condition="Exists('$(MSBuildThisFileDirectory)Generated\KarpikModuleCatalog.props')" />
 
+    <Target Name="KarpikResolveCodegenDependencies" BeforeTargets="CoreCompile" DependsOnTargets="ResolveReferences">
+        <ItemGroup>
+            <_KarpikCodegenAnalyzer Include="@(Analyzer)"
+                                   Condition="$([System.String]::Copy('%(Analyzer.MSBuildSourceProjectFile)').EndsWith('.Codegen.csproj'))" />
+            <!-- Roslyn must receive dependency paths even when DLLs sit next to the generator. -->
+            <Analyzer Include="%(_KarpikCodegenAnalyzer.RootDir)%(_KarpikCodegenAnalyzer.Directory)*.dll"
+                      Condition="'@(_KarpikCodegenAnalyzer)' != ''"
+                      Exclude="@(Analyzer)" />
+        </ItemGroup>
+    </Target>
+
     <!-- The extension submodule still references the former root-level core project. -->
     <ItemGroup Condition="'$(MSBuildProjectName)' == 'DragonECS.Karpik.Extensions'">
         <ProjectReference Remove="..\..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />

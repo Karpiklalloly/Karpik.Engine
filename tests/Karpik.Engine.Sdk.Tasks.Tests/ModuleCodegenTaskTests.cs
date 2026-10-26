@@ -4,6 +4,7 @@ using Microsoft.Build.Utilities;
 using System.Collections;
 using System.Diagnostics;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Karpik.Engine.Sdk.Tasks.Tests;
 
@@ -35,23 +36,28 @@ public sealed class ModuleCodegenTaskTests
             await process.WaitForExitAsync();
             Assert.True(process.ExitCode == 0, await output + await error);
         }
+        WriteProject("Codegen.Support", "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>",
+            "public static class CodegenSupport { public static string Source() => \"internal static class Marker { public const int Value = 42; }\"; }");
         string generator = WriteProject("Provider.Codegen", """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
-              <ItemGroup><Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll" Private="false" /></ItemGroup>
+              <ItemGroup>
+                <Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll" Private="false" />
+                <ProjectReference Include="../Codegen.Support/Codegen.Support.csproj" />
+              </ItemGroup>
             </Project>
             """, """
             using Microsoft.CodeAnalysis;
             [Generator] public sealed class Generator : ISourceGenerator
             {
                 public void Initialize(GeneratorInitializationContext context) { }
-                public void Execute(GeneratorExecutionContext context) => context.AddSource("Marker.g.cs", "internal static class Marker { public const int Value = 42; }");
+                public void Execute(GeneratorExecutionContext context) => context.AddSource("Marker.g.cs", CodegenSupport.Source());
             }
             """);
         await Build(generator);
         tree.Add("Provider.Codegen");
-        File.Copy(Path.Combine(tree.Root, "Provider.Codegen", "bin", "Debug", "net10.0", "Provider.Codegen.dll"),
-            Path.Combine(tree.Root, "codegen", "Provider.Codegen", "Provider.Codegen.dll"), true);
+        foreach (string assembly in Directory.EnumerateFiles(Path.Combine(tree.Root, "Provider.Codegen", "bin", "Debug", "net10.0"), "*.dll"))
+            File.Copy(assembly, Path.Combine(tree.Root, "codegen", "Provider.Codegen", Path.GetFileName(assembly)), true);
         tree.WriteCatalog("""
             {"Version":1,"Generators":[{"OwnerAssembly":"Provider","ModuleId":"Provider","AssemblyPath":"codegen/Provider.Codegen/Provider.Codegen.dll"}]}
             """);
@@ -74,7 +80,8 @@ public sealed class ModuleCodegenTaskTests
                 </Project>
                 """, $"public static class {name} {{ public static int Value => Marker.Value; }}");
         }
-        await Build(Path.Combine(tree.Root, "Game", "Game.csproj"));
+        for (int build = 0; build < 2; build++)
+            await Build(Path.Combine(tree.Root, "Game", "Game.csproj"));
         Assert.DoesNotContain(Directory.EnumerateFiles(Path.Combine(tree.Root, "Game", "bin"), "*.dll", SearchOption.AllDirectories),
             file => Path.GetFileName(file).Contains("Codegen", StringComparison.Ordinal));
     }
@@ -92,6 +99,8 @@ public sealed class ModuleCodegenTaskTests
             """);
         tree.Add("Provider.Codegen");
         tree.Add("Core.Codegen");
+        File.Copy(typeof(ModuleCodegenTaskTests).Assembly.Location,
+            Path.Combine(tree.Root, "codegen", "Provider.Codegen", "Codegen.Support.dll"));
         var task = new ResolveKarpikCodegenTask
         {
             BuildEngine = new Engine(), EngineRoot = tree.Root,
@@ -99,7 +108,7 @@ public sealed class ModuleCodegenTaskTests
             SelectedModuleIds = selected ? [new TaskItem("Provider")] : []
         };
         Assert.True(task.Execute());
-        Assert.Equal(selected ? 1 : 0, task.Analyzers.Length);
+        Assert.Equal(selected ? 2 : 0, task.Analyzers.Length);
     }
 
     [Theory]
@@ -128,6 +137,30 @@ public sealed class ModuleCodegenTaskTests
         using var tree = new CodegenTree();
         var task = new ResolveKarpikCodegenTask { BuildEngine = new Engine(), EngineRoot = tree.Root };
         Assert.True(task.Execute());
+        Assert.Empty(task.Analyzers);
+    }
+
+    [Fact]
+    public void RejectsLinkedDependencyWhenSymbolicLinksAreAvailable()
+    {
+        using var tree = new CodegenTree();
+        tree.Add("Provider.Codegen");
+        tree.WriteCatalog("""
+            {"Version":1,"Generators":[{"OwnerAssembly":"Provider","AssemblyPath":"codegen/Provider.Codegen/Provider.Codegen.dll"}]}
+            """);
+        string dependency = Path.Combine(tree.Root, "codegen", "Provider.Codegen", "Codegen.Support.dll");
+        try { File.CreateSymbolicLink(dependency, typeof(ModuleCodegenTaskTests).Assembly.Location); }
+        catch (PlatformNotSupportedException exception) { throw SkipException.ForSkip(exception.Message); }
+        catch (UnauthorizedAccessException exception) when (OperatingSystem.IsWindows() && exception.HResult == unchecked((int)0x80070522)) { throw SkipException.ForSkip(exception.Message); }
+        catch (IOException exception) when (OperatingSystem.IsWindows() && exception.HResult == unchecked((int)0x80070522)) { throw SkipException.ForSkip(exception.Message); }
+        var engine = new Engine();
+        var task = new ResolveKarpikCodegenTask
+        {
+            BuildEngine = engine, EngineRoot = tree.Root,
+            ReferencedAssemblies = [new TaskItem("Provider.dll")]
+        };
+        Assert.False(task.Execute());
+        Assert.NotEmpty(engine.Errors);
         Assert.Empty(task.Analyzers);
     }
 

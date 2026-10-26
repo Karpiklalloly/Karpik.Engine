@@ -12,6 +12,7 @@ public sealed class OptionalModuleBuildTests
         using var repository = new TestRepository();
         repository.AddPlugin(ProjectSide.Shared, "Provider.Core");
         string generator = repository.AddLibrary("Provider.Core.Codegen");
+        string support = repository.AddLibrary("Codegen.Support");
         repository.AddPlugin(ProjectSide.Shared, "Middle", dependencyIds: [("Provider", false)]);
         string consumer = repository.AddPlugin(ProjectSide.Shared, "Consumer.App", directReference: typedReference ? generator : null,
             dependencyIds: [("Middle", false)]);
@@ -24,12 +25,15 @@ public sealed class OptionalModuleBuildTests
         ArtifactGenerator.WriteArtifacts(ArtifactGenerator.BuildArtifacts(model, graph));
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Repository.Directory.Build.targets"),
             Path.Combine(repository.RootPath, "Directory.Build.targets"));
+        File.WriteAllText(Path.Combine(repository.RootPath, Path.GetDirectoryName(support)!, "Support.cs"),
+            "public static class CodegenSupport { public static string Source() => \"internal static class Marker { public const int Value = 42; }\"; }");
         var generatorPath = Path.Combine(repository.RootPath, generator);
         File.WriteAllText(generatorPath, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
               <ItemGroup>
                 <Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll" Private="false" />
+                <ProjectReference Include="../Codegen.Support/Codegen.Support.csproj" />
               </ItemGroup>
             </Project>
             """);
@@ -40,7 +44,7 @@ public sealed class OptionalModuleBuildTests
             {
                 public void Initialize(GeneratorInitializationContext context) { }
                 public void Execute(GeneratorExecutionContext context) =>
-                    context.AddSource("Marker.g.cs", "internal static class Marker { public const int Value = 42; }");
+                    context.AddSource("Marker.g.cs", CodegenSupport.Source());
             }
             """);
         File.WriteAllText(Path.Combine(repository.RootPath, Path.GetDirectoryName(consumer)!, "Consumer.cs"),
@@ -62,6 +66,8 @@ public sealed class OptionalModuleBuildTests
         }
         Assert.Equal(typedReference, File.Exists(Path.Combine(repository.RootPath, Path.GetDirectoryName(consumer)!,
             "bin/Debug/net10.0/Provider.Core.Codegen.dll")));
+        Assert.Equal(typedReference, File.Exists(Path.Combine(repository.RootPath, Path.GetDirectoryName(consumer)!,
+            "bin/Debug/net10.0/Codegen.Support.dll")));
     }
 
     [Theory]
