@@ -7,8 +7,8 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 ## Текущее состояние
 
 - Статус: завершён экспериментальный f32-срез и автоматическая приёмка.
-- Сейчас: implementation, fresh review, fixes и полные relevant suites завершены.
-- Далее: ручная проверка в реальном игровом host по отдельному запуску либо следующее явное поручение; без push/PR.
+- Сейчас: первый срез проверен внешним SDK-проектом LuaEcsSandbox; lifecycle-регрессии перенесены в Runner.Tests, финальный полный прогон описан в Progress.
+- Далее: отдельная проверка перезапуска через editor/IPC либо следующее явное поручение; без push/PR.
 - Блокеры: нет. Разрешён экспериментальный бюджет 4096 B/callback + 1600 B/entity после reserve; common C# слой — 0 B. Работа в текущей ветке явно разрешена; публикация запрещена.
 
 ## Purpose / Big Picture
@@ -33,8 +33,14 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 - [x] (2026-10-25) M4 / T6: полный Runner Release266/266, Generator72/72, ECS.Core61/61, StaticAnalyzer54/54, все exit 0. Fresh review и fixes завершены; Markdown links/fences и git diff --ignore-submodules --check чистые. Ручная игра/NativeAOT явно не проверены.
 - [x] (2026-10-25) По отдельному поручению пользователя 15 binding-файлов перенесены в Modding.Core/Bindings, namespace Karpik.Engine.Shared.Modding.Bindings. Обновлены Lua, generators, compiler metadata references, тесты и документы; новые project references не добавлены. После переноса свежие Generator72/72 и Runner Release266/266, exit 0. Первые запуски через agent shell прерваны до тестов: VSTest/testhost connection timeout 90 s; повтор через context-mode с VSTEST_CONNECTION_TIMEOUT=180 и --no-build --no-restore прошёл на свежесобранных сборках. ECS.Core/StaticAnalyzer suites после переноса отдельно не повторялись; предыдущие результаты выше исторические.
 
+- [x] (2026-10-28) Lifecycle-регрессии внешнего sandbox перенесены в Runner.Tests с переиспользованием существующих fixtures. Один Runner проходит три Setup/Destroy в каждой из четырёх комбинаций Static/Dynamic × Deterministic/Parallel. Проверяются fresh data, exact lifecycle, disable/re-enable, остановка старых adapters/callbacks, 15 disposal guards и сборка 21 старого объекта на case через WeakReference. Initial targeted 4/4, negative control без Dispose preparer в test fixture дал 4/4 failed; fixture восстановлен. Финальный полный Runner Release270/270, exit 0: `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -c Release --no-restore -m:1 -nr:false`. Изменены только тесты/fixture и этот план; production, editor/IPC и ImGui не менялись. Push/PR/commit не выполнялись.
+
 ## Surprises & Discoveries
 
+- Observation: внешний LuaEcsSandbox проверил шесть SetupAsync/Destroy в одном процессе; эти API пересоздают всю цепочку Engine/ModSet/Simulation, а не только Simulation внутри живого ModSet. Это не проверка editor/IPC hot reload.
+  Evidence: внешний `D:/Games/LuaEcsSandbox/.logs/lifecycle-check.json`, 2026-10-27; независимый SDK-стенд сохранён вне engine repository.
+- Observation: regression `DeclaredLuaSystems_RecreateScopes_DisposeOldAccess_AndReleaseReferences` переиспользует fixtures движка и один Runner на три Setup/Destroy. Матрица Static/Dynamic × Deterministic/Parallel; exact lifecycle, disable/re-enable, fresh values после poison=99, 15 disposal guards и 21 weak reference на case. GC выполняется после выхода из NoInlining helper и завершения JobSystem. Внутренний MoonSharp.Script отдельно не наблюдается.
+  Evidence: `tests/Karpik.Engine.Core.Runner.Tests/LuaSimulationLifecycleTests.cs`. Initial targeted 4/4; negative control без query preparer Dispose в test fixture — 4/4 failed, fixture восстановлен. Production-код не менялся.
 - Observation: scheduler graph already has numeric access arrays, но подготовка descriptor принимает только Type. Dynamic identity надо расширить в обоих Build путях, не переносить строки в кадр.
   Evidence: `src/Karpik.Engine.Core/Scheduling/EcsUpdateGraphBuilder.cs:26-32,82-150`.
 - Observation: sequential система конфликтует со всеми, а не только со своей VM; тест последовательности Lua не доказывает dynamic dependency inference.

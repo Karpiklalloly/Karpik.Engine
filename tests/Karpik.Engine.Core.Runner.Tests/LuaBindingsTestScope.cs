@@ -14,6 +14,8 @@ internal sealed class LuaBindingsTestScope : IDisposable
     private readonly ComponentQueryPreparer _queries;
     private readonly LuaComponentRegistry _components;
     internal EcsDefaultWorld World => _world;
+    internal ComponentCallbackScope CallbackScope => _scope;
+    internal ComponentQueryPreparer Queries => _queries;
 
     internal LuaBindingsTestScope(LuaComponentRegistry components, ComponentSchemaRegistry? schemas = null)
     {

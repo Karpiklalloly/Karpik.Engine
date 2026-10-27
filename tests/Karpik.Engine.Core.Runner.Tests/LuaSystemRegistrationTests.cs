@@ -135,7 +135,7 @@ public sealed partial class LuaPreparationTests
         });
     }
 
-    private sealed class RecordingRuntimeRegistry : ISystemRuntimeRegistry
+    private sealed class RecordingRuntimeRegistry(ISystemRuntimeRegistry? target = null) : ISystemRuntimeRegistry
     {
         public List<ISystemUpdate> Systems { get; } = [];
         public List<EcsUpdateSystemDescriptor> Descriptors { get; } = [];
@@ -144,6 +144,7 @@ public sealed partial class LuaPreparationTests
         {
             Systems.Add((ISystemUpdate)system);
             Descriptors.Add(descriptor);
+            target?.AddInstance(system, descriptor, layer, order);
         }
     }
 
@@ -245,6 +246,7 @@ public sealed partial class LuaPreparationTests
         public string Name => nameof(LuaProbeInstaller);
         public ModsLifecycleManager? Lifecycle { get; private set; }
         public LuaBindingsTestScope? Bindings { get; private set; }
+        public RecordingRuntimeRegistry? RuntimeRegistry { get; private set; }
         public IModule CreateModule() => new LuaProbeModule();
         public void OnRegisterServices(ContainerBuilder builder)
         {
@@ -254,9 +256,13 @@ public sealed partial class LuaPreparationTests
             var components = CreateLuaComponents();
             components.Register<LuaPosition>("probe:position");
             builder.RegisterInstance(Bindings = new LuaBindingsTestScope(components)).AsSelf();
-            builder.Register(context => context.Resolve<LuaBindingsTestScope>().Create(new FixedRegistry(definition),
-                context.Resolve<IModsLifecycleManager>(), context.Resolve<Application>(),
-                context.Resolve<ISystemRuntimeRegistry>(), context.Resolve<Time>(), logger))
+            builder.Register(context =>
+                {
+                    RuntimeRegistry = new RecordingRuntimeRegistry(context.Resolve<ISystemRuntimeRegistry>());
+                    return context.Resolve<LuaBindingsTestScope>().Create(new FixedRegistry(definition),
+                        context.Resolve<IModsLifecycleManager>(), context.Resolve<Application>(),
+                        RuntimeRegistry, context.Resolve<Time>(), logger);
+                })
                 .As<ISimulationPreparation>().SingleInstance();
         }
     }
