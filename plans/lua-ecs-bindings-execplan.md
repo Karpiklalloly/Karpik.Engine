@@ -8,7 +8,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 - Статус: завершён экспериментальный f32-срез и автоматическая приёмка.
 - Сейчас: первый срез проверен внешним SDK-проектом LuaEcsSandbox; lifecycle-регрессии перенесены в Runner.Tests, финальный полный прогон описан в Progress.
-- Далее: отдельная проверка перезапуска через editor/IPC либо следующее явное поручение; без push/PR.
+- Далее: следующее явное поручение; stop/start через backend редактора и IPC проверен, hot reload/state restore отдельно не проверен. Без push/PR.
 - Блокеры: нет. Разрешён экспериментальный бюджет 4096 B/callback + 1600 B/entity после reserve; common C# слой — 0 B. Работа в текущей ветке явно разрешена; публикация запрещена.
 
 ## Purpose / Big Picture
@@ -37,6 +37,8 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 ## Surprises & Discoveries
 
+- Observation: ImGui по умолчанию сохранял `imgui.ini` в cwd immutable bundle, блокируя SDK rebuild и editor restart. Общий ImGuiRenderContext теперь задаёт абсолютный путь под LocalApplicationData/Karpik/ImGui с ключом runtime working directory. UTF-8 filename живёт до финального save при DestroyContext; NeoVeldrid освобождает device resources, native context освобождает владелец. Нет новых операций в Update/Render.
+  Evidence: native CPU regressions сначала 2/2 failed, затем полный Graphics.Core.Tests 42/42; Graphics.Core Release build exit 0. Локальный SDK `0.6.0-local-20261028-imgui-967a0f0` установлен для внешнего sandbox, Debug-клиент пересобран. Два полных Debug start/stop через настоящий EditorPreviewController: Ready, Lua PASS, IPC snapshot=4, unload, внешний ini save и повторная ValidateStatic — exit 0. Кнопки UI не автоматизированы: computer-use app approval timed out. Существовавшие изменения обоих Generated catalog files сохранены побайтно; commit/push/PR не выполнялись.
 - Observation: внешний LuaEcsSandbox проверил шесть SetupAsync/Destroy в одном процессе; эти API пересоздают всю цепочку Engine/ModSet/Simulation, а не только Simulation внутри живого ModSet. Это не проверка editor/IPC hot reload.
   Evidence: внешний `D:/Games/LuaEcsSandbox/.logs/lifecycle-check.json`, 2026-10-27; независимый SDK-стенд сохранён вне engine repository.
 - Observation: regression `DeclaredLuaSystems_RecreateScopes_DisposeOldAccess_AndReleaseReferences` переиспользует fixtures движка и один Runner на три Setup/Destroy. Матрица Static/Dynamic × Deterministic/Parallel; exact lifecycle, disable/re-enable, fresh values после poison=99, 15 disposal guards и 21 weak reference на case. GC выполняется после выхода из NoInlining helper и завершения JobSystem. Внутренний MoonSharp.Script отдельно не наблюдается.
