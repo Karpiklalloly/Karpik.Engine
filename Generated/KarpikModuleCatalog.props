@@ -150,14 +150,17 @@
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Client/Graphics/Graphics.Headless/Graphics.Headless.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Client/Input/Input.csproj`))'">
@@ -189,6 +192,7 @@
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/AssetManagement/AssetManagement.Core/AssetManagement.Core.csproj`))'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/DebugModule/DebugModule.csproj`))'">
@@ -196,6 +200,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/ECS/ECS.Core/ECS.Core.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/LoggerModule/LoggerModule.csproj`))'">
@@ -203,10 +208,12 @@
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Modding/Modding.Core/Modding.Core.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Modding/Modding.Lua/Modding.Lua.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj`))'">
@@ -218,14 +225,17 @@
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Physics/Physics2D.Aether2D/Physics2D.Aether2D.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Physics/Physics2D.Core/Physics2D.Core.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Spatial2D/Spatial2D.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../Modules/Shared/Tween/Tween.Core/Tween.Core.csproj`))'">
@@ -255,6 +265,7 @@
   </Target>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../tests/ECS.Core.Tests/ECS.Core.Tests.csproj`))'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\Modules\Shared\Network.Shared\Network.Shared.Core.Codegen\Network.Shared.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj`))'">
@@ -294,6 +305,7 @@
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../tests/Network.Codegen.Tests/Network.Codegen.Tests.csproj`))'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Content.Runtime.Codegen\Karpik.Content.Runtime.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <Target Name="_KarpikApplyCodegen_37" BeforeTargets="AssignProjectConfiguration" Condition="'$(MSBuildProjectFullPath)' == '$([System.IO.Path]::GetFullPath(`$(MSBuildThisFileDirectory)../tests/Network.Codegen.Tests/Network.Codegen.Tests.csproj`))'">
