@@ -133,18 +133,60 @@ internal sealed class LuaEcsContext
     {
         public override DynValue Index(Script script, object obj, DynValue index, bool isDirectIndexing)
         {
-            var view = (LuaView)obj;
-            try { return DynValue.NewNumber(view.Current.ReadF32(view.Field(index))); }
-            catch (InvalidOperationException error) { throw OperationError(view.Location, error); }
+            var view = (LuaView)obj; int field = view.Field(index);
+            try
+            {
+                return view.Current.GetFieldKind(field) switch
+                {
+                    SchemaScalarKind.Bool => DynValue.NewBoolean(view.Current.ReadBool(field)),
+                    SchemaScalarKind.I32 => DynValue.NewNumber(view.Current.ReadI32(field)),
+                    SchemaScalarKind.U32 => DynValue.NewNumber(view.Current.ReadU32(field)),
+                    SchemaScalarKind.F32 => DynValue.NewNumber(view.Current.ReadF32(field)),
+                    SchemaScalarKind.F64 => DynValue.NewNumber(view.Current.ReadF64(field)),
+                    _ => throw new ScriptRuntimeException($"{view.Location}: unsupported field kind.")
+                };
+            }
+            catch (InvalidOperationException error) { throw OperationError($"{view.Location}, field '{index.String}'", error); }
         }
         public override bool SetIndex(Script script, object obj, DynValue index, DynValue value, bool isDirectIndexing)
         {
             var view = (LuaView)obj; int field = view.Field(index);
-            if (value.Type != DataType.Number) throw new ScriptRuntimeException($"{view.Location}: f32 assignment requires a number.");
-            float converted = (float)value.Number;
-            if (double.IsFinite(value.Number) && float.IsInfinity(converted)) throw new ScriptRuntimeException($"{view.Location}: finite number overflows f32.");
-            try { view.Current.WriteF32(field, converted); return true; }
-            catch (InvalidOperationException error) { throw OperationError(view.Location, error); }
+            try
+            {
+                SchemaScalarKind kind = view.Current.GetFieldKind(field);
+                if (kind == SchemaScalarKind.Bool)
+                {
+                    if (value.Type != DataType.Boolean) throw AssignmentError(view, index, kind, "assignment requires a boolean");
+                    view.Current.WriteBool(field, value.Boolean); return true;
+                }
+                if (value.Type != DataType.Number) throw AssignmentError(view, index, kind, "assignment requires a number");
+                double number = value.Number;
+                switch (kind)
+                {
+                    case SchemaScalarKind.I32:
+                        if (!double.IsFinite(number) || number != Math.Truncate(number) || number < int.MinValue || number > int.MaxValue)
+                            throw AssignmentError(view, index, kind, "assignment requires a finite integer in [-2147483648, 2147483647]");
+                        view.Current.WriteI32(field, checked((int)number)); break;
+                    case SchemaScalarKind.U32:
+                        if (!double.IsFinite(number) || number != Math.Truncate(number) || number < 0 || number > uint.MaxValue)
+                            throw AssignmentError(view, index, kind, "assignment requires a finite integer in [0, 4294967295]");
+                        view.Current.WriteU32(field, checked((uint)number)); break;
+                    case SchemaScalarKind.F32:
+                        float converted = (float)number;
+                        if (double.IsFinite(number) && float.IsInfinity(converted))
+                            throw AssignmentError(view, index, kind, "finite number overflows f32");
+                        view.Current.WriteF32(field, converted); break;
+                    case SchemaScalarKind.F64:
+                        view.Current.WriteF64(field, number); break;
+                    default:
+                        throw AssignmentError(view, index, kind, "unsupported field kind");
+                }
+                return true;
+            }
+            catch (InvalidOperationException error) { throw OperationError($"{view.Location}, field '{index.String}'", error); }
         }
+
+        private static ScriptRuntimeException AssignmentError(LuaView view, DynValue index, SchemaScalarKind kind, string message) =>
+            new($"{view.Location}, field '{index.String}' ({kind}): {message}.");
     }
 }

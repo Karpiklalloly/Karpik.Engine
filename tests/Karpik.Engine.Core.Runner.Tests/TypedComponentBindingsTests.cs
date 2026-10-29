@@ -142,4 +142,15 @@ public sealed class TypedComponentBindingsTests
         Assert.Equal(descriptor, descriptor with { });
         Assert.Equal("Renamed", (descriptor with { Name = "Renamed" }).Name);
     }
+
+    [Fact]
+    public void ComponentFieldDescriptor_F32InitPreservesKindAndOriginalRecord()
+    {
+        var original = new ComponentFieldDescriptor("F", true, new FloatField()); var replacement = new FloatField();
+        var copy = original with { F32 = replacement };
+        Assert.Same(replacement, copy.F32); Assert.NotSame(original.F32, copy.F32); Assert.Equal(SchemaScalarKind.F32, copy.Kind);
+        using var f = new Fixture(); var boolean = f.Handle().Fields.Span[0];
+        Assert.Throws<InvalidOperationException>(() => boolean with { F32 = replacement });
+        Assert.Throws<ArgumentNullException>(() => original with { F32 = null! });
+    }
 }

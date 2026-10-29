@@ -7,8 +7,8 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 ## Текущее состояние
 
 - Статус: выполняется M1/T1; контракт и performance policy согласованы.
-- Сейчас: M1 и M2 завершены; начинаются Lua declarations и strict setters.
-- Далее: Lua declarations и strict conversion matrix (M3).
+- Сейчас: полный финальный Runner 390/390 и Generator 76/76 прошли на восстановленном fixture и с legacy F32 init/with; готовится итоговое review.
+- Далее: независимое review и его необходимые исправления; изменения остаются локальными.
 - Блокеры: нет. Пользователь явно разрешил текущую ветку сообщением «в этой ветке делай»; отдельная ветка не создаётся.
 
 ## Purpose / Big Picture
@@ -30,7 +30,11 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 - [x] (2026-10-29) M0 / T0: spec/policy/implementation утверждены; «в этой ветке делай» разрешает текущую codex/modding-0.7. Документы перенесены в repository, relative links исправлены. Baseline 8fae435, storage/query 14/14.
 - [x] (2026-10-29) M1 / T1: typed descriptor/view/schema и mixed-kind SoA. RED: missing-API compiler diagnostics; record ToString regression отдельно 1/1 failed (InvalidOperationException) → исправлена. Итоговый targeted Release 20/20, exit 0, включая warmed common 0 B. Команда Runner из T1 с добавлением `FullyQualifiedName~TypedComponentBindingsTests` в filter.
 - [x] (2026-10-29) M2 / T2: typed CLR generator и readonly/unsupported matrix. Runtime regression RED KEB001 bool → full Generator Release 76/76 exit 0, команда T2. Existing referenced/own Static/Dynamic tests сохранены. Common M1 commit 4e8fb5d; codegen фиксируется отдельным commit.
-- [ ] M3 / T3: Lua declarations/read/write, numeric boundaries, error policies, runner matrix.
+- [x] (2026-10-29) M3 / T3: strict Lua tokens и typed getters/setters. Runtime RED: only f32 на первом bool field → GREEN: semantic matrix 87 cases + real Runner mixed lifecycle Static/Dynamic × Deterministic/Parallel 4 cases = 91/91 Release, exit 0. Проверены invalid native/dynamic writes, integer ranges/fractions, double precision/nonfinite/negative zero, schema conflicts, readonly native field и partial writes/policies. Codegen M2 commit 5699dc9.
+- [x] (2026-10-29) Первый полный Runner Release 389/389, exit 0, включая все allocation gates. Copy single-field = 1984+1368*N B/callback; mixed-five и matched five-f32 = 1984+2136*N при каждом N. p50/p95/p99/Gen0 и cold growth — [evidence](lua-ecs-type-catalog-evidence.md). Старый f32 ceiling не повышался. Наблюдались warnings cleanup worker shadow directories, failed tests не было.
+- [x] (2026-10-29) Legacy F32 init/with восстановлен с kind/null guards: compile RED CS0200 → targeted common Release 21/21, exit 0. Предыдущая идея удалить init отвергнута как ненужная несовместимость; constructor/getter/Deconstruct и record cloning/formatting tests сохранены.
+- [x] (2026-10-29) Typed lifecycle negative control: временно убран query preparer Dispose только из test fixture; 4/4 cases failed «No exception was thrown». Fixture восстановлен в finally, git diff по нему пуст. Финальный test build должен пересобрать восстановленный fixture.
+- [x] (2026-10-29) Финальный rebuild/test на восстановленном fixture и совместимом F32 init: полный Runner Release 390/390 exit 0; полный Generator Release 76/76 exit 0. Команды `dotnet test <project> -c Release --no-restore -m:1 -nr:false --blame-hang --blame-hang-timeout 180s --blame-hang-dump-type none`; cwd repository root, VSTEST_CONNECTION_TIMEOUT=180. Logger console normal для Runner/minimal для Generator. Новые dependencies не добавлялись.
 - [ ] M4 / T4: allocation evidence, lifecycle regression, полные relevant suites, итоговое review и документация.
 
 ## Surprises & Discoveries
@@ -57,7 +61,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 ## Outcomes & Retrospective
 
-Результат этого поручения — review-пакет из трёх связанных Markdown-файлов. Изменений runtime, tests, dependencies и repository branches нет. Tests/build/NativeAOT в рамках подготовки не запускались. Числа прошлых test runs и allocations остаются историческими.
+Документационный этап завершён отдельно, затем пользователь поручил реализацию в текущей ветке. Добавлены typed common storage/view, CLR codegen и строгий Lua adapter, regression/probe tests. Внешние данные остаются Simulation-owned SoA; no new dependencies, side boundaries или tick changes. Manual game, NativeAOT publish и editor reload/state restore не выполнялись.
 
 Builder-review завершён, его единственный существенный вопрос устранён в spec и T4. Итоговая автоматическая проверка всех 11 относительных ссылок, секций ExecPlan, task IDs T0–T4, Markdown fences и 18 owning source paths прошла; исходный HEAD и status верхнего repository сохранены. Это проверка документов, не tests продукта.
 
@@ -103,4 +107,4 @@ M0 завершается явным утверждением и проверк�
 
 ## Artifacts and Notes
 
-Текущие артефакты: [каталог](lua-ecs-type-catalog-spec.md), [подробные задачи](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md), этот обзор. Планируемые repository destinations после согласования: `plans/lua-ecs-type-catalog-spec.md`, `plans/lua-ecs-type-catalog-execplan.md`, `docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md`. При переносе обновить относительные ссылки между `plans/` и `docs/superpowers/plans/`. Публикация этого внешнего пакета не выполнялась; PR не существует.
+Артефакты: [каталог](lua-ecs-type-catalog-spec.md), [подробные задачи](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md), [измерения](lua-ecs-type-catalog-evidence.md), этот обзор; ledger в игнорируемом `.superpowers/sdd/2026-10-29-lua-ecs-type-catalog/`. Все пути уже repository-local, relative links обновлены. QMD CLI доступен, но `qmd collection list` не содержит коллекций; индекс не создавался автоматически. Сохраняется запрет публикации базового Lua/ECS плана: без push/PR.

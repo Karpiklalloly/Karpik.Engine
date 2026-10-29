@@ -13,7 +13,15 @@ public sealed record ComponentFieldDescriptor
     public IComponentField<bool> Bool => _bool ?? throw WrongKind();
     public IComponentField<int> I32 => _i32 ?? throw WrongKind();
     public IComponentField<uint> U32 => _u32 ?? throw WrongKind();
-    public IComponentField<float> F32 => _f32 ?? throw WrongKind();
+    public IComponentField<float> F32
+    {
+        get => _f32 ?? throw WrongKind();
+        init
+        {
+            if (Kind != SchemaScalarKind.F32) throw WrongKind();
+            _f32 = value ?? throw new ArgumentNullException(nameof(value));
+        }
+    }
     public IComponentField<double> F64 => _f64 ?? throw WrongKind();
 
     private ComponentFieldDescriptor(string name, bool canWrite, SchemaScalarKind kind)

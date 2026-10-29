@@ -23,7 +23,7 @@ public sealed partial class LuaPreparationTests
         await WithLuaFiles("""
             local callbacks = 0
             return {
-              components = { Temperature = { version = 1, fields = { Value = 'f32' } } },
+              components = { Temperature = { version = 1, fields = { Value = 'f32', ZBool = 'bool', ZDouble = 'f64', ZInt = 'i32', ZUInt = 'u32' } } },
               on_load = function() print('load') end,
               on_start = function() print('start:' .. callbacks) end,
               on_destroy = function() print('destroy:' .. callbacks) end,
@@ -38,7 +38,9 @@ public sealed partial class LuaPreparationTests
                   local q = ctx.queries.pending
                   for e in q:entities() do
                     local p = q.components['probe:position']:get(e)
-                    q.components['probe:Temperature']:add(e).Value = 20-p.X*0.01
+                    local t = q.components['probe:Temperature']:add(e)
+                    t.Value = 20-p.X*0.01
+                    t.ZBool = true; t.ZDouble = 16777217; t.ZInt = -2147483648; t.ZUInt = 4294967295
                   end
                 end
               } }
@@ -56,7 +58,7 @@ public sealed partial class LuaPreparationTests
             GC.WaitForPendingFinalizers();
             GC.Collect();
         }
-        Assert.Equal(21, references.Length);
+        Assert.Equal(51, references.Length);
         Assert.All(references, reference => Assert.False(reference.IsAlive, "A disposed Lua scope is still rooted."));
     }
 
@@ -110,7 +112,10 @@ public sealed partial class LuaPreparationTests
                     Assert.Equal(20, temperatures.Get(first).ReadF32(0));
                     Assert.Equal(19, temperatures.Get(second).ReadF32(0));
                     savedView = temperatures.Get(first);
+                    Assert.True(savedView.ReadBool(1)); Assert.Equal(16777217d, savedView.ReadF64(2));
+                    Assert.Equal(int.MinValue, savedView.ReadI32(3)); Assert.Equal(uint.MaxValue, savedView.ReadU32(4));
                     savedView.WriteF32(0, 99);
+                    savedView.WriteBool(1, false); savedView.WriteF64(2, 99); savedView.WriteI32(3, 99); savedView.WriteU32(4, 99);
                 }
                 finally { scope.Exit(); }
                 owner.IsEnabled = false;
@@ -118,11 +123,27 @@ public sealed partial class LuaPreparationTests
                 owner.IsEnabled = true;
                 runner.RunGameplayFrame(0.02);
                 scope.Enter("test:retained");
-                try { Assert.Equal(99, temperatures.Get(first).ReadF32(0)); }
+                try
+                {
+                    var view = temperatures.Get(first);
+                    Assert.Equal(99, view.ReadF32(0)); Assert.False(view.ReadBool(1)); Assert.Equal(99d, view.ReadF64(2));
+                    Assert.Equal(99, view.ReadI32(3)); Assert.Equal(99u, view.ReadU32(4));
+                }
                 finally { scope.Exit(); }
                 current = new(bindings, owner, runtime, adapter, query, temperatures, savedView, first, logger);
                 foreach (var value in new object[] { runtime, adapter, bindings.World, scope, queries, query, savedView })
                     references.Add(new WeakReference(value));
+                foreach (var field in temperatures.Fields.ToArray())
+                {
+                    references.Add(new WeakReference(field));
+                    object column = field.Kind switch
+                    {
+                        SchemaScalarKind.Bool => field.Bool, SchemaScalarKind.I32 => field.I32,
+                        SchemaScalarKind.U32 => field.U32, SchemaScalarKind.F32 => field.F32,
+                        SchemaScalarKind.F64 => field.F64, _ => throw new InvalidOperationException()
+                    };
+                    references.Add(new WeakReference(column));
+                }
             }
             finally { runner.Destroy(); }
 
@@ -147,7 +168,10 @@ public sealed partial class LuaPreparationTests
             () => old.Runtime.Update(0.02), () => old.Runtime.FixedUpdate(0.02), old.Runtime.Destroy, old.Runtime.Unload,
             () => old.Runtime.InvokeSystem(0, 0.02), () => old.Owner.Update(0.02), () => old.Owner.TryStartUpdate(),
             old.Bindings.Queries.Initialize, () => old.Bindings.CallbackScope.Enter("test:retained"), old.Query.Capture,
-            () => old.Temperatures.Has(old.Entity), () => old.View.ReadF32(0)];
+            () => old.Temperatures.Has(old.Entity), () => old.View.ReadF32(0),
+            () => old.View.ReadBool(1), () => old.View.ReadF64(2), () => old.View.ReadI32(3), () => old.View.ReadU32(4),
+            () => old.View.WriteBool(1, true), () => old.View.WriteF64(2, 0), () => old.View.WriteI32(3, 0), () => old.View.WriteU32(4, 0),
+            () => old.View.GetFieldKind(0)];
         foreach (var call in calls) Assert.Throws<ObjectDisposedException>(call);
     }
 
