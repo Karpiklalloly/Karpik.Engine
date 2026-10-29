@@ -116,7 +116,7 @@ Run: `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runne
 
 ## T4: Performance, lifecycle и закрытие среза
 
-Статус: runtime/probes завершены; финальный Runner Release 390/390 и Generator 76/76 exit 0 на восстановленном fixture. [Измерения](../../../plans/lua-ecs-type-catalog-evidence.md) сохранены. F32 init/with совместимы, negative-control 4/4 failed при пропущенном Dispose. Остаётся независимое review.
+Статус: завершено локально. Финальный Runner Release 390/390 и Generator 76/76 exit 0 на восстановленном fixture. [Измерения](../../../plans/lua-ecs-type-catalog-evidence.md) сохранены. F32 init/with совместимы, negative-control 4/4 failed при пропущенном Dispose. Независимое review 8fae435..65a8c08 без Critical/Important/Minor findings.
 
 **Files:** существующие allocation/lifecycle tests и docs из карты; production только при воспроизведённой проблеме в этом scope.
 
@@ -129,9 +129,9 @@ Run: `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runne
 - [x] Обобщить `DeclaredLuaSystems_RecreateScopes_DisposeOldAccess_AndReleaseReferences` на mixed schema/новые typed views, сохранив три Setup/Destroy и четыре composition/scheduler cases. Assert fresh values, invalid old access, отсутствие старых callbacks и collectability новых descriptor/column/view объектов. Сохранить возможность negative control fixture без Dispose. Это не доказывает сохранение state при editor reload.
 - [x] Выполнить полные Generator и Runner команды из T1/T2 без filter; обе должны закончиться exit 0. ECS.Core/StaticAnalyzer отдельно запускать, если diff затронул их контракты/diagnostics; при текущем scope такие изменения не планируются. Проверить `git diff --ignore-submodules --check` и список changed files.
 - [x] В task branch обновить существующие `plans/lua-ecs-bindings-spec.md`, `plans/lua-ecs-bindings-execplan.md`, `plans/script-modding-execplan.md`, `docs/02_ADR/lua-ecs-common-bindings.md` только по фактически принятому/реализованному scope и evidence. Актуализировать detailed/overview пару; failed/unexecuted checks оставить явными. Обновить QMD index изменённых repository docs, если коллекция доступна.
-- [ ] Итоговое review: source compatibility известных F32 callers, record/init/Deconstruct migration, all five Review Focus cases, no new reference-rich entity state, no allocations в common reserved path. Исправить findings, повторяя лишь затронутые проверки.
+- [x] Итоговое review: source compatibility F32 constructor/getter/Deconstruct/init/with, все пять Review Focus случаев и connected lifetime/GC paths проверены независимым reviewer; actionable findings отсутствуют. Runtime после финальных tests/review не менялся.
 - [x] Публикация исключена действующим ограничением базового Lua/ECS-плана: без push/PR, работа сохраняется локальными commits в явно разрешённой codex/modding-0.7.
 
 ## Результаты подготовки этого плана
 
-Документы подготовлены по исходникам baseline. После отдельного «Делай» начата T0: контракт принят, локальный HEAD повторно подтверждён как 8fae435; prerequisite descriptor отсутствует в локальном main. T1–T4 не начаты. Чекбоксы будущих RED/GREEN/commit/PR не означают, что соответствующие действия уже выполнены. Независимый builder-review нашёл одну существенную неоднозначность: у mixed-five allocations не было pass/fail критерия. Предложение уточнено до `mixed-five <= five-f32 baseline` при каждом N; иных важных пробелов reviewer не нашёл. Это review документов, не runtime evidence. Текущие preflight проверки фиксируются в ExecPlan.
+Сначала подготовлены документы и выполнен builder-review; он уточнил pass/fail mixed-five allocations до `mixed-five <= five-f32 baseline`. Затем отдельные «Делай» и «в этой ветке делай» разрешили реализацию в codex/modding-0.7. T0–T4 завершены; полный Runner 390/390 и Generator 76/76 exit 0, все allocation gates пройдены, final code review без findings. Проверки и измерения находятся в [ExecPlan](../../../plans/lua-ecs-type-catalog-execplan.md) и [evidence](../../../plans/lua-ecs-type-catalog-evidence.md). Manual game/NativeAOT/editor reload не выполнялись; публикация исключена. Repository files сохранены локальными commits.

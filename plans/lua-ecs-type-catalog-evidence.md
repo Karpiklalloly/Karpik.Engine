@@ -48,3 +48,5 @@ Forced growth / first invocation: initial column capacity 512, N=513, 1,124,552 
 Ссылки: [контракт](lua-ecs-type-catalog-spec.md), [ExecPlan](lua-ecs-type-catalog-execplan.md), [подробный план](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md).
 
 Финальная проверка после сохранения legacy F32 init/with и восстановления negative-control fixture: полный Runner Release **390/390**, полный Generator Release **76/76**, оба exit 0. В этой проверке вновь исполнялись все allocation gates; таблица выше сохраняет первый detailed run, а не смешивает измерения разных прогонов.
+
+Fresh-context read-only review диапазона `8fae435..65a8c08`: Critical/Important/Minor findings отсутствуют; все пять Review Focus областей проверены по source/callers/tests. Reviewer tests не повторял, использовал указанную выше verification evidence. Runtime/test code после этой проверки не менялся.

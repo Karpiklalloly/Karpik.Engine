@@ -6,9 +6,9 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 ## Текущее состояние
 
-- Статус: выполняется M1/T1; контракт и performance policy согласованы.
-- Сейчас: полный финальный Runner 390/390 и Generator 76/76 прошли на восстановленном fixture и с legacy F32 init/with; готовится итоговое review.
-- Далее: независимое review и его необходимые исправления; изменения остаются локальными.
+- Статус: завершено локально.
+- Сейчас: bool/i32/u32/f64 реализованы, полный Runner 390/390 и Generator 76/76 прошли; независимое review без замечаний.
+- Далее: отдельное поручение на следующий срез каталога; публикация не выполняется.
 - Блокеры: нет. Пользователь явно разрешил текущую ветку сообщением «в этой ветке делай»; отдельная ветка не создаётся.
 
 ## Purpose / Big Picture
@@ -35,7 +35,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 - [x] (2026-10-29) Legacy F32 init/with восстановлен с kind/null guards: compile RED CS0200 → targeted common Release 21/21, exit 0. Предыдущая идея удалить init отвергнута как ненужная несовместимость; constructor/getter/Deconstruct и record cloning/formatting tests сохранены.
 - [x] (2026-10-29) Typed lifecycle negative control: временно убран query preparer Dispose только из test fixture; 4/4 cases failed «No exception was thrown». Fixture восстановлен в finally, git diff по нему пуст. Финальный test build должен пересобрать восстановленный fixture.
 - [x] (2026-10-29) Финальный rebuild/test на восстановленном fixture и совместимом F32 init: полный Runner Release 390/390 exit 0; полный Generator Release 76/76 exit 0. Команды `dotnet test <project> -c Release --no-restore -m:1 -nr:false --blame-hang --blame-hang-timeout 180s --blame-hang-dump-type none`; cwd repository root, VSTEST_CONNECTION_TIMEOUT=180. Logger console normal для Runner/minimal для Generator. Новые dependencies не добавлялись.
-- [ ] M4 / T4: allocation evidence, lifecycle regression, полные relevant suites, итоговое review и документация.
+- [x] (2026-10-29) M4 / T4: allocation gates и evidence, mixed lifecycle/negative control, полные Runner 390/390 и Generator 76/76, документация, fresh-context review 8fae435..65a8c08 без Critical/Important/Minor findings. Новых runtime изменений после финальных tests/review не вносилось. Без push/PR.
 
 ## Surprises & Discoveries
 
@@ -60,6 +60,16 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
   Date/Author: 2026-10-29 / Codex; ожидает утверждения.
 
 ## Outcomes & Retrospective
+
+Итог: расширение реализовано и сохранено локальными commits 4e8fb5d (common), 5699dc9 (codegen), 6681e95 (Lua/compatibility/lifecycle), 65a8c08 (probes/docs). Независимый reviewer проверил весь feature range, connected ownership code и все пять Review Focus случаев, не нашёл actionable findings; свои tests не повторял. Review не подменяет свежие авторские Runner 390/390 и Generator 76/76. Дальнейший commit закрывает только документацию.
+
+Разрешения/границы, которые reviewer оставил вне judgment, проверены автором:
+
+- Int-ID generation protection и aliasing reusable views сохраняют принятый контракт. Caller не должен считать ID generation-safe или view снимком; нарушение этого предположения может адресовать повторно выданную entity.
+- Exact numbers/decimal, nested/fixed/pointers и ctx:create явно отложены; unsupported kinds диагностируются, не эмулируются. Риск — потребность отдельного будущего API, не скрытая поддержка.
+- No-GC/production latency Lua не обещаются: принятые experimental gates пройдены, но VM allocations/GC и p99 вариабельность остаются.
+- Manual game, NativeAOT и editor reload/state restore требуют отдельной проверки; результаты unit/composition probes не доказывают эти runtime/platform сценарии.
+- Текущая ветка явно разрешена пользователем; действующий no-push/no-PR сохраняется. Публикации нет.
 
 Документационный этап завершён отдельно, затем пользователь поручил реализацию в текущей ветке. Добавлены typed common storage/view, CLR codegen и строгий Lua adapter, regression/probe tests. Внешние данные остаются Simulation-owned SoA; no new dependencies, side boundaries или tick changes. Manual game, NativeAOT publish и editor reload/state restore не выполнялись.
 
