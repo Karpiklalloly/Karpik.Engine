@@ -40,15 +40,26 @@ public sealed class PreparedComponentView
     private readonly PreparedComponentHandle _handle;
     internal int EntityId;
     internal PreparedComponentView(PreparedComponentHandle handle) => _handle = handle;
-    public float ReadF32(int field)
+    public SchemaScalarKind GetFieldKind(int field) => ReadField(field).Kind;
+    public bool ReadBool(int field) => ReadField(field).Bool.Read(EntityId);
+    public int ReadI32(int field) => ReadField(field).I32.Read(EntityId);
+    public uint ReadU32(int field) => ReadField(field).U32.Read(EntityId);
+    public float ReadF32(int field) => ReadField(field).F32.Read(EntityId);
+    public double ReadF64(int field) => ReadField(field).F64.Read(EntityId);
+    public void WriteBool(int field, bool value) => WriteField(field).Bool.Write(EntityId, value);
+    public void WriteI32(int field, int value) => WriteField(field).I32.Write(EntityId, value);
+    public void WriteU32(int field, uint value) => WriteField(field).U32.Write(EntityId, value);
+    public void WriteF32(int field, float value) => WriteField(field).F32.Write(EntityId, value);
+    public void WriteF64(int field, double value) => WriteField(field).F64.Write(EntityId, value);
+    private ComponentFieldDescriptor ReadField(int field)
     {
-        _handle.Require(); return _handle.Fields.Span[field].F32.Read(EntityId);
+        _handle.Require(); return _handle.Fields.Span[field];
     }
-    public void WriteF32(int field, float value)
+    private ComponentFieldDescriptor WriteField(int field)
     {
         _handle.RequireMutable();
         ComponentFieldDescriptor descriptor = _handle.Fields.Span[field];
         if (!descriptor.CanWrite) throw new InvalidOperationException($"Field '{descriptor.Name}' is readonly.");
-        descriptor.F32.Write(EntityId, value);
+        return descriptor;
     }
 }

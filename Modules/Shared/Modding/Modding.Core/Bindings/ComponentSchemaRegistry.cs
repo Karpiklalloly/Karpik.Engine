@@ -3,7 +3,7 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Modding.Bindings;
 
-public enum SchemaScalarKind { F32 }
+public enum SchemaScalarKind { F32 = 0, Bool = 1, I32 = 2, U32 = 3, F64 = 4 }
 public readonly record struct SchemaField(string Name, SchemaScalarKind Kind);
 public sealed record ComponentSchema(string Id, int Version, params SchemaField[] Fields);
 
@@ -21,11 +21,12 @@ public sealed class ComponentSchemaRegistry
         foreach (ComponentSchema schema in schemas)
         {
             if (string.IsNullOrWhiteSpace(schema.Id) || schema.Version < 1 || schema.Fields.Length == 0)
-                throw new InvalidDataException("A schema requires an ID, positive version and supported f32 fields.");
+                throw new InvalidDataException("A schema requires an ID, positive version and supported scalar fields.");
             SchemaField[] fields = schema.Fields.OrderBy(field => field.Name, StringComparer.Ordinal).ToArray();
             for (int i = 0; i < fields.Length; i++)
             {
-                if (string.IsNullOrWhiteSpace(fields[i].Name) || fields[i].Kind != SchemaScalarKind.F32 ||
+                if (string.IsNullOrWhiteSpace(fields[i].Name) ||
+                    fields[i].Kind is not (SchemaScalarKind.F32 or SchemaScalarKind.Bool or SchemaScalarKind.I32 or SchemaScalarKind.U32 or SchemaScalarKind.F64) ||
                     (i > 0 && fields[i - 1].Name == fields[i].Name))
                     throw new InvalidDataException($"Invalid fields in schema '{schema.Id}'.");
             }

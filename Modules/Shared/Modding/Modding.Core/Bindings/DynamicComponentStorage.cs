@@ -6,8 +6,8 @@ public sealed class DynamicComponentStorage : IEcsWorldEventListener, IDisposabl
 {
     private readonly EcsDefaultWorld _world;
     private readonly EcsPool<DynamicComponentAnchor> _anchors;
-    private readonly Dictionary<string, DynamicF32ComponentPool> _byId = new(StringComparer.Ordinal);
-    private readonly DynamicF32ComponentPool[] _pools;
+    private readonly Dictionary<string, DynamicComponentPool> _byId = new(StringComparer.Ordinal);
+    private readonly DynamicComponentPool[] _pools;
     private int[] _counts;
     private bool _disposed;
 
@@ -17,11 +17,11 @@ public sealed class DynamicComponentStorage : IEcsWorldEventListener, IDisposabl
         _anchors = world.GetPool<DynamicComponentAnchor>();
         _counts = new int[world.Capacity];
         var descriptions = schemas.GetSchemas();
-        _pools = new DynamicF32ComponentPool[descriptions.Length];
+        _pools = new DynamicComponentPool[descriptions.Length];
         int capacity = world.Configs.TryGet<EcsWorldConfig>(out var config) ? config.PoolComponentsCapacity : EcsWorldConfig.Default.PoolComponentsCapacity;
         for (int i = 0; i < descriptions.Length; i++)
         {
-            _pools[i] = new DynamicF32ComponentPool(this, descriptions[i], world.Capacity, capacity);
+            _pools[i] = new DynamicComponentPool(this, descriptions[i], world.Capacity, capacity);
             _byId.Add(descriptions[i].Id, _pools[i]);
         }
         world.AddListener(this);
