@@ -29,7 +29,8 @@ public sealed class EcsUpdateRegistryGenerator : IIncrementalGenerator
         var renderPrepareSystems = new List<SystemMetadata>();
         foreach (INamedTypeSymbol type in GetAllTypes(compilation.Assembly.GlobalNamespace))
         {
-            if (type.TypeKind != TypeKind.Class || type.IsAbstract)
+            if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.GetAttributes().Any(static attribute =>
+                    attribute.AttributeClass?.ToDisplayString() == "Karpik.Engine.Shared.ECS.Scheduling.RuntimeSystemAttribute"))
                 continue;
 
             if (ImplementsInterface(type, systemUpdate))

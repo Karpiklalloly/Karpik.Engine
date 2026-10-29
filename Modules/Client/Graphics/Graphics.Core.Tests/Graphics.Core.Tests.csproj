@@ -4,6 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <AssemblyName>Graphics.Core.Tests</AssemblyName>
@@ -13,6 +14,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="NeoVeldrid" />
+        <PackageReference Include="NeoVeldrid.ImGui" />
         <PackageReference Include="xunit" />
         <PackageReference Include="xunit.runner.visualstudio">
             <PrivateAssets>all</PrivateAssets>
@@ -42,6 +44,7 @@
         <Compile Include="..\Graphics.Core\ICommandBuffer.cs" Link="Graphics.Core\ICommandBuffer.cs" />
         <Compile Include="..\Graphics.Core\GraphicsLoadTestSettings.cs" Link="Graphics.Core\GraphicsLoadTestSettings.cs" />
         <Compile Include="..\Graphics.Core\FrameTimingClipboardFormatter.cs" Link="Graphics.Core\FrameTimingClipboardFormatter.cs" />
+        <Compile Include="..\Graphics.Core\ImGuiSettingsFile.cs" Link="Graphics.Core\ImGuiSettingsFile.cs" />
         <Compile Include="..\Graphics.Core\Backend\IGraphicsBackend.cs" Link="Graphics.Core\Backend\IGraphicsBackend.cs" />
         <Compile Include="..\Graphics.Core\TextAnchor.cs" Link="Graphics.Core\TextAnchor.cs" />
         <Compile Include="..\Graphics.Core\Merge\QuadTransform2D.cs" Link="Graphics.Core\Merge\QuadTransform2D.cs" />

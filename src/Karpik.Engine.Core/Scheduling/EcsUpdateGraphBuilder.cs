@@ -2,6 +2,36 @@ namespace Karpik.Engine.Shared.ECS.Scheduling;
 
 public static class EcsUpdateGraphBuilder
 {
+    public static EcsUpdateGraph BuildInstances(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
+    {
+        if (descriptors.IsEmpty) return EcsUpdateGraph.Empty;
+
+        var instanceIds = new Dictionary<string, int>(descriptors.Length, StringComparer.Ordinal);
+        var systemIds = new Dictionary<Type, int>(descriptors.Length);
+        var systemTypes = new Type[descriptors.Length];
+        for (int i = 0; i < descriptors.Length; i++)
+        {
+            EcsUpdateSystemDescriptor descriptor = descriptors[i];
+            if (string.IsNullOrWhiteSpace(descriptor.SystemId))
+                throw new EcsUpdateGraphBuildException("Instance descriptor requires a nonempty system ID.");
+            if (descriptor.SystemType is null)
+                throw new EcsUpdateGraphBuildException($"System '{descriptor.SystemId}' requires a system type.");
+            if (!instanceIds.TryAdd(descriptor.SystemId, i))
+                throw new EcsUpdateGraphBuildException($"Duplicate system ID '{descriptor.SystemId}'.");
+
+            systemTypes[i] = descriptor.SystemType;
+            if (!systemIds.TryAdd(descriptor.SystemType, i)) systemIds[descriptor.SystemType] = -1;
+        }
+
+        EcsComponentAccessKey[] componentTypes = BuildComponentTypes(descriptors);
+        Dictionary<EcsComponentAccessKey, int> componentIds = BuildComponentIds(componentTypes);
+        SystemAccess[] accesses = BuildSystemAccess(descriptors, componentIds, componentTypes.Length);
+        bool[] dependencyBits = BuildDependencyBits(descriptors, accesses, systemIds, instanceIds);
+        return new EcsUpdateGraph(systemTypes, componentTypes,
+            BuildNodes(accesses, dependencyBits, descriptors.Length),
+            BuildExecutionOrder(dependencyBits, descriptors.Length));
+    }
+
     public static EcsUpdateGraph Build(
         ReadOnlySpan<Type> registeredSystemTypes,
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
@@ -10,7 +40,7 @@ public static class EcsUpdateGraphBuilder
         {
             return new EcsUpdateGraph(
                 Array.Empty<Type>(),
-                Array.Empty<Type>(),
+                Array.Empty<EcsComponentAccessKey>(),
                 Array.Empty<EcsUpdateGraphNode>(),
                 Array.Empty<int>());
         }
@@ -49,8 +79,8 @@ public static class EcsUpdateGraphBuilder
             orderedDescriptors[i] = descriptor;
         }
 
-        Type[] componentTypes = BuildComponentTypes(orderedDescriptors);
-        Dictionary<Type, int> componentIds = BuildComponentIds(componentTypes);
+        EcsComponentAccessKey[] componentTypes = BuildComponentTypes(orderedDescriptors);
+        Dictionary<EcsComponentAccessKey, int> componentIds = BuildComponentIds(componentTypes);
         SystemAccess[] accesses = BuildSystemAccess(orderedDescriptors, componentIds, componentTypes.Length);
         bool[] dependencyBits = BuildDependencyBits(orderedDescriptors, accesses, systemIds);
         EcsUpdateGraphNode[] nodes = BuildNodes(accesses, dependencyBits, registeredSystemTypes.Length);
@@ -59,26 +89,29 @@ public static class EcsUpdateGraphBuilder
         return new EcsUpdateGraph(systemTypes, componentTypes, nodes, executionOrder);
     }
 
-    private static Type[] BuildComponentTypes(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
+    private static EcsComponentAccessKey[] BuildComponentTypes(ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors)
     {
-        var componentTypes = new HashSet<Type>();
+        var componentTypes = new HashSet<EcsComponentAccessKey>();
         for (int i = 0; i < descriptors.Length; i++)
         {
             ReadOnlySpan<EcsComponentAccessDescriptor> accesses = descriptors[i].Accesses.Span;
             for (int j = 0; j < accesses.Length; j++)
             {
-                componentTypes.Add(accesses[j].ComponentType);
+                EcsComponentAccessKey key = accesses[j].Key;
+                if (key.ClrType is null && key.DynamicId is null)
+                    throw new EcsUpdateGraphBuildException("Empty ECS component access key.");
+                componentTypes.Add(key);
             }
         }
 
-        Type[] result = componentTypes.ToArray();
-        Array.Sort(result, TypeMetadataComparer.Instance);
+        EcsComponentAccessKey[] result = componentTypes.ToArray();
+        Array.Sort(result, AccessKeyComparer.Instance);
         return result;
     }
 
-    private static Dictionary<Type, int> BuildComponentIds(Type[] componentTypes)
+    private static Dictionary<EcsComponentAccessKey, int> BuildComponentIds(EcsComponentAccessKey[] componentTypes)
     {
-        var componentIds = new Dictionary<Type, int>(componentTypes.Length);
+        var componentIds = new Dictionary<EcsComponentAccessKey, int>(componentTypes.Length);
         for (int i = 0; i < componentTypes.Length; i++)
         {
             componentIds.Add(componentTypes[i], i);
@@ -89,7 +122,7 @@ public static class EcsUpdateGraphBuilder
 
     private static SystemAccess[] BuildSystemAccess(
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
-        Dictionary<Type, int> componentIds,
+        Dictionary<EcsComponentAccessKey, int> componentIds,
         int componentCount)
     {
         var accesses = new SystemAccess[descriptors.Length];
@@ -105,7 +138,7 @@ public static class EcsUpdateGraphBuilder
             for (int j = 0; j < descriptorAccesses.Length; j++)
             {
                 EcsComponentAccessDescriptor access = descriptorAccesses[j];
-                int componentId = componentIds[access.ComponentType];
+                int componentId = componentIds[access.Key];
                 switch (access.Mode)
                 {
                     case EcsAccessMode.Write:
@@ -119,7 +152,7 @@ public static class EcsUpdateGraphBuilder
                         break;
                     default:
                         throw new EcsUpdateGraphBuildException(
-                            $"Unsupported ECS update access mode '{access.Mode}' for component '{access.ComponentType.FullName}'.");
+                            $"Unsupported ECS update access mode '{access.Mode}' for component '{access.Key.ClrType?.FullName ?? access.Key.DynamicId}'.");
                 }
             }
 
@@ -162,23 +195,13 @@ public static class EcsUpdateGraphBuilder
     private static bool[] BuildDependencyBits(
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
         SystemAccess[] accesses,
-        Dictionary<Type, int> systemIds)
+        Dictionary<Type, int> systemIds,
+        Dictionary<string, int>? instanceIds = null)
     {
         int systemCount = descriptors.Length;
         var dependencyBits = new bool[systemCount * systemCount];
 
-        for (int previous = 0; previous < systemCount; previous++)
-        {
-            for (int subsequent = previous + 1; subsequent < systemCount; subsequent++)
-            {
-                if (accesses[previous].IsSequential ||
-                    accesses[subsequent].IsSequential ||
-                    HasConflict(accesses[previous], accesses[subsequent]))
-                {
-                    SetDependency(dependencyBits, systemCount, subsequent, previous);
-                }
-            }
-        }
+        if (instanceIds is null) AddAccessDependencies(accesses, dependencyBits, default);
 
         for (int systemId = 0; systemId < systemCount; systemId++)
         {
@@ -186,11 +209,7 @@ public static class EcsUpdateGraphBuilder
             for (int i = 0; i < orders.Length; i++)
             {
                 EcsSystemOrderDescriptor order = orders[i];
-                if (!systemIds.TryGetValue(order.TargetSystemType, out int targetSystemId))
-                {
-                    throw new EcsUpdateGraphBuildException(
-                        $"ECS update order target '{order.TargetSystemType.FullName}' is not registered.");
-                }
+                int targetSystemId = ResolveOrderTarget(order, systemIds, instanceIds);
 
                 if (order.Kind == EcsOrderKind.After)
                 {
@@ -203,12 +222,50 @@ public static class EcsUpdateGraphBuilder
                 else
                 {
                     throw new EcsUpdateGraphBuildException(
-                        $"Unsupported ECS update order kind '{order.Kind}' for target '{order.TargetSystemType.FullName}'.");
+                        $"Unsupported ECS update order kind '{order.Kind}' for target '{order.TargetSystemId ?? order.TargetSystemType?.FullName}'.");
                 }
             }
         }
 
+        if (instanceIds is not null)
+        {
+            // Orient barriers along explicit order so a backwards ID dependency cannot create a false cycle.
+            AddAccessDependencies(accesses, dependencyBits, BuildExecutionOrder(dependencyBits, systemCount));
+        }
         return dependencyBits;
+    }
+
+    private static int ResolveOrderTarget(EcsSystemOrderDescriptor order,
+        Dictionary<Type, int> systemIds, Dictionary<string, int>? instanceIds)
+    {
+        if (order.TargetSystemId is string id)
+        {
+            if (instanceIds is not null && instanceIds.TryGetValue(id, out int instanceIndex))
+                return instanceIndex;
+            throw new EcsUpdateGraphBuildException($"ECS update order target ID '{id}' is not registered in an instance graph.");
+        }
+
+        if (order.TargetSystemType is not Type type)
+            throw new EcsUpdateGraphBuildException("ECS update order requires a target type or instance ID.");
+        if (!systemIds.TryGetValue(type, out int index))
+            throw new EcsUpdateGraphBuildException($"ECS update order target '{type.FullName}' is not registered.");
+        if (index < 0)
+            throw new EcsUpdateGraphBuildException($"ECS update order target type '{type.FullName}' is ambiguous; use an instance ID.");
+        return index;
+    }
+
+    private static void AddAccessDependencies(SystemAccess[] accesses, bool[] dependencyBits, ReadOnlySpan<int> order)
+    {
+        for (int previous = 0; previous < accesses.Length; previous++)
+        {
+            int left = order.IsEmpty ? previous : order[previous];
+            for (int subsequent = previous + 1; subsequent < accesses.Length; subsequent++)
+            {
+                int right = order.IsEmpty ? subsequent : order[subsequent];
+                if (accesses[left].IsSequential || accesses[right].IsSequential || HasConflict(accesses[left], accesses[right]))
+                    SetDependency(dependencyBits, accesses.Length, right, left);
+            }
+        }
     }
 
     private static bool HasConflict(SystemAccess previous, SystemAccess subsequent)
@@ -351,6 +408,18 @@ public static class EcsUpdateGraphBuilder
     private static bool HasDependency(bool[] dependencyBits, int systemCount, int dependentId, int dependencyId)
     {
         return dependencyBits[(dependentId * systemCount) + dependencyId];
+    }
+
+    private sealed class AccessKeyComparer : IComparer<EcsComponentAccessKey>
+    {
+        internal static readonly AccessKeyComparer Instance = new();
+        public int Compare(EcsComponentAccessKey left, EcsComponentAccessKey right)
+        {
+            if (left.ClrType is not null && right.ClrType is not null) return TypeMetadataComparer.Instance.Compare(left.ClrType, right.ClrType);
+            if (left.ClrType is not null) return -1;
+            if (right.ClrType is not null) return 1;
+            return StringComparer.Ordinal.Compare(left.DynamicId, right.DynamicId);
+        }
     }
 
     private readonly struct SystemAccess

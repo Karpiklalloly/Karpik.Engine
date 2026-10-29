@@ -7,6 +7,15 @@ using Xunit;
 public sealed class SchedulerMetadataAttributeTests
 {
     [Fact]
+    public void RuntimeSystemAttribute_MarksOnlyTheConcreteClass()
+    {
+        AttributeUsageAttribute usage = GetUsage<RuntimeSystemAttribute>();
+        Assert.Equal(AttributeTargets.Class, usage.ValidOn);
+        Assert.False(usage.AllowMultiple);
+        Assert.False(usage.Inherited);
+    }
+
+    [Fact]
     public void SequentialSystemAttribute_IsSingleUseClassMarker()
     {
         AttributeUsageAttribute usage = GetUsage<SequentialSystemAttribute>();

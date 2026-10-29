@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\Dragon\Dragon.csproj" />
+        <ProjectReference Include="..\..\third-parties\DragonECS\DragonECS.csproj" />
         <ProjectReference Include="..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
         <ProjectReference Include="..\..\Modules\Shared\ECS\ECS.Core\ECS.Core.csproj" />
         <ProjectReference Include="..\..\src\Karpik.Engine.Core.Codegen\Karpik.Engine.Core.Codegen.csproj" />

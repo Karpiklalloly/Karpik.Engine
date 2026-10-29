@@ -1,6 +1,7 @@
 using System.Composition;
 using System.Reflection;
 using Autofac;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.Core.Runner;
 
@@ -23,7 +24,7 @@ internal static class AttributedServiceRegistrar
         {
             ServiceRegistrationAttribute? service =
                 type.GetCustomAttribute<ServiceRegistrationAttribute>();
-            if (service is null || service.Scope != scope)
+            if (service is null || service.Scope != scope || type.IsDefined(typeof(RuntimeSystemAttribute), inherit: false))
             {
                 continue;
             }

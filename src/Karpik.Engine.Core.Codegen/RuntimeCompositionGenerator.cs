@@ -134,9 +134,20 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         var referenced = context.CompilationProvider.Combine(properties).Select(static (state, _) =>
             ReferencedScan.Scan(state.Left, state.Right.Side));
 
+        var servicesWithBindings = ownServices.Collect().Combine(context.CompilationProvider).Select(static (state, _) =>
+        {
+            if (state.Right.GetTypeByMetadataName("Karpik.Engine.Shared.Modding.Bindings.ClrComponentBindings") is null ||
+                ClrComponentBindingGenerator.Registrations(state.Right).Count == 0)
+                return state.Left;
+            var provider = new ServiceModel(ClrComponentBindingGenerator.ProviderName(state.Right),
+                state.Right.Assembly.Identity.GetDisplayName(), 0, 0,
+                ["Karpik.Engine.Shared.Modding.Bindings.IClrComponentBindingProvider"], [], false, true, [], null);
+            return state.Left.Add(provider);
+        });
+
         var own = ownInstallers
             .Collect()
-            .Combine(ownServices.Collect())
+            .Combine(servicesWithBindings)
             .Combine(ownSystems.Collect())
             .Combine(ownComponents.Collect());
 
@@ -394,7 +405,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         Location? location = GetSymbolLocation(ctx.TargetSymbol);
         if (ctx.TargetSymbol is not INamedTypeSymbol type
             || type.TypeKind != TypeKind.Class
-            || type.ContainingType is not null)
+            || type.ContainingType is not null
+            || IsRuntimeSystem(type))
         {
             return ServiceModel.Empty(location);
         }
@@ -434,6 +446,7 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
         INamedTypeSymbol? systemInterface = compilation.GetTypeByMetadataName(SystemInterfaceName);
         if (type.ContainingType is not null
             || systemInterface is null
+            || IsRuntimeSystem(type)
             || !ImplementsInterface(type, systemInterface))
         {
             return SystemModel.Empty;
@@ -575,18 +588,19 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                 // share a cache key even when their stat values coincide. Only
                 // if that metadata cannot be obtained do we degrade to a single-
                 // FileInfo stat snapshot; generation must never crash.
-                if (reference is PortableExecutableReference peReference
-                    && peReference.FilePath is { Length: > 0 } pePath)
+                if (reference is PortableExecutableReference peReference)
                 {
                     string? mvidKey = TryGetModuleVersionIdKey(peReference);
                     if (mvidKey is not null)
                     {
                         parts.Add("pe-mvid:");
-                        parts.Add(pePath);
+                        parts.Add(peReference.FilePath ?? string.Empty);
                         parts.Add(mvidKey);
                         continue;
                     }
 
+                    if (peReference.FilePath is not { Length: > 0 } pePath)
+                        continue;
                     var peInfo = new FileInfo(pePath);
                     if (!peInfo.Exists)
                     {
@@ -677,6 +691,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
                     {
                         installers.Add(AnalyzeInstaller(type, moduleAttributeData, assemblyDisplayName, GetSymbolLocation(type)));
                     }
+
+                    if (IsRuntimeSystem(type))
+                        continue;
 
                     AttributeData? registration = serviceAttribute is null
                         ? null
@@ -1223,6 +1240,9 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
         return false;
     }
+
+    private static bool IsRuntimeSystem(INamedTypeSymbol type) => type.GetAttributes().Any(static attribute =>
+        attribute.AttributeClass?.ToDisplayString() == "Karpik.Engine.Shared.ECS.Scheduling.RuntimeSystemAttribute");
 
     private static IEnumerable<INamedTypeSymbol> GetTopLevelTypes(INamespaceSymbol namespaceSymbol)
     {

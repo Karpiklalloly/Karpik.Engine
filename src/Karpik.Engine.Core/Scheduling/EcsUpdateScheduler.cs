@@ -35,6 +35,16 @@ public sealed class EcsUpdateScheduler : IDisposable
         InitializeCore(systems.ToArray(), descriptors, mode, workerCount, isRenderPreparePhase: false);
     }
 
+    public void InitializeInstances(
+        ReadOnlySpan<ISystemUpdate> systems,
+        ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
+        EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Parallel,
+        int workerCount = -1)
+    {
+        InitializeCore(systems.ToArray(), descriptors, mode, workerCount,
+            isRenderPreparePhase: false, useInstanceIds: true);
+    }
+
     internal void InitializeRenderPrepare(
         ReadOnlySpan<ISystemRenderPrepare> systems,
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
@@ -49,21 +59,37 @@ public sealed class EcsUpdateScheduler : IDisposable
         ReadOnlySpan<EcsUpdateSystemDescriptor> descriptors,
         EcsUpdateSchedulerMode mode,
         int workerCount,
-        bool isRenderPreparePhase)
+        bool isRenderPreparePhase,
+        bool useInstanceIds = false)
     {
         ThrowIfDisposed();
+        if (useInstanceIds)
+        {
+            if (systems.Length != descriptors.Length)
+                throw new ArgumentException("Each system instance requires one descriptor in the same order.", nameof(descriptors));
+            for (int i = 0; i < systems.Length; i++)
+            {
+                ArgumentNullException.ThrowIfNull(systems[i], nameof(systems));
+                if (descriptors[i].SystemType != systems[i].GetType())
+                    throw new ArgumentException($"Descriptor at index {i} does not match its system instance type.", nameof(descriptors));
+            }
+        }
         DisposeSchedulerState();
 
         _mode = mode;
         _isRenderPreparePhase = isRenderPreparePhase;
         _systems = systems;
-        Type[] systemTypes = new Type[_systems.Length];
-        for (int i = 0; i < _systems.Length; i++)
+        if (useInstanceIds)
         {
-            systemTypes[i] = _systems[i].GetType();
+            _graph = EcsUpdateGraphBuilder.BuildInstances(descriptors);
         }
-
-        _graph = EcsUpdateGraphBuilder.Build(systemTypes, descriptors);
+        else
+        {
+            Type[] systemTypes = new Type[_systems.Length];
+            for (int i = 0; i < _systems.Length; i++)
+                systemTypes[i] = _systems[i].GetType();
+            _graph = EcsUpdateGraphBuilder.Build(systemTypes, descriptors);
+        }
         _handles = new ValueJobHandle[_systems.Length];
         _scheduledInBatch = new bool[_systems.Length];
         _dependencyOffsets = new int[_systems.Length];
@@ -301,23 +327,13 @@ public sealed class EcsUpdateScheduler : IDisposable
         }
     }
 
-    private readonly struct EcsUpdateSystemJob : IJob
+    private readonly struct EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId, bool isRenderPreparePhase)
+        : IJob
     {
-        private readonly IntPtr _systemsHandlePointer;
-        private readonly int _systemId;
-        private readonly bool _isRenderPreparePhase;
-
-        public EcsUpdateSystemJob(IntPtr systemsHandlePointer, int systemId, bool isRenderPreparePhase)
-        {
-            _systemsHandlePointer = systemsHandlePointer;
-            _systemId = systemId;
-            _isRenderPreparePhase = isRenderPreparePhase;
-        }
-
         public void Execute()
         {
-            var systems = (object[])GCHandle.FromIntPtr(_systemsHandlePointer).Target!;
-            ExecuteSystem(systems[_systemId], _isRenderPreparePhase);
+            var systems = (object[])GCHandle.FromIntPtr(systemsHandlePointer).Target!;
+            ExecuteSystem(systems[systemId], isRenderPreparePhase);
         }
     }
 }
