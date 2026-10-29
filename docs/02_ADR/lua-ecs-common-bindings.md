@@ -70,6 +70,12 @@ LogAndContinue прерывает callback, логирует контекст, �
 
 ## Consequences
 
+### Уточнение 2026-10-29: typed scalar kinds
+
+Согласованный [typed-контракт](../../plans/lua-ecs-type-catalog-spec.md) реализует bool/i32/u32/f64 вместе с F32=0. Тот же sparse/dense membership использует private Column<T> с bool[]/int[]/uint[]/float[]/double[]. Generated CLR access остаётся прямым и типизированным; Lua bool не использует truthiness, целые проверяют finite/integral/range до checked cast, f64 не проходит через float. Callback gate, права, disposal и ModSet schema equality сохраняются. Legacy F32 constructor/getter/Deconstruct/init/with закреплены tests.
+
+Разработчик принял отдельные экспериментальные probes: для одного native get/read→dynamic add/write старый потолок 4096+1600*N сохраняется; для пяти полей mixed-five не превышает matched five-f32 при одинаковых get/add/read/write. Измерено: copy single-field 1984+1368*N, mixed-five и baseline одинаковые 1984+2136*N. Это разные workloads, не изменение арифметического f32 benchmark выше. C# reserved access — 0 B. Значения времени диагностические; [полная матрица](../../plans/lua-ecs-type-catalog-evidence.md) содержит p50/p95/p99/Gen0 и отдельный cold/growth probe. No-GC Lua и production real-time пригодность не объявляются.
+
 Lua `reads/writes` заменяются queries, callback получает `(dt, ctx)`.
 LuaComponentRegistry теперь требует общий ClrComponentBindings через constructor;
 LuaSimulationPreparation получает common services и policy через DI. Existing

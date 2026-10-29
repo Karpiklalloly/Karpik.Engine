@@ -6,6 +6,8 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 
 ## Текущее состояние
 
+- 2026-10-29: реализовано расширение scalar kinds bool/i32/u32/f64. Актуальный ход приёмки — [typed ExecPlan](lua-ecs-type-catalog-execplan.md), конкретные allocation workloads — [evidence](lua-ecs-type-catalog-evidence.md). Этот документ сохраняет milestones первого f32-среза и историю внешнего sandbox; scope изоляции и запрет push/PR продолжают действовать.
+
 - Статус: завершён экспериментальный f32-срез и автоматическая приёмка.
 - Сейчас: первый срез проверен внешним SDK-проектом LuaEcsSandbox; lifecycle-регрессии перенесены в Runner.Tests, финальный полный прогон описан в Progress.
 - Далее: следующее явное поручение; stop/start через backend редактора и IPC проверен, hot reload/state restore отдельно не проверен. Без push/PR.

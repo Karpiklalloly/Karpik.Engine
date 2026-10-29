@@ -2,7 +2,7 @@
 
 Дата: 2026-10-29, Europe/Samara. Статус: контракт и performance policy согласованы; «в этой ветке делай» явно разрешает реализацию в текущей codex/modding-0.7 без новой ветки.
 
-Первое поручение разработчика: «Каталог и план; код после согласования». Последующее «Делай» согласовало выполнение этого среза и его performance policy. Это не объявляет перечисленные типы реализованными и не заменяет явное исключение из branch-правила AGENTS.md. Связанные документы: [ExecPlan](lua-ecs-type-catalog-execplan.md), [подробные задачи](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md).
+Первое поручение разработчика: «Каталог и план; код после согласования». Последующее «Делай» согласовало выполнение этого среза и его performance policy; «в этой ветке делай» разрешило текущую codex/modding-0.7. Пять scalar kinds реализованы и проверены; итоговая приёмка отражена в [ExecPlan](lua-ecs-type-catalog-execplan.md), [подробных задачах](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md) и [измерениях](lua-ecs-type-catalog-evidence.md).
 
 ## Цель и исходная база
 
@@ -42,14 +42,14 @@
 
 | CLR / schema token | Представление в Lua и правило записи | Статус |
 |---|---|---|
-| `bool` / `bool` | Только boolean; без truthiness и числовых 0/1 | Следующий срез |
+| `bool` / `bool` | Только boolean; без truthiness и числовых 0/1 | Реализовано |
 | `sbyte`, `byte` / `i8`, `u8` | number; конечное целое в диапазоне CLR-типа | Позже, тот же строгий числовой контракт |
 | `short`, `ushort` / `i16`, `u16` | number; конечное целое в диапазоне CLR-типа | Позже |
-| `int` / `i32` | number; целое от −2147483648 до 2147483647 включительно | Следующий срез |
-| `uint` / `u32` | number; целое от 0 до 4294967295 включительно | Следующий срез |
+| `int` / `i32` | number; целое от −2147483648 до 2147483647 включительно | Реализовано |
+| `uint` / `u32` | number; целое от 0 до 4294967295 включительно | Реализовано |
 | `long`, `ulong` / `i64`, `u64` | Точное значение с конструированием из строки и арифметикой без double; number допускается только без потери уже представленного им значения и с проверкой диапазона | Принятое продолжение; отдельный контракт API/стоимости |
 | `float` / `f32` | number; округление double→float, finite overflow отклоняется; NaN и ±Infinity допустимы | Реализованный экспериментальный контракт, сохранить |
-| `double` / `f64` | number; прямой double, без промежуточного float; NaN и ±Infinity допустимы | Следующий срез |
+| `double` / `f64` | number; прямой double, без промежуточного float; NaN и ±Infinity допустимы | Реализовано |
 | `char` / `char` | Предложение: number-код UTF-16 unit 0…65535, включая одиночный surrogate; строковые преобразования только явно | Позже; это предложение, не утверждённый API |
 | `decimal` / `decimal` | Точное значение из строки; вычисления без double; смешанные точные типы требуют явного преобразования | Принятое продолжение; rounding/overflow/operator API задаст отдельный срез |
 | `enum` | Underlying integer с проверкой диапазона; неизвестные именованные значения и flags-комбинации не запрещаются `Enum.IsDefined`; i64/u64 underlying требуют точного представления | Позже; CLR-first, dynamic enum metadata отдельно |
@@ -93,7 +93,7 @@ Lua `ViewDescriptor` делает switch по `GetFieldKind`. Boolean — чер
 
 Engine хранит bindings, ModSet — неизменяемые schemas, Simulation — mutable typed columns и queries. Новые типы не меняют ComponentCallbackScope, int-ID модель, snapshot semantics, inferred scheduling keys, DI scopes или запрет конкурирующего исполнения одной VM. После swap-remove и growth старый reusable view должен адресовать правильный entity через mapping. После destroy старые views/columns недоступны и освобождаются.
 
-Существующие f32 Lua-моды и известные F32 constructor/getter/view-вызовы должны продолжить работать после пересборки. Не обещается binary compatibility прежнего SDK/generated provider: host и модули пересобираются одним SDK. Поскольку дескриптор сейчас positional record, реализация обязана отдельно проверить изменения record equality/Deconstruct/with/init. Рекомендуется сохранить тип record и f32 Deconstruct; generic record-cloning/init-семантика вне известных callers не объявляется совместимой автоматически. Если потребуется source-breaking изменение, зафиксировать точную миграцию до merge.
+Существующие f32 Lua-моды и F32 constructor/getter/view-вызовы сохраняются. Дескриптор остаётся record; сохранены named F32 constructor argument, Deconstruct, equality/cloning metadata и legacy `F32 init/with`. Init разрешён только при Kind==F32 и ненулевом accessor, поэтому не создаёт противоречивую mixed-kind metadata. Record ToString форматирует только Name/CanWrite/Kind, не вызывает все typed getters. Эти контракты закреплены отдельными regression tests. Для новых providers host и модули пересобираются одним SDK; совместимость произвольной старой SDK-сборки с новыми kinds не заявляется.
 
 Никаких новых Client/Server зависимостей. Игровой fixed dt, editor/IPC, serialization, networking, schema migration и state restore не меняются.
 
@@ -109,7 +109,7 @@ Engine хранит bindings, ModSet — неизменяемые schemas, Simul
 
 ## Открытые решения и последующие этапы
 
-Контракт первого среза и performance policy согласованы последующим «Делай». Осталось выбрать законную базу ветки: после merge prerequisites — новая task branch от актуального main; до merge — только явно разрешённая dependent branch от modding-ветки с PR в parent. Поручение реализации не разрешает это исключение автоматически.
+Контракт и performance policy согласованы «Делай», текущая ветка — явным «в этой ветке делай». Новая ветка не создаётся. Сохраняется запрет публикации базового Lua/ECS-плана: изменения локальные, без push/PR. Точные числа, nested/fixed/pointer API остаются отдельными следующими этапами.
 
 За пределами первого среза остаются operator/overflow API точных чисел, char-представление, nested paths, fixed-buffer indexing, opaque-pointer lifetime и dynamic enum metadata. Они перечислены с конкретным статусом; не требуется решать их для bool/i32/u32/f64.
 

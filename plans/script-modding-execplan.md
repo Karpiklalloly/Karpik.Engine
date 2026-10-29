@@ -4,6 +4,8 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
+- 2026-10-29: следующий typed-срез CLR/Lua bindings реализован для bool/i32/u32/f64, совместно с f32. Источник текущей приёмки и ограничений — [typed ExecPlan](lua-ecs-type-catalog-execplan.md). Common C# reserved path 0 B; Lua остаётся экспериментальным и аллоцирует. Точные числа, nested fields, ctx:create, schema migrations/reload и save/network остаются дальнейшими этапами.
+
 - 2026-10-25: экспериментальный CLR Position → mixed query → Lua → dynamic
   Temperature(f32) реализован по отдельному [ExecPlan](lua-ecs-bindings-execplan.md).
   Настоящие команды/метрики и дальнейшие ограничения находятся там; counts ниже

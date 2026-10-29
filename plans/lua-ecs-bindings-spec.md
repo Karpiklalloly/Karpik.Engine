@@ -6,6 +6,8 @@
 
 ## Цель и наблюдаемый результат
 
+Актуальное расширение 2026-10-29: [каталог и typed-контракт](lua-ecs-type-catalog-spec.md) добавляет bool/i32/u32/f64 к f32 в CLR codegen, dynamic SoA и Lua. Ниже сохранён контракт первоначального f32-среза; ограничения «только f32» относятся к нему. Lifecycle/scheduling/error policies сохраняются. Новые измерения и приёмка — в [typed ExecPlan](lua-ecs-type-catalog-execplan.md).
+
 Host регистрирует unmanaged CLR-компонент `Position : IEcsComponent` с публичными `float X, Y` под ID `game:Position`. При сборке генерируется прямой типизированный доступ к полям. Мод weather объявляет общий динамический `weather:Temperature`, версия 1, поле `Value: f32`. Его система выбирает сущности с Position без Temperature, читает Y и добавляет Temperature. После callback значение равно `(float)(20 - position.Y * 0.01)` по обычной числовой семантике Lua с проверкой f32 на границе записи. Следующий обход уже не выбирает обработанные сущности.
 
 Общий слой не зависит от MoonSharp и доступен CLR-коду. Это не новое Lua-хранилище. Штатный `world.Where(out Aspect a)` остаётся CLR-механизмом; новый смешанный query не подменяет его.
