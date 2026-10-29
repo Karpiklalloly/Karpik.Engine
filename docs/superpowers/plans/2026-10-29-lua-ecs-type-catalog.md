@@ -79,7 +79,7 @@ Run: `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runne
 
 ## T2: Generated native fields
 
-Статус: код и tests проверены, оформляется отдельный commit milestone. Initial regression отказала KEB001 на bool; полный Generator Release 76/76 exit 0. Существующие RS2008 release-tracking warnings остаются вне scope.
+Статус: завершено. Initial regression отказала KEB001 на bool; полный Generator Release 76/76 exit 0. Существующие RS2008 release-tracking warnings остаются вне scope.
 
 **Files:** actual Codegen generator и `ClrComponentBindingGeneratorTests.cs`.
 

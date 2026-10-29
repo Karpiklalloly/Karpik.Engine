@@ -7,7 +7,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 ## Текущее состояние
 
 - Статус: выполняется M1/T1; контракт и performance policy согласованы.
-- Сейчас: M1 common завершён; generated native bindings проверены, оформляется M2.
+- Сейчас: M1 и M2 завершены; начинаются Lua declarations и strict setters.
 - Далее: Lua declarations и strict conversion matrix (M3).
 - Блокеры: нет. Пользователь явно разрешил текущую ветку сообщением «в этой ветке делай»; отдельная ветка не создаётся.
 
@@ -29,7 +29,7 @@ This ExecPlan is a living document. It must be maintained according to `plans/PL
 - [x] (2026-10-29) Baseline common storage/query Release: 14/14, failed 0, exit 0. Команда: `dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter "FullyQualifiedName~DynamicComponentStorageTests|FullyQualifiedName~MixedComponentQueryTests" --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none`, cwd исходный root; VSTEST_CONNECTION_TIMEOUT=180. Сборка свежая из предыдущего preflight. Первый, более широкий запуск с LuaEcsBindings был прерван собственным лимитом subprocess 50s после сборки/start тестов; PASS для него не заявляется.
 - [x] (2026-10-29) M0 / T0: spec/policy/implementation утверждены; «в этой ветке делай» разрешает текущую codex/modding-0.7. Документы перенесены в repository, relative links исправлены. Baseline 8fae435, storage/query 14/14.
 - [x] (2026-10-29) M1 / T1: typed descriptor/view/schema и mixed-kind SoA. RED: missing-API compiler diagnostics; record ToString regression отдельно 1/1 failed (InvalidOperationException) → исправлена. Итоговый targeted Release 20/20, exit 0, включая warmed common 0 B. Команда Runner из T1 с добавлением `FullyQualifiedName~TypedComponentBindingsTests` в filter.
-- [ ] M2 / T2: generated native typed fields; Generator tests.
+- [x] (2026-10-29) M2 / T2: typed CLR generator и readonly/unsupported matrix. Runtime regression RED KEB001 bool → full Generator Release 76/76 exit 0, команда T2. Existing referenced/own Static/Dynamic tests сохранены. Common M1 commit 4e8fb5d; codegen фиксируется отдельным commit.
 - [ ] M3 / T3: Lua declarations/read/write, numeric boundaries, error policies, runner matrix.
 - [ ] M4 / T4: allocation evidence, lifecycle regression, полные relevant suites, итоговое review и документация.
 

@@ -57,10 +57,10 @@ public sealed class ClrComponentBindingGenerator : IIncrementalGenerator
                 context.ReportDiagnostic(Diagnostic.Create(Unsupported, registration.Location, registration.Type.ToDisplayString()));
                 continue;
             }
-            IFieldSymbol? bad = Fields(type).FirstOrDefault(field => field.Type.SpecialType != SpecialType.System_Single || field.IsFixedSizeBuffer);
+            IFieldSymbol? bad = Fields(type).FirstOrDefault(field => ScalarType(field.Type) is null || field.IsFixedSizeBuffer);
             if (bad is not null)
             {
-                context.ReportDiagnostic(Diagnostic.Create(Unsupported, registration.Location, $"{type.ToDisplayString()}.{bad.Name}: only f32 fields are implemented in this slice"));
+                context.ReportDiagnostic(Diagnostic.Create(Unsupported, registration.Location, $"{type.ToDisplayString()}.{bad.Name}: only bool, i32, u32, f32 and f64 fields are implemented in this slice"));
                 continue;
             }
             types.Add(type);
@@ -93,11 +93,12 @@ public sealed class ClrComponentBindingGenerator : IIncrementalGenerator
             source.AppendLine("}; }");
             for (int f = 0; f < fields.Length; f++)
             {
-                source.Append("private sealed class Field").Append(f).AppendLine(" : global::Karpik.Engine.Shared.Modding.Bindings.IComponentField<float> {");
+                string fieldType = ScalarType(fields[f].Type)!;
+                source.Append("private sealed class Field").Append(f).Append(" : global::Karpik.Engine.Shared.Modding.Bindings.IComponentField<").Append(fieldType).AppendLine("> {");
                 source.Append("private readonly Pool").Append(i).AppendLine(" _owner;");
                 source.Append("public Field").Append(f).Append("(Pool").Append(i).AppendLine(" owner) { _owner = owner; }");
-                source.Append("public float Read(int entityId) => _owner.ReadComponent(entityId).@").Append(fields[f].Name).AppendLine(";");
-                source.Append("public void Write(int entityId, float value) ");
+                source.Append("public ").Append(fieldType).Append(" Read(int entityId) => _owner.ReadComponent(entityId).@").Append(fields[f].Name).AppendLine(";");
+                source.Append("public void Write(int entityId, ").Append(fieldType).Append(" value) ");
                 if (fields[f].IsReadOnly) source.AppendLine("=> throw new global::System.InvalidOperationException(\"Field is readonly.\");");
                 else source.Append("=> _owner.MutableComponent(entityId).@").Append(fields[f].Name).AppendLine(" = value;");
                 source.AppendLine("}");
@@ -110,4 +111,14 @@ public sealed class ClrComponentBindingGenerator : IIncrementalGenerator
 
     private static IEnumerable<IFieldSymbol> Fields(INamedTypeSymbol type) => type.GetMembers().OfType<IFieldSymbol>()
         .Where(field => !field.IsStatic && !field.IsImplicitlyDeclared && field.DeclaredAccessibility == Accessibility.Public);
+
+    private static string? ScalarType(ITypeSymbol type) => type.SpecialType switch
+    {
+        SpecialType.System_Boolean => "bool",
+        SpecialType.System_Int32 => "int",
+        SpecialType.System_UInt32 => "uint",
+        SpecialType.System_Single => "float",
+        SpecialType.System_Double => "double",
+        _ => null
+    };
 }

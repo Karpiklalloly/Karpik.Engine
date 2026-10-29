@@ -45,11 +45,71 @@ public sealed class ClrComponentBindingGeneratorTests
         Assert.Equal(true, assembly.GetType("BindingFixture.Check")!.GetMethod("RejectReadonly")!.Invoke(null, null));
     }
 
-    [Fact]
-    public void ClrComponentBinding_RejectsUnsupportedPublicField()
+    [Theory]
+    [InlineData("public long X; public float Y;")]
+    [InlineData("public E X; public float Y; public enum E { Value }")]
+    [InlineData("public Nested X; public float Y; public struct Nested { public float Value; }")]
+    [InlineData("public unsafe fixed float X[2]; public float Y;")]
+    public void ClrComponentBinding_RejectsUnsupportedPublicField(string fields)
     {
-        var result = GeneratorTestHarness.Run(Generator(), source: Source("public int X; public float Y;"), additionalReferences: References);
+        var result = GeneratorTestHarness.Run(Generator(), source: Source(fields), additionalReferences: References);
         Assert.NotEmpty(result.DiagnosticsById("KEB001"));
+    }
+
+    [Fact]
+    public void ClrComponentBinding_GeneratesTypedScalarAccess()
+    {
+        const string fields = "public bool B; public double D; public int I; public uint U; public float X, Y; public readonly bool RB; public readonly double RD; public readonly float RF; public readonly int RI; public readonly uint RU;";
+        string source = Source(fields) + """
+
+            public static class TypedCheck
+            {
+                public static bool Verify()
+                {
+                    var binding = new Karpik.Generated.Bindings_AnyGame_002EClient_002EHost.GeneratedClrComponentBindingProvider().GetBindings().Span[0];
+                    var world = new EcsDefaultWorld();
+                    try
+                    {
+                        var pool = binding.Bind(world); int entity = world.NewEntity(); pool.Add(entity);
+                        foreach (var field in pool.Fields.Span)
+                        {
+                            if (field.CanWrite) Write(field, entity);
+                            else
+                            {
+                                try { Write(field, entity); return false; }
+                                catch (System.InvalidOperationException) { }
+                                bool zero = field.Kind switch {
+                                    SchemaScalarKind.Bool => !field.Bool.Read(entity),
+                                    SchemaScalarKind.I32 => field.I32.Read(entity) == 0,
+                                    SchemaScalarKind.U32 => field.U32.Read(entity) == 0,
+                                    SchemaScalarKind.F32 => field.F32.Read(entity) == 0,
+                                    SchemaScalarKind.F64 => field.F64.Read(entity) == 0,
+                                    _ => false
+                                };
+                                if (!zero) return false;
+                            }
+                        }
+                        ref var p = ref world.GetPool<Position>().Get(entity);
+                        return p.B && p.I == int.MinValue && p.U == uint.MaxValue && p.D == 16777217d && p.X == 1.25f && p.Y == 1.25f;
+                    }
+                    finally { world.Destroy(); }
+                }
+                private static void Write(ComponentFieldDescriptor field, int entity)
+                {
+                    switch (field.Kind) {
+                        case SchemaScalarKind.Bool: field.Bool.Write(entity, true); break;
+                        case SchemaScalarKind.I32: field.I32.Write(entity, int.MinValue); break;
+                        case SchemaScalarKind.U32: field.U32.Write(entity, uint.MaxValue); break;
+                        case SchemaScalarKind.F32: field.F32.Write(entity, 1.25f); break;
+                        case SchemaScalarKind.F64: field.F64.Write(entity, 16777217d); break;
+                    }
+                }
+            }
+            """;
+        var result = GeneratorTestHarness.Run(Generator(), source, additionalReferences: References);
+        result.AssertNoErrors();
+        var assembly = GeneratorTestHarness.EmitAndLoad(result);
+        Assert.Equal(true, assembly.GetType("BindingFixture.TypedCheck")!.GetMethod("Verify")!.Invoke(null, null));
     }
 
     [Fact]
