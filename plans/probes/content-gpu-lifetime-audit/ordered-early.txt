@@ -1,0 +1,34 @@
+ordered: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-30-generic)
+ordered[0] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-30-generic)
+early[0] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-30-generic)
+deferred[0] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[1] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[1] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[1] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[2] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[2] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[2] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[3] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[3] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[3] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[4] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[4] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[4] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[5] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[5] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[5] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[6] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[6] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[6] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[7] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[7] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[7] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[8] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[8] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[8] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[9] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[9] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[9] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+AUDIT PASSED

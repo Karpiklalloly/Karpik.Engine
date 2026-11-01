@@ -18,9 +18,9 @@ The developer subsequently requested GPU resources in the same design rather tha
 - [x] (2026-11-01) Developer requested GPU inclusion and suggested frame-end application. Inspected graphics triple-buffer ownership, direct command resource references, merge contexts and submission fences; recorded why frame-end publication alone cannot authorize destruction.
 - [ ] Complete the expanded GPU adapter/ownership design and reconcile the managed-only statements below before design approval or implementation.
 - [x] (2026-11-01) Graphics.Core baseline: 40 passed, zero failed/skipped; existing nullability warnings remain.
-- [x] (2026-11-01) Verified the installed NeoVeldrid 1.2.1 OpenGL fence implementation signals at enqueue rather than GPU completion; recorded a required backend prerequisite below.
+- [x] (2026-11-01) Verified the installed NeoVeldrid 1.2.1 OpenGL fence implementation signals at enqueue rather than GPU completion; recorded the fence limitation; the broader prerequisite inference was subsequently retracted below.
 - [x] (2026-11-01) Broader audit found built-in deferred GL deletion and ordered GL-thread execution. Retracted the claim that a fork/true GPU fence is necessarily required for ordinary OpenGL resource retirement.
-- [ ] Validate engine CPU ownership plus ordered GL deletion using existing APIs before deciding whether a dependency change is needed.
+- [x] (2026-11-01) Verified existing-API retirement on real AMD/Mesa OpenGL: 10/10 ordered red results, 10/10 DisposeWhenIdle + SwapBuffers red results, 10/10 early-delete black negative controls, native deletion while a real GLsync is pending with correct red readback; confirmed unsubmitted ThreadBuffer retains disposed wrapper. Reproducible probe and limits saved below.
 - [x] (2026-11-01) Independent builder check identified a missing load-state observation boundary; resolved with one per-slot observation under the control lock. No other material questions were reported.
 - [ ] Developer approves the detailed design and proposed scope/compatibility decisions.
 - [ ] Expand approved milestones into implementation tasks using writing-plans.
@@ -59,7 +59,7 @@ The developer subsequently requested GPU resources in the same design rather tha
 
 ## Outcomes & Retrospective
 
-Design only. Runtime baseline is 25/25 on .NET SDK 10.0.114 using `dotnet test tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj -m:1 -nr:false --no-restore`. This is not validation of a new implementation. Product code, tests, codegen, source metadata and runtime schemas are unchanged.
+Design only. Runtime baseline is 25/25 on .NET SDK 10.0.114 using `dotnet test tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj -m:1 -nr:false --no-restore`. This is not validation of a new implementation. Product runtime code, existing unit tests, codegen, source metadata and runtime schemas are unchanged. The later audit added an opt-in diagnostic probe under plans/probes; its hardware evidence is recorded below.
 
 ## Context and Orientation
 
@@ -91,7 +91,7 @@ Engine CPU ownership and GL submission ordering still matter. A draw retained in
 
 Candidate existing-API path: retain the resource until all CPU owners have submitted/discarded their commands; enqueue its disposal through BackendInfoOpenGL.ExecuteOnGLThread after all corresponding SubmitCommands calls have entered the ordered execution queue. That callback then requests native deletion after the last relevant GL calls have been issued; GL manages physical storage lifetime. ExecuteOnGLThread blocks its calling thread for a CPU execution-queue barrier, so use it only from a bounded retirement/control worker, never from Render, Update or the publication boundary. The callback may allocate only as cold reload work, not per frame. This avoids claiming a physical GPU-completion signal is needed merely to dispose a texture.
 
-This is a source-supported design candidate, not a completed runtime/driver test. Validate interleavings of prior SwapBuffers, queued command lists, delayed CPU recording, cancellation/upload work and exactly-once bundle disposal with deterministic tests plus a real OpenGL smoke. Do not substitute the misleading Fence for this ordering, assume DisposeWhenIdle automatically runs every frame (it is drained by GraphicsDevice.WaitForIdle), or call FlushAndFinish on the main render path.
+The primitive is now supported by the hardware audit below, not just source inspection. Full engine update integration, delayed writer/merge ownership, cancellation/upload work and exactly-once bundle disposal still require their own tests. Do not substitute the misleading Fence for this ordering or call FlushAndFinish on the main render path. Public DisposeWhenIdle is drained by public GraphicsDevice.WaitForIdle; this OpenGL backend calls it from SwapBuffersCore on each present. The deferred-mode smoke verifies that existing path once the relevant draws have entered the queue.
 
 No fork, upstream issue/PR or package change has been authorized or created. Prefer validating the existing deferred-delete/ordered-execution facilities first; propose a dependency patch only if that audit demonstrates a concrete remaining gap. The fence implementation itself remains a separate confirmed limitation and must not be described as actual GPU completion elsewhere in the design.
 
@@ -227,3 +227,13 @@ Design/implementation record: this file. Branch: `codex/content-runtime-snapshot
 Potential knowledge notes after implementation (proposals only): publish payload/version as one record; bind async work to its original generation and store; treat versioned handles as registry-local and rebind durable IDs at restore.
 
 Audit correction (2026-11-01): the prior requirement to fork NeoVeldrid for ordinary GPU-resource deletion was not established by the fence finding. Existing deferred deletion, context command ordering and the driver's native-object lifetime must be evaluated separately. No product code changed during this audit.
+
+## Real OpenGL Audit Evidence (2026-11-01)
+
+The requested check is complete for the existing retirement primitive: [manual probe and report](probes/content-gpu-lifetime-audit/README.md), with source, project and raw transcripts. Real hardware was AMD Radeon Graphics (radeonsi/renoir), OpenGL 4.6 Core / Mesa 26.0.8; package NeoVeldrid 1.2.1. Existing Graphics tests pass 40/40. An ordered GL-thread disposal callback preserves the correct red pixel in all ten repetitions; a separately queued early Dispose produces black in all ten negative controls. Native glIsTexture confirms deletion of the old name while a real GLsync still returns TIMEOUT_EXPIRED, then readback is correct. Thus an actual GPU-completion fence/fork is not a prerequisite for this ordinary OpenGL texture-retirement path.
+
+The source-linked engine ThreadBuffer still holds its unsubmitted texture command after the wrapper has been disposed, so this is not proof of existing end-to-end engine resource ownership. That integration is still required. The probe's synchronous callback bridge runs from a cold control task; it is not a proposal to call a blocking method inside Render. No production code/package was modified. One initial scratch run timed out because the harness called blocking SwapBuffers while holding its own GL gate; this invalid attempt was discarded and the corrected probe uses an explicitly observed CPU queue barrier. Full methodology and coverage limits are in the report.
+
+Additional existing-API result: DisposeWhenIdle(source) followed by ordinary OpenGL SwapBuffers produced correct red output in all ten repetitions. SwapBuffersCore calls public WaitForIdle, which drains the public deferred-disposal list; unlike the early direct Dispose case, deletion was not exposed to the earlier internal barrier ahead of the queued draw. This is another source-and-runtime-supported retirement primitive without a fork, provided no engine CPU owner can submit more old-resource commands later.
+
+Audit review: no Critical/Important findings. One Minor finding about a permissive negative-control assertion was fixed by requiring exact opaque black (and exact opaque green/red for baseline/success). Final probe build succeeded; final archived runs passed 30 ordering cases plus one pending-GPU case. The original Graphics.Core suite remained 40/40. No new production code or dependency version change.
