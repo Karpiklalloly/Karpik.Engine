@@ -72,6 +72,54 @@ result, then atomically publishes it. Failed builds leave the previously
 published output untouched. Identical inputs yield byte-identical manifests
 and do not rewrite matching artifacts.
 
+## Per-asset build reuse (0.7)
+
+An ordinary build still scans and validates source/sidecar pairs, but reuses
+successful processor results individually. A versioned private index,
+`.karpik-content-cache.v1.json` in the output root, binds records to the
+canonical published manifest. Each record identifies its manifest entry by
+`AssetId` and stores a reuse key, cooked-byte checksum and successful processor
+diagnostics. The index is disposable build metadata, not a runtime contract.
+
+The reuse key includes relative source path, source contents, canonical meta,
+processor type/version and target. Processors must be deterministic for their
+supplied arguments and increment their version when their behavior changes.
+Including the relative path conservatively reruns processing after moves,
+including extension-sensitive validation, without changing the durable ID or
+the public artifact recipe format.
+
+A hit requires a matching key and artifact size/checksum. Missing, corrupt,
+unsupported or manifest-mismatched indexes cause a cold build; a missing or
+damaged artifact invalidates that asset's result. Cache-hit processor warnings
+are replayed, and the combined metadata/processor dependency graph is validated
+for both clean and incremental builds. `validate` always invokes processors.
+
+Dependency IDs currently express references. Changing a referenced asset's
+bytes does not require reprocessing an unchanged referrer, but missing,
+target-incompatible and cyclic references are rejected before publication.
+Processors that consume other assets' contents will need a separate explicit
+build-dependency contract; this cache does not implement that future behavior.
+
+When every selected result is reused and the candidate manifest is unchanged,
+the build returns after validation without creating staging or rewriting
+output. Changed builds stage all referenced artifacts, including copies of
+reused artifacts, because publication removes unstaged old artifacts. The
+private index is saved with an atomic file replacement only after successful
+content publication. Failure to save it leaves a successful, usable output;
+a subsequent build can rebuild instead of reusing results.
+
+The public manifest schema, artifact hashing and CLI invocation remain
+unchanged. Older output without this index is supported by a cold rebuild.
+The legacy whole-tree fingerprint file is still emitted for older tooling,
+but current builds no longer use it to bypass per-asset integrity checks.
+Processor-emitted invalid references now fail validation like metadata
+references. No runtime, Editor or source-meta migration is required.
+
+This optimization reduces processor work; full source reads, checksum reads
+and changed-build staging copies remain. One writer per output root is
+supported. Watchers, concurrent publishers and live-resource hot reload are
+separate work.
+
 ## Alternatives Considered
 
 ### Extend `AssetsManager`

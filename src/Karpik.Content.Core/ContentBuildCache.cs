@@ -136,7 +136,7 @@ internal sealed class ContentBuildCache
     private static bool IsOrdinaryPath(string root, string path)
     {
         if (!PathSafety.IsContained(root, path)) return false;
-        string rootFull = Path.GetFullPath(root);
+        string rootFull = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         for (string? current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
         {
             if (PathSafety.IsReparsePoint(current)) return false;

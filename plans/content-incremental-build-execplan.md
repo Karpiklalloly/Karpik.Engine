@@ -18,7 +18,7 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 - [x] (2026-11-01) Developer approved the design and explicitly authorized implementation.
 - [x] (2026-11-01) Expanded inline implementation tasks below using writing-plans; this ExecPlan is the authoritative plan and execution ledger.
 - [x] (2026-11-01) Initial per-asset reuse and effective-graph validation: 7/7 new regressions RED then GREEN; complete Content suite 118/118 passed.
-- [ ] Implement and validate cache recovery and complete publication.
+- [x] (2026-11-01) Recovery, complete staging and publication regressions pass; full Content suite 152/152, zero failures/skips. Tool build result recorded in execution ledger.
 - [ ] Complete clean/incremental equivalence and CLI regression checks; update relevant documentation and publish one focused PR after implementation is authorized and verified.
 
 ## Surprises & Discoveries
@@ -69,7 +69,7 @@ Accepted constraints also come from `docs/02_ADR/content-target-profiles.md` and
 2. Store an output-local private index tied to the published manifest. This adds one small internal schema and checksum I/O but preserves complete processor results and permits conservative cache misses. Selected and approved.
 3. Add a global content-addressed cache, filesystem watcher and dependency-aware scheduler together. This could serve multiple projects but adds eviction, concurrent writers and more lifetime rules. Deferred because one-output reuse is independently useful.
 
-## Proposed Design
+## Approved Design
 
 ### Reuse identity and index contents
 
@@ -199,10 +199,10 @@ Interfaces: private cache loader takes output path/options and returns validated
 
 Files: extend incremental tests and `tests/Karpik.Content.Tests/CliTests.cs`; adjust Core only where a failing regression requires it; document accepted cache semantics in `docs/02_ADR/content-pipeline-build-contract.md`.
 
-- [ ] Add and run regression cases for corrupt/missing index and cooked files, duplicates/path traversal, semantic metadata/version/target/path changes, failure preservation, empty/add/delete inputs, no-op writes, and cache-save failure. Classify existing passing behavior separately from missing-feature failures.
-- [ ] Add clean-versus-incremental equivalence coverage and a real CLI repeated-build/edit flow; verify CLI publication contains all referenced artifacts.
-- [ ] Make minimal fixes for observed failures; run the full Content suite and Tool build with single-node/no-reuse flags.
-- [ ] Update the ADR and observed plan outcomes, commit, and request one independent whole-branch review.
+- [x] Added recovery/invalidation/publication cases. Thirty added robustness cases initially passed the implemented feature. A newly identified trailing-separator case failed (two processor calls instead of one), then passed after normalizing the comparison root.
+- [x] Added clean/incremental equivalence for edits/additions/deletions/moves and a CLI flow across separate processes; all referenced output files survive changed publication.
+- [x] Fixed the reproduced trailing-separator bug; complete Content suite 152/152 and Tool build passed using single-node/no-reuse flags.
+- [x] Updated the existing build-contract ADR; committing Task 2 and requesting independent whole-branch review.
 
 ### Task 3: Review and delivery
 
@@ -212,3 +212,7 @@ Files: extend incremental tests and `tests/Karpik.Content.Tests/CliTests.cs`; ad
 Ruling: use this ExecPlan as the execution ledger instead of duplicating it under the generic skill's plan/workspace directories; repository plan conventions take precedence. Continue in the existing clean dedicated task branch. The cost is no extra worktree protection, with no concurrent implementation edits planned.
 
 Task 1 evidence: seven new cases failed by assertions before product changes (redundant processing, missing warning replay, same-size corruption and processor-only unknown/cyclic dependencies). After implementation all seven pass. Cache records bind to the separate manifest through AssetId and a canonical manifest hash; duplicating manifest entries in the index is unnecessary. Legacy whole-tree fingerprint output is still maintained for older tools, but no longer controls the unchecked early return.
+
+Task 2 evidence: full Content suite passed 152/152 with zero skips/failures, including a real CLI build/no-op/edit flow. `dotnet build src/Karpik.Content.Tool/Karpik.Content.Tool.csproj -m:1 -nr:false --no-restore` passed. New trailing-separator regression was observed RED (expected 1 processor call, actual 2); comparing a parent directory against an untrimmed root caused the miss. `Path.TrimEndingDirectorySeparator` resolves that exact cause. Other added cases characterize already-implemented recovery behavior; they did not require extra product changes.
+
+Task 2 design detail: persisted records reference the published manifest entry by AssetId plus the index-wide canonical manifest digest, avoiding redundant entry serialization. In-memory cache records still carry the bound entry. The public format remains unchanged.
