@@ -29,20 +29,24 @@
 
 ### Освобождать физические тела при удалении ECS entity
 
-**Проблема:** при удалении сущности ECS связанное тело может остаться в `IPhysicsWorld2D`. На disconnect это оставляет в физическом мире stale body, которое продолжает участвовать в simulation/collision queries без живой gameplay entity.
+**Статус (2026-11-01):** реализовано в task-ветке, ожидает слияния.
+
+**Проблема:** удалённая entity исчезает из aspect query раньше, чем `Physics2DBodyDestroyer.LateUpdate` может обработать `DestroyBodyRequest`. Тело оставалось в backend и collision queries.
+
+**Результат:** `Physics2DBodyDestroyer` подписывается на `IEcsEntityEventListener` в `Init` и отписывается в `Destroy`. Синхронный `OnDelEntity` читает ещё доступный `PhysicsBodyRef`, инвалидирует handle и освобождает backend body. Тот же helper обслуживает обычный destroy request. Не нужны managed references в компонентах, static state, очереди или изменения сетевых callers.
 
 **Затронутые места:**
 
 - `Modules/Shared/Physics/Physics2D.Core/ECS/Physics2DBodyDestroyer.cs`
-- `Modules/Shared/Physics/Physics2D.Core/ECS/Components.cs`
-- `MyGame/Server/MyGame.Server.Main/Systems/NetworkSystem.cs`
+- `tests/Physics2D.Core.Tests/BodyCleanupTests.cs`
+- `KarpikEngine.slnx` — новый тестовый проект.
 
 **Acceptance criteria:**
 
-- [ ] Удаление entity с `PhysicsBodyRef` гарантированно вызывает `IPhysicsWorld2D.DestroyBody`.
-- [ ] Disconnect cleanup игрока не оставляет тела в физическом мире.
-- [ ] Cleanup не аллоцирует в ECS/system hot path после warm-up.
-- [ ] Добавлен минимальный тест или smoke-сценарий на удаление entity с physics body.
+- [x] Удаление entity с валидным `PhysicsBodyRef` синхронно вызывает `IPhysicsWorld2D.DestroyBody`, до следующего physics step.
+- [x] Любой caller удаления entity, включая disconnect cleanup, использует тот же callback. Реальный Aether-тест проверяет исчезновение тела из backend и collision queries; сетевой transport smoke не требуется для этого контракта.
+- [x] Cleanup не аллоцирует после warm-up: измеряется удаление 32 заранее созданных тел на реальном Aether backend.
+- [x] Проверены pending request, повторное использование handle, отсутствие тела, invalid handle и отписка/повторная инициализация.
 
 ## P2 - Отложенные расширения после 0.5
 
