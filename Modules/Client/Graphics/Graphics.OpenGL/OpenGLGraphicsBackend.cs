@@ -86,8 +86,12 @@ public sealed class OpenGLGraphicsBackend : IGraphicsBackend
         if (_mergeThread.TryTakeCompletedCommandList(out CommandList? commandList, out Fence? submitFence))
         {
             _clientFrameMetrics.PublishMergeAvailability(isReady: true);
-            _device.ResetFence(submitFence);
-            _device.SubmitCommands(commandList, submitFence);
+            try
+            {
+                _device.ResetFence(submitFence);
+                _device.SubmitCommands(commandList, submitFence);
+            }
+            finally { _mergeThread.CompleteSubmission(commandList!); }
             _sceneSubmittedForPresent = true;
         }
         else

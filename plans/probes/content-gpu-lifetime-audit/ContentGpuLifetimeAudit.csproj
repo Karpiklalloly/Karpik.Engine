@@ -7,11 +7,14 @@
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="StbImageSharp" />
     <PackageReference Include="NeoVeldrid" />
     <PackageReference Include="NeoVeldrid.StartupUtilities" />
     <PackageReference Include="NeoVeldrid.SDL2" />
-    <!-- Reuse the existing tests' source-linked command-buffer types without bootstrapping the client module graph. -->
-    <ProjectReference Include="../../../Modules/Client/Graphics/Graphics.Core.Tests/Graphics.Core.Tests.csproj" />
-    <Compile Include="../../../Modules/Client/Graphics/Graphics.Core/Resources/VeldridTexture2D.cs" Link="Engine/VeldridTexture2D.cs" />
+    <ProjectReference Include="../../../src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
+    <ProjectReference Include="../../../src/Karpik.Content.Core/Karpik.Content.Core.csproj" />
+    <ProjectReference Include="../../../src/Karpik.Engine.Core/Karpik.Engine.Core.csproj" />
+    <ProjectReference Include="../../../Modules/Client/Graphics/Graphics.Core/Graphics.Core.csproj" />
+    <ProjectReference Include="../../../Modules/Client/Graphics/Graphics.OpenGL/Graphics.OpenGL.csproj" />
   </ItemGroup>
 </Project>

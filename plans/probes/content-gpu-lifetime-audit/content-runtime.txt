@@ -1,0 +1,16 @@
+Production integration, 2026-11-01
+
+CONTENT TEXTURE RELOAD PASSED: prepare, publish, transfer, submit old green, retire, submit new red, shutdown
+DI SHUTDOWN PASSED: both registration and activation orders release pending CPU owners before registry drainage
+
+Refreshed ordinary ordering controls (two repetitions each)
+ordered: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-42-generic)
+ordered[0] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-42-generic)
+early[0] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-42-generic)
+deferred[0] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+ordered[1] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+early[1] fence_signaled_while_GL_blocked=True, pixel=0,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+deferred[1] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=-1, unsubmitted_buffer_keeps_disposed_texture=True
+AUDIT PASSED

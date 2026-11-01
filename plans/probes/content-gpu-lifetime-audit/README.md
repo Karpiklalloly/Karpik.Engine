@@ -29,7 +29,7 @@ The early negative control also shows why Dispose immediately after SubmitComman
 
 The baseline readback is green; the tested draw must change it to red. This prevents a false positive from merely observing a previous frame. In pending mode, the entire submitted batch's native sync is still pending after the native name has been deleted. The probe does not identify which particular GPU instruction within that batch is still executing.
 
-The engine still needs generation-aware ownership for writing/ready/merging buffers and unsubmitted command lists, all-or-nothing publication, resource-bundle disposal and bounded retirement. A retained managed wrapper is not an ownership claim preventing its Dispose method. The existing fake/signaled-at-enqueue fence must not be treated as GPU completion during that implementation.
+At the time of the initial audit the engine still needed generation-aware ownership for writing/ready/merging buffers and unsubmitted command lists, all-or-nothing publication, resource-bundle disposal and bounded retirement. A retained managed wrapper is not an ownership claim preventing its Dispose method. The existing fake/signaled-at-enqueue fence must not be treated as GPU completion during that implementation.
 
 ## Reproduce
 
@@ -42,7 +42,7 @@ dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifet
 dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --pending
 ```
 
-The build references Graphics.Core.Tests only to reuse its source-linked command-buffer types without bootstrapping the engine module graph. VeldridTexture2D.cs is linked directly and is not modified. Package versions come from Directory.Packages.props. The project is deliberately absent from KarpikEngine.slnx so an ordinary solution/test invocation does not open windows or require a graphics device.
+That original source-linked setup is superseded by production project references so the probe now exercises the actual Graphics.Core and Graphics.OpenGL assemblies. Package versions come from Directory.Packages.props. The project is deliberately absent from KarpikEngine.slnx so an ordinary solution/test invocation does not open windows or require a graphics device.
 
 Expect `AUDIT PASSED` for the 30 ordering cases and `PENDING GPU AUDIT PASSED` for the native-sync case. A very fast or differently scheduled device may finish pending-mode work before the observation; that case explicitly fails as inconclusive rather than asserting a driver bug. The three ordering scenarios do not depend on GPU speed. Barrier timeouts indicate an invalid/incomplete run and do not count as evidence. This is a correctness probe with deliberate waits and allocations, not a frame-time or no-GC benchmark.
 
@@ -66,3 +66,16 @@ Verified on one AMD/Mesa device and the pinned OpenGL package. Not an end-to-end
 Potential knowledge notes, proposed only: distinguish CPU-recorded, GL-issued and GPU-completed work; audit execution/disposal queues separately; use negative controls and a changed baseline color for native readback evidence. No docs/knowledge files were created automatically.
 
 Independent audit review found no critical/important issues and one minor probe-hardening issue: the early-mode assertion accepted any non-red pixel. It now requires exact opaque black; baseline and successful output require exact opaque green/red. The final archived 30 ordering cases and pending-GPU case passed after that change. No minor finding was left deferred.
+
+## Production Content integration
+
+`--content` loads real cooked green/red PNGs through ContentTextureLoader and ContentRegistry. It publishes while an old frame is ready, transfers ownership through the actual MergeThread, proves a claimed context is not reused while a newer frame completes, submits/discards command lists, verifies exact old-green/new-red pixels, supersedes ready lists and drains shutdown. Its small test pipeline bypasses the unrelated legacy shader-file loader; framebuffer readback uses a separate offscreen target.
+
+`--di` creates production registry/merge services through Autofac in both registration and activation orders, leaves a tracked texture in a pending CPU frame and disposes the container. Before the constructor lifetime dependency this reproduced a timeout; with it both orders drain successfully. No shader or merge worker initialization is necessary for the writing-frame shutdown case.
+
+```sh
+dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --content
+dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --di
+```
+
+Final integration and six refreshed native ordering/control results are archived in content-runtime.txt. The earlier unsubmitted-wrapper negative controls deliberately retain the legacy untracked constructor and still reproduce early disposal; they do not claim tracked Content textures behave that way.

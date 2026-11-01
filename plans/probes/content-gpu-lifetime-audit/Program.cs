@@ -5,6 +5,16 @@ using NeoVeldrid;
 using NeoVeldrid.Sdl2;
 using NeoVeldrid.StartupUtilities;
 
+if (args.Contains("--di"))
+{
+    ContentReloadProbe.RunDi();
+    return;
+}
+if (args.Contains("--content"))
+{
+    ContentReloadProbe.Run();
+    return;
+}
 if (args.Contains("--pending"))
 {
     Run("pending", 0);

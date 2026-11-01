@@ -6,6 +6,7 @@ namespace Karpik.Engine.Client.Graphics.OpenGL;
 
 public struct MergeContext
 {
+    public Karpik.Content.Runtime.ContentResourcePins ResourcePins;
     public DeviceBuffer VertexBuffer;
     public Vertex2D[] Vertices;
     public TextGlyphQuad[] TextGlyphs;

@@ -162,6 +162,18 @@ public static class GraphicsContext
         }
     }
 
+    /// <summary>Shutdown only: all command writers and the merge worker must already be stopped.</summary>
+    internal static void DiscardPendingFrames()
+    {
+        lock (Lock)
+        {
+            foreach (var set in CommandSets) set.Release();
+            _readySetIndex = -1;
+            _writeSetIndex = 0;
+            CommandSets[0].BeginWrite(++_currentFrameId);
+        }
+    }
+
     private static int FindFreeSetIndex()
     {
         for (int i = 0; i < CommandSetCount; i++)
@@ -212,6 +224,8 @@ public static class GraphicsContext
 
         public void Release()
         {
+            foreach (var buffer in Buffers) buffer.Clear();
+            Buffers.Clear();
             State = CommandSetState.Free;
         }
     }

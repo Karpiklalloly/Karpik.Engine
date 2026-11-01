@@ -21,10 +21,12 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="../../../../src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
         <ProjectReference Include="..\..\..\..\src\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="../Graphics.Core/GraphicsResourceShutdown.cs" Link="Graphics.Core/GraphicsResourceShutdown.cs" />
         <Compile Include="..\Graphics.Core\Sets\TextureResources.cs" Link="Graphics.Core\Sets\TextureResources.cs" />
         <Compile Include="..\Graphics.Core\Camera\Camera2D.cs" Link="Graphics.Core\Camera\Camera2D.cs" />
         <Compile Include="..\Graphics.Core\CommandBufferDrawExtensions.cs" Link="Graphics.Core\CommandBufferDrawExtensions.cs" />
