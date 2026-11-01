@@ -6,7 +6,7 @@ This living ExecPlan follows `plans/PLANS.md`. The developer approved the semant
 
 A running registry must be able to prepare a replacement content manifest without making partially loaded data visible. On a host-controlled phase boundary, it publishes the prepared candidate atomically. Unchanged assets keep their references; changed or removed assets invalidate old references; a failed preparation leaves the current snapshot and loaded payloads usable. An old asynchronous load cannot publish a payload into a new generation.
 
-This bounded library slice provides explicit prepare/commit APIs for managed data payloads. It does not connect CLI notifications, a filesystem watcher, IPC, the engine phase loop or Editor. It does not hot-reload graphics resources or automatically rewrite ECS components. Those integrations need the contracts established here and remain separate PRs.
+The developer subsequently requested GPU resources in the same design rather than deferring them. This expands the work beyond a managed-data library slice: Shared Runtime provides versioned publication, while a Client backend adapter provides GPU preparation and retirement. The existing draft below describes the data foundation; the GPU extension section records the required changes and unresolved backend contracts before implementation can start. CLI notifications, filesystem watcher, IPC and Editor are still separate. ECS reference updates remain explicit.
 
 ## Progress
 
@@ -15,6 +15,8 @@ This bounded library slice provides explicit prepare/commit APIs for managed dat
 - [x] (2026-11-01) Baseline Runtime suite: 25 passed, zero failed/skipped; existing engine/codegen/xUnit warnings remain.
 - [x] (2026-11-01) Created independent task branch `codex/content-runtime-snapshots` from `origin/main` at `7224b18`; no changes inherited from open PRs #108/#109.
 - [x] (2026-11-01) Drafted this design.
+- [x] (2026-11-01) Developer requested GPU inclusion and suggested frame-end application. Inspected graphics triple-buffer ownership, direct command resource references, merge contexts and submission fences; recorded why frame-end publication alone cannot authorize destruction.
+- [ ] Complete the expanded GPU adapter/ownership design and reconcile the managed-only statements below before design approval or implementation.
 - [x] (2026-11-01) Independent builder check identified a missing load-state observation boundary; resolved with one per-slot observation under the control lock. No other material questions were reported.
 - [ ] Developer approves the detailed design and proposed scope/compatibility decisions.
 - [ ] Expand approved milestones into implementation tasks using writing-plans.
@@ -41,9 +43,9 @@ This bounded library slice provides explicit prepare/commit APIs for managed dat
 - Decision: preserve current reference layout and initial version-one behavior; use registry-local monotonic manifest revisions for changed/new assets, retaining unchanged asset versions.
   Rationale: keeps generated initial refs and existing ECS component layouts compatible, avoids a per-ID tombstone table, and prevents remove/re-add ABA within one registry lifetime. Wrapping must be rejected.
   Date/Author: 2026-11-01 / proposed by Codex.
-- Decision: first update support covers built-in managed payloads only: string, byte[], ReadOnlyMemory<byte> and RawJsonPayload.
-  Rationale: reloadable custom decoders and IDisposable/GPU resources need explicit scope/retirement contracts. Existing arbitrary JSON startup loading stays available; updating an already loaded custom payload fails preparation clearly instead of guessing how to recreate or dispose it.
-  Date/Author: 2026-11-01 / proposed by Codex, requires scope approval.
+- Decision: include GPU resource lifetime in the first design, using a Client backend adapter and delayed retirement; retain built-in managed data support.
+  Rationale: requested by the developer. End of a CPU frame permits publication but does not prove completion of queued CPU recording/merge or GPU submissions. Custom decoders from reloadable assemblies still need a separate scope contract.
+  Date/Author: 2026-11-01 / developer scope preference; retirement mechanics proposed by Codex.
 - Decision: initialization becomes single-use; live updates use an additive control-plane interface and prepared token.
   Rationale: repeating RegisterManifest is an unsafe reset. Preserve the existing read interface and add `IContentUpdateRegistry` rather than requiring external `IContentRegistry` implementations to implement new members.
   Date/Author: 2026-11-01 / proposed by Codex, requires compatibility approval.
@@ -74,6 +76,26 @@ Relevant docs: `docs/02_ADR/content-pipeline-build-contract.md`, `content-target
 Automatically treating every typed reference as latest was considered and rejected by the developer. No design below reinterprets an existing Version value as a wildcard.
 
 ## Proposed Runtime Contract
+
+### GPU scope extension — pending detailed reconciliation
+
+This subsection supersedes the draft's managed-only scope and its statements that GPU ownership is deferred. The managed snapshot mechanism remains useful, but by itself is not sufficient for the expanded feature. Do not implement the draft as though GPU support were already specified or verified.
+
+Current evidence: `Modules/Client/Graphics/Graphics.Core/Context/GraphicsContext.cs` owns three command sets; `Commands/DrawTextureCmd.cs` retains a direct ITexture2D reference. `Graphics.OpenGL/Merge/MergeThread.cs` builds asynchronously, resolves texture resource sets into command lists and releases CPU merge buffers separately from submission completion. `Graphics.OpenGL/OpenGLGraphicsBackend.cs` submits with a per-context fence. These fences currently govern merge-context reuse, not complete asset-generation retirement.
+
+Use three distinct steps: prepare the replacement, publish its version at a controlled boundary, and retire the old generation. File reads and CPU decoding happen off the frame hot path. GPU creation/upload is owned by the backend on its supported execution thread; do not assume arbitrary background OpenGL calls are valid. Publication must not perform decoding, resource creation, upload or a GPU wait. It occurs only after backend readiness is established without blocking the ordinary render loop.
+
+After publication, new render commands acquire the new resource generation; already recorded commands must remain bound to the old generation until they finish or are discarded. Account for every CPU owner: writing/ready/merging command sets, completed command lists awaiting submission, and dropped/superseded frames. Transferring ownership into a command list must not release its resources merely because a CPU command set is recycled. Unsubmitted discarded command lists release their claims without waiting for a GPU submission that never happened.
+
+Submitted command lists retain generation ownership until their specific submission completes. A resource referenced by multiple outstanding submissions cannot be retired after just one fence signals. Per-context fences are reset/reused, so retirement needs a submission-generation identity or equivalent ownership transfer; retaining a raw fence reference across resets is insufficient. Fence checks must be nonblocking. A signaled fence alone is also insufficient while any CPU owner may still submit an old generation later.
+
+The backend disposes an old resource and its owned dependents only when both CPU ownership and all submitted-use ownership reach zero. Ownership must cover the complete texture/view/resource-set or shader/pipeline dependency bundle, with deterministic destruction order and no double-disposal. The current VeldridTexture2D.Dispose only disposes its texture, so it cannot be assumed to implement the required full bundle lifetime. Shared Content Runtime must not reference Veldrid/OpenGL/Client types; backend resource lifetime stays behind neutral contracts and Client implementations.
+
+Retirement bookkeeping needs preallocated bounded storage and a defined saturation policy. Coalesce/defer later updates when preparation/retirement capacity is occupied; never overwrite a live retirement record, free early, grow a collection in Render, or block on GPU idle to make space. Budget preparation/collection work across boundaries rather than placing the whole reload at frame end. GPU driver resource/shader preparation latency must be measured; the design cannot promise that an arbitrary driver compilation is latency-free.
+
+GPU validation must cover lagging fences, multiple submissions referencing one generation, ready/merging CPU buffers surviving publication, discarded/unsubmitted lists, fence reuse, repeated updates under queue pressure, failed preparation keeping the old resource, exactly-once dependency disposal and zero-allocation steady-state recording/retirement checks. Use backend-independent lifetime tests plus a real OpenGL smoke before declaring GPU hot reload complete.
+
+This expansion requires another design pass over exact backend contracts, resource bundle ownership and publication/retirement integration points; the previous managed-only builder check is not proof that these are solved. It must be reflected in the milestones, acceptance, API contracts and runtime ADR before product implementation.
 
 ### Additive API and ownership
 
