@@ -1,6 +1,6 @@
 # Reuse individual content processor results between builds
 
-This ExecPlan is a living document maintained according to `plans/PLANS.md`. It starts with a proposed design; product-code implementation is not authorized by this document alone. Repository instructions require the developer to approve the implementation direction and explicitly authorize multi-file code changes.
+This ExecPlan is a living document maintained according to `plans/PLANS.md`. The developer approved this design and authorized implementation on 2026-11-01 ("Одобряю, делай"). Implementation runs inline in the existing task checkout; no additional worktree is needed for these sequential changes.
 
 ## Purpose / Big Picture
 
@@ -15,9 +15,9 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 - [x] (2026-11-01) Prepared the proposed design in this document.
 - [x] (2026-11-01) Baseline Content suite: 111 passed, zero failed/skipped. Initial sandbox run compiled but VSTest could not open its local socket; approved execution outside the sandbox passed using the same binaries.
 - [x] (2026-11-01) Independent builder check identified a possible no-op I/O regression; resolved by retaining a verified early return before staging when every selected asset is reused and the candidate manifest is unchanged. No other material questions were reported.
-- [ ] Developer approves the design and explicitly chooses whether to authorize implementation or implement from this plan themselves.
-- [ ] Expand the approved design into implementation steps using the writing-plans workflow, retaining this ExecPlan as the authoritative task document.
-- [ ] Implement and validate per-asset reuse.
+- [x] (2026-11-01) Developer approved the design and explicitly authorized implementation.
+- [x] (2026-11-01) Expanded inline implementation tasks below using writing-plans; this ExecPlan is the authoritative plan and execution ledger.
+- [x] (2026-11-01) Initial per-asset reuse and effective-graph validation: 7/7 new regressions RED then GREEN; complete Content suite 118/118 passed.
 - [ ] Implement and validate cache recovery and complete publication.
 - [ ] Complete clean/incremental equivalence and CLI regression checks; update relevant documentation and publish one focused PR after implementation is authorized and verified.
 
@@ -36,20 +36,20 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 
 - Decision: scope the first PR to per-asset build reuse; dependency-content invalidation and runtime hot reload remain subsequent tasks.
   Rationale: existing processor arguments contain only this source, its metadata, relative path and target. Referencing another `AssetId` does not imply that its cooked bytes are embedded in this result. Introducing a dependency resolver or recooking all transitive references would enlarge the contract without a current consumer.
-  Date/Author: 2026-11-01 / proposed by Codex, pending developer approval.
+  Date/Author: 2026-11-01 / proposed by Codex, approved by developer on 2026-11-01.
 - Decision: use a versioned private output-local build index; keep the public manifest schema, artifact recipe format, CLI invocation and processor interface unchanged.
   Rationale: the manifest alone omits processor diagnostics, path-sensitive reuse inputs and cooked-byte integrity information. A disposable index can preserve these without shipping a new runtime schema.
-  Date/Author: 2026-11-01 / proposed by Codex, pending developer approval.
+  Date/Author: 2026-11-01 / proposed by Codex, approved by developer on 2026-11-01.
 - Decision: use safe managed C# in the headless build tool, retain synchronous single-owner publication, and defer scan optimizations and parallel cooking until measured.
   Rationale: this work is outside runtime hot paths. Avoiding redundant decoding is the expected gain; Unsafe/SIMD and a scheduler add complexity without evidence of a need.
-  Date/Author: 2026-11-01 / proposed by Codex, pending developer approval.
+  Date/Author: 2026-11-01 / proposed by Codex, approved by developer on 2026-11-01.
 - Decision: preserve a verified all-hit fast path without creating staging or invoking the publisher.
   Rationale: copying and comparing all cooked files on an unchanged build would regress existing no-op behavior. This return is allowed only after current input validation, cache-key/integrity verification, diagnostic replay, effective-graph validation and candidate-manifest equality checks.
-  Date/Author: 2026-11-01 / proposed by Codex following independent builder review, pending developer approval.
+  Date/Author: 2026-11-01 / proposed by Codex following independent builder review, approved by developer on 2026-11-01.
 
 ## Outcomes & Retrospective
 
-Design draft only. No product code, test code, manifest schema, or runtime API has been changed. Implementation outcomes and measured processor-call reductions must be recorded after approval and execution, not inferred from this proposal.
+Design approved; implementation in progress. Record observed outcomes below as milestones complete.
 
 Baseline verification on .NET SDK 10.0.114: `dotnet test tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj -m:1 -nr:false --no-restore --no-build` passed 111/111. Three existing xUnit2029 warnings were emitted during the initial compilation; the sandbox prevented testhost communication, so only execution was repeated outside it. This establishes the pre-change baseline, not validation of a new implementation.
 
@@ -66,7 +66,7 @@ Accepted constraints also come from `docs/02_ADR/content-target-profiles.md` and
 ## Approaches
 
 1. Match only existing manifest locators against current recipe hashes. This is the smallest edit, but cannot faithfully replay processor warnings or validate cooked-byte integrity and lacks relative-path input history. Rejected as an incomplete reuse contract.
-2. Store an output-local private index tied to the published manifest. This adds one small internal schema and checksum I/O but preserves complete processor results and permits conservative cache misses. Recommended; approval pending.
+2. Store an output-local private index tied to the published manifest. This adds one small internal schema and checksum I/O but preserves complete processor results and permits conservative cache misses. Selected and approved.
 3. Add a global content-addressed cache, filesystem watcher and dependency-aware scheduler together. This could serve multiple projects but adds eviction, concurrent writers and more lifetime rules. Deferred because one-output reuse is independently useful.
 
 ## Proposed Design
@@ -109,7 +109,7 @@ This modifies headless build-time tooling only. Scanning, hashing, copying, JSON
 
 ## Plan of Work
 
-Detailed implementation sequencing is pending approval. Expected change points are `ContentBuildCoordinator.Build` and its whole-tree reuse helpers; a private index helper in Core; extraction of effective dependency validation if required; tests in `tests/Karpik.Content.Tests/ContentBuildCoordinatorTests.cs` or a focused new test file; and CLI integration tests in `tests/Karpik.Content.Tests/CliTests.cs`. Keep `ContentAtomicPublisher` unchanged unless acceptance reveals a necessary correctness change. Do not modify Editor or Runtime.
+Implementation tasks below define sequencing. Change points are `ContentBuildCoordinator.Build` and its whole-tree reuse helpers; a private index helper in Core; extraction of effective dependency validation if required; tests in `tests/Karpik.Content.Tests/ContentBuildCoordinatorTests.cs` or a focused new test file; and CLI integration tests in `tests/Karpik.Content.Tests/CliTests.cs`. Keep `ContentAtomicPublisher` unchanged unless acceptance reveals a necessary correctness change. Do not modify Editor or Runtime.
 
 After approval, document the advisory cache and reference-dependency semantics in the existing build-contract ADR. Do not mark the roadmap's broader dependency invalidation or content hot reload items complete for this bounded slice.
 
@@ -178,3 +178,37 @@ Do not add permanent test assets to user projects. Tests use owned temporary dir
 Authoritative design and future execution record: this document. Baseline commit: `7224b18`. Task branch: `codex/content-incremental-build`.
 
 Follow-up scopes, each with its own design and PR: explicit build-dependency consumption/invalidation for a real processor; successful-build change notifications and runtime resource replacement; watcher/debounce orchestration if needed. Editor remains deferred.
+
+## Implementation Tasks and Execution Ledger
+
+Global constraints: retain public manifest schema and artifact hashing; no runtime/Editor changes, new packages or switches; single writer per output; all-hit fast return follows validation and integrity checks; failed prepublication work preserves previous output. Review focus: same-size corruption, diagnostic replay, processor-only dependencies on cache hits, output-local path safety, and cache-save failure after successful publication.
+
+### Task 1: Persistent per-asset reuse and dependency validation
+
+Files: add `src/Karpik.Content.Core/ContentBuildCache.cs` and `tests/Karpik.Content.Tests/IncrementalContentBuildTests.cs`; modify coordinator Build/reuse helpers and share graph validation in `ContentBuildCoordinator.cs`.
+
+Interfaces: private cache loader takes output path/options and returns validated manifest-bound records; records carry reuse key, cooked hash, diagnostics and corresponding manifest entry. Per-source lookup additionally checks recipe and artifact checksum. Save accepts successful candidate records and manifest, and is advisory. No new public interface.
+
+- [x] Wrote failing behavior tests for one-of-two changes with persistent coordinator recreation, warning replay, and processor-emitted graph validation.
+- [x] New class: all seven expected assertion failures observed before product edits.
+- [x] Implemented validated index loading, reuse keys, per-asset checksum hits, complete staging and advisory post-publication index save. Preserved legacy fingerprint output, removed its unchecked early return.
+- [x] Shared dependency validation between metadata and effective graphs for Build and full Validate.
+- [x] Focused class 7/7 and full Content suite 118/118 passed; committing Task 1.
+
+### Task 2: Recovery and consumer equivalence
+
+Files: extend incremental tests and `tests/Karpik.Content.Tests/CliTests.cs`; adjust Core only where a failing regression requires it; document accepted cache semantics in `docs/02_ADR/content-pipeline-build-contract.md`.
+
+- [ ] Add and run regression cases for corrupt/missing index and cooked files, duplicates/path traversal, semantic metadata/version/target/path changes, failure preservation, empty/add/delete inputs, no-op writes, and cache-save failure. Classify existing passing behavior separately from missing-feature failures.
+- [ ] Add clean-versus-incremental equivalence coverage and a real CLI repeated-build/edit flow; verify CLI publication contains all referenced artifacts.
+- [ ] Make minimal fixes for observed failures; run the full Content suite and Tool build with single-node/no-reuse flags.
+- [ ] Update the ADR and observed plan outcomes, commit, and request one independent whole-branch review.
+
+### Task 3: Review and delivery
+
+- [ ] Resolve material review findings with failing regression tests and verified fixes; record any judgments in this ledger.
+- [ ] Verify final tests/build/diff, commit remaining fixes, push this task branch and open one PR against main with category labels and compatibility notes.
+
+Ruling: use this ExecPlan as the execution ledger instead of duplicating it under the generic skill's plan/workspace directories; repository plan conventions take precedence. Continue in the existing clean dedicated task branch. The cost is no extra worktree protection, with no concurrent implementation edits planned.
+
+Task 1 evidence: seven new cases failed by assertions before product changes (redundant processing, missing warning replay, same-size corruption and processor-only unknown/cyclic dependencies). After implementation all seven pass. Cache records bind to the separate manifest through AssetId and a canonical manifest hash; duplicating manifest entries in the index is unnecessary. Legacy whole-tree fingerprint output is still maintained for older tools, but no longer controls the unchecked early return.
