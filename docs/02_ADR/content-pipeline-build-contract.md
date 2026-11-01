@@ -161,6 +161,35 @@ locator. A later `IContentStore` can replace loose cooked files with packs or
 chunks while preserving `AssetId`, manifest entries, and future `AssetRef<T>`
 consumers.
 
+## Comparing published manifests
+
+`ContentManifestDiff.Compare(previous, current)` provides a deterministic
+build/control-plane primitive for later successful-build notifications. It
+returns one `ContentAssetChange` per added, updated or removed `AssetId`, in
+ascending ID order. A null previous manifest represents the first publication;
+an empty current manifest removes all previously present IDs.
+
+An update means any canonical manifest-entry field changed: declared type,
+logical name, source/import hashes, artifact locator, size or dependencies.
+Entry order and dependency order are ignored, matching canonical manifest
+serialization. Dependency multiplicity is preserved. The comparison copies
+working arrays and never reorders its inputs. Unsupported schemas, duplicate
+IDs and null entries/collections are rejected rather than silently producing
+an ambiguous delta. Full source/dependency-graph validation remains the build
+pipeline's responsibility.
+
+The change record is a readonly value type containing only an `AssetId` and
+change kind. Comparison allocates outside frame hot paths and has no runtime,
+graphics, network or Editor dependency. It does not publish events, select
+targets, invalidate unchanged referrers or replace live resources. A caller
+must compare manifests for the same content namespace and build target; these
+attributes are not stored in the public manifest schema. Failed builds must
+not be treated as successful publications. Delivery, generation identifiers,
+resource ownership and runtime application are separate contracts.
+
+This helper changes no manifest schema, artifact recipe, CLI invocation or
+existing consumer behavior. It is independent of the per-asset cache work.
+
 ## Validation
 
 - Unit-test `.meta` parsing, GUID normalization, duplicate IDs, declared type
