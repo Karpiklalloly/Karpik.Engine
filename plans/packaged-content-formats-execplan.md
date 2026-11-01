@@ -3,9 +3,7 @@
 This ExecPlan is a living document. It must be maintained according to
 `plans/PLANS.md`.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> `superpowers:executing-plans` to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Use `development-workflow` to resume this plan and route execution to the applicable local skills. Check the plan status and approval requirements before proceeding.
 
 **Goal:** Let an externally created Karpik game build `.font-json`, `.vert`,
 and `.frag` assets, publish cooked content into its runtime bundle, and do so

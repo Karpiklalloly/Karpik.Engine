@@ -10,18 +10,10 @@ description: Use when debugging, modifying, extending, or refactoring an existin
 Coordinate source-code intelligence from understand-anything with project-documentation
 retrieval from QMD.
 
-Do not replace Superpowers workflows.
-
-Superpowers owns:
-
-- brainstorming;
-- design/spec creation;
-- implementation planning;
-- debugging methodology;
-- TDD;
-- review;
-- verification;
-- execution workflow.
+Do not replace the local development workflow. `development-workflow` routes
+work to `brainstorming`, `planning`, `development-modes`, and `execution`
+as appropriate. Project and user instructions govern debugging, review,
+verification, and any workflow not covered by those skills.
 
 This skill only decides what project context should be retrieved and how
 documentation should be related to the current implementation.
@@ -163,13 +155,13 @@ For non-trivial work:
 6. Map documentation claims back to current source and tests; use graph
    relationships to find related code when they are available and current.
 7. Verify behavior and change impact from source, tests or runtime evidence.
-8. Continue with the active Superpowers workflow.
+8. Continue with the applicable local development workflow.
 
 The desired model is:
 
     understand-anything = a navigable snapshot of possible code relationships
     QMD = what was intended/decided/documented
-    Superpowers = how to perform the engineering work
+    local development skills = how to perform the engineering work
     Bridge = when/how to combine those contexts
 
 ## Debugging behavior
@@ -203,8 +195,8 @@ For a feature/refactor in an established subsystem:
    when there are existing changes to analyze.
 2. Determine if there may be related design/ADR/spec context.
 3. If yes, query QMD.
-4. Feed the resulting context into the normal Superpowers
-   brainstorming/planning workflow.
+4. Feed the resulting context into `development-workflow` and its applicable
+   brainstorming/planning route.
 5. Do not create a second parallel planning methodology.
 
 ## Documentation maintenance
@@ -215,7 +207,7 @@ After implementation and verification:
 - fix docs discovered to be stale;
 - update ADR only if the architectural decision itself changed;
 - do not rewrite unrelated documentation;
-- do not duplicate an existing Superpowers spec unnecessarily.
+- do not duplicate an existing specification unnecessarily.
 
 If documentation changed:
 

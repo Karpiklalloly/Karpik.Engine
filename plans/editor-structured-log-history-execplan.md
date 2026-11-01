@@ -1,6 +1,6 @@
 # Editor structured log history Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Use `development-workflow` to resume this plan and route execution to the applicable local skills. Check the plan status and approval requirements before proceeding.
 
 **Goal:** Show only structured `ILogger` events in the Editor console, filter them by level and session, and archive all accepted events to JSONL files.
 
