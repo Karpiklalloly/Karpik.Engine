@@ -19,7 +19,7 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 - [x] (2026-11-01) Expanded inline implementation tasks below using writing-plans; this ExecPlan is the authoritative plan and execution ledger.
 - [x] (2026-11-01) Initial per-asset reuse and effective-graph validation: 7/7 new regressions RED then GREEN; complete Content suite 118/118 passed.
 - [x] (2026-11-01) Recovery, complete staging and publication regressions pass; full Content suite 152/152, zero failures/skips. Tool build result recorded in execution ledger.
-- [ ] Complete clean/incremental equivalence and CLI regression checks; update relevant documentation and publish one focused PR after implementation is authorized and verified.
+- [x] (2026-11-01) Clean/incremental equivalence and CLI regressions pass, ADR updated, branch pushed and PR #108 opened against main with enhancement label.
 
 ## Surprises & Discoveries
 
@@ -49,7 +49,7 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 
 ## Outcomes & Retrospective
 
-Implementation and independent review are complete. Content builds now persistently reuse individual successful processor results, validate cooked checksums, replay warnings and validate the combined dependency graph. Changed builds stage all referenced artifacts; verified unchanged builds do not write output. The public manifest, recipe hashing, CLI invocation, Editor and Runtime APIs remain unchanged. Full Content suite: 152 passed, zero failed/skipped (baseline 111). Tool build: zero warnings/errors. No Critical, Important or Minor review findings. Remote publication is recorded below once complete.
+Implementation and independent review are complete. Content builds now persistently reuse individual successful processor results, validate cooked checksums, replay warnings and validate the combined dependency graph. Changed builds stage all referenced artifacts; verified unchanged builds do not write output. The public manifest, recipe hashing, CLI invocation, Editor and Runtime APIs remain unchanged. Full Content suite: 152 passed, zero failed/skipped (baseline 111). Tool build: zero warnings/errors. No Critical, Important or Minor review findings. Published as [PR #108](https://github.com/Karpiklalloly/Karpik.Engine/pull/108) against main; no merge performed.
 
 Baseline verification on .NET SDK 10.0.114: `dotnet test tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj -m:1 -nr:false --no-restore --no-build` passed 111/111. Three existing xUnit2029 warnings were emitted during the initial compilation; the sandbox prevented testhost communication, so only execution was repeated outside it. This establishes the pre-change baseline, not validation of a new implementation.
 
@@ -207,7 +207,7 @@ Files: extend incremental tests and `tests/Karpik.Content.Tests/CliTests.cs`; ad
 ### Task 3: Review and delivery
 
 - [x] (2026-11-01) Independent review of `7224b18..ebfa5e9`: ready to merge, no Critical/Important/Minor findings; no fix pass required.
-- [ ] Verify final tests/build/diff, commit remaining fixes, push this task branch and open one PR against main with category labels and compatibility notes.
+- [x] (2026-11-01) Final verification and independent review complete; branch pushed, PR #108 opened against main with enhancement category and compatibility notes.
 
 Ruling: use this ExecPlan as the execution ledger instead of duplicating it under the generic skill's plan/workspace directories; repository plan conventions take precedence. Continue in the existing clean dedicated task branch. The cost is no extra worktree protection, with no concurrent implementation edits planned.
 
@@ -225,3 +225,5 @@ Final: Ruling: broader publisher crash recovery and publication path hardening r
 Final: Ruling: runtime/Editor hot reload, global caching and scan optimization remain separate scopes as approved. The cost is continued full input reads/checksum reads, changed-build staging copies and no live resource replacement in this PR.
 
 Potential reusable knowledge notes (proposed, not written): distinguish reference edges from build-input dependencies; stage reused artifacts when the publisher deletes unstaged files; bind disposable build metadata to the published manifest and verify cooked bytes separately from recipe hashes.
+
+Delivery: https://github.com/Karpiklalloly/Karpik.Engine/pull/108 — category enhancement, no public API/format breaks. Branch is retained for review; no integration branch changes.
