@@ -13,6 +13,13 @@ namespace Karpik.Content.Runtime.Tests;
 
 public sealed class CodegenSnapshotTests
 {
+    [Fact]
+    public void ContentTypeAllowsBackendIndependentInterfacePayloadContracts()
+    {
+        var usage = typeof(Karpik.Content.Runtime.ContentTypeAttribute).GetCustomAttribute<AttributeUsageAttribute>()!;
+        Assert.True((usage.ValidOn & AttributeTargets.Interface) != 0);
+    }
+
     private static ContentManifestEntry MakeEntry(string guid, string logical, string declaredType = "raw-json")
     {
         return new ContentManifestEntry(

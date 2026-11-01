@@ -1,9 +1,13 @@
 ﻿using System.Runtime.CompilerServices;
+using Karpik.Content.Runtime;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
 public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
 {
+    private readonly ContentResourcePins _resourcePins = new();
+    public void RetainResources(ContentResourcePins destination) => _resourcePins.RetainInto(destination);
+
     public int FrameId { get; private set; } = -1;
     internal bool AllowResize { get; set; } = true;
     
@@ -47,6 +51,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
         ArgumentOutOfRangeException.ThrowIfNegative(commands);
         ArgumentOutOfRangeException.ThrowIfNegative(textChars);
 
+        _resourcePins.EnsureCapacity(checked(textures + texts));
         EnsureCapacity(ref _rects, rects);
         EnsureCapacity(ref _textures, textures);
         EnsureCapacity(ref _texts, texts);
@@ -69,6 +74,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     {
         if (_textureCount >= _textures.Length) ResizeOrThrow(ref _textures);
         EnsureCommandCapacity();
+        if (cmd.Texture is IContentTrackedResource { Lifetime: { } owner } && !_resourcePins.TryAdd(owner)) return;
         AddCommand(DrawCommandType.Texture, _textureCount, cmd.SortKey);
         _textures[_textureCount++] = cmd;
     }
@@ -78,6 +84,7 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
     {
         if (_textCount >= _texts.Length) ResizeOrThrow(ref _texts);
         EnsureCommandCapacity();
+        if (cmd.Font.AtlasTexture is IContentTrackedResource { Lifetime: { } owner } && !_resourcePins.TryAdd(owner)) return;
         AddCommand(DrawCommandType.Text, _textCount, cmd.SortKey);
         _texts[_textCount++] = cmd;
     }
@@ -104,6 +111,9 @@ public sealed class ThreadBuffer : ICommandBuffer, IOrderedCommandBuffer
 
     public void Clear()
     {
+        _resourcePins.Clear();
+        Array.Clear(_textures, 0, _textureCount);
+        Array.Clear(_texts, 0, _textCount);
         _rectCount = 0;
         _textureCount = 0;
         _textCount = 0;

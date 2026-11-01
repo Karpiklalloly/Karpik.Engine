@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <KarpikModuleDependency Include="ECS" />
+        <ProjectReference Include="../../../../src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
         <KarpikModuleDependency Include="Graphics" />
     </ItemGroup>
 
@@ -18,6 +19,7 @@
 
     <ItemGroup>
       <PackageReference Include="NeoVeldrid.StartupUtilities" />
+      <PackageReference Include="StbImageSharp" />
     </ItemGroup>
 
 </Project>

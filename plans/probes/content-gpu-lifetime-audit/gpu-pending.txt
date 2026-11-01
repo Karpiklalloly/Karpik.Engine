@@ -1,0 +1,4 @@
+pending: GL 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3; renderer=AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-30-generic)
+native_sync_before_delete=0x911b, after_delete=0x911b, native_texture_deleted=True, texture_disposed_while_GPU_pending=True
+pending[0] fence_signaled_while_GL_blocked=True, pixel=255,0,0,255, disposed=True, disposed_at_callback=0, unsubmitted_buffer_keeps_disposed_texture=True
+PENDING GPU AUDIT PASSED
