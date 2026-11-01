@@ -17,6 +17,9 @@ The developer subsequently requested GPU resources in the same design rather tha
 - [x] (2026-11-01) Drafted this design.
 - [x] (2026-11-01) Developer requested GPU inclusion and suggested frame-end application. Inspected graphics triple-buffer ownership, direct command resource references, merge contexts and submission fences; recorded why frame-end publication alone cannot authorize destruction.
 - [ ] Complete the expanded GPU adapter/ownership design and reconcile the managed-only statements below before design approval or implementation.
+- [x] (2026-11-01) Graphics.Core baseline: 40 passed, zero failed/skipped; existing nullability warnings remain.
+- [x] (2026-11-01) Verified the installed NeoVeldrid 1.2.1 OpenGL fence implementation signals at enqueue rather than GPU completion; recorded a required backend prerequisite below.
+- [ ] Select the dependency strategy for a true nonblocking OpenGL completion primitive before implementing GPU retirement.
 - [x] (2026-11-01) Independent builder check identified a missing load-state observation boundary; resolved with one per-slot observation under the control lock. No other material questions were reported.
 - [ ] Developer approves the detailed design and proposed scope/compatibility decisions.
 - [ ] Expand approved milestones into implementation tasks using writing-plans.
@@ -74,6 +77,22 @@ Relevant docs: `docs/02_ADR/content-pipeline-build-contract.md`, `content-target
 3. Rebuild storage around native indexed handles/SoA. Could reduce indirection for measured large batches, but adds memory-safety and retirement machinery without a demonstrated lookup bottleneck. Defer; do not combine storage experimentation with correctness work.
 
 Automatically treating every typed reference as latest was considered and rejected by the developer. No design below reinterprets an existing Version value as a wildcard.
+
+## Verified GPU Completion Prerequisite
+
+The current submission fences cannot be used as evidence of GPU completion. The installed package is `NeoVeldrid` 1.2.1, pinned in `Directory.Packages.props`. Its NuGet repository metadata identifies source commit `3e00eb6ff9f927db036fcf47a1234a80b2b96d53` of `jhm-ciberman/neo-veldrid`.
+
+Primary evidence: [OpenGLGraphicsDevice.SubmitCommandsCore](https://github.com/jhm-ciberman/neo-veldrid/blob/3e00eb6ff9f927db036fcf47a1234a80b2b96d53/src/NeoVeldrid/OpenGL/OpenGLGraphicsDevice.cs#L455) queues ExecuteCommands and immediately calls OpenGLFence.Set on the caller. [OpenGLFence](https://github.com/jhm-ciberman/neo-veldrid/blob/3e00eb6ff9f927db036fcf47a1234a80b2b96d53/src/NeoVeldrid/OpenGL/OpenGLFence.cs) is a ManualResetEvent wrapper, without GLsync. This was also verified against the actual installed DLL with a read-only PE/IL inspection: SubmitCommandsCore calls ExecutionThread.ExecuteCommands then OpenGLFence.Set; Set calls the managed event's Set and Signaled calls WaitOne. Source metadata alone was not treated as proof of binary behavior.
+
+Checked the latest published GitHub release, [v1.3.1](https://github.com/jhm-ciberman/neo-veldrid/releases/tag/v1.3.1), dated 2026-10-26: its OpenGLGraphicsDevice still calls glFence.Set immediately after ExecuteCommands, and OpenGLFence remains a ManualResetEvent wrapper. A straightforward upgrade to that release does not resolve this prerequisite.
+
+The public BackendInfoOpenGL.ExecuteOnGLThread bridge is synchronous: it queues the callback then calls the execution thread's WaitForIdle. It does not supply an allocation-free asynchronous GL completion hook for the render path. FlushAndFinish is a blocking full GPU flush. Neither is an acceptable hidden per-frame substitute for a completion primitive.
+
+Required prerequisite: backend completion must be tied to actual GL execution and GPU completion. A concrete dependency patch would pass the submission fence through the ExecuteList work item, issue a GLsync after its commands execute on the owning GL thread, flush that work, and poll ClientWaitSync with zero timeout from the same thread. Only a signaled sync may publish completion to CPU readers. Reset/reuse needs submission-generation protection; disposal/device faults must not invent completion. Pending bookkeeping must be preallocated/bounded for the engine workload and the idle execution thread must still make progress on pending syncs. Tests need a fake delayed GL completion, no-work-after-submit case, reset/reuse, failure/disposal, and real OpenGL verification.
+
+The source for NeoVeldrid is not checked out in this repository; it is an external package, not an owned submodule. The dependency strategy is unresolved: prefer a corrected upstream release or an explicitly approved fork/package update. Do not edit the NuGet cache, silently vendor the library, use reflection into its private GL thread, or replace the issue with WaitForIdle/FlushAndFinish in Render. No upstream issue/PR/message has been sent.
+
+This discovery corrects the earlier assumption that existing per-context fences already prove GPU completion. Current engine code's context-reuse checks do not establish that property with this package version. GPU retirement must not be implemented against those checks before the prerequisite is resolved. The GPU reload scope remains requested; the implementation order now starts with trustworthy completion.
 
 ## Proposed Runtime Contract
 
