@@ -1,4 +1,6 @@
 ﻿using DCFApixels.DragonECS.Core;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using Karpik.Jobs;
 
 namespace Karpik.Engine.Shared.ECS;
@@ -10,38 +12,97 @@ public interface IEcsRunParallel : IEcsProcess
 
 public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel, IEcsDestroy
 {
-    private SystemExecutionNode[] _executionNodes;
-    private JobSystem _jobSystem;
-    private JobHandle[] _jobHandles;
-    private JobHandle[][] _dependencyHandleBuffers;
+    private SystemExecutionNode[] _executionNodes = [];
+    private JobScheduler? _jobScheduler;
+    private ValueJobHandle[] _jobHandles = [];
+    private bool[] _published = [];
+    private Exception?[] _exceptions = [];
+    private GCHandle _runnerHandle;
 
+    // The caller owns scheduling and teardown; workers only execute the reserved batch.
     public void RunParallel()
     {
+        JobScheduler? scheduler = _jobScheduler;
+        if (scheduler is null) return;
+
+        Array.Clear(_exceptions);
+        Array.Clear(_published);
+        IntPtr runnerPointer = GCHandle.ToIntPtr(_runnerHandle);
+        // Reserve the entire graph before workers can recycle descriptor generations.
         for (int nodeIndex = 0; nodeIndex < _executionNodes.Length; nodeIndex++)
         {
-            var node = _executionNodes[nodeIndex];
-            var dependencyHandles = _dependencyHandleBuffers[nodeIndex];
-            for (int i = 0; i < node.Dependencies.Count; i++)
-            {
-                dependencyHandles[i] = _jobHandles[node.Dependencies[i].Index];
-            }
-
-            _jobHandles[nodeIndex].Dispose();
-            _jobHandles[nodeIndex] = _jobSystem.Enqueue(node.System.RunParallel, dependencyHandles);
+            var job = new SystemJob(runnerPointer, nodeIndex);
+            _jobHandles[nodeIndex] = scheduler.Schedule(in job);
         }
 
-        _jobSystem.WaitForCompletion();
+        int remaining = _jobHandles.Length;
+        SpinWait spin = default;
+        while (remaining != 0)
+        {
+            bool madeProgress = false;
+            for (int i = 0; i < _jobHandles.Length; i++)
+            {
+                if (_published[i]) continue;
+                bool ready = true;
+                var dependencies = _executionNodes[i].Dependencies;
+                for (int j = 0; j < dependencies.Count; j++)
+                {
+                    if (!scheduler.IsCompleted(_jobHandles[dependencies[j].Index]))
+                    {
+                        ready = false;
+                        break;
+                    }
+                }
+                if (!ready) continue;
+
+                // Workers must never requeue dependency-blocked jobs: queue bottom
+                // publication belongs exclusively to this orchestration thread.
+                if (!scheduler.TryPublish(_jobHandles[i], i % scheduler.WorkerCount))
+                {
+                    DrainUnpublished(scheduler);
+                    throw new InvalidOperationException("Unable to publish ECS parallel job to worker queue; batch drained.");
+                }
+                _published[i] = true;
+                remaining--;
+                madeProgress = true;
+            }
+            if (!madeProgress) spin.SpinOnce();
+        }
+
+        WaitForCompletion(scheduler);
+        for (int i = 0; i < _exceptions.Length; i++)
+        {
+            if (_exceptions[i] is { } exception)
+                ExceptionDispatchInfo.Capture(exception).Throw();
+        }
     }
 
-    private void BuildDependencyGraph(EcsProcess<IEcsRunParallel> process)
+    private void DrainUnpublished(JobScheduler scheduler)
     {
-        _executionNodes = CreateDependencyGraph(process);
+        SpinWait spin = default;
+        for (int i = 0; i < _jobHandles.Length; i++)
+            if (_published[i])
+                while (!scheduler.IsCompleted(_jobHandles[i])) spin.SpinOnce();
 
-        _jobHandles = new JobHandle[_executionNodes.Length];
-        _dependencyHandleBuffers = new JobHandle[_executionNodes.Length][];
-        for (int i = 0; i < _executionNodes.Length; i++)
+        // The original graph only depends on earlier registration indices.
+        for (int i = 0; i < _jobHandles.Length; i++)
+            if (!_published[i]) scheduler.Complete(_jobHandles[i]);
+        WaitForCompletion(scheduler);
+    }
+
+    private static void WaitForCompletion(JobScheduler scheduler)
+    {
+        SpinWait spin = default;
+        while (scheduler.ScheduledCount != 0) spin.SpinOnce();
+    }
+
+    private readonly struct SystemJob(IntPtr runnerPointer, int nodeIndex) : IJob
+    {
+        public void Execute()
         {
-            _dependencyHandleBuffers[i] = new JobHandle[_executionNodes[i].DependencyCount];
+            var runner = (EcsRunParallelRunner)GCHandle.FromIntPtr(runnerPointer).Target!;
+            try { runner._executionNodes[nodeIndex].System.RunParallel(); }
+            catch (Exception exception) { runner._exceptions[nodeIndex] = exception; }
         }
     }
 
@@ -108,24 +169,38 @@ public class EcsRunParallelRunner : EcsRunner<IEcsRunParallel>, IEcsRunParallel,
 
     public void Init()
     {
-        BuildDependencyGraph(Process);
-        _jobSystem = new JobSystem(Environment.ProcessorCount, "ParallelRunner");
+        Destroy();
+        _executionNodes = CreateDependencyGraph(Process);
+        int count = _executionNodes.Length;
+        if (count == 0) return;
+
+        _jobHandles = new ValueJobHandle[count];
+        _published = new bool[count];
+        _exceptions = new Exception?[count];
+
+        int queueCapacity = 1;
+        while (queueCapacity < count) queueCapacity <<= 1;
+        _jobScheduler = new JobScheduler(count, maxPayloadByteLength: 16,
+            maxDependenciesPerJob: 0,
+            workerCount: Math.Max(1, Math.Min(Environment.ProcessorCount, count)),
+            workerQueueCapacity: queueCapacity);
+        _runnerHandle = GCHandle.Alloc(this);
+        _jobScheduler.StartWorkers();
     }
 
     public void Destroy()
     {
-        _jobSystem.Shutdown();
-        foreach (var item in _executionNodes)
+        if (_jobScheduler is { } scheduler)
         {
-            item.Destroy();
+            WaitForCompletion(scheduler);
+            scheduler.Dispose();
+            _jobScheduler = null;
         }
-        Array.Resize(ref _executionNodes, 0);
-
-        foreach (var handle in _jobHandles)
-        {
-            handle.Dispose();
-        }
-        Array.Resize(ref _jobHandles, 0);
-        Array.Resize(ref _dependencyHandleBuffers, 0);
+        if (_runnerHandle.IsAllocated) _runnerHandle.Free();
+        foreach (var node in _executionNodes) node.Destroy();
+        _executionNodes = [];
+        _jobHandles = [];
+        _published = [];
+        _exceptions = [];
     }
 }

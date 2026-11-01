@@ -6,26 +6,25 @@
 
 ### Migrate gameplay-loop scheduling to no-GC value jobs
 
-**Problem:** gameplay hot paths must not use delegate-based `JobSystem.Enqueue(...)`. Delegate jobs allocate managed completion/cancellation/continuation/wrapper state and are now explicitly marked as `AllocatingCompatibility`. Regular `Update`, `FixedUpdate`, ECS `Run`, `IEcsRunParallel`, simulation tick, prediction, replication, and server tick scheduling must use the new value-job runtime or a no-GC engine adapter over it.
+**Status (2026-11-01):** implemented on the task branch; merge pending. Public Update/RenderPrepare scheduling already uses value jobs. The remaining legacy `EcsRunParallelRunner` now uses unmanaged jobs and a startup-owned registry handle instead of delegate enqueue.
 
-**Scope:** do not mechanically replace every `Enqueue` call. Migrate only gameplay/frame hot paths first. Keep legacy `JobSystem` for tooling, loading, rare background work, async convenience, and compatibility APIs.
+**Result:** the adapter reserves a whole frame before publishing work, publishes only nodes whose predecessors have completed, and drains all work before returning or releasing its registry. Worker exceptions reach the caller after the batch drains. Rejected publication drains reserved work before reporting failure. Caller-owned dependency readiness avoids worker-side requeue into a single-producer deque.
 
-**Affected places:**
+**Scope:** legacy `JobSystem` remains available for tooling, loading, rare background work and compatibility APIs. The separate Karpik.Jobs product and the public Update scheduler are unchanged.
+
+**Changed places:**
 
 - `Modules/Shared/ECS/ECS.Core/IEcsRunParallel.cs`
-- `Modules/Shared/ECS/ECS.Core/SystemExecutionNode.cs`
-- `Karpik.Jobs/JobScheduler.cs`
-- `Karpik.Jobs/JobSystem.cs`
-- `plans/ecs-update-scheduler-execplan.md`
+- `tests/ECS.Core.Tests/ParallelRunnerRuntimeTests.cs`
 
 **Acceptance criteria:**
 
-- [ ] ECS/gameplay parallel scheduling no longer publishes frame work through `JobSystem.Enqueue(...)`.
-- [ ] A scheduler adapter hides `JobScheduler` details from gameplay systems.
-- [ ] Job payloads used in the gameplay loop are unmanaged structs with caller-owned native handles/slices/results only.
-- [ ] Delegate `JobSystem` remains available only as an off-hot-path compatibility path.
-- [ ] Allocation tests prove steady-state gameplay/ECS scheduling is `0 B` managed allocation after warm-up.
-- [ ] Tests cover dependencies, conflict/sequential barriers, shutdown/reload quiescence, and worker publication failure diagnostics.
+- [x] ECS/gameplay parallel scheduling no longer publishes frame work through `JobSystem.Enqueue(...)`.
+- [x] A scheduler adapter hides `JobScheduler` details from gameplay systems.
+- [x] Jobs carry only an unmanaged registry pointer and system index; the registry is created at initialization and released after workers stop.
+- [x] Delegate `JobSystem` remains available as an off-hot-path compatibility path.
+- [x] Allocation regression proves `0 B` on the orchestration thread across 64 frames after warm-up; worker bodies and dispatch use no per-job managed state.
+- [x] Runtime tests cover independent readers, conflict/unknown-access ordering, worker errors, rejected publication, empty graphs and repeated destroy/reinitialize cycles.
 
 ### Освобождать физические тела при удалении ECS entity
 
