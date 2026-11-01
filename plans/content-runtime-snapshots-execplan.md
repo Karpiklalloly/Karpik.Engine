@@ -18,7 +18,7 @@ Prepare a complete replacement off the frame path, publish one immutable root at
 - [x] Allocation regression caught 32-byte Task continuation scheduling in commit. Replace with preallocated IThreadPoolWorkItem. Read/resolve/commit and recording/clear allocation checks pass.
 - [x] Complete interface mapping and shutdown/drop regressions. Final Runtime 43/43, Graphics 44/44, production static factory tests 2/2; actual OpenGL/native probe builds pass. Native --content verifies actual MergeThread claimed-context exclusion, transfer, discard/supersede, old-green/new-red readback and shutdown; --di passes both registration/activation orders; six ordered/deferred/negative control cases pass.
 - [x] Fresh independent whole-branch review: no Critical, six Important findings. Fixed load cleanup completion, all-slot cleanup aggregation/failure poisoning, deterministic merge-before-registry DI disposal, single public registry constructor, exception-safe merge cleanup and disposed-state recheck after acquiring the gate. Failure and constructor regressions observed RED then GREEN; native DI shutdown observed timeout RED then both orders GREEN. A final idempotent-drain regression found and fixed mutation of an already-disposed lifetime state. No deferred minors.
-- [ ] Push the verified implementation and update PR #110 metadata/labels/readiness.
+- [x] Pushed implementation commit da9a56d to codex/content-runtime-snapshots. PR #110 now describes the implemented feature, has enhancement/documentation labels, and is ready for review against main. No merge performed.
 
 ## Decisions and implementation rulings
 
