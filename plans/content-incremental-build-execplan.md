@@ -49,7 +49,7 @@ Editor work stays last in 0.7 as requested. This slice does not add runtime hot 
 
 ## Outcomes & Retrospective
 
-Design approved; implementation in progress. Record observed outcomes below as milestones complete.
+Implementation and independent review are complete. Content builds now persistently reuse individual successful processor results, validate cooked checksums, replay warnings and validate the combined dependency graph. Changed builds stage all referenced artifacts; verified unchanged builds do not write output. The public manifest, recipe hashing, CLI invocation, Editor and Runtime APIs remain unchanged. Full Content suite: 152 passed, zero failed/skipped (baseline 111). Tool build: zero warnings/errors. No Critical, Important or Minor review findings. Remote publication is recorded below once complete.
 
 Baseline verification on .NET SDK 10.0.114: `dotnet test tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj -m:1 -nr:false --no-restore --no-build` passed 111/111. Three existing xUnit2029 warnings were emitted during the initial compilation; the sandbox prevented testhost communication, so only execution was repeated outside it. This establishes the pre-change baseline, not validation of a new implementation.
 
@@ -206,7 +206,7 @@ Files: extend incremental tests and `tests/Karpik.Content.Tests/CliTests.cs`; ad
 
 ### Task 3: Review and delivery
 
-- [ ] Resolve material review findings with failing regression tests and verified fixes; record any judgments in this ledger.
+- [x] (2026-11-01) Independent review of `7224b18..ebfa5e9`: ready to merge, no Critical/Important/Minor findings; no fix pass required.
 - [ ] Verify final tests/build/diff, commit remaining fixes, push this task branch and open one PR against main with category labels and compatibility notes.
 
 Ruling: use this ExecPlan as the execution ledger instead of duplicating it under the generic skill's plan/workspace directories; repository plan conventions take precedence. Continue in the existing clean dedicated task branch. The cost is no extra worktree protection, with no concurrent implementation edits planned.
@@ -216,3 +216,12 @@ Task 1 evidence: seven new cases failed by assertions before product changes (re
 Task 2 evidence: full Content suite passed 152/152 with zero skips/failures, including a real CLI build/no-op/edit flow. `dotnet build src/Karpik.Content.Tool/Karpik.Content.Tool.csproj -m:1 -nr:false --no-restore` passed. New trailing-separator regression was observed RED (expected 1 processor call, actual 2); comparing a parent directory against an untrimmed root caused the miss. `Path.TrimEndingDirectorySeparator` resolves that exact cause. Other added cases characterize already-implemented recovery behavior; they did not require extra product changes.
 
 Task 2 design detail: persisted records reference the published manifest entry by AssetId plus the index-wide canonical manifest digest, avoiding redundant entry serialization. In-memory cache records still carry the bound entry. The public format remains unchanged.
+
+Task 3 review: independent reviewer read the entire branch and supporting publisher/path/manifest source. No findings and no deferred minors. Existing verification is against the final product/test code: Content 152/152, Tool build zero warnings/errors, branch diff check clean. No duplicate test run was needed after review because only execution-record documentation changed.
+
+Final: Ruling: dependency-content invalidation remains deferred because current edges are references and processors cannot read dependency bytes through the supplied context. If future processors consume other asset bytes, they must first extend the build-dependency contract; using this cache for that new behavior unchanged would be incorrect.
+Final: Ruling: concurrent writers and external filesystem races remain outside the supported single-writer contract. Supporting them later requires output ownership/transaction design; simultaneous writers today are unsupported.
+Final: Ruling: broader publisher crash recovery and publication path hardening remain baseline concerns; this task preserves the existing publisher and does not claim crash-safe multi-file snapshots. Costs/limits are the publisher's existing failure guarantees, rather than a new live-update guarantee.
+Final: Ruling: runtime/Editor hot reload, global caching and scan optimization remain separate scopes as approved. The cost is continued full input reads/checksum reads, changed-build staging copies and no live resource replacement in this PR.
+
+Potential reusable knowledge notes (proposed, not written): distinguish reference edges from build-input dependencies; stage reused artifacts when the publisher deletes unstaged files; bind disposable build metadata to the published manifest and verify cooked bytes separately from recipe hashes.
