@@ -5,7 +5,7 @@ complexity_source: auto
 development_mode: tdd
 source_design: ../docs/brainstorms/2026-11-01-content-reload-notifications.md
 design_revision: 11
-plan_revision: 1
+plan_revision: 2
 approved_plan_revision: 1
 approved_design_revision: 11
 ---
@@ -22,6 +22,10 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 - [x] 2026-11-02: Design and implementation plan prepared and approved; implementation explicitly deferred by the developer.
 - [x] 2026-11-02: Execution requested; resumed the approved task branch and started WP-01 cross-process ownership feasibility probe.
 - [x] 2026-11-02: Baseline checks passed: Content 176/176, Content Runtime 43/43, Runner 141/141. Used the three targeted `dotnet test` commands with `-m:1 -nr:false --no-restore`; Content was rerun with `--no-build` outside sandbox after VSTest socket creation was denied. Existing compiler/analyzer warnings remain.
+- [x] 2026-11-02: WP-01 standalone probe built without warnings/errors; all eight scenarios (including 40 acquisition/collection races) passed on Linux ext4 and tmpfs. Independent read-only probe review passed after replacing timing-only exclusion checks with observed lock-contention handshakes. Windows CI evidence remains required before WP-01 acceptance.
+- [x] 2026-11-02: WP-01 accepted after Windows and Ubuntu CI jobs both passed: https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/41478137701 . Root repeated the ext4 probe successfully. Draft task PR: https://github.com/Karpiklalloly/Karpik.Engine/pull/112 . WP-02 started.
+- [x] 2026-11-02: Production generation process checks passed on Linux ext4: two live owners through publication and crashes, simultaneous publishers, 12 real acquisition/collection races, and a process killed while the actual build gate was held. Added a portable process host and Windows/Linux CI execution. WP-02 remains in progress pending metadata-integrity review fixes and final checks.
+- [x] 2026-11-02: WP-02 local checks passed after review fixes: Content 188/188, Runtime 48/48 including existing allocation tests and physical legacy/current-generation reloads. Added modeled valid-newer-projection/old-marker recovery, unknown identity migration and read-only non-development fallback. Standalone WP-04 transport primitive passed 38/38 tests including real process delivery/death, bounded handlers and truthful Unknown results; CLI/runtime integration remains pending. Windows production/transport checks are next.
 - [ ] Implement and validate all packages, integration, independent review, and publication.
 
 ## Surprises & Discoveries
@@ -29,10 +33,14 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 - `ContentAtomicPublisher` deletes stale artifacts and can overwrite paths; `FileContentStore` reads lazily. Existing manifest publication alone does not preserve captured bytes.
 - `ContentRegistry.PrepareAsync` uses the basis store and retains unchanged slots, so collection must protect actual slot/store lifetimes as well as pending updates.
 - Existing worker IPC assumes a launcher connection; standalone requires its own opted-in endpoint.
+- The existing structural graph predates current snapshot changes; actual registry/source and the runtime/build ADRs were used to verify lifecycle contracts. QMD tooling is unavailable in this session.
+- On Linux ext4/tmpfs, independent `FileShare.None` opens exclude each other both across processes and within one process; unique `FileShare.Read` claim handles remain independently owned and are released by process death. This does not establish behavior on untested filesystems.
+- WP-02 review identified two additional safety cases: a GUID marker alone does not establish a trusted current/candidate schema for collection, and valid mutable projection/cache bytes do not prove the immutable current copy is still complete. Regression tests and fixes are required before package acceptance.
 
 ## Decision Log
 
 - 2026-11-02: Follow design revision 11, including bounded latest-pending delivery and failure-closed generation retention. TDD automatically selected for observable behavior. Scope and cross-process risks justify complex workflow.
+- 2026-11-02: WP-01 candidate protocol uses a permanent namespace gate and one unique open-handle claim per captured store/generation owner. Acquisition and collection share the gate; release closes only the owner handle. Production must prune proven-stale claims during cold operations and preserve actual slot/in-flight lifetimes. Feasibility code is isolated under `tests/ContentGenerationOwnership.Probe`; it does not change runtime behavior.
 
 ## Outcomes & Retrospective
 
@@ -52,13 +60,13 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-01 — Prove crash-safe generation ownership
 
-- Status: in_progress. Depends on: none. Acceptance: AC4, AC7.
+- Status: completed. Depends on: none. Acceptance: AC4, AC7.
 - Establish a repeatable cross-process probe for supported Windows/Linux filesystem and process-lifetime behavior: concurrent acquisition versus collection, process death, shared owners, and startup races. Choose a protocol that releases OS-owned claims after crash and prevents check/delete races; do not rely on PID alone. Document its filesystem assumptions and fail closed when safety is uncertain. If proof fails, stop affected implementation and revisit design rather than claim safety.
 - Verification: execute automated multi-process probe on available platforms; document unavailable platform evidence and run targeted tests.
 
 ### WP-02 — Immutable publication and collection
 
-- Status: pending. Depends on: WP-01. Acceptance: AC4, AC7.
+- Status: in_progress. Depends on: WP-01. Acceptance: AC4, AC7.
 - Extend `ContentBuildCoordinator`, `ContentAtomicPublisher`, stores and relevant contracts as required for immutable published generations and bounded, crash-safe ownership. Preserve ordinary build compatibility, incremental cache correctness, unchanged slots and in-flight loads; serialize concurrent publishers/collectors, handle failed publications and recovery. Do not modify frame loop or IPC.
 - Verification: Content and Runtime targeted tests including crash, concurrent build, old unloaded/in-flight asset, retention and reclamation, recovery and unchanged content.
 
@@ -70,7 +78,8 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-04 — Targeted endpoint and CLI
 
-- Status: pending. Depends on: WP-02, WP-03. Acceptance: AC1, AC2, AC3, AC7.
+- Status: in_progress (independent transport primitive only). Depends on: WP-02, WP-03 for integration. Acceptance: AC1, AC2, AC3, AC7.
+- Internal scheduling: the independent bounded local transport/protocol primitive may be developed and tested before WP-02/WP-03 finish. CLI generation retention and runtime/coordinator wiring remain dependent on accepted WP-02/WP-03 results. This does not accept WP-04 early or change its behavioral contracts.
 - Implement opt-in local addressable endpoint usable independently of launcher IPC, validate target/namespace and message bounds; wire explicit CLI delivery after successful build and retry of an already published result. Correlate requests with applied/superseded/failed responses, limit wait time, report timeout as unknown and preserve separately reported build success. No network-facing or Editor integration.
 - Verification: tool and endpoint tests for malformed/mismatched requests, unavailable process, retries, concurrent requests, supersession, shutdown, timeout and disabled default.
 
@@ -111,4 +120,4 @@ Source design: `docs/brainstorms/2026-11-01-content-reload-notifications.md` rev
 
 ## Adjustments
 
-None.
+- 2026-11-02 (plan revision 2, approved baseline remains revision 1/design 11): separate the WP-04 transport primitive from coordinator/CLI integration so its message validation, endpoint identity and bounded connection tests can proceed independently of WP-02. No requirements, architecture, ACs or public behavior change; runtime/CLI integration remains gated on WP-02/WP-03 acceptance.

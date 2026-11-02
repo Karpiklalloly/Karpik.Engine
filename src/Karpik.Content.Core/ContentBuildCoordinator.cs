@@ -9,13 +9,17 @@ public sealed class ContentBuildOptions
     // which selects the whole tree and preserves the pre-target behavior.
     // CLI/SDK always pass a single target (Client or Server).
     public AssetTarget Target { get; init; } = AssetTarget.Shared;
+    public bool RetainGeneration { get; init; }
 }
 
-public sealed class ContentBuildResult
+public sealed class ContentBuildResult : IDisposable
 {
     public bool Success { get; init; }
     public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = [];
     public ContentManifest? Manifest { get; init; }
+    public string? GenerationId { get; init; }
+    public ContentGeneration? PublishedGeneration { get; init; }
+    public void Dispose() => PublishedGeneration?.Dispose();
 }
 
 public sealed class SourceEntry
@@ -89,6 +93,18 @@ public sealed class ContentBuildCoordinator
 
     public ContentBuildResult Build(ContentBuildOptions options)
     {
+        try { return BuildCore(options); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)
+        {
+            return new ContentBuildResult { Success = false, Diagnostics = [new(ContentDiagnosticCodes.ManifestCorrupt,
+                ContentDiagnosticSeverity.Error, null, "Content build could not establish safe publication: " + error.Message)] };
+        }
+    }
+    private ContentBuildResult BuildCore(ContentBuildOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.Namespace))
+            return new ContentBuildResult { Success = false, Diagnostics = [new(ContentDiagnosticCodes.NamespaceMismatch,
+                ContentDiagnosticSeverity.Error, null, "Content build requires an explicit non-empty namespace.")] };
         var diagnostics = new List<ContentDiagnostic>();
         var entries = ScanAndValidate(options, diagnostics, out Dictionary<AssetId, SourceEntry>? idToEntry);
 
@@ -135,6 +151,14 @@ public sealed class ContentBuildCoordinator
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
         }
 
+        using var generationGate = ContentGeneration.OpenGate(outputRootFull);
+        new ContentAtomicPublisher(outputRootFull).Recover();
+        ContentGeneration.ImportLegacyUnderGate(outputRootFull);
+        ContentGeneration.RecoverProjectionUnderGate(outputRootFull);
+        var collectionStatus = ContentGeneration.GetCollectionStatus(outputRootFull);
+        if (!collectionStatus.Enabled)
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.GenerationCollectionUnavailable,
+                ContentDiagnosticSeverity.Warning, null, collectionStatus.Reason!));
         TryComputeInputFingerprint(entries, options, out string inputFingerprint);
         ContentBuildCache? cache = ContentBuildCache.TryLoad(outputRootFull, options);
         var manifestEntries = new List<ContentManifestEntry>();
@@ -222,8 +246,14 @@ public sealed class ContentBuildCoordinator
         if (diagnostics.Any(d => d.Severity == ContentDiagnosticSeverity.Error))
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
 
-        if (allReused && cache!.Manifest.ToCanonicalJson() == manifest.ToCanonicalJson())
-            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = cache.Manifest };
+        string? currentId = ContentGeneration.ReadCurrentId(outputRootFull);
+        if (allReused && cache!.Manifest.ToCanonicalJson() == manifest.ToCanonicalJson() && currentId is not null &&
+            ContentGeneration.CanReuseUnderGate(outputRootFull, currentId, options, manifest, reusedArtifacts))
+        {
+            ContentGeneration.CollectUnderGate(outputRootFull);
+            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = cache.Manifest,
+                GenerationId = currentId, PublishedGeneration = options.RetainGeneration ? ContentGeneration.OpenUnderGate(outputRootFull, currentId) : null };
+        }
 
         // Recover from any interrupted previous publish (crash between artifact moves and manifest swap)
         try
@@ -284,15 +314,17 @@ public sealed class ContentBuildCoordinator
             }
 
             // Publish atomically
-            var publisher = new ContentAtomicPublisher(outputRootFull);
-            publisher.Publish(stagingDir);
+            string generationId = ContentGeneration.PublishUnderGate(outputRootFull, stagingDir, options, manifest, out ContentGeneration? retained);
             ContentBuildCache.TrySave(outputRootFull, options, manifest, cacheRecords);
 
             // On success, diagnostics sorted, return manifest
-            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = manifest };
+            ContentGeneration.CollectUnderGate(outputRootFull);
+            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = manifest,
+                GenerationId = generationId, PublishedGeneration = retained };
         }
         catch (Exception ex)
         {
+            try { ContentGeneration.RecoverProjectionUnderGate(outputRootFull); } catch { /* Preserve the last good immutable generation for a later recovery. */ }
             diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
                 ContentDiagnosticSeverity.Error, null, $"Build publication failed: {ex.Message}"));
             TryDeleteDirectory(stagingDir);

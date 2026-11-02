@@ -6,11 +6,19 @@ on:
     branches: ["codex/content-reload-notifications"]
     paths:
       - "tests/ContentGenerationOwnership.Probe/**"
+      - "tests/ContentGeneration.ProcessHost/**"
+      - "src/Karpik.Content.Core/**"
+      - "src/Karpik.Content.Transport/**"
+      - "tests/Karpik.Content.Transport.Tests/**"
       - ".github/workflows/content-generation-ownership.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "tests/ContentGenerationOwnership.Probe/**"
+      - "tests/ContentGeneration.ProcessHost/**"
+      - "src/Karpik.Content.Core/**"
+      - "src/Karpik.Content.Transport/**"
+      - "tests/Karpik.Content.Transport.Tests/**"
       - ".github/workflows/content-generation-ownership.yml"
 
 permissions:
@@ -33,3 +41,9 @@ jobs:
         run: dotnet build tests/ContentGenerationOwnership.Probe/ContentGenerationOwnership.Probe.csproj -m:1 -nr:false
       - name: Verify ownership on the workspace filesystem
         run: dotnet tests/ContentGenerationOwnership.Probe/bin/Debug/net10.0/ContentGenerationOwnership.Probe.dll selftest "${{ github.workspace }}"
+      - name: Build production generation process checks
+        run: dotnet build tests/ContentGeneration.ProcessHost/ContentGeneration.ProcessHost.csproj -m:1 -nr:false
+      - name: Verify production publication and crash recovery
+        run: dotnet tests/ContentGeneration.ProcessHost/bin/Debug/net10.0/ContentGeneration.ProcessHost.dll selftest "${{ github.workspace }}"
+      - name: Verify bounded local reload transport
+        run: dotnet test tests/Karpik.Content.Transport.Tests/Karpik.Content.Transport.Tests.csproj -m:1 -nr:false
