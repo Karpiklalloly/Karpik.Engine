@@ -1,0 +1,35 @@
+name: Content generation ownership probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["codex/content-reload-notifications"]
+    paths:
+      - "tests/ContentGenerationOwnership.Probe/**"
+      - ".github/workflows/content-generation-ownership.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "tests/ContentGenerationOwnership.Probe/**"
+      - ".github/workflows/content-generation-ownership.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ownership:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build standalone feasibility probe
+        run: dotnet build tests/ContentGenerationOwnership.Probe/ContentGenerationOwnership.Probe.csproj -m:1 -nr:false
+      - name: Verify ownership on the workspace filesystem
+        run: dotnet tests/ContentGenerationOwnership.Probe/bin/Debug/net10.0/ContentGenerationOwnership.Probe.dll selftest "${{ github.workspace }}"
