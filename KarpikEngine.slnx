@@ -93,11 +93,13 @@
     <Project Path="src/StaticAnalyzer/StaticAnalyzer.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Karpik.Content.Transport.Tests/EndpointHost/ContentReloadEndpointHost.csproj" />
     <Project Path="tests/Configurator.Tests/Configurator.Tests.csproj" />
     <Project Path="tests/ECS.Core.Tests/ECS.Core.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Transport.Tests/Karpik.Content.Transport.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Tool.Reload.Tests/Karpik.Content.Tool.Reload.Tests.csproj" />
     <Project Path="tests/Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />

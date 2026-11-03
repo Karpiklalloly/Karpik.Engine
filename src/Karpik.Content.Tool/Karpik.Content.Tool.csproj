@@ -9,5 +9,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Karpik.Content.Core\Karpik.Content.Core.csproj" />
+    <ProjectReference Include="..\Karpik.Content.Transport\Karpik.Content.Transport.csproj" />
   </ItemGroup>
 </Project>

@@ -5,7 +5,7 @@ complexity_source: auto
 development_mode: tdd
 source_design: ../docs/brainstorms/2026-11-01-content-reload-notifications.md
 design_revision: 11
-plan_revision: 2
+plan_revision: 3
 approved_plan_revision: 1
 approved_design_revision: 11
 ---
@@ -26,6 +26,12 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 - [x] 2026-11-02: WP-01 accepted after Windows and Ubuntu CI jobs both passed: https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/41478137701 . Root repeated the ext4 probe successfully. Draft task PR: https://github.com/Karpiklalloly/Karpik.Engine/pull/112 . WP-02 started.
 - [x] 2026-11-02: Production generation process checks passed on Linux ext4: two live owners through publication and crashes, simultaneous publishers, 12 real acquisition/collection races, and a process killed while the actual build gate was held. Added a portable process host and Windows/Linux CI execution. WP-02 remains in progress pending metadata-integrity review fixes and final checks.
 - [x] 2026-11-02: WP-02 local checks passed after review fixes: Content 188/188, Runtime 48/48 including existing allocation tests and physical legacy/current-generation reloads. Added modeled valid-newer-projection/old-marker recovery, unknown identity migration and read-only non-development fallback. Standalone WP-04 transport primitive passed 38/38 tests including real process delivery/death, bounded handlers and truthful Unknown results; CLI/runtime integration remains pending. Windows production/transport checks are next.
+- [x] 2026-11-02: WP-02 accepted: Windows/Ubuntu production-process and transport CI passed on commit 98ebca4 (https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/41482381335). Root rebuilt/reran ext4 production checks successfully. OpenGL `--content` and `--di` probes passed after the store changes; build emitted existing project warnings plus sandbox NuGet audit-network warning. All storage/lifetime review blockers fixed; modeled complete-candidate/valid-projection recovery closes its remaining test gap. WP-03 started.
+- [x] 2026-11-03: Resumed after agent usage limits interrupted the previous session. Preserved unfinished coordinator/CLI/host source and resumed their focused verification; no unfinished package was accepted from inferred test results.
+- [x] 2026-11-03: WP-03 verification passed: coordinator 9/9 twice, full Runtime 57/57; 100,000 warmed idle boundaries and 11 measured update publications allocated zero caller bytes. Verified 8192-change full replacement, latest pending/deep-copy/store ownership, actual-basis diff, retry/no-op, 20 stop/commit races, prompt Applied acknowledgment during pinned retirement and sticky backend failure. Independent package review is in progress.
+- [x] 2026-11-03: Main accepted WP-03 after inspecting actual coordinator code, buffer/atomic/store lifetimes and test coverage. Started WP-05 host activation against its stable API. Full independent integrated review remains mandatory in WP-06.
+- [x] 2026-11-03: WP-05 independent prerequisites passed focused 13/13 and Runner 154/154 using repository CI test serialization. An initial local parallel run had one existing scheduler timeout; isolated retry passed 1/1. General Windows CI on 98ebca4 failed only two Transport child-process tests because an unlisted helper built Debug while the test project built Release. Added the helper to the solution; minimal Release solution build and transport 38/38 passed. Full Windows rerun pending.
+- [x] 2026-11-03: CLI portion of WP-04 accepted: final explicit build/retry suite 26/26 after parser regressions, ordinary CLI compatibility 23/23. Build and retry retain their generation through delivery wait; timeout remains Unknown without canceling application. Exit codes 0 applied/superseded, 4 known delivery failure, 5 unknown; usage/build/unexpected codes preserved. Runtime endpoint/host integration remains pending.
 - [ ] Implement and validate all packages, integration, independent review, and publication.
 
 ## Surprises & Discoveries
@@ -44,7 +50,7 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 
 ## Outcomes & Retrospective
 
-Not implemented. Record verification and link the updated ADR on completion.
+Immutable publication/retention and the independent transport primitive are implemented and verified. Coordinator, CLI and host integration remain in progress; the feature is not complete. Record final verification and link the updated ADR on completion.
 
 ## Context and Orientation
 
@@ -66,13 +72,13 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-02 — Immutable publication and collection
 
-- Status: in_progress. Depends on: WP-01. Acceptance: AC4, AC7.
+- Status: completed. Depends on: WP-01. Acceptance: AC4, AC7.
 - Extend `ContentBuildCoordinator`, `ContentAtomicPublisher`, stores and relevant contracts as required for immutable published generations and bounded, crash-safe ownership. Preserve ordinary build compatibility, incremental cache correctness, unchanged slots and in-flight loads; serialize concurrent publishers/collectors, handle failed publications and recovery. Do not modify frame loop or IPC.
 - Verification: Content and Runtime targeted tests including crash, concurrent build, old unloaded/in-flight asset, retention and reclamation, recovery and unchanged content.
 
 ### WP-03 — Runtime coordinator and change delivery
 
-- Status: pending. Depends on: WP-02. Acceptance: AC3, AC4, AC5, AC6, AC7.
+- Status: completed. Depends on: WP-02. Acceptance: AC3, AC4, AC5, AC6, AC7.
 - Add side-neutral coordinator for latest pending generation, supersession, cold prepare, retry/failure and completion; track generation ownership through actual slot and load lifetimes. Publish added/updated/removed IDs computed against the actual applied root through bounded preallocated simulation-facing data. Preserve explicit reference resolution, no automatic ECS mutation, and safe shutdown. No transport or direct Client dependency.
 - Verification: Runtime tests for race, supersession, failure, no-op, stale references, bounded buffers, repeated updates and allocation budget.
 
@@ -85,7 +91,8 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-05 — Client and Server integration
 
-- Status: pending. Depends on: WP-03, WP-04. Acceptance: AC1, AC5, AC6, AC7.
+- Status: in_progress. Depends on: WP-03, WP-04 transport contract (accepted); CLI integration is being verified separately. Acceptance: AC1, AC5, AC6, AC7.
+- Internal scheduling: independent opt-in launch-option propagation and stable Dynamic assembly identity preparation may proceed before coordinator acceptance; boundary/endpoint/lifetime integration remains gated on the accepted coordinator and transport contracts.
 - Integrate `WorkerHost` and applicable shared host lifecycle so static and dynamic, launcher-managed and standalone Client/Server use safe frame/tick boundaries. Preserve GPU lifetime and shutdown sequencing. No work on frame path beyond bounded nonblocking publication.
 - Verification: runner/headless integration tests for both sides, fixed-tick ordering, concurrent client simulation and rendering, shutdown, repeated reload and allocation checks; actual graphics smoke where available.
 
@@ -121,3 +128,4 @@ Source design: `docs/brainstorms/2026-11-01-content-reload-notifications.md` rev
 ## Adjustments
 
 - 2026-11-02 (plan revision 2, approved baseline remains revision 1/design 11): separate the WP-04 transport primitive from coordinator/CLI integration so its message validation, endpoint identity and bounded connection tests can proceed independently of WP-02. No requirements, architecture, ACs or public behavior change; runtime/CLI integration remains gated on WP-02/WP-03 acceptance.
+- 2026-11-02 (plan revision 3): similarly schedule WP-05 launch propagation and stable Content assembly sharing independently. New Runner references require default-context Content identities in Dynamic plugin loading; discovery verified this prerequisite from source. Endpoint activation and frame integration remain dependent on accepted WP-03/WP-04. Requirements and ACs remain unchanged.
