@@ -20,7 +20,27 @@ public sealed class ModuleLoaderExplicitBundleTests
     {
         string root = Path.Combine(Path.GetTempPath(), "KarpikContentContract", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        try
+        {
+            WeakReference lifetime = LoadContentPayloadLoaderAndUnload(root);
+            for (int attempt = 0; attempt < 10 && lifetime.IsAlive; attempt++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+            Assert.False(lifetime.IsAlive);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static WeakReference LoadContentPayloadLoaderAndUnload(string root)
+    {
         var context = new PluginLoadContext(root, root, allowAppContextFallback: false);
+        var lifetime = new WeakReference(context);
         try
         {
             string path = Path.Combine(root, Path.GetFileName(typeof(ContentLoaderIdentityProbe).Assembly.Location));
@@ -37,8 +57,8 @@ public sealed class ModuleLoaderExplicitBundleTests
         finally
         {
             context.Unload();
-            Directory.Delete(root, recursive: true);
         }
+        return lifetime;
     }
 
     [Fact]
