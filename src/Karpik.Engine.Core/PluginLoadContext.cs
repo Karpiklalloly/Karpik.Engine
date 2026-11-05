@@ -24,6 +24,9 @@ public class PluginLoadContext : AssemblyLoadContext
     {
         "Karpik.Engine.Core.Runner",
         "Karpik.Engine.Core",
+        "Karpik.Content.Core",
+        "Karpik.Content.Runtime",
+        "Karpik.Content.Transport",
         "Autofac",
         "DragonECS",
         "Karpik.Jobs",

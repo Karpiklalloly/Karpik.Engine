@@ -32,6 +32,11 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 - [x] 2026-11-03: Main accepted WP-03 after inspecting actual coordinator code, buffer/atomic/store lifetimes and test coverage. Started WP-05 host activation against its stable API. Full independent integrated review remains mandatory in WP-06.
 - [x] 2026-11-03: WP-05 independent prerequisites passed focused 13/13 and Runner 154/154 using repository CI test serialization. An initial local parallel run had one existing scheduler timeout; isolated retry passed 1/1. General Windows CI on 98ebca4 failed only two Transport child-process tests because an unlisted helper built Debug while the test project built Release. Added the helper to the solution; minimal Release solution build and transport 38/38 passed. Full Windows rerun pending.
 - [x] 2026-11-03: CLI portion of WP-04 accepted: final explicit build/retry suite 26/26 after parser regressions, ordinary CLI compatibility 23/23. Build and retry retain their generation through delivery wait; timeout remains Unknown without canceling application. Exit codes 0 applied/superseded, 4 known delivery failure, 5 unknown; usage/build/unexpected codes preserved. Runtime endpoint/host integration remains pending.
+- [x] 2026-11-05: Resumed preserved host integration after another usage-limit interruption. Independent WP-03 read-only review found no blocking defect. General Windows CI on da010ac passed; separate Windows/Linux matrix passed after recursive dependency checkout was added (74f7f2a, https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/42046714273).
+- [x] 2026-11-05: Added ordinary read-only generation-marked package fallback without granting reload ownership. Observed 2 failing regression cases, then 2/2 green and full Runtime 59/59. Pure metadata/projection validation still rejects corruption, and opt-in requires IsGenerationCaptured. Host process/GPU integration verification continues.
+- [x] 2026-11-05: WP-04/WP-05 accepted locally: final Core 188/188, Runtime 59/59, Runner 171/171. Host 17/17 includes four real StaticEngineHost processes (Client/Server × standalone/launcher IPC), repeated byte[] resolution, held Client Begin preserving its change buffer while the next update waits, boundary allocations, stop/default/identity cases. Dynamic/Static EngineRunner injection on both sides and actual PluginLoadContext identity/restart propagation are tested separately. No claim of a Dynamic process cross-product smoke.
+- [x] 2026-11-05: Real OpenGL `--content` passed old-green/new-red transfer/retirement/shutdown; enhanced `--di` passed with an actual coordinator update and old writing-buffer pin in both registration/activation orders. Default no-op lifetime preserves generated Static consumers whose factories resolve optional constructor dependencies. Build/runtime ADRs and usage guide updated. Final independent integrated review and Windows/Linux CI remain pending.
+- [x] 2026-11-05: Final independent integrated read-only review found no blocking/actionable defects. A subsequent real generated Static host build reproduced KCORE002 from auto-discovery of the framework installer; nesting that private installer in partial EngineRunner fixed the build. Generated smoke and focused host 17/17 passed after encapsulation; reviewer also cleared that exact correction. Final Windows/Linux CI is the remaining acceptance gate.
 - [ ] Implement and validate all packages, integration, independent review, and publication.
 
 ## Surprises & Discoveries
@@ -47,10 +52,12 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 
 - 2026-11-02: Follow design revision 11, including bounded latest-pending delivery and failure-closed generation retention. TDD automatically selected for observable behavior. Scope and cross-process risks justify complex workflow.
 - 2026-11-02: WP-01 candidate protocol uses a permanent namespace gate and one unique open-handle claim per captured store/generation owner. Acquisition and collection share the gate; release closes only the owner handle. Production must prune proven-stale claims during cold operations and preserve actual slot/in-flight lifetimes. Feasibility code is isolated under `tests/ContentGenerationOwnership.Probe`; it does not change runtime behavior.
+- 2026-11-05: Host composition provides an empty change source and no-op reload lifetime without starting an endpoint/worker when opt-out. Generated Static factories currently resolve optional constructor parameters, so the no-op lifetime is also required for source-compatible renderer construction.
+- 2026-11-05: Read-only marked packages retain ordinary non-owning static-file startup after metadata/projection validation. They cannot enable reload; owned captured generations remain mandatory for development delivery. This extends the already accepted read-only legacy fallback without weakening opted-in ownership.
 
 ## Outcomes & Retrospective
 
-Immutable publication/retention and the independent transport primitive are implemented and verified. Coordinator, CLI and host integration remain in progress; the feature is not complete. Record final verification and link the updated ADR on completion.
+Immutable publication/retention, bounded coordinator/transport, CLI delivery/retry and both host paths are implemented and pass local verification. Final independent review and remote CI are pending; the feature is not yet marked complete. Durable contracts are recorded in `docs/02_ADR/content-pipeline-build-contract.md`, `docs/02_ADR/content-runtime-snapshots.md` and usage in `docs/content-reload.md`.
 
 ## Context and Orientation
 
@@ -84,21 +91,21 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-04 — Targeted endpoint and CLI
 
-- Status: in_progress (independent transport primitive only). Depends on: WP-02, WP-03 for integration. Acceptance: AC1, AC2, AC3, AC7.
+- Status: completed. Depends on: WP-02, WP-03. Acceptance: AC1, AC2, AC3, AC7.
 - Internal scheduling: the independent bounded local transport/protocol primitive may be developed and tested before WP-02/WP-03 finish. CLI generation retention and runtime/coordinator wiring remain dependent on accepted WP-02/WP-03 results. This does not accept WP-04 early or change its behavioral contracts.
 - Implement opt-in local addressable endpoint usable independently of launcher IPC, validate target/namespace and message bounds; wire explicit CLI delivery after successful build and retry of an already published result. Correlate requests with applied/superseded/failed responses, limit wait time, report timeout as unknown and preserve separately reported build success. No network-facing or Editor integration.
 - Verification: tool and endpoint tests for malformed/mismatched requests, unavailable process, retries, concurrent requests, supersession, shutdown, timeout and disabled default.
 
 ### WP-05 — Client and Server integration
 
-- Status: in_progress. Depends on: WP-03, WP-04 transport contract (accepted); CLI integration is being verified separately. Acceptance: AC1, AC5, AC6, AC7.
+- Status: completed. Depends on: WP-03, WP-04. Acceptance: AC1, AC5, AC6, AC7.
 - Internal scheduling: independent opt-in launch-option propagation and stable Dynamic assembly identity preparation may proceed before coordinator acceptance; boundary/endpoint/lifetime integration remains gated on the accepted coordinator and transport contracts.
 - Integrate `WorkerHost` and applicable shared host lifecycle so static and dynamic, launcher-managed and standalone Client/Server use safe frame/tick boundaries. Preserve GPU lifetime and shutdown sequencing. No work on frame path beyond bounded nonblocking publication.
 - Verification: runner/headless integration tests for both sides, fixed-tick ordering, concurrent client simulation and rendering, shutdown, repeated reload and allocation checks; actual graphics smoke where available.
 
 ### WP-06 — Integration, docs and independent review
 
-- Status: pending. Depends on: WP-02, WP-03, WP-04, WP-05. Acceptance: AC1–AC7.
+- Status: in_progress. Depends on: WP-02, WP-03, WP-04, WP-05. Acceptance: AC1–AC7.
 - Verify end-to-end workflows and update relevant build/runtime ADRs and usage docs. Independently review integrated diff with a read-only review subagent, fix findings and re-run affected checks. Update this plan with actual evidence and compatibility impact.
 - Verification: execute commands below, end-to-end launcher-managed and standalone Client/Server runs, failure and repeated-update cases. GPU and Windows checks require appropriate hosts; do not claim unexecuted checks.
 

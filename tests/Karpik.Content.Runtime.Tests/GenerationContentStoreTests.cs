@@ -11,6 +11,47 @@ public sealed class GenerationContentStoreTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ReadOnlyPublishedPackageKeepsOrdinaryStartup_ButNeverHidesCorruptMetadata(bool corruptMetadata)
+    {
+        string workspace = Path.Combine(Path.GetTempPath(), "karpik-readonly-content-" + Guid.NewGuid().ToString("N"));
+        string source = Path.Combine(workspace, "source"), output = Path.Combine(workspace, "output");
+        Directory.CreateDirectory(source);
+        string gate = Path.Combine(output, ".karpik-generations.gate");
+        FileAttributes attributes = default;
+        try
+        {
+            AssetId id = new(Guid.NewGuid());
+            WriteSource(source, "a", id, "{\"v\":1}");
+            using var build = new ContentBuildCoordinator().Build(new ContentBuildOptions
+            { SourceRoot = source, OutputRoot = output, Namespace = "game", Target = AssetTarget.Client });
+            Assert.True(build.Success);
+            if (corruptMetadata)
+                File.WriteAllText(Path.Combine(output, ".generations", build.GenerationId!, "generation.json"), "{}");
+            attributes = File.GetAttributes(gate);
+            File.SetAttributes(gate, attributes | FileAttributes.ReadOnly);
+            if (corruptMetadata)
+            {
+                Assert.Throws<InvalidDataException>(() => new FileContentStore(new PhysicalFileSystem(output)));
+                return;
+            }
+            using var store = new FileContentStore(new PhysicalFileSystem(output));
+            Assert.False(store.IsGenerationCaptured); // Development opt-in must reject a non-owning fallback.
+            await using var registry = new ContentRegistry(new PhysicalFileSystem(output), store);
+            registry.Start();
+            Assert.True(registry.TryResolve<RawJsonPayload>(id, out var reference));
+            await registry.LoadAsync(reference);
+            Assert.Equal("{\"v\":1}", ReadJson(registry, reference));
+        }
+        finally
+        {
+            if (File.Exists(gate)) File.SetAttributes(gate, attributes);
+            Directory.Delete(workspace, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task CapturedStartupAndUnloadedUnchangedSlotsRetainTheirOriginalBytes(bool migrateLegacyStartup)
     {
         string workspace = Path.Combine(Path.GetTempPath(), "karpik-captured-store-" + Guid.NewGuid().ToString("N"));

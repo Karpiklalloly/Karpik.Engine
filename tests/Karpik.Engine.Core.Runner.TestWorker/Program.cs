@@ -22,6 +22,9 @@ internal static class Program
         string controlPath = Path.Combine(bundlePath, "reload", "state", "lifecycle-tests");
         Directory.CreateDirectory(controlPath);
         await File.AppendAllTextAsync(Path.Combine(controlPath, "starts.log"), $"{Environment.ProcessId}\n");
+        int reloadInstanceIndex = Array.IndexOf(args, "--content-reload-instance");
+        string? reloadInstance = reloadInstanceIndex >= 0 ? args[reloadInstanceIndex + 1] : null;
+        await File.AppendAllTextAsync(Path.Combine(controlPath, "content-reload-instances.log"), (reloadInstance ?? "<disabled>") + "\n");
         string exitBeforeConnect = Path.Combine(controlPath, "exit-before-connect");
         if (File.Exists(exitBeforeConnect))
         {

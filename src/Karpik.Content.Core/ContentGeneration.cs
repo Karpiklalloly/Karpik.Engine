@@ -63,6 +63,19 @@ public sealed class ContentGeneration : IDisposable
         return OpenUnderGate(outputRoot, generationId);
     }
 
+    /// <summary>
+    /// Read-only validation for ordinary packaged startup when ownership cannot be acquired.
+    /// This acquires no claim and does not authorize reload or protect against concurrent publication.
+    /// </summary>
+    public static void ValidateCurrentProjection(string outputRoot)
+    {
+        outputRoot = Path.GetFullPath(outputRoot);
+        string id = ReadCurrentId(outputRoot) ?? throw new InvalidDataException("No immutable Content generation has been published.");
+        var metadata = ReadMetadata(outputRoot, Path.Combine(outputRoot, ".generations", id));
+        if (ContentManifest.LoadFromFile(Path.Combine(outputRoot, "manifest.json")).ToCanonicalJson() != metadata.Manifest.ToCanonicalJson())
+            throw new InvalidDataException("Content publication was interrupted; rebuild to recover the current projection.");
+    }
+
     internal static ContentGeneration OpenUnderGate(string outputRoot, string id)
     {
         ValidateId(id);
@@ -313,7 +326,7 @@ public sealed class ContentGeneration : IDisposable
         while (true)
         {
             try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
-            catch (IOException) when (elapsed.Elapsed < TimeSpan.FromSeconds(30)) { Thread.Sleep(2); }
+            catch (IOException error) when ((error.HResult & 0xffff) is not (19 or 30) && elapsed.Elapsed < TimeSpan.FromSeconds(30)) { Thread.Sleep(2); }
         }
     }
 

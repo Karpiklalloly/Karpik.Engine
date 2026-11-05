@@ -8,6 +8,40 @@ using Xunit;
 public sealed class ModuleLoaderExplicitBundleTests
 {
     [Fact]
+    public void PluginContext_IdentitySharesContentCoreAndRuntimeContractsWithHost()
+    {
+        AssertIdentityShared(typeof(Karpik.Content.Core.AssetId).Assembly);
+        AssertIdentityShared(typeof(Karpik.Content.Runtime.IContentRegistry).Assembly);
+        AssertIdentityShared(typeof(Karpik.Content.Transport.ContentReloadRequest).Assembly);
+    }
+
+    [Fact]
+    public void PluginContext_ContentPayloadLoaderUsesHostInterfaceForConstructorInjection()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "KarpikContentContract", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var context = new PluginLoadContext(root, root, allowAppContextFallback: false);
+        try
+        {
+            string path = Path.Combine(root, Path.GetFileName(typeof(ContentLoaderIdentityProbe).Assembly.Location));
+            File.Copy(typeof(ContentLoaderIdentityProbe).Assembly.Location, path);
+            Type loaderType = context.LoadFromAssemblyPath(path).GetType(nameof(ContentLoaderIdentityProbe), throwOnError: true)!;
+            var builder = new ContainerBuilder();
+            builder.RegisterType(loaderType).As<Karpik.Content.Runtime.IContentPayloadLoader>();
+            builder.RegisterType<ContentLoaderIdentityConsumer>();
+            using var container = builder.Build();
+            var consumer = container.Resolve<ContentLoaderIdentityConsumer>();
+            Assert.Equal(loaderType, consumer.Loader.GetType());
+            Assert.True(consumer.Loader.CanLoad(typeof(string), "probe"));
+        }
+        finally
+        {
+            context.Unload();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void PluginContext_IdentitySharesExportAttributeAssemblyWithRunner()
     {
         AssertIdentityShared(typeof(ExportAttribute).Assembly);
@@ -393,4 +427,16 @@ public sealed class ModuleLoaderExplicitBundleTests
         loader.Dispose();
         return (shadow, Assert.IsType<WeakReference>(loader.LoadContextLifetime));
     }
+}
+
+public sealed class ContentLoaderIdentityProbe : Karpik.Content.Runtime.IContentPayloadLoader
+{
+    public bool CanLoad(Type payloadType, string declaredType) => payloadType == typeof(string) && declaredType == "probe";
+    public ValueTask<object> LoadAsync(Type payloadType, string declaredType, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken) =>
+        ValueTask.FromResult<object>("probe");
+}
+
+public sealed class ContentLoaderIdentityConsumer(Karpik.Content.Runtime.IContentPayloadLoader loader)
+{
+    public Karpik.Content.Runtime.IContentPayloadLoader Loader { get; } = loader;
 }

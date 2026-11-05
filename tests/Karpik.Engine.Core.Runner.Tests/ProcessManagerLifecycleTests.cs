@@ -7,6 +7,20 @@ using Xunit;
 
 public sealed class ProcessManagerLifecycleTests
 {
+    [Fact]
+    public async Task ContentReloadOptIn_SurvivesActualWorkerStartAndRestart()
+    {
+        using var runtime = new LifecycleRuntime();
+        using var manager = runtime.CreateManager(contentReloadInstanceId: "server-one");
+        await manager.StartWorkerAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        runtime.ReleaseState();
+        await manager.HotReloadAsync();
+        Assert.True(await manager.WaitForWorkerReadyAsync(TimeSpan.FromSeconds(10)));
+        await manager.StopWorkerAsync();
+        Assert.Equal(["server-one", "server-one"], runtime.ContentReloadInstances);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(100)]
@@ -689,6 +703,7 @@ public sealed class ProcessManagerLifecycleTests
 
         public string BundlePath { get; }
         public string RunnerPath { get; }
+        public string[] ContentReloadInstances => File.ReadAllLines(Path.Combine(_controlPath, "content-reload-instances.log"));
 
         public int StartCount
         {
@@ -736,9 +751,11 @@ public sealed class ProcessManagerLifecycleTests
 
         public ProcessManager CreateManager(
             bool captureWorkerOutput = false,
-            TimeSpan? workerConnectionTimeout = null)
+            TimeSpan? workerConnectionTimeout = null,
+            string? contentReloadInstanceId = null)
         {
-            var launch = new RuntimeLaunchOptions(Side.Server, RunnerPath, BundlePath, _root);
+            var launch = new RuntimeLaunchOptions(Side.Server, RunnerPath, BundlePath, _root)
+            { ContentReloadInstanceId = contentReloadInstanceId };
             return new ProcessManager(
                 launch,
                 new HotReloadOptions

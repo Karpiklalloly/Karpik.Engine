@@ -17,7 +17,15 @@ public sealed class FileContentStore : IContentStore, IContentStoreLifetime, IDi
         this.fileSystem = fileSystem;
         _root = Path.GetFullPath(fileSystem.ContentPath);
         if (fileSystem.Exists(Path.Combine(_root, ".karpik-current-generation")))
-            _captured = GenerationContentStore.OpenCurrent(_root);
+        {
+            try { _captured = GenerationContentStore.OpenCurrent(_root); }
+            catch (Exception error) when (IsReadOnlyAccess(error))
+            {
+                // Ordinary packaged reads need no development endpoint. Never hide invalid metadata,
+                // and leave IsGenerationCaptured false so opt-in cannot use this non-owning fallback.
+                Karpik.Content.Core.ContentGeneration.ValidateCurrentProjection(_root);
+            }
+        }
         else if (Directory.Exists(Path.Combine(_root, ".karpik-current-generation")))
             throw new InvalidDataException("Invalid Content generation marker.");
         else if (File.Exists(Path.Combine(_root, "manifest.json")))
@@ -35,6 +43,8 @@ public sealed class FileContentStore : IContentStore, IContentStoreLifetime, IDi
     public string? GenerationId => _captured?.GenerationId;
     public string? Namespace => _captured?.Namespace;
     public Karpik.Content.Core.AssetTarget? Target => _captured?.Target;
+    private static bool IsReadOnlyAccess(Exception error) => error is UnauthorizedAccessException ||
+        error is IOException io && (io.HResult & 0xffff) is 19 or 30;
     public void Retain() => _captured?.Retain();
     public void Release() => _captured?.Release();
     public void Dispose() => _captured?.Dispose();

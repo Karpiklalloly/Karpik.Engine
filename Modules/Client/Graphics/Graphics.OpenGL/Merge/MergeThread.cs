@@ -57,10 +57,14 @@ public class MergeThread : IMergeThread
     private bool _workerStarted;
     private int _disposed;
 
-    public MergeThread(GraphicsDevice device, Preset2DPipeline dPipeline, ClientFrameMetrics clientFrameMetrics, Karpik.Content.Runtime.IContentRegistry? contentRegistry = null)
+    public MergeThread(GraphicsDevice device, Preset2DPipeline dPipeline, ClientFrameMetrics clientFrameMetrics,
+        Karpik.Content.Runtime.IContentRegistry? contentRegistry = null,
+        Karpik.Content.Runtime.IContentReloadLifetime? contentReloadLifetime = null)
     {
         // Resolving Content before this service guarantees reverse DI disposal releases CPU claims first.
         _ = contentRegistry;
+        // Opt-in Content retirement must drain only after this renderer has released every CPU claim.
+        _ = contentReloadLifetime;
         _device = device;
         _2dPipeline = dPipeline;
         _clientFrameMetrics = clientFrameMetrics;

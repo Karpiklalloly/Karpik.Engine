@@ -100,6 +100,8 @@
     <Project Path="tests/Karpik.Content.Transport.Tests/Karpik.Content.Transport.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Tool.Reload.Tests/Karpik.Content.Tool.Reload.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Reload.HeadlessHost/Karpik.Content.Reload.HeadlessHost.csproj" />
+    <Project Path="tests/Karpik.Content.Reload.GeneratedHostSmoke/Karpik.Content.Reload.GeneratedHostSmoke.csproj" />
     <Project Path="tests/Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />

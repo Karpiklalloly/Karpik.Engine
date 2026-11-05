@@ -11,6 +11,11 @@ on:
       - "src/Karpik.Content.Transport/**"
       - "src/Karpik.Content.Runtime/**"
       - "src/Karpik.Content.Tool/**"
+      - "src/Karpik.Engine.Core/**"
+      - "src/Karpik.Engine.Core.Runner/**"
+      - "tests/Karpik.Engine.Core.Runner.Tests/**"
+      - "tests/Karpik.Content.Reload.HeadlessHost/**"
+      - "tests/Karpik.Content.Reload.GeneratedHostSmoke/**"
       - "tests/Karpik.Content.Runtime.Tests/**"
       - "tests/Karpik.Content.Tool.Reload.Tests/**"
       - "tests/Karpik.Content.Transport.Tests/**"
@@ -24,6 +29,11 @@ on:
       - "src/Karpik.Content.Transport/**"
       - "src/Karpik.Content.Runtime/**"
       - "src/Karpik.Content.Tool/**"
+      - "src/Karpik.Engine.Core/**"
+      - "src/Karpik.Engine.Core.Runner/**"
+      - "tests/Karpik.Engine.Core.Runner.Tests/**"
+      - "tests/Karpik.Content.Reload.HeadlessHost/**"
+      - "tests/Karpik.Content.Reload.GeneratedHostSmoke/**"
       - "tests/Karpik.Content.Runtime.Tests/**"
       - "tests/Karpik.Content.Tool.Reload.Tests/**"
       - "tests/Karpik.Content.Transport.Tests/**"
@@ -39,7 +49,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,3 +71,7 @@ jobs:
         run: dotnet test tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj -m:1 -nr:false
       - name: Verify explicit delivery and retry CLI
         run: dotnet test tests/Karpik.Content.Tool.Reload.Tests/Karpik.Content.Tool.Reload.Tests.csproj -m:1 -nr:false
+      - name: Verify host boundaries and real runtime processes
+        run: dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false -p:CI=true --filter FullyQualifiedName~ContentReloadHostTests
+      - name: Verify external generated Static host composition
+        run: dotnet build tests/Karpik.Content.Reload.GeneratedHostSmoke/Karpik.Content.Reload.GeneratedHostSmoke.csproj -m:1 -nr:false
