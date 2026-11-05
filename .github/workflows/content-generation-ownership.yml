@@ -3,7 +3,7 @@ name: Content reload checks
 on:
   workflow_dispatch:
   push:
-    branches: ["codex/content-reload-notifications"]
+    branches: ["main"]
     paths:
       - "tests/ContentGenerationOwnership.Probe/**"
       - "tests/ContentGeneration.ProcessHost/**"
