@@ -1,5 +1,5 @@
 ---
-status: executing
+status: completed
 complexity: complex
 complexity_source: auto
 development_mode: tdd
@@ -38,7 +38,7 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 - [x] 2026-11-05: Real OpenGL `--content` passed old-green/new-red transfer/retirement/shutdown; enhanced `--di` passed with an actual coordinator update and old writing-buffer pin in both registration/activation orders. Default no-op lifetime preserves generated Static consumers whose factories resolve optional constructor dependencies. Build/runtime ADRs and usage guide updated. Final independent integrated review and Windows/Linux CI remain pending.
 - [x] 2026-11-05: Final independent integrated read-only review found no blocking/actionable defects. A subsequent real generated Static host build reproduced KCORE002 from auto-discovery of the framework installer; nesting that private installer in partial EngineRunner fixed the build. Generated smoke and focused host 17/17 passed after encapsulation; reviewer also cleared that exact correction. Final Windows/Linux CI is the remaining acceptance gate.
 - [x] 2026-11-05: Final dedicated Windows/Linux CI passed on 2534d40 (https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/42051052849). General Windows CI exposed premature test DLL deletion after collectible-context Unload; moved the DI probe into a NoInlining helper and require observed collection before cleanup. Targeted local regression passed 1/1; full CI rerun remains required.
-- [ ] Implement and validate all packages, integration, independent review, and publication.
+- [x] 2026-11-05: All packages accepted. Final code commit 6f8fcb7 passed dedicated Windows/Linux checks (https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/42054785547) and general Windows solution CI, including repeated Runner/resource checks (https://github.com/Karpiklalloly/Karpik.Engine/actions/runs/42054785581). The exact test-cleanup correction also passed independent read-only review. Implementation, documentation, local/GPU checks, independent review and publication in PR #112 are complete. This completion record changes documentation only; current-head CI status remains visible on the PR.
 
 ## Surprises & Discoveries
 
@@ -58,7 +58,9 @@ An explicit successful Content build targets one opted-in runtime instance, incl
 
 ## Outcomes & Retrospective
 
-Immutable publication/retention, bounded coordinator/transport, CLI delivery/retry and both host paths are implemented and pass local verification. Final independent review and remote CI are pending; the feature is not yet marked complete. Durable contracts are recorded in `docs/02_ADR/content-pipeline-build-contract.md`, `docs/02_ADR/content-runtime-snapshots.md` and usage in `docs/content-reload.md`.
+Immutable publication/retention, bounded coordinator/transport, CLI delivery/retry and both host paths are complete. All AC1–AC7 have supporting local, process, allocation and GPU evidence above; final Windows/Linux checks and full Windows solution CI passed on 6f8fcb7. Independent integrated review and follow-up reviews found no remaining blockers. PR #112 contains the published task branch; merge remains a separate developer action. Durable contracts are recorded in `docs/02_ADR/content-pipeline-build-contract.md`, `docs/02_ADR/content-runtime-snapshots.md` and usage in `docs/content-reload.md`.
+
+Compatibility impact: external `IContentUpdateRegistry` implementations must implement the store-binding overload. Compiled direct `MergeThread` constructor callers must rebuild for its optional lifetime parameter; ordinary source calls remain valid. Reload stays opt-in, with non-owning ordinary startup preserved for validated read-only packages. Collection on unverified filesystems fails closed with diagnostics. Production crash tests cover death while holding the build gate; interrupted-publication recovery phases use modeled complete candidates/projections rather than claims of arbitrary mid-publication crash coverage.
 
 ## Context and Orientation
 
@@ -106,7 +108,7 @@ Each package begins with meaningful failing tests before implementation, except 
 
 ### WP-06 — Integration, docs and independent review
 
-- Status: in_progress. Depends on: WP-02, WP-03, WP-04, WP-05. Acceptance: AC1–AC7.
+- Status: completed. Depends on: WP-02, WP-03, WP-04, WP-05. Acceptance: AC1–AC7.
 - Verify end-to-end workflows and update relevant build/runtime ADRs and usage docs. Independently review integrated diff with a read-only review subagent, fix findings and re-run affected checks. Update this plan with actual evidence and compatibility impact.
 - Verification: execute commands below, end-to-end launcher-managed and standalone Client/Server runs, failure and repeated-update cases. GPU and Windows checks require appropriate hosts; do not claim unexecuted checks.
 
