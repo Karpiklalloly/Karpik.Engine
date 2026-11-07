@@ -17,6 +17,24 @@ public sealed class GameSolutionValidationTests
     }
 
     [Theory]
+    [InlineData("Client\\Client.csproj")]
+    [InlineData("Client/Client.csproj")]
+    public void SolutionAndReferencesAcceptMsBuildPathSeparators(string projectEntry)
+    {
+        WithSolution(solution =>
+        {
+            var shared = solution.AddProject("Shared/Shared.csproj", side: "Shared");
+            var client = solution.AddProject("Client/Client.csproj", side: "Client",
+                references: [shared], includeInSolution: false);
+            solution.EditProject(client, project => project.Descendants("ProjectReference").Single()
+                .SetAttributeValue("Include", "..\\Shared\\Shared.csproj"));
+            solution.AddSolutionEntry(projectEntry);
+
+            AssertValid(solution);
+        });
+    }
+
+    [Theory]
     [InlineData("Client", "Server")]
     [InlineData("Server", "Client")]
     public void RuntimeSidesMayNotReferenceTheOppositeSide(string sourceSide, string targetSide)

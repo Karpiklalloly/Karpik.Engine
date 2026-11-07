@@ -34,6 +34,58 @@ public sealed class ExternalGameCliTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Packed_templates_materialize_inside_the_requested_directory()
+    {
+        string repositoryRoot = GetRepositoryRoot();
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikTemplates_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryRoot);
+        try
+        {
+            var environment = new Dictionary<string, string?>
+            {
+                ["DOTNET_CLI_HOME"] = Path.Combine(temporaryRoot, "dotnet-home"),
+                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+                ["DOTNET_NOLOGO"] = "1",
+                ["MSBUILDDISABLENODEREUSE"] = "1"
+            };
+            string feed = Path.Combine(temporaryRoot, "feed");
+            ProcessResult pack = await RunAsync(repositoryRoot,
+                ["pack", "src/Karpik.Engine.Templates/Karpik.Engine.Templates.csproj", "-m:1", "-nr:false",
+                 "-p:NuGetAudit=false", $"-p:ArtifactsPath={Path.Combine(temporaryRoot, "artifacts")}", "-o", feed], environment);
+            Assert.Equal(0, pack.ExitCode);
+            string package = Assert.Single(Directory.GetFiles(feed, "*.nupkg"));
+            using (ZipArchive archive = ZipFile.OpenRead(package))
+            {
+                Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains("//", StringComparison.Ordinal));
+                Assert.Contains(archive.Entries, entry => entry.FullName == "content/Karpik.CoinRush/.template.config/template.json");
+                Assert.Contains(archive.Entries, entry => entry.FullName == "content/Karpik.Game/.template.config/template.json");
+            }
+
+            string hive = Path.Combine(temporaryRoot, "hive");
+            ProcessResult install = await RunAsync(temporaryRoot,
+                ["new", "install", package, "--debug:custom-hive", hive], environment);
+            Assert.Equal(0, install.ExitCode);
+            foreach (string template in new[] { "karpik-game", "karpik-coinrush" })
+            {
+                string output = Path.Combine(temporaryRoot, template);
+                ProcessResult create = await RunAsync(temporaryRoot,
+                    ["new", template, "--name", "PathProbe", "--output", output,
+                     "--karpik-sdk-version", "0.6.0-path-probe", "--debug:custom-hive", hive], environment);
+                Assert.Equal(0, create.ExitCode);
+                Assert.True(File.Exists(Path.Combine(output, "PathProbe.slnx")), create.CombinedOutput);
+                Assert.True(File.Exists(Path.Combine(output, "Source", "PathProbe.Shared", "PathProbe.Shared.csproj")));
+                Assert.True(File.Exists(Path.Combine(output, "Content", "Sprites", "Player.png")));
+                Assert.Contains("0.6.0-path-probe", File.ReadAllText(Path.Combine(output, "global.json")));
+            }
+        }
+        finally
+        {
+            DeleteOwnedTemporaryRoot(temporaryRoot);
+        }
+    }
+
+    [Fact]
     public void Sdk_packages_content_tool_and_codegen_without_checkout_references()
     {
         string repositoryRoot = GetRepositoryRoot();
