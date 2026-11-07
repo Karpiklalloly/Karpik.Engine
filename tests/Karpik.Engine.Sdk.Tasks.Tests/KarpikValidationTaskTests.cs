@@ -382,6 +382,33 @@ public sealed class KarpikValidationTaskTests
         });
     }
 
+    [Theory]
+    [InlineData("..\\Shared\\Shared.csproj")]
+    [InlineData("../Shared/Shared.csproj")]
+    [InlineData("..\\Shared/Shared.csproj")]
+    public void DirectBuildTaskAcceptsMsBuildPathSeparators(string include)
+    {
+        WithProjectTree(tree =>
+        {
+            var shared = tree.AddProject("Shared/Shared.csproj", side: "Shared");
+            var client = tree.AddProject("Client/Client.csproj", side: "Client", references: [shared]);
+            string clientPath = Path.Combine(tree.RootPath, client);
+            XDocument document = XDocument.Load(clientPath);
+            document.Descendants("ProjectReference").Single().SetAttributeValue("Include", include);
+            document.Save(clientPath);
+            var engine = new FakeBuildEngine();
+            var task = new ValidateKarpikProjectReferencesTask
+            {
+                BuildEngine = engine,
+                ProjectPath = clientPath,
+                ProjectReferences = [new TaskItem(Path.Combine(tree.RootPath, shared))]
+            };
+
+            Assert.True(task.Execute(), string.Join(Environment.NewLine, engine.Errors.Select(error => error.Message)));
+            Assert.Empty(engine.Errors);
+        });
+    }
+
     [Fact]
     public void DirectBuildTaskDeduplicatesEvaluatedReferences()
     {
