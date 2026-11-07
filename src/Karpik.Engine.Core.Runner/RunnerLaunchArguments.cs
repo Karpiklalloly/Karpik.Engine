@@ -11,6 +11,13 @@ public sealed record RunnerLaunchArguments(
     string? StateFile,
     bool WaitForDebugger)
 {
+    private string? _contentReloadInstanceId;
+    public string? ContentReloadInstanceId
+    {
+        get => _contentReloadInstanceId;
+        init => _contentReloadInstanceId = ContentReloadInstanceIdentity.Validate(value);
+    }
+
     public static RunnerLaunchArguments Parse(string[] args)
         => Parse(args, AppContext.BaseDirectory);
 
@@ -49,7 +56,7 @@ public sealed record RunnerLaunchArguments(
                 }
                 value = args[++index];
             }
-            if (name is not ("--bundle" or "--engine-root" or "--side" or "--pipe-name" or "--state" or "--state-file"))
+            if (name is not ("--bundle" or "--engine-root" or "--side" or "--pipe-name" or "--state" or "--state-file" or "--content-reload-instance"))
             {
                 throw new ArgumentException($"Unknown runner argument: {name}", nameof(args));
             }
@@ -87,7 +94,9 @@ public sealed record RunnerLaunchArguments(
         {
             stateFile = ValidateStateFile(validatedBundle, stateFile);
         }
-        return new RunnerLaunchArguments(side, validatedBundle, validatedEngineRoot, pipeName, state, stateFile, waitForDebugger);
+        values.TryGetValue("--content-reload-instance", out string? contentReloadInstance);
+        return new RunnerLaunchArguments(side, validatedBundle, validatedEngineRoot, pipeName, state, stateFile, waitForDebugger)
+        { ContentReloadInstanceId = contentReloadInstance };
     }
 
     private static void ValidateRunnerOwnership(string engineRoot, Side side, string runnerBaseDirectory)

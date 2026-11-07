@@ -56,7 +56,10 @@ internal static class ContentReloadProbe
                 void RegisterRegistry() => builder.Register(_ => new ContentRegistry(null!, store, [new ContentTextureLoader(device)]))
                     .AsSelf().As<IContentRegistry>().SingleInstance();
                 void RegisterMerge() => builder.RegisterType<MergeThread>().As<IMergeThread>().SingleInstance();
-                if (order == 0) { RegisterMerge(); RegisterRegistry(); } else { RegisterRegistry(); RegisterMerge(); }
+                void RegisterCoordinator() => builder.Register(context => new ContentReloadCoordinator(context.Resolve<ContentRegistry>()))
+                    .AsSelf().As<IContentReloadLifetime>().SingleInstance();
+                if (order == 0) { RegisterMerge(); RegisterCoordinator(); RegisterRegistry(); }
+                else { RegisterRegistry(); RegisterCoordinator(); RegisterMerge(); }
                 var container = builder.Build();
                 ContentRegistry registry;
                 IMergeThread merge;
@@ -66,12 +69,28 @@ internal static class ContentReloadProbe
                 registry.RegisterManifest(new(1, [new(id, "texture", "tex", "s", "s", "old", store.Bytes.Length, [])]), store);
                 var reference = new AssetRef<ITexture2D>(id); registry.LoadAsync(reference).GetAwaiter().GetResult();
                 if (!registry.TryGet(reference, out var lease)) throw new Exception("DI texture missing");
+                var old = (VeldridTexture2D)lease.Payload!;
                 GraphicsContext.BeginFrame(); GraphicsContext.Buffer.Add(new DrawTextureCmd { Texture = lease.Payload! });
+                var coordinator = container.Resolve<ContentReloadCoordinator>();
+                Task<ContentReloadResult> application = coordinator.EnqueueAsync(
+                    new(1, [new(id, "texture", "tex", "s", "new", "new", store.NewBytes.Length, [])]), store);
+                var wait = System.Diagnostics.Stopwatch.StartNew();
+                while (coordinator.Sequence == 0)
+                {
+                    if (wait.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("DI coordinator never prepared a texture update.");
+                    coordinator.PublishBoundary();
+                    Thread.Sleep(1);
+                }
+                if (application.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult().Outcome != ContentReloadOutcome.Applied)
+                    throw new Exception("DI coordinator did not acknowledge texture publication.");
+                if (old.Texture.IsDisposed) throw new Exception("DI coordinator released a CPU-owned old texture before renderer shutdown.");
+                coordinator.RequestStop();
                 Task shutdown = container.DisposeAsync().AsTask();
                 try { shutdown.WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); }
                 catch { merge.Dispose(); shutdown.GetAwaiter().GetResult(); throw; }
+                if (!old.Texture.IsDisposed) throw new Exception("DI shutdown did not finish old texture retirement.");
             }
-            Console.WriteLine("DI SHUTDOWN PASSED: both registration and activation orders release pending CPU owners before registry drainage");
+            Console.WriteLine("DI SHUTDOWN PASSED: both registration and activation orders release CPU owners before coordinator retirement and registry drainage");
         }
         finally { device.Dispose(); window.Close(); }
     }

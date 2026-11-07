@@ -13,6 +13,7 @@ internal class ProcessManager : IDisposable
     private readonly string _workerExePath;
     private readonly string _bundlePath;
     private readonly string _engineRoot;
+    private readonly string? _contentReloadInstanceId;
     private readonly string _pipeName;
     private readonly Side _side;
     private readonly HotReloadOptions _options;
@@ -99,6 +100,7 @@ internal class ProcessManager : IDisposable
         _workerExePath = launchOptions.RunnerExecutablePath;
         _bundlePath = launchOptions.BundlePath;
         _engineRoot = launchOptions.EngineRoot;
+        _contentReloadInstanceId = launchOptions.ContentReloadInstanceId;
         _pipeName = pipeName ?? $"KarpikEngine_{Guid.NewGuid():N}";
         _side = launchOptions.Side;
     }
@@ -196,7 +198,8 @@ internal class ProcessManager : IDisposable
         }
 
         var startInfo = CreateStartInfo(
-            new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath, _engineRoot),
+            new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath, _engineRoot)
+            { ContentReloadInstanceId = _contentReloadInstanceId },
             _pipeName,
             stateFile,
             shouldWaitForDebugger,
@@ -1092,6 +1095,10 @@ internal class ProcessManager : IDisposable
         Add("--side", launchOptions.Side.ToString());
         Add("--bundle", launchOptions.BundlePath);
         Add("--engine-root", launchOptions.EngineRoot);
+        if (launchOptions.ContentReloadInstanceId is { } instance)
+        {
+            Add("--content-reload-instance", instance);
+        }
         if (!string.IsNullOrEmpty(stateFile))
         {
             Add("--state-file", stateFile);
