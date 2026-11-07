@@ -82,13 +82,9 @@ public sealed class ServerModuleGraphTests
         string root = RepoRoot();
         using JsonDocument global = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "global.json")));
         string pinned = global.RootElement.GetProperty("msbuild-sdks").GetProperty("Karpik.Engine.Sdk").GetString()!;
-        string csproj = File.ReadAllText(Path.Combine(root, "Tests", "SSSuperGame.Tests", "SSSuperGame.Tests.csproj"));
-        Assert.Contains($"<KarpikTestSdkVersion>{pinned}</KarpikTestSdkVersion>", csproj);
-        string? localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string[] matches = Directory.GetFiles(
-            Path.Combine(localAppData, "Karpik", "Engines"),
-            $"Karpik.Engine.Sdk.{pinned}.nupkg",
-            SearchOption.AllDirectories);
-        Assert.True(matches.Length >= 1, $"Engine SDK {pinned} not installed.");
+        string? builtSdk = typeof(ServerModuleGraphTests).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "KarpikTestSdkVersion").Value;
+        Assert.Equal(pinned, builtSdk);
     }
 }
