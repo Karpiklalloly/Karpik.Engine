@@ -228,22 +228,25 @@
   <Target Name="_KarpikStageStaticLauncherNatives"
           BeforeTargets="GetCopyToPublishDirectoryItems;CopyFilesToOutputDirectory"
           Condition="'$(KarpikCompositionMode)' == 'Static' And '$(KarpikProjectKind)' == 'Tool' And '$(KarpikEngineRoot)' != '' And Exists('$(KarpikEngineRoot)\native')">
-    <!-- A Static Tool launcher is the self-contained game executable: native
-         dependencies staged by the engine installation must be reachable from
-         it. The installation keeps them under native\<rid>\ and native\
-         runtimes\<rid>\native\; stage the full tree AND flatten the current
-         RID's binaries into the output root so loaders that only probe the
-         application directory succeed. -->
+    <!-- Native loaders must find the selected runtime's binaries next to the
+         executable for both build and publish. An unqualified build uses the
+         SDK's portable host RID, not its distribution-specific RID. -->
+    <PropertyGroup>
+      <_KarpikStaticLauncherRuntimeIdentifier>$(RuntimeIdentifier)</_KarpikStaticLauncherRuntimeIdentifier>
+      <_KarpikStaticLauncherRuntimeIdentifier Condition="'$(_KarpikStaticLauncherRuntimeIdentifier)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</_KarpikStaticLauncherRuntimeIdentifier>
+    </PropertyGroup>
     <ItemGroup>
-      <_KarpikStaticLauncherNative Include="$(KarpikEngineRoot)\native\**\*" />
-
-      <!-- win-x64 host: flatten every current-RID native next to the executable -->
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native', '*.dll'))"
-                                       Condition="'$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == ''" />
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\win-x64', '*.dll'))"
-                                       Condition="Exists('$(KarpikEngineRoot)\native\win-x64')" />
-      <_KarpikStaticLauncherNativeFlat Include="$([System.IO.Directory]::GetFiles('$(KarpikEngineRoot)\native\runtimes\win-x64\native', '*'))"
-                                       Condition="Exists('$(KarpikEngineRoot)\native\runtimes\win-x64\native')" />
+      <_KarpikStaticLauncherNativeFlat Include="$(KarpikEngineRoot)/native/*.dll"
+                                       Condition="$(_KarpikStaticLauncherRuntimeIdentifier.StartsWith('win-'))" />
+      <_KarpikStaticLauncherNativeFlat Include="$(KarpikEngineRoot)/native/*.so*"
+                                       Condition="$(_KarpikStaticLauncherRuntimeIdentifier.StartsWith('linux-'))" />
+      <_KarpikStaticLauncherNativeFlat Include="$(KarpikEngineRoot)/native/*.dylib"
+                                       Condition="$(_KarpikStaticLauncherRuntimeIdentifier.StartsWith('osx-'))" />
+      <!-- Some packages use a universal macOS payload instead of per-RID files. -->
+      <_KarpikStaticLauncherNativeFlat Include="$(KarpikEngineRoot)/native/runtimes/osx/native/*"
+                                       Condition="$(_KarpikStaticLauncherRuntimeIdentifier.StartsWith('osx-')) And !Exists('$(KarpikEngineRoot)/native/runtimes/$(_KarpikStaticLauncherRuntimeIdentifier)/native')" />
+      <_KarpikStaticLauncherNativeFlat Include="$(KarpikEngineRoot)/native/$(_KarpikStaticLauncherRuntimeIdentifier)/*;$(KarpikEngineRoot)/native/runtimes/$(_KarpikStaticLauncherRuntimeIdentifier)/native/*"
+                                       Condition="'$(_KarpikStaticLauncherRuntimeIdentifier)' != ''" />
     </ItemGroup>
     <ItemGroup>
       <!-- ContentWithTargetPath is consumed by GetCopyToPublishDirectoryItems;
