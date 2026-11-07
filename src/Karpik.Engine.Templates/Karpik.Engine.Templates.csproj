@@ -12,7 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**\*" />
-    <Content Include="..\..\templates\Karpik.Game\**\*" Exclude="..\..\templates\Karpik.Game\**\bin\**;..\..\templates\Karpik.Game\**\obj\**" Pack="true" PackagePath="content\Karpik.Game\" />
-    <Content Include="..\..\templates\Karpik.CoinRush\**\*" Exclude="..\..\templates\Karpik.CoinRush\**\bin\**;..\..\templates\Karpik.CoinRush\**\obj\**" Pack="true" PackagePath="content\Karpik.CoinRush\" />
+    <Content Include="..\..\templates\Karpik.Game\**\*" Exclude="..\..\templates\Karpik.Game\**\bin\**;..\..\templates\Karpik.Game\**\obj\**" Pack="true" PackagePath="content/Karpik.Game/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="..\..\templates\Karpik.CoinRush\**\*" Exclude="..\..\templates\Karpik.CoinRush\**\bin\**;..\..\templates\Karpik.CoinRush\**\obj\**" Pack="true" PackagePath="content/Karpik.CoinRush/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

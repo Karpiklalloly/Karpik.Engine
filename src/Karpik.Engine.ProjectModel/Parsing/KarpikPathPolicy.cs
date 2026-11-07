@@ -11,6 +11,8 @@ internal static class KarpikPathPolicy
     /// <summary>Преобразует путь в абсолютный путь, при необходимости относительно базы.</summary>
     public static string Normalize(string path, string? basePath = null)
     {
+        // MSBuild treats both slash styles as separators on every platform.
+        path = path.Replace('\\', Path.DirectorySeparatorChar);
         return basePath == null
             ? Path.GetFullPath(path)
             : Path.GetFullPath(path, basePath);
