@@ -1,5 +1,5 @@
 ---
-status: executing
+status: completed
 complexity: complex
 complexity_source: auto
 development_mode: tdd
@@ -79,7 +79,11 @@ publication semantics remain unchanged.
   Evidence: `/tmp/content-binding-sdk-finalpublish.log`. Local game now pins this
   SDK; full CoinRush.slnx build succeeds (0errors), final tests67/67 pass.
   Evidence: `/tmp/coinrush-binding-final-{build,tests}.log`.
-- [ ] Publish feature commit/PR against the approved parent branch.
+- [x] (2026-11-08) Published feature commit `43873c4` and dependent PR
+  https://github.com/Karpiklalloly/Karpik.Engine/pull/116 against
+  `codex/content-reload-notifications`, labeled `enhancement` and attached to the
+  task. All work packages/ACs and independent review accepted. The PR stays open
+  for developer merge; retarget after its parent merges.
 
 ## Surprises & Discoveries
 
@@ -108,8 +112,7 @@ publication semantics remain unchanged.
 
 Runtime/host bindings and CoinRush migration implemented and verified. Real
 client screenshots prove UI and texture replacement in one process; malformed UI,
-removal and restoration behaved as designed. Independent review found no actionable issues; final SDK was published. Local game builds and all67 tests pass on the final SDK. PR publication remains
-before completion.
+removal and restoration behaved as designed. Independent review found no actionable issues; final SDK was published. Local game builds and all67 tests pass on the final SDK. Dependent PR #116 is published; implementation and verification are complete.
 
 ## Context and Orientation
 
