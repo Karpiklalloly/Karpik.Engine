@@ -6,6 +6,32 @@ using Xunit;
 public sealed class RunnerArgumentsTests
 {
     [Fact]
+    public void ContentReloadInstance_ParsesForDynamicAndStandaloneStaticHosts()
+    {
+        using var tree = new BundleTree(Side.Server);
+        var dynamic = ParseFromInstalledRunner(tree,
+            ["--side", "Server", "--bundle", tree.BundlePath, "--engine-root", tree.EngineRoot, "--content-reload-instance", "server_1-a"]);
+        var standalone = StaticEngineHost.ParseLaunchArguments(Side.Client, ["--content-reload-instance=client_1-a"]);
+        Assert.Equal("server_1-a", dynamic.ContentReloadInstanceId);
+        Assert.Equal("client_1-a", standalone.ContentReloadInstanceId);
+        Assert.Null(standalone.PipeName);
+        Assert.Null(StaticEngineHost.ParseLaunchArguments(Side.Server, []).ContentReloadInstanceId);
+    }
+
+    [Theory]
+    [InlineData("a/b")]
+    [InlineData("имя")]
+    [InlineData("a.b")]
+    public void ContentReloadInstance_RejectsInvalidStaticAndDirectLaunchIdentity(string instance)
+    {
+        Assert.Throws<ArgumentException>(() => StaticEngineHost.ParseLaunchArguments(Side.Client, ["--content-reload-instance", instance]));
+        Assert.Throws<ArgumentException>(() => new RunnerLaunchArguments(Side.Client, "", "", null, null, null, false)
+        { ContentReloadInstanceId = instance });
+        Assert.Throws<ArgumentException>(() => StaticEngineHost.ParseLaunchArguments(Side.Server,
+            ["--content-reload-instance", "one", "--content-reload-instance", "two"]));
+    }
+
+    [Fact]
     public void Parse_RequiresSingleAbsoluteExistingCompleteMatchingBundle()
     {
         using var tree = new BundleTree(Side.Client);

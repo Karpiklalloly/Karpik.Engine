@@ -24,10 +24,17 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     public ContentRegistry(IFileSystem fileSystem, IContentStore store, IEnumerable<IContentPayloadLoader>? loaders = null)
     {
         _fileSystem = fileSystem; _store = store; _loaders = loaders?.ToArray() ?? [];
-        _disposedRoot = new ContentSnapshot(new(), 0, store);
+        _disposedRoot = new ContentSnapshot(new(), 0, store, retainStore: false);
     }
     public void Start()
     {
+        if (_store is FileContentStore { CapturedManifest: { } capturedManifest } captured)
+        {
+            RegisterManifest(capturedManifest, captured);
+            // The snapshot and slots now retain the store; remove the service's bootstrap claim.
+            captured.Dispose();
+            return;
+        }
         using var stream = _fileSystem.OpenRead(Path.Combine(_fileSystem.ContentPath, "manifest.json"));
         RegisterManifest(ContentManifest.Load(stream), _store);
     }
@@ -35,10 +42,16 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         ArgumentNullException.ThrowIfNull(store);
+        if (Volatile.Read(ref _root) != null) throw new InvalidOperationException("RegisterManifest is initialization-only.");
         var entries = Normalize(manifest);
         var slots = entries.ToDictionary(e => e.AssetId, e => new ContentSlot(e, 1, store));
-        if (Interlocked.CompareExchange(ref _root, new ContentSnapshot(slots, 1, store), null) != null)
+        var snapshot = new ContentSnapshot(slots, 1, store);
+        if (Interlocked.CompareExchange(ref _root, snapshot, null) != null)
+        {
+            foreach (var slot in slots.Values) slot.ReleaseStore();
+            snapshot.ReleaseStore();
             throw new InvalidOperationException("RegisterManifest is initialization-only. Use PrepareAsync/TryCommit for updates.");
+        }
     }
     public bool TryResolve<T>(AssetId id, out AssetRef<T> reference)
     {
@@ -48,6 +61,16 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             reference = new AssetRef<T>(id, slot.Version); return true;
         }
         reference = default; return false;
+    }
+    // Binding control needs to distinguish a missing ID from an incompatible CLR
+    // request without changing the public fixed-version reference contract.
+    internal uint CurrentRevision => Volatile.Read(ref _root)?.Revision ?? 0;
+    internal bool TryGetVersion(AssetId id, out uint version)
+    {
+        var root = Volatile.Read(ref _root);
+        if (root != null && root.Slots.TryGetValue(id, out var slot)) { version = slot.Version; return true; }
+        version = 0;
+        return false;
     }
     public bool IsAlive<T>(AssetRef<T> reference) => IsAlive(reference.Id, reference.Version);
     public bool IsAlive(AssetId id, uint version)
@@ -127,7 +150,14 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             if (loader.CanLoad(type, declared)) return await loader.LoadAsync(type, declared, bytes, ct).ConfigureAwait(false);
         return CreatePayload(type, bytes);
     }
-    public async Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, CancellationToken cancellationToken = default)
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(manifest, null, cancellationToken);
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        return PrepareCoreAsync(manifest, store, cancellationToken);
+    }
+    private async Task<PreparedContentUpdate> PrepareCoreAsync(ContentManifest manifest, IContentStore? candidateStore, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (Interlocked.CompareExchange(ref _updating, 1, 0) != 0) throw new InvalidOperationException("An update is preparing or retiring. Await its Completion first.");
@@ -137,6 +167,7 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             if (_retirementFailure != null) throw new InvalidOperationException("Previous retirement failed.", _retirementFailure);
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             var basis = Volatile.Read(ref _root) ?? throw new InvalidOperationException("RegisterManifest must be called first.");
+            var store = candidateStore ?? basis.Store;
             var entries = Normalize(manifest);
             bool identical = entries.Length == basis.Slots.Count && entries.All(e => basis.Slots.TryGetValue(e.AssetId, out var old) && old.Entry.Equals(e));
             uint revision = identical ? basis.Revision : checked(basis.Revision + 1);
@@ -145,7 +176,7 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (basis.Slots.TryGetValue(entry.AssetId, out var previous) && previous.Entry.Equals(entry)) { slots.Add(entry.AssetId, previous); continue; }
-                var slot = new ContentSlot(entry, revision, basis.Store);
+                var slot = new ContentSlot(entry, revision, store);
                 created.Add(slot); slots.Add(entry.AssetId, slot);
                 Type? loadedType = null;
                 if (previous != null) lock (previous.Sync) { if (previous.Payload != null) loadedType = previous.PayloadType; }
@@ -161,7 +192,7 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             }
             cancellationToken.ThrowIfCancellationRequested();
             var replaced = basis.Slots.Values.Where(s => !slots.TryGetValue(s.Entry.AssetId, out var n) || !ReferenceEquals(s, n)).ToArray();
-            var update = new PreparedContentUpdate(this, basis, (identical ? basis : new ContentSnapshot(slots, revision, basis.Store)), replaced, created.ToArray());
+            var update = new PreparedContentUpdate(this, basis, (identical ? basis : new ContentSnapshot(slots, revision, store)), replaced, created.ToArray());
             return update;
         }
         catch (Exception preparationFailure)
@@ -188,7 +219,12 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     private async Task CompleteUpdateAsync(PreparedContentUpdate update)
     {
         Exception? failure = null;
-        try { await RetireSlotsAsync(update.Committed ? update.Replaced : update.Created).ConfigureAwait(false); }
+        try
+        {
+            await RetireSlotsAsync(update.Committed ? update.Replaced : update.Created).ConfigureAwait(false);
+            if (!ReferenceEquals(update.Basis, update.Candidate))
+                (update.Committed ? update.Basis : update.Candidate).ReleaseStore();
+        }
         catch (Exception ex) { _retirementFailure = ex; failure = ex; }
         finally { Volatile.Write(ref _updating, 0); }
         if (failure == null) update.Finished.TrySetResult(); else update.Finished.TrySetException(failure);
@@ -201,7 +237,14 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             throw new InvalidOperationException("Abort or commit the prepared update and await Completion before shutdown.");
         if (Interlocked.Exchange(ref _disposed, 1) != 0) { Volatile.Write(ref _updating, 0); return; }
         var root = Interlocked.Exchange(ref _root, _disposedRoot);
-        try { if (root != null) await RetireSlotsAsync(root.Slots.Values).ConfigureAwait(false); }
+        try
+        {
+            if (root != null)
+            {
+                await RetireSlotsAsync(root.Slots.Values).ConfigureAwait(false);
+                root.ReleaseStore();
+            }
+        }
         finally { Volatile.Write(ref _updating, 0); }
     }
     private static async Task RetireSlotsAsync(IEnumerable<ContentSlot> slots)
@@ -215,13 +258,15 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             object? payload;
             lock (slot.Sync) { inflight = slot.Inflight; payload = slot.Payload; }
             if (inflight != null) try { await inflight.ConfigureAwait(false); } catch { /* Inspect cleanup separately from ordinary old-load errors. */ }
+            bool safeToRelease = slot.RetirementFailure == null;
             if (slot.RetirementFailure is { } loadCleanup) (errors ??= []).Add(loadCleanup);
             try
             {
                 if (payload is IContentTrackedResource { Lifetime: { } lifetime }) await lifetime.DrainAsync().ConfigureAwait(false);
             }
-            catch (Exception ex) { (errors ??= []).Add(ex); }
+            catch (Exception ex) { safeToRelease = false; (errors ??= []).Add(ex); }
             finally { lock (slot.Sync) { slot.Payload = null; slot.PayloadType = null; } }
+            if (safeToRelease) slot.ReleaseStore();
         }
         if (errors != null) throw new AggregateException(errors);
     }

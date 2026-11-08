@@ -4,6 +4,35 @@ using Xunit;
 public sealed class RuntimeLaunchOptionsTests
 {
     [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("a/b")]
+    [InlineData("a.b")]
+    [InlineData("имя")]
+    public void ContentReloadInstance_RejectsInvalidIdentity(string instance)
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        Assert.Throws<ArgumentException>(() => new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot)
+        { ContentReloadInstanceId = instance });
+    }
+
+    [Fact]
+    public void ContentReloadInstance_EnforcesBoundaryAndIsOnlyAddedWhenOptedIn()
+    {
+        using var tree = new RuntimeTree(Side.Server);
+        var ordinary = new RuntimeLaunchOptions(Side.Server, tree.RunnerPath, tree.BundlePath, tree.EngineRoot);
+        Assert.Null(ordinary.ContentReloadInstanceId);
+        Assert.DoesNotContain("--content-reload-instance", ProcessManager.CreateStartInfo(ordinary, "p", null, false, false).ArgumentList);
+        string instance = new('a', 64);
+        var opted = ordinary with { ContentReloadInstanceId = instance };
+        var arguments = ProcessManager.CreateStartInfo(opted, "p", null, false, false).ArgumentList;
+        int index = arguments.IndexOf("--content-reload-instance");
+        Assert.True(index >= 0);
+        Assert.Equal(instance, arguments[index + 1]);
+        Assert.Throws<ArgumentException>(() => ordinary with { ContentReloadInstanceId = new string('a', 65) });
+    }
+
+    [Theory]
     [InlineData(Side.Client)]
     [InlineData(Side.Server)]
     public void Constructor_AcceptsMatchingCompleteBundle(Side side)

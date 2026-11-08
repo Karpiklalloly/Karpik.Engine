@@ -5,6 +5,11 @@ using NeoVeldrid;
 using NeoVeldrid.Sdl2;
 using NeoVeldrid.StartupUtilities;
 
+if (args.Contains("--bindings"))
+{
+    ContentReloadProbe.RunBindings();
+    return;
+}
 if (args.Contains("--di"))
 {
     ContentReloadProbe.RunDi();

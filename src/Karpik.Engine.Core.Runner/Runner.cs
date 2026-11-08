@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Core;
 
-public class EngineRunner : IEngineRunner, IStaticModuleRegistry
+public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
 {
     private readonly ILoggerFactory _hostLoggerFactory;
     private readonly ILoggerFactory? _ownedHostLoggerFactory;
@@ -49,6 +49,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     private AutofacStaticServiceRegistry? _staticServices;
     private ISystemAsyncDestroy[] _asyncDestroyers = [];
     private bool _setupPending;
+    private string? _contentReloadInstanceId;
 
     /// <summary>
     /// Test-only seam: invoked immediately before the Dynamic-mode attributed
@@ -72,6 +73,15 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
     public EcsUpdateSchedulerMode UpdateSchedulerMode { get; set; } = EcsUpdateSchedulerMode.Parallel;
 
     public bool IsApplicationRunning => _application.IsRunning;
+
+    public void EnableContentReload(string instanceId)
+    {
+        if (_setupPending || _engineContainer is not null || _contentReloadInstanceId is not null)
+            throw new InvalidOperationException("Content reload must be configured once before runner setup.");
+        _contentReloadInstanceId = ContentReloadInstanceIdentity.Validate(instanceId)
+            ?? throw new ArgumentNullException(nameof(instanceId));
+        RegisterModule(new ContentReloadHostInstaller(_contentReloadInstanceId));
+    }
 
     public void RegisterTypes(Type[] types)
     {
@@ -207,6 +217,15 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             }
         }
 
+        // Host-owned binding owners advance after registry publication and before
+        // gameplay. Empty compositions resolve an empty enumerable, without
+        // introducing a content registry into content-free hosts.
+        systemRegistry.Add<ContentBindingBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -1900);
+
+        // Appended last so reverse async destruction stops delivery before bindings/gameplay teardown.
+        if (_contentReloadInstanceId is not null)
+            systemRegistry.Add<ContentReloadBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
+
         Type[] orderedTypes = GetRegisteredTypesInDeterministicOrder();
 
         var engineBuilder = new ContainerBuilder();
@@ -214,6 +233,8 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
         engineBuilder.RegisterInstance(scheduler).AsSelf().SingleInstance();
         engineBuilder.RegisterInstance(_time).AsSelf().SingleInstance();
         engineBuilder.RegisterInstance(clientFrameMetrics).AsSelf().SingleInstance();
+        engineBuilder.Register(_ => new EmptyContentChangeSource()).As<Karpik.Content.Runtime.IContentChangeSource>()
+            .As<Karpik.Content.Runtime.IContentReloadLifetime>().SingleInstance();
         RegisterResolver(engineBuilder);
         if (isStatic)
         {
@@ -256,6 +277,11 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
                 AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
             }
             RegisterInstallerServices(builder, ModuleScope.Simulation);
+            // Static composition suppresses reflected system activation, so the
+            // host supplies this stable typed factory explicitly in both modes.
+            builder.Register(context => new ContentBindingBoundarySystem(
+                    context.Resolve<IEnumerable<Karpik.Content.Runtime.IContentBindingRuntime>>()))
+                .AsSelf().SingleInstance();
             systemRegistry.RegisterTypes(builder);
         });
         _serviceResolver = _simulationScope.Resolve<IServiceResolver>();
@@ -773,6 +799,7 @@ public class EngineRunner : IEngineRunner, IStaticModuleRegistry
             _moduleRegistrations.Clear();
             _assemblyLoadRanks.Clear();
             _staticComposition = null;
+            _contentReloadInstanceId = null;
             _staticServices = null;
             _nextAssemblyLoadRank = 0;
             _nextRegistrationRank = 0;

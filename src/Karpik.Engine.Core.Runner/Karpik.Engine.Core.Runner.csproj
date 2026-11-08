@@ -12,6 +12,8 @@
       <ProjectReference Include="..\..\first-parties\DragonECS.Karpik.Extensions\DragonECS.Karpik.Extensions.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Core\Karpik.Engine.Core.csproj" />
       <ProjectReference Include="..\Karpik.Engine.Tooling\Karpik.Engine.Tooling.csproj" />
+      <ProjectReference Include="..\Karpik.Content.Runtime\Karpik.Content.Runtime.csproj" />
+      <ProjectReference Include="..\Karpik.Content.Transport\Karpik.Content.Transport.csproj" />
     </ItemGroup>
 
     <!-- Import plugins targets to copy native DLLs and modules -->

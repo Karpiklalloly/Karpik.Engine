@@ -71,4 +71,5 @@ public static class ContentDiagnosticCodes
     public const string TargetDependencyNotSelected = "KCO022";
     public const string SharedDependsOnSided = "KCO023";
     public const string ConcreteBuildTargetRequired = "KCO024";
+    public const string GenerationCollectionUnavailable = "KCO025";
 }

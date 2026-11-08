@@ -33,6 +33,14 @@
       <KarpikTestEngineShared>$([System.IO.Path]::Combine('$(KarpikTestEngineRoot)', 'shared'))</KarpikTestEngineShared>
     </PropertyGroup>
     <ItemGroup>
+      <Reference Include="Karpik.Jobs">
+        <HintPath>$(KarpikTestEngineShared)/Karpik.Jobs.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="NeoVeldrid">
+        <HintPath>$(KarpikTestEngineShared)/NeoVeldrid.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
       <Reference Include="DragonECS">
         <HintPath>$(KarpikTestEngineShared)/DragonECS.dll</HintPath>
         <Private>true</Private>

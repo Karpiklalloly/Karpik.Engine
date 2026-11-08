@@ -71,11 +71,25 @@ Independent audit review found no critical/important issues and one minor probe-
 
 `--content` loads real cooked green/red PNGs through ContentTextureLoader and ContentRegistry. It publishes while an old frame is ready, transfers ownership through the actual MergeThread, proves a claimed context is not reused while a newer frame completes, submits/discards command lists, verifies exact old-green/new-red pixels, supersedes ready lists and drains shutdown. Its small test pipeline bypasses the unrelated legacy shader-file loader; framebuffer readback uses a separate offscreen target.
 
-`--di` creates production registry/merge services through Autofac in both registration and activation orders, leaves a tracked texture in a pending CPU frame and disposes the container. Before the constructor lifetime dependency this reproduced a timeout; with it both orders drain successfully. No shader or merge worker initialization is necessary for the writing-frame shutdown case.
+`--di` creates production registry/coordinator/merge services through Autofac in both registration and activation orders. It commits a coordinator update while an old texture remains pinned by a writing CPU frame, then disposes the container. The optional coordinator lifetime dependency forces merge ownership release before coordinator retirement join and registry disposal. Both orders passed on 2026-11-05. No shader or merge worker initialization is necessary for the writing-frame shutdown case.
 
 ```sh
 dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --content
 dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --di
 ```
 
-Final integration and six refreshed native ordering/control results are archived in content-runtime.txt. The earlier unsubmitted-wrapper negative controls deliberately retain the legacy untracked constructor and still reproduce early disposal; they do not claim tracked Content textures behave that way.
+The earlier integration and six native ordering/control results are archived in content-runtime.txt. Current coordinator shutdown and Content replacement verification is recorded in `plans/content-reload-notifications-execplan.md`. The earlier unsubmitted-wrapper negative controls deliberately retain the legacy untracked constructor and still reproduce early disposal; they do not claim tracked Content textures behave that way.
+
+## Live Content bindings
+
+`--bindings` uses production ContentBindings with cooked textures and a real GL
+framebuffer. It requires exact green/red/green readback across replacement and
+re-add, proves an old writing-frame claim delays retirement, and verifies removal
+clears the selected binding before cleanup. Run:
+
+```sh
+dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --bindings
+```
+
+This mode passed on 2026-11-08. It complements CoinRush's recorded-title test and
+running-client transport checks; it does not inspect the client window's pixels.

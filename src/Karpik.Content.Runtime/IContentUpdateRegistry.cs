@@ -4,6 +4,7 @@ public interface IContentUpdateRegistry
 {
     bool TryResolve<T>(AssetId id, out AssetRef<T> reference);
     Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, CancellationToken cancellationToken = default);
+    Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store, CancellationToken cancellationToken = default);
     bool TryCommit(PreparedContentUpdate update);
 }
 
