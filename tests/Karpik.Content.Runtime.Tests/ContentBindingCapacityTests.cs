@@ -35,21 +35,28 @@ public sealed class ContentBindingCapacityTests(ITestOutputHelper output)
         output.WriteLine($"4096 ready bindings, mean boundary: {elapsed * 1_000_000d / Stopwatch.Frequency / 100:F1} us; allocated {allocated} bytes");
 
         using var next = await registry.PrepareAsync(Manifest("two"));
-        Assert.True(registry.TryCommit(next));
-        before = GC.GetAllocatedBytesForCurrentThread();
-        start = Stopwatch.GetTimestamp();
-        bindings.AdvanceBoundary();
-        elapsed = Stopwatch.GetTimestamp() - start;
-        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.Equal(0, allocated);
-        output.WriteLine($"4096 changed ready bindings: {elapsed * 1_000_000d / Stopwatch.Frequency:F1} us; allocated {allocated} bytes");
-        foreach (var handle in handles)
+        try
         {
-            Assert.True(bindings.TryGetStatus(handle, out var status));
-            Assert.Equal(ContentBindingState.Ready, status.State);
-            Assert.Equal(2u, status.PresentedVersion);
+            Assert.True(registry.TryCommit(next));
+            before = GC.GetAllocatedBytesForCurrentThread();
+            start = Stopwatch.GetTimestamp();
+            bindings.AdvanceBoundary();
+            elapsed = Stopwatch.GetTimestamp() - start;
+            allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.Equal(0, allocated);
+            output.WriteLine($"4096 changed ready bindings: {elapsed * 1_000_000d / Stopwatch.Frequency:F1} us; allocated {allocated} bytes");
+            foreach (var handle in handles)
+            {
+                Assert.True(bindings.TryGetStatus(handle, out var status));
+                Assert.Equal(ContentBindingState.Ready, status.State);
+                Assert.Equal(2u, status.PresentedVersion);
+            }
         }
-        await next.Completion;
+        finally
+        {
+            next.Dispose();
+            await next.Completion;
+        }
     }
 
     private sealed class Store : IContentStore
