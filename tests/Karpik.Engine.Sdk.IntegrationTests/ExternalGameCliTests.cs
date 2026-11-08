@@ -35,7 +35,7 @@ public sealed class ExternalGameCliTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Packed_templates_materialize_inside_the_requested_directory()
+    public async Task ContentBinding_packed_templates_materialize_inside_the_requested_directory()
     {
         string repositoryRoot = GetRepositoryRoot();
         string temporaryRoot = Path.Combine(Path.GetTempPath(), $"KarpikTemplates_{Guid.NewGuid():N}");
@@ -60,6 +60,11 @@ public sealed class ExternalGameCliTests
                 Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains("//", StringComparison.Ordinal));
                 Assert.Contains(archive.Entries, entry => entry.FullName == "content/Karpik.CoinRush/.template.config/template.json");
                 Assert.Contains(archive.Entries, entry => entry.FullName == "content/Karpik.Game/.template.config/template.json");
+                foreach (string source in new[] { "ClientHudText.cs", "ClientPresentationAssets.cs", "ClientPresentationJsonContext.cs" })
+                    Assert.Contains(archive.Entries, entry => entry.FullName ==
+                        $"content/Karpik.CoinRush/Source/SSSuperGame.Client/CoinRush/{source}");
+                Assert.Contains(archive.Entries, entry => entry.FullName ==
+                    "content/Karpik.CoinRush/Tests/SSSuperGame.Tests/PresentationBindingTests.cs");
             }
 
             string hive = Path.Combine(temporaryRoot, "hive");

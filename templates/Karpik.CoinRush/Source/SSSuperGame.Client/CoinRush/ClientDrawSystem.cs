@@ -1,16 +1,11 @@
 using System.Drawing;
 using System.Numerics;
 using DCFApixels.DragonECS;
-using Karpik.Content.Generated;
 using Karpik.Content.Runtime;
 using Karpik.Engine.Client.Graphics.Core;
-using Karpik.Engine.Client.Graphics.Core.AssetManagement;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using Karpik.Engine.Shared.ECS.Scheduling;
-using Karpik.Engine.Shared.AssetManagement.Core;
-using Karpik.Jobs;
-using Microsoft.Extensions.Logging;
 using SSSuperGame.Shared.CoinRush;
 
 namespace SSSuperGame.Client.CoinRush;
@@ -19,25 +14,23 @@ namespace SSSuperGame.Client.CoinRush;
 /// <param name="world">Client world containing display entities.</param>
 /// <param name="cameras">Camera used to position player labels.</param>
 /// <param name="window">Viewport size for screen-space HUD placement.</param>
-/// <param name="assets">Asset manager loading textures and fonts.</param>
-/// <param name="content">Registry loading localized UI strings.</param>
+/// <param name="presentation">Scoped presentation owner and live Content bindings.</param>
 /// <param name="time">Clock used for presentation animation.</param>
-/// <param name="log">Logger for asset loading diagnostics.</param>
 [SequentialSystem]
 public sealed class ClientDrawSystem(
     EcsDefaultWorld world,
     GraphicsCameraState cameras,
     IWindow window,
-    IAssetsManager assets,
-    IContentRegistry content,
-    Time time,
-    ILogger<ClientDrawSystem> log)
-    : ISystemAsyncInit, ISystemRenderPrepare, ISystemDestroy
+    ClientPresentationAssets presentation,
+    Time time)
+    : ISystemAsyncInit, ISystemRenderPrepare, ISystemAsyncDestroy
 {
-    /// <summary>Warms queries, loads UI strings, and starts graphic asset loads.</summary>
-    /// <param name="ct">Cancellation token for UI content loading.</param>
+    /// <summary>Warms queries and initializes presentation bindings/font on the cold startup path.</summary>
     public async ValueTask InitAsync(CancellationToken ct)
     {
+        // At most two player labels plus phase and score use copied text buffers.
+        GraphicsContext.EnsureThreadBufferCapacity(rects: 512, textures: 128, texts: 32,
+            textChars: ClientHudText.MaximumFormattedLength * 4);
         world.Where(out GeoAspect _);
         world.Where(out CheckpointAspect _);
         world.Where(out CoinAspect _);
@@ -47,40 +40,25 @@ public sealed class ClientDrawSystem(
         world.Where(out FxAspect _);
         var states = world.Where(out DrawStateAspect stateAspect);
         int stateEntity = states.Count == 0 ? world.NewEntity() : states[0];
-        UiStrings? ui = await LoadJson<UiStrings>(ContentRefs.Game_CoinRush_UiStrings, ct);
-        ref ClientDrawState state = ref world.GetPool<ClientDrawState>().TryAddOrGet(stateEntity);
-        state.Ui = ui ?? CoinRushContent.DefaultUi();
-        state.PlayerJob = assets.LoadAssetByPathAsync(ContentRefs.Game_Sprites_Player_SourcePath);
-        state.CoinJob = assets.LoadAssetByPathAsync(ContentRefs.Game_CoinRush_Coin_SourcePath);
-        state.TileJob = assets.LoadAssetByPathAsync(ContentRefs.Game_CoinRush_Tile_SourcePath);
-        state.FontJob = assets.LoadAssetByPathAsync(ContentRefs.Game_PressStart_Font_SourcePath);
-        log.LogInformation("CoinRush client draw init: texture/font loads started.");
+        ClientDrawState handles = await presentation.InitializeAsync(ct);
+        world.GetPool<ClientDrawState>().TryAddOrGet(stateEntity) = handles;
     }
 
-    /// <summary>Releases all loaded and pending graphic asset handles.</summary>
-    public void Destroy()
+    /// <summary>Drains the scoped presentation owner before gameplay teardown completes.</summary>
+    public async ValueTask DestroyAsync()
     {
+        await presentation.DisposeAsync();
         var states = world.Where(out DrawStateAspect aspect);
-        if (states.Count == 0) return;
-        ref ClientDrawState state = ref aspect.States.Get(states[0]);
-        state.PlayerHandle?.Dispose();
-        state.CoinHandle?.Dispose();
-        state.TileHandle?.Dispose();
-        state.FontHandle?.Dispose();
-        state.PlayerJob?.Dispose();
-        state.CoinJob?.Dispose();
-        state.TileJob?.Dispose();
-        state.FontJob?.Dispose();
-        state = default;
+        if (states.Count != 0) aspect.States.Get(states[0]) = default;
     }
 
-    /// <summary>Completes ready loads and records this frame's draw commands.</summary>
+    /// <summary>Borrows current ready values for this frame and records draw commands.</summary>
     public void RenderPrepare()
     {
         var states = world.Where(out DrawStateAspect aspect);
         if (states.Count == 0) return;
-        ref ClientDrawState state = ref aspect.States.Get(states[0]);
-        PollAssets(ref state);
+        ref readonly ClientDrawState handles = ref aspect.States.Read(states[0]);
+        ClientPresentationFrame state = presentation.Read(in handles);
         ICommandBuffer buf = GraphicsContext.Buffer;
         float now = (float)time.TotalTime;
 
@@ -89,61 +67,6 @@ public sealed class ClientDrawSystem(
         DrawCoins(buf, now, in state);
         DrawPlayers(buf, now, in state);
         DrawHud(buf, in state);
-    }
-
-    /// <summary>Transfers completed asset jobs into owned textures and fonts.</summary>
-    /// <param name="state">Draw resources being updated.</param>
-    private void PollAssets(ref ClientDrawState state)
-    {
-        if (state.PlayerTex is null && TryComplete(ref state.PlayerJob, out AssetHandle<Asset> h))
-        {
-            state.PlayerHandle = h;
-            state.PlayerTex = (h.Asset as TextureAsset)?.Texture;
-        }
-        if (state.CoinTex is null && TryComplete(ref state.CoinJob, out AssetHandle<Asset> h2))
-        {
-            state.CoinHandle = h2;
-            state.CoinTex = (h2.Asset as TextureAsset)?.Texture;
-        }
-        if (state.TileTex is null && TryComplete(ref state.TileJob, out AssetHandle<Asset> h3))
-        {
-            state.TileHandle = h3;
-            state.TileTex = (h3.Asset as TextureAsset)?.Texture;
-        }
-        if (state.Font is null && TryComplete(ref state.FontJob, out AssetHandle<Asset> h4))
-        {
-            state.FontHandle = h4;
-            state.Font = (h4.Asset as FontAsset)?.Font;
-            if (state.Font is not null && !state.LoggedTextMode)
-            {
-                state.LoggedTextMode = true;
-                log.LogInformation("Font ready, HUD text enabled.");
-            }
-        }
-    }
-
-    /// <summary>Reads and releases a completed asset job without blocking.</summary>
-    /// <param name="job">Pending job, cleared after completion or failure.</param>
-    /// <param name="handle">Completed asset handle when successful.</param>
-    /// <returns><see langword="true"/> when the job completed with a valid asset.</returns>
-    private static bool TryComplete(ref JobHandle<AssetHandle<Asset>>? job, out AssetHandle<Asset> handle)
-    {
-        handle = default;
-        if (job is not { IsCompleted: true } j)
-        {
-            return false;
-        }
-        try
-        {
-            handle = j.GetAwaiter().GetResult();
-        }
-        catch
-        {
-            job = null;
-            return false;
-        }
-        job = null;
-        return handle.IsValid;
     }
 
     /// <summary>Draws the world-space background.</summary>
@@ -159,7 +82,7 @@ public sealed class ClientDrawSystem(
     /// <param name="buf">Command buffer receiving level geometry.</param>
     /// <param name="now">Current presentation time in seconds.</param>
     /// <param name="state">Loaded draw resources.</param>
-    private void DrawLevel(ICommandBuffer buf, float now, in ClientDrawState state)
+    private void DrawLevel(ICommandBuffer buf, float now, in ClientPresentationFrame state)
     {
         var geo = world.Where(out GeoAspect aspect);
         var platformPool = world.GetPool<PlatformTag>();
@@ -219,7 +142,7 @@ public sealed class ClientDrawSystem(
     /// <param name="buf">Command buffer receiving coin graphics.</param>
     /// <param name="now">Current presentation time in seconds.</param>
     /// <param name="state">Loaded draw resources.</param>
-    private void DrawCoins(ICommandBuffer buf, float now, in ClientDrawState state)
+    private void DrawCoins(ICommandBuffer buf, float now, in ClientPresentationFrame state)
     {
         var coins = world.Where(out CoinAspect coinAspect);
         for (int i = 0; i < coins.Count; i++)
@@ -251,7 +174,7 @@ public sealed class ClientDrawSystem(
     /// <param name="buf">Command buffer receiving player graphics.</param>
     /// <param name="now">Current presentation time in seconds.</param>
     /// <param name="state">Loaded draw resources and labels.</param>
-    private void DrawPlayers(ICommandBuffer buf, float now, in ClientDrawState state)
+    private void DrawPlayers(ICommandBuffer buf, float now, in ClientPresentationFrame state)
     {
         int localSlot = -1;
         var locals = world.Where(out LocalAspect localAspect);
@@ -260,6 +183,7 @@ public sealed class ClientDrawSystem(
             localSlot = localAspect.Locals.Read(locals[i]).Slot;
         }
         var players = world.Where(out PlayerAspect playerAspect);
+        Span<char> label = stackalloc char[ClientHudText.MaximumFormattedLength];
         for (int i = 0; i < players.Count; i++)
         {
             int e = players[i];
@@ -293,8 +217,10 @@ public sealed class ClientDrawSystem(
                     .WithViewport(window.Width, window.Height)
                     .WorldToScreen(new Vector2(d.X, d.Y + 1.4f));
                 string name = p.Index == 0 ? state.Ui.Player0 : state.Ui.Player1;
-                CommandBufferDrawExtensions.AddTextCentered(
-                    buf, state.Font, name + " " + p.Score, screen,
+                if (!ClientHudText.TryPlayerLabel(label, name, p.Score, out int labelLength))
+                    throw new InvalidDataException("CoinRush player label exceeds the warmed HUD text capacity.");
+                CommandBufferDrawExtensions.AddTextCenteredCopy(
+                    buf, state.Font, label[..labelLength], screen,
                     18f, Color.White, 0f, DrawSpace.Screen, DrawSortKey.FromLayer(5));
             }
         }
@@ -303,7 +229,7 @@ public sealed class ClientDrawSystem(
     /// <summary>Draws match phase, score, controls, and end-of-match text.</summary>
     /// <param name="buf">Command buffer receiving screen-space HUD graphics.</param>
     /// <param name="state">Loaded font and localized strings.</param>
-    private void DrawHud(ICommandBuffer buf, in ClientDrawState state)
+    private void DrawHud(ICommandBuffer buf, in ClientPresentationFrame state)
     {
         MatchState m = default;
         bool found = false;
@@ -326,23 +252,19 @@ public sealed class ClientDrawSystem(
         CommandBufferDrawExtensions.AddRectCentered(
             buf, new Vector2(cx, 46f), new Vector2(vp.X, 92f),
             Color.FromArgb(140, 10, 14, 24), 0f, DrawSpace.Screen, DrawSortKey.FromLayer(10));
-        string phase = m.Phase switch
-        {
-            MatchPhase.WaitingForPlayers => state.Ui.Waiting,
-            MatchPhase.Countdown => state.Ui.Countdown + " " + MathF.Ceiling(m.TimeLeft),
-            MatchPhase.Running => "⏱ " + MathF.Ceiling(m.TimeLeft),
-            MatchPhase.Finished => m.Winner < 0 ? state.Ui.Draw : ((state.Ui.Title + " ") + (m.Winner == 0 ? state.Ui.Player0 : state.Ui.Player1)),
-            _ => string.Empty,
-        };
-        string score = state.Ui.Player0 + " " + m.Score0 + " : " + m.Score1 + " " + state.Ui.Player1;
+        Span<char> phase = stackalloc char[ClientHudText.MaximumFormattedLength];
+        Span<char> score = stackalloc char[ClientHudText.MaximumFormattedLength];
+        if (!ClientHudText.TryPhase(phase, state.Ui, in m, out int phaseLength) ||
+            !ClientHudText.TryScore(score, state.Ui, in m, out int scoreLength))
+            throw new InvalidDataException("CoinRush combined HUD text exceeds its warmed text capacity.");
         CommandBufferDrawExtensions.AddTextCentered(
             buf, state.Font, state.Ui.Title,
             new Vector2(cx, 16f), 18f, Color.White, 0f, DrawSpace.Screen, DrawSortKey.FromLayer(11));
-        CommandBufferDrawExtensions.AddTextCentered(
-            buf, state.Font, phase,
+        CommandBufferDrawExtensions.AddTextCenteredCopy(
+            buf, state.Font, phase[..phaseLength],
             new Vector2(cx, 40f), 18f, Color.White, 0f, DrawSpace.Screen, DrawSortKey.FromLayer(11));
-        CommandBufferDrawExtensions.AddTextCentered(
-            buf, state.Font, score,
+        CommandBufferDrawExtensions.AddTextCenteredCopy(
+            buf, state.Font, score[..scoreLength],
             new Vector2(cx, 66f), 18f, Color.White, 0f, DrawSpace.Screen, DrawSortKey.FromLayer(11));
         CommandBufferDrawExtensions.AddTextCentered(
             buf, state.Font, state.Ui.ControlsHint,
@@ -363,36 +285,6 @@ public sealed class ClientDrawSystem(
                 buf, state.Font, state.Ui.Finished, new Vector2(cx, 120f),
                 64f, Color.Gold, 0f, DrawSpace.Screen, DrawSortKey.FromLayer(12));
         }
-    }
-
-    /// <summary>Loads and deserializes localized UI strings from cooked JSON content.</summary>
-    /// <typeparam name="T">Reference type represented by the JSON asset.</typeparam>
-    /// <param name="asset">Cooked JSON asset reference.</param>
-    /// <param name="ct">Cancellation token for loading.</param>
-    /// <returns>The parsed value, or <see langword="null"/> on failure.</returns>
-    private async ValueTask<T?> LoadJson<T>(AssetRef<RawJsonPayload> asset, CancellationToken ct) where T : class
-    {
-        await Task.Yield();
-        try
-        {
-            await content.LoadAsync(asset, ct);
-            if (content.TryGet(asset, out AssetLease<RawJsonPayload> lease))
-            {
-                using (lease)
-                {
-                    string? json = lease.Payload?.Json;
-                    if (!string.IsNullOrEmpty(json))
-                    {
-                        return System.Text.Json.JsonSerializer.Deserialize<T>(json);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            log.LogWarning(ex, "Draw content load failed.");
-        }
-        return null;
     }
 
     /// <summary>Selects static geometry with world transforms.</summary>
@@ -445,21 +337,11 @@ public sealed class ClientDrawSystem(
     }
 }
 
-/// <summary>Owns client draw assets, loading jobs, and localized strings.</summary>
+/// <summary>Value-only handles for the scoped presentation owner; safe to retain in ECS.</summary>
 public struct ClientDrawState : IEcsComponent
 {
-    public ITexture2D? PlayerTex;
-    public ITexture2D? CoinTex;
-    public ITexture2D? TileTex;
-    public IFont? Font;
-    public AssetHandle<Asset>? PlayerHandle;
-    public AssetHandle<Asset>? CoinHandle;
-    public AssetHandle<Asset>? TileHandle;
-    public AssetHandle<Asset>? FontHandle;
-    public JobHandle<AssetHandle<Asset>>? PlayerJob;
-    public JobHandle<AssetHandle<Asset>>? CoinJob;
-    public JobHandle<AssetHandle<Asset>>? TileJob;
-    public JobHandle<AssetHandle<Asset>>? FontJob;
-    public UiStrings Ui;
-    public bool LoggedTextMode;
+    public ContentBinding<UiStrings> Ui;
+    public ContentBinding<ITexture2D> Player;
+    public ContentBinding<ITexture2D> Coin;
+    public ContentBinding<ITexture2D> Tile;
 }

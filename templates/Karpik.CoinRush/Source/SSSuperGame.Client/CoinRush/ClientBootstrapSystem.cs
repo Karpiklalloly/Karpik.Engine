@@ -12,15 +12,11 @@ namespace SSSuperGame.Client.CoinRush;
 /// <summary>Loads client match content and creates local display entities during initialization.</summary>
 /// <param name="world">Client display world.</param>
 /// <param name="content">Registry for cooked content references.</param>
-/// <param name="store">Store containing cooked content.</param>
-/// <param name="fs">File system used to find the content manifest.</param>
 /// <param name="config">Network settings to compare with cooked match content.</param>
 /// <param name="log">Logger for content loading diagnostics.</param>
 public sealed class ClientBootstrapSystem(
     EcsDefaultWorld world,
     IContentRegistry content,
-    IContentStore store,
-    Karpik.Engine.Core.FileSystem.IFileSystem fs,
     NetworkConfig config,
     ILogger<ClientBootstrapSystem> log)
     : ISystemAsyncInit
@@ -30,7 +26,6 @@ public sealed class ClientBootstrapSystem(
     /// <exception cref="InvalidDataException">Source network settings differ from cooked match settings.</exception>
     public async ValueTask InitAsync(CancellationToken ct)
     {
-        ContentBootstrap.EnsureManifest(content, store, fs, log, "client");
         MatchConfig match = await LoadJson<MatchConfig>(ContentRefs.Game_CoinRush_Match, ct)
             ?? CoinRushContent.DefaultMatch();
         CoinRushContent.ValidateMatch(match);
@@ -38,8 +33,7 @@ public sealed class ClientBootstrapSystem(
             throw new InvalidDataException("CoinRush network settings differ between source and cooked content.");
         LevelConfig? level = await LoadJson<LevelConfig>(ContentRefs.Game_CoinRush_Level, ct);
         if (level is not null) CoinRushContent.ValidateLevel(level);
-        UiStrings? ui = await LoadJson<UiStrings>(ContentRefs.Game_CoinRush_UiStrings, ct);
-        log.LogInformation("CoinRush client content ready (ui: {Title}).", ui?.Title ?? "fallback");
+        log.LogInformation("CoinRush client gameplay content ready; presentation uses live bindings.");
 
         if (world.GetPool<LocalPlayer>().Count > 0)
         {

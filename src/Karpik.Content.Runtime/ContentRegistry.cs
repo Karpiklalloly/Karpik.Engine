@@ -62,6 +62,16 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         }
         reference = default; return false;
     }
+    // Binding control needs to distinguish a missing ID from an incompatible CLR
+    // request without changing the public fixed-version reference contract.
+    internal uint CurrentRevision => Volatile.Read(ref _root)?.Revision ?? 0;
+    internal bool TryGetVersion(AssetId id, out uint version)
+    {
+        var root = Volatile.Read(ref _root);
+        if (root != null && root.Slots.TryGetValue(id, out var slot)) { version = slot.Version; return true; }
+        version = 0;
+        return false;
+    }
     public bool IsAlive<T>(AssetRef<T> reference) => IsAlive(reference.Id, reference.Version);
     public bool IsAlive(AssetId id, uint version)
     {

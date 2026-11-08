@@ -12,6 +12,17 @@ Replacing the registry dictionary during live use races reads and asynchronous l
 
 An `AssetRef<T>` identifies one registry-local generation. Initial refs remain version 1, including generated fields. Resolve a current reference explicitly with `TryResolve<T>(id, out reference)` after a change; no reference silently follows the latest payload. Unloaded IDs can be resolved, then loaded. A bound incompatible CLR type cannot be resolved or loaded. Do not transfer version numbers between registry/process lifetimes: restored ECS data must re-resolve its authoring AssetIds.
 
+Live presentation is an explicit additive consumer through `IContentBindings`.
+Its unmanaged `ContentBinding<T>` identifies a Simulation-owned dense slot, not a
+registry version. The scoped owner follows selected IDs, performs initial loading
+and typed JSON projection cold, and exposes borrowed ready values at safe frame
+boundaries. Failures preserve last-good presentation; removal clears to fallback.
+Ready texture replacements use registry preparation and switch before new frame
+claims; a managed old reference does not extend the retirement contract. Bindings
+do not change fixed-version refs, manifest atomicity or transport `applied`
+semantics. See [the binding contract](../content-bindings.md) for capacity,
+projection metadata ownership, failure and teardown behavior.
+
 Published lookup dictionaries and slot descriptors are immutable. Slots contain a fixed generation/store binding and one atomically published payload reference. Readers capture one root and do not lock, allocate or perform I/O. Loading captures its slot/store; a late result cannot overwrite another generation. Single-flight applies to compatible requests. Failed/cancelled loading may retry the same generation.
 
 Preparation is control-plane work, outside Update/Render. It copies and normalizes descriptors/dependency order, rejects invalid schema/duplicate IDs/missing dependencies/cycles, then stages changed assets observed loaded under their slot lock. An asset observed loading gets a new unloaded slot; completion of old work does not change that choice. Unchanged slots preserve payload identity, in-flight work and generation. An identical manifest does not consume a revision. Changed/added slots use the next checked registry revision; removal followed by re-add cannot revive an old ref. Revision wrap is rejected.

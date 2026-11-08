@@ -6,7 +6,7 @@ using Karpik.Engine.Client.Graphics.OpenGL;
 using NeoVeldrid;
 using NeoVeldrid.StartupUtilities;
 
-internal static class ContentReloadProbe
+internal static partial class ContentReloadProbe
 {
     private sealed class Store : IContentStore
     {
