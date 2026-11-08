@@ -5,7 +5,7 @@ complexity_source: auto
 development_mode: tdd
 source_design: ../docs/brainstorms/2026-11-08-content-bindings.md
 design_revision: 4
-plan_revision: 1
+plan_revision: 2
 approved_plan_revision: 1
 approved_design_revision: 4
 ---
@@ -32,8 +32,54 @@ publication semantics remain unchanged.
   `codex/content-reload-notifications` at baseline `95b976f`.
 - [x] (2026-11-08) User approved plan revision 1/design revision 4, including
   acceptance of PR #114, with “Делай”.
-- [ ] Complete WP-00 through WP-05 with recorded verification per milestone.
-- [ ] Complete independent read-only review, fixes and final acceptance.
+- [x] (2026-11-08) WP-00: PR #114 merged as `4369d5f`; synchronized parent and
+  dependent branches. Feature diff against parent contains only feature docs.
+- [x] (2026-11-08) WP-01 accepted: 14 tests failed with the unimplemented shell,
+  then 14 passed; 10,000 warmed handle/status reads allocated 0 bytes.
+  Evidence: `/tmp/content-binding-contract-{red,green}.log` and inspected sources.
+- [x] (2026-11-08) WP-02 accepted after root inspection: full Runtime suite87/87;
+  binding filter28/28 including source-generated collectible positive/control
+  cases and4096-capacity zero-allocation boundaries. Evidence:
+  `/tmp/content-binding-sourcegen-all.log`, `/tmp/content-binding-runtime-full.log`
+  and `/tmp/content-binding-runtime-results/*.trx`.
+- [x] (2026-11-08) New GPU binding readback passed on real OpenGL: green old,
+  red replacement, old writing-frame pin retained until cleared, removal and
+  green re-add. Evidence: `/tmp/content-binding-gpu-{build,run}.log`.
+- [x] (2026-11-08) Full Runner suite first run175pass/1existing lifecycle timeout
+  (`ReplacementWorkerReloadRequest_QueuedDuringReloadRunsAfterTransition`);
+  rerun below used repository CI nonparallel collection configuration. Binder host
+  cases themselves passed.
+- [x] (2026-11-08) Full Runner suite passed176/176 with the repository's CI
+  nonparallel collection configuration (`-p:CI=true`), including Static/Dynamic
+  binding hosts. Evidence: `/tmp/content-binding-runner-ci.log`.
+- [x] (2026-11-08) WP-03 accepted: host lifecycle tests, complete Runner regression
+  and real GPU readback passed.
+- [x] (2026-11-08) WP-04 accepted: packaged local CoinRush builds; all67 tests
+  pass, including actual recorded-title replacement, unmanaged ECS state and zero
+  allocations in reads/HUD formatting. Numeric span formatting removed Debug
+  boxing; cold JSON validation bounds a fresh simulation-thread text buffer.
+  Evidence: `/tmp/coinrush-content-binding-tests3.log`.
+- [x] (2026-11-08) Tool26/26, Graphics44/44 and SDK packaged-template1/1 pass.
+  Evidence: `/tmp/content-binding-{tool,graphics,sdk}-tests.log`.
+- [x] (2026-11-08) Real CoinRush client+server: same client process accepted UI
+  and tile replacement, malformed typed UI kept last good title, tile deletion
+  used shape fallback, re-add restored original; second publication visibly
+  changed title and platform texture again. Screenshots inspected:
+  `/tmp/coinrush-binding-window-{before,restored,update2}.png`.
+  `before` is after bad UI/removal and shows last-good LIVE BINDING1 title plus
+  fallback platforms; restored shows COIN RUSH/wood; update2 shows LIVE BINDING2
+  and coin-textured platforms. Delivery logs `/tmp/coinrush-binding-live-*.log`.
+  Source game Content was never edited; temporary source restored/published.
+- [x] WP-05 SDK publication/version pin and all verification accepted.
+- [x] (2026-11-08) Independent read-only reviewer `bindings_review` inspected the
+  integrated source, design/ACs, worker/teardown/pins, collectible metadata,
+  Static/Dynamic composition and sample/package coverage. No actionable findings.
+- [x] (2026-11-08) Final local SDK published as `0.6.0-local-20261108-191733`,
+  immutable engine installation `0.6.0-dev-94993fdc67bc7a8bcec52737bbce53b6cdbee8b424a6c615bda98885f69bc772`.
+  Evidence: `/tmp/content-binding-sdk-finalpublish.log`. Local game now pins this
+  SDK; full CoinRush.slnx build succeeds (0errors), final tests67/67 pass.
+  Evidence: `/tmp/coinrush-binding-final-{build,tests}.log`.
+- [ ] Publish feature commit/PR against the approved parent branch.
 
 ## Surprises & Discoveries
 
@@ -60,8 +106,10 @@ publication semantics remain unchanged.
 
 ## Outcomes & Retrospective
 
-Design and plan saved. No runtime code changed, implementation tests run,
-independent review performed or implementation approval received yet.
+Runtime/host bindings and CoinRush migration implemented and verified. Real
+client screenshots prove UI and texture replacement in one process; malformed UI,
+removal and restoration behaved as designed. Independent review found no actionable issues; final SDK was published. Local game builds and all67 tests pass on the final SDK. PR publication remains
+before completion.
 
 ## Context and Orientation
 
@@ -108,7 +156,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-00 — Integrate the existing CoinRush test prerequisite
 
-- Status: pending.
+- Status: completed.
 - Goal: make the source template's test setup match the already-fixed local game.
 - Scope: after approval of this plan, recheck PR #114 and accept its existing
   test-SDK fix if its head remains `6b50404` and the reviewed scope is unchanged.
@@ -124,7 +172,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-01 — Define and test dense handle/status/owner contracts
 
-- Status: pending.
+- Status: completed.
 - Goal: implement D7/D9 value handles, typed ready reads, statuses, cold
   registration/release and bounded capacity in `src/Karpik.Content.Runtime`.
 - Scope: public IContentBindings/ContentBinding<T> contracts, owner/reuse identity,
@@ -140,7 +188,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-02 — Implement cold loading, typed JSON and latest-wins publication
 
-- Status: pending.
+- Status: completed.
 - Goal: supply automatic initial/update loading and JSON projection per D4–D9.
 - Scope: scoped implementation in Content.Runtime, bounded mailboxes and cold
   worker, BindJson<T> with JsonTypeInfo<T>, retry/status diagnostics, supersession,
@@ -158,7 +206,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-03 — Integrate host boundaries, DI and texture ownership
 
-- Status: pending.
+- Status: completed.
 - Goal: advance scoped bindings automatically in Static/Dynamic hosts before
   gameplay/render consumers and preserve GPU retirement/shutdown safety.
 - Scope: Runner lifecycle integration, stable typed registrations/factories and
@@ -166,7 +214,8 @@ the established renderer shutdown ordering intact.
   texture payload; release deleted/replaced selections before retirement join.
 - Boundaries: no raw value cached across frame boundaries; no extended
   RetainExisting bypass for arbitrary retired resources; no new texture decoder.
-- Depends on: WP-01, WP-02.
+- Depends on: WP-01. Host registration can be implemented against the accepted
+  lifecycle interface; final native integration is accepted after WP-02 in WP-05.
 - Acceptance: AC2, AC3, AC4, AC6, AC10.
 - Verification: host tests with and without reload opt-in, actual static
   generated composition and Dynamic stable identities; changed texture on the
@@ -177,7 +226,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-04 — Migrate CoinRush UI and texture consumption
 
-- Status: pending.
+- Status: completed.
 - Goal: demonstrate visible title/player/coin/tile updates using the common API.
 - Scope: CoinRush client template systems, Simulation-scoped presentation owner,
   source-generated JSON context, value-only ECS presentation state and sample
@@ -185,7 +234,8 @@ the established renderer shutdown ordering intact.
   current files. Keep the existing legacy font loader in the scoped owner.
 - Boundaries: preserve gameplay, match rules and fixed dt. Do not add font/shader
   hot reload or erase local asset edits. Keep Server/Shared independent of Client.
-- Depends on: WP-00, WP-02, WP-03.
+- Depends on: WP-00, WP-01. Source migration follows accepted public contracts;
+  functional acceptance/build verification requires WP-02/WP-03 in WP-05.
 - Acceptance: AC1, AC4, AC5, AC6, AC7, AC8, AC10.
 - Verification: template tests prove changing title updates recorded HUD content
   and changed texture binds the current ready resource without restart; exercise
@@ -194,7 +244,7 @@ the established renderer shutdown ordering intact.
 
 ### WP-05 — Package, document and verify the full workflow
 
-- Status: pending.
+- Status: completed.
 - Goal: ship the reusable feature and make the real CoinRush scenario reproducible.
 - Scope: SDK/codegen dependency closure if needed, content usage guide and durable
   ADR updates, generated-host/package integration tests, local SDK publication,
@@ -294,8 +344,10 @@ must remain observable. GPU verification requires the local graphics session.
 
 ## Adjustments
 
-None yet. Public behavior/API or architectural changes reopen the affected
-design decisions and require scoped reapproval; private task refinements do not.
+- (2026-11-08) Revision 2 permits host and CoinRush source work after WP-01
+  contracts while the cold worker is implemented. Full functional/GPU acceptance
+  remains gated on WP-02/WP-03 in WP-05. This is private scheduling/decomposition;
+  design revision 4 and approved behavior/ACs are unchanged, so no new approval.
 
 ## Artifacts and Notes
 

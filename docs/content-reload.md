@@ -56,6 +56,10 @@ The process exit code alone does not describe both build and delivery outcomes.
 
 ## Simulation consumers
 
+For presentation assets, [live bindings](content-bindings.md) provide automatic
+loading, typed JSON projection and frame-boundary replacement. The lower-level
+notification/ref workflow below remains available for explicit version consumers.
+
 Inject `IContentChangeSource` and consume `Changes` during each simulation
 frame's `ISystemBegin.Begin`, after the host's publication boundary. The borrowed
 span contains sorted `ContentAssetChange` values with `Added`, `Updated` or

@@ -79,3 +79,17 @@ dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifet
 ```
 
 The earlier integration and six native ordering/control results are archived in content-runtime.txt. Current coordinator shutdown and Content replacement verification is recorded in `plans/content-reload-notifications-execplan.md`. The earlier unsubmitted-wrapper negative controls deliberately retain the legacy untracked constructor and still reproduce early disposal; they do not claim tracked Content textures behave that way.
+
+## Live Content bindings
+
+`--bindings` uses production ContentBindings with cooked textures and a real GL
+framebuffer. It requires exact green/red/green readback across replacement and
+re-add, proves an old writing-frame claim delays retirement, and verifies removal
+clears the selected binding before cleanup. Run:
+
+```sh
+dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifetimeAudit.dll --bindings
+```
+
+This mode passed on 2026-11-08. It complements CoinRush's recorded-title test and
+running-client transport checks; it does not inspect the client window's pixels.

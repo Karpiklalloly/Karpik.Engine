@@ -217,7 +217,12 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             }
         }
 
-        // Appended last so reverse async destruction stops delivery before gameplay teardown.
+        // Host-owned binding owners advance after registry publication and before
+        // gameplay. Empty compositions resolve an empty enumerable, without
+        // introducing a content registry into content-free hosts.
+        systemRegistry.Add<ContentBindingBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -1900);
+
+        // Appended last so reverse async destruction stops delivery before bindings/gameplay teardown.
         if (_contentReloadInstanceId is not null)
             systemRegistry.Add<ContentReloadBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
 
@@ -272,6 +277,11 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
                 AttributedServiceRegistrar.Register(builder, orderedTypes, ModuleScope.Simulation);
             }
             RegisterInstallerServices(builder, ModuleScope.Simulation);
+            // Static composition suppresses reflected system activation, so the
+            // host supplies this stable typed factory explicitly in both modes.
+            builder.Register(context => new ContentBindingBoundarySystem(
+                    context.Resolve<IEnumerable<Karpik.Content.Runtime.IContentBindingRuntime>>()))
+                .AsSelf().SingleInstance();
             systemRegistry.RegisterTypes(builder);
         });
         _serviceResolver = _simulationScope.Resolve<IServiceResolver>();
