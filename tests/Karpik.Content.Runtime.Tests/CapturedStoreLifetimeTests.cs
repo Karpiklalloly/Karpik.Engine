@@ -70,7 +70,13 @@ public sealed class CapturedStoreLifetimeTests
         Assert.False(prepared.Completion.IsCompleted);
         Assert.True(old.References > 0);
         old.Read.SetResult(Encoding.UTF8.GetBytes("o"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => load);
+        // Retirement is queued by TryCommit. Releasing the read can win that
+        // race, so the old load may complete or reject its retired generation.
+        // Either outcome must retain its store until settled and never expose
+        // the obsolete reference through the newly published registry root.
+        Exception? loadError = await Record.ExceptionAsync(() => load);
+        if (loadError is not null) Assert.IsType<InvalidOperationException>(loadError);
+        Assert.False(registry.TryGet(new AssetRef<string>(A), out _));
         await prepared.Completion;
         Assert.Equal(0, old.References);
     }
