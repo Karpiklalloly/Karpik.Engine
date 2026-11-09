@@ -57,6 +57,9 @@
     <CompilerVisibleProperty Include="KarpikContentManifest" />
     <CompilerVisibleProperty Include="KarpikContentNamespace" />
     <CompilerVisibleProperty Include="KarpikContentSourceRoot" />
+    <CompilerVisibleProperty Include="KarpikSide" />
+    <CompilerVisibleProperty Include="KarpikAutoContentBindings" />
+    <CompilerVisibleProperty Include="KarpikAutoContentBindingExcludedTypes" />
   </ItemGroup>
 
   <!-- Задаёт каталог готового runtime bundle, если пользователь не переопределил его. -->
