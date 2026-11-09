@@ -33,6 +33,14 @@ Content-enabled projects build stable asset IDs, manifests, and cooked artifacts
 for their side and copy cooked output into the runtime bundle. Static launchers
 run the game directly; Dynamic mode uses versioned installed runners and
 supports worker hot reload.
+
+Static launchers stage native libraries beside the executable in both build and
+publish output. Selection uses `RuntimeIdentifier`, or the .NET SDK's portable
+host RID for builds without an explicit target. Installed `native/<rid>` and
+`native/runtimes/<rid>/native` layouts are supported; macOS also accepts the
+universal `runtimes/osx/native` payload. Manual library-search environment
+variables are not required for these staged dependencies.
+
 ## Module-owned code generators
 
 Add a separate `<OwnerProject>.Codegen.csproj` next to its owner and include both projects in the engine solution. Configurator discovers ownership by exact project name. Run Configurator `--generate` after changing the project graph; `--validate` checks that generated metadata is current.

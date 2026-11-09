@@ -16,7 +16,7 @@ public sealed class ShaderAssetLoadingTests
     [InlineData("game/Shaders/2D.vert", "game/Shaders/2D.vert")]
     [InlineData("Shaders\\2D.vert", "Shaders\\2D.vert")]
     [InlineData("Shaders/missing.vert", "Shaders/2D.vert")]
-    public void LoadAssetAsync_ResolvesShaderFromManifestWithoutLooseSource(string path, string loadedPath)
+    public async Task LoadAssetAsync_ResolvesShaderFromManifestWithoutLooseSource(string path, string loadedPath)
     {
         string originalWorkingDirectory = Environment.CurrentDirectory;
         string bundleRoot = Path.Combine(Path.GetTempPath(), "karpik-cooked-shader-" + Guid.NewGuid().ToString("N"));
@@ -37,9 +37,9 @@ public sealed class ShaderAssetLoadingTests
             Environment.CurrentDirectory = bundleRoot;
             Job.Initialize(jobs);
             var fileSystem = new PhysicalFileSystem();
-            var store = new FileContentStore(fileSystem);
-            var registry = new ContentRegistry(fileSystem, store);
-            var manager = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, registry, store, [], [new FallbackShaderLoader()]);
+            using var store = new FileContentStore(fileSystem);
+            await using var registry = new ContentRegistry(fileSystem, store);
+            var manager = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, registry, [], [new FallbackShaderLoader()]);
 
             using (AssetHandle<ShaderAsset> handle = manager.LoadAssetAsync<ShaderAsset>(path).GetAwaiter().GetResult())
             {
@@ -54,11 +54,18 @@ public sealed class ShaderAssetLoadingTests
             Assert.Equal("artifacts/shader.cooked", locator);
 
             File.Delete(Path.Combine(contentRoot, "artifacts", "shader.cooked"));
-            Assert.Throws<InvalidDataException>(() =>
-                manager.LoadAssetAsync<ShaderAsset>("game/Shaders/2D.vert").GetAwaiter().GetResult());
+            using (AssetHandle<ShaderAsset> captured = manager.LoadAssetAsync<ShaderAsset>("game/Shaders/2D.vert").GetAwaiter().GetResult())
+                Assert.Equal(shader, System.Text.Encoding.UTF8.GetString(captured.Asset!.ShaderBytes));
 
+            var entry = manifest.Entries[0];
             var replacementStore = new ReplacementShaderStore();
-            registry.RegisterManifest(manifest, replacementStore);
+            using var update = await registry.PrepareAsync(new ContentManifest(ContentManifest.CurrentSchemaVersion,
+            [
+                new ContentManifestEntry(entry.AssetId, entry.DeclaredType, entry.LogicalName,
+                    entry.ImportSettingsHash, "replacement", entry.ArtifactLocator, replacementStore.Get(locator).Length, [])
+            ]), replacementStore);
+            Assert.True(registry.TryCommit(update));
+            await update.Completion;
             using AssetHandle<ShaderAsset> replacement = manager.LoadAssetAsync<ShaderAsset>(path).GetAwaiter().GetResult();
             Assert.Equal("replacement shader", System.Text.Encoding.UTF8.GetString(replacement.Asset!.ShaderBytes));
         }
@@ -102,13 +109,12 @@ public sealed class ShaderAssetLoadingTests
             Job.Initialize(jobs);
 
             var fileSystem = new PhysicalFileSystem();
-            var store = new FileContentStore(fileSystem);
+            using var store = new FileContentStore(fileSystem);
             var registry = new ContentRegistry(fileSystem, store);
             var manager = new AssetsManager(
                 NullLogger<AssetsManager>.Instance,
                 fileSystem,
                 registry,
-                store,
                 [],
                 [new ShaderLoader()]);
 
@@ -137,7 +143,7 @@ public sealed class ShaderAssetLoadingTests
                 SpinWait.SpinUntil(() => preloadCoordinator.IsCompleted, TimeSpan.FromSeconds(5)),
                 "Concurrent shader preload did not complete.");
 
-            var fallbackManager = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, registry, store, [], [new FallbackShaderLoader()]);
+            var fallbackManager = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, registry, [], [new FallbackShaderLoader()]);
             using AssetHandle<ShaderAsset> fallback = fallbackManager.LoadAssetAsync<ShaderAsset>("Shaders/missing.vert").GetAwaiter().GetResult();
             Assert.Equal("Shaders/2D.vert", fallback.Asset!.Path);
         }

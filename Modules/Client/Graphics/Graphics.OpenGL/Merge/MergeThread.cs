@@ -42,6 +42,7 @@ public class MergeThread : IMergeThread
     private int _buildContextIndex;
     private int _buildCommandSetIndex = -1;
     private int _completedContextIndex = -1;
+    private int _claimedContextIndex = -1;
     private List<ICommandBuffer> _buildBuffers = null!;
     private Framebuffer _buildFramebuffer = null!;
     private Camera2D _buildCamera;
@@ -56,8 +57,14 @@ public class MergeThread : IMergeThread
     private bool _workerStarted;
     private int _disposed;
 
-    public MergeThread(GraphicsDevice device, Preset2DPipeline dPipeline, ClientFrameMetrics clientFrameMetrics)
+    public MergeThread(GraphicsDevice device, Preset2DPipeline dPipeline, ClientFrameMetrics clientFrameMetrics,
+        Karpik.Content.Runtime.IContentRegistry? contentRegistry = null,
+        Karpik.Content.Runtime.IContentReloadLifetime? contentReloadLifetime = null)
     {
+        // Resolving Content before this service guarantees reverse DI disposal releases CPU claims first.
+        _ = contentRegistry;
+        // Opt-in Content retirement must drain only after this renderer has released every CPU claim.
+        _ = contentReloadLifetime;
         _device = device;
         _2dPipeline = dPipeline;
         _clientFrameMetrics = clientFrameMetrics;
@@ -101,6 +108,7 @@ public class MergeThread : IMergeThread
 
         _mergeContextA = new MergeContext()
         {
+            ResourcePins = new Karpik.Content.Runtime.ContentResourcePins(Karpik.Content.Runtime.ContentRegistry.MaximumAssets),
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
@@ -111,6 +119,7 @@ public class MergeThread : IMergeThread
 
         _mergeContextB = new MergeContext()
         {
+            ResourcePins = new Karpik.Content.Runtime.ContentResourcePins(Karpik.Content.Runtime.ContentRegistry.MaximumAssets),
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
@@ -121,6 +130,7 @@ public class MergeThread : IMergeThread
 
         _mergeContextC = new MergeContext()
         {
+            ResourcePins = new Karpik.Content.Runtime.ContentResourcePins(Karpik.Content.Runtime.ContentRegistry.MaximumAssets),
             VertexBuffer = factory.CreateBuffer(new BufferDescription(
                 MaxVertices * Vertex2D.SizeInBytes, BufferUsage.VertexBuffer | BufferUsage.Dynamic)),
             Vertices = new Vertex2D[MaxVertices],
@@ -177,7 +187,7 @@ public class MergeThread : IMergeThread
         ThrowWorkerExceptionIfCompleted();
 
         int completedContextIndex = Volatile.Read(ref _completedContextIndex);
-        if (completedContextIndex < 0)
+        if (completedContextIndex < 0 || _claimedContextIndex >= 0)
         {
             commandList = null;
             submitFence = null;
@@ -201,9 +211,19 @@ public class MergeThread : IMergeThread
             return false;
         }
 
+        Volatile.Write(ref _claimedContextIndex, completedContextIndex);
         commandList = context.CommandList;
         submitFence = context.SubmitFence;
         return true;
+    }
+
+    public void CompleteSubmission(CommandList commandList)
+    {
+        int index = Volatile.Read(ref _claimedContextIndex);
+        if (index < 0 || !ReferenceEquals(GetContext(index).CommandList, commandList))
+            throw new InvalidOperationException("Command list is not the currently claimed submission.");
+        GetContext(index).ResourcePins.Clear();
+        Volatile.Write(ref _claimedContextIndex, -1);
     }
 
     public CommandList GetCommandList()
@@ -232,29 +252,25 @@ public class MergeThread : IMergeThread
 
         try
         {
-            if (_inited)
-            {
-                _device.WaitForIdle();
-            }
-
-            DisposeContext(ref _mergeContextA);
-            DisposeContext(ref _mergeContextB);
-            DisposeContext(ref _mergeContextC);
-            _indexBuffer?.Dispose();
+            GraphicsResourceShutdown.Dispose(
+                () => { if (_inited) _device.WaitForIdle(); },
+                () =>
+                {
+                    _mergeContextA.ResourcePins?.Clear();
+                    _mergeContextB.ResourcePins?.Clear();
+                    _mergeContextC.ResourcePins?.Clear();
+                    GraphicsContext.DiscardPendingFrames();
+                },
+                _mergeContextA.CommandList, _mergeContextA.SubmitFence, _mergeContextA.VertexBuffer,
+                _mergeContextB.CommandList, _mergeContextB.SubmitFence, _mergeContextB.VertexBuffer,
+                _mergeContextC.CommandList, _mergeContextC.SubmitFence, _mergeContextC.VertexBuffer,
+                _indexBuffer);
         }
         finally
         {
             _workAvailable.Dispose();
             _completed.Dispose();
         }
-    }
-
-    private static void DisposeContext(ref MergeContext context)
-    {
-        context.CommandList?.Dispose();
-        context.SubmitFence?.Dispose();
-        context.VertexBuffer?.Dispose();
-        context = default;
     }
 
     private void WorkerLoop()
@@ -282,10 +298,12 @@ public class MergeThread : IMergeThread
                     _currentMergeDrawEncodeTicks,
                     GC.GetAllocatedBytesForCurrentThread() - allocatedBytesBefore,
                     GC.CollectionCount(0) - gen0CollectionsBefore);
-                Volatile.Write(ref _completedContextIndex, _buildContextIndex);
+                int superseded = Interlocked.Exchange(ref _completedContextIndex, _buildContextIndex);
+                if (superseded >= 0) GetContext(superseded).ResourcePins.Clear();
             }
             catch (Exception ex)
             {
+                _buildContext.ResourcePins.Clear();
                 Volatile.Write(ref _workerException, ex);
             }
             finally
@@ -302,7 +320,7 @@ public class MergeThread : IMergeThread
         int completedContextIndex = Volatile.Read(ref _completedContextIndex);
         for (int i = 0; i < MergeContextCount; i++)
         {
-            if (i == completedContextIndex)
+            if (i == completedContextIndex || i == Volatile.Read(ref _claimedContextIndex))
             {
                 continue;
             }
@@ -352,6 +370,8 @@ public class MergeThread : IMergeThread
         float sw = _buildFramebufferWidth;
         float sh = _buildFramebufferHeight;
         Camera2D camera = _buildCamera;
+
+        foreach (var buffer in _buildBuffers) ((ThreadBuffer)buffer).RetainResources(context.ResourcePins);
 
         var cl = context.CommandList;
         cl.Begin();

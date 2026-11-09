@@ -27,16 +27,14 @@ public class AssetsManager : IAssetsManager
     private readonly ILogger<AssetsManager> _logger;
     private readonly IFileSystem _fileSystem;
     private readonly IContentRegistry _contentRegistry;
-    private readonly IContentStore _contentStore;
     private readonly AssetLoadContext _assetLoadContext;
 
     public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IContentRegistry contentRegistry,
-        IContentStore contentStore, IAssetSaver[] savers, IAssetLoader[] loaders)
+        IAssetSaver[] savers, IAssetLoader[] loaders)
     {
         _logger = logger;
         _fileSystem = fileSystem;
         _contentRegistry = contentRegistry;
-        _contentStore = contentStore;
         _assetLoadContext = new AssetLoadContext(this);
         RegisterSavers(savers);
         RegisterLoaders(loaders);
@@ -154,15 +152,19 @@ public class AssetsManager : IAssetsManager
         if (_fileSystem.Exists(path)) return _fileSystem.OpenRead(path);
         if (_fileSystem.IsPathRooted(path)) return null;
 
-        if (_fileSystem.Exists(_fileSystem.Combine(_fileSystem.ContentPath, path)))
-            return _contentStore.OpenRead(path);
+        string loosePath = _fileSystem.Combine(_fileSystem.ContentPath, path);
+        if (_fileSystem.Exists(loosePath))
+        {
+            string relative = Path.GetRelativePath(_fileSystem.ContentPath, loosePath);
+            if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || _fileSystem.IsPathRooted(relative))
+                throw new InvalidDataException($"Content path '{path}' escapes the Content directory.");
+            return _fileSystem.OpenRead(loosePath);
+        }
 
         string logicalName = path.Replace('\\', '/');
-        if (_contentRegistry.TryResolveArtifact(logicalName, out string locator, out IContentStore store)
-            || _contentRegistry.TryResolveArtifact("game/" + logicalName, out locator, out store))
-            return store.OpenRead(locator);
-
-        return null;
+        return _contentRegistry.TryOpenArtifact(logicalName)
+            ?? _contentRegistry.TryOpenArtifact("game/" + logicalName);
     }
     
     public async JobHandle<AssetHandle<T>> SaveAssetAsync<T>(T asset, string? path = null)  where T : Asset

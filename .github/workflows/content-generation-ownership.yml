@@ -1,0 +1,77 @@
+name: Content reload checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "tests/ContentGenerationOwnership.Probe/**"
+      - "tests/ContentGeneration.ProcessHost/**"
+      - "src/Karpik.Content.Core/**"
+      - "src/Karpik.Content.Transport/**"
+      - "src/Karpik.Content.Runtime/**"
+      - "src/Karpik.Content.Tool/**"
+      - "src/Karpik.Engine.Core/**"
+      - "src/Karpik.Engine.Core.Runner/**"
+      - "tests/Karpik.Engine.Core.Runner.Tests/**"
+      - "tests/Karpik.Content.Reload.HeadlessHost/**"
+      - "tests/Karpik.Content.Reload.GeneratedHostSmoke/**"
+      - "tests/Karpik.Content.Runtime.Tests/**"
+      - "tests/Karpik.Content.Tool.Reload.Tests/**"
+      - "tests/Karpik.Content.Transport.Tests/**"
+      - ".github/workflows/content-generation-ownership.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "tests/ContentGenerationOwnership.Probe/**"
+      - "tests/ContentGeneration.ProcessHost/**"
+      - "src/Karpik.Content.Core/**"
+      - "src/Karpik.Content.Transport/**"
+      - "src/Karpik.Content.Runtime/**"
+      - "src/Karpik.Content.Tool/**"
+      - "src/Karpik.Engine.Core/**"
+      - "src/Karpik.Engine.Core.Runner/**"
+      - "tests/Karpik.Engine.Core.Runner.Tests/**"
+      - "tests/Karpik.Content.Reload.HeadlessHost/**"
+      - "tests/Karpik.Content.Reload.GeneratedHostSmoke/**"
+      - "tests/Karpik.Content.Runtime.Tests/**"
+      - "tests/Karpik.Content.Tool.Reload.Tests/**"
+      - "tests/Karpik.Content.Transport.Tests/**"
+      - ".github/workflows/content-generation-ownership.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ownership:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build standalone feasibility probe
+        run: dotnet build tests/ContentGenerationOwnership.Probe/ContentGenerationOwnership.Probe.csproj -m:1 -nr:false
+      - name: Verify ownership on the workspace filesystem
+        run: dotnet tests/ContentGenerationOwnership.Probe/bin/Debug/net10.0/ContentGenerationOwnership.Probe.dll selftest "${{ github.workspace }}"
+      - name: Build production generation process checks
+        run: dotnet build tests/ContentGeneration.ProcessHost/ContentGeneration.ProcessHost.csproj -m:1 -nr:false
+      - name: Verify production publication and crash recovery
+        run: dotnet tests/ContentGeneration.ProcessHost/bin/Debug/net10.0/ContentGeneration.ProcessHost.dll selftest "${{ github.workspace }}"
+      - name: Verify bounded local reload transport
+        run: dotnet test tests/Karpik.Content.Transport.Tests/Karpik.Content.Transport.Tests.csproj -m:1 -nr:false
+      - name: Verify runtime snapshots and coordinator
+        run: dotnet test tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj -m:1 -nr:false
+      - name: Verify explicit delivery and retry CLI
+        run: dotnet test tests/Karpik.Content.Tool.Reload.Tests/Karpik.Content.Tool.Reload.Tests.csproj -m:1 -nr:false
+      - name: Verify host boundaries and real runtime processes
+        run: dotnet test tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj -m:1 -nr:false -p:CI=true --filter FullyQualifiedName~ContentReloadHostTests
+      - name: Verify external generated Static host composition
+        run: dotnet build tests/Karpik.Content.Reload.GeneratedHostSmoke/Karpik.Content.Reload.GeneratedHostSmoke.csproj -m:1 -nr:false

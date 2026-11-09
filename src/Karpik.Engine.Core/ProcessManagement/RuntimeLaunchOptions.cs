@@ -8,6 +8,12 @@ public sealed record RuntimeLaunchOptions
     public string RunnerExecutablePath { get; }
     public string BundlePath { get; }
     public string EngineRoot { get; }
+    private string? _contentReloadInstanceId;
+    public string? ContentReloadInstanceId
+    {
+        get => _contentReloadInstanceId;
+        init => _contentReloadInstanceId = ContentReloadInstanceIdentity.Validate(value);
+    }
 
     public RuntimeLaunchOptions(Side side, string runnerExecutablePath, string bundlePath, string engineRoot)
     {
@@ -49,6 +55,18 @@ public sealed record RuntimeLaunchOptions
         }
         RuntimeBundleLayout.EnsureExistingPathHasNoReparsePoints(fullPath);
         return fullPath;
+    }
+}
+
+internal static class ContentReloadInstanceIdentity
+{
+    internal static string? Validate(string? value)
+    {
+        if (value is null) return null;
+        if (value.Length is < 1 or > 64 || value.Any(character =>
+                !char.IsAsciiLetterOrDigit(character) && character is not '_' and not '-'))
+            throw new ArgumentException("Content reload instance must contain 1–64 ASCII letters, digits, '_' or '-'.", nameof(value));
+        return value;
     }
 }
 

@@ -1,4 +1,6 @@
 using Karpik.Content.Core;
+using Karpik.Content.Transport;
+using System.Globalization;
 
 namespace Karpik.Content.Tool;
 
@@ -8,6 +10,9 @@ internal static class Program
     private const int ExitUsage = 1;
     private const int ExitValidation = 2;
     private const int ExitUnexpected = 3;
+    private const int ExitDeliveryFailed = 4;
+    private const int ExitDeliveryUnknown = 5;
+    private const int DefaultDeliveryTimeoutMs = 30_000;
 
     public static int Main(string[] args)
     {
@@ -23,6 +28,7 @@ internal static class Program
             return command switch
             {
                 "build" => RunBuild(args.Skip(1).ToArray()),
+                "notify" => RunNotify(args.Skip(1).ToArray()),
                 "validate" => RunValidate(args.Skip(1).ToArray()),
                 "create" => RunCreate(args.Skip(1).ToArray()),
                 "list" => RunList(args.Skip(1).ToArray()),
@@ -55,11 +61,14 @@ internal static class Program
     {
         Console.WriteLine("Karpik Content Tool");
         Console.WriteLine("Usage:");
-        Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id> --target <Client|Server>");
+        Console.WriteLine("  content build    --source <dir> --output <dir> --namespace <id> --target <Client|Server> [--notify <instance-id>] [--delivery-timeout-ms <N>]");
+        PrintNotifyUsage();
         Console.WriteLine("  content validate --source <dir> --namespace <id> --target <Client|Server>");
         Console.WriteLine("  content create   --source <dir> --file <relative-source-path> --namespace <id>");
         Console.WriteLine("  content list     --manifest <path>");
         Console.WriteLine("  content why      --manifest <path> <asset-guid>");
+        Console.WriteLine("Exit codes: 0=success (applied or superseded), 1=usage, 2=build validation, 3=unexpected error, 4=delivery failed, 5=delivery unknown.");
+        Console.WriteLine("Build success is reported independently of delivery. Delivery timeout is unknown and does not cancel runtime application.");
     }
 
     private static int RunBuild(string[] args)
@@ -68,6 +77,8 @@ internal static class Program
         string? output = null;
         string? ns = null;
         string? target = null;
+        string? notify = null;
+        string? timeoutText = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -76,6 +87,9 @@ internal static class Program
             else if (arg == "--output" && i + 1 < args.Length) output = args[++i];
             else if (arg == "--namespace" && i + 1 < args.Length) ns = args[++i];
             else if (arg == "--target" && i + 1 < args.Length) target = args[++i];
+            else if (arg == "--notify" && i + 1 < args.Length && notify is null &&
+                     !args[i + 1].StartsWith("--", StringComparison.Ordinal) && args[i + 1] != "-h") notify = args[++i];
+            else if (arg == "--delivery-timeout-ms" && i + 1 < args.Length && timeoutText is null) timeoutText = args[++i];
             else if (arg == "--help" || arg == "-h") { PrintBuildUsage(); return ExitSuccess; }
             else { Console.Error.WriteLine($"unknown argument '{arg}' for build"); PrintBuildUsage(); return ExitUsage; }
         }
@@ -94,9 +108,19 @@ internal static class Program
             return ExitUsage;
         }
 
+        if (timeoutText != null && notify is null)
+        {
+            Console.Error.WriteLine("--delivery-timeout-ms requires --notify on build.");
+            return ExitUsage;
+        }
+        ContentReloadAddress address = default;
+        TimeSpan deliveryTimeout = default;
+        if (notify != null && !TryValidateDelivery(output, ns, buildTarget, notify, timeoutText, out address, out deliveryTimeout))
+            return ExitUsage;
+
         var coordinator = new ContentBuildCoordinator();
-        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = ns, Target = buildTarget };
-        ContentBuildResult result = coordinator.Build(options);
+        var options = new ContentBuildOptions { SourceRoot = source, OutputRoot = output, Namespace = ns, Target = buildTarget, RetainGeneration = notify != null };
+        using ContentBuildResult result = coordinator.Build(options);
 
         PrintDiagnostics(result.Diagnostics);
 
@@ -113,12 +137,113 @@ internal static class Program
             Console.WriteLine($"manifest: {manifestPath}");
         }
 
-        return ExitSuccess;
+        if (notify is null) return ExitSuccess;
+        if (result.PublishedGeneration is null || result.GenerationId is null)
+            return DeliveryFailure("Successful build did not retain a published generation.");
+        Console.WriteLine($"generation: {result.GenerationId}");
+        return Deliver(address, result.GenerationId, deliveryTimeout);
     }
 
     private static void PrintBuildUsage()
     {
-        Console.WriteLine("Usage: content build --source <dir> --output <dir> --namespace <id> --target <Client|Server>");
+        Console.WriteLine("Usage: content build --source <dir> --output <dir> --namespace <id> --target <Client|Server> [--notify <instance-id>] [--delivery-timeout-ms <N>]");
+    }
+
+    private static int RunNotify(string[] args)
+    {
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg is "--help" or "-h") { PrintNotifyUsage(); return ExitSuccess; }
+            if (arg is not ("--output" or "--generation" or "--namespace" or "--target" or "--instance" or "--delivery-timeout-ms") ||
+                i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal) || args[i + 1] == "-h" || !values.TryAdd(arg, args[++i]))
+            {
+                Console.Error.WriteLine($"Invalid, missing or duplicate notify argument '{arg}'.");
+                PrintNotifyUsage();
+                return ExitUsage;
+            }
+        }
+        if (!values.TryGetValue("--output", out string? output) ||
+            !values.TryGetValue("--namespace", out string? ns) ||
+            !values.TryGetValue("--target", out string? target) || !AssetTargets.TryParse(target, out AssetTarget buildTarget) ||
+            !values.TryGetValue("--instance", out string? instance) ||
+            !values.TryGetValue("--generation", out string? id) ||
+            !Guid.TryParseExact(id, "N", out Guid generationId) || generationId == Guid.Empty || id != generationId.ToString("N"))
+        {
+            Console.Error.WriteLine("notify requires --output, --generation (canonical nonempty GUID N), --namespace, --target Client|Server and --instance.");
+            PrintNotifyUsage();
+            return ExitUsage;
+        }
+        values.TryGetValue("--delivery-timeout-ms", out string? timeoutText);
+        if (!TryValidateDelivery(output, ns, buildTarget, instance, timeoutText, out var address, out TimeSpan timeout))
+            return ExitUsage;
+        try
+        {
+            using var generation = ContentGeneration.Open(address.OutputRoot, id);
+            if (!generation.IdentityKnown || generation.Namespace != address.Namespace || generation.Target != buildTarget)
+                return DeliveryFailure("Published generation namespace/target does not match the requested delivery.");
+            return Deliver(address, generation.GenerationId, timeout);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        { return DeliveryFailure($"Cannot retain published generation '{id}': {error.Message}"); }
+    }
+
+    private static void PrintNotifyUsage() => Console.WriteLine(
+        "  content notify --output <dir> --generation <id> --namespace <id> --target <Client|Server> --instance <instance-id> [--delivery-timeout-ms <N>]");
+
+    private static bool TryValidateDelivery(string output, string ns, AssetTarget target, string instance,
+        string? timeoutText, out ContentReloadAddress address, out TimeSpan timeout)
+    {
+        address = default;
+        timeout = default;
+        int milliseconds = DefaultDeliveryTimeoutMs;
+        if (timeoutText != null && (!int.TryParse(timeoutText, NumberStyles.None, CultureInfo.InvariantCulture, out milliseconds) ||
+            milliseconds is < 1 or > 86_400_000))
+        {
+            Console.Error.WriteLine("--delivery-timeout-ms must be an integer from 1 to 86400000 (default 30000).");
+            return false;
+        }
+        try
+        {
+            if (!IsValidNamespace(ns)) throw new ArgumentException("Invalid Content namespace.");
+            address = ContentReloadAddress.Create(output, instance, ns,
+                target == AssetTarget.Client ? ContentReloadTarget.Client : ContentReloadTarget.Server);
+            timeout = TimeSpan.FromMilliseconds(milliseconds);
+            return true;
+        }
+        catch (Exception error) when (error is ArgumentException or NotSupportedException or IOException)
+        {
+            Console.Error.WriteLine($"Invalid Content delivery arguments: {error.Message}");
+            return false;
+        }
+    }
+
+    private static int Deliver(ContentReloadAddress address, string generationId, TimeSpan timeout)
+    {
+        var request = new ContentReloadRequest(1, Guid.NewGuid(), address.OutputRoot, address.Namespace, address.Target, generationId);
+        var response = ContentReloadClient.DeliverAsync(address, request, timeout).GetAwaiter().GetResult();
+        string status = response.Outcome switch
+        {
+            ContentReloadOutcome.Applied => "applied",
+            ContentReloadOutcome.Superseded => "superseded",
+            ContentReloadOutcome.Failed => "failed",
+            _ => "unknown"
+        };
+        Console.WriteLine($"delivery {status}: generation {generationId}");
+        if (response.Error != null) Console.Error.WriteLine($"delivery {status}: {response.Error}");
+        return response.Outcome switch
+        {
+            ContentReloadOutcome.Applied or ContentReloadOutcome.Superseded => ExitSuccess,
+            ContentReloadOutcome.Failed => ExitDeliveryFailed,
+            _ => ExitDeliveryUnknown
+        };
+    }
+
+    private static int DeliveryFailure(string message)
+    {
+        Console.Error.WriteLine($"delivery failed: {message}");
+        return ExitDeliveryFailed;
     }
 
     private static int RunValidate(string[] args)

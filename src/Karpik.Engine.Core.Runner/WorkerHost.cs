@@ -36,6 +36,7 @@ internal sealed class WorkerHost
     private ClientSimulationWorker? _clientSimulationWorker;
     private MainThreadScheduler? _mainThreadScheduler;
     private WorkerRuntimeConfiguration? _runtimeConfiguration;
+    private string? _contentReloadInstanceId;
 
     public WorkerHost()
     {
@@ -110,6 +111,7 @@ internal sealed class WorkerHost
         var stateBase64 = launch.State;
         var stateFile = launch.StateFile;
         var waitForDebugger = launch.WaitForDebugger;
+        _contentReloadInstanceId = launch.ContentReloadInstanceId;
 
         if (!string.IsNullOrWhiteSpace(pipeName))
         {
@@ -297,6 +299,8 @@ internal sealed class WorkerHost
         WorkerRuntimeConfiguration runtimeConfiguration =
             configureRuntime(side, bundleRoot, engineRoot, _bootstrap);
         _runtimeConfiguration = runtimeConfiguration;
+        if (_contentReloadInstanceId is { } instance)
+            ((EngineRunner)_bootstrap.Runner).EnableContentReload(instance);
 
         Dictionary<string, byte[]>? initialHotReloadData = null;
         if (_initialState != null && _initialState.ModuleStates.Count > 0)

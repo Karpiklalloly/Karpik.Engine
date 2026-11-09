@@ -30,13 +30,16 @@ public sealed class ContentRegistryTests
         Assert.True(registry.TryGet(asset, out _));
         Assert.False(registry.TryResolveArtifact("game/missing", out _, out _));
 
-        var replacementStore = new CountingStore(payload: "replacement");
-        registry.RegisterManifest(MakeManifest((id, "game/renamed", "artifacts/new.cooked")), replacementStore);
+        var replacementStore = new CountingStore(payload: "[]");
+        using var update = await registry.PrepareAsync(
+            MakeManifest((id, "game/renamed", "artifacts/new.cooked")), replacementStore);
+        Assert.True(registry.TryCommit(update));
+        await update.Completion;
         Assert.False(registry.TryResolveArtifact("game/config", out _, out _));
         Assert.True(registry.TryResolveArtifact("game/renamed", out string renamed, out IContentStore resolvedStore));
         Assert.Equal("artifacts/new.cooked", renamed);
         using var reader = new StreamReader(resolvedStore.OpenRead(renamed));
-        Assert.Equal("replacement", reader.ReadToEnd());
+        Assert.Equal("[]", reader.ReadToEnd());
     }
 
     [Fact]

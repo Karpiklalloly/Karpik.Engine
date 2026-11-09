@@ -111,7 +111,7 @@ public sealed partial class LuaPreparationTests
             var store = new FileContentStore(fileSystem);
             var content = new ContentRegistry(fileSystem, store);
             content.RegisterManifest(new ContentManifest(ContentManifest.CurrentSchemaVersion, []), store);
-            using var assets = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, content, store, [], [new ModMetaDataLoader()]);
+            using var assets = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, content, [], [new ModMetaDataLoader()]);
             var registry = new ModsRegistry(assets, NullLogger<IModsRegistry>.Instance);
             var logger = new ScriptLogger();
             var application = new Application(Side.Server);

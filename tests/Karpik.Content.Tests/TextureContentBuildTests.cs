@@ -9,6 +9,29 @@ public sealed class TextureContentBuildTests
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4uQAAAABJRU5ErkJggg==");
 
     [Fact]
+    public void Build_TextureMovedToUnsupportedExtension_DoesNotReuseCachedValidation()
+    {
+        using var temporary = new TemporaryDirectory();
+        string sourceRoot = temporary.CreateSubdirectory("source");
+        string outputRoot = temporary.CreateSubdirectory("output");
+        string original = Path.Combine(sourceRoot, "sprite.png");
+        File.WriteAllBytes(original, ValidPng);
+        Assert.True(ContentMetaTemplate.TryCreate("sprite.png", "game", out string meta));
+        File.WriteAllText(original + ".meta", meta);
+        var options = new ContentBuildOptions { SourceRoot = sourceRoot, OutputRoot = outputRoot, Namespace = "game" };
+        Assert.True(new ContentBuildCoordinator().Build(options).Success);
+        byte[] lastGoodManifest = File.ReadAllBytes(Path.Combine(outputRoot, "manifest.json"));
+        File.Move(original, Path.Combine(sourceRoot, "sprite.bin"));
+        File.Move(original + ".meta", Path.Combine(sourceRoot, "sprite.bin.meta"));
+
+        ContentBuildResult result = new ContentBuildCoordinator().Build(options);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == ContentDiagnosticCodes.InvalidImageContent);
+        Assert.Equal(lastGoodManifest, File.ReadAllBytes(Path.Combine(outputRoot, "manifest.json")));
+    }
+
+    [Fact]
     public void Build_MixedSupportedSources_PublishesSourceArtifacts()
     {
         using var temporary = new TemporaryDirectory();

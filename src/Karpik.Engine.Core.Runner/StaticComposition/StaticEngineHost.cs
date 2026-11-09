@@ -11,6 +11,9 @@ namespace Karpik.Engine.Core.Runner;
 /// </summary>
 public static class StaticEngineHost
 {
+    internal static RunnerLaunchArguments ParseLaunchArguments(Side side, string[] args) =>
+        StaticLaunchArguments.Parse(args, side);
+
     public static async Task<int> RunAsync(
         Side side,
         IStaticRuntimeComposition composition,
@@ -22,7 +25,7 @@ public static class StaticEngineHost
         RunnerLaunchArguments launch;
         try
         {
-            launch = StaticLaunchArguments.Parse(args, side);
+            launch = ParseLaunchArguments(side, args);
         }
         catch (Exception ex)
         {
@@ -96,7 +99,7 @@ file static class StaticLaunchArguments
                 }
                 value = args[++index];
             }
-            if (name is not ("--bundle" or "--engine-root" or "--side" or "--pipe-name" or "--state" or "--state-file"))
+            if (name is not ("--bundle" or "--engine-root" or "--side" or "--pipe-name" or "--state" or "--state-file" or "--content-reload-instance"))
             {
                 throw new ArgumentException($"Unknown static host argument: {name}", nameof(args));
             }
@@ -135,7 +138,9 @@ file static class StaticLaunchArguments
             throw new ArgumentException("Static host state file path must be absolute.", nameof(args));
         }
 
-        return new RunnerLaunchArguments(hostSide, validatedBundle, validatedEngineRoot, pipeName, state, stateFile, waitForDebugger);
+        values.TryGetValue("--content-reload-instance", out string? contentReloadInstance);
+        return new RunnerLaunchArguments(hostSide, validatedBundle, validatedEngineRoot, pipeName, state, stateFile, waitForDebugger)
+        { ContentReloadInstanceId = contentReloadInstance };
     }
 
     private static string ValidateOptionalEngineRoot(string? engineRoot)

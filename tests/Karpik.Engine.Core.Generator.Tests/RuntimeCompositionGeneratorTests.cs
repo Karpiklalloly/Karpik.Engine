@@ -316,6 +316,16 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
+    public void Run_Static_MergeFactoryResolvesContentBeforeActivation()
+    {
+        var references = CreateFullSelectionReferences("Client");
+        references.Add(GeneratorTestHarness.AssemblyReference<Karpik.Content.Runtime.ContentRegistry>());
+        var result = GeneratorTestHarness.Run(CreateGenerator(), additionalReferences: references);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Id == "KE306" && diagnostic.GetMessage().Contains("ContentRegistry", StringComparison.Ordinal));
+        Assert.Contains("resolver.Resolve<global::Karpik.Content.Runtime.IContentRegistry>()", result.CompositionSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Run_Static_RegistersAndConstructsContentRuntimeServices()
     {
         var result = GeneratorTestHarness.Run(
@@ -342,9 +352,13 @@ public sealed class RuntimeCompositionGeneratorTests
             registration.ContractType == typeof(Karpik.Content.Runtime.IContentStore));
         object store = storeRegistration.Factory(resolver);
         resolver.Add(typeof(Karpik.Content.Runtime.IContentStore), store);
+        resolver.Add(typeof(IEnumerable<Karpik.Content.Runtime.IContentPayloadLoader>), Array.Empty<Karpik.Content.Runtime.IContentPayloadLoader>());
 
         var contentRegistration = Assert.Single(registry.Registrations, static registration =>
             registration.ContractType == typeof(Karpik.Content.Runtime.IContentRegistry));
+        var updateRegistration = Assert.Single(registry.Registrations, static registration =>
+            registration.ContractType == typeof(Karpik.Content.Runtime.IContentUpdateRegistry));
+        Assert.Equal(contentRegistration.ImplementationType, updateRegistration.ImplementationType);
         object contentRegistry = contentRegistration.Factory(resolver);
 
         Assert.IsType<Karpik.Content.Runtime.FileContentStore>(store);

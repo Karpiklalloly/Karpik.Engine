@@ -1,5 +1,4 @@
 using System.Composition;
-using System.Runtime.CompilerServices;
 using Autofac;
 using Karpik.Content.Core;
 using Karpik.Engine.Core;
@@ -8,215 +7,374 @@ using Karpik.Engine.Core.FileSystem;
 namespace Karpik.Content.Runtime;
 
 [Export(typeof(IContentRegistry))]
+[Export(typeof(IContentUpdateRegistry))]
 [Export(typeof(ContentRegistry))]
 [ServiceRegistration(ModuleScope.Engine, ServiceLifetime.Singleton)]
-public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store) : IContentRegistry, IStartable
+public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, IStartable, IAsyncDisposable
 {
-    private readonly Dictionary<AssetId, ContentSlot> _slots = new();
+    public const int MaximumAssets = 4096;
     private readonly object _initializationLock = new();
-    private Dictionary<string, (string Locator, IContentStore Store)> _artifacts = new(StringComparer.Ordinal);
-    private readonly IFileSystem _fileSystem = fileSystem;
-    private readonly IContentStore _startupStore = store;
-    private IContentStore? _store;
-
+    private readonly IFileSystem _fileSystem;
+    private readonly IContentStore _store;
+    private readonly IContentPayloadLoader[] _loaders;
+    private ContentSnapshot? _root;
+    private int _updating;
+    private int _disposed;
+    private readonly ContentSnapshot _disposedRoot;
+    private Exception? _retirementFailure;
+    public ContentRegistry(IFileSystem fileSystem, IContentStore store, IEnumerable<IContentPayloadLoader>? loaders = null)
+    {
+        _fileSystem = fileSystem; _store = store; _loaders = loaders?.ToArray() ?? [];
+        _disposedRoot = new ContentSnapshot(new(), 0, store, retainStore: false);
+    }
     public void Start()
     {
         lock (_initializationLock)
         {
-            if (_store is not null) return;
-            string manifestPath = Path.Combine(_fileSystem.ContentPath, "manifest.json");
-            using Stream stream = _fileSystem.OpenRead(manifestPath);
-            RegisterManifest(ContentManifest.Load(stream), _startupStore);
+            if (Volatile.Read(ref _root) != null) return;
+            if (_store is FileContentStore { CapturedManifest: { } capturedManifest } captured)
+            {
+                RegisterManifest(capturedManifest, captured);
+                // The snapshot and slots now retain the store; remove the service's bootstrap claim.
+                captured.Dispose();
+                return;
+            }
+            using var stream = _fileSystem.OpenRead(Path.Combine(_fileSystem.ContentPath, "manifest.json"));
+            RegisterManifest(ContentManifest.Load(stream), _store);
         }
     }
 
-    public void RegisterManifest(ContentManifest manifest, IContentStore store)
+    private ContentSnapshot? GetArtifactSnapshot()
     {
-        ArgumentNullException.ThrowIfNull(manifest);
-        ArgumentNullException.ThrowIfNull(store);
-        lock (_initializationLock)
+        var root = Volatile.Read(ref _root);
+        if (root == null && (_store is FileContentStore { CapturedManifest: not null }
+            || _fileSystem.Exists(Path.Combine(_fileSystem.ContentPath, "manifest.json"))))
         {
-            var artifacts = manifest.Entries.ToDictionary(e => e.LogicalName, e => (e.ArtifactLocator, store), StringComparer.Ordinal);
-            _slots.Clear();
-            foreach (var e in manifest.Entries.OrderBy(x => x.AssetId.Value))
-            {
-                _slots[e.AssetId] = new ContentSlot
-                {
-                    Id = e.AssetId,
-                    State = SlotState.Unloaded,
-                    Version = 0,
-                    ArtifactLocator = e.ArtifactLocator,
-                    DeclaredType = e.DeclaredType,
-                    Dependencies = e.Dependencies.ToArray()
-                };
-            }
-            Volatile.Write(ref _artifacts, artifacts);
-            Volatile.Write(ref _store, store);
+            Start();
+            root = Volatile.Read(ref _root);
         }
+        return root;
     }
 
     public bool TryResolveArtifact(string logicalName, out string artifactLocator, out IContentStore store)
     {
-        // A startable graphics backend can request an asset before Autofac starts this registry.
-        if (Volatile.Read(ref _store) is null
-            && _fileSystem.Exists(Path.Combine(_fileSystem.ContentPath, "manifest.json"))) Start();
-        if (Volatile.Read(ref _artifacts).TryGetValue(logicalName, out var artifact))
+        var root = GetArtifactSnapshot();
+        if (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
         {
-            artifactLocator = artifact.Locator;
-            store = artifact.Store;
+            artifactLocator = slot.Entry.ArtifactLocator;
+            store = slot.Store;
             return true;
         }
+
         artifactLocator = null!;
         store = null!;
         return false;
     }
 
-    public bool IsAlive<T>(AssetRef<T> r) => IsAlive(r.Id, r.Version);
-
-    public bool IsAlive(AssetId id, uint version)
+    public Stream? TryOpenArtifact(string logicalName)
     {
-        if (!_slots.TryGetValue(id, out var slot))
-            return false;
-        // Volatile.Read fast path — lock-free read of State and Version
-        var state = (SlotState)Volatile.Read(ref Unsafe.As<SlotState, int>(ref slot.State));
-        if (state != SlotState.Loaded)
-            return false;
-        var ver = (uint)Volatile.Read(ref Unsafe.As<uint, int>(ref slot.Version));
-        return ver == version;
-    }
-
-    public bool TryGet<T>(AssetRef<T> r, out AssetLease<T> lease)
-    {
-        if (_slots.TryGetValue(r.Id, out var slot))
+        var root = GetArtifactSnapshot();
+        while (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
         {
-            // Volatile.Read fast path — zero-alloc, per-slot lock not taken on read
-            var state = (SlotState)Volatile.Read(ref Unsafe.As<SlotState, int>(ref slot.State));
-            if (state == SlotState.Loaded)
-            {
-                var version = (uint)Volatile.Read(ref Unsafe.As<uint, int>(ref slot.Version));
-                if (version == r.Version)
-                {
-                    object? payload = Volatile.Read(ref slot.Payload);
-                    if (payload is T p)
-                    {
-                        lease = new AssetLease<T>(this, r, version, p);
-                        return true;
-                    }
-                }
-            }
-        }
-
-        lease = default;
-        return false;
-    }
-
-    public Task LoadAsync<T>(AssetRef<T> r, CancellationToken ct = default)
-    {
-        if (_store is null)
-            throw new InvalidOperationException("RegisterManifest must be called before LoadAsync.");
-        if (!_slots.TryGetValue(r.Id, out var slot))
-            throw new KeyNotFoundException(
-                $"AssetId {r.Id} not registered. Call RegisterManifest with a manifest containing this id.");
-
-        // Volatile.Read fast path — already loaded => completed task, no lock, no alloc
-        var fastState = (SlotState)Volatile.Read(ref Unsafe.As<SlotState, int>(ref slot.State));
-        if (fastState == SlotState.Loaded)
-        {
-            var fastVersion = (uint)Volatile.Read(ref Unsafe.As<uint, int>(ref slot.Version));
-            if (fastVersion == r.Version)
-            {
-                object? fastPayload = Volatile.Read(ref slot.Payload);
-                if (fastPayload is T)
-                    return Task.CompletedTask;
-            }
-        }
-
-        TaskCompletionSource<bool>? tcs = null;
-        Task task;
-
-        lock (slot.Sync)
-        {
-            // Double-check inside lock
-            if (slot.State == SlotState.Loaded && slot.Version == r.Version && slot.Payload is T)
-                return Task.CompletedTask;
-
-            if (slot.State == SlotState.Loading && slot.Inflight != null)
-                return slot.Inflight;
-
-            // Start new single-flight load
-            tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            slot.State = SlotState.Loading;
-            slot.Inflight = tcs.Task;
-            task = tcs.Task;
-        }
-
-        // Outside lock: perform I/O and payload creation
-        _ = LoadAsyncInner<T>(slot, tcs, ct);
-        return task;
-    }
-
-    private async Task LoadAsyncInner<T>(ContentSlot slot, TaskCompletionSource<bool> tcs, CancellationToken ct)
-    {
-        try
-        {
-            var store = _store;
-            if (store is null)
-                throw new InvalidOperationException("Store is null during load.");
-
-            // Perform I/O outside any lock — thread-safe per slot, not holding Sync
-            var bytes = await store.GetAsync(slot.ArtifactLocator, ct).ConfigureAwait(false);
-
-            T payload = CreatePayload<T>(bytes);
-
             lock (slot.Sync)
             {
-                slot.Payload = payload;
-                // Version 0 -> 1 on first load, then ++ on reload (retry after Failed also increments)
-                if (slot.Version == 0)
-                    slot.Version = 1;
-                else
-                    slot.Version++;
-                slot.State = SlotState.Loaded;
-                slot.Inflight = null;
+                if (slot.Retired)
+                {
+                    root = Volatile.Read(ref _root);
+                    continue;
+                }
+                ContentStoreLifetime.Retain(slot.Store);
             }
 
-            tcs.SetResult(true);
+            try { return slot.Store.OpenRead(slot.Entry.ArtifactLocator); }
+            finally { ContentStoreLifetime.Release(slot.Store); }
+        }
+        return null;
+    }
+
+    public void RegisterManifest(ContentManifest manifest, IContentStore store)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ArgumentNullException.ThrowIfNull(store);
+        if (Volatile.Read(ref _root) != null) throw new InvalidOperationException("RegisterManifest is initialization-only.");
+        var entries = Normalize(manifest);
+        var slots = entries.ToDictionary(e => e.AssetId, e => new ContentSlot(e, 1, store));
+        var snapshot = new ContentSnapshot(slots, 1, store);
+        if (Interlocked.CompareExchange(ref _root, snapshot, null) != null)
+        {
+            foreach (var slot in slots.Values) slot.ReleaseStore();
+            snapshot.ReleaseStore();
+            throw new InvalidOperationException("RegisterManifest is initialization-only. Use PrepareAsync/TryCommit for updates.");
+        }
+    }
+    public bool TryResolve<T>(AssetId id, out AssetRef<T> reference)
+    {
+        var root = Volatile.Read(ref _root);
+        if (root != null && root.Slots.TryGetValue(id, out var slot) && (Volatile.Read(ref slot.PayloadType) is not { } bound || bound == typeof(T)))
+        {
+            reference = new AssetRef<T>(id, slot.Version); return true;
+        }
+        reference = default; return false;
+    }
+    // Binding control needs to distinguish a missing ID from an incompatible CLR
+    // request without changing the public fixed-version reference contract.
+    internal uint CurrentRevision => Volatile.Read(ref _root)?.Revision ?? 0;
+    internal bool TryGetVersion(AssetId id, out uint version)
+    {
+        var root = Volatile.Read(ref _root);
+        if (root != null && root.Slots.TryGetValue(id, out var slot)) { version = slot.Version; return true; }
+        version = 0;
+        return false;
+    }
+    public bool IsAlive<T>(AssetRef<T> reference) => IsAlive(reference.Id, reference.Version);
+    public bool IsAlive(AssetId id, uint version)
+    {
+        var root = Volatile.Read(ref _root);
+        return root != null && root.Slots.TryGetValue(id, out var slot) && slot.Version == version && Volatile.Read(ref slot.Payload) != null;
+    }
+    public bool TryGet<T>(AssetRef<T> reference, out AssetLease<T> lease)
+    {
+        var root = Volatile.Read(ref _root);
+        if (root != null && root.Slots.TryGetValue(reference.Id, out var slot) && slot.Version == reference.Version && Volatile.Read(ref slot.Payload) is T value)
+        {
+            lease = new AssetLease<T>(this, reference, slot.Version, value); return true;
+        }
+        lease = default; return false;
+    }
+    public Task LoadAsync<T>(AssetRef<T> reference, CancellationToken ct = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        var root = Volatile.Read(ref _root) ?? throw new InvalidOperationException("RegisterManifest must be called first.");
+        if (!root.Slots.TryGetValue(reference.Id, out var slot)) throw new KeyNotFoundException($"Unregistered asset {reference.Id}.");
+        if (slot.Version != reference.Version) throw new InvalidOperationException("KCR204 Stale asset generation.");
+        if (Volatile.Read(ref slot.Payload) is T) return Task.CompletedTask;
+        lock (slot.Sync)
+        {
+            if (slot.Retired) throw new InvalidOperationException("KCR204 Retired asset generation.");
+            if (slot.Payload is T) return Task.CompletedTask;
+            if (slot.PayloadType != null && slot.PayloadType != typeof(T)) throw new InvalidOperationException("Asset already requested with another CLR type.");
+            if (slot.Inflight != null) return slot.Inflight;
+            slot.PayloadType = typeof(T);
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            slot.Inflight = completion.Task;
+            _ = LoadSlotAsync(slot, typeof(T), completion, ct);
+            return completion.Task;
+        }
+    }
+    private async Task LoadSlotAsync(ContentSlot slot, Type type, TaskCompletionSource completion, CancellationToken ct)
+    {
+        object? payload = null;
+        try
+        {
+            var bytes = await slot.Store.GetAsync(slot.Entry.ArtifactLocator, ct).ConfigureAwait(false);
+            payload = await DecodeAsync(type, slot.Entry.DeclaredType, bytes, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            lock (slot.Sync)
+            {
+                if (slot.Retired) throw new InvalidOperationException("KCR204 Load completed for a retired generation.");
+                Volatile.Write(ref slot.Payload, payload);
+                slot.Inflight = null;
+            }
+            completion.TrySetResult();
         }
         catch (Exception ex)
         {
-            lock (slot.Sync)
+            Exception failure = ex;
+            Exception? cleanupFailure = null;
+            try
             {
-                slot.State = SlotState.Failed;
-                slot.Inflight = null;
-                // Keep Payload null for Failed — retryable
+                if (payload is IContentTrackedResource { Lifetime: { } lifetime }) await lifetime.DrainAsync().ConfigureAwait(false);
             }
-
-            tcs.SetException(ex);
+            catch (Exception cleanup)
+            {
+                cleanupFailure = cleanup;
+                Volatile.Write(ref _retirementFailure, cleanup);
+                failure = new AggregateException(ex, cleanup);
+            }
+            finally
+            {
+                lock (slot.Sync) { slot.Inflight = null; slot.PayloadType = null; slot.RetirementFailure = cleanupFailure; }
+            }
+            if (failure is OperationCanceledException) completion.TrySetCanceled(ct); else completion.TrySetException(failure);
         }
     }
+    private async ValueTask<object> DecodeAsync(Type type, string declared, ReadOnlyMemory<byte> bytes, CancellationToken ct)
+    {
+        foreach (var loader in _loaders)
+            if (loader.CanLoad(type, declared)) return await loader.LoadAsync(type, declared, bytes, ct).ConfigureAwait(false);
+        return CreatePayload(type, bytes);
+    }
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, CancellationToken cancellationToken = default) =>
+        PrepareCoreAsync(manifest, null, cancellationToken);
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        return PrepareCoreAsync(manifest, store, cancellationToken);
+    }
+    private async Task<PreparedContentUpdate> PrepareCoreAsync(ContentManifest manifest, IContentStore? candidateStore, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        if (Interlocked.CompareExchange(ref _updating, 1, 0) != 0) throw new InvalidOperationException("An update is preparing or retiring. Await its Completion first.");
+        var created = new List<ContentSlot>();
+        try
+        {
+            if (_retirementFailure != null) throw new InvalidOperationException("Previous retirement failed.", _retirementFailure);
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var basis = Volatile.Read(ref _root) ?? throw new InvalidOperationException("RegisterManifest must be called first.");
+            var store = candidateStore ?? basis.Store;
+            var entries = Normalize(manifest);
+            bool identical = entries.Length == basis.Slots.Count && entries.All(e => basis.Slots.TryGetValue(e.AssetId, out var old) && old.Entry.Equals(e));
+            uint revision = identical ? basis.Revision : checked(basis.Revision + 1);
+            var slots = new Dictionary<AssetId, ContentSlot>(entries.Length);
+            foreach (var entry in entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (basis.Slots.TryGetValue(entry.AssetId, out var previous) && previous.Entry.Equals(entry)) { slots.Add(entry.AssetId, previous); continue; }
+                var slot = new ContentSlot(entry, revision, store);
+                created.Add(slot); slots.Add(entry.AssetId, slot);
+                Type? loadedType = null;
+                if (previous != null) lock (previous.Sync) { if (previous.Payload != null) loadedType = previous.PayloadType; }
+                if (loadedType == null) continue;
+                if (previous!.Entry.DeclaredType != entry.DeclaredType) throw new NotSupportedException("Loaded declared-type migration is unsupported.");
+                if (!IsBuiltin(loadedType) && !_loaders.Any(l => l.CanLoad(loadedType, entry.DeclaredType)))
+                    throw new NotSupportedException("Reload of loaded custom CLR payloads requires a stable payload loader.");
+                var bytes = await slot.Store.GetAsync(entry.ArtifactLocator, cancellationToken).ConfigureAwait(false);
+                if (bytes.Length != entry.Size) throw new InvalidDataException("Cooked artifact size does not match manifest.");
+                if (loadedType == typeof(RawJsonPayload)) using (System.Text.Json.JsonDocument.Parse(bytes)) { }
+                slot.Payload = await DecodeAsync(loadedType, entry.DeclaredType, bytes, cancellationToken).ConfigureAwait(false);
+                slot.PayloadType = loadedType;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var replaced = basis.Slots.Values.Where(s => !slots.TryGetValue(s.Entry.AssetId, out var n) || !ReferenceEquals(s, n)).ToArray();
+            var update = new PreparedContentUpdate(this, basis, (identical ? basis : new ContentSnapshot(slots, revision, store)), replaced, created.ToArray());
+            return update;
+        }
+        catch (Exception preparationFailure)
+        {
+            try { await RetireSlotsAsync(created).ConfigureAwait(false); }
+            catch (Exception cleanupFailure)
+            {
+                Volatile.Write(ref _retirementFailure, cleanupFailure);
+                throw new AggregateException(preparationFailure, cleanupFailure);
+            }
+            finally { Volatile.Write(ref _updating, 0); }
+            throw;
+        }
+    }
+    public bool TryCommit(PreparedContentUpdate update)
+    {
+        if (!ReferenceEquals(update.Owner, this) || Interlocked.CompareExchange(ref update.State, 1, 0) != 0) return false;
+        bool committed = ReferenceEquals(Interlocked.CompareExchange(ref _root, update.Candidate, update.Basis), update.Basis);
+        update.Committed = committed;
+        ThreadPool.UnsafeQueueUserWorkItem(update, preferLocal: false);
+        return committed;
+    }
+    internal void CompleteUpdate(PreparedContentUpdate update) => _ = CompleteUpdateAsync(update);
+    private async Task CompleteUpdateAsync(PreparedContentUpdate update)
+    {
+        Exception? failure = null;
+        try
+        {
+            await RetireSlotsAsync(update.Committed ? update.Replaced : update.Created).ConfigureAwait(false);
+            if (!ReferenceEquals(update.Basis, update.Candidate))
+                (update.Committed ? update.Basis : update.Candidate).ReleaseStore();
+        }
+        catch (Exception ex) { _retirementFailure = ex; failure = ex; }
+        finally { Volatile.Write(ref _updating, 0); }
+        if (failure == null) update.Finished.TrySetResult(); else update.Finished.TrySetException(failure);
+    }
+    /// <summary>Cold shutdown: first stop recording, discard/drain graphics buffers, and settle any prepared update.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+        if (Interlocked.CompareExchange(ref _updating, 1, 0) != 0)
+            throw new InvalidOperationException("Abort or commit the prepared update and await Completion before shutdown.");
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) { Volatile.Write(ref _updating, 0); return; }
+        var root = Interlocked.Exchange(ref _root, _disposedRoot);
+        try
+        {
+            if (root != null)
+            {
+                await RetireSlotsAsync(root.Slots.Values).ConfigureAwait(false);
+                root.ReleaseStore();
+            }
+        }
+        finally { Volatile.Write(ref _updating, 0); }
+    }
+    private static async Task RetireSlotsAsync(IEnumerable<ContentSlot> slots)
+    {
+        // Close every old generation before awaiting any one slow owner/load.
+        foreach (var slot in slots) lock (slot.Sync) slot.Retired = true;
+        List<Exception>? errors = null;
+        foreach (var slot in slots)
+        {
+            Task? inflight;
+            object? payload;
+            lock (slot.Sync) { inflight = slot.Inflight; payload = slot.Payload; }
+            if (inflight != null) try { await inflight.ConfigureAwait(false); } catch { /* Inspect cleanup separately from ordinary old-load errors. */ }
+            bool safeToRelease = slot.RetirementFailure == null;
+            if (slot.RetirementFailure is { } loadCleanup) (errors ??= []).Add(loadCleanup);
+            try
+            {
+                if (payload is IContentTrackedResource { Lifetime: { } lifetime }) await lifetime.DrainAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) { safeToRelease = false; (errors ??= []).Add(ex); }
+            finally { lock (slot.Sync) { slot.Payload = null; slot.PayloadType = null; } }
+            if (safeToRelease) slot.ReleaseStore();
+        }
+        if (errors != null) throw new AggregateException(errors);
+    }
+    private static bool IsBuiltin(Type type) => type == typeof(string) || type == typeof(byte[]) || type == typeof(ReadOnlyMemory<byte>) || type == typeof(RawJsonPayload);
+    private static ContentManifestEntry[] Normalize(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (manifest.SchemaVersion != ContentManifest.CurrentSchemaVersion || manifest.Entries.Count > MaximumAssets) throw new InvalidDataException("Unsupported manifest schema or asset budget exceeded.");
+        var seen = new HashSet<AssetId>();
+        var entries = manifest.Entries.Select(e =>
+        {
+            if (!seen.Add(e.AssetId) || e.Size < 0 || string.IsNullOrWhiteSpace(e.ArtifactLocator)) throw new InvalidDataException("Invalid or duplicate manifest entry.");
+            return new ContentManifestEntry(e.AssetId, e.DeclaredType, e.LogicalName, e.ImportSettingsHash, e.SourceHash, e.ArtifactLocator, e.Size, e.Dependencies.OrderBy(d => d.Value).Distinct().ToArray());
+        }).ToArray();
+        var byId = entries.ToDictionary(e => e.AssetId);
+        var states = new Dictionary<AssetId, byte>();
+        void Visit(AssetId id)
+        {
+            if (!byId.TryGetValue(id, out var entry)) throw new InvalidDataException("Manifest dependency is missing.");
+            if (states.TryGetValue(id, out byte state))
+            {
+                if (state == 1) throw new InvalidDataException("Manifest dependency cycle.");
+                return;
+            }
+            states[id] = 1;
+            foreach (var dependency in entry.Dependencies) Visit(dependency);
+            states[id] = 2;
+        }
+        foreach (var entry in entries) Visit(entry.AssetId);
+        return entries;
+    }
 
-    private static T CreatePayload<T>(ReadOnlyMemory<byte> bytes)
+    private static object CreatePayload(Type type, ReadOnlyMemory<byte> bytes)
     {
         // Fast paths for common T to avoid deserialization overhead and allocations
-        if (typeof(T) == typeof(string))
+        if (type == typeof(string))
         {
             string s = System.Text.Encoding.UTF8.GetString(bytes.Span);
-            return (T)(object)s;
+            return s;
         }
 
-        if (typeof(T) == typeof(byte[]))
+        if (type == typeof(byte[]))
         {
-            return (T)(object)bytes.ToArray();
+            return bytes.ToArray();
         }
 
-        if (typeof(T) == typeof(ReadOnlyMemory<byte>))
+        if (type == typeof(ReadOnlyMemory<byte>))
         {
-            return (T)(object)bytes;
+            return bytes;
         }
 
-        if (typeof(T) == typeof(RawJsonPayload))
+        if (type == typeof(RawJsonPayload))
         {
-            return (T)(object)new RawJsonPayload
+            return new RawJsonPayload
             {
                 Json = System.Text.Encoding.UTF8.GetString(bytes.Span),
             };
@@ -225,22 +383,22 @@ public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store)
         // Empty payload is invalid for JSON types — fault with KCR202 (except fast paths above)
         if (bytes.Length == 0)
         {
-            throw new InvalidDataException($"KCR202 Empty payload for {typeof(T).Name}");
+            throw new InvalidDataException($"KCR202 Empty payload for {type.Name}");
         }
 
         // Trivial RawJsonPayload "{}" case is allowed to succeed (deserialize returns non-null).
         // For all other cases, JSON deserialize must succeed; failure faults with KCR202.
         try
         {
-            var obj = System.Text.Json.JsonSerializer.Deserialize<T>(bytes.Span);
+            var obj = System.Text.Json.JsonSerializer.Deserialize(bytes.Span, type);
             if (obj != null)
                 return obj;
 
-            throw new InvalidDataException($"KCR202 Deserialization returned null for {typeof(T).Name}");
+            throw new InvalidDataException($"KCR202 Deserialization returned null for {type.Name}");
         }
         catch (System.Text.Json.JsonException ex)
         {
-            throw new InvalidDataException($"KCR202 Failed to deserialize {typeof(T).Name}", ex);
+            throw new InvalidDataException($"KCR202 Failed to deserialize {type.Name}", ex);
         }
         catch (InvalidDataException)
         {
@@ -248,7 +406,7 @@ public sealed class ContentRegistry(IFileSystem fileSystem, IContentStore store)
         }
         catch (Exception ex)
         {
-            throw new InvalidDataException($"KCR202 Failed to create payload {typeof(T).Name}", ex);
+            throw new InvalidDataException($"KCR202 Failed to create payload {type.Name}", ex);
         }
     }
 }

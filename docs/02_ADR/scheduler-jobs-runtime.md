@@ -74,3 +74,16 @@ dotnet test tests\StaticAnalyzer.Tests\StaticAnalyzer.Tests.csproj -m:1 -nr:fals
 dotnet build ServerLauncher\ServerLauncher.csproj -m:1 -nr:false --no-restore
 dotnet build ClientLauncher\ClientLauncher.csproj -m:1 -nr:false --no-restore
 ```
+
+## Legacy ECS runner adapter (2026-11-01)
+
+`EcsRunParallelRunner` uses unmanaged value jobs referencing an initialization-owned
+registry through a `GCHandle` pointer and system index. Dependencies remain internal
+to the adapter. It reserves all descriptors before publication, then the orchestration
+thread publishes only ready nodes. This preserves the existing conservative conflict
+graph without allowing workers to requeue blocked work into a deque whose bottom
+belongs to the orchestration thread. Every frame drains descriptor returns before the
+next frame can reuse generations. Teardown drains and joins workers before freeing
+the registry. Worker errors are recorded per system and rethrown on the caller after
+all work completes. Rejected publication drains published work and executes the
+unpublished suffix on the caller before reporting the failure.

@@ -75,6 +75,7 @@
     <Project Path="src/Karpik.Content.Core/Karpik.Content.Core.csproj" />
     <Project Path="src/Karpik.Content.Runtime/Karpik.Content.Runtime.csproj" />
     <Project Path="src/Karpik.Content.Tool/Karpik.Content.Tool.csproj" />
+    <Project Path="src/Karpik.Content.Transport/Karpik.Content.Transport.csproj" />
     <Project Path="src/Karpik.Editor/Karpik.Editor.csproj" />
     <Project Path="src/Karpik.Engine.Client.Publish/Karpik.Engine.Client.Publish.csproj" />
     <Project Path="src/Karpik.Engine.Core.Codegen/Karpik.Engine.Core.Codegen.csproj" />
@@ -92,10 +93,15 @@
     <Project Path="src/StaticAnalyzer/StaticAnalyzer.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Karpik.Content.Transport.Tests/EndpointHost/ContentReloadEndpointHost.csproj" />
     <Project Path="tests/Configurator.Tests/Configurator.Tests.csproj" />
     <Project Path="tests/ECS.Core.Tests/ECS.Core.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Runtime.Tests/Karpik.Content.Runtime.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Transport.Tests/Karpik.Content.Transport.Tests.csproj" />
     <Project Path="tests/Karpik.Content.Tests/Karpik.Content.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Tool.Reload.Tests/Karpik.Content.Tool.Reload.Tests.csproj" />
+    <Project Path="tests/Karpik.Content.Reload.HeadlessHost/Karpik.Content.Reload.HeadlessHost.csproj" />
+    <Project Path="tests/Karpik.Content.Reload.GeneratedHostSmoke/Karpik.Content.Reload.GeneratedHostSmoke.csproj" />
     <Project Path="tests/Karpik.Editor.Tests/Karpik.Editor.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Generator.Tests/Karpik.Engine.Core.Generator.Tests.csproj" />
     <Project Path="tests/Karpik.Engine.Core.Runner.Tests/Karpik.Engine.Core.Runner.Tests.csproj" />
@@ -106,5 +112,6 @@
     <Project Path="tests/Karpik.Engine.Tooling.Tests/Karpik.Engine.Tooling.Tests.csproj" />
     <Project Path="tests/Karpik.Launcher.Tests/Karpik.Launcher.Tests.csproj" />
     <Project Path="tests/Network.Codegen.Tests/Network.Codegen.Tests.csproj" />
+    <Project Path="tests/Physics2D.Core.Tests/Physics2D.Core.Tests.csproj" />
   </Folder>
 </Solution>

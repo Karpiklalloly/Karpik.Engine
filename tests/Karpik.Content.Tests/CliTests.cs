@@ -68,6 +68,37 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Cli_Build_ReusesUnchangedOutputAcrossProcessesAndPreservesOtherArtifactsAfterEdit()
+    {
+        using var tmp = new TemporaryDirectory();
+        string source = tmp.CreateSubdirectory("source");
+        string output = tmp.CreateSubdirectory("output");
+        TestFixtures.CreateSourceFile(source, "a.json", "{\"v\":1}");
+        TestFixtures.CreateSourceFile(source, "b.json", "{\"v\":2}");
+        string[] args = ["build", "--source", source, "--output", output, "--namespace", "game", "--target", "Client"];
+        Assert.Equal(0, RunTool(args).ExitCode);
+        string manifestPath = Path.Combine(output, "manifest.json");
+        byte[] originalManifest = File.ReadAllBytes(manifestPath);
+        ContentManifest manifest = ContentManifest.LoadFromFile(manifestPath);
+        string preservedPath = Path.Combine(output, manifest.Entries.Single(e => e.LogicalName == "game/b").ArtifactLocator);
+        var oldTime = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(manifestPath, oldTime);
+        File.SetLastWriteTimeUtc(preservedPath, oldTime);
+
+        Assert.Equal(0, RunTool(args).ExitCode);
+        Assert.Equal(oldTime, File.GetLastWriteTimeUtc(manifestPath));
+        File.WriteAllText(Path.Combine(source, "a.json"), "{\"v\":3}");
+        Assert.Equal(0, RunTool(args).ExitCode);
+
+        Assert.NotEqual(originalManifest, File.ReadAllBytes(manifestPath));
+        Assert.Equal(oldTime, File.GetLastWriteTimeUtc(preservedPath));
+        Assert.Equal("{\"v\":2}", File.ReadAllText(preservedPath));
+        ContentManifest changed = ContentManifest.LoadFromFile(manifestPath);
+        Assert.Equal(2, changed.Entries.Count);
+        Assert.All(changed.Entries, entry => Assert.True(File.Exists(Path.Combine(output, entry.ArtifactLocator))));
+    }
+
+    [Fact]
     public void Cli_Build_FailsOnInvalidSource()
     {
         using var tmp = new TemporaryDirectory();

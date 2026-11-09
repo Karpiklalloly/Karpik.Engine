@@ -9,13 +9,17 @@ public sealed class ContentBuildOptions
     // which selects the whole tree and preserves the pre-target behavior.
     // CLI/SDK always pass a single target (Client or Server).
     public AssetTarget Target { get; init; } = AssetTarget.Shared;
+    public bool RetainGeneration { get; init; }
 }
 
-public sealed class ContentBuildResult
+public sealed class ContentBuildResult : IDisposable
 {
     public bool Success { get; init; }
     public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = [];
     public ContentManifest? Manifest { get; init; }
+    public string? GenerationId { get; init; }
+    public ContentGeneration? PublishedGeneration { get; init; }
+    public void Dispose() => PublishedGeneration?.Dispose();
 }
 
 public sealed class SourceEntry
@@ -43,7 +47,8 @@ public sealed class ContentBuildCoordinator
     public ContentBuildResult Validate(ContentBuildOptions options)
     {
         var diagnostics = new List<ContentDiagnostic>();
-        var entries = ScanAndValidate(options, diagnostics, out _);
+        var entries = ScanAndValidate(options, diagnostics, out Dictionary<AssetId, SourceEntry>? idToEntry);
+        var effectiveGraph = new Dictionary<AssetId, IReadOnlyList<AssetId>>();
 
         if (entries is not null)
         {
@@ -64,8 +69,13 @@ public sealed class ContentBuildCoordinator
                 {
                     diagnostics.Add(d);
                 }
+                effectiveGraph[entry.Meta.AssetId] = entry.Meta.Dependencies.Concat(result.Dependencies)
+                    .Distinct().OrderBy(id => id).ToArray();
             }
         }
+
+        if (idToEntry is not null && !diagnostics.Any(d => d.Severity == ContentDiagnosticSeverity.Error))
+            ValidateDependencies(idToEntry, effectiveGraph, options, diagnostics);
 
         bool hasError = diagnostics.Any(d => d.Severity == ContentDiagnosticSeverity.Error);
         if (hasError)
@@ -83,6 +93,18 @@ public sealed class ContentBuildCoordinator
 
     public ContentBuildResult Build(ContentBuildOptions options)
     {
+        try { return BuildCore(options); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)
+        {
+            return new ContentBuildResult { Success = false, Diagnostics = [new(ContentDiagnosticCodes.ManifestCorrupt,
+                ContentDiagnosticSeverity.Error, null, "Content build could not establish safe publication: " + error.Message)] };
+        }
+    }
+    private ContentBuildResult BuildCore(ContentBuildOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.Namespace))
+            return new ContentBuildResult { Success = false, Diagnostics = [new(ContentDiagnosticCodes.NamespaceMismatch,
+                ContentDiagnosticSeverity.Error, null, "Content build requires an explicit non-empty namespace.")] };
         var diagnostics = new List<ContentDiagnostic>();
         var entries = ScanAndValidate(options, diagnostics, out Dictionary<AssetId, SourceEntry>? idToEntry);
 
@@ -129,16 +151,21 @@ public sealed class ContentBuildCoordinator
             return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
         }
 
-        if (TryComputeInputFingerprint(entries, options, out string inputFingerprint) &&
-            TryLoadReusableOutput(outputRootFull, inputFingerprint, out ContentManifest? previousManifest))
-        {
-            diagnostics.Sort(CompareDiagnostics);
-            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = previousManifest };
-        }
-
-        // Process each source to cooked bytes and artifact hash
+        using var generationGate = ContentGeneration.OpenGate(outputRootFull);
+        new ContentAtomicPublisher(outputRootFull).Recover();
+        ContentGeneration.ImportLegacyUnderGate(outputRootFull);
+        ContentGeneration.RecoverProjectionUnderGate(outputRootFull);
+        var collectionStatus = ContentGeneration.GetCollectionStatus(outputRootFull);
+        if (!collectionStatus.Enabled)
+            diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.GenerationCollectionUnavailable,
+                ContentDiagnosticSeverity.Warning, null, collectionStatus.Reason!));
+        TryComputeInputFingerprint(entries, options, out string inputFingerprint);
+        ContentBuildCache? cache = ContentBuildCache.TryLoad(outputRootFull, options);
         var manifestEntries = new List<ContentManifestEntry>();
-        var artifactMap = new Dictionary<string, byte[]>(); // locator -> cooked bytes
+        var artifactMap = new Dictionary<string, byte[]>();
+        var reusedArtifacts = new Dictionary<string, CachedContentAsset>();
+        var cacheRecords = new List<CachedContentAsset>();
+        bool allReused = cache is not null;
 
         foreach (SourceEntry entry in entries.OrderBy(e => e.Meta.AssetId.Value))
         {
@@ -156,6 +183,18 @@ public sealed class ContentBuildCoordinator
             }
 
             string canonicalMeta = entry.Meta.ToCanonicalMetaJson();
+            string reuseKey = ContentBuildCache.ComputeReuseKey(entry, processor, options.Target);
+            string artifactHash = ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version, options.Target);
+            string locator = ContentHashing.ComputeArtifactLocator(artifactHash);
+            if (cache is not null && cache.TryGet(entry.Meta.AssetId, reuseKey, locator, out CachedContentAsset? reused))
+            {
+                manifestEntries.Add(reused!.Entry);
+                diagnostics.AddRange(reused.Diagnostics);
+                reusedArtifacts[locator] = reused;
+                cacheRecords.Add(reused);
+                continue;
+            }
+            allReused = false;
             ContentProcessorResult result = processor.Process(entry.SourceBytes, entry.Meta, entry.RelativePath, new ContentProcessorContext(options.Target));
 
             // Add processor diagnostics
@@ -171,9 +210,6 @@ public sealed class ContentBuildCoordinator
 
             string sourceHash = ContentHashing.HashSourceBytes(entry.SourceBytes);
             string importSettingsHash = ContentHashing.HashImportSettings(entry.Meta.RawImportSettingsJson);
-            string artifactHash =
-                ContentHashing.ComputeArtifactHash(entry.SourceBytes, canonicalMeta, processor.Version, options.Target);
-            string locator = ContentHashing.ComputeArtifactLocator(artifactHash);
             long size = result.CookedBytes.Length;
 
             // Merge dependencies: explicit meta dependencies + processor dependencies (dedup sorted)
@@ -182,8 +218,11 @@ public sealed class ContentBuildCoordinator
             foreach (AssetId dep in result.Dependencies) deps.Add(dep);
             var sortedDeps = deps.OrderBy(d => d.Value).ToList();
 
-            manifestEntries.Add(new ContentManifestEntry(entry.Meta.AssetId, entry.Meta.DeclaredType,
-                entry.Meta.LogicalName, importSettingsHash, sourceHash, locator, size, sortedDeps));
+            var manifestEntry = new ContentManifestEntry(entry.Meta.AssetId, entry.Meta.DeclaredType,
+                entry.Meta.LogicalName, importSettingsHash, sourceHash, locator, size, sortedDeps);
+            manifestEntries.Add(manifestEntry);
+            cacheRecords.Add(new CachedContentAsset(manifestEntry, reuseKey,
+                ContentHashing.HashBytes(result.CookedBytes), result.Diagnostics));
 
             // Only add artifact if not already present (deduplicate by locator)
             if (!artifactMap.ContainsKey(locator))
@@ -202,9 +241,19 @@ public sealed class ContentBuildCoordinator
         manifestEntries.Sort((a, b) => a.AssetId.CompareTo(b.AssetId));
         var manifest = new ContentManifest(ContentManifest.CurrentSchemaVersion, manifestEntries);
 
-        // Validate artifact reuse? Already covered.
-
+        ValidateDependencies(idToEntry, manifestEntries.ToDictionary(e => e.AssetId, e => e.Dependencies), options, diagnostics);
         diagnostics.Sort(CompareDiagnostics);
+        if (diagnostics.Any(d => d.Severity == ContentDiagnosticSeverity.Error))
+            return new ContentBuildResult { Success = false, Diagnostics = diagnostics };
+
+        string? currentId = ContentGeneration.ReadCurrentId(outputRootFull);
+        if (allReused && cache!.Manifest.ToCanonicalJson() == manifest.ToCanonicalJson() && currentId is not null &&
+            ContentGeneration.CanReuseUnderGate(outputRootFull, currentId, options, manifest, reusedArtifacts))
+        {
+            ContentGeneration.CollectUnderGate(outputRootFull);
+            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = cache.Manifest,
+                GenerationId = currentId, PublishedGeneration = options.RetainGeneration ? ContentGeneration.OpenUnderGate(outputRootFull, currentId) : null };
+        }
 
         // Recover from any interrupted previous publish (crash between artifact moves and manifest swap)
         try
@@ -237,6 +286,16 @@ public sealed class ContentBuildCoordinator
                 File.WriteAllBytes(artifactFullPath, kv.Value);
             }
 
+            // Publisher treats unstaged old files as stale, so reused files must also be materialized.
+            foreach (var (locator, reused) in reusedArtifacts)
+            {
+                string destination = Path.Combine(stagingDir, locator.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(Path.Combine(outputRootFull, locator.Replace('/', Path.DirectorySeparatorChar)), destination);
+                if (!ContentBuildCache.ArtifactMatches(destination, reused.Entry.Size, reused.CookedHash))
+                    throw new InvalidDataException($"Reused artifact changed during staging: {locator}");
+            }
+
             // Write manifest
             string manifestPath = Path.Combine(stagingDir, "manifest.json");
             manifest.SaveToFile(manifestPath);
@@ -255,14 +314,17 @@ public sealed class ContentBuildCoordinator
             }
 
             // Publish atomically
-            var publisher = new ContentAtomicPublisher(outputRootFull);
-            publisher.Publish(stagingDir);
+            string generationId = ContentGeneration.PublishUnderGate(outputRootFull, stagingDir, options, manifest, out ContentGeneration? retained);
+            ContentBuildCache.TrySave(outputRootFull, options, manifest, cacheRecords);
 
             // On success, diagnostics sorted, return manifest
-            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = manifest };
+            ContentGeneration.CollectUnderGate(outputRootFull);
+            return new ContentBuildResult { Success = true, Diagnostics = diagnostics, Manifest = manifest,
+                GenerationId = generationId, PublishedGeneration = retained };
         }
         catch (Exception ex)
         {
+            try { ContentGeneration.RecoverProjectionUnderGate(outputRootFull); } catch { /* Preserve the last good immutable generation for a later recovery. */ }
             diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.ManifestCorrupt,
                 ContentDiagnosticSeverity.Error, null, $"Build publication failed: {ex.Message}"));
             TryDeleteDirectory(stagingDir);
@@ -304,45 +366,6 @@ public sealed class ContentBuildCoordinator
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes(value);
         hash.AppendData(BitConverter.GetBytes(bytes.Length));
         hash.AppendData(bytes);
-    }
-
-    private static bool TryLoadReusableOutput(string outputRoot, string fingerprint, out ContentManifest? manifest)
-    {
-        manifest = null;
-        try
-        {
-            string fingerprintPath = Path.Combine(outputRoot, InputFingerprintFileName);
-            if (!File.Exists(fingerprintPath) ||
-                !string.Equals(File.ReadAllText(fingerprintPath).Trim(), fingerprint, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            ContentManifest loaded = ContentManifest.LoadFromFile(Path.Combine(outputRoot, "manifest.json"));
-            foreach (ContentManifestEntry entry in loaded.Entries)
-            {
-                string artifactPath = Path.Combine(outputRoot, entry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar));
-                if (!File.Exists(artifactPath) || new FileInfo(artifactPath).Length != entry.Size)
-                {
-                    return false;
-                }
-            }
-
-            manifest = loaded;
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (InvalidDataException)
-        {
-            return false;
-        }
     }
 
     private void ValidateStaging(string stagingDir, ContentManifest manifest, List<ContentDiagnostic> diagnostics)
@@ -618,69 +641,64 @@ public sealed class ContentBuildCoordinator
             }
         }
 
-        // Validate dependencies: unknown ID, outside namespace, cycle
-        // Build graph of AssetId -> dependencies
-        // Only for entries that passed earlier validation (in idMap)
-        var graph = new Dictionary<AssetId, List<AssetId>>();
-        foreach (var kv in idMap)
-        {
-            if (!IsSelectedFor(kv.Value, options.Target))
-            {
-                continue;
-            }
+        var graph = idMap.Where(kv => IsSelectedFor(kv.Value, options.Target))
+            .ToDictionary(kv => kv.Key, kv => (IReadOnlyList<AssetId>)kv.Value.Meta.Dependencies);
+        ValidateDependencies(idMap, graph, options, diagnostics);
 
-            graph[kv.Key] = kv.Value.Meta.Dependencies.ToList();
-        }
+        // If any errors, still return entries but caller will check diagnostics
+        idToEntry = idMap;
+        // Return entries sorted by AssetId for determinism
+        entries.Sort((a, b) => a.Meta.AssetId.CompareTo(b.Meta.AssetId));
+        return entries;
+    }
 
+    private static void ValidateDependencies(
+        Dictionary<AssetId, SourceEntry> idMap,
+        Dictionary<AssetId, IReadOnlyList<AssetId>> graph,
+        ContentBuildOptions options,
+        List<ContentDiagnostic> diagnostics)
+    {
         // Unknown dependency (only dependencies of selected assets are enforced;
         // a dependency that exists but is not selected for this target is KCO022)
-        foreach (var kv in idMap)
+        foreach (var kv in graph)
         {
-            if (!IsSelectedFor(kv.Value, options.Target))
+            if (!IsSelectedFor(idMap[kv.Key], options.Target))
             {
                 continue;
             }
 
-            foreach (AssetId dep in kv.Value.Meta.Dependencies)
+            foreach (AssetId dep in kv.Value)
             {
                 if (!idMap.ContainsKey(dep))
                 {
                     diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.UnknownDependency,
-                        ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                        ContentDiagnosticSeverity.Error, idMap[kv.Key].RelativePath,
                         $"Unknown dependency '{dep}' referenced by '{kv.Key}'."));
                 }
                 else if (!IsSelectedFor(idMap[dep], options.Target))
                 {
                     diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.TargetDependencyNotSelected,
-                        ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                        ContentDiagnosticSeverity.Error, idMap[kv.Key].RelativePath,
                         $"Dependency '{dep}' referenced by '{kv.Key}' is not selected for this target."));
                 }
                 else
                 {
-                    // Check dependency namespace? Actually dependency's logical name must also be within expected namespace, but since all logical names are validated to be within namespace, this is already ensured.
-                    // However if dependency's logicalName namespace != expectedNamespace, then it would have already been rejected and not in idMap. So unknown dependency covers outside-namespace? But ExecPlan says dependencies outside requested namespace should be rejected with specific code.
-                    // We need to distinguish: if dependency exists but its logical name namespace != expected? But we filtered entries by namespace, so such dependency would be missing in idMap if its own entry failed validation. Then unknown dependency would fire, not DependencyOutsideNamespace.
-                    // To correctly handle outside-namespace dependency where dep exists but its namespace is different, we would need to have scanned entries without filtering? Instead we currently filter out entries whose logicalName namespace mismatches. That means dependency outside namespace will appear as unknown.
-                    // To satisfy spec, we should after detecting unknown, check if dependency might have been filtered due to namespace mismatch? Simpler: we already emit NamespaceMismatch for the source that has mismatched logicalName, not for dependency.
-                    // The spec for dependency outside namespace likely means a dependency that points to an AssetId whose own logicalName namespace differs from expected? But all logicalNames are forced to be within expected namespace, so this is not possible unless we allow multiple namespaces.
-                    // For simplicity, treat any dependency whose target's logicalName namespace != expectedNamespace as DependencyOutsideNamespace.
-                    // But since we already enforce all targets are within expectedNamespace, this branch will never hit. We can still check.
                     SourceEntry depEntry = idMap[dep];
-                    if (kv.Value.Meta.Targets == AssetTarget.Shared &&
+                    if (idMap[kv.Key].Meta.Targets == AssetTarget.Shared &&
                         depEntry.Meta.Targets != AssetTarget.Shared)
                     {
                         diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.SharedDependsOnSided,
-                            ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
+                            ContentDiagnosticSeverity.Error, idMap[kv.Key].RelativePath,
                             $"Shared asset '{kv.Key}' must not depend on single-target asset '{dep}'."));
                         continue;
                     }
 
                     string depNamespace = depEntry.Meta.LogicalName.Split('/')[0];
-                    if (!string.Equals(depNamespace, expectedNamespace, StringComparison.Ordinal))
+                    if (!string.Equals(depNamespace, options.Namespace.Trim(), StringComparison.Ordinal))
                     {
                         diagnostics.Add(new ContentDiagnostic(ContentDiagnosticCodes.DependencyOutsideNamespace,
-                            ContentDiagnosticSeverity.Error, kv.Value.RelativePath,
-                            $"Dependency '{dep}' logicalName '{depEntry.Meta.LogicalName}' is outside expected namespace '{expectedNamespace}'."));
+                            ContentDiagnosticSeverity.Error, idMap[kv.Key].RelativePath,
+                            $"Dependency '{dep}' logicalName '{depEntry.Meta.LogicalName}' is outside expected namespace '{options.Namespace.Trim()}'."));
                     }
                 }
             }
@@ -696,7 +714,7 @@ public sealed class ContentBuildCoordinator
             if (cycleFound) return;
             visited[node] = 1;
             stack.Add(node);
-            if (graph.TryGetValue(node, out List<AssetId>? deps))
+            if (graph.TryGetValue(node, out IReadOnlyList<AssetId>? deps))
             {
                 foreach (AssetId dep in deps.OrderBy(d => d.Value))
                 {
@@ -734,11 +752,6 @@ public sealed class ContentBuildCoordinator
             }
         }
 
-        // If any errors, still return entries but caller will check diagnostics
-        idToEntry = idMap;
-        // Return entries sorted by AssetId for determinism
-        entries.Sort((a, b) => a.Meta.AssetId.CompareTo(b.Meta.AssetId));
-        return entries;
     }
 
     private static string GetRelativePathSafe(string root, string fullPath)

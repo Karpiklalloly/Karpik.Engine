@@ -18,5 +18,9 @@ public interface IMergeThread : IDisposable
     /// </summary>
     public bool TryTakeCompletedCommandList(out CommandList? commandList, out Fence? submitFence);
 
+    /// <summary>Call after SubmitCommands returns, or when discarding the claimed list. Main render thread only.</summary>
+    public void CompleteSubmission(CommandList commandList);
+
+    [Obsolete("Use TryTakeCompletedCommandList and CompleteSubmission to release resource ownership.")]
     public CommandList GetCommandList();
 }

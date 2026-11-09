@@ -72,6 +72,96 @@ result, then atomically publishes it. Failed builds leave the previously
 published output untouched. Identical inputs yield byte-identical manifests
 and do not rewrite matching artifacts.
 
+## Per-asset build reuse (0.7)
+
+An ordinary build still scans and validates source/sidecar pairs, but reuses
+successful processor results individually. A versioned private index,
+`.karpik-content-cache.v1.json` in the output root, binds records to the
+canonical published manifest. Each record identifies its manifest entry by
+`AssetId` and stores a reuse key, cooked-byte checksum and successful processor
+diagnostics. The index is disposable build metadata, not a runtime contract.
+
+The reuse key includes relative source path, source contents, canonical meta,
+processor type/version and target. Processors must be deterministic for their
+supplied arguments and increment their version when their behavior changes.
+Including the relative path conservatively reruns processing after moves,
+including extension-sensitive validation, without changing the durable ID or
+the public artifact recipe format.
+
+A hit requires a matching key and artifact size/checksum. Missing, corrupt,
+unsupported or manifest-mismatched indexes cause a cold build; a missing or
+damaged artifact invalidates that asset's result. Cache-hit processor warnings
+are replayed, and the combined metadata/processor dependency graph is validated
+for both clean and incremental builds. `validate` always invokes processors.
+
+Dependency IDs currently express references. Changing a referenced asset's
+bytes does not require reprocessing an unchanged referrer, but missing,
+target-incompatible and cyclic references are rejected before publication.
+Processors that consume other assets' contents will need a separate explicit
+build-dependency contract; this cache does not implement that future behavior.
+
+When every selected result is reused and the candidate manifest is unchanged,
+the build returns after validation without creating staging or rewriting
+output. Changed builds stage all referenced artifacts, including copies of
+reused artifacts, because publication removes unstaged old artifacts. The
+private index is saved with an atomic file replacement only after successful
+content publication. Failure to save it leaves a successful, usable output;
+a subsequent build can rebuild instead of reusing results.
+
+The public manifest schema, artifact hashing and ordinary CLI invocation remain
+unchanged. Older output without this index is supported by a cold rebuild.
+The legacy whole-tree fingerprint file is still emitted for older tooling,
+but current builds no longer use it to bypass per-asset integrity checks.
+Processor-emitted invalid references now fail validation like metadata
+references. No runtime, Editor or source-meta migration is required.
+
+This optimization reduces processor work; full source reads, checksum reads
+and changed-build staging copies remain. Concurrent publishers now serialize
+through the generation namespace gate described below. Source watching remains
+outside the build contract.
+
+## Immutable generations and explicit delivery
+
+Every successful publication has an immutable `.generations/<id>/` copy of its
+manifest and artifacts. The ordinary root manifest/artifact tree remains a
+compatible projection; `.karpik-current-generation` identifies the authoritative
+generation. A private descriptor records schema, namespace, target, manifest hash
+and whether the identity is known. The public manifest and artifact recipe do not
+change.
+
+A permanent `.karpik-generations.gate` serializes build reuse, publication,
+acquisition and collection. An owner creates a unique open-handle claim under
+that gate. Collection probes claims under the same gate, prunes proven-stale
+claims and deletes only validated, non-current, unowned generations. Separate
+claim handles support multiple processes and independent owners in one process;
+process death releases the OS ownership. PID reuse and timestamp expiry are not
+ownership evidence. Unknown schema, corruption, access errors or unsupported
+filesystem semantics retain data. `ContentGeneration.GetCollectionStatus`
+explains cleanup support; builds report `KCO025` when collection is unavailable.
+
+The immutable generation exists before the legacy projection is changed. The
+current marker is switched last. Recovery restores an interrupted projection
+from its prior immutable anchor; abandoned candidates can be reclaimed once safe.
+Valid legacy output is copied and validated into an unknown-identity anchor
+before its first destructive migration. A validated build produces known
+namespace/target metadata. A no-op build verifies the immutable copy as well as
+the ordinary cache/projection; damaged copies are repaired by publishing a new
+generation rather than rewriting captured bytes.
+
+`ContentBuildOptions.RetainGeneration` requests a delivery lease returned as
+`ContentBuildResult.PublishedGeneration`; dispose the result when delivery no
+longer needs it. Acquisition occurs before the publisher releases its gate, so a
+newer build cannot collect the result in the build-to-notification interval.
+Ordinary builds do not require callers to manage that lease. A retry acquires its
+own `ContentGeneration` lease and fails clearly if an unused generation has
+already been collected.
+
+`content build --notify <instance>` and `content notify` use a bounded same-user
+local transport. Build and delivery outcomes are separate: publication succeeds
+even if delivery fails. Delivery waits for applied, superseded or failed;
+timeout/disconnection reports unknown without cancelling accepted application.
+See [targeted reload usage](../content-reload.md) for commands and exit codes.
+
 ## Alternatives Considered
 
 ### Extend `AssetsManager`
@@ -113,12 +203,13 @@ locator. A later `IContentStore` can replace loose cooked files with packs or
 chunks while preserving `AssetId`, manifest entries, and future `AssetRef<T>`
 consumers.
 
+
 ### Runtime compatibility for path-based loaders
 
 `AssetsManager` keeps its existing extension-selected loaders and object cache,
 but can open a manifest artifact through `IContentStore.OpenRead`. The registry
-indexes exact logical names to artifact locators together with their registered
-store; legacy relative paths such as
+indexes exact logical names in the published snapshot. Opening a named artifact
+retains its slot store until the stream is opened or immutable bytes are copied; legacy relative paths such as
 `Shaders/2D.vert` also resolve against the `game/` namespace. Loader selection
 and the asset path use the requested name, not the `.cooked` locator. Existing
 physical files and loose files under `Content/` remain supported; this bridge
@@ -128,6 +219,36 @@ The registry initializes its manifest on the first name lookup if an Autofac
 startable requests content before `ContentRegistry.Start`. Later `Start` calls
 do not clear loaded content. Manifest I/O and name normalization occur only on
 initialization or an asset cache miss, not on cached reads.
+
+## Comparing published manifests
+
+`ContentManifestDiff.Compare(previous, current)` provides a deterministic
+build/control-plane primitive for later successful-build notifications. It
+returns one `ContentAssetChange` per added, updated or removed `AssetId`, in
+ascending ID order. A null previous manifest represents the first publication;
+an empty current manifest removes all previously present IDs.
+
+An update means any canonical manifest-entry field changed: declared type,
+logical name, source/import hashes, artifact locator, size or dependencies.
+Entry order and dependency order are ignored, matching canonical manifest
+serialization. Dependency multiplicity is preserved. The comparison copies
+working arrays and never reorders its inputs. Unsupported schemas, duplicate
+IDs and null entries/collections are rejected rather than silently producing
+an ambiguous delta. Full source/dependency-graph validation remains the build
+pipeline's responsibility.
+
+The change record is a readonly value type containing only an `AssetId` and
+change kind. Comparison allocates outside frame hot paths and has no runtime,
+graphics, network or Editor dependency. It does not publish events, select
+targets, invalidate unchanged referrers or replace live resources. A caller
+must compare manifests for the same content namespace and build target; these
+attributes are not stored in the public manifest schema. Failed builds must
+not be treated as successful publications. Delivery, generation identifiers,
+resource ownership and runtime application are separate contracts.
+
+This helper changes no manifest schema, artifact recipe, CLI invocation or
+existing consumer behavior. It is independent of the per-asset cache work.
+
 
 ## Validation
 
