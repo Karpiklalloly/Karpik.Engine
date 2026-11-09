@@ -1,5 +1,5 @@
 ---
-status: executing
+status: completed
 complexity: medium
 complexity_source: auto
 development_mode: tdd
@@ -42,7 +42,7 @@ disables automatic registration while preserving existing refs and manual APIs.
 - [x] (2026-11-09) Two live publications changed HUD title and platform texture
   in client PID 87684. Screenshots `live-frame-{1,2}.png` in the test root
   prove the rendered changes. Only temporary processes and assets were used.
-- [ ] Publish the feature PR.
+- [x] (2026-11-09) Published and attached PR #117 against main.
 
 ## Surprises & Discoveries
 
@@ -182,4 +182,4 @@ A source-visible owner and the two build variants are explicit verification gate
 ## Artifacts and Notes
 
 Design revision 5 in `docs/brainstorms/2026-11-09-generated-content-bindings.md`.
-Implementation and verification are complete. PR publication is pending.
+Implementation and verification are complete. PR: https://github.com/Karpiklalloly/Karpik.Engine/pull/117.
