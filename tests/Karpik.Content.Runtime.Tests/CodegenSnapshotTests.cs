@@ -262,9 +262,161 @@ public sealed class CodegenSnapshotTests
         Assert.Contains("33333333", invalidGen);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GeneratedContentBinding_FiltersAndTypedJsonCompileInBothModes(bool enabled)
+    {
+        const string source = """
+            using Karpik.Content.Runtime;
+            using System.Text.Json.Serialization.Metadata;
+            [ContentType("texture")] public interface ITexture {}
+            public class Presentation
+            {
+                [AutoBindJson("game/ui")]
+                internal static (JsonTypeInfo<int>, int) Ui() => (null!, 7);
+            }
+            """;
+        var entries = new[]
+        {
+            Meta("11111111-1111-1111-1111-111111111111", "game/tile", "texture", ""),
+            Meta("22222222-2222-2222-2222-222222222222", "game/skip", "texture", ""","autoBind":false"""),
+            Meta("33333333-3333-3333-3333-333333333333", "game/ui", "raw-json", ""),
+            Meta("44444444-4444-4444-4444-444444444444", "game/shader", "shader", ""),
+        };
+        var options = new Dictionary<string, string>
+        {
+            ["build_property.KarpikAutoContentBindings"] = enabled.ToString(),
+            ["build_property.KarpikSide"] = "Client"
+        };
+        var result = RunDriver(source, null, entries, options);
+        Assert.True(result.GeneratedSources.TryGetValue("AutoContentBindings.g.cs", out var generated));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains("Game_TileBinding", generated);
+        Assert.Contains("Game_UiBinding", generated);
+        Assert.DoesNotContain("Game_ShaderBinding", generated);
+        Assert.DoesNotContain("bindings.Bind<global::ITexture>(global::Karpik.Content.Generated.ContentRefs.Game_Skip.Id)", generated);
+        Assert.Equal(enabled, generated.Contains("bindings.Bind<global::ITexture>(", StringComparison.Ordinal));
+        Assert.Equal(enabled, generated.Contains("bindings.BindJson(", StringComparison.Ordinal));
+
+        options["build_property.KarpikAutoContentBindingExcludedTypes"] = "texture";
+        var filtered = RunDriver(source, null, entries.Reverse().ToArray(), options);
+        Assert.DoesNotContain("bindings.Bind<global::ITexture>(", filtered.GeneratedSources["AutoContentBindings.g.cs"]);
+        Assert.DoesNotContain(filtered.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(result.GeneratedSources["ContentRefs.g.cs"], filtered.GeneratedSources["ContentRefs.g.cs"]);
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("\"false\"", true)]
+    public void GeneratedContentBinding_ReadsMetaExclusionForCookedManifest(string value, bool invalid)
+    {
+        const string id = "11111111-1111-1111-1111-111111111111";
+        const string logicalName = "game/options";
+        const string source = """
+            using Karpik.Content.Runtime;
+            public class Presentation {}
+            """;
+        string path = Path.Combine(Path.GetTempPath(), $"karpik-bindings-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, new ContentManifest(1, [MakeEntry(id, logicalName)]).ToCanonicalJson());
+            var result = RunDriver(source, path, [Meta(id, logicalName, "raw-json", $$""","autoBind":{{value}}""")]);
+            Assert.Equal(invalid, result.Diagnostics.Any(d => d.Id == "KCO305"));
+            if (!invalid)
+            {
+                Assert.DoesNotContain("bindings.Bind", result.GeneratedSources["AutoContentBindings.g.cs"]);
+                Assert.Contains("Game_Options", result.GeneratedSources["ContentRefs.g.cs"]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    [InlineData(false, 1)]
+    public async Task GeneratedContentBinding_StartupIsIdempotentAndRollsBackCapacityFailure(bool enabled, int capacity)
+    {
+        const string source = """
+            using Karpik.Content.Runtime;
+            """;
+        var entries = new[]
+        {
+            Meta("11111111-1111-1111-1111-111111111111", "game/first", "raw-json", ""),
+            Meta("22222222-2222-2222-2222-222222222222", "game/second", "raw-json", "")
+        };
+        var result = RunDriver(source, null, entries, new Dictionary<string, string>
+        {
+            ["build_property.KarpikAutoContentBindings"] = enabled.ToString()
+        });
+        using var image = new MemoryStream();
+        var emitted = result.Compilation.Emit(image);
+        Assert.True(emitted.Success, string.Join(Environment.NewLine, emitted.Diagnostics));
+        image.Position = 0;
+        var loadContext = new System.Runtime.Loader.AssemblyLoadContext("GeneratedBindingsTest", isCollectible: true);
+        try
+        {
+            Type ownerType = loadContext.LoadFromStream(image).GetType("Karpik.Content.Generated.GeneratedContentBindings")!;
+            object owner = Activator.CreateInstance(ownerType)!;
+            var start = (Action<IContentBindings>)ownerType.GetMethod("Initialize")!.CreateDelegate(typeof(Action<IContentBindings>), owner);
+            var stop = (Action)ownerType.GetMethod("Dispose")!.CreateDelegate(typeof(Action), owner);
+            var read = ownerType.GetProperty("Game_FirstBinding")!;
+            ContentBinding<RawJsonPayload> Handle() => (ContentBinding<RawJsonPayload>)read.GetValue(owner)!;
+            await using var registry = new ContentRegistry(null!, new EmptyStore());
+            await using var bindings = new ContentBindings(registry, registry, new EmptyChanges(),
+                new ContentBindingOptions { Capacity = capacity });
+
+            if (enabled && capacity == 1)
+            {
+                var error = Assert.Throws<InvalidOperationException>(() => start(bindings));
+                Assert.Contains("game/second", error.Message);
+                Assert.Equal(default, Handle());
+            }
+            else
+            {
+                start(bindings);
+                var handle = Handle();
+                start(bindings);
+                Assert.Equal(handle, Handle());
+                Assert.Equal(enabled, bindings.TryGetStatus(handle, out _));
+                stop();
+                stop();
+                Assert.False(bindings.TryGetStatus(handle, out _));
+            }
+
+            var manual = bindings.Bind<RawJsonPayload>(AssetId.Parse("44444444-4444-4444-4444-444444444444"));
+            Assert.True(bindings.TryGetStatus(manual, out _));
+        }
+        finally
+        {
+            loadContext.Unload();
+        }
+    }
+
+    private sealed class EmptyStore : IContentStore
+    {
+        public ReadOnlyMemory<byte> Get(string locator) => ReadOnlyMemory<byte>.Empty;
+        public Task<ReadOnlyMemory<byte>> GetAsync(string locator, CancellationToken cancellation = default) =>
+            Task.FromResult(Get(locator));
+    }
+
+    private sealed class EmptyChanges : IContentChangeSource
+    {
+        public ReadOnlySpan<ContentAssetChange> Changes => [];
+        public ulong Sequence => 0;
+    }
+
+    private static AdditionalText Meta(string id, string logical, string type, string extra) =>
+        new TestAdditionalText($"Assets/{id}.meta",
+            $$"""{"assetId":"{{id}}","logicalName":"{{logical}}","declaredType":"{{type}}"{{extra}}}""");
+
     // --- Harness helpers ---
 
-    private static DriverResult RunDriver(string source, string? manifestPath, IReadOnlyList<AdditionalText> additionalTexts)
+    private static DriverResult RunDriver(string source, string? manifestPath, IReadOnlyList<AdditionalText> additionalTexts, IReadOnlyDictionary<string, string>? additionalOptions = null)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest));
         var references = GetReferences();
@@ -280,6 +432,8 @@ public sealed class CodegenSnapshotTests
             options["build_property.KarpikContentManifest"] = manifestPath;
         }
 
+        if (additionalOptions != null)
+            foreach (var entry in additionalOptions) options[entry.Key] = entry.Value;
         var optionsProvider = new TestAnalyzerConfigOptionsProvider(options);
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             new IIncrementalGenerator[] { new ContentCodegenGenerator() }.Select(g => g.AsSourceGenerator()),
@@ -319,7 +473,7 @@ public sealed class CodegenSnapshotTests
         framework.Add(MetadataReference.CreateFromFile(typeof(ContentManifest).Assembly.Location));
         framework.Add(MetadataReference.CreateFromFile(typeof(ContentTypeAttribute).Assembly.Location));
         framework.Add(MetadataReference.CreateFromFile(typeof(AssetId).Assembly.Location));
-        // DCFApixels not needed for content, but harmless
+        framework.Add(MetadataReference.CreateFromFile(typeof(DCFApixels.DragonECS.IEcsComponent).Assembly.Location));
 
         return framework.ToImmutableArray();
     }

@@ -7,12 +7,13 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Karpik.Content.Codegen;
 
 [Generator]
-public sealed class ContentCodegenGenerator : IIncrementalGenerator
+public sealed partial class ContentCodegenGenerator : IIncrementalGenerator
 {
     private static readonly DiagnosticDescriptor ManifestNotBuiltDescriptor = new DiagnosticDescriptor(
         "KCO301",
@@ -48,42 +49,27 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var manifestPathProvider = context.AnalyzerConfigOptionsProvider.Select((provider, ct) =>
+        var settings = context.AnalyzerConfigOptionsProvider.Select((provider, _) =>
         {
-            if (provider.GlobalOptions.TryGetValue("build_property.KarpikContentManifest", out var v))
-            {
-                return v ?? string.Empty;
-            }
-            return string.Empty;
+            string Read(string name) => provider.GlobalOptions.TryGetValue("build_property." + name, out var value)
+                ? value ?? string.Empty : string.Empty;
+
+            return (Manifest: Read("KarpikContentManifest"), Project: Read("MSBuildProjectDirectory"),
+                Root: Read("KarpikContentSourceRoot"), Side: Read("KarpikSide"),
+                Enabled: !string.Equals(Read("KarpikAutoContentBindings"), "false", StringComparison.OrdinalIgnoreCase),
+                Exclusions: Read("KarpikAutoContentBindingExcludedTypes"));
         });
-
-        var projectDirectoryProvider = context.AnalyzerConfigOptionsProvider.Select((provider, ct) =>
+        var jsonProviders = context.SyntaxProvider.ForAttributeWithMetadataName(
+            "Karpik.Content.Runtime.AutoBindJsonAttribute",
+            static (node, _) => node is MethodDeclarationSyntax,
+            static (node, _) => ((IMethodSymbol)node.TargetSymbol, node.Attributes[0])).Collect();
+        var inputs = context.CompilationProvider.Combine(context.AdditionalTextsProvider.Collect())
+            .Combine(settings).Combine(jsonProviders);
+        context.RegisterSourceOutput(inputs, static (spc, input) =>
         {
-            return provider.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var v)
-                ? v ?? string.Empty
-                : string.Empty;
-        });
-
-        var contentRootProvider = context.AnalyzerConfigOptionsProvider.Select((provider, ct) =>
-        {
-            return provider.GlobalOptions.TryGetValue("build_property.KarpikContentSourceRoot", out var v)
-                ? v ?? string.Empty
-                : string.Empty;
-        });
-
-        var additionalTextsProvider = context.AdditionalTextsProvider.Collect();
-
-        var compilationAndAdditional = context.CompilationProvider.Combine(
-            additionalTextsProvider.Combine(manifestPathProvider.Combine(projectDirectoryProvider.Combine(contentRootProvider))));
-
-        context.RegisterSourceOutput(compilationAndAdditional, (spc, source) =>
-        {
-            var compilation = source.Left;
-            var additionalFiles = source.Right.Left;
-            var manifestPath = source.Right.Right.Left;
-            var projectDirectory = source.Right.Right.Right.Left;
-            var contentRoot = source.Right.Right.Right.Right;
-            Execute(spc, compilation, additionalFiles, manifestPath, projectDirectory, contentRoot);
+            var (((compilation, files), options), declarations) = input;
+            Execute(spc, compilation, files, options.Manifest, options.Project, options.Root,
+                options.Side, options.Enabled, options.Exclusions, declarations);
         });
     }
 
@@ -93,7 +79,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         ImmutableArray<AdditionalText> additionalFiles,
         string manifestPath,
         string projectDirectory,
-        string contentRoot)
+        string contentRoot, string side, bool autoBind, string excludedTypes,
+        ImmutableArray<(IMethodSymbol Method, AttributeData Attribute)> jsonProviders)
     {
         spc.CancellationToken.ThrowIfCancellationRequested();
 
@@ -181,7 +168,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
                 // No manifest and no meta entries -> nothing to generate, but still emit empty file? Just return
                 // For deterministic builds, if no entries, we still generate empty ContentRefs? But spec says if manifest not built yet, warning only.
                 // We'll not generate anything if no entries found.
-                return;
+                if (jsonProviders.IsEmpty && string.IsNullOrEmpty(manifestPath)) return;
+                entries = metaEntries;
             }
         }
         else
@@ -193,14 +181,17 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         var sourcePaths = CollectSourcePaths(additionalFiles, projectDirectory, contentRoot, spc.CancellationToken);
         foreach (ManifestEntry entry in entries)
         {
-            if (sourcePaths.TryGetValue(entry.AssetId, out string? sourcePath))
+            if (sourcePaths.TryGetValue(entry.AssetId, out var meta))
             {
-                entry.SourcePath = sourcePath;
+                entry.SourcePath = meta.Path;
+                entry.AutoBind = meta.AutoBind;
             }
         }
 
-        string code = GenerateCode(entries, stringMap, spc);
+        var fields = new List<FieldInfo>();
+        string code = GenerateCode(entries, stringMap, new SourceProductionReporter(spc), fields);
         spc.AddSource("ContentRefs.g.cs", SourceText.From(code, Encoding.UTF8));
+        GenerateBindings(spc, compilation, jsonProviders, fields, stringMap, side, autoBind, excludedTypes);
     }
 
     // Public for tests: bypass Roslyn, use string map
@@ -233,15 +224,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         public void Report(Diagnostic diagnostic) => _list.Add(diagnostic);
     }
 
-    private static string GenerateCode(List<ManifestEntry> entries, IReadOnlyDictionary<string, string> typeMap, SourceProductionContext? spc)
-    {
-        // Wrap spc into reporter
-        IDiagnosticReporter reporter = spc.HasValue ? new SourceProductionReporter(spc.Value) : new NullReporter();
-
-        return GenerateCode(entries, typeMap, reporter);
-    }
-
-    private static string GenerateCode(List<ManifestEntry> entries, IReadOnlyDictionary<string, string> typeMap, IDiagnosticReporter reporter)
+    private static string GenerateCode(List<ManifestEntry> entries, IReadOnlyDictionary<string, string> typeMap, IDiagnosticReporter reporter, List<FieldInfo>? generatedFields = null)
     {
         // Prepare field names with PascalCase and collision handling
         var usedNames = new HashSet<string>(StringComparer.Ordinal);
@@ -357,6 +340,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             });
         }
 
+        generatedFields?.AddRange(fieldInfos);
+
         // Generate code deterministically sorted by AssetId (fieldInfos already sorted because entries sorted)
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
@@ -437,6 +422,8 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
         public string LogicalName = string.Empty;
         public string SourcePath = string.Empty;
         public string ArtifactLocator = string.Empty;
+        public JsonValueKind AutoBind;
+        public string[] Targets = Array.Empty<string>();
     }
 
     private sealed class FieldInfo
@@ -491,23 +478,28 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
             string declaredType = root.GetProperty("declaredType").GetString();
             string logicalName = root.GetProperty("logicalName").GetString();
             Guid guid = Guid.Parse(assetIdStr);
+            var targets = root.TryGetProperty("targets", out var targetArray) && targetArray.ValueKind == JsonValueKind.Array
+                ? targetArray.EnumerateArray().Where(t => t.ValueKind == JsonValueKind.String).Select(t => t.GetString() ?? "").ToArray()
+                : Array.Empty<string>();
             return new ManifestEntry
             {
                 AssetId = guid,
                 DeclaredType = declaredType ?? "",
                 LogicalName = logicalName ?? "",
-                ArtifactLocator = ""
+                ArtifactLocator = "",
+                AutoBind = root.TryGetProperty("autoBind", out var autoBind) ? autoBind.ValueKind : JsonValueKind.Undefined,
+                Targets = targets
             };
         }
     }
 
-    private static Dictionary<Guid, string> CollectSourcePaths(
+    private static Dictionary<Guid, (string Path, JsonValueKind AutoBind)> CollectSourcePaths(
         ImmutableArray<AdditionalText> additionalFiles,
         string projectDirectory,
         string contentRoot,
         CancellationToken cancellationToken)
     {
-        var sourcePaths = new Dictionary<Guid, string>();
+        var sourcePaths = new Dictionary<Guid, (string, JsonValueKind)>();
         foreach (AdditionalText file in additionalFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -540,7 +532,7 @@ public sealed class ContentCodegenGenerator : IIncrementalGenerator
                 {
                     sourcePath = "Content/" + sourcePath.Substring(rootPrefix.Length);
                 }
-                sourcePaths[meta.AssetId] = sourcePath.Replace(Path.DirectorySeparatorChar, '/');
+                sourcePaths[meta.AssetId] = (sourcePath.Replace(Path.DirectorySeparatorChar, '/'), meta.AutoBind);
             }
             catch
             {

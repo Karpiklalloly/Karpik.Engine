@@ -20,6 +20,7 @@ public sealed class ClientPresentationAssets(
     ILogger<ClientPresentationAssets> log) : IAsyncDisposable
 {
     private readonly UiStrings _fallbackUi = CoinRushContent.DefaultUi();
+    private readonly GeneratedContentBindings _generatedBindings = new();
     private ClientDrawState _handles;
     private JobHandle<AssetHandle<Asset>>? _fontJob;
     private AssetHandle<Asset> _fontHandle;
@@ -38,12 +39,14 @@ public sealed class ClientPresentationAssets(
     private async Task<ClientDrawState> InitializeCoreAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        // The context/metadata belongs to this simulation, not a static gameplay cache.
-        _handles.Ui = bindings.BindJson(ContentRefs.Game_CoinRush_UiStrings.Id,
-            ClientPresentationJsonContext.CreateUiTypeInfo(), _fallbackUi);
-        _handles.Player = bindings.Bind<ITexture2D>(ContentRefs.Game_Sprites_Player.Id);
-        _handles.Coin = bindings.Bind<ITexture2D>(ContentRefs.Game_CoinRush_Coin.Id);
-        _handles.Tile = bindings.Bind<ITexture2D>(ContentRefs.Game_CoinRush_Tile.Id);
+        _generatedBindings.Initialize(bindings);
+        _handles = new ClientDrawState
+        {
+            Ui = _generatedBindings.Game_CoinRush_UiStringsBinding,
+            Player = _generatedBindings.Game_Sprites_PlayerBinding,
+            Coin = _generatedBindings.Game_CoinRush_CoinBinding,
+            Tile = _generatedBindings.Game_CoinRush_TileBinding
+        };
 
         try
         {
@@ -73,6 +76,10 @@ public sealed class ClientPresentationAssets(
         return _handles;
     }
 
+    [AutoBindJson("game/CoinRush/UiStrings")]
+    internal static (System.Text.Json.Serialization.Metadata.JsonTypeInfo<UiStrings>, UiStrings) DescribeUi() =>
+        (ClientPresentationJsonContext.CreateUiTypeInfo(), CoinRushContent.DefaultUi());
+
     /// <summary>Returns borrowed values valid only for the current presentation frame.</summary>
     public ClientPresentationFrame Read(in ClientDrawState handles)
     {
@@ -96,10 +103,7 @@ public sealed class ClientPresentationAssets(
             catch (OperationCanceledException) { }
             catch (Exception) { /* Startup failure still must release any registered bindings. */ }
         }
-        bindings.Release(_handles.Ui);
-        bindings.Release(_handles.Player);
-        bindings.Release(_handles.Coin);
-        bindings.Release(_handles.Tile);
+        _generatedBindings.Dispose();
         _handles = default;
         _font = null;
         _fontHandle.Dispose();
