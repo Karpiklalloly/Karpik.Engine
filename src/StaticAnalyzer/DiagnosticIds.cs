@@ -12,4 +12,5 @@ public class DiagnosticIds
     public const string EcsGeneratedRegistryMissingSystem = "K008";
     public const string EcsRenderPrepareWriteAccess = "K009";
     public const string EcsUpdateRenderCommandAccess = "K010";
+    public const string EcsRuntimeSystemTypeRegistration = "K011";
 }

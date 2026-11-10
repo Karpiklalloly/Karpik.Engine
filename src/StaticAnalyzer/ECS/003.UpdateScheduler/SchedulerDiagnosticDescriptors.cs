@@ -4,6 +4,14 @@ namespace StaticAnalyzer.ECS;
 
 public static class SchedulerDiagnosticDescriptors
 {
+    public static readonly DiagnosticDescriptor RuntimeSystemTypeRegistration = new(
+        id: DiagnosticIds.EcsRuntimeSystemTypeRegistration,
+        title: "Runtime system registered by type",
+        messageFormat: "Runtime system '{0}' must be registered through AddInstance with per-instance metadata instead of Add<T>()",
+        category: "ECS",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor OpaqueUpdateAccess = new(
         id: DiagnosticIds.EcsOpaqueUpdateAccess,
         title: "Opaque ECS access in update system",

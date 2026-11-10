@@ -13,6 +13,7 @@ namespace Karpik.Content.Runtime;
 public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, IStartable, IAsyncDisposable
 {
     public const int MaximumAssets = 4096;
+    private readonly object _initializationLock = new();
     private readonly IFileSystem _fileSystem;
     private readonly IContentStore _store;
     private readonly IContentPayloadLoader[] _loaders;
@@ -28,16 +29,69 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     }
     public void Start()
     {
-        if (_store is FileContentStore { CapturedManifest: { } capturedManifest } captured)
+        lock (_initializationLock)
         {
-            RegisterManifest(capturedManifest, captured);
-            // The snapshot and slots now retain the store; remove the service's bootstrap claim.
-            captured.Dispose();
-            return;
+            if (Volatile.Read(ref _root) != null) return;
+            if (_store is FileContentStore { CapturedManifest: { } capturedManifest } captured)
+            {
+                RegisterManifest(capturedManifest, captured);
+                // The snapshot and slots now retain the store; remove the service's bootstrap claim.
+                captured.Dispose();
+                return;
+            }
+            using var stream = _fileSystem.OpenRead(Path.Combine(_fileSystem.ContentPath, "manifest.json"));
+            RegisterManifest(ContentManifest.Load(stream), _store);
         }
-        using var stream = _fileSystem.OpenRead(Path.Combine(_fileSystem.ContentPath, "manifest.json"));
-        RegisterManifest(ContentManifest.Load(stream), _store);
     }
+
+    private ContentSnapshot? GetArtifactSnapshot()
+    {
+        var root = Volatile.Read(ref _root);
+        if (root == null && (_store is FileContentStore { CapturedManifest: not null }
+            || _fileSystem.Exists(Path.Combine(_fileSystem.ContentPath, "manifest.json"))))
+        {
+            Start();
+            root = Volatile.Read(ref _root);
+        }
+        return root;
+    }
+
+    public bool TryResolveArtifact(string logicalName, out string artifactLocator, out IContentStore store)
+    {
+        var root = GetArtifactSnapshot();
+        if (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
+        {
+            artifactLocator = slot.Entry.ArtifactLocator;
+            store = slot.Store;
+            return true;
+        }
+
+        artifactLocator = null!;
+        store = null!;
+        return false;
+    }
+
+    public Stream? TryOpenArtifact(string logicalName)
+    {
+        var root = GetArtifactSnapshot();
+        while (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
+        {
+            lock (slot.Sync)
+            {
+                if (slot.Retired)
+                {
+                    root = Volatile.Read(ref _root);
+                    continue;
+                }
+                ContentStoreLifetime.Retain(slot.Store);
+            }
+
+            try { return slot.Store.OpenRead(slot.Entry.ArtifactLocator); }
+            finally { ContentStoreLifetime.Release(slot.Store); }
+        }
+        return null;
+    }
+
     public void RegisterManifest(ContentManifest manifest, IContentStore store)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);

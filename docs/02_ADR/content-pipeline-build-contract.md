@@ -203,6 +203,23 @@ locator. A later `IContentStore` can replace loose cooked files with packs or
 chunks while preserving `AssetId`, manifest entries, and future `AssetRef<T>`
 consumers.
 
+
+### Runtime compatibility for path-based loaders
+
+`AssetsManager` keeps its existing extension-selected loaders and object cache,
+but can open a manifest artifact through `IContentStore.OpenRead`. The registry
+indexes exact logical names in the published snapshot. Opening a named artifact
+retains its slot store until the stream is opened or immutable bytes are copied; legacy relative paths such as
+`Shaders/2D.vert` also resolve against the `game/` namespace. Loader selection
+and the asset path use the requested name, not the `.cooked` locator. Existing
+physical files and loose files under `Content/` remain supported; this bridge
+does not add automatic mod overrides or change durable `AssetId` identity.
+
+The registry initializes its manifest on the first name lookup if an Autofac
+startable requests content before `ContentRegistry.Start`. Later `Start` calls
+do not clear loaded content. Manifest I/O and name normalization occur only on
+initialization or an asset cache miss, not on cached reads.
+
 ## Comparing published manifests
 
 `ContentManifestDiff.Compare(previous, current)` provides a deterministic
@@ -231,6 +248,7 @@ resource ownership and runtime application are separate contracts.
 
 This helper changes no manifest schema, artifact recipe, CLI invocation or
 existing consumer behavior. It is independent of the per-asset cache work.
+
 
 ## Validation
 

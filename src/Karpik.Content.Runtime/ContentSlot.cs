@@ -20,12 +20,22 @@ internal sealed class ContentSlot(ContentManifestEntry entry, uint version, ICon
 internal sealed class ContentSnapshot
 {
     internal readonly Dictionary<AssetId, ContentSlot> Slots;
+    internal readonly Dictionary<string, ContentSlot?> Artifacts;
     internal readonly uint Revision;
     internal readonly IContentStore Store;
     private int _storeReleased;
     internal ContentSnapshot(Dictionary<AssetId, ContentSlot> slots, uint revision, IContentStore store, bool retainStore = true)
     {
-        Slots = slots; Revision = revision; Store = retainStore ? ContentStoreLifetime.Retain(store) : store;
+        Slots = slots;
+        Artifacts = new Dictionary<string, ContentSlot?>(slots.Count, StringComparer.Ordinal);
+        foreach (var slot in slots.Values)
+        {
+            string name = slot.Entry.LogicalName;
+            if (!string.IsNullOrEmpty(name) && !Artifacts.TryAdd(name, slot))
+                Artifacts[name] = null; // Ambiguous names remain addressable by AssetId.
+        }
+        Revision = revision;
+        Store = retainStore ? ContentStoreLifetime.Retain(store) : store;
         _storeReleased = retainStore ? 0 : 1;
     }
     internal void ReleaseStore()

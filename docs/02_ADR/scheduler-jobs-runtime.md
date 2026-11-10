@@ -19,12 +19,12 @@ Add a separate `JobScheduler` value-job runtime:
 - dependencies are stored in a fixed native table;
 - ready work is published to fixed-capacity `WorkStealingDeque<ValueJobHandle>` queues;
 - background workers claim externally published work through `TryStealTop`;
-- the orchestration thread owns descriptor publication and queue bottom pushes;
+- the orchestration thread publishes descriptors; workers may return pending jobs to a queue;
 - `JobSystem` delegate APIs stay source-compatible but are marked with `AllocatingCompatibilityAttribute`.
 
 ## Memory Ordering
 
-`WorkStealingDeque<T>` has a single bottom owner. The owner writes the item slot before publishing the new bottom with `Volatile.Write`. Thieves read top/bottom with `Volatile.Read` and claim a top slot with `Interlocked.CompareExchange`.
+`WorkStealingDeque<T>` serializes bottom-end pushes and manual pops with a per-queue `SpinLock`: orchestration publication and worker dependency requeue may write the same queue concurrently. The written slot is published with `Volatile.Write`; bottom pops use a full fence before reading top. Thieves remain independent of the bottom lock and claim a top slot with `Interlocked.CompareExchange`. Job execution and dependency checks run outside the lock. Contention can delay producers.
 
 When `JobScheduler.TryPublish` is called by the orchestration thread, worker threads must not call `TryPopBottom` on that queue. Worker loops therefore use a steal-only drain, including for their assigned queue. Manual `TryRunNext` is available only while background workers are not running.
 

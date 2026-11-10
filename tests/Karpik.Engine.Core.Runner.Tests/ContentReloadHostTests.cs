@@ -373,6 +373,7 @@ public sealed class ContentReloadHostTests
         public string ModsPath => Path.Combine(root, "Mods");
         public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
         public bool Exists(string path) => File.Exists(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
         public string GetExtension(string path) => Path.GetExtension(path);
         public bool ExistsDirectory(string path) => Directory.Exists(path);
         public Stream OpenRead(string path) => File.OpenRead(path);

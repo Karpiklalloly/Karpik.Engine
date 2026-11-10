@@ -134,6 +134,21 @@ public class MainThreadScheduler : IDisposable
         }
     }
 
+    /// <summary>Pumps startup work on the owning thread until the task completes, then propagates its result.</summary>
+    public void RunUntilCompleted(Task task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (Environment.CurrentManagedThreadId != _mainThreadId)
+            throw new InvalidOperationException("Only the owning thread can pump the main-thread scheduler.");
+
+        while (!task.IsCompleted)
+        {
+            Execute();
+            if (!task.IsCompleted) Thread.Sleep(1);
+        }
+        task.GetAwaiter().GetResult();
+    }
+
     public void Dispose() => _ownedLoggerFactory?.Dispose();
 
     private static async Task CompleteAsync(Task task, TaskCompletionSource completion)

@@ -1,34 +1,52 @@
 ﻿using Karpik.Engine.Core;
-using Karpik.Engine.Shared.AssetManagement.Core;
+using Karpik.Engine.Shared.ECS.Scheduling;
 
 namespace Karpik.Engine.Shared.Modding.Lua.Systems;
 
-// Public: static composition emits direct factories for module systems, so every
-// ECS system must be visible from the host assembly.
-public sealed class InitSystem(
-    IModManager modManager,
-    IAssetsManager assetsManager,
-    Application application)
-    : ISystemInit
+public sealed class BeginSystem(IModsLifecycleManager lifecycle) : ISystemBegin
 {
-    public void Init()
+    public void Begin()
     {
-        var side = application.ApplicationSide == Side.Server
-            ? ExecutionSide.Server
-            : ExecutionSide.Client;
+        IReadOnlyList<ModContainer> containers = lifecycle.Containers;
 
-        modManager.Init(side);
-        modManager.LoadMods(assetsManager.ModsPath)
-            .GetAwaiter()
-            .GetResult();
-        modManager.StartMods();
+        for (int i = 0; i < containers.Count; i++)
+        {
+            containers[i].Start();
+        }
     }
 }
 
-public class UpdateSystem(IModManager modManager) : ISystemLateUpdate
+[SequentialSystem]
+public sealed class UpdateSystem(
+    IModsLifecycleManager lifecycle,
+    Time time) : ISystemUpdate
 {
-    public void LateUpdate()
+    public void Update()
     {
-        modManager.UpdateMods();
+        IReadOnlyList<ModContainer> containers = lifecycle.Containers;
+        double dt = time.DeltaTime;
+        
+        for (int i = 0; i < containers.Count; i++)
+        {
+            if (containers[i].Runtime is LuaScriptRuntime { HasDeclaredSystems: true }) continue;
+            containers[i].Update(dt);
+        }
+    }
+}
+
+[SequentialSystem]
+public sealed class FixedUpdateSystem(
+    IModsLifecycleManager lifecycle,
+    Time time) : ISystemFixedUpdate
+{
+    public void FixedUpdate()
+    {
+        IReadOnlyList<ModContainer> containers = lifecycle.Containers;
+        double dt = time.FixedDeltaTime;
+        
+        for (int i = 0; i < containers.Count; i++)
+        {
+            containers[i].FixedUpdate(dt);
+        }
     }
 }

@@ -149,8 +149,7 @@ public class CoreRunner
         
         _logger.LogInformation("Engine main thread {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning);
-        mainThreadScheduler.Execute();
-        _bootstrap.Startup.GetAwaiter().GetResult();
+        mainThreadScheduler.RunUntilCompleted(_bootstrap.Startup);
 
         switch (side)
         {
