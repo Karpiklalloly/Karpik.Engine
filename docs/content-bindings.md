@@ -106,23 +106,22 @@ reload and automatic source watching are not included.
 
 ## Generated bindings
 
-A project can declare one top-level partial owner with
-`[AutoContentBindings]`. Register that source type in the Simulation scope
-using the project's normal composition. Call the generated
-`InitializeGeneratedBindings(bindings)` during cold startup and
-`ReleaseGeneratedBindings()` during teardown. The CoinRush template shows
-both calls in `ClientPresentationAssets`.
+Projects that generate ContentRefs also get an internal
+`Karpik.Content.Generated.GeneratedContentBindings` class. Keep an instance
+in the Simulation owner. Call its `Initialize(bindings)` during cold startup
+and `Dispose()` during teardown. The CoinRush template uses its existing
+`ClientPresentationAssets` owner for both calls.
 
 The generator includes each eligible manifest entry by default. It emits a
 typed `...Binding` handle and a `TryGet...` accessor using the corresponding
 `ContentRefs` name. Texture entries use the client payload contract.
 Ordinary raw JSON uses `RawJsonPayload`. For typed UI JSON, declare a provider
-on the same partial class:
+on an accessible static method in the project:
 
 ```csharp
 [AutoBindJson("game/CoinRush/UiStrings")]
-private (JsonTypeInfo<UiStrings>, UiStrings) DescribeUi() =>
-    (ClientPresentationJsonContext.CreateUiTypeInfo(), _fallbackUi);
+internal static (JsonTypeInfo<UiStrings>, UiStrings) DescribeUi() =>
+    (ClientPresentationJsonContext.CreateUiTypeInfo(), CoinRushContent.DefaultUi());
 ```
 
 The provider supplies one typed binding for that ID. Initialization registers

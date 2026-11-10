@@ -271,11 +271,10 @@ public sealed class CodegenSnapshotTests
             using Karpik.Content.Runtime;
             using System.Text.Json.Serialization.Metadata;
             [ContentType("texture")] public interface ITexture {}
-            [AutoContentBindings]
-            public partial class Presentation
+            public class Presentation
             {
                 [AutoBindJson("game/ui")]
-                private (JsonTypeInfo<int>, int) Ui() => (null!, 7);
+                internal static (JsonTypeInfo<int>, int) Ui() => (null!, 7);
             }
             """;
         var entries = new[]
@@ -316,8 +315,7 @@ public sealed class CodegenSnapshotTests
         const string logicalName = "game/options";
         const string source = """
             using Karpik.Content.Runtime;
-            [AutoContentBindings]
-            public partial class Presentation {}
+            public class Presentation {}
             """;
         string path = Path.Combine(Path.GetTempPath(), $"karpik-bindings-{Guid.NewGuid():N}.json");
         try
@@ -345,12 +343,6 @@ public sealed class CodegenSnapshotTests
     {
         const string source = """
             using Karpik.Content.Runtime;
-            [AutoContentBindings]
-            public partial class Presentation
-            {
-                public void Start(IContentBindings bindings) => InitializeGeneratedBindings(bindings);
-                public void Stop() => ReleaseGeneratedBindings();
-            }
             """;
         var entries = new[]
         {
@@ -368,10 +360,10 @@ public sealed class CodegenSnapshotTests
         var loadContext = new System.Runtime.Loader.AssemblyLoadContext("GeneratedBindingsTest", isCollectible: true);
         try
         {
-            Type ownerType = loadContext.LoadFromStream(image).GetType("Presentation")!;
+            Type ownerType = loadContext.LoadFromStream(image).GetType("Karpik.Content.Generated.GeneratedContentBindings")!;
             object owner = Activator.CreateInstance(ownerType)!;
-            var start = (Action<IContentBindings>)ownerType.GetMethod("Start")!.CreateDelegate(typeof(Action<IContentBindings>), owner);
-            var stop = (Action)ownerType.GetMethod("Stop")!.CreateDelegate(typeof(Action), owner);
+            var start = (Action<IContentBindings>)ownerType.GetMethod("Initialize")!.CreateDelegate(typeof(Action<IContentBindings>), owner);
+            var stop = (Action)ownerType.GetMethod("Dispose")!.CreateDelegate(typeof(Action), owner);
             var read = ownerType.GetProperty("Game_FirstBinding")!;
             ContentBinding<RawJsonPayload> Handle() => (ContentBinding<RawJsonPayload>)read.GetValue(owner)!;
             await using var registry = new ContentRegistry(null!, new EmptyStore());

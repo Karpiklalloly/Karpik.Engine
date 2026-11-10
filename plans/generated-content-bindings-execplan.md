@@ -178,6 +178,12 @@ A source-visible owner and the two build variants are explicit verification gate
 - Revision 2 replaces per-asset opt-in with default inclusion and layered
   exclusions. All included entries register at Simulation startup by explicit
   user choice. The user approved revision 2.
+- (2026-11-10) The user removed the owner marker requirement while PR #117
+  was open. Codegen emits a standalone GeneratedContentBindings class
+  alongside ContentRefs. CoinRush uses the same cold Simulation lifecycle
+  with Initialize/Dispose on that class. Typed JSON providers are accessible
+  static methods. Runtime 94/94 and local CoinRush 67/67 passed with SDK
+  0.6.0-local-20261110-183955, with 11 generated registrations.
 
 ## Artifacts and Notes
 

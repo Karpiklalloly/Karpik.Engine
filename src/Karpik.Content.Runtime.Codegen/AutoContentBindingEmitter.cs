@@ -6,8 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Karpik.Content.Codegen;
@@ -18,53 +16,35 @@ public sealed partial class ContentCodegenGenerator
         "KCO305", "Invalid automatic Content binding", "{0}", "Karpik.Content.Codegen",
         DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-    private static void GenerateBindings(SourceProductionContext context, ImmutableArray<INamedTypeSymbol> owners,
+    private static void GenerateBindings(SourceProductionContext context, Compilation compilation,
+        ImmutableArray<(IMethodSymbol Method, AttributeData Attribute)> declarations,
         List<FieldInfo> fields, Dictionary<string, string> typeMap, string side, bool enabled, string excludedTypes)
     {
         void Error(Location? location, string message) =>
             context.ReportDiagnostic(Diagnostic.Create(InvalidBindingDeclaration, location, message));
 
-        if (owners.Length != 1)
-        {
-            Error(owners[0].Locations.FirstOrDefault(), "Declare one automatic Content binding owner per project.");
-            return;
-        }
-
-        INamedTypeSymbol owner = owners[0];
-        if (owner.ContainingType != null || owner.Arity != 0 || owner.IsStatic
-            || owner.DeclaringSyntaxReferences.Any(r =>
-                r.GetSyntax(context.CancellationToken) is not ClassDeclarationSyntax declaration
-                || !declaration.Modifiers.Any(SyntaxKind.PartialKeyword)))
-        {
-            Error(owner.Locations.FirstOrDefault(), "The automatic Content binding owner must be a top-level, non-generic partial class.");
-            return;
-        }
-
         var providers = new Dictionary<string, (IMethodSymbol Method, string Type)>(StringComparer.Ordinal);
-        foreach (var method in owner.GetMembers().OfType<IMethodSymbol>())
+        foreach (var (method, attribute) in declarations)
         {
-            foreach (var attribute in method.GetAttributes())
+            var logical = attribute.ConstructorArguments.Length == 1
+                ? attribute.ConstructorArguments[0].Value as string : null;
+            if (logical == null || !method.IsStatic || method.Arity != 0 || method.Parameters.Length != 0
+                || method.ContainingType.IsGenericType || method.ContainingType.IsFileLocal
+                || !compilation.IsSymbolAccessibleWithin(method, compilation.Assembly)
+                || method.ReturnType is not INamedTypeSymbol { IsTupleType: true } tuple
+                || tuple.TupleElements.Length != 2
+                || tuple.TupleElements[0].Type is not INamedTypeSymbol metadata
+                || metadata.OriginalDefinition.ToDisplayString() != "System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>"
+                || !SymbolEqualityComparer.Default.Equals(metadata.TypeArguments[0], tuple.TupleElements[1].Type)
+                || fields.Count(f => f.Entry.LogicalName == logical && f.Entry.DeclaredType == "raw-json") != 1
+                || providers.ContainsKey(logical))
             {
-                if (attribute.AttributeClass?.ToDisplayString() != "Karpik.Content.Runtime.AutoBindJsonAttribute")
-                    continue;
-                var logical = attribute.ConstructorArguments.Length == 1
-                    ? attribute.ConstructorArguments[0].Value as string : null;
-                if (logical == null || method.Arity != 0 || method.Parameters.Length != 0
-                    || method.ReturnType is not INamedTypeSymbol { IsTupleType: true } tuple
-                    || tuple.TupleElements.Length != 2
-                    || tuple.TupleElements[0].Type is not INamedTypeSymbol metadata
-                    || metadata.OriginalDefinition.ToDisplayString() != "System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>"
-                    || !SymbolEqualityComparer.Default.Equals(metadata.TypeArguments[0], tuple.TupleElements[1].Type)
-                    || !fields.Any(f => f.Entry.LogicalName == logical && f.Entry.DeclaredType == "raw-json")
-                    || providers.ContainsKey(logical))
-                {
-                    if (enabled) Error(method.Locations.FirstOrDefault(),
-                        "AutoBindJson requires a unique raw-json logical name and a parameterless (JsonTypeInfo<T>, T) provider.");
-                    continue;
-                }
-
-                providers.Add(logical, (method, metadata.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                if (enabled) Error(method.Locations.FirstOrDefault(),
+                    "AutoBindJson requires a unique raw-json logical name and an accessible static parameterless (JsonTypeInfo<T>, T) provider.");
+                continue;
             }
+
+            providers.Add(logical, (method, metadata.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
         }
 
         var exclusions = new HashSet<string>(
@@ -86,22 +66,21 @@ public sealed partial class ContentCodegenGenerator
             if (type == null) continue;
 
             if (enabled && entry.AutoBind is not (JsonValueKind.Undefined or JsonValueKind.True or JsonValueKind.False))
-                Error(owner.Locations.FirstOrDefault(), $"Asset '{entry.LogicalName}' has an autoBind value that must be boolean.");
+                Error(Location.None, $"Asset '{entry.LogicalName}' has an autoBind value that must be boolean.");
 
             members.Add((field, type, json.Method,
                 enabled && entry.AutoBind != JsonValueKind.False && !exclusions.Contains(entry.DeclaredType)));
         }
 
-        context.AddSource("AutoContentBindings.g.cs", SourceText.From(EmitBindingOwner(owner, members), Encoding.UTF8));
+        context.AddSource("AutoContentBindings.g.cs", SourceText.From(EmitBindingOwner(members), Encoding.UTF8));
     }
 
-    private static string EmitBindingOwner(INamedTypeSymbol owner,
+    private static string EmitBindingOwner(
         List<(FieldInfo Field, string Type, IMethodSymbol? Provider, bool Register)> members)
     {
         var text = new StringBuilder("// <auto-generated/>\n#nullable enable\n");
-        if (!owner.ContainingNamespace.IsGlobalNamespace)
-            text.AppendLine($"namespace {owner.ContainingNamespace.ToDisplayString()};");
-        text.AppendLine($"partial class @{owner.Name}");
+        text.AppendLine("namespace Karpik.Content.Generated;");
+        text.AppendLine("internal sealed class GeneratedContentBindings : global::System.IDisposable");
         text.AppendLine("{");
         var selected = members.Where(m => m.Register).ToArray();
         if (selected.Length > 0)
@@ -128,7 +107,7 @@ public sealed partial class ContentCodegenGenerator
             }
         }
 
-        text.AppendLine("    private void InitializeGeneratedBindings(global::Karpik.Content.Runtime.IContentBindings bindings)");
+        text.AppendLine("    public void Initialize(global::Karpik.Content.Runtime.IContentBindings bindings)");
         text.AppendLine("    {");
         if (selected.Length > 0)
         {
@@ -146,20 +125,21 @@ public sealed partial class ContentCodegenGenerator
                     text.AppendLine($"            _auto_{name} = bindings.Bind<{item.Type}>({id});");
                 else
                 {
-                    text.AppendLine($"            var metadata_{name} = @{item.Provider.Name}();");
+                    string providerType = item.Provider.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    text.AppendLine($"            var metadata_{name} = {providerType}.@{item.Provider.Name}();");
                     text.AppendLine($"            _auto_{name} = bindings.BindJson({id}, metadata_{name}.Item1, metadata_{name}.Item2);");
                 }
             }
             text.AppendLine("        }");
             text.AppendLine("        catch (global::System.Exception error)");
             text.AppendLine("        {");
-            text.AppendLine("            ReleaseGeneratedBindings();");
+            text.AppendLine("            Dispose();");
             text.AppendLine($"            throw new global::System.InvalidOperationException($\"Failed to register automatic Content binding '{{asset}}' ({selected.Length} selected). Check the binding capacity and asset configuration.\", error);");
             text.AppendLine("        }");
         }
         text.AppendLine("    }");
 
-        text.AppendLine("    private void ReleaseGeneratedBindings()");
+        text.AppendLine("    public void Dispose()");
         text.AppendLine("    {");
         if (selected.Length > 0)
         {

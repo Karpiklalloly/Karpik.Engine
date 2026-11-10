@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Karpik.Content.Codegen;
@@ -58,12 +59,12 @@ public sealed partial class ContentCodegenGenerator : IIncrementalGenerator
                 Enabled: !string.Equals(Read("KarpikAutoContentBindings"), "false", StringComparison.OrdinalIgnoreCase),
                 Exclusions: Read("KarpikAutoContentBindingExcludedTypes"));
         });
-        var owners = context.SyntaxProvider.ForAttributeWithMetadataName(
-            "Karpik.Content.Runtime.AutoContentBindingsAttribute",
-            static (_, _) => true,
-            static (node, _) => (INamedTypeSymbol)node.TargetSymbol).Collect();
+        var jsonProviders = context.SyntaxProvider.ForAttributeWithMetadataName(
+            "Karpik.Content.Runtime.AutoBindJsonAttribute",
+            static (node, _) => node is MethodDeclarationSyntax,
+            static (node, _) => ((IMethodSymbol)node.TargetSymbol, node.Attributes[0])).Collect();
         var inputs = context.CompilationProvider.Combine(context.AdditionalTextsProvider.Collect())
-            .Combine(settings).Combine(owners);
+            .Combine(settings).Combine(jsonProviders);
         context.RegisterSourceOutput(inputs, static (spc, input) =>
         {
             var (((compilation, files), options), declarations) = input;
@@ -79,7 +80,7 @@ public sealed partial class ContentCodegenGenerator : IIncrementalGenerator
         string manifestPath,
         string projectDirectory,
         string contentRoot, string side, bool autoBind, string excludedTypes,
-        ImmutableArray<INamedTypeSymbol> owners)
+        ImmutableArray<(IMethodSymbol Method, AttributeData Attribute)> jsonProviders)
     {
         spc.CancellationToken.ThrowIfCancellationRequested();
 
@@ -167,7 +168,7 @@ public sealed partial class ContentCodegenGenerator : IIncrementalGenerator
                 // No manifest and no meta entries -> nothing to generate, but still emit empty file? Just return
                 // For deterministic builds, if no entries, we still generate empty ContentRefs? But spec says if manifest not built yet, warning only.
                 // We'll not generate anything if no entries found.
-                if (owners.IsEmpty) return;
+                if (jsonProviders.IsEmpty && string.IsNullOrEmpty(manifestPath)) return;
                 entries = metaEntries;
             }
         }
@@ -187,11 +188,10 @@ public sealed partial class ContentCodegenGenerator : IIncrementalGenerator
             }
         }
 
-        var fields = owners.IsEmpty ? null : new List<FieldInfo>();
+        var fields = new List<FieldInfo>();
         string code = GenerateCode(entries, stringMap, new SourceProductionReporter(spc), fields);
         spc.AddSource("ContentRefs.g.cs", SourceText.From(code, Encoding.UTF8));
-        if (fields != null)
-            GenerateBindings(spc, owners, fields, stringMap, side, autoBind, excludedTypes);
+        GenerateBindings(spc, compilation, jsonProviders, fields, stringMap, side, autoBind, excludedTypes);
     }
 
     // Public for tests: bypass Roslyn, use string map
