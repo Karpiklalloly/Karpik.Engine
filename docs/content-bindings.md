@@ -102,3 +102,44 @@ the same shutdown code can release.
 The CoinRush template demonstrates typed UI strings and player/coin/tile texture
 bindings, with its existing font kept in a scoped legacy-loader owner. Font hot
 reload and automatic source watching are not included.
+
+
+## Generated bindings
+
+Projects that generate ContentRefs also get an internal
+`Karpik.Content.Generated.GeneratedContentBindings` class. Keep an instance
+in the Simulation owner. Call its `Initialize(bindings)` during cold startup
+and `Dispose()` during teardown. The CoinRush template uses its existing
+`ClientPresentationAssets` owner for both calls.
+
+The generator includes each eligible manifest entry by default. It emits a
+typed `...Binding` handle and a `TryGet...` accessor using the corresponding
+`ContentRefs` name. Texture entries use the client payload contract.
+Ordinary raw JSON uses `RawJsonPayload`. For typed UI JSON, declare a provider
+on an accessible static method in the project:
+
+```csharp
+[AutoBindJson("game/CoinRush/UiStrings")]
+internal static (JsonTypeInfo<UiStrings>, UiStrings) DescribeUi() =>
+    (ClientPresentationJsonContext.CreateUiTypeInfo(), CoinRushContent.DefaultUi());
+```
+
+The provider supplies one typed binding for that ID. Initialization registers
+all selected bindings before frames run. Values become ready independently.
+Each registration consumes a slot in the existing Simulation capacity.
+Startup reports the failing asset and releases this owner's registrations
+if the capacity is exhausted.
+
+Set `"autoBind": false` in an asset's source .meta to exclude it. The build
+can also exclude declared types project-wide:
+
+```xml
+<PropertyGroup>
+  <KarpikAutoContentBindingExcludedTypes>texture,raw-json</KarpikAutoContentBindingExcludedTypes>
+</PropertyGroup>
+```
+
+Build with `-p:KarpikAutoContentBindings=false` to disable all generated
+registrations. Excluded and disabled accessors return unavailable values.
+The original ContentRefs and explicit Bind / BindJson API remain available.
+Rebuild the game after changing these generation settings.

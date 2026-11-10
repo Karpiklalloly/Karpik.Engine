@@ -9,4 +9,5 @@ KCO301 | Karpik.Content.Codegen | Warning | Content manifest not built
 KCO302 | Karpik.Content.Codegen | Warning | Duplicate logicalName
 KCO303 | Karpik.Content.Codegen | Warning | Invalid logicalName
 KCO304 | Karpik.Content.Codegen | Warning | No ContentType attribute for declaredType
+KCO305 | Karpik.Content.Codegen | Error | Invalid automatic Content binding
 

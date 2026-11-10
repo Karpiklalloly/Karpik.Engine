@@ -22,17 +22,26 @@
     <ProjectReference Include="..\SSSuperGame.Shared\SSSuperGame.Shared.csproj"
                       ReferenceOutputAssembly="false"
                       Private="false" />
-    <Content Include="..\SSSuperGame.Client\bin\$(Configuration)\$(TargetFramework)\Content\manifest.json"
-             Link="Content\manifest.json"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             Condition="'$(KarpikCompositionMode)' == 'Static'" />
-    <Content Include="..\SSSuperGame.Client\bin\$(Configuration)\$(TargetFramework)\karpik-bundle\Content\artifacts\**\*"
-             Link="Content\artifacts\%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             Condition="'$(KarpikCompositionMode)' == 'Static'" />
   </ItemGroup>
+
+  <Target Name="_KarpikStageStaticCookedContent"
+          BeforeTargets="GetCopyToOutputDirectoryItems;GetCopyToPublishDirectoryItems"
+          DependsOnTargets="ResolveProjectReferences"
+          Condition="'$(KarpikCompositionMode)' == 'Static'">
+    <!-- The referenced runtime cooks Content during its build. Enumerate it
+         here so a clean launcher build includes the newly created artifacts. -->
+    <ItemGroup>
+      <ContentWithTargetPath Include="../SSSuperGame.Client/bin/$(Configuration)/$(TargetFramework)/Content/manifest.json"
+                             TargetPath="Content/manifest.json"
+                             CopyToOutputDirectory="PreserveNewest"
+                             CopyToPublishDirectory="PreserveNewest" />
+      <_KarpikStaticCookedArtifact Include="../SSSuperGame.Client/bin/$(Configuration)/$(TargetFramework)/Content/artifacts/**/*" />
+      <ContentWithTargetPath Include="@(_KarpikStaticCookedArtifact)"
+                             TargetPath="Content/artifacts/%(_KarpikStaticCookedArtifact.RecursiveDir)%(_KarpikStaticCookedArtifact.Filename)%(_KarpikStaticCookedArtifact.Extension)"
+                             CopyToOutputDirectory="PreserveNewest"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
   <Target Name="_KarpikEnableStaticRuntimeReference"
           BeforeTargets="AssignProjectConfiguration"
