@@ -24,5 +24,6 @@ public sealed class ComponentCallbackScope : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_owner != owner) throw new InvalidOperationException("Component access requires its owning system's active callback.");
     }
+    internal void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
     public void Dispose() { _owner = null; _disposed = true; }
 }

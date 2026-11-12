@@ -94,3 +94,15 @@ save/network integration и public ergonomic CLR query API сюда не вхо�
 ownership, snapshots/growth, обе policies, numeric boundaries и allocation budget.
 Полный набор команд и актуальные результаты — в
 [ExecPlan](../../plans/lua-ecs-bindings-execplan.md).
+
+## Расширение 2026-11-11: полный каталог и detached snapshots
+
+Принятые новые контракты и реальные проверки — [ExecPlan](../../plans/modding-types-execplan.md) и [API справочник](../modules/modding/typed-bindings.md). Исторические запреты nested/exact/pointer выше относятся к первому f32-срезу.
+
+Typed columns расширяются до всех выбранных scalar kinds; recursive schema tree канонизируется/freeze в ModSet, fixed scalar leaves используют общий dense массив со stride. Native nested/fixed leaf access генерируется напрямую. Metadata field descriptor хранит одну ссылку на accessor; scalar значения не boxятся.
+
+Live nested views переиспользуют root и следуют последнему get/add. copy/new_snapshot создают отделённое typed хранилище без source pool/world references; copy_to повторно заполняет buffer без common allocations. Snapshot lifetime ограничен Simulation, не source entity; pointer snapshot сохраняет только opaque token. Engine/ModSet/Simulation ownership и callback permissions сохраняются.
+
+Exact Lua values неизменяемы, поддерживают checked CLR arithmetic и explicit conversion; цена immutable results включается в отдельный experimental workload. Согласованный ceiling новых probes 4096+1600*N*L+544*N*O B/callback; L — copied scalar leaves/entity, O — exact operations/entity. Старые gates не повышаются. Common C# остаётся 0 B после подготовки; Lua не объявляется production no-GC.
+
+Pointers доступны только через host-registered type/domain, с unmanaged metadata в columns, nil/null и revocation. Host обязан управлять pointee lifetime, raw addresses/dereference не передаются Lua. Snapshot не продлевает жизнь native памяти.

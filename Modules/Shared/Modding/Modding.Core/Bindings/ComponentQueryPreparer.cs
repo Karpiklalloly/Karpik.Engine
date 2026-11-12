@@ -9,17 +9,19 @@ namespace Karpik.Engine.Shared.Modding.Bindings;
 [Export(typeof(ComponentQueryPreparer))]
 [ServiceRegistration(ModuleScope.Simulation, ServiceLifetime.Singleton)]
 public sealed class ComponentQueryPreparer(EcsDefaultWorld world, ClrComponentBindings clr,
-    ComponentSchemaRegistry schemas, ComponentCallbackScope scope) : IDisposable
+    ComponentSchemaRegistry schemas, ComponentCallbackScope scope, ComponentPointerRegistry? pointers = null) : IDisposable
 {
     private readonly Dictionary<Type, IComponentPoolAccess> _native = new();
     private readonly List<PreparedComponentQuery> _queries = new();
     private DynamicComponentStorage? _dynamic;
     private bool _disposed;
+    private readonly ComponentPointerRegistry? _pointers = pointers;
 
     public void Initialize()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _dynamic ??= new DynamicComponentStorage(world, schemas);
+        _dynamic ??= new DynamicComponentStorage(world, schemas, _pointers);
+        _pointers?.Freeze();
     }
 
     public PreparedComponentQuery Prepare(ComponentQueryDefinition definition, string owner)
@@ -46,12 +48,14 @@ public sealed class ComponentQueryPreparer(EcsDefaultWorld world, ClrComponentBi
                     {
                         if (!_native.TryGetValue(type!, out pool!))
                         {
-                            pool = clr.ResolveBinding(entry.ComponentId).Bind(world); _native.Add(type!, pool);
+                            var binding = clr.ResolveBinding(entry.ComponentId);
+                            pool = _pointers is null ? binding.Bind(world) : binding.Bind(world, _pointers);
+                            _native.Add(type!, pool);
                         }
                     }
                     else pool = _dynamic.Resolve(entry.ComponentId);
                 }
-                catch (InvalidDataException error)
+                catch (Exception error) when (error is InvalidDataException or InvalidOperationException)
                 {
                     throw new InvalidDataException($"System '{owner}', query '{definition.Name}', component '{entry.ComponentId}': {error.Message}", error);
                 }

@@ -11,4 +11,5 @@ public abstract class ClrComponentBindingDescriptor
 {
     public abstract Type ComponentType { get; }
     public abstract IComponentPoolAccess Bind(EcsDefaultWorld world);
+    public virtual IComponentPoolAccess Bind(EcsDefaultWorld world, ComponentPointerRegistry pointers) => Bind(world);
 }

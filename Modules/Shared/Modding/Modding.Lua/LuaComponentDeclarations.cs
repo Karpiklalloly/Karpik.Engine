@@ -26,25 +26,8 @@ internal static class LuaComponentDeclarations
                 if (version.Type != DataType.Number || !double.IsFinite(version.Number) || version.Number != Math.Truncate(version.Number) || version.Number < 1 || version.Number > int.MaxValue)
                     throw new InvalidDataException($"Component '{id}' version must be a positive int.");
                 if (fields.Type != DataType.Table) throw new InvalidDataException($"Component '{id}' fields must be a table.");
-                var description = new List<SchemaField>();
-                foreach (TablePair field in fields.Table.Pairs)
-                {
-                    string name = LuaSystemDeclarations.ReadString(field.Key, "field name");
-                    if (field.Value.Type != DataType.String)
-                        throw new InvalidDataException($"Component '{id}', field '{name}': a scalar type name is required.");
-                    SchemaScalarKind kind = field.Value.String switch
-                    {
-                        "bool" => SchemaScalarKind.Bool,
-                        "i32" => SchemaScalarKind.I32,
-                        "u32" => SchemaScalarKind.U32,
-                        "f32" => SchemaScalarKind.F32,
-                        "f64" => SchemaScalarKind.F64,
-                        _ => throw new InvalidDataException($"Component '{id}', field '{name}': unsupported scalar type '{field.Value.String}'; expected bool, i32, u32, f32 or f64.")
-                    };
-                    description.Add(new(name, kind));
-                }
-                if (description.Count == 0) throw new InvalidDataException($"Component '{id}': empty schemas are not implemented in this slice.");
-                schemas.Add(new(id, (int)version.Number, description.ToArray()));
+                SchemaField[] description = LuaSchemaDeclarations.ReadFields(fields.Table, $"Component '{id}'");
+                schemas.Add(new(id, (int)version.Number, description));
             }
         }
         return schemas.ToArray();

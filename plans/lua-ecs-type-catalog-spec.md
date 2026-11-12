@@ -1,5 +1,7 @@
 # Каталог типов ECS bindings и первый числовой срез
 
+Обновление 2026-11-11: расширение всего каталога реализовано по [новому ExecPlan](modding-types-execplan.md); текущий API и принятые контракты собраны в [справочнике bindings](../docs/modules/modding/typed-bindings.md). Разделы ниже сохраняют исторический scope первого пятискалярного среза и не описывают ограничения нового кода. Актуальная приёмка и измерения находятся в новом ExecPlan.
+
 Дата: 2026-10-29, Europe/Samara. Статус: контракт и performance policy согласованы; «в этой ветке делай» явно разрешает реализацию в текущей codex/modding-0.7 без новой ветки.
 
 Первое поручение разработчика: «Каталог и план; код после согласования». Последующее «Делай» согласовало выполнение этого среза и его performance policy; «в этой ветке делай» разрешило текущую codex/modding-0.7. Пять scalar kinds реализованы и проверены; итоговая приёмка отражена в [ExecPlan](lua-ecs-type-catalog-execplan.md), [подробных задачах](../docs/superpowers/plans/2026-10-29-lua-ecs-type-catalog.md) и [измерениях](lua-ecs-type-catalog-evidence.md).
@@ -10,7 +12,7 @@
 
 Исследован `C:/Users/artem/RiderProjects/KarpikEngine`, ветка `codex/modding-0.7`, commit `8fae435f561b022d5b74aaa74cafc910b1f0f37a`. Локальные `main` и `origin/main` указывают на `bed23cc950ba4e0df20dac24f5f71244372ec682`; свежесть GitHub не проверялась. База bindings ещё отсутствует в этой integration branch. Эти документы пока находятся вне репозитория, чтобы не добавлять новую задачу в общую modding-ветку.
 
-Текущая реализация подтверждена исходниками:
+Историческая база перед первым typed-срезом (не текущее состояние):
 
 | Место | Нынешний контракт |
 |---|---|
@@ -38,28 +40,20 @@
 
 ## Каталог и статусы
 
-«Следующий срез» означает предложение реализации после утверждения. «Позже» не означает отказ от возможности.
+Статусы расширения 2026-11-11 принимаются по [ExecPlan](modding-types-execplan.md), не только по наличию кода.
 
-| CLR / schema token | Представление в Lua и правило записи | Статус |
-|---|---|---|
-| `bool` / `bool` | Только boolean; без truthiness и числовых 0/1 | Реализовано |
-| `sbyte`, `byte` / `i8`, `u8` | number; конечное целое в диапазоне CLR-типа | Позже, тот же строгий числовой контракт |
-| `short`, `ushort` / `i16`, `u16` | number; конечное целое в диапазоне CLR-типа | Позже |
-| `int` / `i32` | number; целое от −2147483648 до 2147483647 включительно | Реализовано |
-| `uint` / `u32` | number; целое от 0 до 4294967295 включительно | Реализовано |
-| `long`, `ulong` / `i64`, `u64` | Точное значение с конструированием из строки и арифметикой без double; number допускается только без потери уже представленного им значения и с проверкой диапазона | Принятое продолжение; отдельный контракт API/стоимости |
-| `float` / `f32` | number; округление double→float, finite overflow отклоняется; NaN и ±Infinity допустимы | Реализованный экспериментальный контракт, сохранить |
-| `double` / `f64` | number; прямой double, без промежуточного float; NaN и ±Infinity допустимы | Реализовано |
-| `char` / `char` | Предложение: number-код UTF-16 unit 0…65535, включая одиночный surrogate; строковые преобразования только явно | Позже; это предложение, не утверждённый API |
-| `decimal` / `decimal` | Точное значение из строки; вычисления без double; смешанные точные типы требуют явного преобразования | Принятое продолжение; rounding/overflow/operator API задаст отдельный срез |
-| `enum` | Underlying integer с проверкой диапазона; неизвестные именованные значения и flags-комбинации не запрещаются `Enum.IsDefined`; i64/u64 underlying требуют точного представления | Позже; CLR-first, dynamic enum metadata отдельно |
-| Вложенный unmanaged struct | Generated доступ по полям без boxed copy; readonly всего пути учитывается | Принятое продолжение; синтаксис путей/вложенных views пока не выбран |
-| `fixed T[N]` | Типизированный элемент, обязательный bounds check, без выдачи адреса | Позже; синтаксис индексации и допустимые element kinds отдельно |
-| `T*`, `void*` | Opaque round-trip, без арифметики и dereference; адрес не преобразуется в Lua number | Принятое продолжение; provenance/lifetime и доверенный host отдельно |
-| `nint`, `nuint` | Требуют явного учёта разрядности процесса и точного числового контракта | Вне первого среза; решение о поддержке отдельно |
-| Managed references, `string`, `object`, массивы в CLR-компоненте, nullable/reference-rich layouts | Не преобразуются скрытно; нарушение unmanaged ECS-контракта диагностируется | Не поддерживаются этим направлением хранения |
+| Вид | Контракт нового среза |
+| --- | --- |
+| bool/i8/u8/i16/u16/i32/u32/f32/f64/char | Строгие scalar kinds, char numeric UTF-16 code unit |
+| i64/u64/decimal | Exact immutable Lua values, checked same-kind arithmetic и explicit constructors |
+| nint/nuint | Exact signed/unsigned values, process-width bounds |
+| CLR enum / dynamic enum node | Underlying integer, flags/unknown values разрешены; wide integers exact |
+| Nested unmanaged struct | Generated direct leaf access, nested reusable views, readonly propagation |
+| Native fixed / dynamic fixed scalar+struct | Индексы 1..N и #length, typed columns и no boxed copies |
+| T*/void* | Host opt-in type/domain, opaque round-trip, nil/null и revocation |
+| Managed refs/string/object/CLR managed arrays | Не поддерживаются этим ECS layout |
 
-Пустые dynamic schemas/markers и `ctx:create` остаются отдельными операциями продолжения. Они не блокируют этот числовой срез и не добавляются в него.
+copy/new_snapshot/copy_to — detached component data до disposal Simulation. Это не ctx:create/clone entity. Dynamic empty markers, native InlineArray, named reusable value-type registry, exact ^/bitwise, reload/migrations и save/network не добавляются этим срезом. Полный API — в справочнике выше.
 
 ## Точный контракт ближайшего среза
 

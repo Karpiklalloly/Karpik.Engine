@@ -10,10 +10,13 @@ public sealed class DynamicComponentStorage : IEcsWorldEventListener, IDisposabl
     private readonly DynamicComponentPool[] _pools;
     private int[] _counts;
     private bool _disposed;
+    private readonly ComponentPointerRegistry? _pointers;
+    internal ComponentPointerRegistry Pointers => _pointers ?? throw new InvalidDataException("Pointer fields require an explicitly supplied host pointer policy.");
 
-    public DynamicComponentStorage(EcsDefaultWorld world, ComponentSchemaRegistry schemas)
+    public DynamicComponentStorage(EcsDefaultWorld world, ComponentSchemaRegistry schemas, ComponentPointerRegistry? pointers = null)
     {
         _world = world;
+        _pointers = pointers;
         _anchors = world.GetPool<DynamicComponentAnchor>();
         _counts = new int[world.Capacity];
         var descriptions = schemas.GetSchemas();

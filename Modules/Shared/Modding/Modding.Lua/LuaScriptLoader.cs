@@ -23,6 +23,7 @@ public class LuaScriptLoader(
         };
 
         var script = new Script(CoreModules.Preset_SoftSandbox | CoreModules.LoadMethods);
+        LuaExactValues.Register(script);
         script.Options.DebugPrint = message =>
         {
             logger.LogInformation("[Mod: {mod_id}] {Message}", definition.MetaData.Id, message);

@@ -46,14 +46,34 @@ public sealed class ClrComponentBindingGeneratorTests
     }
 
     [Theory]
-    [InlineData("public long X; public float Y;")]
-    [InlineData("public E X; public float Y; public enum E { Value }")]
-    [InlineData("public Nested X; public float Y; public struct Nested { public float Value; }")]
-    [InlineData("public unsafe fixed float X[2]; public float Y;")]
+    [InlineData("public System.DateTime X; public float Y;")]
+    [InlineData("public Empty X; public float Y; public struct Empty { }")]
     public void ClrComponentBinding_RejectsUnsupportedPublicField(string fields)
     {
         var result = GeneratorTestHarness.Run(Generator(), source: Source(fields), additionalReferences: References);
         Assert.NotEmpty(result.DiagnosticsById("KEB001"));
+    }
+
+    [Theory]
+    [InlineData("Values", "Values")]
+    [InlineData("Container", "Container.Data")]
+    public void ClrComponentBinding_RejectsNativeInlineArrayAtRootAndNestedPaths(string registeredType, string path)
+    {
+        string source = """
+            using DCFApixels.DragonECS;
+            using Karpik.Engine.Shared.Modding.Bindings;
+            using System.Runtime.CompilerServices;
+            [InlineArray(4)]
+            public struct Values : IEcsComponent { public int First; }
+            public struct Container : IEcsComponent { public Values Data; }
+            public static class Registration {
+                public static void Apply(ClrComponentBindings registry) => registry.Register<__TYPE__>("test:Inline");
+            }
+            """.Replace("__TYPE__", registeredType, StringComparison.Ordinal);
+        var result = GeneratorTestHarness.Run(Generator(), source, additionalReferences: References);
+        Assert.Contains(result.DiagnosticsById("KEB001"), diagnostic =>
+            diagnostic.GetMessage().Contains("InlineArray", StringComparison.Ordinal) &&
+            diagnostic.GetMessage().Contains(path, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -110,6 +130,55 @@ public sealed class ClrComponentBindingGeneratorTests
         result.AssertNoErrors();
         var assembly = GeneratorTestHarness.EmitAndLoad(result);
         Assert.Equal(true, assembly.GetType("BindingFixture.TypedCheck")!.GetMethod("Verify")!.Invoke(null, null));
+    }
+
+    [Fact]
+    public void ClrComponentBinding_GeneratesNestedAndFixedDirectAccess()
+    {
+        string source = Source("public Nested Data; public readonly Nested Locked; public unsafe fixed float Values[3]; public float X, Y; public struct Nested { public float X; public Inner Inner; } public struct Inner { public long Count; public readonly int Locked; }") + """
+
+            public static unsafe class CompositeCheck
+            {
+                public static bool Verify()
+                {
+                    var binding = new Karpik.Generated.Bindings_AnyGame_002EClient_002EHost.GeneratedClrComponentBindingProvider().GetBindings().Span[0];
+                    var world = new EcsDefaultWorld();
+                    try
+                    {
+                        var pool = binding.Bind(world); int entity = world.NewEntity(); pool.Add(entity);
+                        foreach (var field in pool.Fields.Span)
+                        {
+                            if (field.Name == "Data.Inner.Count") field.I64.Write(entity, long.MaxValue);
+                            if (field.Name == "Data.X") field.F32.Write(entity, 1.5f);
+                            if (field.Name == "Values[3]")
+                            {
+                                field.F32.Write(entity, 3.5f);
+                                if (field.Path.Span[1].Index != 3) return false;
+                            }
+                            if (field.Name.StartsWith("Locked.") || field.Name == "Data.Inner.Locked")
+                            {
+                                if (field.CanWrite) return false;
+                                try
+                                {
+                                    if (field.Kind == SchemaScalarKind.F32) field.F32.Write(entity, 1);
+                                    else if (field.Kind == SchemaScalarKind.I64) field.I64.Write(entity, 1);
+                                    else field.I32.Write(entity, 1);
+                                    return false;
+                                }
+                                catch (System.InvalidOperationException) { }
+                            }
+                        }
+                        ref var p = ref world.GetPool<Position>().Get(entity);
+                        return p.Data.Inner.Count == long.MaxValue && p.Data.X == 1.5f && p.Values[0] == 0 && p.Values[2] == 3.5f;
+                    }
+                    finally { world.Destroy(); }
+                }
+            }
+            """;
+        var result = GeneratorTestHarness.Run(Generator(), source, additionalReferences: References);
+        result.AssertNoErrors();
+        var assembly = GeneratorTestHarness.EmitAndLoad(result);
+        Assert.Equal(true, assembly.GetType("BindingFixture.CompositeCheck")!.GetMethod("Verify")!.Invoke(null, null));
     }
 
     [Fact]

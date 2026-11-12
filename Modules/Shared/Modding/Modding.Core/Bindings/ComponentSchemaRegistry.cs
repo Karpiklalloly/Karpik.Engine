@@ -3,8 +3,12 @@ using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Modding.Bindings;
 
-public enum SchemaScalarKind { F32 = 0, Bool = 1, I32 = 2, U32 = 3, F64 = 4 }
-public readonly record struct SchemaField(string Name, SchemaScalarKind Kind);
+public enum SchemaScalarKind { F32 = 0, Bool = 1, I32 = 2, U32 = 3, F64 = 4, I8 = 5, U8 = 6, I16 = 7, U16 = 8, Char = 9, I64 = 10, U64 = 11, Decimal = 12, NInt = 13, NUInt = 14, Pointer = 15 }
+public readonly record struct SchemaField(string Name, SchemaScalarKind Kind)
+{
+    public SchemaValue? Value { get; init; }
+    public SchemaField(string Name, SchemaValue value) : this(Name, value.ScalarKind) => Value = value;
+}
 public sealed record ComponentSchema(string Id, int Version, params SchemaField[] Fields);
 
 [Export(typeof(ComponentSchemaRegistry))]
@@ -20,17 +24,7 @@ public sealed class ComponentSchemaRegistry
         var unique = new Dictionary<string, ComponentSchema>(StringComparer.Ordinal);
         foreach (ComponentSchema schema in schemas)
         {
-            if (string.IsNullOrWhiteSpace(schema.Id) || schema.Version < 1 || schema.Fields.Length == 0)
-                throw new InvalidDataException("A schema requires an ID, positive version and supported scalar fields.");
-            SchemaField[] fields = schema.Fields.OrderBy(field => field.Name, StringComparer.Ordinal).ToArray();
-            for (int i = 0; i < fields.Length; i++)
-            {
-                if (string.IsNullOrWhiteSpace(fields[i].Name) ||
-                    fields[i].Kind is not (SchemaScalarKind.F32 or SchemaScalarKind.Bool or SchemaScalarKind.I32 or SchemaScalarKind.U32 or SchemaScalarKind.F64) ||
-                    (i > 0 && fields[i - 1].Name == fields[i].Name))
-                    throw new InvalidDataException($"Invalid fields in schema '{schema.Id}'.");
-            }
-            var canonical = new ComponentSchema(schema.Id, schema.Version, fields);
+            ComponentSchema canonical = SchemaTree.Canonicalize(schema);
             if (unique.TryGetValue(schema.Id, out var existing) && !Same(existing, canonical))
                 throw new InvalidDataException($"Conflicting schema '{schema.Id}'.");
             unique[schema.Id] = canonical;
@@ -48,8 +42,8 @@ public sealed class ComponentSchemaRegistry
     public ComponentSchema[] GetSchemas()
     {
         ComponentSchema[] schemas = _schemas ?? throw new InvalidOperationException("Component schemas are not frozen.");
-        return Array.ConvertAll(schemas, schema => new ComponentSchema(schema.Id, schema.Version, (SchemaField[])schema.Fields.Clone()));
+        return Array.ConvertAll(schemas, SchemaTree.Canonicalize);
     }
 
-    private static bool Same(ComponentSchema a, ComponentSchema b) => a.Id == b.Id && a.Version == b.Version && a.Fields.AsSpan().SequenceEqual(b.Fields);
+    private static bool Same(ComponentSchema a, ComponentSchema b) => SchemaTree.Same(a, b);
 }

@@ -179,7 +179,7 @@ public sealed partial class LuaTypedBindingsTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData("BOOL")]
-    [InlineData("i64")]
+    [InlineData("i128")]
     [InlineData("f16")]
     public void LuaEcsBindings_UnknownSchemaKindsFailBeforeCallback(string token)
     {
