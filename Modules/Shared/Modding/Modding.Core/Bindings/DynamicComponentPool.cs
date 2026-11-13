@@ -1,6 +1,7 @@
+using DCFApixels.DragonECS;
 namespace Karpik.Engine.Shared.Modding.Bindings;
 
-internal sealed class DynamicComponentPool : IComponentPoolAccess
+internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandComponentPool
 {
     private readonly DynamicComponentStorage _storage;
     private int[] _mapping;
@@ -48,6 +49,9 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess
 
     public int Count { get { _storage.ThrowIfDisposed(); return _count; } }
     public ReadOnlyMemory<ComponentFieldDescriptor> Fields { get; }
+    EcsDefaultWorld ICommandComponentPool.CommandWorld => _storage.CommandWorld;
+    int ICommandComponentPool.CommandCapacity => _entities.Length;
+    bool ICommandComponentPool.IsDynamic => true;
     public bool Has(int entityId) { _storage.ValidateEntity(entityId); return _mapping[entityId] >= 0; }
 
     public void Add(int entityId)

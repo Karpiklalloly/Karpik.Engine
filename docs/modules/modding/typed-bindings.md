@@ -99,4 +99,4 @@ Common read/write/nested/fixed access и warmed copy_to: 0 B. Preparation, snaps
 
 Новый согласованный canonical ceiling: `4096 + 1600*N*L + 544*N*O` B/callback. N — число entities; L — число scalar leaves, копируемых read→write по одному разу на entity (fixed elements считаются отдельно); O — exact arithmetic operations/entity. Это budget конкретных probes, не произвольной Lua программы. Старые f32/mixed-five gates сохраняются. Время/Gen0/memory peaks — измерения, не production latency SLA.
 
-Save/network/schema reload, state migration, индивидуальные FixedUpdate/RenderPrepare и ctx:create не добавлены расширением типов. NativeAOT/editor hot reload/manual game требуют отдельных проверок.
+Save/network/schema reload, state migration, индивидуальные FixedUpdate/RenderPrepare и создание сущностей не добавлены расширением типов. Отдельный последующий срез создания и отложенных add/del описан в [структурных командах](structural-commands.md) и его [ExecPlan](../../../plans/lua-structural-commands-execplan.md). NativeAOT/editor hot reload/manual game требуют отдельных проверок.

@@ -15,6 +15,8 @@ public sealed class ComponentQueryPreparer(EcsDefaultWorld world, ClrComponentBi
     private readonly List<PreparedComponentQuery> _queries = new();
     private DynamicComponentStorage? _dynamic;
     private bool _disposed;
+    private StructuralCommandBuffer? _commands;
+    private StructuralCommandOptions? _commandOptions;
     private readonly ComponentPointerRegistry? _pointers = pointers;
 
     public void Initialize()
@@ -67,12 +69,26 @@ public sealed class ComponentQueryPreparer(EcsDefaultWorld world, ClrComponentBi
         }
     }
 
+    public StructuralCommandBuffer GetCommands(StructuralCommandOptions options)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(options);
+        if (_dynamic is null) throw new InvalidOperationException("Component queries require initialized storage.");
+        if (_commands is not null && options != _commandOptions) throw new InvalidOperationException("Command limits cannot change within a Simulation.");
+        if (_commands is null)
+        {
+            var commands = new StructuralCommandBuffer(world, scope, _dynamic, options);
+            _commandOptions = options; _commands = commands;
+        }
+        return _commands;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         foreach (var query in _queries) query.Dispose();
-        _queries.Clear(); _native.Clear(); _dynamic?.Dispose();
+        _queries.Clear(); _native.Clear(); _commands?.Dispose(); _dynamic?.Dispose();
     }
 
     public static EcsComponentAccessDescriptor[] InferAccesses(ReadOnlySpan<PreparedComponentQuery> queries)

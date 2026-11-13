@@ -10,6 +10,7 @@ public sealed class ComponentSnapshot : IComponentDataView
     private readonly ComponentFieldDescriptor[] _fields;
     private readonly ISnapshotField[] _storage;
 
+    internal ComponentCallbackScope SimulationScope => _simulation;
     public string ComponentId { get; }
     public Type? ClrType { get; }
     public ReadOnlyMemory<ComponentFieldDescriptor> Fields

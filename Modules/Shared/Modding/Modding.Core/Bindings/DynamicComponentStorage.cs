@@ -36,6 +36,11 @@ public sealed class DynamicComponentStorage : IEcsWorldEventListener, IDisposabl
         return _byId.TryGetValue(schemaId, out var pool) ? pool : throw new InvalidDataException($"Unknown dynamic component '{schemaId}'.");
     }
 
+    internal EcsDefaultWorld CommandWorld => _world;
+    internal int CommandAnchorCount => _anchors.Count;
+    internal int CommandAnchorCapacity => _anchors.Capacity - 1;
+    internal int CommandDynamicCount(int entity) { ValidateEntity(entity); return _counts[entity]; }
+
     internal void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
     internal void ValidateEntity(int entityId)
     {

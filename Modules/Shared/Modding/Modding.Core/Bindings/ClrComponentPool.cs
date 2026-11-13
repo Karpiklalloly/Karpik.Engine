@@ -2,7 +2,7 @@ using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Shared.Modding.Bindings;
 
-public abstract class ClrComponentPool<T> : IComponentPoolAccess where T : unmanaged, IEcsComponent
+public abstract class ClrComponentPool<T> : IComponentPoolAccess, ICommandComponentPool where T : unmanaged, IEcsComponent
 {
     private readonly EcsDefaultWorld _world;
     private readonly EcsPool<T> _pool;
@@ -14,6 +14,9 @@ public abstract class ClrComponentPool<T> : IComponentPoolAccess where T : unman
     }
 
     public int Count => _pool.Count;
+    EcsDefaultWorld ICommandComponentPool.CommandWorld => _world;
+    int ICommandComponentPool.CommandCapacity => _pool.Capacity - 1;
+    bool ICommandComponentPool.IsDynamic => false;
     public abstract ReadOnlyMemory<ComponentFieldDescriptor> Fields { get; }
 
     public bool Has(int entityId)

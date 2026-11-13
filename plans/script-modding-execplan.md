@@ -4,6 +4,8 @@ This ExecPlan is a living document maintained according to `plans/PLANS.md`.
 
 ## Текущее состояние
 
+- 2026-11-13: отдельный `ctx.commands:create/add/del` реализован с callback-local tokens, enqueue-time snapshot capture, полной FIFO preflight-проверкой и применением до следующей системы; immediate APIs сохранены. [ExecPlan](lua-structural-commands-execplan.md), [evidence](lua-structural-commands-evidence.md): Runner640/640, Generator78/78, independent review без открытых findings; warmed common paths0B, Lua experimental. No push/PR; publication blocker и подготовленный PR-текст сохранены. Hot reload/save/network не включены.
+
 - 2026-11-11: полный type catalog, nested/fixed access, detached snapshots и host-only pointers реализованы по [новому ExecPlan](modding-types-execplan.md). Текущая приёмка — только там; hot reload/save/network не включены.
 
 - 2026-10-29: следующий typed-срез CLR/Lua bindings реализован для bool/i32/u32/f64, совместно с f32. Источник текущей приёмки и ограничений — [typed ExecPlan](lua-ecs-type-catalog-execplan.md). Common C# reserved path 0 B; Lua остаётся экспериментальным и аллоцирует. Точные числа, nested fields, ctx:create, schema migrations/reload и save/network остаются дальнейшими этапами.

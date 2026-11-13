@@ -125,7 +125,7 @@ public sealed class LuaScriptRuntime : IScriptRuntime
         if (options.ErrorPolicy is not (ScriptSystemErrorPolicy.StopSimulation or ScriptSystemErrorPolicy.LogAndContinue))
             throw new ArgumentOutOfRangeException(nameof(options));
         _systemOptions = options; _systemLogger = logger;
-        _contexts = Array.ConvertAll(Systems, declaration => new LuaEcsContext(_script, declaration.Id, declaration.Queries, preparer, scope));
+        _contexts = Array.ConvertAll(Systems, declaration => new LuaEcsContext(_script, declaration.Id, declaration.Queries, preparer, scope, options.Commands));
     }
 
     internal LuaEcsContext GetContext(int index) => _contexts?[index] ?? throw new InvalidOperationException("Lua ECS contexts are not prepared.");
@@ -141,10 +141,14 @@ public sealed class LuaScriptRuntime : IScriptRuntime
             Invoke(_systemCallbacks.AsSpan(index, 1), dt); return;
         }
         context.Enter();
-        try { Invoke(_systemCallbacks.AsSpan(index, 1), dt, context.Value); }
-        catch (Exception error) when (_systemOptions.ErrorPolicy == ScriptSystemErrorPolicy.LogAndContinue && error is not (OperationCanceledException or OutOfMemoryException))
+        try
         {
-            _systemLogger.LogError(error, "Lua system {SystemId}, queries {Queries} callback failed; partial writes retained", Systems[index].Id, context.QueryNames);
+            Invoke(_systemCallbacks.AsSpan(index, 1), dt, context.Value);
+            context.Complete();
+        }
+        catch (Exception error) when (_systemOptions.ErrorPolicy == ScriptSystemErrorPolicy.LogAndContinue && error is not (OperationCanceledException or OutOfMemoryException or StructuralCommandPlaybackException))
+        {
+            _systemLogger.LogError(error, "Lua system {SystemId}, queries {Queries} callback/commands failed; immediate writes retained; deferred commands discarded", Systems[index].Id, context.QueryNames);
         }
         finally { context.Exit(); }
     }

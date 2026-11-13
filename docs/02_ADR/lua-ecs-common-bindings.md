@@ -106,3 +106,13 @@ Live nested views переиспользуют root и следуют после
 Exact Lua values неизменяемы, поддерживают checked CLR arithmetic и explicit conversion; цена immutable results включается в отдельный experimental workload. Согласованный ceiling новых probes 4096+1600*N*L+544*N*O B/callback; L — copied scalar leaves/entity, O — exact operations/entity. Старые gates не повышаются. Common C# остаётся 0 B после подготовки; Lua не объявляется production no-GC.
 
 Pointers доступны только через host-registered type/domain, с unmanaged metadata в columns, nil/null и revocation. Host обязан управлять pointee lifetime, raw addresses/dereference не передаются Lua. Snapshot не продлевает жизнь native памяти.
+
+## Расширение 2026-11-13: отложенные структурные команды
+
+Сохраняются немедленные pool APIs; отдельный `ctx.commands` принимает create/add/del. Simulation владеет общим ограниченным буфером команд, payload и проверки, переиспользуемым последовательными callback. Mutable query handles сохраняют permissions и scheduler accesses, включая dynamic anchor. Данные snapshot копируются при enqueue, не удерживаются как ссылка на изменяемый source.
+
+После callback вся очередь проверяется по состоянию мира с симуляцией FIFO membership и peak capacity; только затем применяется до следующей системы. Pending token ограничен одним owner/invocation и не превращается в persistent entity handle. Физическое создание при первом add избегает накопления пустых новых сущностей; пустое создание и отложенное удаление последнего логического компонента отклоняются. Альтернативы — единая миграция старых immediate APIs, phase-end flush и lifetime guards — отклонены в пользу совместимости и меньшего объёма backend изменений.
+
+Любая command API ошибка, включая перехваченную pcall, инвалидирует очередь; immediate writes сохраняются. Предсказуемые ошибки следуют существующей ErrorPolicy; неожиданный playback failure останавливает Simulation без обещания rollback. Native host listeners не включены в transactional observer/no-GC гарантию. Array growth в новом successful common path запрещён; world/pool capacity exhaustion отклоняется заранее, отдельно от лимитов очереди. Lua сохраняет experimental статус и отдельный measurable canonical budget, прежние gates не повышаются.
+
+API/ограничения: [структурные команды](../modules/modding/structural-commands.md). Проверки и фактический статус реализации: [ExecPlan](../../plans/lua-structural-commands-execplan.md). Этот ADR не является доказательством выполненных тестов.

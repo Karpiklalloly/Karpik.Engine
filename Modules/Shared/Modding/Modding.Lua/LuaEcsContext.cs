@@ -9,25 +9,38 @@ internal sealed class LuaEcsContext
 {
     private readonly ComponentCallbackScope _scope;
     private readonly string _owner;
+    private readonly StructuralCommandBuffer _commands;
     internal DynValue Value { get; }
     internal PreparedComponentQuery[] Queries { get; }
     internal EcsComponentAccessDescriptor[] Accesses { get; }
     internal string QueryNames { get; }
 
-    internal LuaEcsContext(Script script, string owner, ComponentQueryDefinition[] definitions, ComponentQueryPreparer preparer, ComponentCallbackScope scope)
+    internal LuaEcsContext(Script script, string owner, ComponentQueryDefinition[] definitions, ComponentQueryPreparer preparer, ComponentCallbackScope scope, StructuralCommandOptions commandOptions)
     {
-        _scope = scope; _owner = owner;
+        _scope = scope; _owner = owner; _commands = preparer.GetCommands(commandOptions);
         QueryNames = string.Join(", ", definitions.Select(definition => definition.Name));
         Queries = Array.ConvertAll(definitions, definition => preparer.Prepare(definition, owner));
         Accesses = ComponentQueryPreparer.InferAccesses(Queries);
         var context = new Table(script); var queries = new Table(script);
         for (int i = 0; i < definitions.Length; i++)
             queries.Set(definitions[i].Name, UserData.Create(new LuaQuery(script, Queries[i], $"System '{owner}', query '{definitions[i].Name}'"), new QueryDescriptor()));
-        context.Set("queries", DynValue.NewTable(queries)); Value = DynValue.NewTable(context);
+        context.Set("queries", DynValue.NewTable(queries));
+        context.Set("commands", UserData.Create(new LuaCommands(_commands, owner), CommandsDescriptor.Instance));
+        Value = DynValue.NewTable(context);
     }
 
-    internal void Enter() { _scope.Enter(_owner); foreach (var query in Queries) query.Reset(); }
-    internal void Exit() { foreach (var query in Queries) query.Reset(); _scope.Exit(); }
+    internal void Enter()
+    {
+        _scope.Enter(_owner);
+        try { _commands.Begin(_owner); foreach (var query in Queries) query.Reset(); }
+        catch { _scope.Exit(); throw; }
+    }
+    internal void Complete() => _commands.Complete();
+    internal void Exit()
+    {
+        try { _commands.End(); foreach (var query in Queries) query.Reset(); }
+        finally { _scope.Exit(); }
+    }
 
     private sealed class LuaQuery
     {
@@ -48,6 +61,7 @@ internal sealed class LuaEcsContext
 
     private sealed class LuaPool
     {
+        internal PreparedComponentHandle Handle { get; }
         internal DynValue Get { get; }
         internal DynValue Add { get; }
         internal DynValue Del { get; }
@@ -57,6 +71,7 @@ internal sealed class LuaEcsContext
         internal DynValue CopyTo { get; }
         internal LuaPool(PreparedComponentHandle handle, string location)
         {
+            Handle = handle;
             var root = new DataRoot(location);
             DynValue value = BuildView(root, handle.Fields.Span);
             Get = DynValue.NewCallback((_, args) =>
@@ -103,6 +118,119 @@ internal sealed class LuaEcsContext
                 catch (InvalidOperationException error) { throw OperationError(location, error); }
             });
         }
+    }
+
+    // Tokens are immutable: a retained Lua userdata must never be rebound to a later invocation.
+    private sealed class LuaPending(PendingEntity value)
+    {
+        internal PendingEntity Value { get; } = value;
+    }
+    private sealed class PendingDescriptor : Descriptor<LuaPending>
+    {
+        internal static readonly PendingDescriptor Instance = new();
+        public override DynValue Index(Script script, object obj, DynValue index, bool isDirectIndexing) =>
+            throw new ScriptRuntimeException("Pending entity tokens have no public members.");
+    }
+    private sealed class LuaCommands
+    {
+        private readonly StructuralCommandBuffer _buffer;
+        private readonly string _owner;
+        internal DynValue Create { get; }
+        internal DynValue Add { get; }
+        internal DynValue Del { get; }
+        internal LuaCommands(StructuralCommandBuffer buffer, string owner)
+        {
+            _buffer = buffer; _owner = owner;
+            Create = DynValue.NewCallback((_, args) =>
+            {
+                try
+                {
+                    Require(args, 1, 1);
+                    return UserData.Create(new LuaPending(buffer.Create()), PendingDescriptor.Instance);
+                }
+                catch (Exception error) when (IsCommandError(error)) { throw Reject(error); }
+            });
+            Add = DynValue.NewCallback((_, args) =>
+            {
+                try
+                {
+                    Require(args, 3, 4);
+                    var pool = Pool(args[1]);
+                    ComponentSnapshot? snapshot = null;
+                    if (args.Count == 4 && !args[3].IsNil())
+                    {
+                        if (args[3].Type != DataType.UserData || args[3].UserData.Object is not DataNode node ||
+                            !ReferenceEquals(node, node.Root.Node) || node.Root.Current is not ComponentSnapshot data)
+                            throw new ScriptRuntimeException("Command payload requires a root component snapshot.");
+                        snapshot = data;
+                    }
+                    if (args[2].Type == DataType.UserData && args[2].UserData.Object is LuaPending pending)
+                        buffer.Add(pool, pending.Value, snapshot);
+                    else buffer.Add(pool, Target(args[2]), snapshot);
+                    return DynValue.Nil;
+                }
+                catch (Exception error) when (IsCommandError(error)) { throw Reject(error); }
+            });
+            Del = DynValue.NewCallback((_, args) =>
+            {
+                try
+                {
+                    Require(args, 3, 3);
+                    var pool = Pool(args[1]);
+                    if (args[2].Type == DataType.UserData && args[2].UserData.Object is LuaPending pending)
+                        buffer.Del(pool, pending.Value);
+                    else buffer.Del(pool, Target(args[2]));
+                    return DynValue.Nil;
+                }
+                catch (Exception error) when (IsCommandError(error)) { throw Reject(error); }
+            });
+        }
+        private void Require(CallbackArguments args, int min, int max)
+        {
+            _buffer.RequireOwner(_owner);
+            if (args.Count < min || args.Count > max || args[0].Type != DataType.UserData ||
+                !ReferenceEquals(args[0].UserData.Object, this))
+                throw new ScriptRuntimeException("Command requires ':' syntax and the expected arguments.");
+        }
+        internal void ValidateOwner() => _buffer.RequireOwner(_owner);
+        internal ScriptRuntimeException Reject(Exception error)
+        {
+            _buffer.Invalidate();
+            return OperationError("System '" + _owner + "', commands", error);
+        }
+        private static bool IsCommandError(Exception error) =>
+            error is InvalidOperationException or ArgumentException or OverflowException or ScriptRuntimeException;
+        private static PreparedComponentHandle Pool(DynValue value) =>
+            value.Type == DataType.UserData && value.UserData.Object is LuaPool pool ? pool.Handle :
+                throw new ScriptRuntimeException("Command requires a prepared query component pool.");
+        private static int Target(DynValue value)
+        {
+            if (value.Type != DataType.Number || !double.IsFinite(value.Number) ||
+                value.Number != Math.Truncate(value.Number) || value.Number <= 0 || value.Number > int.MaxValue)
+                throw new ScriptRuntimeException("Command target requires an int entity ID or a pending entity token.");
+            return (int)value.Number;
+        }
+    }
+    private sealed class CommandsDescriptor : Descriptor<LuaCommands>
+    {
+        internal static readonly CommandsDescriptor Instance = new();
+        public override DynValue Index(Script script, object obj, DynValue index, bool isDirectIndexing)
+        {
+            var commands = (LuaCommands)obj;
+            try
+            {
+                commands.ValidateOwner();
+                return index.String switch
+                {
+                    "create" => commands.Create, "add" => commands.Add, "del" => commands.Del,
+                    _ => throw new ScriptRuntimeException("Unknown structural command operation.")
+                };
+            }
+            catch (Exception error) when (error is InvalidOperationException or ScriptRuntimeException)
+            { throw commands.Reject(error); }
+        }
+        public override bool SetIndex(Script script, object obj, DynValue index, DynValue value, bool isDirectIndexing) =>
+            throw ((LuaCommands)obj).Reject(new ScriptRuntimeException("Structural command API is readonly."));
     }
 
     private sealed class DataRoot(string location)
