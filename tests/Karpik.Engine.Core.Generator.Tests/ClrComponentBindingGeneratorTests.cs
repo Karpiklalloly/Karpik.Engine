@@ -266,9 +266,11 @@ public sealed class ClrComponentBindingGeneratorTests
     ];
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ClrComponentBinding_ComposedScopesResolveLuaPreparation(bool useStatic)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ClrComponentBinding_ComposedScopesResolveLuaPreparation(bool useStatic, bool registerScheduler)
     {
         var result = GeneratorTestHarness.Run(new BindingsAndComposition(), Source("public float X, Y;"), side: "Server", additionalReferences: AllBindingReferences());
         result.AssertNoErrors();
@@ -286,6 +288,8 @@ public sealed class ClrComponentBindingGeneratorTests
         builder.RegisterInstance(new PhysicalFileSystem()).As<IFileSystem>();
         builder.RegisterInstance(NullLogger<IScriptLoader>.Instance).As<ILogger<IScriptLoader>>();
         builder.RegisterInstance(new Application(Side.Server)).AsSelf();
+        if (registerScheduler)
+            builder.RegisterInstance(new MainThreadScheduler(Environment.CurrentManagedThreadId, NullLoggerFactory.Instance)).AsSelf();
         using var engine = builder.Build(ContainerBuildOptions.IgnoreStartableComponents);
         using var modSet = engine.BeginLifetimeScope(scope =>
         {
@@ -294,8 +298,10 @@ public sealed class ClrComponentBindingGeneratorTests
         });
         using var first = modSet.BeginLifetimeScope(RegisterSimulation);
         using var second = modSet.BeginLifetimeScope(RegisterSimulation);
-        Assert.IsType<LuaSimulationPreparation>(first.Resolve<ISimulationPreparation>());
-        Assert.IsType<LuaSimulationPreparation>(second.Resolve<ISimulationPreparation>());
+        var firstPreparation = Assert.IsType<LuaSimulationPreparation>(first.Resolve<ISimulationPreparation>());
+        var secondPreparation = Assert.IsType<LuaSimulationPreparation>(second.Resolve<ISimulationPreparation>());
+        firstPreparation.PrepareAsync(TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+        secondPreparation.PrepareAsync(TestContext.Current.CancellationToken).GetAwaiter().GetResult();
         Assert.Same(engine.Resolve<ClrComponentBindings>(), first.Resolve<LuaComponentRegistry>().Bindings);
         Assert.Same(first.Resolve<ComponentSchemaRegistry>(), second.Resolve<ComponentSchemaRegistry>());
         Assert.NotSame(first.Resolve<ComponentQueryPreparer>(), second.Resolve<ComponentQueryPreparer>());

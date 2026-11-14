@@ -345,6 +345,8 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         }
         cancellationToken.ThrowIfCancellationRequested();
 
+        InitializeCodeReloadParticipants(simulationPreparations, scheduler);
+
         Builder moduleBuilder = await scheduler.InvokeAsync(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -400,21 +402,21 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         RunRender();
     }
 
-    public void RunMainThreadBegin()
+    private void RunMainThreadBeginCore()
     {
         long start = Stopwatch.GetTimestamp();
         _mainThreadBeginRunner.MainThreadBegin();
         _clientFrameMetrics.PublishMainThreadBegin(Stopwatch.GetTimestamp() - start);
     }
 
-    public void RunMainThreadFrameBegin()
+    private void RunMainThreadFrameBeginCore()
     {
         long start = Stopwatch.GetTimestamp();
         _mainThreadFrameBeginRunner.MainThreadFrameBegin();
         _clientFrameMetrics.PublishMainThreadFrameBegin(Stopwatch.GetTimestamp() - start);
     }
 
-    public void RunGameplayFrame(double dt)
+    private void RunGameplayFrameCore(double dt)
     {
         _time.Update(dt);
         _beginRunner.BeginRun();
@@ -425,7 +427,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         _ecsRenderPrepareScheduler.RenderPrepare();
     }
 
-    public void RunRender()
+    private void RunRenderCore()
     {
         long start = Stopwatch.GetTimestamp();
         _renderRunner.Render();
@@ -450,6 +452,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
     public EditorRuntimeSnapshot CaptureEditorSnapshot()
     {
+        if (CodeReloadFrameEntryClosed) throw new InvalidOperationException("Editor snapshots are unavailable during code reload.");
         var world = _serviceResolver?.GetService(typeof(EcsDefaultWorld)) as EcsDefaultWorld;
         if (world is null || world.IsDestroyed)
         {
@@ -593,10 +596,12 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
     public void Destroy()
     {
-        DestroyAsyncCore(clearRegistrations: true).AsTask().GetAwaiter().GetResult();
+        Task cleanup = DestroyAfterCodeReloadAsync();
+        if (_codeReloadMainScheduler is { IsMainThread: true } scheduler) scheduler.RunUntilCompleted(cleanup);
+        else cleanup.GetAwaiter().GetResult();
     }
 
-    public Task DestroyAsync() => DestroyAsyncCore(clearRegistrations: true).AsTask();
+    public Task DestroyAsync() => DestroyAfterCodeReloadAsync();
 
     public void LogJobError(Exception exception, ILogger fallback)
     {
@@ -606,6 +611,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
     public Dictionary<string, byte[]> GetHotReloadData()
     {
+        if (CodeReloadFrameEntryClosed) throw new InvalidOperationException("Restart state cannot be captured during code reload.");
         IServiceResolver services = _serviceResolver
             ?? throw new InvalidOperationException("Runner must be set up before capturing restart-worker state.");
 
@@ -862,6 +868,9 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
 
         _ecsUpdateScheduler = new EcsUpdateScheduler();
         _ecsRenderPrepareScheduler = new EcsRenderPrepareScheduler();
+        _codeReloadParticipant = null;
+        _codeReloadStableSystems = [];
+        _codeReloadStableDescriptors = [];
 
         if (clearRegistrations)
         {
@@ -913,6 +922,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         EcsUpdateSystemDescriptor[] descriptors = _staticEcsProviders is not null
             ? _staticEcsProviders.CollectUpdateDescriptors()
             : DynamicCompositionDiscovery.CollectUpdateDescriptors(systems);
+        CaptureCodeReloadStableSystems(systems, BindUpdateDescriptors(systems, descriptors, registry));
         foreach (ISystemUpdate system in systems)
         {
             if (registry.TryGetInstanceId(system, out _))

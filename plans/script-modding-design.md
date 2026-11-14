@@ -1,5 +1,7 @@
 # Скриптовый моддинг: согласованный дизайн
 
+Уточнение 2026-11-14: local-only Lua code reload при прежнем наборе модов/схем описан в [design](lua-hot-reload-design.md), [ExecPlan с актуальной приёмкой](lua-hot-reload-execplan.md) и [ADR](../docs/02_ADR/lua-code-revision-lifetime.md). Executable Lua revision принадлежит Simulation поверх неизменного каталога ModSet; следующий общий текст о полной смене ModSet/миграциях остаётся целевым дизайном. Сетевой reload/save/assets этим срезом не реализованы.
+
 Уточнение 2026-11-11: новый контракт расширения типов — [дизайн](modding-types-design.md), [ExecPlan](modding-types-execplan.md) и [API справочник](../docs/modules/modding/typed-bindings.md). Исторические ограничения типов/flat views ниже заменяются этим срезом; остальные будущие подсистемы не объявляются реализованными.
 
 Обновление 2026-10-25: первый экспериментальный ECS f32-срез реализован.

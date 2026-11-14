@@ -1051,10 +1051,12 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
     {
         if (parameter.Type is IArrayTypeSymbol arrayType)
         {
-            return new ParameterSpec(ToFullName(arrayType), ToFullName(arrayType.ElementType), unresolvable);
+            return new ParameterSpec(ToFullName(arrayType), ToFullName(arrayType.ElementType), unresolvable,
+                parameter.HasExplicitDefaultValue && parameter.ExplicitDefaultValue is null);
         }
 
-        return new ParameterSpec(ToFullName(parameter.Type), null, unresolvable);
+        return new ParameterSpec(ToFullName(parameter.Type), null, unresolvable,
+            parameter.HasExplicitDefaultValue && parameter.ExplicitDefaultValue is null);
     }
 
     private static bool IsAccessibleFromHost(INamedTypeSymbol type, IAssemblySymbol? hostAssembly)
@@ -1565,6 +1567,12 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     private static string BuildArgument(ParameterSpec parameter)
     {
+        if (parameter.HasNullDefault)
+        {
+            // Match reflection DI: use a registered service when available, otherwise the
+            // constructor's explicit null default. Required dependencies still use Resolve.
+            return $"(global::{parameter.TypeFullName})resolver.GetService(typeof(global::{parameter.TypeFullName}))!";
+        }
         if (parameter.ArrayElementTypeName is not null)
         {
             // Autofac resolves element arrays natively; IServiceResolver exposes
@@ -1739,13 +1747,15 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
 
     internal sealed class ParameterSpec : IEquatable<ParameterSpec>
     {
-        internal ParameterSpec(string typeFullName, string? arrayElementTypeName, bool isDefinitelyUnresolvable)
+        internal ParameterSpec(string typeFullName, string? arrayElementTypeName, bool isDefinitelyUnresolvable, bool hasNullDefault = false)
         {
             TypeFullName = typeFullName;
             ArrayElementTypeName = arrayElementTypeName;
             IsDefinitelyUnresolvable = isDefinitelyUnresolvable;
+            HasNullDefault = hasNullDefault;
         }
 
+        internal bool HasNullDefault { get; }
         internal string TypeFullName { get; }
         internal string? ArrayElementTypeName { get; }
         internal bool IsDefinitelyUnresolvable { get; }
@@ -1754,7 +1764,8 @@ public sealed class RuntimeCompositionGenerator : IIncrementalGenerator
             other is not null
             && TypeFullName == other.TypeFullName
             && ArrayElementTypeName == other.ArrayElementTypeName
-            && IsDefinitelyUnresolvable == other.IsDefinitelyUnresolvable;
+            && IsDefinitelyUnresolvable == other.IsDefinitelyUnresolvable
+            && HasNullDefault == other.HasNullDefault;
 
         public override bool Equals(object? obj) => Equals(obj as ParameterSpec);
 

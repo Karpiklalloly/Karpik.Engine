@@ -52,14 +52,19 @@ Sync Setup по-прежнему требует синхронного заве�
 окончания очистки повторный Setup запрещён. Если подготовитель игнорирует отмену,
 нужно дождаться его завершения; преждевременное освобождение его зависимостей недопустимо.
 
+## Уточнение 2026-11-14
+
+Startup registry остаётся закрытым после ResolveAndAdd. Local-only Lua code reload не открывает его заново: [отдельная code revision и scheduler-кандидат](lua-code-revision-lifetime.md) переключаются при сохранённой Simulation. Definitions/schemas ModSet фиксированы; API/mode/limits описаны в [справочнике](../modules/modding/lua-hot-reload.md).
+
 ## Consequences
 
 Меняется API модулей: вызовы `ISystemRegistry.AddInstance` переносятся в
 Simulation-подготовитель с `ISystemRuntimeRegistry` в конструкторе. Существующий
 типовой путь регистрации сохраняется. Сканирование не повторяется для каждой
 Simulation одного ModSet; VM и gameplay-состояние между Simulation не разделяются.
-Текущий Runner создаёт одну Simulation на Setup: новые API создания нескольких
-Simulation, hot reload и индивидуальные Lua-адаптеры остаются отдельными задачами.
+Исходный этап создавал одну Simulation на Setup и не включал API hot reload.
+Local-only code reload позднее добавлен отдельным решением выше; новый API создания
+нескольких Simulation и полный ModSet reload этим ADR не вводятся.
 
 Изменения выполняются только при запуске, не добавляют работу или аллокации в кадр,
 не меняют fixed dt, компоненты ECS или Client/Server/Shared boundaries.

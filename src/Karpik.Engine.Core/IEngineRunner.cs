@@ -22,6 +22,12 @@ internal interface IEngineRunner
 
     public bool IsApplicationRunning { get; }
 
+    bool IsCodeReloading => false;
+    double CodeReloadPausedSeconds => 0;
+    Task<SimulationCodeReloadResult> RequestCodeReloadAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
+    Task DrainCodeReloadForShutdownAsync() => Task.CompletedTask;
+
     public void Destroy();
 
     public Task DestroyAsync();

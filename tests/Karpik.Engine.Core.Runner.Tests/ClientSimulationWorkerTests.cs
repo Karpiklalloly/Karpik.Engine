@@ -144,3 +144,168 @@ public sealed class ClientSimulationWorkerTests
         }
     }
 }
+
+public sealed class ClientSimulationWorkerMaintenanceTests
+{
+    [Fact]
+    public async Task Maintenance_HoldsReservationAndDefersQueuedWork_UntilReleased()
+    {
+        using var worker = new ClientSimulationWorker(new NoopLoop());
+        Assert.True(worker.TryEnterMaintenance(out var lease));
+        Assert.NotNull(lease);
+        try
+        {
+            Assert.False(worker.TryReserveFrame());
+            Assert.Throws<InvalidOperationException>(() => worker.StartReservedFrame(Application.TICK_DT));
+            Assert.Throws<InvalidOperationException>(worker.CancelReservedFrame);
+            Assert.False(worker.TryEnterMaintenance(out var second));
+            Assert.Null(second);
+            Task<int> queued = worker.InvokeAsync(() => 42);
+            Assert.False(queued.IsCompleted);
+
+            lease.Dispose();
+            Assert.Equal(42, await queued.WaitAsync(TimeSpan.FromSeconds(2)));
+        }
+        finally { lease.Dispose(); }
+    }
+
+    [Fact]
+    public void Maintenance_DoesNotStealReservedButUnstartedFrame()
+    {
+        using var worker = new ClientSimulationWorker(new NoopLoop());
+        Assert.True(worker.TryReserveFrame());
+        Assert.False(worker.TryEnterMaintenance(out var rejected));
+        Assert.Null(rejected);
+        worker.CancelReservedFrame();
+        Assert.True(worker.TryEnterMaintenance(out var lease));
+        lease!.Dispose();
+    }
+
+    [Fact]
+    public void Maintenance_DoesNotStealRunningFrame()
+    {
+        using var loop = new GatedLoop();
+        using var worker = new ClientSimulationWorker(loop);
+        Assert.True(worker.TryReserveFrame());
+        worker.StartReservedFrame(Application.TICK_DT);
+        try
+        {
+            Assert.True(loop.Started.Wait(TimeSpan.FromSeconds(2)));
+            Assert.False(worker.TryEnterMaintenance(out var lease));
+            Assert.Null(lease);
+        }
+        finally { loop.Finish.Set(); }
+    }
+
+    [Fact]
+    public void Lease_DisposeTwice_DoesNotReleaseLaterReservation()
+    {
+        using var worker = new ClientSimulationWorker(new NoopLoop());
+        Assert.True(worker.TryEnterMaintenance(out var lease));
+        lease!.Dispose();
+        Assert.True(worker.TryReserveFrame());
+        try
+        {
+            lease.Dispose();
+            Assert.False(worker.TryReserveFrame());
+        }
+        finally { worker.CancelReservedFrame(); }
+    }
+
+    [Fact]
+    public void Maintenance_AfterShutdown_Throws()
+    {
+        var worker = new ClientSimulationWorker(new NoopLoop());
+        worker.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => worker.TryEnterMaintenance(out _));
+    }
+
+    [Fact]
+    public async Task Maintenance_AfterFrameFault_ThrowsOriginalFailure()
+    {
+        var worker = new ClientSimulationWorker(new FaultingLoop());
+        Assert.True(worker.TryReserveFrame());
+        worker.StartReservedFrame(Application.TICK_DT);
+        await worker.InvokeAsync(() => true).WaitAsync(TimeSpan.FromSeconds(2));
+        var error = Assert.Throws<InvalidOperationException>(() => worker.TryEnterMaintenance(out _));
+        Assert.Equal("frame fault", error.Message);
+        Assert.Throws<InvalidOperationException>(worker.Dispose);
+    }
+
+    [Fact]
+    public void Dispose_OnMaintenanceOwner_RejectsInvalidOrderingWithoutStoppingWorker()
+    {
+        var worker = new ClientSimulationWorker(new NoopLoop());
+        Assert.True(worker.TryEnterMaintenance(out var lease));
+        try
+        {
+            Assert.Throws<InvalidOperationException>(worker.Dispose);
+            Assert.False(worker.TryReserveFrame());
+        }
+        finally
+        {
+            lease!.Dispose();
+            worker.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_OnAnotherThread_WaitsForMaintenanceRelease()
+    {
+        var worker = new ClientSimulationWorker(new NoopLoop());
+        Assert.True(worker.TryEnterMaintenance(out var lease));
+        Task shutdown = Task.Run(worker.Dispose);
+        try
+        {
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                try
+                {
+                    worker.TryEnterMaintenance(out _);
+                    return false;
+                }
+                catch (ObjectDisposedException) { return true; }
+            }, TimeSpan.FromSeconds(2)));
+            Assert.False(shutdown.IsCompleted);
+            Assert.Throws<ObjectDisposedException>(() => { _ = worker.InvokeAsync(() => true); });
+        }
+        finally { lease!.Dispose(); }
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task Dispose_FromWorkerThread_RejectsSelfJoin()
+    {
+        using var worker = new ClientSimulationWorker(new NoopLoop());
+        await worker.InvokeAsync(() =>
+        {
+            Assert.Throws<InvalidOperationException>(worker.Dispose);
+            return true;
+        }).WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    private sealed class NoopLoop : IClientSimulationLoop
+    {
+        public bool IsApplicationRunning => true;
+        public void RunGameplayFrame(double deltaTime) { }
+    }
+
+    private sealed class FaultingLoop : IClientSimulationLoop
+    {
+        public bool IsApplicationRunning => true;
+        public void RunGameplayFrame(double deltaTime) => throw new InvalidOperationException("frame fault");
+    }
+
+    private sealed class GatedLoop : IClientSimulationLoop, IDisposable
+    {
+        public ManualResetEventSlim Started { get; } = new(false);
+        public ManualResetEventSlim Finish { get; } = new(false);
+        public bool IsApplicationRunning => true;
+        public void RunGameplayFrame(double deltaTime)
+        {
+            Started.Set();
+            Finish.Wait();
+        }
+        public void Dispose() { Started.Dispose(); Finish.Dispose(); }
+    }
+}

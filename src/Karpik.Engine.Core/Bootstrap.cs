@@ -118,6 +118,11 @@ internal class Bootstrap : IClientSimulationLoop
     }
 
     public bool IsApplicationRunning => _runner.IsApplicationRunning;
+    public bool IsCodeReloading => _runner.IsCodeReloading;
+    public double CodeReloadPausedSeconds => _runner.CodeReloadPausedSeconds;
+    public Task<SimulationCodeReloadResult> RequestCodeReloadAsync(CancellationToken cancellationToken = default) =>
+        _runner.RequestCodeReloadAsync(cancellationToken);
+    public Task DrainCodeReloadForShutdownAsync() => _runner.DrainCodeReloadForShutdownAsync();
     public ClientFrameMetrics ClientFrameMetrics => _clientFrameMetrics;
     
     public void Shutdown()

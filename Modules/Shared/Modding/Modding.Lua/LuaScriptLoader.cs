@@ -93,7 +93,8 @@ public class LuaScriptLoader(
             "on_update",
             "on_fixed_update",
             "on_destroy",
-            "on_unload"
+            "on_unload",
+            "on_reload"
         ];
 
         foreach (string name in names)

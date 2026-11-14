@@ -15,7 +15,8 @@ public sealed class LuaScriptRuntime : IScriptRuntime
         Update,
         FixedUpdate,
         Destroy,
-        Unload
+        Unload,
+        Reload
     }
     
     private Script _script;
@@ -54,7 +55,8 @@ public sealed class LuaScriptRuntime : IScriptRuntime
             Bind("on_update"),
             Bind("on_fixed_update"),
             Bind("on_destroy"),
-            Bind("on_unload")
+            Bind("on_unload"),
+            Bind("on_reload")
         ];
         
         DynValue[] Bind(string name)
@@ -89,9 +91,11 @@ public sealed class LuaScriptRuntime : IScriptRuntime
 
     public void FixedUpdate(double fixedDt) => Invoke(Callback.FixedUpdate, fixedDt);
 
-    public void Destroy() => Invoke(Callback.Destroy);
+    public void Reload() => Invoke(Callback.Reload);
 
-    public void Unload() => Invoke(Callback.Unload);
+    public void Destroy() => InvokeCleanup(Callback.Destroy);
+
+    public void Unload() => InvokeCleanup(Callback.Unload);
     
     public void Dispose()
     {
@@ -115,6 +119,20 @@ public sealed class LuaScriptRuntime : IScriptRuntime
         _contexts = null;
     }
     
+    private void InvokeCleanup(Callback callback)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        List<Exception>? errors = null;
+        DynValue[] functions = _callbacks[(int)callback];
+        for (int index = 0; index < functions.Length; index++)
+        {
+            try { Invoke(functions.AsSpan(index, 1), null); }
+            catch (Exception error) { (errors ??= []).Add(error); }
+        }
+        if (errors?.Count == 1) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(errors[0]).Throw();
+        if (errors is not null) throw new AggregateException("Lua cleanup callbacks failed.", errors);
+    }
+
     private void Invoke(Callback callback, double? dt = null)
         => Invoke(_callbacks[(int)callback], dt);
 

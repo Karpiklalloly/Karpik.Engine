@@ -6,6 +6,9 @@ public interface IScriptRuntime : IDisposable
     
     public void Start();
 
+    /// <summary>Initializes VM-local state for a prepared code replacement; never repeats Start.</summary>
+    public void Reload() { }
+
     public void Update(double dt);
 
     public void FixedUpdate(double fixedDt);

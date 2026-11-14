@@ -9,10 +9,21 @@ public sealed class ComponentCallbackScope : IDisposable
 {
     private string? _owner;
     private bool _disposed;
+    private bool _active = true;
+
+    public ComponentCallbackScope() { }
+    internal ComponentCallbackScope(bool active) => _active = active;
+
+    internal void Activate()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _active = true;
+    }
 
     public void Enter(string owner)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_active) throw new InvalidOperationException("Component revision is not active.");
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
         if (_owner is not null) throw new InvalidOperationException("A component callback is already active.");
         _owner = owner;

@@ -1,0 +1,71 @@
+LuaPreparationTests.LuaHotReload_ReportsMaintenanceResourcesForRepeatedRealReloads(systems: 1)
+N=1; entities=16; iteration=0; pause_s=0.021482; prepare_s=0.018538; commit_s=0.000002; retire_s=0.002929; reload_process_alloc_B=3081400
+N=1; entities=16; iteration=1; pause_s=0.029922; prepare_s=0.025209; commit_s=0.000002; retire_s=0.004704; reload_process_alloc_B=3007152
+N=1; entities=16; iteration=2; pause_s=0.019776; prepare_s=0.014770; commit_s=0.000002; retire_s=0.004997; reload_process_alloc_B=2956904
+N=1; entities=16; iteration=3; pause_s=0.032650; prepare_s=0.031494; commit_s=0.000002; retire_s=0.001145; reload_process_alloc_B=3206280
+N=1; entities=16; iteration=4; pause_s=0.024402; prepare_s=0.022261; commit_s=0.000002; retire_s=0.002131; reload_process_alloc_B=3084448
+N=1; entities=16; iteration=5; pause_s=0.034987; prepare_s=0.032162; commit_s=0.000002; retire_s=0.002816; reload_process_alloc_B=3023312
+N=1; entities=16; iteration=6; pause_s=0.015511; prepare_s=0.012234; commit_s=0.000002; retire_s=0.003268; reload_process_alloc_B=3056696
+N=1; entities=16; iteration=7; pause_s=0.022465; prepare_s=0.021381; commit_s=0.000002; retire_s=0.001078; reload_process_alloc_B=2956624
+N=1; entities=16; iteration=8; pause_s=0.021669; prepare_s=0.016301; commit_s=0.000002; retire_s=0.005361; reload_process_alloc_B=3038560
+N=1; entities=16; iteration=9; pause_s=0.019221; prepare_s=0.018887; commit_s=0.000002; retire_s=0.000323; reload_process_alloc_B=2967856
+N=1; entities=16; iteration=10; pause_s=0.026949; prepare_s=0.015573; commit_s=0.000002; retire_s=0.011366; reload_process_alloc_B=2996984
+N=1; entities=16; iteration=11; pause_s=0.030585; prepare_s=0.029041; commit_s=0.000002; retire_s=0.001532; reload_process_alloc_B=3018480
+N=1; entities=16; iteration=12; pause_s=0.017707; prepare_s=0.016573; commit_s=0.000002; retire_s=0.001127; reload_process_alloc_B=3102600
+N=1; entities=16; iteration=13; pause_s=0.025252; prepare_s=0.023588; commit_s=0.000002; retire_s=0.001658; reload_process_alloc_B=2964904
+N=1; entities=16; iteration=14; pause_s=0.012305; prepare_s=0.010014; commit_s=0.000002; retire_s=0.002283; reload_process_alloc_B=3045048
+N=1; entities=16; iteration=15; pause_s=0.010575; prepare_s=0.009873; commit_s=0.000002; retire_s=0.000695; reload_process_alloc_B=2956680
+N=1; entities=16; iteration=16; pause_s=0.024217; prepare_s=0.023637; commit_s=0.000005; retire_s=0.000567; reload_process_alloc_B=2996968
+N=1; entities=16; iteration=17; pause_s=0.022076; prepare_s=0.020904; commit_s=0.000002; retire_s=0.001163; reload_process_alloc_B=3176192
+N=1; entities=16; iteration=18; pause_s=0.016997; prepare_s=0.014465; commit_s=0.000002; retire_s=0.002527; reload_process_alloc_B=3006816
+N=1; entities=16; iteration=19; pause_s=0.031122; prepare_s=0.019979; commit_s=0.000002; retire_s=0.011137; reload_process_alloc_B=2956704
+N=1; entities=16; reloads=20; wall_s=0.516126; total_pause_s=0.459868; process_alloc_B=61729664; sample_peak_managed_B=42256120; sample_peak_working_B=148840448; sample_peak_threads=30; samples=22; sampler_alloc_B=940552
+Resource peaks are sampled lower bounds at 2ms; whole-process allocation/threads include CLR, test runner and sampler overhead. Reload process allocation includes off-thread and sampler activity. Lua remains experimental; these reload costs are separate from warmed common tick 0B.
+
+LuaPreparationTests.LuaHotReload_ReportsMaintenanceResourcesForRepeatedRealReloads(systems: 16)
+N=16; entities=16; iteration=0; pause_s=0.013751; prepare_s=0.012913; commit_s=0.000001; retire_s=0.000816; reload_process_alloc_B=3736488
+N=16; entities=16; iteration=1; pause_s=0.006230; prepare_s=0.006017; commit_s=0.000001; retire_s=0.000207; reload_process_alloc_B=3538872
+N=16; entities=16; iteration=2; pause_s=0.009482; prepare_s=0.009321; commit_s=0.000001; retire_s=0.000154; reload_process_alloc_B=3572152
+N=16; entities=16; iteration=3; pause_s=0.018405; prepare_s=0.018265; commit_s=0.000001; retire_s=0.000134; reload_process_alloc_B=3556664
+N=16; entities=16; iteration=4; pause_s=0.018183; prepare_s=0.014866; commit_s=0.000002; retire_s=0.003310; reload_process_alloc_B=3631512
+N=16; entities=16; iteration=5; pause_s=0.008303; prepare_s=0.007893; commit_s=0.000001; retire_s=0.000404; reload_process_alloc_B=3702056
+N=16; entities=16; iteration=6; pause_s=0.017610; prepare_s=0.017292; commit_s=0.000001; retire_s=0.000312; reload_process_alloc_B=3499048
+N=16; entities=16; iteration=7; pause_s=0.019996; prepare_s=0.018746; commit_s=0.000001; retire_s=0.001242; reload_process_alloc_B=3740640
+N=16; entities=16; iteration=8; pause_s=0.011097; prepare_s=0.009605; commit_s=0.000002; retire_s=0.001486; reload_process_alloc_B=3531352
+N=16; entities=16; iteration=9; pause_s=0.023082; prepare_s=0.018716; commit_s=0.000001; retire_s=0.004360; reload_process_alloc_B=3649968
+N=16; entities=16; iteration=10; pause_s=0.025197; prepare_s=0.024311; commit_s=0.000002; retire_s=0.000878; reload_process_alloc_B=3784936
+N=16; entities=16; iteration=11; pause_s=0.012381; prepare_s=0.007650; commit_s=0.000002; retire_s=0.004723; reload_process_alloc_B=3564544
+N=16; entities=16; iteration=12; pause_s=0.015090; prepare_s=0.013566; commit_s=0.000002; retire_s=0.001517; reload_process_alloc_B=3531808
+N=16; entities=16; iteration=13; pause_s=0.032849; prepare_s=0.031750; commit_s=0.000001; retire_s=0.001092; reload_process_alloc_B=3492296
+N=16; entities=16; iteration=14; pause_s=0.024710; prepare_s=0.021786; commit_s=0.000002; retire_s=0.002913; reload_process_alloc_B=3583392
+N=16; entities=16; iteration=15; pause_s=0.013173; prepare_s=0.011778; commit_s=0.000001; retire_s=0.001388; reload_process_alloc_B=3630552
+N=16; entities=16; iteration=16; pause_s=0.018535; prepare_s=0.016619; commit_s=0.000002; retire_s=0.001910; reload_process_alloc_B=3655688
+N=16; entities=16; iteration=17; pause_s=0.016676; prepare_s=0.015489; commit_s=0.000002; retire_s=0.001178; reload_process_alloc_B=3573936
+N=16; entities=16; iteration=18; pause_s=0.016170; prepare_s=0.014282; commit_s=0.000002; retire_s=0.001881; reload_process_alloc_B=3740896
+N=16; entities=16; iteration=19; pause_s=0.016802; prepare_s=0.014229; commit_s=0.000002; retire_s=0.002566; reload_process_alloc_B=3574336
+N=16; entities=16; reloads=20; wall_s=0.441464; total_pause_s=0.337721; process_alloc_B=85045200; sample_peak_managed_B=40119688; sample_peak_working_B=149749760; sample_peak_threads=30; samples=85; sampler_alloc_B=3477680
+Resource peaks are sampled lower bounds at 2ms; whole-process allocation/threads include CLR, test runner and sampler overhead. Reload process allocation includes off-thread and sampler activity. Lua remains experimental; these reload costs are separate from warmed common tick 0B.
+
+LuaPreparationTests.LuaHotReload_ReportsMaintenanceResourcesForRepeatedRealReloads(systems: 0)
+N=0; entities=16; iteration=0; pause_s=0.017181; prepare_s=0.017003; commit_s=0.000002; retire_s=0.000172; reload_process_alloc_B=2727424
+N=0; entities=16; iteration=1; pause_s=0.019467; prepare_s=0.017383; commit_s=0.000002; retire_s=0.002079; reload_process_alloc_B=2799048
+N=0; entities=16; iteration=2; pause_s=0.005781; prepare_s=0.005331; commit_s=0.000001; retire_s=0.000445; reload_process_alloc_B=2537904
+N=0; entities=16; iteration=3; pause_s=0.009483; prepare_s=0.009045; commit_s=0.000002; retire_s=0.000432; reload_process_alloc_B=2602560
+N=0; entities=16; iteration=4; pause_s=0.009109; prepare_s=0.009016; commit_s=0.000002; retire_s=0.000087; reload_process_alloc_B=2597600
+N=0; entities=16; iteration=5; pause_s=0.038711; prepare_s=0.035353; commit_s=0.000002; retire_s=0.003351; reload_process_alloc_B=2957608
+N=0; entities=16; iteration=6; pause_s=0.026929; prepare_s=0.025981; commit_s=0.000005; retire_s=0.000938; reload_process_alloc_B=2601624
+N=0; entities=16; iteration=7; pause_s=0.018599; prepare_s=0.018388; commit_s=0.000001; retire_s=0.000207; reload_process_alloc_B=2668416
+N=0; entities=16; iteration=8; pause_s=0.026524; prepare_s=0.025269; commit_s=0.000002; retire_s=0.001249; reload_process_alloc_B=2573160
+N=0; entities=16; iteration=9; pause_s=0.030740; prepare_s=0.028906; commit_s=0.000002; retire_s=0.001827; reload_process_alloc_B=2529256
+N=0; entities=16; iteration=10; pause_s=0.011809; prepare_s=0.010703; commit_s=0.000001; retire_s=0.001102; reload_process_alloc_B=2522904
+N=0; entities=16; iteration=11; pause_s=0.016820; prepare_s=0.016187; commit_s=0.000001; retire_s=0.000628; reload_process_alloc_B=2522128
+N=0; entities=16; iteration=12; pause_s=0.025700; prepare_s=0.024588; commit_s=0.000002; retire_s=0.001106; reload_process_alloc_B=2525488
+N=0; entities=16; iteration=13; pause_s=0.032953; prepare_s=0.026308; commit_s=0.000002; retire_s=0.006637; reload_process_alloc_B=2495192
+N=0; entities=16; iteration=14; pause_s=0.014073; prepare_s=0.013204; commit_s=0.000002; retire_s=0.000863; reload_process_alloc_B=2581128
+N=0; entities=16; iteration=15; pause_s=0.019169; prepare_s=0.016571; commit_s=0.000002; retire_s=0.002591; reload_process_alloc_B=2484248
+N=0; entities=16; iteration=16; pause_s=0.018319; prepare_s=0.015929; commit_s=0.000002; retire_s=0.002384; reload_process_alloc_B=2602632
+N=0; entities=16; iteration=17; pause_s=0.018818; prepare_s=0.016432; commit_s=0.000002; retire_s=0.002381; reload_process_alloc_B=2597208
+N=0; entities=16; iteration=18; pause_s=0.011799; prepare_s=0.006650; commit_s=0.000002; retire_s=0.005144; reload_process_alloc_B=2569160
+N=0; entities=16; iteration=19; pause_s=0.046727; prepare_s=0.036264; commit_s=0.000001; retire_s=0.010458; reload_process_alloc_B=2809336
+N=0; entities=16; reloads=20; wall_s=0.431140; total_pause_s=0.418709; process_alloc_B=52746560; sample_peak_managed_B=36625384; sample_peak_working_B=139796480; sample_peak_threads=28; samples=57; sampler_alloc_B=2259576
+Resource peaks are sampled lower bounds at 2ms; whole-process allocation/threads include CLR, test runner and sampler overhead. Reload process allocation includes off-thread and sampler activity. Lua remains experimental; these reload costs are separate from warmed common tick 0B.

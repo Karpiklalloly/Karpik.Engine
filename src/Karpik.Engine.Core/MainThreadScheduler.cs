@@ -118,6 +118,8 @@ public class MainThreadScheduler : IDisposable
         return (JobHandle)t.JobHandle;
     }
 
+    public bool IsMainThread => Environment.CurrentManagedThreadId == _mainThreadId;
+
     public void Execute()
     {
         while (_actions.TryDequeue(out var action))
