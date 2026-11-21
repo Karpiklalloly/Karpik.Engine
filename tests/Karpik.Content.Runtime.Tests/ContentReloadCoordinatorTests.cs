@@ -2,6 +2,9 @@ using System.Text;
 using Karpik.Content.Core;
 using Karpik.Content.Runtime;
 using Xunit;
+using ModBatch = (System.Collections.Generic.IReadOnlyList<Karpik.Content.Runtime.ModContentPackage> Packages,
+    System.Collections.Generic.IReadOnlyCollection<string> InstalledModIds,
+    System.Collections.Generic.IReadOnlyList<Karpik.Content.Runtime.ModContentCapture> Captures);
 
 namespace Karpik.Content.Runtime.Tests;
 
@@ -15,8 +18,17 @@ public sealed class ContentReloadCoordinatorTests
     {
         public int References;
         public void Retain() => Interlocked.Increment(ref References);
-        public void Release() => Assert.True(Interlocked.Decrement(ref References) >= 0);
-        public ReadOnlyMemory<byte> Get(string locator) => Encoding.UTF8.GetBytes(locator);
+        public Exception? ReleaseError;
+        public void Release()
+        {
+            Assert.True(Interlocked.Decrement(ref References) >= 0);
+            if (Interlocked.Exchange(ref ReleaseError, null) is { } error) throw error;
+        }
+        public ReadOnlyMemory<byte> Get(string locator)
+        {
+            Assert.True(Volatile.Read(ref References) > 0);
+            return Encoding.UTF8.GetBytes(locator);
+        }
         public Task<ReadOnlyMemory<byte>> GetAsync(string locator, CancellationToken ct = default) => Task.FromResult(Get(locator));
     }
     [Fact]
@@ -287,12 +299,367 @@ public sealed class ContentReloadCoordinatorTests
         Assert.True(registry.IsAlive(current));
     }
 
-    private static async Task WaitReadyAsync(ContentReloadCoordinator coordinator)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BaseReloadReportsMissingTargetOrRejectsOriginalIdCollision(bool collision)
+    {
+        var original = new Store();
+        var mod = new Store();
+        await using var registry = new ContentRegistry(null!, original, deferredStartup: new());
+        registry.RegisterManifest(Manifest("a"), original);
+        registry.CompleteStartup([Package(mod, "m")], ["mod"]);
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        var incoming = new Store();
+        var diagnostics = new List<ContentDiagnostic>();
+        Task<ContentReloadResult> result = coordinator.EnqueueAsync(new(1, collision ? [Entry(B, "b")] : []), incoming, diagnostics.Add);
+        await PublishAsync(coordinator, result);
+        Assert.Equal(collision ? ContentReloadOutcome.Failed : ContentReloadOutcome.Applied, (await result.WaitAsync(TestTimeout)).Outcome);
+        Assert.Equal(collision ? "KCR302" : "KCR303", Assert.Single(diagnostics).Code);
+        Assert.True(mod.References > 0);
+        Assert.True(registry.TryResolve<string>(B, out var own));
+        Assert.Equal(1u, own.Version);
+        if (collision)
+        {
+            Assert.Empty(coordinator.Changes.ToArray());
+            Assert.Equal("m", await ReadAsync(registry, A));
+            await coordinator.DisposeAsync();
+            Assert.Equal(0, incoming.References);
+        }
+        else
+        {
+            Assert.False(registry.TryResolve<string>(A, out _));
+            Assert.Equal(new ContentAssetChange(A, ContentAssetChangeKind.Removed), Assert.Single(coordinator.Changes.ToArray()));
+            Task<ContentReloadResult> restore = coordinator.EnqueueAsync(Manifest("b"), incoming);
+            await PublishAsync(coordinator, restore);
+            Assert.Equal(ContentReloadOutcome.Applied, (await restore.WaitAsync(TestTimeout)).Outcome);
+            Assert.Equal("m", await ReadAsync(registry, A));
+        }
+    }
+
+    [Theory]
+    [InlineData("base-first")]
+    [InlineData("mod-first")]
+    [InlineData("superseded-base-moves-after-mod")]
+    public async Task BaseAndModQueueUseActualEnqueueOrderWithoutLosingEitherLayer(string order)
+    {
+        var original = new Store();
+        var mod = new Store();
+        var nextBase = new Store();
+        await using var registry = new ContentRegistry(null!, original);
+        registry.RegisterManifest(Manifest("a"), original);
+        Assert.Equal("a", await ReadAsync(registry, A));
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        var gated = new GatedStore();
+        Task<ContentReloadResult> active = coordinator.EnqueueAsync(Manifest("g"), gated);
+        await gated.Entered.Task.WaitAsync(TestTimeout);
+
+        Task<ContentReloadResult>? queuedBase = null;
+        var supersededStore = new Store();
+        if (order == "base-first") queuedBase = coordinator.EnqueueAsync(Manifest("c"), nextBase);
+        if (order == "superseded-base-moves-after-mod") queuedBase = coordinator.EnqueueAsync(Manifest("d"), supersededStore);
+        var package = Package(mod, "m");
+        Task<ContentReloadResult> refresh = coordinator.EnqueueModRefreshAsync((previous, ct) =>
+        {
+            Assert.Empty(previous);
+            Assert.True(registry.TryResolveArtifact(order == "base-first" ? "c" : "g", out _, out _));
+            return Batch(Claim(package));
+        });
+        Assert.False(refresh.IsCompleted);
+        if (order != "base-first")
+        {
+            var superseded = queuedBase;
+            queuedBase = coordinator.EnqueueAsync(Manifest("c"), nextBase);
+            if (superseded != null)
+            {
+                Assert.Equal(ContentReloadOutcome.Superseded, (await superseded.WaitAsync(TestTimeout)).Outcome);
+                Assert.Equal(0, supersededStore.References);
+            }
+        }
+        Task<ContentReloadResult> second = coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Busy callback ran"));
+        Assert.Equal(ContentReloadOutcome.Busy, (await second.WaitAsync(TestTimeout)).Outcome);
+        gated.Bytes.SetResult(Encoding.UTF8.GetBytes("g"));
+        await PublishAsync(coordinator, active);
+        Assert.Equal(ContentReloadOutcome.Applied, (await active.WaitAsync(TestTimeout)).Outcome);
+
+        if (order == "base-first")
+        {
+            await PublishAsync(coordinator, queuedBase!);
+            Assert.Equal(ContentReloadOutcome.Applied, (await queuedBase!.WaitAsync(TestTimeout)).Outcome);
+            Assert.False(refresh.IsCompleted);
+            Assert.Equal("c", await ReadAsync(registry, A));
+            Assert.False(registry.TryResolve<string>(B, out _));
+        }
+        await PublishAsync(coordinator, refresh);
+        Assert.Equal(ContentReloadOutcome.Applied, (await refresh.WaitAsync(TestTimeout)).Outcome);
+        Assert.Equal("m", await ReadAsync(registry, A));
+        Assert.Equal("m", await ReadAsync(registry, B));
+        if (order != "base-first")
+        {
+            Assert.True(registry.TryResolve<string>(A, out var previousReference));
+            ulong oldSequence = coordinator.Sequence;
+            Assert.False(queuedBase!.IsCompleted);
+            Assert.False(registry.TryResolveArtifact("c", out _, out _));
+            await PublishAsync(coordinator, queuedBase);
+            Assert.Equal(ContentReloadOutcome.Applied, (await queuedBase.WaitAsync(TestTimeout)).Outcome);
+            Assert.Empty(coordinator.Changes.ToArray());
+            Assert.Equal(oldSequence, coordinator.Sequence);
+            Assert.True(registry.TryResolve<string>(A, out var currentReference));
+            Assert.Equal(previousReference, currentReference);
+        }
+        Assert.True(registry.TryResolveArtifact("c", out var locator, out var store));
+        Assert.Equal("c", locator);
+        Assert.Same(nextBase, store);
+        Assert.Equal("m", await ReadAsync(registry, A));
+        Assert.Equal("m", await ReadAsync(registry, B));
+    }
+
+    [Fact]
+    public async Task ModCommitsAllocateZeroWhenWarmed_NotifyOnlyEffectiveIds_AndReuseNoOpPackage()
+    {
+        var original = new Store();
+        await using var registry = new ContentRegistry(null!, original);
+        registry.RegisterManifest(Manifest("a"), original);
+        var mod = new Store();
+        var package = Package(mod, "m");
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            bool adding = iteration % 2 == 0;
+            Task<ContentReloadResult> result = coordinator.EnqueueModRefreshAsync((previous, _) =>
+            {
+                if (adding) Assert.Empty(previous);
+                else
+                {
+                    Assert.Same(package, Assert.Single(previous));
+                    Assert.True(mod.References > 0);
+                }
+                return adding ? Batch(Claim(package)) : Batch();
+            });
+            await WaitReadyAsync(coordinator, result);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            bool committed = coordinator.PublishBoundary();
+            int count = coordinator.Changes.Length;
+            ulong sequence = coordinator.Sequence;
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.True(committed);
+            Assert.Equal(2, count);
+            if (iteration != 0) Assert.Equal(0, allocated);
+            Assert.Equal((ulong)iteration + 1, sequence);
+            Assert.Equal(new[] { new ContentAssetChange(A, ContentAssetChangeKind.Updated),
+                new ContentAssetChange(B, adding ? ContentAssetChangeKind.Added : ContentAssetChangeKind.Removed) }, coordinator.Changes.ToArray());
+            Assert.Equal(ContentReloadOutcome.Applied, (await result.WaitAsync(TestTimeout)).Outcome);
+            if (!adding) continue;
+
+            Assert.True(registry.TryResolve<string>(A, out var reference));
+            Task<ContentReloadResult> noOp = coordinator.EnqueueModRefreshAsync((previous, _) => Batch(Claim(Assert.Single(previous))));
+            await WaitReadyAsync(coordinator, noOp);
+            Assert.Equal(3, mod.References); // The root and two slots, no capture claim.
+            Assert.True(coordinator.PublishBoundary());
+            Assert.Equal(ContentReloadOutcome.Applied, (await noOp.WaitAsync(TestTimeout)).Outcome);
+            Assert.Equal(sequence, coordinator.Sequence);
+            Assert.Empty(coordinator.Changes.ToArray());
+            Assert.True(registry.TryResolve<string>(A, out var current));
+            Assert.Equal(reference, current);
+        }
+        await coordinator.DisposeAsync();
+        Assert.Equal(0, mod.References);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedModPreparationOrWrapperReleaseLeavesSnapshotIntactAndDisposesEveryCapture(bool cleanupFailure)
+    {
+        var original = new Store();
+        var lastGood = new Store();
+        await using var registry = new ContentRegistry(null!, original, deferredStartup: new());
+        registry.RegisterManifest(Manifest("a"), original);
+        var good = Package(lastGood, "m");
+        registry.CompleteStartup([good], ["mod"]);
+        Assert.Equal("m", await ReadAsync(registry, A));
+        int activeClaims = lastGood.References;
+        var broken = new Store { ReleaseError = cleanupFailure ? new InvalidOperationException("wrapper release failed") : null };
+        var unused = new Store();
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        Task<ContentReloadResult> result = coordinator.EnqueueModRefreshAsync((previous, _) =>
+        {
+            Assert.Same(good, Assert.Single(previous));
+            return Batch(Claim(Package(broken, cleanupFailure ? "n" : "long")),
+                Claim(new ModContentPackage("unused", new(1, []), unused, [], "fixture")));
+        });
+        ContentReloadResult failed = await result.WaitAsync(TestTimeout);
+        Assert.Equal(ContentReloadOutcome.Failed, failed.Outcome);
+        Assert.Contains(cleanupFailure ? "wrapper release failed" : "size does not match", failed.Error);
+        Assert.False(coordinator.PublishBoundary());
+        Assert.Equal(0ul, coordinator.Sequence);
+        Assert.Equal(activeClaims, lastGood.References);
+        Assert.Equal("m", await ReadAsync(registry, B)); // Was still unread during the failed preparation.
+        if (!cleanupFailure)
+        {
+            Assert.Null(coordinator.Failure);
+            var retry = coordinator.EnqueueModRefreshAsync((previous, _) => Task.FromResult<ModBatch>((previous, ["mod"], [])));
+            await PublishAsync(coordinator, retry);
+            Assert.Equal(ContentReloadOutcome.Applied, (await retry.WaitAsync(TestTimeout)).Outcome);
+        }
+        await coordinator.DisposeAsync();
+        Assert.Equal(0, broken.References);
+        Assert.Equal(0, unused.References);
+        Assert.Equal(activeClaims, lastGood.References);
+    }
+
+    [Fact]
+    public async Task StopSettlesCaptureAndPendingBaseButDisposeJoinsCancellationAndLateCaptureCleanup()
+    {
+        var original = new Store();
+        var mod = new Store();
+        await using var registry = new ContentRegistry(null!, original);
+        registry.RegisterManifest(Manifest("a"), original);
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishCapture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<ContentReloadResult> refresh = coordinator.EnqueueModRefreshAsync(async (_, ct) =>
+        {
+            using var registration = ct.Register(() => cancelled.TrySetResult());
+            entered.SetResult();
+            await finishCapture.Task;
+            return await Batch(Claim(Package(mod, "m")));
+        });
+        try
+        {
+            Assert.False(refresh.IsCompleted);
+            await entered.Task.WaitAsync(TestTimeout);
+            var duplicate = coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Busy callback ran"));
+            Assert.Equal(ContentReloadOutcome.Busy, (await duplicate.WaitAsync(TestTimeout)).Outcome);
+            var pending = coordinator.EnqueueAsync(Manifest("b"), original);
+            coordinator.RequestStop();
+            await cancelled.Task.WaitAsync(TestTimeout);
+            Assert.Equal(ContentReloadOutcome.Failed, (await refresh.WaitAsync(TestTimeout)).Outcome);
+            Assert.Equal(ContentReloadOutcome.Failed, (await pending.WaitAsync(TestTimeout)).Outcome);
+            var rejected = coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Stopped callback ran"));
+            Assert.Contains("stopping", (await rejected.WaitAsync(TestTimeout)).Error);
+            Assert.False(coordinator.PublishBoundary());
+            Assert.False(coordinator.DisposeAsync().IsCompleted);
+        }
+        finally { finishCapture.TrySetResult(); }
+        await coordinator.DisposeAsync().AsTask().WaitAsync(TestTimeout);
+        Assert.Equal(0, mod.References);
+        Assert.Equal("a", await ReadAsync(registry, A));
+        Assert.False(registry.TryResolve<string>(B, out _));
+    }
+
+    [Fact]
+    public async Task StopAcrossModPublicationBoundaryReportsTheActualWinnerAndReleasesAbortedCapture()
+    {
+        for (int iteration = 0; iteration < 12; iteration++)
+        {
+            var store = new Store();
+            var mod = new Store();
+            await using var registry = new ContentRegistry(null!, store);
+            registry.RegisterManifest(Manifest("a"), store);
+            await using var coordinator = new ContentReloadCoordinator(registry);
+            var refresh = coordinator.EnqueueModRefreshAsync((_, _) => Batch(Claim(Package(mod, "m"))));
+            await WaitReadyAsync(coordinator, refresh);
+            bool committed;
+            if (iteration == 0)
+            {
+                coordinator.RequestStop();
+                committed = coordinator.PublishBoundary();
+                Assert.False(committed);
+            }
+            else if (iteration == 1)
+            {
+                committed = coordinator.PublishBoundary();
+                coordinator.RequestStop();
+                Assert.True(committed);
+            }
+            else
+            {
+                Task<bool> publish = Task.Run(coordinator.PublishBoundary);
+                await Task.WhenAll(publish, Task.Run(coordinator.RequestStop));
+                committed = await publish;
+            }
+            Assert.Equal(committed ? ContentReloadOutcome.Applied : ContentReloadOutcome.Failed, (await refresh.WaitAsync(TestTimeout)).Outcome);
+            await coordinator.DisposeAsync().AsTask().WaitAsync(TestTimeout);
+            Assert.Equal(committed, registry.TryResolve<string>(B, out _));
+            Assert.Equal(committed ? 3 : 0, mod.References);
+        }
+    }
+
+    [Fact]
+    public async Task AppliedRefreshAllowsOnePendingButDoesNotCaptureUntilRetirementFinishes()
+    {
+        var old = new ContentResourceLifetime(() => { });
+        var store = new Store();
+        var mod = new Store();
+        int loads = 0;
+        var loader = new Loader(() => new Payload(Interlocked.Increment(ref loads) == 1 ? old : new ContentResourceLifetime(() => { })));
+        await using var registry = new ContentRegistry(null!, store, [loader]);
+        registry.RegisterManifest(Manifest("a"), store);
+        await registry.LoadAsync(new AssetRef<Payload>(A));
+        Assert.True(old.TryRetain());
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        Task<ContentReloadResult> second;
+        try
+        {
+            var package = Package(mod, "m");
+            var first = coordinator.EnqueueModRefreshAsync((_, _) => Batch(Claim(package)));
+            await WaitReadyAsync(coordinator, first);
+            Assert.True(coordinator.PublishBoundary());
+            var nextCapture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Admission is open as soon as the boundary switches roots, not when retirement finishes.
+            second = coordinator.EnqueueModRefreshAsync((previous, _) =>
+            {
+                Assert.True(old.Completion.IsCompletedSuccessfully);
+                Assert.Same(package, Assert.Single(previous));
+                nextCapture.SetResult();
+                return Batch();
+            });
+            Assert.Equal(ContentReloadOutcome.Applied, (await first.WaitAsync(TestTimeout)).Outcome);
+            var third = coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Busy callback ran"));
+            Assert.Equal(ContentReloadOutcome.Busy, (await third.WaitAsync(TestTimeout)).Outcome);
+            Assert.False(second.IsCompleted);
+            Assert.False(nextCapture.Task.IsCompleted);
+            Assert.False(old.Completion.IsCompleted);
+        }
+        finally { old.Release(); }
+        await PublishAsync(coordinator, second);
+        Assert.Equal(ContentReloadOutcome.Applied, (await second.WaitAsync(TestTimeout)).Outcome);
+        await coordinator.DisposeAsync();
+        Assert.Equal(0, mod.References);
+    }
+
+    private static Task<ModBatch> Batch(params ModContentCapture[] captures) =>
+        Task.FromResult<ModBatch>((captures.Select(c => c.Package).ToArray(), captures.Select(c => c.Package.ModId).ToArray(), captures));
+
+    // Use the same wrapper/claim contract with fake stores and no filesystem scan.
+    private static ModContentCapture Claim(ModContentPackage package)
+    {
+        ((IContentStoreLifetime)package.Store).Retain();
+        return (ModContentCapture)Activator.CreateInstance(typeof(ModContentCapture),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null, [package], null)!;
+    }
+
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
+    private static ModContentPackage Package(IContentStore store, string value) =>
+        new("mod", new(1, [Entry(B, value)]), store, [new(null, A, B)], "fixture");
+
+    private static async Task<string> ReadAsync(ContentRegistry registry, AssetId id)
+    {
+        Assert.True(registry.TryResolve<string>(id, out var reference));
+        await registry.LoadAsync(reference);
+        Assert.True(registry.TryGet(reference, out var lease));
+        return lease.Payload;
+    }
+
+    private static async Task WaitReadyAsync(ContentReloadCoordinator coordinator, Task<ContentReloadResult>? result = null)
     {
         var field = typeof(ContentReloadCoordinator).GetField("_ready", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         while (true)
         {
+            Assert.False(result?.IsCompleted == true, "The update completed without a ready publication.");
             object? ready = field.GetValue(coordinator);
             if (ready != null && (int)ready.GetType().GetField("State", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(ready)! == 0) return;
             await Task.Delay(1, timeout.Token);

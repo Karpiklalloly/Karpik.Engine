@@ -93,6 +93,7 @@ internal sealed class WorkerHost
         {
             try
             {
+                _bootstrap?.StopContentReloadAdmission();
                 StopIpc();
             }
             finally
@@ -205,6 +206,7 @@ internal sealed class WorkerHost
         {
             try
             {
+                _bootstrap?.StopContentReloadAdmission();
                 StopIpc();
             }
             finally
@@ -335,6 +337,7 @@ internal sealed class WorkerHost
                     }
                     finally
                     {
+                        _bootstrap.StopContentReloadAdmission();
                         try
                         {
                             // Cleanup needs the control pump and the still-live worker/lease.
@@ -351,7 +354,11 @@ internal sealed class WorkerHost
             case Side.Server:
                 _ipcClient?.SendReadyAsync(runtimeConfiguration.ModuleDirectory).Wait(cancellationToken);
                 try { ServerLoop(mainThreadScheduler, cancellationToken); }
-                finally { mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync()); }
+                finally
+                {
+                    _bootstrap.StopContentReloadAdmission();
+                    mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync());
+                }
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);

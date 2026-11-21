@@ -18,8 +18,11 @@ preserves it across worker restarts. Names contain 1–64 ASCII letters, digits,
 underscores or hyphens. Choose a different name for each instance sharing an
 output directory.
 
-Without that option the runtime opens no reload endpoint. Constructor-injected
-`IContentChangeSource` remains available and returns an empty span and sequence 0.
+Without that option the runtime opens no base reload endpoint. Local
+[mod Content refresh](mod-content-overrides.md#update-while-the-game-is-running)
+does not need the endpoint. Constructor-injected `IContentChangeSource` also
+reports effective asset changes from mod refresh; it is empty when nothing has
+changed.
 
 Build and wait for the selected runtime's application result:
 
@@ -79,9 +82,10 @@ the borrowed span across frames or poll it from an unrelated thread.
 
 Preparation, file I/O and endpoint callbacks run on cold workers. The boundary
 only publishes a ready update and copies a bounded preallocated change buffer.
-There is one active update and one latest pending request. Intermediate pending
-requests receive `superseded`; changes are computed against the actually applied
-registry state.
+There is one active update, one latest pending base request, and at most one
+pending mod refresh. A newer base request supersedes only the pending base
+request. Both operations use the latest published catalog and preserve the other
+layer; notifications compare effective IDs, not changes hidden by an override.
 
 ## Files and lifetime
 

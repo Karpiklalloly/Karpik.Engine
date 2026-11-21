@@ -80,7 +80,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             throw new InvalidOperationException("Content reload must be configured once before runner setup.");
         _contentReloadInstanceId = ContentReloadInstanceIdentity.Validate(instanceId)
             ?? throw new ArgumentNullException(nameof(instanceId));
-        RegisterModule(new ContentReloadHostInstaller(_contentReloadInstanceId));
+        RegisterModule(new ContentReloadHostInstaller(_contentReloadInstanceId, ReportContentDiagnostic));
     }
 
     public void RegisterTypes(Type[] types)
@@ -259,10 +259,6 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         // introducing a content registry into content-free hosts.
         systemRegistry.Add<ContentBindingBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -1900);
 
-        // Appended last so reverse async destruction stops delivery before bindings/gameplay teardown.
-        if (_contentReloadInstanceId is not null)
-            systemRegistry.Add<ContentReloadBoundarySystem>(CustomLayers.BEGIN_PROGRAM_LAYER, -2000);
-
         Type[] orderedTypes = GetRegisteredTypesInDeterministicOrder();
 
         var engineBuilder = new ContainerBuilder();
@@ -270,8 +266,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         engineBuilder.RegisterInstance(scheduler).AsSelf().SingleInstance();
         engineBuilder.RegisterInstance(_time).AsSelf().SingleInstance();
         engineBuilder.RegisterInstance(clientFrameMetrics).AsSelf().SingleInstance();
-        engineBuilder.Register(_ => new EmptyContentChangeSource()).As<Karpik.Content.Runtime.IContentChangeSource>()
-            .As<Karpik.Content.Runtime.IContentReloadLifetime>().SingleInstance();
+        RegisterContentStartup(engineBuilder);
         RegisterResolver(engineBuilder);
         if (isStatic)
         {
@@ -283,8 +278,10 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             AttributedServiceRegistrar.Register(engineBuilder, orderedTypes, ModuleScope.Engine);
         }
         RegisterInstallerServices(engineBuilder, ModuleScope.Engine);
+        RegisterContentPublication(engineBuilder);
         _engineContainer = engineBuilder.Build();
         _runtimeLogger = _engineContainer.ResolveOptional<ILogger<EngineRunner>>() ?? _hostLogger;
+        _contentCoordinator = _engineContainer.ResolveOptional<Karpik.Content.Runtime.ContentReloadCoordinator>();
 
         _modSetScope = _engineContainer.BeginLifetimeScope(builder =>
         {
@@ -308,6 +305,8 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             await operation;
         }
         cancellationToken.ThrowIfCancellationRequested();
+
+        var refreshCapture = await CompleteContentStartupAsync(systemRegistry, cancellationToken);
 
         ISimulationPreparation[] simulationPreparations = await scheduler.InvokeAsync(() =>
         {
@@ -360,6 +359,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             await operation;
         }
         cancellationToken.ThrowIfCancellationRequested();
+        OpenContentReloadAdmission(refreshCapture);
     }
 
     private Builder BuildSimulationPipeline(SystemRegistry systemRegistry)
@@ -826,6 +826,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         FixedRunTicker? fixedRunTicker = _fixedRunTicker;
         ILifetimeScope? simulationScope = _simulationScope;
         ILifetimeScope? modSetScope = _modSetScope;
+        StopContentReloadAdmission();
         IContainer? engineContainer = _engineContainer;
         ISystemAsyncDestroy[] asyncDestroyers = _asyncDestroyers;
 
@@ -836,6 +837,8 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         _simulationScope = null;
         _modSetScope = null;
         _engineContainer = null;
+        _contentCoordinator = null;
+        _contentEndpoint = null;
 
         List<Exception>? errors = null;
         void Record(Exception exception)

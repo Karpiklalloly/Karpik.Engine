@@ -94,28 +94,50 @@ internal static partial class ContentReloadProbe
         }
         finally { device.Dispose(); window.Close(); }
     }
-    public static void Run()
+    public static void Run(bool modRefresh = false)
     {
+        var timeout = TimeSpan.FromSeconds(10);
         NeoVeldridStartup.CreateWindowAndGraphicsDevice(new WindowCreateInfo(0, 0, 32, 32, WindowState.Hidden, "Content reload"),
             new GraphicsDeviceOptions(false, null, false), GraphicsBackend.OpenGL, out var window, out var device);
+        var store = new Store();
+        var registry = new ContentRegistry(null!, store, [new ContentTextureLoader(device)]);
+        var coordinator = modRefresh ? new ContentReloadCoordinator(registry) : null;
+        var cpu = new ThreadBuffer();
+        PreparedContentUpdate? prepared = null;
+        DirectoryInfo? fixture = null;
+        VeldridTexture2D? fallback = null;
         try
         {
-            var store = new Store();
-            var registry = new ContentRegistry(null!, store, [new ContentTextureLoader(device)]);
-            var id = new AssetId(Guid.NewGuid());
+            var id = AssetId.New();
+            var replacementId = AssetId.New();
+            const string modId = "native_patch";
+            string? modDirectory = null;
+            ModContentPackage? captured = null;
+            if (modRefresh)
+            {
+                fixture = Directory.CreateTempSubdirectory("karpik-mod-native-probe-");
+                modDirectory = CookModTexture(fixture.FullName, modId, id, replacementId, store.NewBytes);
+            }
+            void RefreshMod()
+            {
+                var application = coordinator!.EnqueueModRefreshAsync(async (previous, ct) =>
+                {
+                    var capture = await ModContentCapture.CaptureAsync(modDirectory!, modId, AssetTarget.Client, previous.SingleOrDefault(), ct: ct);
+                    if (capture is null) return ([], [], []);
+                    captured = capture.Package; // For the cleanup assertion only; this does not retain the store.
+                    return ([capture.Package], [modId], [capture]);
+                });
+                if (!SpinWait.SpinUntil(() => application.IsCompleted || coordinator.PublishBoundary(), timeout))
+                    throw new TimeoutException("Mod refresh did not reach publication.");
+                var result = application.WaitAsync(timeout).GetAwaiter().GetResult();
+                if (result.Outcome != ContentReloadOutcome.Applied) throw new Exception($"Mod refresh {result.Outcome}: {result.Error}");
+            }
             ContentManifest Manifest(string hash) => new(1, [new(id, "texture", "tex", "settings", hash, hash, store.Get(hash).Length, [])]);
             registry.RegisterManifest(Manifest("old"), store);
             var reference = new AssetRef<ITexture2D>(id);
-            registry.LoadAsync(reference).GetAwaiter().GetResult();
+            registry.LoadAsync(reference).WaitAsync(timeout).GetAwaiter().GetResult();
             if (!registry.TryGet(reference, out var lease)) throw new Exception("Initial texture missing");
             var old = (VeldridTexture2D)lease.Payload!;
-            var cpu = new ThreadBuffer(); cpu.Add(new DrawTextureCmd { Texture = old });
-            GraphicsContext.BeginFrame();
-            GraphicsContext.Buffer.Add(new DrawTextureCmd { Texture = old, Color = System.Drawing.Color.White, Size = System.Numerics.Vector2.One });
-            GraphicsContext.BeginFrame();
-            using var prepared = registry.PrepareAsync(Manifest("new")).GetAwaiter().GetResult();
-            if (!registry.TryCommit(prepared)) throw new Exception("Commit failed");
-            if (old.Texture.IsDisposed) throw new Exception("Old CPU-owned texture disposed during publication");
             var factory = device.ResourceFactory;
             using var layout = factory.CreateResourceLayout(new ResourceLayoutDescription(
                 new ResourceLayoutElementDescription("Tex", ResourceKind.TextureReadOnly, ShaderStages.Fragment),
@@ -131,15 +153,16 @@ internal static partial class ContentReloadProbe
             using var commands = factory.CreateCommandList();
             void Draw(VeldridTexture2D texture)
             {
-                commands.Begin(); commands.SetFramebuffer(framebuffer); commands.SetFullViewports(); commands.SetPipeline(pipeline);
+                commands.Begin(); commands.SetFramebuffer(framebuffer); commands.SetFullViewports(); commands.ClearColorTarget(0, RgbaFloat.Blue); commands.SetPipeline(pipeline);
                 commands.SetGraphicsResourceSet(0, texture.ResourceSet); commands.Draw(3); commands.CopyTexture(output, staging); commands.End();
                 device.SubmitCommands(commands);
             }
-            void Expect(byte r, byte g)
+            void Expect(string phase, byte r, byte g)
             {
                 device.GetOpenGLInfo().ExecuteOnGLThread(() => { });
                 var mapped = device.Map<Pixel>(staging, MapMode.Read); var value = mapped[0,0]; device.Unmap(staging);
-                if (value.R != r || value.G != g || value.B != 0 || value.A != 255) throw new Exception($"Unexpected content pixel {value}");
+                if (value.R != r || value.G != g || value.B != 0 || value.A != 255) throw new Exception($"{phase}: unexpected content pixel {value}");
+                Console.WriteLine($"{phase}: RGBA={value}");
             }
             using var mergePipeline = factory.CreateGraphicsPipeline(new GraphicsPipelineDescription(BlendStateDescription.SingleOverrideBlend,
                 DepthStencilStateDescription.Disabled, RasterizerStateDescription.CullNone, PrimitiveTopology.TriangleList,
@@ -149,15 +172,32 @@ internal static partial class ContentReloadProbe
             typeof(Karpik.Engine.Client.Graphics.Core.Presets.Preset2DPipeline).GetProperty("TexturePipeline")!.SetValue(preset, mergePipeline);
             using var merge = new MergeThread(device, preset, new Karpik.Engine.Core.ClientFrameMetrics());
             merge.Init();
+            cpu.Add(new DrawTextureCmd { Texture = old });
+            GraphicsContext.BeginFrame();
+            GraphicsContext.Buffer.Add(new DrawTextureCmd { Texture = old, Color = System.Drawing.Color.White, Size = System.Numerics.Vector2.One });
+            GraphicsContext.BeginFrame();
+            if (modRefresh) RefreshMod();
+            else
+            {
+                prepared = registry.PrepareAsync(Manifest("new")).WaitAsync(timeout).GetAwaiter().GetResult();
+                if (!registry.TryCommit(prepared)) throw new Exception("Commit failed");
+            }
+            if (old.Texture.IsDisposed) throw new Exception("Old CPU-owned texture disposed during publication");
             var renderView = new RenderView(default, 4, 4);
             if (!merge.TryBeginMerge(renderView)) throw new Exception("Merge did not acquire old ready frame");
             merge.WaitForCompletion();
             if (!merge.TryTakeCompletedCommandList(out var mergedCommands, out var mergedFence)) throw new Exception("Merge output unavailable");
             cpu.Clear(); // The claimed production merge list is now the only old-generation CPU owner.
-            old.Lifetime!.Retire();
-            if (old.Lifetime.TryDispose()) throw new Exception("Claimed merge list lost its texture ownership");
+            var oldLifetime = old.Lifetime!;
+            if (!SpinWait.SpinUntil(() =>
+                {
+                    if (!oldLifetime.TryRetain()) return true;
+                    oldLifetime.Release();
+                    return false;
+                }, timeout)) throw new TimeoutException("Registry did not begin old texture retirement.");
+            if (old.Texture.IsDisposed || oldLifetime.Completion.IsCompleted) throw new Exception("Claimed merge list lost its texture ownership");
             if (!registry.TryResolve<ITexture2D>(id, out var next) || !registry.TryGet(next, out var nextLease)) throw new Exception("New texture missing");
-            ITexture2D newTexture = nextLease.Payload!;
+            var newTexture = (VeldridTexture2D)nextLease.Payload!;
             void QueueNewFrame()
             {
                 GraphicsContext.BeginFrame();
@@ -173,18 +213,84 @@ internal static partial class ContentReloadProbe
             merge.CompleteSubmission(mergedCommands!);
             if (!merge.TryTakeCompletedCommandList(out var discarded, out _) || ReferenceEquals(discarded, mergedCommands)) throw new Exception("Claimed context was reused");
             merge.CompleteSubmission(discarded!); // Deliberately discard an unsubmitted list.
-            prepared.Completion.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
-            Expect(0, 255);
+            (prepared?.Completion ?? oldLifetime.Completion).WaitAsync(timeout).GetAwaiter().GetResult();
+            Expect("Retired old frame", 0, 255);
             if (!old.Texture.IsDisposed || registry.TryGet(reference, out _)) throw new Exception("Old generation was not retired");
-            if (!registry.TryResolve<ITexture2D>(id, out var current) || !registry.TryGet(current, out var latest)) throw new Exception("New generation unavailable");
-            if (latest.Payload!.Width != 1 || latest.Payload.Height != 1) throw new Exception("Decoded dimensions incorrect");
-            Draw((VeldridTexture2D)latest.Payload);
-            Expect(255, 0);
+            if (newTexture.Width != 1 || newTexture.Height != 1) throw new Exception("Decoded dimensions incorrect");
+            Draw(newTexture);
+            Expect("Current effective ID", 255, 0);
             QueueNewFrame(); QueueNewFrame(); // Supersede a ready list; Dispose must release the remaining ready context.
-            merge.Dispose();
-            registry.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
-            Console.WriteLine("CONTENT TEXTURE RELOAD PASSED: prepare, publish, transfer, submit old green, retire, submit new red, shutdown");
+            if (modRefresh)
+            {
+                Directory.Delete(modDirectory!, recursive: true);
+                if (!registry.TryResolve<ITexture2D>(replacementId, out var direct) || registry.TryGet(direct, out _))
+                    throw new Exception("Expected an unloaded mod texture after source deletion");
+                registry.LoadAsync(direct).WaitAsync(timeout).GetAwaiter().GetResult();
+                if (!registry.TryGet(direct, out var loaded)) throw new Exception("Captured texture missing after source deletion");
+                var lazyTexture = (VeldridTexture2D)loaded.Payload!;
+                Draw(lazyTexture);
+                Expect("Lazy mod ID after source deletion", 255, 0);
+
+                RefreshMod();
+                if (registry.TryResolve<ITexture2D>(replacementId, out _) || registry.TryGet(next, out _) ||
+                    !registry.TryResolve<ITexture2D>(id, out var restored) || !registry.TryGet(restored, out var original))
+                    throw new Exception("Removal did not restore the original at the effective ID");
+                fallback = (VeldridTexture2D)original.Payload!;
+                Draw(fallback);
+                Expect("Effective ID after removal", 0, 255);
+                if (newTexture.Texture.IsDisposed) throw new Exception("Removal disposed the mod texture still held by a ready merge list");
+
+                merge.Dispose();
+                coordinator!.DisposeAsync().AsTask().WaitAsync(timeout).GetAwaiter().GetResult();
+                if (coordinator.Failure is { } failure) throw new Exception("Mod refresh retirement failed", failure);
+                if (!newTexture.Texture.IsDisposed || !lazyTexture.Texture.IsDisposed) throw new Exception("Mod textures were not retired");
+                try
+                {
+                    _ = captured!.Store.Get(captured.Manifest.Entries.Single().ArtifactLocator);
+                    throw new Exception("Retired mod capture was not released");
+                }
+                catch (ObjectDisposedException) { }
+                Console.WriteLine("Old green survived through claimed submission; mod textures and capture released after merge drainage");
+            }
         }
-        finally { device.Dispose(); window.Close(); }
+        finally
+        {
+            try
+            {
+                cpu.Clear();
+                prepared?.Dispose();
+                prepared?.Completion.WaitAsync(timeout).GetAwaiter().GetResult();
+                coordinator?.DisposeAsync().AsTask().WaitAsync(timeout).GetAwaiter().GetResult();
+                registry.DisposeAsync().AsTask().WaitAsync(timeout).GetAwaiter().GetResult();
+                if (fallback is not null && !fallback.Texture.IsDisposed) throw new Exception("Restored texture was not disposed at shutdown");
+            }
+            finally { device.Dispose(); window.Close(); fixture?.Delete(recursive: true); }
+        }
+        Console.WriteLine(modRefresh
+            ? "MOD TEXTURE REFRESH PASSED: cook, capture, publish, submit old green, read red, delete source, restore green, cleanup, shutdown"
+            : "CONTENT TEXTURE RELOAD PASSED: prepare, publish, transfer, submit old green, retire, submit new red, shutdown");
+    }
+
+    private static string CookModTexture(string root, string modId, AssetId target, AssetId replacement, byte[] redPng)
+    {
+        string source = Directory.CreateDirectory(Path.Combine(root, "Source")).FullName;
+        var png = Path.Combine(source, "red.png");
+        File.WriteAllBytes(png, redPng);
+        File.WriteAllText(png + ".meta", $$"""
+            {"schemaVersion":1,"assetId":"{{replacement}}","declaredType":"texture","logicalName":"{{modId}}/red","importSettings":{},"dependencies":[]}
+            """);
+        string mod = Path.Combine(root, "Mods", modId);
+        string output = Path.Combine(mod, "Content", "Client");
+        using var build = new ContentBuildCoordinator().Build(new ContentBuildOptions
+        {
+            SourceRoot = source, OutputRoot = output, Namespace = modId, Target = AssetTarget.Client
+        });
+        if (!build.Success) throw new Exception($"Mod texture cook failed: {string.Join('\n', build.Diagnostics)}");
+        File.WriteAllText(Path.Combine(output, "overrides.json"), $$"""
+            {"schemaVersion":1,"generationId":"{{build.GenerationId}}","overrides":[
+              {"targetModId":null,"targetAssetId":"{{target}}","replacementAssetId":"{{replacement}}"}
+            ]}
+            """);
+        return mod;
     }
 }

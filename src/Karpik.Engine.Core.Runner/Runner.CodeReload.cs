@@ -270,6 +270,7 @@ public partial class EngineRunner
 
     private async Task DestroyAfterCodeReloadAsync()
     {
+        StopContentReloadAdmission();
         Task pending = DrainCodeReloadForShutdownAsync();
         if (pending.IsCompleted && Volatile.Read(ref _codeReloadFrameCalls) == 0)
         {
