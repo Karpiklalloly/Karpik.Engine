@@ -1,4 +1,3 @@
-using Autofac;
 using Karpik.Content.Core;
 using Karpik.Content.Runtime;
 using Karpik.Content.Transport;
@@ -16,19 +15,20 @@ internal sealed class EmptyContentChangeSource : IContentChangeSource, IContentR
 }
 
 /// <summary>Cold endpoint lifecycle. Coordinator retirement is disposed separately, after renderer owners.</summary>
-internal sealed class ContentReloadHostRuntime : IStartable, IAsyncDisposable
+internal sealed class ContentReloadHostRuntime : IAsyncDisposable
 {
     private readonly ContentReloadAddress _address;
     private readonly ContentReloadCoordinator _coordinator;
+    private readonly Action<ContentDiagnostic> _report;
     private readonly object _stopGate = new();
     private ContentReloadEndpoint? _endpoint;
     private Task? _stop;
     public ContentReloadHostRuntime(string instanceId, Application application, IFileSystem fileSystem,
-        FileContentStore store, ContentRegistry registry, ContentReloadCoordinator coordinator)
+        IContentStore contentStore, ContentReloadCoordinator coordinator, Action<ContentDiagnostic> report)
     {
-        _ = registry; // The same initialized registry must precede endpoint activation and outlive it.
         _coordinator = coordinator;
-        if (!store.IsGenerationCaptured || !store.IdentityKnown || string.IsNullOrWhiteSpace(store.Namespace))
+        _report = report;
+        if (contentStore is not FileContentStore store || !store.IsGenerationCaptured || !store.IdentityKnown || string.IsNullOrWhiteSpace(store.Namespace))
             throw new InvalidOperationException("Content reload requires writable generation ownership and a validated namespace/target. Rebuild Content into writable output, then restart this development runtime.");
         AssetTarget target = application.ApplicationSide switch
         {
@@ -51,7 +51,7 @@ internal sealed class ContentReloadHostRuntime : IStartable, IAsyncDisposable
             AssetTarget expected = _address.Target == ContentReloadTarget.Client ? AssetTarget.Client : AssetTarget.Server;
             if (!generation.IdentityKnown || generation.Namespace != _address.Namespace || generation.Target != expected)
                 return new ContentReloadResponse(1, request.RequestId, WireOutcome.Failed, "Published generation namespace/target does not match this runtime.");
-            var result = await _coordinator.EnqueueAsync(generation.Manifest, generation).ConfigureAwait(false);
+            var result = await _coordinator.EnqueueAsync(generation.Manifest, generation, _report).ConfigureAwait(false);
             WireOutcome outcome = result.Outcome switch
             {
                 RuntimeOutcome.Applied => WireOutcome.Applied,
@@ -79,9 +79,8 @@ internal sealed class ContentReloadHostRuntime : IStartable, IAsyncDisposable
     }
 }
 
-internal sealed class ContentReloadBoundarySystem(ContentReloadCoordinator coordinator, ContentReloadHostRuntime host)
-    : ISystemMainThreadFrameBegin, ISystemAsyncDestroy
+internal sealed class ContentReloadBoundarySystem(ContentReloadCoordinator coordinator)
+    : ISystemMainThreadFrameBegin
 {
     public void MainThreadFrameBegin() => coordinator.PublishBoundary();
-    public ValueTask DestroyAsync() { host.RequestStop(); return ValueTask.CompletedTask; }
 }

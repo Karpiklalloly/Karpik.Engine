@@ -1,6 +1,6 @@
 ﻿namespace Karpik.Engine.Core;
 
-internal interface IEngineRunner
+internal interface IEngineRunner : IModContentRefresh
 {
     public Task SetupAsync(Application application, MainThreadScheduler scheduler, ClientFrameMetrics clientFrameMetrics,
         Dictionary<string, byte[]>? hotReloadData = null, CancellationToken cancellationToken = default);
@@ -27,6 +27,10 @@ internal interface IEngineRunner
     Task<SimulationCodeReloadResult> RequestCodeReloadAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
     Task DrainCodeReloadForShutdownAsync() => Task.CompletedTask;
+
+    Task<ModContentRefreshResult> IModContentRefresh.RequestModContentRefreshAsync() =>
+        Task.FromResult(new ModContentRefreshResult(ModContentRefreshStatus.Unavailable));
+    void StopContentReloadAdmission() { }
 
     public void Destroy();
 

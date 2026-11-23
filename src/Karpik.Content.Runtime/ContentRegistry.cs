@@ -6,6 +6,9 @@ using Karpik.Engine.Core.FileSystem;
 
 namespace Karpik.Content.Runtime;
 
+/// <summary>Opt in to publishing the initial ID catalog after ModSet preparation.</summary>
+public sealed class DeferredContentStartup;
+
 [Export(typeof(IContentRegistry))]
 [Export(typeof(IContentUpdateRegistry))]
 [Export(typeof(ContentRegistry))]
@@ -17,15 +20,18 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     private readonly IFileSystem _fileSystem;
     private readonly IContentStore _store;
     private readonly IContentPayloadLoader[] _loaders;
+    private readonly bool _deferIdCatalog;
     private ContentSnapshot? _root;
     private int _updating;
     private int _disposed;
     private readonly ContentSnapshot _disposedRoot;
     private Exception? _retirementFailure;
-    public ContentRegistry(IFileSystem fileSystem, IContentStore store, IEnumerable<IContentPayloadLoader>? loaders = null)
+    public ContentRegistry(IFileSystem fileSystem, IContentStore store, IEnumerable<IContentPayloadLoader>? loaders = null,
+        DeferredContentStartup? deferredStartup = null)
     {
         _fileSystem = fileSystem; _store = store; _loaders = loaders?.ToArray() ?? [];
-        _disposedRoot = new ContentSnapshot(new(), 0, store, retainStore: false);
+        _deferIdCatalog = deferredStartup != null;
+        _disposedRoot = new ContentSnapshot(new(), 0, store, [], retainStore: false);
     }
     public void Start()
     {
@@ -59,10 +65,10 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     public bool TryResolveArtifact(string logicalName, out string artifactLocator, out IContentStore store)
     {
         var root = GetArtifactSnapshot();
-        if (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
+        if (root != null && root.Artifacts.TryGetValue(logicalName, out var entry) && entry != null)
         {
-            artifactLocator = slot.Entry.ArtifactLocator;
-            store = slot.Store;
+            artifactLocator = entry.ArtifactLocator;
+            store = root.Store;
             return true;
         }
 
@@ -74,20 +80,15 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
     public Stream? TryOpenArtifact(string logicalName)
     {
         var root = GetArtifactSnapshot();
-        while (root != null && root.Artifacts.TryGetValue(logicalName, out var slot) && slot != null)
+        while (root != null && root.Artifacts.TryGetValue(logicalName, out var entry) && entry != null)
         {
-            lock (slot.Sync)
+            if (!root.TryRetainStore())
             {
-                if (slot.Retired)
-                {
-                    root = Volatile.Read(ref _root);
-                    continue;
-                }
-                ContentStoreLifetime.Retain(slot.Store);
+                root = Volatile.Read(ref _root);
+                continue;
             }
-
-            try { return slot.Store.OpenRead(slot.Entry.ArtifactLocator); }
-            finally { ContentStoreLifetime.Release(slot.Store); }
+            try { return root.Store.OpenRead(entry.ArtifactLocator); }
+            finally { ContentStoreLifetime.Release(root.Store); }
         }
         return null;
     }
@@ -97,16 +98,59 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         ArgumentNullException.ThrowIfNull(store);
         if (Volatile.Read(ref _root) != null) throw new InvalidOperationException("RegisterManifest is initialization-only.");
-        var entries = Normalize(manifest);
-        var slots = entries.ToDictionary(e => e.AssetId, e => new ContentSlot(e, 1, store));
-        var snapshot = new ContentSnapshot(slots, 1, store);
+        var entries = ContentComposition.Normalize(manifest);
+        var snapshot = _deferIdCatalog
+            ? new ContentSnapshot(new(), 0, store, entries)
+            : CreateInitialSnapshot(entries, store);
         if (Interlocked.CompareExchange(ref _root, snapshot, null) != null)
         {
-            foreach (var slot in slots.Values) slot.ReleaseStore();
+            foreach (var slot in snapshot.Slots.Values) slot.ReleaseStore();
             snapshot.ReleaseStore();
             throw new InvalidOperationException("RegisterManifest is initialization-only. Use PrepareAsync/TryCommit for updates.");
         }
     }
+
+    /// <summary>Finalize explicitly deferred startup before the first consumer of the ID catalog.</summary>
+    public void CompleteStartup(IReadOnlyList<ModContentPackage> packages, IReadOnlyCollection<string> installedModIds,
+        Action<ContentDiagnostic>? report = null)
+    {
+        lock (_initializationLock)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            var basis = Volatile.Read(ref _root);
+            if (basis == null || basis.Revision != 0)
+                throw new InvalidOperationException("Startup must first load the base manifest with a deferred ID catalog.");
+            var snapshot = CreateInitialSnapshot(basis.BaseEntries, basis.Store, packages, installedModIds, report);
+            if (!ReferenceEquals(Interlocked.CompareExchange(ref _root, snapshot, basis), basis))
+            {
+                foreach (var slot in snapshot.Slots.Values) slot.ReleaseStore();
+                snapshot.ReleaseStore();
+                throw new ObjectDisposedException(nameof(ContentRegistry));
+            }
+            basis.ReleaseStore();
+        }
+    }
+
+    private static ContentSnapshot CreateInitialSnapshot(ContentManifestEntry[] entries, IContentStore store,
+        IReadOnlyList<ModContentPackage>? packages = null, IReadOnlyCollection<string>? installedModIds = null,
+        Action<ContentDiagnostic>? report = null)
+    {
+        var composition = ContentComposition.Build(entries, store, packages ?? [], installedModIds ?? [],
+            tolerateInvalidPackages: true, report);
+        var slots = new Dictionary<AssetId, ContentSlot>(composition.Sources.Count);
+        try
+        {
+            foreach (var (id, source) in composition.Sources)
+                slots.Add(id, new ContentSlot(source.Entry, 1, source.Store, source.ModId));
+            return new(slots, 1, store, entries, composition.Packages, composition.InstalledModIds);
+        }
+        catch
+        {
+            foreach (var slot in slots.Values) slot.ReleaseStore();
+            throw;
+        }
+    }
+
     public bool TryResolve<T>(AssetId id, out AssetRef<T> reference)
     {
         var root = Volatile.Read(ref _root);
@@ -193,7 +237,13 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             }
             finally
             {
-                lock (slot.Sync) { slot.Inflight = null; slot.PayloadType = null; slot.RetirementFailure = cleanupFailure; }
+                lock (slot.Sync)
+                {
+                    slot.Inflight = null;
+                    slot.PayloadType = null;
+                    // A later failed load cannot make the earlier resource safe to release.
+                    slot.RetirementFailure ??= cleanupFailure;
+                }
             }
             if (failure is OperationCanceledException) completion.TrySetCanceled(ct); else completion.TrySetException(failure);
         }
@@ -205,13 +255,36 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         return CreatePayload(type, bytes);
     }
     public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, CancellationToken cancellationToken = default) =>
-        PrepareCoreAsync(manifest, null, cancellationToken);
-    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store, CancellationToken cancellationToken = default)
+        PrepareCoreAsync(manifest, null, null, null, null, cancellationToken);
+
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store, CancellationToken cancellationToken = default) =>
+        PrepareAsync(manifest, store, null, cancellationToken);
+
+    public Task<PreparedContentUpdate> PrepareAsync(ContentManifest manifest, IContentStore store,
+        Action<ContentDiagnostic>? report, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(store);
-        return PrepareCoreAsync(manifest, store, cancellationToken);
+        return PrepareCoreAsync(manifest, store, null, null, report, cancellationToken);
     }
-    private async Task<PreparedContentUpdate> PrepareCoreAsync(ContentManifest manifest, IContentStore? candidateStore, CancellationToken cancellationToken)
+
+    /// <summary>Prepare a new ordered mod layer against the current base. Hold incoming stores until preparation settles.</summary>
+    public Task<PreparedContentUpdate> PrepareModUpdateAsync(IReadOnlyList<ModContentPackage> packages,
+        IReadOnlyCollection<string> installedModIds, Action<ContentDiagnostic>? report = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(packages);
+        ArgumentNullException.ThrowIfNull(installedModIds);
+        return PrepareCoreAsync(null, null, packages, installedModIds, report, cancellationToken);
+    }
+
+    // Borrowed by the serialized cold coordinator, which keeps this root current
+    // while it captures the next mod layer. No ownership transfers to the reader.
+    internal ContentSnapshot CommittedSnapshot => Volatile.Read(ref _root) is { Revision: > 0 } root
+        ? root : throw new InvalidOperationException("The initial ID catalog has not been published or is no longer available.");
+
+    private async Task<PreparedContentUpdate> PrepareCoreAsync(ContentManifest? manifest, IContentStore? candidateStore,
+        IReadOnlyList<ModContentPackage>? packages, IReadOnlyCollection<string>? installedModIds,
+        Action<ContentDiagnostic>? report, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (Interlocked.CompareExchange(ref _updating, 1, 0) != 0) throw new InvalidOperationException("An update is preparing or retiring. Await its Completion first.");
@@ -220,18 +293,34 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         {
             if (_retirementFailure != null) throw new InvalidOperationException("Previous retirement failed.", _retirementFailure);
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-            var basis = Volatile.Read(ref _root) ?? throw new InvalidOperationException("RegisterManifest must be called first.");
+            var basis = CommittedSnapshot;
+            cancellationToken.ThrowIfCancellationRequested();
             var store = candidateStore ?? basis.Store;
-            var entries = Normalize(manifest);
-            bool identical = entries.Length == basis.Slots.Count && entries.All(e => basis.Slots.TryGetValue(e.AssetId, out var old) && old.Entry.Equals(e));
-            uint revision = identical ? basis.Revision : checked(basis.Revision + 1);
-            var slots = new Dictionary<AssetId, ContentSlot>(entries.Length);
-            foreach (var entry in entries)
+            var entries = packages == null ? ContentComposition.Normalize(manifest!) : basis.BaseEntries;
+            var composition = ContentComposition.Build(entries, store, packages ?? basis.Packages,
+                installedModIds ?? basis.InstalledModIds, tolerateInvalidPackages: false, report, cancellationToken);
+            var sources = composition.Sources;
+            bool sameEffective = sources.Count == basis.Slots.Count && sources.All(pair =>
+                basis.Slots.TryGetValue(pair.Key, out var prior) && prior.Matches(pair.Value));
+            uint revision = sameEffective ? basis.Revision : checked(basis.Revision + 1);
+            bool sameBase = ReferenceEquals(store, basis.Store) && entries.SequenceEqual(basis.BaseEntries);
+            if (sameEffective && sameBase && composition.Packages.SequenceEqual(basis.Packages) &&
+                composition.InstalledModIds.SetEquals(basis.InstalledModIds))
+                return new PreparedContentUpdate(this, basis, basis, [], []);
+
+            var slots = new Dictionary<AssetId, ContentSlot>(sources.Count);
+            foreach (var (id, source) in sources)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (basis.Slots.TryGetValue(entry.AssetId, out var previous) && previous.Entry.Equals(entry)) { slots.Add(entry.AssetId, previous); continue; }
-                var slot = new ContentSlot(entry, revision, store);
-                created.Add(slot); slots.Add(entry.AssetId, slot);
+                if (basis.Slots.TryGetValue(id, out var previous) && previous.Matches(source))
+                {
+                    slots.Add(id, previous);
+                    continue;
+                }
+                var entry = source.Entry;
+                var slot = new ContentSlot(entry, revision, source.Store, source.ModId);
+                created.Add(slot);
+                slots.Add(id, slot);
                 Type? loadedType = null;
                 if (previous != null) lock (previous.Sync) { if (previous.Payload != null) loadedType = previous.PayloadType; }
                 if (loadedType == null) continue;
@@ -245,9 +334,11 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
                 slot.PayloadType = loadedType;
             }
             cancellationToken.ThrowIfCancellationRequested();
-            var replaced = basis.Slots.Values.Where(s => !slots.TryGetValue(s.Entry.AssetId, out var n) || !ReferenceEquals(s, n)).ToArray();
-            var update = new PreparedContentUpdate(this, basis, (identical ? basis : new ContentSnapshot(slots, revision, store)), replaced, created.ToArray());
-            return update;
+            var replaced = basis.Slots.Where(pair => !slots.TryGetValue(pair.Key, out var next) || !ReferenceEquals(pair.Value, next))
+                .Select(pair => pair.Value).ToArray();
+            var newSlots = created.ToArray();
+            var snapshot = new ContentSnapshot(slots, revision, store, entries, composition.Packages, composition.InstalledModIds);
+            return new PreparedContentUpdate(this, basis, snapshot, replaced, newSlots);
         }
         catch (Exception preparationFailure)
         {
@@ -275,9 +366,9 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         Exception? failure = null;
         try
         {
-            await RetireSlotsAsync(update.Committed ? update.Replaced : update.Created).ConfigureAwait(false);
-            if (!ReferenceEquals(update.Basis, update.Candidate))
-                (update.Committed ? update.Basis : update.Candidate).ReleaseStore();
+            var retiredRoot = ReferenceEquals(update.Basis, update.Candidate) ? null :
+                (update.Committed ? update.Basis : update.Candidate);
+            await RetireSlotsAsync(update.Committed ? update.Replaced : update.Created, retiredRoot).ConfigureAwait(false);
         }
         catch (Exception ex) { _retirementFailure = ex; failure = ex; }
         finally { Volatile.Write(ref _updating, 0); }
@@ -293,15 +384,11 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         var root = Interlocked.Exchange(ref _root, _disposedRoot);
         try
         {
-            if (root != null)
-            {
-                await RetireSlotsAsync(root.Slots.Values).ConfigureAwait(false);
-                root.ReleaseStore();
-            }
+            if (root != null) await RetireSlotsAsync(root.Slots.Values, root).ConfigureAwait(false);
         }
         finally { Volatile.Write(ref _updating, 0); }
     }
-    private static async Task RetireSlotsAsync(IEnumerable<ContentSlot> slots)
+    private static async Task RetireSlotsAsync(IEnumerable<ContentSlot> slots, ContentSnapshot? retiredRoot = null)
     {
         // Close every old generation before awaiting any one slow owner/load.
         foreach (var slot in slots) lock (slot.Sync) slot.Retired = true;
@@ -320,39 +407,18 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             }
             catch (Exception ex) { safeToRelease = false; (errors ??= []).Add(ex); }
             finally { lock (slot.Sync) { slot.Payload = null; slot.PayloadType = null; } }
-            if (safeToRelease) slot.ReleaseStore();
+            if (safeToRelease)
+            {
+                try { slot.ReleaseStore(); }
+                catch (Exception ex) { (errors ??= []).Add(ex); }
+            }
         }
+        // An unsafe slot keeps its own claim. The obsolete root's claims are independent.
+        try { retiredRoot?.ReleaseStore(); }
+        catch (Exception ex) { (errors ??= []).Add(ex); }
         if (errors != null) throw new AggregateException(errors);
     }
     private static bool IsBuiltin(Type type) => type == typeof(string) || type == typeof(byte[]) || type == typeof(ReadOnlyMemory<byte>) || type == typeof(RawJsonPayload);
-    private static ContentManifestEntry[] Normalize(ContentManifest manifest)
-    {
-        ArgumentNullException.ThrowIfNull(manifest);
-        if (manifest.SchemaVersion != ContentManifest.CurrentSchemaVersion || manifest.Entries.Count > MaximumAssets) throw new InvalidDataException("Unsupported manifest schema or asset budget exceeded.");
-        var seen = new HashSet<AssetId>();
-        var entries = manifest.Entries.Select(e =>
-        {
-            if (!seen.Add(e.AssetId) || e.Size < 0 || string.IsNullOrWhiteSpace(e.ArtifactLocator)) throw new InvalidDataException("Invalid or duplicate manifest entry.");
-            return new ContentManifestEntry(e.AssetId, e.DeclaredType, e.LogicalName, e.ImportSettingsHash, e.SourceHash, e.ArtifactLocator, e.Size, e.Dependencies.OrderBy(d => d.Value).Distinct().ToArray());
-        }).ToArray();
-        var byId = entries.ToDictionary(e => e.AssetId);
-        var states = new Dictionary<AssetId, byte>();
-        void Visit(AssetId id)
-        {
-            if (!byId.TryGetValue(id, out var entry)) throw new InvalidDataException("Manifest dependency is missing.");
-            if (states.TryGetValue(id, out byte state))
-            {
-                if (state == 1) throw new InvalidDataException("Manifest dependency cycle.");
-                return;
-            }
-            states[id] = 1;
-            foreach (var dependency in entry.Dependencies) Visit(dependency);
-            states[id] = 2;
-        }
-        foreach (var entry in entries) Visit(entry.AssetId);
-        return entries;
-    }
-
     private static object CreatePayload(Type type, ReadOnlyMemory<byte> bytes)
     {
         // Fast paths for common T to avoid deserialization overhead and allocations

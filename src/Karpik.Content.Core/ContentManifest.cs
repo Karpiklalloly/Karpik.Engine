@@ -59,7 +59,12 @@ public sealed class ContentManifest(int schemaVersion, IReadOnlyList<ContentMani
 
     public byte[] ToCanonicalBytes() => System.Text.Encoding.UTF8.GetBytes(ToCanonicalJson());
 
-    public static ContentManifest Parse(string json, List<ContentDiagnostic>? diagnostics = null)
+    public static ContentManifest Parse(string json, List<ContentDiagnostic>? diagnostics = null) =>
+        ParseCore(json, diagnostics, strictDependencies: false);
+
+    internal static ContentManifest ParsePackage(string json) => ParseCore(json, null, strictDependencies: true);
+
+    private static ContentManifest ParseCore(string json, List<ContentDiagnostic>? diagnostics, bool strictDependencies)
     {
         JsonDocument doc;
         try
@@ -123,9 +128,23 @@ public sealed class ContentManifest(int schemaVersion, IReadOnlyList<ContentMani
                 string artifactLocator = entryEl.GetProperty("artifactLocator").GetString()!;
                 long size = entryEl.GetProperty("size").GetInt64();
 
+                JsonElement depsEl = default;
+                if (strictDependencies)
+                {
+                    foreach (var property in entryEl.EnumerateObject())
+                    {
+                        if (!property.NameEquals("dependencies")) continue;
+                        if (depsEl.ValueKind != JsonValueKind.Undefined)
+                            throw new InvalidDataException($"Manifest entry '{assetIdStr}': duplicate dependencies field.");
+                        if (property.Value.ValueKind != JsonValueKind.Array)
+                            throw new InvalidDataException($"Manifest entry '{assetIdStr}': dependencies must be an array.");
+                        depsEl = property.Value;
+                    }
+                }
+                else entryEl.TryGetProperty("dependencies", out depsEl);
+
                 var deps = new List<AssetId>();
-                if (entryEl.TryGetProperty("dependencies", out JsonElement depsEl)
-                    && depsEl.ValueKind == JsonValueKind.Array)
+                if (depsEl.ValueKind == JsonValueKind.Array)
                 {
                     foreach (JsonElement depEl in depsEl.EnumerateArray())
                     {

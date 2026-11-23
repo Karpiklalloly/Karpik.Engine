@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace Karpik.Engine.Shared.Modding;
 
-public readonly struct ModMetaData(string id, string name, string author, string version, string description)
+public readonly struct ModMetaData(string id, string name, string author, string version, string description, bool contentOnly = false)
 {
     [JsonProperty("id")]
     public readonly string Id = id;
@@ -14,4 +14,6 @@ public readonly struct ModMetaData(string id, string name, string author, string
     public readonly string Author = author;
     [JsonProperty("version")]
     public readonly string Version = version;
+    [JsonProperty("contentOnly")]
+    public readonly bool ContentOnly = contentOnly;
 }

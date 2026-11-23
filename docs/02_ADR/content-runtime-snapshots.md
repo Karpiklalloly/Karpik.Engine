@@ -47,11 +47,12 @@ reload store. Reload opt-in
 requires captured metadata with known namespace/target and the correct side.
 
 `ContentReloadCoordinator` owns one active preparation/publication/retirement and
-one latest pending request. Pending input is copied and retained; replacement
-settles the old pending request as superseded. Preparation and manifest comparison
-run cold. The comparison uses the actual prepared basis/candidate, so skipped
-pending manifests never become an invented application baseline. Failed
-preparation leaves the current root intact and permits retry.
+at most one pending request of each kind: base reload and mod refresh. Pending
+base input is copied and retained; a newer base request supersedes only the old
+pending base request. A second pending or preparing mod refresh returns `Busy`.
+Operations run cold in enqueue order and each reads the other layer from the
+latest committed root. The comparison uses the actual basis and candidate;
+failed preparation leaves the current root intact and permits retry.
 
 At each quiescent boundary `PublishBoundary` commits ready work and publishes
 sorted added/updated/removed IDs through `IContentChangeSource`. Two preallocated
@@ -61,8 +62,8 @@ no completion callbacks, I/O, locking or waits, and has measured zero caller
 allocations. Consumers use the borrowed span during simulation `Begin`, then
 explicitly resolve new refs through `IContentUpdateRegistry`. Fixed-tick consumers
 capture the notification during `Begin`; client fixed ticks need not occur on
-every frame. An ordinary non-opted host provides an empty source without starting
-a coordinator or endpoint.
+every frame. A host without either the base reload endpoint or a mod content
+provider does not accept Content reload requests.
 
 An applied result acknowledges the root switch before retirement completes. A
 later backend destruction failure remains a sticky coordinator diagnostic and
@@ -92,6 +93,30 @@ The new store-binding interface overload requires external
 MergeThread constructor parameter preserves ordinary source calls, but previously
 compiled direct callers must rebuild. No source-meta or public manifest migration
 is required. See [the usage guide](../content-reload.md).
+
+## Mod overrides
+
+Engine startup makes the original name index available for legacy loaders,
+including the OpenGL shader startup path. The host finalizes the first ID
+catalog after ModSet preparation and before Simulation. References to effective
+IDs start at version 1; no temporary base-only ID catalog is published.
+
+Each published root carries the base manifest/store, its name index, the
+accepted mod packages and the composed ID slots. A rule selects the replacement's
+original content, not its effective slot. The mod loader's order selects the
+last valid rule for a given target. There is no overlay lookup on reads.
+Changes to a hidden base asset may replace the original name index and store
+without advancing an effective ID version or emitting a change notification.
+
+Mod capture streams manifest-listed artifacts into process-owned directories
+outside `Mods`, so lazy reads survive removal of the installed directory.
+The source generation and declaration are rechecked before accepting a copy.
+Metadata reads are bounded to 4 MiB per manifest/declaration and local copies
+are limited to 4 GiB across preparation, published and retired packages.
+Roots hold accepted stores even when none of their rules wins. Retired captures
+are removed only after root, slot and in-flight read ownership is released.
+Mod refresh changes this Content layer only; Lua definitions, VM and Simulation
+ownership stay unchanged. See [mod packaging](../mod-content-overrides.md).
 
 ## GPU contract
 

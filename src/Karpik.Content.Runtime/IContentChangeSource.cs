@@ -15,5 +15,5 @@ public interface IContentReloadLifetime
     void RequestStop();
 }
 
-public enum ContentReloadOutcome { Applied, Superseded, Failed }
+public enum ContentReloadOutcome { Applied, Superseded, Failed, Busy }
 public readonly record struct ContentReloadResult(ContentReloadOutcome Outcome, string? Error = null);

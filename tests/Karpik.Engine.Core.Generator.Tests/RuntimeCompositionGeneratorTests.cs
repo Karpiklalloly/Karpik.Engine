@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Karpik.Engine.Core.Codegen;
 using Microsoft.CodeAnalysis;
@@ -326,7 +326,7 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
-    public void Run_Static_RegistersAndConstructsContentRuntimeServices()
+    public async Task Run_Static_RegistersAndConstructsContentRuntimeServices()
     {
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
@@ -350,7 +350,7 @@ public sealed class RuntimeCompositionGeneratorTests
 
         var storeRegistration = Assert.Single(registry.Registrations, static registration =>
             registration.ContractType == typeof(Karpik.Content.Runtime.IContentStore));
-        object store = storeRegistration.Factory(resolver);
+        using var store = Assert.IsType<Karpik.Content.Runtime.FileContentStore>(storeRegistration.Factory(resolver));
         resolver.Add(typeof(Karpik.Content.Runtime.IContentStore), store);
         resolver.Add(typeof(IEnumerable<Karpik.Content.Runtime.IContentPayloadLoader>), Array.Empty<Karpik.Content.Runtime.IContentPayloadLoader>());
 
@@ -367,6 +367,24 @@ public sealed class RuntimeCompositionGeneratorTests
             registration.ContractType == typeof(Autofac.IStartable) &&
             registration.ImplementationType == typeof(Karpik.Content.Runtime.ContentRegistry));
         Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(startableRegistration.Factory(resolver));
+
+        var id = new Karpik.Content.Core.AssetId(Guid.NewGuid());
+        var manifest = new Karpik.Content.Core.ContentManifest(Karpik.Content.Core.ContentManifest.CurrentSchemaVersion,
+            [new(id, "raw-json", "game/a", "import", "source", "artifacts/a.json", 0, [])]);
+        await using var baseline = (Karpik.Content.Runtime.ContentRegistry)contentRegistry;
+        baseline.RegisterManifest(manifest, (Karpik.Content.Runtime.IContentStore)store);
+        Assert.True(baseline.TryResolve<string>(id, out var version));
+        Assert.Equal(1u, version.Version);
+
+        resolver.Add(typeof(Karpik.Content.Runtime.DeferredContentStartup), new Karpik.Content.Runtime.DeferredContentStartup());
+        await using var deferred = Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(startableRegistration.Factory(resolver));
+        deferred.RegisterManifest(manifest, (Karpik.Content.Runtime.IContentStore)store);
+        Assert.True(deferred.TryResolveArtifact("game/a", out _, out _));
+        Assert.False(deferred.TryResolve<string>(id, out _));
+        deferred.CompleteStartup([], []);
+        Assert.True(deferred.TryResolve<string>(id, out version));
+        Assert.Equal(1u, version.Version);
+
     }
 
     [Fact]
