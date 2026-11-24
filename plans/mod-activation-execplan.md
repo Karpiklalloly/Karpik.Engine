@@ -1,5 +1,5 @@
 ---
-status: executing
+status: completed
 complexity: medium
 complexity_source: auto
 development_mode: tdd
@@ -25,7 +25,7 @@ Living ExecPlan по [PLANS.md](PLANS.md). Источник контракта: 
 - [x] T1 — startup policy и discovery: исходный Release Red 14/86 (конфиг игнорировался, disabled manifest/граф валидировались); после реализации и подключения тестового logger все 86 startup/discovery tests прошли, отдельно оставался ожидаемый Red refresh.
 - [x] T2 — неизменяемый выбор при Content refresh: в Red выключенный пакет вернулся и сменил override `(3, 2)` на `(9, 2)`; Green — 228/228 Release без пропусков (startup, discovery, dependencies и refresh).
 - [x] T3 — сквозная проверка и документация: финальный Linux Release Runner 938/938 и Content.Runtime 173/173, без пропусков (1111/1111); файл-пример и ссылки проверены.
-- [ ] Опубликовать PR в `codex/modding-0.7`.
+- [x] Опубликован [PR #125](https://github.com/Karpiklalloly/Karpik.Engine/pull/125) в `codex/modding-0.7`; не сливался.
 
 ## Surprises & Discoveries
 
@@ -67,7 +67,7 @@ AC1–AC4 подтверждены: startup отсекает отключённ�
 
 ### T3 — Сквозная приёмка и публикация
 
-- Status: in_progress. Acceptance: AC1–AC4. Depends on: T1, T2.
+- Status: completed. Acceptance: AC1–AC4. Depends on: T1, T2.
 - Реальные Lua и cooked пакеты, Client/Server × Static/Dynamic через Runner fixture; Lua-only — отдельный целевой startup case. Покрыть взаимное согласование VM, `GetMods()`, `has_dependency`, Content, config failure до публикации, обе смены выбора после рестарта и невосприимчивость трёх reload-путей. Не дублировать матрицу там, где она ничего не доказывает дополнительно.
 - Описать `mods.json`, restart-only и diagnostics в `docs/modules/modding/`; связать с `docs/modules/modding/mod-dependencies.md`, `docs/mod-content-overrides.md`, при необходимости уточнить ownership в `docs/02_ADR/content-runtime-snapshots.md`. Проверить docs примеры непосредственно, без искусственного TDD для текста. Проверить итоговый scope, собрать доказательства, push отдельной ветки и открыть PR в `codex/modding-0.7`. Не сливать этот PR или родительский без нового запроса.
 
