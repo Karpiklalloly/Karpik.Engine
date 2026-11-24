@@ -1,14 +1,40 @@
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Karpik.Content.Core;
 using Karpik.Content.Runtime;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
-internal static class LuaModContentRefresh
+internal sealed class LuaModContentRefresh
 {
-    public static async Task<(IReadOnlyList<ModContentPackage>, IReadOnlyCollection<string>, IReadOnlyList<ModContentCapture>)> CaptureAsync(
-        string modsDirectory, AssetTarget target, IReadOnlyDictionary<string, string> scripted,
+    private readonly string _modsDirectory;
+    private readonly AssetTarget _target;
+    private readonly ModStartupDependencies _startup;
+    private readonly Dictionary<string, string> _scripted;
+    // Only the coordinator's committed package list decides which entries survive a refresh.
+    private readonly ConditionalWeakTable<ModContentPackage, PackageDependencies> _dependencies = new();
+
+    public LuaModContentRefresh(string modsDirectory, AssetTarget target, ModStartupDependencies startup,
+        IReadOnlyList<ModContentPackage> startupPackages)
+    {
+        _modsDirectory = modsDirectory;
+        _target = target;
+        _startup = startup;
+        _scripted = startup.ScriptedMods.ToDictionary(static mod => mod.MetaData.Id, static mod => mod.Directory, StringComparer.Ordinal);
+        foreach (var package in startupPackages)
+        {
+            if (_scripted.ContainsKey(package.ModId)) continue;
+            var node = startup.NodesById[package.ModId];
+            _dependencies.Add(package, new PackageDependencies(node.Version, node.Dependencies));
+        }
+    }
+
+    public async Task<(IReadOnlyList<ModContentPackage>, IReadOnlyCollection<string>, IReadOnlyList<ModContentCapture>)> CaptureAsync(
         IReadOnlyList<ModContentPackage> previous, Action<ContentDiagnostic> report, CancellationToken cancellation)
     {
+        string modsDirectory = _modsDirectory;
+        AssetTarget target = _target;
+        var scripted = _scripted;
         ModDiscoveryResult discovery = ModsRegistry.DiscoverAt(modsDirectory, target, cancellation);
         if (discovery.Diagnostics.Count != 0)
             throw new InvalidDataException(string.Join(Environment.NewLine, discovery.Diagnostics));
@@ -19,7 +45,7 @@ internal static class LuaModContentRefresh
         var owners = discovery.InstalledOwnerIds.ToHashSet(StringComparer.Ordinal);
         owners.UnionWith(scripted.Keys);
         var previousById = previous.ToDictionary(static package => package.ModId, StringComparer.Ordinal);
-        var selected = new SortedDictionary<string, ModContentPackage>(StringComparer.Ordinal);
+        var selected = new Dictionary<string, ModContentPackage>(StringComparer.Ordinal);
         var activeSeen = new HashSet<string>(StringComparer.Ordinal);
         var captures = new List<ModContentCapture>();
         try
@@ -65,7 +91,7 @@ internal static class LuaModContentRefresh
                 if (capture is not null)
                 {
                     captures.Add(capture);
-                    selected.Add(id, capture.Package);
+                    selected.Add(id, active ? capture.Package : AttachDependencies(capture.Package, discovery.DeclaredMods[id]));
                 }
                 else if (prior is not null && pathComparer.Equals(ModFolder(prior), mod.Directory))
                 {
@@ -82,8 +108,7 @@ internal static class LuaModContentRefresh
                 RestartRequired(id, path);
                 if (previousById.TryGetValue(id, out var package)) selected.Add(id, package);
             }
-            cancellation.ThrowIfCancellationRequested();
-            return (selected.Values.ToArray(), owners, captures);
+            return (ResolveOrder(selected, cancellation), owners, captures);
         }
         catch (Exception error)
         {
@@ -108,5 +133,71 @@ internal static class LuaModContentRefresh
             ContentDiagnosticSeverity.Warning, path, $"Restart required to change scripted mod '{id}'."));
     }
 
+    private ModContentPackage AttachDependencies(ModContentPackage package, DiscoveredMod mod)
+    {
+        string? version = mod.Definition.MetaData.Version;
+        if (_dependencies.TryGetValue(package, out var prior))
+        {
+            if (prior.Matches(version, mod.Dependencies)) return package;
+            // The capture's existing claim covers this distinct candidate object over the same cooked store.
+            package = package.WithNewIdentity();
+        }
+        _dependencies.Add(package, new PackageDependencies(version, mod.Dependencies));
+        return package;
+    }
+
+    private ModContentPackage[] ResolveOrder(Dictionary<string, ModContentPackage> selected, CancellationToken cancellation)
+    {
+        // The frozen Lua entry-point flag remains authoritative, but startup's provisional cooked flag does not.
+        var nodes = new List<ModDependencyNode>(_scripted.Count + selected.Count);
+        foreach (string id in _scripted.Keys)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            nodes.Add(_startup.NodesById[id] with
+            {
+                CookedAvailability = selected.ContainsKey(id) ? ModCookedAvailability.AdmittedCandidate : ModCookedAvailability.Absent
+            });
+        }
+        foreach (var (id, package) in selected)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (_scripted.ContainsKey(id)) continue;
+            if (!_dependencies.TryGetValue(package, out var metadata))
+                throw new InvalidOperationException($"Missing dependency metadata for Content package '{id}'.");
+            nodes.Add(new ModDependencyNode(id, metadata.Version, metadata.Manifest, false, ModCookedAvailability.AdmittedCandidate));
+        }
+        var resolution = ModDependencyResolver.Resolve(nodes, _target, cancellation);
+        ValidateFrozenLua(resolution, cancellation);
+        return resolution.OrderedIds.Where(selected.ContainsKey).Select(id => selected[id]).ToArray();
+    }
+
+    private void ValidateFrozenLua(ModDependencyResolution candidate, CancellationToken cancellation)
+    {
+        int index = 0;
+        foreach (string id in candidate.OrderedIds)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (!_scripted.ContainsKey(id)) continue;
+            var before = _startup.Resolution.DirectTargetsById[id];
+            var after = candidate.DirectTargetsById[id];
+            if (!before.SetEquals(after))
+                throw new ModDependencyException($"Restart required on {_target}: direct dependencies of active Lua mod '{id}' would change " +
+                    $"from [{string.Join(", ", before.Order(StringComparer.Ordinal))}] to [{string.Join(", ", after.Order(StringComparer.Ordinal))}].");
+            string expected = _startup.ScriptedMods[index++].MetaData.Id;
+            if (id != expected)
+                throw new ModDependencyException($"Restart required on {_target}: active Lua order would place '{id}' where '{expected}' was loaded.");
+        }
+    }
+
     private static string ModFolder(ModContentPackage package) => Path.GetDirectoryName(Path.GetDirectoryName(package.SourcePath))!;
+
+    private sealed record PackageDependencies(string? Version, ModDependencyManifest Manifest)
+    {
+        public bool Matches(string? version, ModDependencyManifest manifest) => Version == version &&
+            SameGroup(Manifest.Shared, manifest.Shared) && SameGroup(Manifest.Client, manifest.Client) &&
+            SameGroup(Manifest.Server, manifest.Server);
+
+        private static bool SameGroup(ImmutableArray<ModDependencyDeclaration> before, ImmutableArray<ModDependencyDeclaration> after) =>
+            before.Length == after.Length && (before.AsSpan().SequenceEqual(after.AsSpan()) || before.ToHashSet().SetEquals(after));
+    }
 }

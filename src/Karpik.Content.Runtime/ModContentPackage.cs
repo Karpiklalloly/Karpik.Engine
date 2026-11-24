@@ -18,4 +18,8 @@ public sealed class ModContentPackage(string modId, ContentManifest manifest, IC
     public IReadOnlyList<ModContentOverride> Overrides { get; } = Array.AsReadOnly(overrides.ToArray());
     public string SourcePath { get; } = sourcePath;
     internal ModContentCaptureIdentity? CaptureIdentity { get; init; }
+
+    /// <summary>Creates a distinct package identity for the same immutable cooked data.</summary>
+    /// <remarks>Does not acquire a store claim. Keep the store claimed until the consumer acquires its own claim.</remarks>
+    public ModContentPackage WithNewIdentity() => (ModContentPackage)MemberwiseClone();
 }

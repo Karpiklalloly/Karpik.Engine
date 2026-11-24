@@ -1,4 +1,5 @@
-﻿using System.Composition;
+using System.Collections.Frozen;
+using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
 using Karpik.Jobs;
@@ -24,6 +25,7 @@ public class LuaScriptLoader(
 
         var script = new Script(CoreModules.Preset_SoftSandbox | CoreModules.LoadMethods);
         LuaExactValues.Register(script);
+        RegisterDependencyQuery(script, definition.ResolvedDirectDependencies);
         script.Options.DebugPrint = message =>
         {
             logger.LogInformation("[Mod: {mod_id}] {Message}", definition.MetaData.Id, message);
@@ -78,6 +80,19 @@ public class LuaScriptLoader(
         }
     }
     
+    internal static void RegisterDependencyQuery(Script script, FrozenSet<string>? resolvedIds)
+    {
+        var directIds = resolvedIds is { Count: > 0 }
+            ? resolvedIds.ToFrozenSet(StringComparer.Ordinal)
+            : FrozenSet<string>.Empty;
+        script.Globals.Set("has_dependency", DynValue.NewCallback((_, args) =>
+        {
+            if (args.Count != 1 || args[0] is not { Type: DataType.String } id)
+                throw new ScriptRuntimeException("has_dependency expects exactly one string argument.");
+            return directIds.Contains(id.String) ? DynValue.True : DynValue.False;
+        }));
+    }
+
     internal static Table ReadCallbacks(DynValue result, string path)
     {
         if (result.Type != DataType.Table)

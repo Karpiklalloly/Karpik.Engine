@@ -66,7 +66,7 @@ return {
 }
 ```
 
-Порядок: top-level → on_load всех модов → проверка schemas/queries/общего графа → on_reload всех модов → Commit. Mod ID отсортированы; Shared загружается раньше side. Успешная новая версия не вызывает on_start, но считается активированной и позднее получает on_destroy. Ошибка load/reload или графа отклоняет всю замену. Непринятый кандидат получает unload без destroy; старая активная версия после Commit получает destroy и unload.
+Порядок: top-level → on_load всех модов → проверка schemas/queries/общего графа → on_reload всех модов → Commit. Сохраняются [порядок зависимостей модов и результаты `has_dependency`](mod-dependencies.md) с первого запуска; Shared загружается раньше side. Успешная новая версия не вызывает on_start, но считается активированной и позднее получает on_destroy. Ошибка load/reload или графа отклоняет всю замену. Непринятый кандидат получает unload без destroy; старая активная версия после Commit получает destroy и unload.
 
 Старые handles, query, views и snapshots с прежними access capabilities становятся недействительными, включая повторно используемый system ID. VM globals, closures и coroutines не переносятся. Сохраняемое gameplay state должно находиться в ECS. Во время подготовки/retirement callbacks не получают ECS-доступа; чтение файлов и диагностические логи не откатываются, произвольные сторонние host effects транзакционными не объявляются.
 

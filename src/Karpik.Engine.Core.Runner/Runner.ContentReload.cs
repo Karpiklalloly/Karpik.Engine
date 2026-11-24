@@ -34,15 +34,20 @@ public partial class EngineRunner
     private async ValueTask<ModContentRefreshCapture?> CompleteContentStartupAsync(SystemRegistry systems,
         CancellationToken cancellation)
     {
-        if (_engineContainer!.ResolveOptional<ContentRegistry>() is not { } content) return null;
         var participant = _modSetScope!.ResolveOptional<IModContentParticipant>();
+        if (_engineContainer!.ResolveOptional<ContentRegistry>() is not { } content)
+        {
+            participant?.CompleteStartupWithoutContent(cancellation);
+            return null;
+        }
         var (captures, owners) = participant is null ? ([], [])
             : await participant.CaptureStartupAsync(ReportContentDiagnostic, cancellation);
         Exception? primaryFailure = null;
         try
         {
             cancellation.ThrowIfCancellationRequested();
-            content.CompleteStartup(captures.Select(static capture => capture.Package).ToArray(), owners, ReportContentDiagnostic);
+            content.CompleteStartup(captures.Select(static capture => capture.Package).ToArray(), owners, ReportContentDiagnostic,
+                participant is null ? null : packages => participant.ValidateStartupPackages(packages, cancellation));
         }
         catch (Exception error)
         {

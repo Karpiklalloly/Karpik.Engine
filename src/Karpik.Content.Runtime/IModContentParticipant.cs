@@ -9,6 +9,12 @@ public interface IModContentParticipant
     ValueTask<(IReadOnlyList<ModContentCapture> Captures, IReadOnlyCollection<string> InstalledModIds)> CaptureStartupAsync(
         Action<ContentDiagnostic> report, CancellationToken cancellationToken);
 
+    /// <summary>Finish ModSet startup in a host with no Content registry.</summary>
+    void CompleteStartupWithoutContent(CancellationToken cancellationToken) { }
+
+    /// <summary>Validate the actual accepted packages before the initial ID catalog retains any claims or publishes.</summary>
+    void ValidateStartupPackages(IReadOnlyList<ModContentPackage> packages, CancellationToken cancellationToken) { }
+
     /// <summary>Freeze the startup inventory. The returned callback must not depend on disposable ModSet services.</summary>
     ModContentRefreshCapture? CreateRefreshCapture(Action<ContentDiagnostic> report);
 }
