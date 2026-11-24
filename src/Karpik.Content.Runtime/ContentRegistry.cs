@@ -112,7 +112,11 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
 
     /// <summary>Finalize explicitly deferred startup before the first consumer of the ID catalog.</summary>
     public void CompleteStartup(IReadOnlyList<ModContentPackage> packages, IReadOnlyCollection<string> installedModIds,
-        Action<ContentDiagnostic>? report = null)
+        Action<ContentDiagnostic>? report = null) => CompleteStartup(packages, installedModIds, report, validateAcceptedPackages: null);
+
+    /// <summary>Validate accepted packages before retaining stores or publishing the initial ID catalog.</summary>
+    public void CompleteStartup(IReadOnlyList<ModContentPackage> packages, IReadOnlyCollection<string> installedModIds,
+        Action<ContentDiagnostic>? report, Action<IReadOnlyList<ModContentPackage>>? validateAcceptedPackages)
     {
         lock (_initializationLock)
         {
@@ -120,7 +124,7 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             var basis = Volatile.Read(ref _root);
             if (basis == null || basis.Revision != 0)
                 throw new InvalidOperationException("Startup must first load the base manifest with a deferred ID catalog.");
-            var snapshot = CreateInitialSnapshot(basis.BaseEntries, basis.Store, packages, installedModIds, report);
+            var snapshot = CreateInitialSnapshot(basis.BaseEntries, basis.Store, packages, installedModIds, report, validateAcceptedPackages);
             if (!ReferenceEquals(Interlocked.CompareExchange(ref _root, snapshot, basis), basis))
             {
                 foreach (var slot in snapshot.Slots.Values) slot.ReleaseStore();
@@ -133,10 +137,11 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
 
     private static ContentSnapshot CreateInitialSnapshot(ContentManifestEntry[] entries, IContentStore store,
         IReadOnlyList<ModContentPackage>? packages = null, IReadOnlyCollection<string>? installedModIds = null,
-        Action<ContentDiagnostic>? report = null)
+        Action<ContentDiagnostic>? report = null, Action<IReadOnlyList<ModContentPackage>>? validateAcceptedPackages = null)
     {
         var composition = ContentComposition.Build(entries, store, packages ?? [], installedModIds ?? [],
             tolerateInvalidPackages: true, report);
+        validateAcceptedPackages?.Invoke(composition.Packages);
         var slots = new Dictionary<AssetId, ContentSlot>(composition.Sources.Count);
         try
         {

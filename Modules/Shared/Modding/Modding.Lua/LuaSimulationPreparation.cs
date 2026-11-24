@@ -45,7 +45,9 @@ public sealed class LuaSimulationPreparation(
             Side.Server => ExecutionSide.Server,
             _ => throw new InvalidOperationException("Unsupported application side.")
         };
-        _definitions = registry.GetMods().OrderBy(definition => definition.MetaData.Id, StringComparer.Ordinal).ToArray();
+        _definitions = registry is ModsRegistry { StartupDependencies: { } startup }
+            ? startup.ScriptedMods.ToArray()
+            : registry.GetMods().OrderBy(definition => definition.MetaData.Id, StringComparer.Ordinal).ToArray();
         await _lifecycle.Load(_definitions, _side, cancellationToken);
         await OnOwnerAsync(() =>
         {

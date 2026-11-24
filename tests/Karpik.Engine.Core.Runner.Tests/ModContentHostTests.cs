@@ -211,9 +211,9 @@ public sealed partial class ContentReloadHostTests
         var nextStore = new ObservedCaptureStore();
         var first = WithStore(firstActual!.Package, firstStore);
         var next = WithStore(nextActual!.Package, nextStore);
-        Exception error = await Assert.ThrowsAnyAsync<Exception>(() => LuaModContentRefresh.CaptureAsync(
-            Path.Combine(tree.Root, "Mods"), AssetTarget.Server, new Dictionary<string, string>(StringComparer.Ordinal),
-            [first, next], _ => { }, default));
+        var refresh = new LuaModContentRefresh(Path.Combine(tree.Root, "Mods"), AssetTarget.Server,
+            new(System.Collections.Frozen.FrozenDictionary<string, ModDependencyNode>.Empty, ModDependencyResolver.Resolve([], AssetTarget.Server), []), []);
+        Exception error = await Assert.ThrowsAnyAsync<Exception>(() => refresh.CaptureAsync([first, next], _ => { }, default));
         Assert.Equal((1, 1), (firstStore.Releases, nextStore.Releases));
         Assert.Contains("z-broken", error.ToString());
         Assert.Contains("cleanup-first", error.ToString());
@@ -317,14 +317,15 @@ public sealed partial class ContentReloadHostTests
         return result;
     }
 
-    private static ModContentCapture MakeCapture(ObservedCaptureStore store) => (ModContentCapture)Activator.CreateInstance(
+    private static ModContentCapture MakeCapture(ObservedCaptureStore store, string id = "test") => (ModContentCapture)Activator.CreateInstance(
         typeof(ModContentCapture), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
-        binder: null, args: [new ModContentPackage("test", new(ContentManifest.CurrentSchemaVersion, []), store, [], "test")], culture: null)!;
+        binder: null, args: [new ModContentPackage(id, new(ContentManifest.CurrentSchemaVersion, []), store, [], "test")], culture: null)!;
 
     private sealed class ObservedCaptureStore(string? error = null) : IContentStore, IContentStoreLifetime
     {
+        public int Retains { get; private set; }
         public int Releases { get; private set; }
-        public void Retain() { }
+        public void Retain() => Retains++;
         public void Release()
         {
             Releases++;

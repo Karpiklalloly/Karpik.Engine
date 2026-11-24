@@ -331,25 +331,157 @@ public sealed class ModDiscoveryTests
     }
 
     [Fact]
-    public async Task Discovery_ReportsDuplicatePathsDeterministicallyAndExcludesBothFromContent()
+    public async Task Discovery_DuplicateIdsAreFatalAndDoNotPublishEitherFolder()
     {
         using var tree = new ModTree();
         string z = tree.WriteMod("z-script", """{"id":"dup"}""");
         string a = tree.WriteMod("a-script", """{"id":"dup"}""");
         string m = tree.WriteMod("m-art", """{"id":"dup","contentOnly":true}""");
-        string expectedScript = Directory.GetDirectories(Path.Combine(tree.Root, "Mods")).First(path => path == z || path == a);
+        tree.WriteMod("valid", """{"id":"valid"}""");
+        var registry = tree.CreateRegistry();
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await registry.Scan(ExecutionSide.Server));
+
+        Assert.Throws<InvalidOperationException>(() => registry.GetMods());
+        Assert.Contains("Duplicate mod id 'dup'", error.Message);
+        Assert.Contains("Server", error.Message);
+        Assert.Contains($"'{a}', '{m}', '{z}'", error.Message);
+        Directory.Delete(a, recursive: true);
+        Directory.Delete(m, recursive: true);
+        await registry.Scan(ExecutionSide.Server);
+        Assert.Equal(["dup", "valid"], registry.GetMods().Select(mod => mod.MetaData.Id));
+    }
+
+    [Theory]
+    [InlineData("\"dependencies\":{},\"depen\\u0064encies\":{}", "dependencies", "Duplicate")]
+    [InlineData("\"dependencies\":{\"server\":[],\"server\":[]}", "dependencies.server", "Duplicate")]
+    [InlineData("\"dependencies\":{\"shared\":[{\"id\":\"first\",\"id\":\"second\"}]}", "dependencies.shared[0].id", "Duplicate")]
+    [InlineData("\"dependencies\":{\"client\":[{\"id\":\"first\",\"optional\":false,\"optional\":true}]}", "dependencies.client[0].optional", "Duplicate")]
+    [InlineData("\"dependencies\":null", "dependencies", "JSON object")]
+    [InlineData("\"dependencies\":{\"server\":[{\"id\":\"provider\",\"minVersion\":7}]}", "dependencies.server[0]", "minVersion")]
+    [InlineData("\"dependencies\":{\"Shared\":[]}", "dependencies.Shared", "scope")]
+    [InlineData("\"dependencies\":{\"client\":[{\"id\":\"provider\",\"Optional\":true}]}", "dependencies.client[0]", "Optional")]
+    public async Task Discovery_RejectsMalformedDependencyContractWithoutPublishing(string fields, string location, string reason)
+    {
+        using var tree = new ModTree();
+        string path = tree.WriteMod("broken-folder", $$"""{ {{fields}}, "id":"broken" }""");
+        tree.WriteMod("valid", """{"id":"valid"}""");
+        var registry = tree.CreateRegistry();
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await registry.Scan(ExecutionSide.Server));
+
+        Assert.Contains(path, error.Message);
+        Assert.Contains("broken", error.Message);
+        Assert.Contains(location, error.Message);
+        Assert.Contains(reason, error.Message);
+        Assert.Throws<InvalidOperationException>(() => registry.GetMods());
+    }
+
+    [Theory]
+    [InlineData("\"dependencies\":{\"shared\":[?]}", "dependencies.shared")]
+    [InlineData("\"contentOnly\":1,\"dependencies\":null", "dependencies")]
+    [InlineData("\"dependencies\":null", "dependencies", " {}")]
+    [InlineData("\"dependencies\":{},\"dependencies\":{}", "dependencies", " {}")]
+    [InlineData("\"dependencies\":{},\"dependencies\":{},\"legacy\" {}", "Duplicate dependency property")]
+    [InlineData("\"dependencies\":null,\"legacy\" {}", "must be a JSON object")]
+    [InlineData("\"extension\":{\"dependencies\":{}},\"depen\\u0064encies\":{/* comment */\"unknown\":[]},\"legacy\" {}", "dependencies.unknown")]
+    [InlineData("\"dependencies\":{\"server\":[{\"id\":\"broken-id\"}]},\"legacy\":?", "cannot depend on itself")]
+    public async Task Discovery_DoesNotDowngradeExplicitDependencyErrorsToLegacyWarnings(string fields, string location, string tail = "")
+    {
+        using var tree = new ModTree();
+        string path = tree.WriteMod("broken-folder", $$"""{ "id":"broken-id", {{fields}} }{{tail}}""");
+        tree.WriteMod("valid", """{"id":"valid"}""");
+        var registry = tree.CreateRegistry();
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await registry.Scan(ExecutionSide.Server));
+
+        Assert.Contains(path, error.Message);
+        Assert.Contains("broken-id", error.Message);
+        Assert.Contains(location, error.Message);
+        Assert.Throws<InvalidOperationException>(() => registry.GetMods());
+    }
+
+    [Theory]
+    [InlineData("{\"id\":\"broken-id\",\"dependencies\" {}}")]
+    [InlineData("{\"id\":\"broken-id\",\r\n\"depen\\u0064encies\"\r\n{}}")]
+    [InlineData("{\"id\":\"broken-id\",/* root member */'dependencies' {}}")]
+    [InlineData("{\"id\":\"broken-id\",dependencies {}}")]
+    [InlineData("{\"id\":\"broken-id\",\"dependencies\"")]
+    public async Task Discovery_RejectsMalformedRootDependencyKeyBeforeReaderEmitsIt(string metadata)
+    {
+        using var tree = new ModTree();
+        string path = tree.WriteMod("broken-folder", metadata);
+        tree.WriteMod("valid", """{"id":"valid"}""");
+        var registry = tree.CreateRegistry();
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await registry.Scan(ExecutionSide.Server));
+
+        Assert.Contains(path, error.Message);
+        Assert.Contains("broken-id", error.Message);
+        Assert.Contains("dependencies", error.Message);
+        Assert.Throws<InvalidOperationException>(() => registry.GetMods());
+    }
+
+    [Theory]
+    [InlineData("{\"id\":\"broken\",\"name\" {}}")]
+    [InlineData("{\"id\":\"broken\",\"Dependencies\" {}}")]
+    [InlineData("{\"id\":\"broken\",\"legacy\":{\"dependencies\" {}}}")]
+    [InlineData("{\"id\":\"broken\",\"name\":\"dependencies\",\"legacy\" {}}")]
+    [InlineData("{\"id\":\"broken\",\"dependencies\":{},\"legacy\" {}}")]
+    public async Task Discovery_KeepsUnrelatedMalformedMembersAsLegacyWarnings(string metadata)
+    {
+        using var tree = new ModTree();
+        string path = tree.WriteMod("broken-folder", metadata);
+        tree.WriteMod("valid", """{"id":"valid"}""");
         var logger = new RegistryLogger();
         var registry = tree.CreateRegistry(logger);
+
         await registry.Scan(ExecutionSide.Server);
 
-        Assert.Equal(expectedScript, Assert.Single(registry.GetMods()).Directory);
-        Assert.Equal(["dup"], registry.StartupDiscovery.InstalledOwnerIds);
-        Assert.Empty(registry.StartupDiscovery.Candidates);
-        string diagnostic = Assert.Single(registry.Discover(AssetTarget.Server).Diagnostics);
-        Assert.Equal(diagnostic, Assert.Single(logger.Errors));
-        Assert.Contains("Duplicate mod id 'dup'", diagnostic);
-        Assert.True(diagnostic.IndexOf(a, StringComparison.Ordinal) < diagnostic.IndexOf(m, StringComparison.Ordinal));
-        Assert.True(diagnostic.IndexOf(m, StringComparison.Ordinal) < diagnostic.IndexOf(z, StringComparison.Ordinal));
+        Assert.Equal("valid", Assert.Single(registry.GetMods()).MetaData.Id);
+        Assert.Contains(path, Assert.Single(logger.Errors));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Discovery_DoesNotExpandLongAncestorNamesForEachProperty(bool inDependencies)
+    {
+        using var tree = new ModTree();
+        string section = inDependencies ? "dependencies" : "legacy";
+        tree.WriteMod("mod", """{"id":"mod"}""");
+        var registry = tree.CreateRegistry();
+        _ = registry.Discover(AssetTarget.Server); // Warm discovery before counting thread allocations.
+        string ancestor = new('a', 4096);
+        string children = string.Join(',', Enumerable.Range(0, 768).Select(id => $"\"k{id}\":0"));
+        tree.WriteMod("mod", $$"""{ "id":"mod", "{{section}}": { "{{ancestor}}": { {{children}} } } }""");
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        if (inDependencies)
+            Assert.Contains("not a recognized scope", Assert.Throws<ModDependencyException>(() => registry.Discover(AssetTarget.Server)).Message);
+        else
+            Assert.Equal("mod", Assert.Single(registry.Discover(AssetTarget.Server).ScriptedMods).MetaData.Id);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated < 4 * 1024 * 1024, $"A bounded metadata read allocated {allocated:N0} bytes.");
+    }
+
+    [Fact]
+    public async Task Discovery_PreservesUnrelatedLegacyDuplicateFieldsAndExactRootKey()
+    {
+        using var tree = new ModTree();
+        tree.WriteMod("legacy", """
+            {"id":"old","id":"final","name":"old","name":"final-name","Dependencies":null,
+             "custom":{"id":1,"id":2},"dependencies":{"shared":[{"id":"a"},{"id":"b"}]}}
+            """);
+        var logger = new RegistryLogger();
+        var registry = tree.CreateRegistry(logger);
+
+        await registry.Scan(ExecutionSide.Server);
+
+        var definition = Assert.Single(registry.GetMods());
+        Assert.Equal(("final", "final-name"), (definition.MetaData.Id, definition.MetaData.Name));
+        Assert.Empty(logger.Errors);
     }
 
     [Fact]

@@ -115,8 +115,18 @@ Metadata reads are bounded to 4 MiB per manifest/declaration and local copies
 are limited to 4 GiB across preparation, published and retired packages.
 Roots hold accepted stores even when none of their rules wins. Retired captures
 are removed only after root, slot and in-flight read ownership is released.
-Mod refresh changes this Content layer only; Lua definitions, VM and Simulation
-ownership stay unchanged. See [mod packaging](../mod-content-overrides.md).
+The ModSet dependency resolver orders packages before publication. Startup
+validates the actual accepted cooked providers before creating the first ID
+snapshot. Mod refresh changes this Content layer only: it checks the candidate
+against frozen Lua order and resolved direct dependencies, then publishes
+accepted package metadata with its Content snapshot. A metadata-only change
+can reuse the cooked store and effective slots. Lua definitions, VM and
+Simulation ownership stay unchanged. See [mod dependencies](../modules/modding/mod-dependencies.md)
+and [mod packaging](../mod-content-overrides.md). Custom hosts that replace
+`IModContentParticipant` while keeping the stock Lua mod loader must delegate
+its startup capture and validation hooks (or its no-Content startup hook).
+Replacing the participant with an unrelated implementation alone does not
+complete the stock ModSet dependency preparation.
 
 ## GPU contract
 
