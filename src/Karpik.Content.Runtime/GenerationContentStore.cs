@@ -38,7 +38,10 @@ public sealed class GenerationContentStore : IContentStore, IContentStoreLifetim
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0) Release();
     }
-    public ReadOnlyMemory<byte> Get(string locator)
+    public Stream OpenRead(string locator) => new MemoryStream(ReadBytes(locator), writable: false);
+    public ReadOnlyMemory<byte> Get(string locator) => ReadBytes(locator);
+
+    private byte[] ReadBytes(string locator)
     {
         Retain();
         try

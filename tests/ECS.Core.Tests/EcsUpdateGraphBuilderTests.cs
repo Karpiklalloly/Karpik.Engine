@@ -4,6 +4,130 @@ using Xunit;
 public sealed class EcsUpdateGraphBuilderTests
 {
     [Fact]
+    public void BuildInstances_Empty_ReturnsEmptyGraph()
+    {
+        EcsUpdateGraph graph = EcsUpdateGraphBuilder.BuildInstances([]);
+        Assert.Empty(graph.Nodes.ToArray());
+        Assert.Empty(graph.ExecutionOrder.ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BuildInstances_RepeatedType_ExplicitOrderPrecedesConflictAndSequentialBarriers(bool sequential)
+    {
+        EcsUpdateGraph graph = EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:b", sequential, [Read<GraphComponentA>()],
+                [new("mod:a", EcsOrderKind.After)]),
+            Instance<GraphWriteA>("mod:a", accesses: [Write<GraphComponentA>()])]);
+
+        Assert.Equal(new[] { typeof(GraphWriteA), typeof(GraphWriteA) }, graph.SystemTypes.ToArray());
+        AssertDependencies(graph, 0, 1);
+        AssertDependencies(graph, 1);
+        AssertExecutionOrder(graph, 1, 0);
+    }
+
+    [Fact]
+    public void BuildInstances_BeforeId_OrdersMatchingInstanceOnly()
+    {
+        EcsUpdateGraph graph = EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:b"),
+            Instance<GraphWriteA>("mod:a", orders: [new("mod:b", EcsOrderKind.Before)]),
+            Instance<GraphWriteA>("mod:c")]);
+        AssertDependencies(graph, 0, 1);
+        AssertDependencies(graph, 2);
+        AssertExecutionOrder(graph, 1, 0, 2);
+    }
+
+    [Fact]
+    public void BuildInstances_UniqueTypeTarget_IsSupported()
+    {
+        EcsUpdateGraph graph = EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a", orders: [After<GraphReadA>()]),
+            Instance<GraphReadA>("engine:reader")]);
+        AssertExecutionOrder(graph, 1, 0);
+    }
+
+    [Fact]
+    public void BuildInstances_AmbiguousTypeTarget_Throws()
+    {
+        var error = Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a"), Instance<GraphWriteA>("mod:b"), Instance<GraphWriteA>("mod:c"),
+            Instance<GraphReadA>("mod:reader", orders: [After<GraphWriteA>()])]));
+        Assert.Contains("ambiguous", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildInstances_DuplicateId_Throws()
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a"), Instance<GraphReadA>("mod:a")]));
+    }
+
+    [Fact]
+    public void BuildInstances_MissingId_Throws()
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([Descriptor<GraphWriteA>()]));
+    }
+
+    [Fact]
+    public void BuildInstances_MissingIdTarget_Throws()
+    {
+        var error = Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a", orders: [new("mod:missing", EcsOrderKind.Before)])]));
+        Assert.Contains("mod:missing", error.Message);
+    }
+
+    [Fact]
+    public void BuildInstances_MissingTypeTarget_Throws()
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a", orders: [After<GraphReadA>()])]));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BuildInstances_ExplicitCycleOrSelfDependency_Throws(bool self)
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a", orders: [new(self ? "mod:a" : "mod:b", EcsOrderKind.After)]),
+            Instance<GraphWriteA>("mod:b", orders: [new("mod:a", EcsOrderKind.After)])]));
+    }
+
+    [Fact]
+    public void BuildInstances_DisjointAccess_RemainsIndependent()
+    {
+        EcsUpdateGraph graph = EcsUpdateGraphBuilder.BuildInstances([
+            Instance<GraphWriteA>("mod:a", accesses: [Write<GraphComponentA>()]),
+            Instance<GraphWriteA>("mod:b", accesses: [Write<GraphComponentB>()])]);
+        AssertDependencies(graph, 0);
+        AssertDependencies(graph, 1);
+    }
+
+    [Fact]
+    public void Build_IdOrEmptyOrderTarget_ThrowsGraphDiagnostic()
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => Build(Registered<GraphWriteA>(),
+            Descriptor<GraphWriteA>(new EcsSystemOrderDescriptor("mod:a", EcsOrderKind.After))));
+        Assert.Throws<EcsUpdateGraphBuildException>(() => Build(Registered<GraphWriteA>(),
+            Descriptor<GraphWriteA>(default(EcsSystemOrderDescriptor))));
+    }
+
+    [Fact]
+    public void Build_LegacyConflictDirection_IsPreserved()
+    {
+        Assert.Throws<EcsUpdateGraphBuildException>(() => Build(Registered<GraphWriteA, GraphReadA>(),
+            new EcsUpdateSystemDescriptor(typeof(GraphWriteA), false,
+                new[] { Write<GraphComponentA>() }, new[] { After<GraphReadA>() }),
+            Descriptor<GraphReadA>(Read<GraphComponentA>())));
+    }
+
+    private static EcsUpdateSystemDescriptor Instance<T>(string id, bool sequential = false,
+        EcsComponentAccessDescriptor[]? accesses = null, EcsSystemOrderDescriptor[]? orders = null)
+        => new(typeof(T), sequential, accesses ?? [], orders ?? [], id);
+
+    [Fact]
     public void Build_EmptyRegistry_ReturnsEmptyGraph()
     {
         EcsUpdateGraph graph = EcsUpdateGraphBuilder.Build(

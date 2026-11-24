@@ -371,6 +371,57 @@ public sealed class ContentGeneration : IDisposable
         }
     }
 
+    /// <summary>Bounded, non-owning package metadata read. Capture callers must recheck it before publishing.</summary>
+    public static (string GenerationId, string RootPath, ContentManifest Manifest, string Fingerprint) ReadPackageMetadata(
+        string outputRoot, string expectedNamespace, AssetTarget expectedTarget, CancellationToken ct = default)
+    {
+        byte[] ReadRequired(string path, int maxBytes = ContentCaptureFiles.MaximumMetadataBytes) =>
+            ContentCaptureFiles.ReadMetadata(path, ct, maxBytes) ??
+            throw new InvalidDataException($"Required Content generation metadata is missing: '{path}'.");
+
+        try
+        {
+            byte[] marker = ReadRequired(Path.Combine(outputRoot, MarkerName), 128);
+            using var markerStream = new MemoryStream(marker, writable: false);
+            using var reader = new StreamReader(markerStream);
+            string id = reader.ReadToEnd().Trim();
+            ValidateId(id);
+            string root = Path.Combine(outputRoot, ".generations", id);
+            byte[] manifestBytes = ReadRequired(Path.Combine(root, "manifest.json"));
+            byte[] descriptorBytes = ReadRequired(Path.Combine(root, "generation.json"));
+            var manifest = ContentManifest.ParsePackage(FileText(manifestBytes));
+            var descriptor = ParseDescriptor(FileText(descriptorBytes), manifest);
+            if (!descriptor.IdentityKnown || descriptor.Namespace != expectedNamespace || descriptor.Target != expectedTarget)
+                throw new InvalidDataException($"Unexpected Content generation namespace or target in '{outputRoot}'.");
+            byte[] projection = ReadRequired(Path.Combine(outputRoot, "manifest.json"));
+            if (ContentManifest.ParsePackage(FileText(projection)).ToCanonicalJson() != manifest.ToCanonicalJson())
+                throw new InvalidDataException($"Content publication was interrupted in '{outputRoot}'.");
+
+            return (id, root, manifest, ContentHashing.HashBytes(marker) + ContentHashing.HashBytes(manifestBytes) +
+                ContentHashing.HashBytes(descriptorBytes) + ContentHashing.HashBytes(projection));
+        }
+        catch (Exception error) when (error is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException or OverflowException)
+        {
+            throw new InvalidDataException($"Invalid Content generation metadata in '{outputRoot}'.", error);
+        }
+
+        static string FileText(byte[] bytes)
+        {
+            using var stream = new MemoryStream(bytes, writable: false);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+    }
+
+    private static Descriptor ParseDescriptor(string json, ContentManifest manifest)
+    {
+        var descriptor = JsonSerializer.Deserialize<Descriptor>(json) ?? throw new InvalidDataException("Missing generation descriptor.");
+        if (descriptor.SchemaVersion != 1 || descriptor.ManifestHash != ContentHashing.HashString(manifest.ToCanonicalJson()) ||
+            (descriptor.IdentityKnown ? string.IsNullOrWhiteSpace(descriptor.Namespace) : descriptor.Namespace != string.Empty || descriptor.Target != AssetTarget.Shared) || descriptor.Target is not (AssetTarget.Client or AssetTarget.Server or AssetTarget.Shared))
+            throw new InvalidDataException("Invalid generation descriptor.");
+        return descriptor;
+    }
+
     private static (ContentManifest Manifest, Descriptor Descriptor) ReadMetadata(string outputRoot, string root)
     {
         try
@@ -379,11 +430,7 @@ public sealed class ContentGeneration : IDisposable
             EnsureOrdinaryPath(outputRoot, manifestPath);
             EnsureOrdinaryPath(outputRoot, descriptorPath);
             var manifest = ContentManifest.LoadFromFile(manifestPath);
-            var descriptor = JsonSerializer.Deserialize<Descriptor>(File.ReadAllText(descriptorPath))
-                ?? throw new InvalidDataException("Missing generation descriptor.");
-            if (descriptor.SchemaVersion != 1 || descriptor.ManifestHash != ContentHashing.HashString(manifest.ToCanonicalJson()) ||
-                (descriptor.IdentityKnown ? string.IsNullOrWhiteSpace(descriptor.Namespace) : descriptor.Namespace != string.Empty || descriptor.Target != AssetTarget.Shared) || descriptor.Target is not (AssetTarget.Client or AssetTarget.Server or AssetTarget.Shared))
-                throw new InvalidDataException("Invalid generation descriptor.");
+            var descriptor = ParseDescriptor(File.ReadAllText(descriptorPath), manifest);
             foreach (var entry in manifest.Entries)
                 EnsureOrdinaryPath(root, Path.GetFullPath(Path.Combine(root, entry.ArtifactLocator.Replace('/', Path.DirectorySeparatorChar))));
             return (manifest, descriptor);

@@ -3,6 +3,7 @@ using System.Composition;
 using System.Reflection;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
+using Karpik.Content.Runtime;
 using Microsoft.Extensions.Logging;
 
 namespace Karpik.Engine.Shared.AssetManagement.Core;
@@ -14,11 +15,6 @@ namespace Karpik.Engine.Shared.AssetManagement.Core;
 // implementation must be visible from the host assembly.
 public class AssetsManager : IAssetsManager
 {
-    public string RootPath => FileSystem.RootPath;
-    public string ContentPath => FileSystem.ContentPath;
-    public string ModsPath => FileSystem.ModsPath;
-    public IFileSystem FileSystem => _fileSystem;
-    
     // [Hash, Asset Type] -> [Asset Instance]
     private readonly ConcurrentDictionary<(int, Type), Asset> _loadedAssets = new();
     
@@ -30,12 +26,15 @@ public class AssetsManager : IAssetsManager
 
     private readonly ILogger<AssetsManager> _logger;
     private readonly IFileSystem _fileSystem;
+    private readonly IContentRegistry _contentRegistry;
     private readonly AssetLoadContext _assetLoadContext;
 
-    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IAssetSaver[] savers, IAssetLoader[] loaders)
+    public AssetsManager(ILogger<AssetsManager> logger, IFileSystem fileSystem, IContentRegistry contentRegistry,
+        IAssetSaver[] savers, IAssetLoader[] loaders)
     {
         _logger = logger;
         _fileSystem = fileSystem;
+        _contentRegistry = contentRegistry;
         _assetLoadContext = new AssetLoadContext(this);
         RegisterSavers(savers);
         RegisterLoaders(loaders);
@@ -87,7 +86,7 @@ public class AssetsManager : IAssetsManager
         var asset = await LoadAssetInternal(path, typeof(T));
         return new AssetHandle<T>((T)asset, this);
     }
-
+    
     public async JobHandle<AssetHandle<Asset>> LoadAssetByPathAsync(string path)
     {
         var ext = NormalizeExtension(Path.GetExtension(path));
@@ -125,31 +124,17 @@ public class AssetsManager : IAssetsManager
         }
         
         string targetPath = path;
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
-        }
+        Stream? input = TryOpenAsset(targetPath);
 
-        if (!_fileSystem.Exists(targetPath))
+        if (input is null)
         {
             if (loader.DefaultPath is null) throw new FileNotFoundException($"Asset not found: {path}");
             _logger.LogWarning("Not found {TargetPath}, loading default asset {LoaderDefaultPath}.", targetPath, loader.DefaultPath);
             targetPath = loader.DefaultPath;
-        }
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
+            input = TryOpenAsset(targetPath) ?? throw new FileNotFoundException($"Asset not found: {targetPath}");
         }
 
-        await using Stream stream = _fileSystem.OpenRead(targetPath);
+        await using Stream stream = input;
 
         var newAsset = await loader.LoadAsync(_assetLoadContext, stream, targetPath);
         newAsset.Id = id;
@@ -161,6 +146,26 @@ public class AssetsManager : IAssetsManager
         newAsset.Load();
         return newAsset;
     }
+
+    private Stream? TryOpenAsset(string path)
+    {
+        if (_fileSystem.Exists(path)) return _fileSystem.OpenRead(path);
+        if (_fileSystem.IsPathRooted(path)) return null;
+
+        string loosePath = _fileSystem.Combine(_fileSystem.ContentPath, path);
+        if (_fileSystem.Exists(loosePath))
+        {
+            string relative = Path.GetRelativePath(_fileSystem.ContentPath, loosePath);
+            if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || _fileSystem.IsPathRooted(relative))
+                throw new InvalidDataException($"Content path '{path}' escapes the Content directory.");
+            return _fileSystem.OpenRead(loosePath);
+        }
+
+        string logicalName = path.Replace('\\', '/');
+        return _contentRegistry.TryOpenArtifact(logicalName)
+            ?? _contentRegistry.TryOpenArtifact("game/" + logicalName);
+    }
     
     public async JobHandle<AssetHandle<T>> SaveAssetAsync<T>(T asset, string? path = null)  where T : Asset
     {
@@ -171,17 +176,9 @@ public class AssetsManager : IAssetsManager
         {
             throw new InvalidOperationException("Cannot save asset: Path is missing.");
         }
-        
-        if (!_fileSystem.Exists(targetPath))
-        {
-            var modsSubPath = _fileSystem.Combine(ModsPath, targetPath);
-            targetPath = _fileSystem.Exists(modsSubPath)
-                ? modsSubPath
-                : _fileSystem.Combine(ContentPath, targetPath);
-        }
 
         Type type = asset.GetType();
-        if (!_savers.TryGetValue(type, out IAssetSaver saver))
+        if (!_savers.TryGetValue(type, out IAssetSaver? saver))
         {
             throw new NotSupportedException($"No saver registered for type '{type.Name}'");
         }

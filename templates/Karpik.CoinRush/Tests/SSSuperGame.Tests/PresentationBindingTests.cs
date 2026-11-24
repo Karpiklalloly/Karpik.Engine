@@ -237,7 +237,7 @@ public sealed class PresentationBindingTests
                 File.WriteAllText(fontPath, "test font loader owns the format");
                 fileSystem = new RemappedFileSystem(_fontRoot, content);
             }
-            _legacyAssets = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, [],
+            _legacyAssets = new AssetsManager(NullLogger<AssetsManager>.Instance, fileSystem, _registry, [],
                 withFont ? [new StubFontLoader()] : []);
             Owner = new ClientPresentationAssets(Bindings, _legacyAssets, NullLogger<ClientPresentationAssets>.Instance);
         }

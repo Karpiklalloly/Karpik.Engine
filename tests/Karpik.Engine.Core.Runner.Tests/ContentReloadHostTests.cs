@@ -7,10 +7,11 @@ using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
 using Karpik.Engine.Core.Runner;
 using Xunit;
+using Microsoft.Extensions.Logging;
 using RuntimeOutcome = Karpik.Content.Runtime.ContentReloadOutcome;
 using WireOutcome = Karpik.Content.Transport.ContentReloadOutcome;
 
-public sealed class ContentReloadHostTests
+public sealed partial class ContentReloadHostTests
 {
     [Theory]
     [InlineData(Side.Client, false)]
@@ -134,6 +135,8 @@ public sealed class ContentReloadHostTests
             runner.Run(Application.TICK_DT);
             Assert.Equal(0, observation.LastCount);
             Assert.Equal(0UL, observation.Sequence);
+            Assert.Null(observation.Registry);
+            Assert.Equal(ModContentRefreshStatus.Unavailable, (await runner.RequestModContentRefreshAsync()).Status);
             await using var endpoint = new ContentReloadEndpoint(tree.Address,
                 (request, _) => Task.FromResult(new ContentReloadResponse(1, request.RequestId, WireOutcome.Applied)));
         }
@@ -262,9 +265,20 @@ public sealed class ContentReloadHostTests
         public AssetId LastId;
         public RuntimeOutcome? ShutdownRequestOutcome;
         public IContentChangeSource? Source;
+        public ContentRegistry? Registry;
+        public IModContentRefresh? ModRefresh;
+        public HostLog Logs { get; } = new();
+        public bool LoadLua;
+        public bool Destroyed;
+        public Karpik.Engine.Shared.Modding.IModsRegistry? Mods;
+        public Karpik.Engine.Shared.Modding.Lua.ModsLifecycleManager? Lifecycle;
+        public LuaBindingsTestScope? Bindings;
+        public bool EarlyIdFound;
+        public bool EarlyEndpointAvailable;
+        public string? EarlyLegacy;
     }
 
-    private sealed class ObserverSystem(IContentChangeSource changes, Observation observation,
+    private sealed class ObserverSystem(IContentChangeSource changes, Observation observation, IModContentRefresh modRefresh,
         ContentRegistry? registry = null, IContentRegistry? readRegistry = null, IContentUpdateRegistry? updateRegistry = null,
         ContentReloadCoordinator? coordinator = null, IContentReloadLifetime? lifetime = null, FileContentStore? store = null)
         : ISystemInit, ISystemBegin, ISystemFixedUpdate, ISystemAsyncDestroy
@@ -272,6 +286,8 @@ public sealed class ContentReloadHostTests
         public void Init()
         {
             observation.Source = changes;
+            observation.Registry = registry;
+            observation.ModRefresh = modRefresh;
             observation.SharedContracts = coordinator != null && ReferenceEquals(coordinator, changes) &&
                 ReferenceEquals(coordinator, lifetime) && ReferenceEquals(registry, readRegistry) && ReferenceEquals(registry, updateRegistry);
         }
@@ -287,7 +303,8 @@ public sealed class ContentReloadHostTests
         public void FixedUpdate() { if (changes.Changes.Length != 0) observation.ChangedAtFixed++; }
         public ValueTask DestroyAsync()
         {
-            if (coordinator != null)
+            observation.Destroyed = true;
+            if (coordinator != null && store?.CapturedManifest is not null)
                 observation.ShutdownRequestOutcome = coordinator.EnqueueAsync(store!.CapturedManifest!, store).GetAwaiter().GetResult().Outcome;
             return ValueTask.CompletedTask;
         }
@@ -311,24 +328,31 @@ public sealed class ContentReloadHostTests
         public IModule CreateModule() => this;
         public void Add(ISystemRegistry systems) => systems.Add<ObserverSystem>();
         public void OnRegisterServices(ContainerBuilder builder) => builder.Register(context => new ObserverSystem(
-            context.Resolve<IContentChangeSource>(), context.Resolve<Observation>(), context.ResolveOptional<ContentRegistry>(),
+            context.Resolve<IContentChangeSource>(), context.Resolve<Observation>(), context.Resolve<IModContentRefresh>(),
+             context.ResolveOptional<ContentRegistry>(),
             context.ResolveOptional<IContentRegistry>(), context.ResolveOptional<IContentUpdateRegistry>(), context.ResolveOptional<ContentReloadCoordinator>(),
             context.Resolve<IContentReloadLifetime>(), context.ResolveOptional<FileContentStore>()));
     }
 
-    private sealed class Composition(HostTree tree, Observation observation) : IStaticRuntimeComposition
+    private sealed class Composition(HostTree tree, Observation observation, bool modding = false, bool registerContent = false) : IStaticRuntimeComposition
     {
         public void RegisterModules(IStaticModuleRegistry registry)
-        { registry.Add(new HostServices(tree, observation)); registry.Add(new ObserverModule()); }
-        public void RegisterServices(IStaticServiceRegistry registry) { }
+        {
+            registry.Add(new HostServices(tree, observation));
+            registry.Add(new ObserverModule());
+            if (modding) registry.Add(new ModdingProbeInstaller(tree, observation));
+            if (observation.LoadLua) registry.Add(new LuaObservationInstaller(observation));
+        }
+        public void RegisterServices(IStaticServiceRegistry registry) => RegisterTestModding(registry, modding, registerContent);
         public void RegisterEcsRegistryProviders(IStaticEcsRegistryProviders registry) { }
     }
 
-    private sealed class HostTree : IDisposable
+    private sealed partial class HostTree : IDisposable
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "karpik-reload-host-" + Guid.NewGuid().ToString("N"));
         public AssetId AssetId { get; } = new(Guid.NewGuid());
         private readonly Side _side;
+        private ILoggerFactory? _logging;
         public IFileSystem FileSystem { get; }
         public ContentReloadAddress Address { get; }
         private string Source => Path.Combine(Root, "Source");
@@ -350,20 +374,30 @@ public sealed class ContentReloadHostTests
             Assert.True(result.Success, string.Join(";", result.Diagnostics.Select(d => d.Message)));
             return result;
         }
-        public EngineRunner Setup(Observation observation, bool staticMode, bool enabled, Side? runtimeSide = null)
+        public EngineRunner Setup(Observation observation, bool staticMode, bool enabled, Side? runtimeSide = null, bool modding = false)
         {
-            var runner = new EngineRunner();
-            if (staticMode) runner.RegisterStaticComposition(new Composition(this, observation));
-            else { runner.RegisterModule(new HostServices(this, observation)); runner.RegisterModule(new ObserverModule()); }
+            _logging = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Warning).AddProvider(observation.Logs));
+            var runner = new EngineRunner(_logging);
+            if (staticMode) runner.RegisterStaticComposition(new Composition(this, observation, modding, modding));
+            else
+            {
+                runner.RegisterModule(new HostServices(this, observation));
+                runner.RegisterModule(new ObserverModule());
+                if (modding) RegisterTestModding(runner, this, observation);
+            }
             if (enabled) runner.EnableContentReload("test-host");
             var scheduler = new MainThreadScheduler(Environment.CurrentManagedThreadId);
-            runner.Setup(new Application(runtimeSide ?? _side), scheduler);
-            scheduler.Execute();
+            if (modding) scheduler.RunUntilCompleted(runner.SetupAsync(new Application(runtimeSide ?? _side), scheduler));
+            else
+            {
+                runner.Setup(new Application(runtimeSide ?? _side), scheduler);
+                scheduler.Execute();
+            }
             return runner;
         }
         public Task<ContentReloadResponse> Deliver(string generation) => ContentReloadClient.DeliverAsync(Address,
             new ContentReloadRequest(1, Guid.NewGuid(), Address.OutputRoot, "game", Address.Target, generation), TimeSpan.FromSeconds(10));
-        public void Dispose() => Directory.Delete(Root, recursive: true);
+        public void Dispose() { _logging?.Dispose(); Directory.Delete(Root, recursive: true); }
     }
 
     private sealed class HostFileSystem(string root) : IFileSystem
@@ -373,6 +407,7 @@ public sealed class ContentReloadHostTests
         public string ModsPath => Path.Combine(root, "Mods");
         public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
         public bool Exists(string path) => File.Exists(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
         public string GetExtension(string path) => Path.GetExtension(path);
         public bool ExistsDirectory(string path) => Directory.Exists(path);
         public Stream OpenRead(string path) => File.OpenRead(path);

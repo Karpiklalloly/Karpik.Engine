@@ -30,10 +30,11 @@ public sealed class SchedulerDiagnosticDescriptorTests
             DiagnosticIds.EcsUnsupportedManagedComponentSummary,
             DiagnosticIds.EcsGeneratedRegistryMissingSystem,
             DiagnosticIds.EcsRenderPrepareWriteAccess,
-            DiagnosticIds.EcsUpdateRenderCommandAccess
+            DiagnosticIds.EcsUpdateRenderCommandAccess,
+            DiagnosticIds.EcsRuntimeSystemTypeRegistration
         ];
 
-        Assert.Equal(["K003", "K004", "K005", "K006", "K007", "K008", "K009", "K010"], ids);
+        Assert.Equal(["K003", "K004", "K005", "K006", "K007", "K008", "K009", "K010", "K011"], ids);
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
     }
 
@@ -49,7 +50,8 @@ public sealed class SchedulerDiagnosticDescriptorTests
             SchedulerDiagnosticDescriptors.UnsupportedManagedComponentSummary,
             SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem,
             SchedulerDiagnosticDescriptors.RenderPrepareWriteAccess,
-            SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess
+            SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess,
+            SchedulerDiagnosticDescriptors.RuntimeSystemTypeRegistration
         ];
 
         foreach (DiagnosticDescriptor descriptor in descriptors)

@@ -2,13 +2,15 @@ using Karpik.Content.Core;
 
 namespace Karpik.Content.Runtime;
 
-/// <summary>One cold preparation and one latest pending update; publication belongs to the host's simulation boundary.</summary>
+/// <summary>Serializes cold base reloads and mod refreshes; publication belongs to the host's simulation boundary.</summary>
+/// <remarks>Finalize registry startup before accepting requests. Use this coordinator as the sole updater and dispose it before the registry.</remarks>
 public sealed class ContentReloadCoordinator : IContentChangeSource, IContentReloadLifetime, IAsyncDisposable
 {
     public const int MaximumChanges = ContentRegistry.MaximumAssets * 2;
+    private const string StoppedBeforeApplication = "Content reload stopped before application.";
     private readonly ContentRegistry _registry;
     private readonly object _sync = new();
-    private readonly SemaphoreSlim _wake = new(0, 1);
+    private readonly SemaphoreSlim _wake = new(0, 2);
     private readonly CancellationTokenSource _stop = new();
     private readonly ContentAssetChange[] _staged = new ContentAssetChange[MaximumChanges];
     private readonly ContentAssetChange[] _published = new ContentAssetChange[MaximumChanges];
@@ -16,7 +18,9 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
     private readonly Task _worker;
     private Task _stopCallbacks = Task.CompletedTask;
     private Task? _disposal;
-    private Request? _pending;
+    private BaseRequest? _pendingBase;
+    private ModRequest? _pendingMod;
+    private bool _baseFirst;
     private Request? _active;
     private Publication? _ready;
     private Exception? _failure;
@@ -36,30 +40,72 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
     /// <summary>Sticky retirement/control-worker failure. A previously applied update remains applied.</summary>
     public Exception? Failure => Volatile.Read(ref _failure);
 
-    public Task<ContentReloadResult> EnqueueAsync(ContentManifest manifest, IContentStore store)
+    public Task<ContentReloadResult> EnqueueAsync(ContentManifest manifest, IContentStore store) =>
+        EnqueueAsync(manifest, store, null);
+
+    /// <summary>Capture the next ordered mod layer on the cold worker; the callback borrows the latest committed packages for the duration of its task.</summary>
+    /// <remarks>
+    /// Return selected packages (including any reused previous packages), installed IDs independently of their content,
+    /// and every owned capture wrapper. On successful return the coordinator owns and releases those wrappers;
+    /// on exception the callback owns partial cleanup. Do not mutate the returned lists or keep using borrowed stores after return.
+    /// </remarks>
+    public Task<ContentReloadResult> EnqueueModRefreshAsync(
+        Func<IReadOnlyList<ModContentPackage>, CancellationToken, Task<(IReadOnlyList<ModContentPackage> Packages,
+            IReadOnlyCollection<string> InstalledModIds, IReadOnlyList<ModContentCapture> Captures)>> capture,
+        Action<ContentDiagnostic>? report = null)
     {
-        Request request;
+        ArgumentNullException.ThrowIfNull(capture);
+        lock (_sync)
+        {
+            var failure = Failure;
+            if (_stopping != 0 || failure != null)
+                return Task.FromResult(new ContentReloadResult(ContentReloadOutcome.Failed, failure?.Message ?? "Content reload is stopping."));
+            if (_pendingMod != null || IsModPreparing())
+                return Task.FromResult(new ContentReloadResult(ContentReloadOutcome.Busy));
+
+            var request = new ModRequest(capture, report);
+            _pendingMod = request;
+            _baseFirst = true; // Mod appends after any pending base.
+            _wake.Release();
+            return request.Result.Task;
+        }
+    }
+
+    private bool IsModPreparing()
+    {
+        if (_active is not ModRequest active) return false;
+        // A winning boundary opens admission before the worker acknowledges it.
+        // If the worker has already cleared _ready, it has also completed Result.
+        var ready = Volatile.Read(ref _ready);
+        return (ready == null || Volatile.Read(ref ready.State) != Publication.Committed) && !active.Result.Task.IsCompleted;
+    }
+
+    public Task<ContentReloadResult> EnqueueAsync(ContentManifest manifest, IContentStore store, Action<ContentDiagnostic>? report)
+    {
+        BaseRequest request;
         try
         {
             ArgumentNullException.ThrowIfNull(store);
-            request = new Request(Freeze(manifest), ContentStoreLifetime.Retain(store));
+            request = new BaseRequest(Freeze(manifest), ContentStoreLifetime.Retain(store), report);
         }
         catch (Exception error)
         {
             return Task.FromResult(new ContentReloadResult(ContentReloadOutcome.Failed, error.Message));
         }
-        Request? superseded = null;
+        BaseRequest? superseded = null;
         bool accepted;
         lock (_sync)
         {
-            accepted = _stopping == 0 && _failure == null;
+            var failure = Failure;
+            accepted = _stopping == 0 && failure == null;
             if (accepted)
             {
-                superseded = _pending;
-                _pending = request;
+                superseded = _pendingBase;
+                _pendingBase = request;
+                _baseFirst = false; // Replacement also appends after any pending mod.
                 if (superseded == null) _wake.Release();
             }
-            else request.Finish(ContentReloadOutcome.Failed, _failure?.Message ?? "Content reload is stopping.");
+            else request.Finish(ContentReloadOutcome.Failed, failure?.Message ?? "Content reload is stopping.");
         }
         if (!accepted) Release(request);
         if (superseded != null)
@@ -96,7 +142,8 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         {
             if (_stopping != 0) return;
             Volatile.Write(ref _stopping, 1);
-            _pending?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
+            _pendingBase?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
+            _pendingMod?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
             var ready = Volatile.Read(ref _ready);
             if (ready != null && ReferenceEquals(ready.Request, _active))
             {
@@ -104,13 +151,13 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
                 if (state == Publication.Waiting)
                 {
                     abort = ready;
-                    _active?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
+                    _active?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
                 }
                 else if (state == Publication.Committed) _active?.Finish(ContentReloadOutcome.Applied);
-                else if (state != Publication.Committing) _active?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
+                else if (state != Publication.Committing) _active?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
                 // A boundary already owning Committing wins; the worker acknowledges it after its atomic publication.
             }
-            else _active?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
+            else _active?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
             // CancelAsync signals cancellation immediately while running arbitrary decoder callbacks elsewhere.
             _stopCallbacks = _stop.CancelAsync();
         }
@@ -141,8 +188,16 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
                 lock (_sync)
                 {
                     if (_stopping != 0) break;
-                    request = _pending;
-                    _pending = null;
+                    if (_pendingMod != null && (_pendingBase == null || !_baseFirst))
+                    {
+                        request = _pendingMod;
+                        _pendingMod = null;
+                    }
+                    else
+                    {
+                        request = _pendingBase;
+                        _pendingBase = null;
+                    }
                     _active = request;
                 }
                 if (request == null) continue;
@@ -158,13 +213,16 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         }
         finally
         {
-            Request? pending;
+            BaseRequest? pendingBase;
             Request? active;
-            lock (_sync) { pending = _pending; _pending = null; active = _active; _active = null; }
-            pending?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
-            active?.Finish(ContentReloadOutcome.Failed, "Content reload stopped before application.");
-            if (pending != null) Release(pending);
-            if (active != null) Release(active);
+            lock (_sync)
+            {
+                pendingBase = _pendingBase; _pendingBase = null;
+                _pendingMod = null; // RequestStop already settled it; no capture ran.
+                active = _active; _active = null;
+            }
+            if (pendingBase != null) Release(pendingBase);
+            if (active is BaseRequest activeBase) Release(activeBase);
         }
     }
 
@@ -175,8 +233,30 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         try
         {
             if (Failure is { } prior) throw new InvalidOperationException("Previous Content retirement failed.", prior);
-            update = await _registry.PrepareAsync(request.Manifest, request.Store, _stop.Token).ConfigureAwait(false);
-            Release(request); // Prepared snapshot/slots now own every store they actually use.
+            var cancellation = _stop.Token;
+            cancellation.ThrowIfCancellationRequested();
+            if (request is ModRequest mod)
+            {
+                var batch = await mod.Capture(_registry.CommittedSnapshot.Packages, cancellation).ConfigureAwait(false);
+                Exception? releaseFailure = null;
+                try
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    update = await _registry.PrepareModUpdateAsync(batch.Packages, batch.InstalledModIds, mod.Report, cancellation).ConfigureAwait(false);
+                }
+                finally
+                {
+                    // If preparation succeeded, the candidate owns every store it uses.
+                    releaseFailure = ReleaseCaptures(batch.Captures);
+                }
+                if (releaseFailure != null) throw new InvalidOperationException(releaseFailure.Message, releaseFailure);
+            }
+            else
+            {
+                var baseRequest = (BaseRequest)request;
+                update = await _registry.PrepareAsync(baseRequest.Manifest, baseRequest.Store, baseRequest.Report, cancellation).ConfigureAwait(false);
+                Release(baseRequest);
+            }
             int count = StageChanges(update);
             publication = new Publication(request, update, count);
             lock (_sync)
@@ -208,8 +288,20 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
                 catch (Exception error) { Volatile.Write(ref _failure, error); }
             }
             if (publication != null) Interlocked.CompareExchange(ref _ready, null, publication);
-            Release(request);
+            if (request is BaseRequest baseRequest) Release(baseRequest);
         }
+    }
+
+    private Exception? ReleaseCaptures(IReadOnlyList<ModContentCapture> captures)
+    {
+        Exception? firstError = null;
+        for (int i = 0; i < captures.Count; i++)
+        {
+            try { captures[i].Dispose(); }
+            catch (Exception error) { firstError ??= error; }
+        }
+        if (firstError != null) Volatile.Write(ref _failure, firstError);
+        return firstError;
     }
 
     private int StageChanges(PreparedContentUpdate update)
@@ -245,20 +337,32 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         return new ContentManifest(manifest.SchemaVersion, entries);
     }
 
-    private void Release(Request request)
+    private void Release(BaseRequest request)
     {
         if (Interlocked.Exchange(ref request.StoreReleased, 1) != 0) return;
         try { ContentStoreLifetime.Release(request.Store); }
         catch (Exception error) { Volatile.Write(ref _failure, error); }
     }
 
-    private sealed class Request(ContentManifest manifest, IContentStore store)
+    private abstract class Request(Action<ContentDiagnostic>? report)
+    {
+        internal readonly Action<ContentDiagnostic>? Report = report;
+        internal readonly TaskCompletionSource<ContentReloadResult> Result = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal void Finish(ContentReloadOutcome outcome, string? error = null) => Result.TrySetResult(new(outcome, error));
+    }
+    private sealed class BaseRequest(ContentManifest manifest, IContentStore store, Action<ContentDiagnostic>? report) : Request(report)
     {
         internal readonly ContentManifest Manifest = manifest;
         internal readonly IContentStore Store = store;
-        internal readonly TaskCompletionSource<ContentReloadResult> Result = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int StoreReleased;
-        internal void Finish(ContentReloadOutcome outcome, string? error = null) => Result.TrySetResult(new(outcome, error));
+    }
+    private sealed class ModRequest(
+        Func<IReadOnlyList<ModContentPackage>, CancellationToken, Task<(IReadOnlyList<ModContentPackage> Packages,
+            IReadOnlyCollection<string> InstalledModIds, IReadOnlyList<ModContentCapture> Captures)>> capture,
+        Action<ContentDiagnostic>? report) : Request(report)
+    {
+        internal readonly Func<IReadOnlyList<ModContentPackage>, CancellationToken, Task<(IReadOnlyList<ModContentPackage> Packages,
+            IReadOnlyCollection<string> InstalledModIds, IReadOnlyList<ModContentCapture> Captures)>> Capture = capture;
     }
     private sealed class Publication(Request request, PreparedContentUpdate update, int count)
     {

@@ -9,7 +9,6 @@ public class PhysicalFileSystem : IFileSystem
 {
     public string RootPath { get; } = Path.GetFullPath(Environment.CurrentDirectory);
     public string ContentPath => Combine(RootPath, "Content");
-    public string ModsPath => Combine(RootPath, "Mods");
     public char DirectorySeparatorChar => Path.DirectorySeparatorChar;
     
     public bool Exists(string path) => File.Exists(path);
@@ -36,4 +35,5 @@ public class PhysicalFileSystem : IFileSystem
     public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption) => Directory.GetFiles(path, searchPattern, searchOption);
 
     public string GetFileName(string path) => Path.GetFileName(path);
+    public bool IsPathRooted(string path) => Path.IsPathRooted(path);
 }

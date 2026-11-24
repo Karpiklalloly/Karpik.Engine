@@ -59,7 +59,8 @@ internal sealed class AsyncRunnerStub : IEngineRunner
         Application application,
         MainThreadScheduler scheduler,
         ClientFrameMetrics clientFrameMetrics,
-        Dictionary<string, byte[]>? hotReloadData = null)
+        Dictionary<string, byte[]>? hotReloadData = null,
+        CancellationToken cancellationToken = default)
     {
         await SetupGate.Task;
         _started = true;

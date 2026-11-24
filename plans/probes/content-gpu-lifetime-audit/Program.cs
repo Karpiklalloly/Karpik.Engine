@@ -15,9 +15,9 @@ if (args.Contains("--di"))
     ContentReloadProbe.RunDi();
     return;
 }
-if (args.Contains("--content"))
+if (args.Contains("--content") || args.Contains("--mod-refresh"))
 {
-    ContentReloadProbe.Run();
+    ContentReloadProbe.Run(modRefresh: args.Contains("--mod-refresh"));
     return;
 }
 if (args.Contains("--pending"))

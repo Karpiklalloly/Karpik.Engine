@@ -23,7 +23,8 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
         SchedulerDiagnosticDescriptors.UnsupportedManagedComponentSummary,
         SchedulerDiagnosticDescriptors.GeneratedRegistryMissingSystem,
         SchedulerDiagnosticDescriptors.RenderPrepareWriteAccess,
-        SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess);
+        SchedulerDiagnosticDescriptors.UpdateRenderCommandAccess,
+        SchedulerDiagnosticDescriptors.RuntimeSystemTypeRegistration);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -32,6 +33,35 @@ public sealed class EcsUpdateSchedulerAnalyzer : DiagnosticAnalyzer
 
         context.RegisterSymbolAction(AnalyzeNamedType, SymbolKind.NamedType);
         context.RegisterOperationBlockAction(AnalyzeOperationBlock);
+        context.RegisterOperationAction(AnalyzeTypeRegistration, OperationKind.Invocation);
+    }
+
+    private static void AnalyzeTypeRegistration(OperationAnalysisContext context)
+    {
+        var invocation = (IInvocationOperation)context.Operation;
+        IMethodSymbol method = invocation.TargetMethod;
+        if (method.Name != "Add" || method.TypeArguments.Length != 1 ||
+            method.TypeArguments[0] is not INamedTypeSymbol type || !type.GetAttributes().Any(static attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "Karpik.Engine.Shared.ECS.Scheduling.RuntimeSystemAttribute"))
+            return;
+
+        INamedTypeSymbol? registry = context.Compilation.GetTypeByMetadataName("Karpik.Engine.Core.ISystemRegistry");
+        IMethodSymbol? contract = registry?.GetMembers("Add").OfType<IMethodSymbol>().FirstOrDefault();
+        if (contract is null) return;
+        if (!SymbolEqualityComparer.Default.Equals(method.OriginalDefinition, contract.OriginalDefinition) &&
+            !IsRegistryAddImplementation(invocation.Instance?.Type ?? method.ContainingType, method, contract))
+            return;
+
+        context.ReportDiagnostic(Diagnostic.Create(SchedulerDiagnosticDescriptors.RuntimeSystemTypeRegistration,
+            invocation.Syntax.GetLocation(), type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+    }
+
+    private static bool IsRegistryAddImplementation(ITypeSymbol receiver, IMethodSymbol method, IMethodSymbol contract)
+    {
+        if (receiver is ITypeParameterSymbol parameter)
+            return parameter.ConstraintTypes.Any(bound => IsRegistryAddImplementation(bound, method, contract));
+        var implementation = (receiver as INamedTypeSymbol)?.FindImplementationForInterfaceMember(contract) as IMethodSymbol;
+        return SymbolEqualityComparer.Default.Equals(method.OriginalDefinition, implementation?.OriginalDefinition);
     }
 
     private static void AnalyzeNamedType(SymbolAnalysisContext context)

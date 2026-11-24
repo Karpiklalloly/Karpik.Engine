@@ -11,6 +11,26 @@ namespace StaticAnalyzer.Tests;
 
 public sealed class EcsUpdateRegistryGeneratorTests
 {
+    [Theory]
+    [InlineData("GeneratedEcsUpdateRegistryProvider", "NativeUpdate")]
+    [InlineData("GeneratedEcsRenderPrepareRegistryProvider", "NativeRender")]
+    public void RuntimeSystem_ExcludesSharedTypeMetadata(string provider, string native)
+    {
+        string source = RunGenerator("""
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            [RuntimeSystem, SequentialSystem]
+            internal sealed class RuntimeUpdate(int index) : ISystemUpdate { public void Update() { } }
+            [RuntimeSystem]
+            internal sealed class RuntimeRender(int index) : ISystemRenderPrepare { public void RenderPrepare() { } }
+            public sealed class NativeUpdate : ISystemUpdate { public void Update() { } }
+            public sealed class NativeRender : ISystemRenderPrepare { public void RenderPrepare() { } }
+            """, provider);
+        Assert.DoesNotContain("RuntimeUpdate", source);
+        Assert.DoesNotContain("RuntimeRender", source);
+        Assert.Contains("typeof(global::" + native + ")", source);
+    }
+
     [Fact]
     public void GeneratesRegistryProviderForUpdateSystemsAndAccessMetadata()
     {

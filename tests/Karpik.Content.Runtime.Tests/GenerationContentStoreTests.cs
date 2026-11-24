@@ -136,6 +136,7 @@ public sealed class GenerationContentStoreTests
         public bool ExistsDirectory(string path) => Directory.Exists(path);
         public Stream OpenRead(string path) => File.OpenRead(path);
         public Stream OpenWrite(string path) => File.OpenWrite(path);
+        public bool IsPathRooted(string path) => Path.IsPathRooted(path);
         public string GetExtension(string path) => Path.GetExtension(path);
         public string Combine(params ReadOnlySpan<string> path) => Path.Combine(path);
         public Span<string> GetDirectories(string path) => Directory.GetDirectories(path);

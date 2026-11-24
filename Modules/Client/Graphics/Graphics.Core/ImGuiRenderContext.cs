@@ -2,6 +2,7 @@ using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Engine.Modules.Window.Core;
 using NeoVeldrid;
+using ImGuiNET;
 
 namespace Karpik.Engine.Client.Graphics.Core;
 
@@ -12,6 +13,9 @@ public sealed class ImGuiRenderContext : IDisposable
     private GraphicsDevice _device = null!;
     private ImGuiRenderer _renderer = null!;
     private CommandList _commandList = null!;
+    private ImGuiSettingsFile? _settings;
+    private nint _imGuiContext;
+    private bool _disposed;
     private int _width;
     private int _height;
 
@@ -19,6 +23,7 @@ public sealed class ImGuiRenderContext : IDisposable
 
     public void Init(GraphicsDevice device, IWindow window)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (IsInitialized)
         {
             return;
@@ -32,6 +37,9 @@ public sealed class ImGuiRenderContext : IDisposable
             device.MainSwapchain.Framebuffer.OutputDescription,
             _width,
             _height);
+        _imGuiContext = ImGui.GetCurrentContext();
+        _settings = new ImGuiSettingsFile(ImGui.GetIO(), Environment.CurrentDirectory,
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         _commandList = device.ResourceFactory.CreateCommandList();
         _commandList.Name = "ImGui Command List";
     }
@@ -71,7 +79,22 @@ public sealed class ImGuiRenderContext : IDisposable
 
     public void Dispose()
     {
-        _commandList?.Dispose();
-        _renderer?.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        try
+        {
+            _commandList?.Dispose();
+            _renderer?.Dispose();
+        }
+        finally
+        {
+            try
+            {
+                // NeoVeldrid disposes device resources; this owner releases its native ImGui context.
+                if (_imGuiContext != 0) ImGui.DestroyContext(_imGuiContext);
+                _imGuiContext = 0;
+            }
+            finally { _settings?.Dispose(); }
+        }
     }
 }

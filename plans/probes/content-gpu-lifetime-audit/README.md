@@ -93,3 +93,16 @@ dotnet plans/probes/content-gpu-lifetime-audit/bin/Debug/net10.0/ContentGpuLifet
 
 This mode passed on 2026-11-08. It complements CoinRush's recorded-title test and
 running-client transport checks; it does not inspect the client window's pixels.
+
+## Mod texture refresh
+
+Run the same executable with `--mod-refresh` instead of `--content`. The probe
+cooks a Client mod, captures its generation and applies it through the production
+coordinator while an old frame still holds the original texture. It checks exact
+RGBA readback: old green → replacement red → lazy red after deleting the mod's
+source directory → restored green after refresh. It also checks that ready merge
+lists delay retirement and that old textures and the local capture are released.
+
+Both modes passed in Release on 2026-11-21 with Linux SDL/GLX and Mesa llvmpipe.
+The readback is of an offscreen framebuffer, not the swapchain. That run verifies
+the software OpenGL path; it is not a physical GPU-completion check.

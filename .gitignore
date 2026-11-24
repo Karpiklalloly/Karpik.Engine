@@ -433,3 +433,4 @@ graphify-out/
 # Understand Anything generated graph and local analysis state
 .ua/
 .understand-anything/
+.dsh/dsh-memory/

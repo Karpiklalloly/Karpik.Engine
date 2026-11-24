@@ -4,7 +4,6 @@ public interface IFileSystem
 {
     public string RootPath { get; }
     public string ContentPath { get; }
-    public string ModsPath { get; }
     
     public char DirectorySeparatorChar { get; }
     public bool Exists(string path);
@@ -17,4 +16,5 @@ public interface IFileSystem
     public Span<string> GetFiles(string path);
     public Span<string> GetFiles(string path, string searchPattern, SearchOption searchOption);
     public string GetFileName(string path);
+    public bool IsPathRooted(string path);
 }

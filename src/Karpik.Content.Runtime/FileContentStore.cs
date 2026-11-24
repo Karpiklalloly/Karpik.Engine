@@ -49,9 +49,9 @@ public sealed class FileContentStore : IContentStore, IContentStoreLifetime, IDi
     public void Release() => _captured?.Release();
     public void Dispose() => _captured?.Dispose();
 
-    public ReadOnlyMemory<byte> Get(string locator)
+    public Stream OpenRead(string locator)
     {
-        if (_captured != null) return _captured.Get(locator);
+        if (_captured != null) return _captured.OpenRead(locator);
         string combined = Path.Combine(_root, locator.Replace('/', fileSystem.DirectorySeparatorChar));
         string fullPath = Path.GetFullPath(combined);
         if (!PathSafety.IsContained(_root, fullPath))
@@ -64,7 +64,13 @@ public sealed class FileContentStore : IContentStore, IContentStoreLifetime, IDi
             throw new InvalidDataException($"KCR201 Missing artifact {locator}");
         }
 
-        using Stream input = fileSystem.OpenRead(fullPath);
+        return fileSystem.OpenRead(fullPath);
+    }
+
+    public ReadOnlyMemory<byte> Get(string locator)
+    {
+        if (_captured != null) return _captured.Get(locator);
+        using Stream input = OpenRead(locator);
         using var output = new MemoryStream();
         input.CopyTo(output);
         return output.ToArray();

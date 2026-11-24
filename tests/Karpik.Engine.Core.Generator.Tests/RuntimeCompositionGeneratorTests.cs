@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Karpik.Engine.Core.Codegen;
 using Microsoft.CodeAnalysis;
@@ -18,6 +18,82 @@ public sealed class RuntimeCompositionGeneratorTests
     private const string UnresolvableDependencyDiagnostic = "KE307";
 
     private static RuntimeCompositionGenerator CreateGenerator() => new();
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    public void RuntimeSystem_ExcludesFactoryAndTypeMetadata(bool referenced, bool hidden, bool serviceAttributes)
+    {
+        string source = $$"""
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            namespace RuntimeProbe;
+
+            [RuntimeSystem, SequentialSystem]
+            {{(serviceAttributes ? "[System.Composition.Export, ServiceRegistration(ModuleScope.Simulation)]" : "")}}
+            {{(hidden ? "internal" : "public")}} sealed class Adapter{{(referenced ? "" : "(int callbackIndex)")}} : ISystemUpdate
+            {
+                public void Update() { }
+            }
+            public sealed class Native : ISystemUpdate { public void Update() { } }
+            """;
+        var references = new List<MetadataReference>
+        {
+            GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>(),
+            GeneratorTestHarness.AssemblyReference<System.Composition.ExportAttribute>()
+        };
+        if (referenced)
+            references.Add(GeneratorTestHarness.CompileModuleAssembly("RuntimeProbe.Modules", source, references));
+        var result = GeneratorTestHarness.Run(CreateGenerator(), source: referenced ? "" : source,
+            additionalReferences: references);
+
+        Assert.NotNull(result.Compilation.GetTypeByMetadataName("RuntimeProbe.Adapter"));
+        result.AssertNoErrors();
+        Assert.DoesNotContain("global::RuntimeProbe.Adapter", result.CompositionSource);
+        Assert.Contains("registry.Register<global::RuntimeProbe.Native, global::RuntimeProbe.Native>", result.CompositionSource);
+        Assert.Contains("typeof(global::RuntimeProbe.Native)", result.CompositionSource);
+    }
+
+    [Fact]
+    public void RuntimeSystem_ReferenceCacheTracksMarkerChangesUnderTheSameAssemblyName()
+    {
+        const string source = """
+            using Karpik.Engine.Core;
+            using Karpik.Engine.Shared.ECS.Scheduling;
+            namespace CacheProbe;
+            MARKER
+            public sealed class Adapter : ISystemUpdate { public void Update() { } }
+            """;
+        var core = GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>();
+        var ordinary = GeneratorTestHarness.CompileModuleAssembly("RuntimeMarkerCache.Modules", source.Replace("MARKER", ""));
+        var runtime = GeneratorTestHarness.CompileModuleAssembly("RuntimeMarkerCache.Modules", source.Replace("MARKER", "[RuntimeSystem]"));
+        var first = GeneratorTestHarness.Run(CreateGenerator(), additionalReferences: [core, ordinary]);
+        var second = GeneratorTestHarness.Run(CreateGenerator(), additionalReferences: [core, runtime]);
+        first.AssertNoErrors();
+        second.AssertNoErrors();
+        Assert.Contains("global::CacheProbe.Adapter", first.CompositionSource);
+        Assert.DoesNotContain("global::CacheProbe.Adapter", second.CompositionSource);
+    }
+
+    [Fact]
+    public void UnrelatedRuntimeSystemAttribute_DoesNotSuppressRegistration()
+    {
+        var result = GeneratorTestHarness.Run(CreateGenerator(), source: """
+            using Karpik.Engine.Core;
+            namespace Unrelated
+            {
+                public sealed class RuntimeSystemAttribute : System.Attribute { }
+                [RuntimeSystem]
+                public sealed class Native : ISystemUpdate { public void Update() { } }
+            }
+            """, additionalReferences: [GeneratorTestHarness.AssemblyReference<Karpik.Engine.Core.IModuleInstaller>()]);
+        result.AssertNoErrors();
+        Assert.Contains("registry.Register<global::Unrelated.Native, global::Unrelated.Native>", result.CompositionSource);
+    }
 
     [Fact]
     public void GeneratedStaticComposition_EmitsAotComponentTemplateRoots()
@@ -250,7 +326,7 @@ public sealed class RuntimeCompositionGeneratorTests
     }
 
     [Fact]
-    public void Run_Static_RegistersAndConstructsContentRuntimeServices()
+    public async Task Run_Static_RegistersAndConstructsContentRuntimeServices()
     {
         var result = GeneratorTestHarness.Run(
             CreateGenerator(),
@@ -274,7 +350,7 @@ public sealed class RuntimeCompositionGeneratorTests
 
         var storeRegistration = Assert.Single(registry.Registrations, static registration =>
             registration.ContractType == typeof(Karpik.Content.Runtime.IContentStore));
-        object store = storeRegistration.Factory(resolver);
+        using var store = Assert.IsType<Karpik.Content.Runtime.FileContentStore>(storeRegistration.Factory(resolver));
         resolver.Add(typeof(Karpik.Content.Runtime.IContentStore), store);
         resolver.Add(typeof(IEnumerable<Karpik.Content.Runtime.IContentPayloadLoader>), Array.Empty<Karpik.Content.Runtime.IContentPayloadLoader>());
 
@@ -291,6 +367,24 @@ public sealed class RuntimeCompositionGeneratorTests
             registration.ContractType == typeof(Autofac.IStartable) &&
             registration.ImplementationType == typeof(Karpik.Content.Runtime.ContentRegistry));
         Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(startableRegistration.Factory(resolver));
+
+        var id = new Karpik.Content.Core.AssetId(Guid.NewGuid());
+        var manifest = new Karpik.Content.Core.ContentManifest(Karpik.Content.Core.ContentManifest.CurrentSchemaVersion,
+            [new(id, "raw-json", "game/a", "import", "source", "artifacts/a.json", 0, [])]);
+        await using var baseline = (Karpik.Content.Runtime.ContentRegistry)contentRegistry;
+        baseline.RegisterManifest(manifest, (Karpik.Content.Runtime.IContentStore)store);
+        Assert.True(baseline.TryResolve<string>(id, out var version));
+        Assert.Equal(1u, version.Version);
+
+        resolver.Add(typeof(Karpik.Content.Runtime.DeferredContentStartup), new Karpik.Content.Runtime.DeferredContentStartup());
+        await using var deferred = Assert.IsType<Karpik.Content.Runtime.ContentRegistry>(startableRegistration.Factory(resolver));
+        deferred.RegisterManifest(manifest, (Karpik.Content.Runtime.IContentStore)store);
+        Assert.True(deferred.TryResolveArtifact("game/a", out _, out _));
+        Assert.False(deferred.TryResolve<string>(id, out _));
+        deferred.CompleteStartup([], []);
+        Assert.True(deferred.TryResolve<string>(id, out version));
+        Assert.Equal(1u, version.Version);
+
     }
 
     [Fact]
@@ -1019,6 +1113,8 @@ public sealed class RuntimeCompositionGeneratorTests
         var dynamicSequence = new List<(int ScopeRank, string Assembly, string Impl, string Lifetime)>();
         foreach (Type type in GetParityAssemblies(side).SelectMany(static assembly => assembly.GetTypes()))
         {
+            if (type.IsDefined(typeof(Karpik.Engine.Shared.ECS.Scheduling.RuntimeSystemAttribute), inherit: false))
+                continue;
             Karpik.Engine.Core.ServiceRegistrationAttribute? registration =
                 type.GetCustomAttribute<Karpik.Engine.Core.ServiceRegistrationAttribute>();
             bool isSystem = type.GetInterfaces().Any(static implemented =>

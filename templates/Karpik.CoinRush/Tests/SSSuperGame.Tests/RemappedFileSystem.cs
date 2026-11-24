@@ -36,6 +36,7 @@ public sealed class RemappedFileSystem : IFileSystem
     /// <summary>Gets the extension of a path.</summary>
     /// <param name="path">The file or directory path.</param>
     /// <returns>The file extension.</returns>
+    public bool IsPathRooted(string path) => Path.IsPathRooted(path);
     public string GetExtension(string path) => _inner.GetExtension(path);
     /// <summary>Checks whether a directory exists at the supplied path.</summary>
     /// <param name="path">The file or directory path.</param>

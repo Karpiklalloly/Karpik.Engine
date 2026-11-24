@@ -93,6 +93,7 @@ internal sealed class WorkerHost
         {
             try
             {
+                _bootstrap?.StopContentReloadAdmission();
                 StopIpc();
             }
             finally
@@ -205,6 +206,7 @@ internal sealed class WorkerHost
         {
             try
             {
+                _bootstrap?.StopContentReloadAdmission();
                 StopIpc();
             }
             finally
@@ -312,10 +314,9 @@ internal sealed class WorkerHost
         _logger.LogDebug("Worker main thread: {ThreadId}", Environment.CurrentManagedThreadId);
         var mainThreadScheduler = _bootstrap.Initialize(Environment.CurrentManagedThreadId, _isRunning, initialHotReloadData);
         _mainThreadScheduler = mainThreadScheduler;
-        mainThreadScheduler.Execute();
+        mainThreadScheduler.RunUntilCompleted(_bootstrap.Startup);
         // The game loop must remain on the thread that owns this scheduler.
         // Awaiting in a console host may resume on a thread-pool thread instead.
-        _bootstrap.Startup.GetAwaiter().GetResult();
 
         _ipcClient?.SetScheduler(mainThreadScheduler);
 
@@ -327,6 +328,8 @@ internal sealed class WorkerHost
                            _bootstrap.ClientFrameMetrics))
                 {
                     Volatile.Write(ref _clientSimulationWorker, simulationWorker);
+                    ((EngineRunner)_bootstrap.Runner).SetCodeReloadBoundary(
+                        new ClientCodeReloadBoundary(simulationWorker, mainThreadScheduler));
                     try
                     {
                         _ipcClient?.SendReadyAsync(runtimeConfiguration.ModuleDirectory).Wait(cancellationToken);
@@ -334,20 +337,28 @@ internal sealed class WorkerHost
                     }
                     finally
                     {
+                        _bootstrap.StopContentReloadAdmission();
                         try
                         {
-                            StopIpc();
+                            // Cleanup needs the control pump and the still-live worker/lease.
+                            mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync());
                         }
                         finally
                         {
-                            Volatile.Write(ref _clientSimulationWorker, null);
+                            try { StopIpc(); }
+                            finally { Volatile.Write(ref _clientSimulationWorker, null); }
                         }
                     }
                 }
                 break;
             case Side.Server:
                 _ipcClient?.SendReadyAsync(runtimeConfiguration.ModuleDirectory).Wait(cancellationToken);
-                ServerLoop(mainThreadScheduler, cancellationToken);
+                try { ServerLoop(mainThreadScheduler, cancellationToken); }
+                finally
+                {
+                    _bootstrap.StopContentReloadAdmission();
+                    mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync());
+                }
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(side), side, null);
@@ -358,6 +369,7 @@ internal sealed class WorkerHost
 
     private HotReloadState? GetHotReloadState()
     {
+        if (_bootstrap.IsCodeReloading) return null;
         _logger.LogInformation("Collecting hot reload state");
 
         try
@@ -390,6 +402,8 @@ internal sealed class WorkerHost
 
     private EditorRuntimeSnapshot? GetEditorSnapshot()
     {
+        // Never synchronously wait for worker control work while maintenance owns its reservation.
+        if (_bootstrap.IsCodeReloading) return null;
         ClientSimulationWorker? simulationWorker = Volatile.Read(ref _clientSimulationWorker);
         return simulationWorker is null
             ? CaptureEditorSnapshotOnCurrentThread()
@@ -419,23 +433,30 @@ internal sealed class WorkerHost
 
         while (_isRunning.Value && !cancellationToken.IsCancellationRequested)
         {
-            double currentTime = stopwatch.Elapsed.TotalSeconds;
+            double currentTime = stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds;
             int loops = 0;
 
             while (currentTime >= nextTickTime && loops < 5)
             {
                 mainThreadScheduler.Execute();
-                if (_stateCollected)
+                if (_stateCollected || _bootstrap.IsCodeReloading)
                 {
                     break;
                 }
+                if (!_bootstrap.IsApplicationRunning)
+                {
+                    _isRunning.Value = false;
+                    break;
+                }
+                currentTime = stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds;
+                if (currentTime < nextTickTime) break;
 
                 _bootstrap.Loop(Application.TICK_DT);
                 nextTickTime += Application.TICK_DT;
                 loops++;
             }
 
-            if (_stateCollected)
+            if (_stateCollected || _bootstrap.IsCodeReloading)
             {
                 Thread.Yield();
                 continue;
@@ -454,7 +475,7 @@ internal sealed class WorkerHost
                 overloaded = false;
             }
 
-            double timeToSleep = nextTickTime - stopwatch.Elapsed.TotalSeconds;
+            double timeToSleep = nextTickTime - (stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds);
             if (timeToSleep > 0.001)
             {
                 int sleepMs = (int)(timeToSleep * 1000);
@@ -479,17 +500,20 @@ internal sealed class WorkerHost
         while (_isRunning.Value && !cancellationToken.IsCancellationRequested)
         {
             long frameStartedAt = Stopwatch.GetTimestamp();
-            double currentTime = stopwatch.Elapsed.TotalSeconds;
-
             mainThreadScheduler.Execute();
 
-            if (_stateCollected)
+            if (_stateCollected || _bootstrap.IsCodeReloading)
             {
                 Thread.Yield();
                 continue;
             }
 
             simulationWorker.ThrowIfFaulted();
+            if (!_bootstrap.IsApplicationRunning)
+            {
+                _isRunning.Value = false;
+                break;
+            }
             _bootstrap.RunMainThreadBegin();
 
             if (!simulationWorker.IsSimulationRunning)
@@ -503,6 +527,8 @@ internal sealed class WorkerHost
                 try
                 {
                     _bootstrap.RunMainThreadFrameBegin();
+                    // Sample after the control pump, using time that excludes completed reload pauses.
+                    double currentTime = stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds;
                     double deltaTime = Math.Min(currentTime - lastSimulationRequestTime, 0.1);
                     simulationWorker.StartReservedFrame(deltaTime);
                     lastSimulationRequestTime = currentTime;
@@ -516,6 +542,22 @@ internal sealed class WorkerHost
 
             _bootstrap.RunRender();
             metrics.PublishMainThreadFrame(Stopwatch.GetTimestamp() - frameStartedAt);
+        }
+    }
+
+    internal sealed class ClientCodeReloadBoundary(
+        ClientSimulationWorker worker, MainThreadScheduler scheduler) : ISimulationCodeReloadBoundary
+    {
+        public async ValueTask<IDisposable> EnterAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var lease = await scheduler.InvokeAsync(() =>
+                    worker.TryEnterMaintenance(out var acquired) ? acquired : null);
+                if (lease is not null) return lease;
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }
