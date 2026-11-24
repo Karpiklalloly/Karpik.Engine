@@ -117,7 +117,7 @@ Roots hold accepted stores even when none of their rules wins. Retired captures
 are removed only after root, slot and in-flight read ownership is released.
 The ModSet dependency resolver orders packages before publication. Startup
 validates the actual accepted cooked providers before creating the first ID
-snapshot. Mod refresh changes this Content layer only: it checks the candidate
+snapshot. The stock ModSet reads [mod activation](../modules/modding/mod-activation.md) at startup and reuses that selection during mod Content refresh, excluding disabled owners from composition. Mod refresh changes this Content layer only: it checks the candidate
 against frozen Lua order and resolved direct dependencies, then publishes
 accepted package metadata with its Content snapshot. A metadata-only change
 can reuse the cooked store and effective slots. Lua definitions, VM and

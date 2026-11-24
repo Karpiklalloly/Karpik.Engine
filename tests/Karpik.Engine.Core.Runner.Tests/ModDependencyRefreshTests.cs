@@ -313,7 +313,8 @@ public sealed partial class ContentReloadHostTests
             var registry = observation.Registry!;
             committed = ReadCommittedPackage(registry, "provider");
             var mods = (ModsRegistry)observation.Mods!;
-            var refresh = new LuaModContentRefresh(mods.ModsDirectoryPath, AssetTarget.Server, mods.StartupDependencies!, [committed]);
+            var refresh = new LuaModContentRefresh(mods.ModsDirectoryPath, AssetTarget.Server, mods.StartupDependencies!,
+                [committed], mods.StartupDiscovery.DisabledIds);
             tree.DeclareRefreshDependencies("provider", "{}", version: "2.0.0");
             var (packages, owners, captures) = await refresh.CaptureAsync([committed], _ => { }, default);
             try

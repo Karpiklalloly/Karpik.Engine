@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using JsonDocument = System.Text.Json.JsonDocument;
+using JsonValueKind = System.Text.Json.JsonValueKind;
 
 namespace Karpik.Engine.Shared.Modding.Lua;
 
@@ -49,7 +51,8 @@ public class ModsRegistry : IModsRegistry
                     ExecutionSide.Server => AssetTarget.Server,
                     _ => throw new ArgumentOutOfRangeException(nameof(side))
                 };
-                ModDiscoveryResult startup = Discover(target, cancellationToken);
+                FrozenSet<string> disabledIds = ReadDisabledIds(cancellationToken);
+                ModDiscoveryResult startup = DiscoverAt(_modsDirectory, target, cancellationToken, disabledIds);
                 foreach (string diagnostic in startup.Diagnostics)
                     _logger.LogError("{Diagnostic}", diagnostic);
                 foreach (ModDefinition definition in startup.ScriptedMods)
@@ -112,21 +115,68 @@ public class ModsRegistry : IModsRegistry
         ? fileSystem.Exists(fileSystem.Combine(directory, side, "main.lua"))
         : File.Exists(Path.Combine(directory, side, "main.lua"));
 
+    private static bool LegacyMetadataOnly => !OperatingSystem.IsLinux() && !OperatingSystem.IsWindows();
+
+    private FrozenSet<string> ReadDisabledIds(CancellationToken cancellationToken)
+    {
+        string path = Path.Combine(Path.GetDirectoryName(_modsDirectory)!, "mods.json");
+        try
+        {
+            // Check for absence before requiring ordinary path components, as with the legacy no-config startup.
+            try { _ = File.GetAttributes(path); }
+            catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return FrozenSet<string>.Empty;
+            }
+
+            byte[] bytes = (LegacyMetadataOnly ? ReadLegacyMetadata(path, cancellationToken) : ContentCaptureFiles.ReadMetadata(path, cancellationToken))
+                ?? throw new InvalidDataException("The selection file disappeared while reading.");
+            int offset = bytes.AsSpan().StartsWith("\uFEFF"u8) ? 3 : 0;
+            using var json = JsonDocument.Parse(bytes.AsMemory(offset));
+            if (json.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException("Expected a JSON object containing only the 'disabled' array.");
+            var properties = json.RootElement.EnumerateObject();
+            if (!properties.MoveNext() || !properties.Current.NameEquals("disabled") ||
+                properties.Current.Value.ValueKind != JsonValueKind.Array)
+                throw new InvalidDataException("Expected a JSON object containing only the 'disabled' array.");
+            var disabled = properties.Current.Value;
+            if (properties.MoveNext())
+                throw new InvalidDataException("Only one 'disabled' property is allowed.");
+
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var entry in disabled.EnumerateArray())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (entry.ValueKind != JsonValueKind.String || entry.GetString() is not { } id || string.IsNullOrWhiteSpace(id))
+                    throw new InvalidDataException("Each 'disabled' entry must be a nonblank mod ID string.");
+                ids.Add(id);
+            }
+            return ids.ToFrozenSet(StringComparer.Ordinal);
+        }
+        catch (Exception error) when (IsDiscoveryError(error) || error is System.Text.Json.JsonException or InvalidOperationException)
+        {
+            throw new InvalidDataException($"Invalid mod selection at '{path}': {error.Message}", error);
+        }
+    }
+
     // Repeatable cold I/O. Does not log, publish, or read cooked payloads; refresh can reject Diagnostics.
     internal ModDiscoveryResult Discover(AssetTarget target, CancellationToken cancellationToken = default) =>
-        DiscoverAt(ModsDirectoryPath, target, cancellationToken);
+        DiscoverAt(ModsDirectoryPath, target, cancellationToken, Volatile.Read(ref _startupDiscovery)?.DisabledIds);
 
     internal string ModsDirectoryPath => _modsDirectory;
 
-    internal static ModDiscoveryResult DiscoverAt(string modsDirectory, AssetTarget target, CancellationToken cancellationToken) =>
-        DiscoverAt(modsDirectory, target, cancellationToken, legacyMetadataOnly: !OperatingSystem.IsLinux() && !OperatingSystem.IsWindows());
+    internal static ModDiscoveryResult DiscoverAt(string modsDirectory, AssetTarget target, CancellationToken cancellationToken,
+        FrozenSet<string>? disabledIds = null) =>
+        DiscoverAt(modsDirectory, target, cancellationToken, LegacyMetadataOnly, disabledIds);
 
-    internal static ModDiscoveryResult DiscoverAt(string modsDirectory, AssetTarget target, CancellationToken cancellationToken, bool legacyMetadataOnly)
+    internal static ModDiscoveryResult DiscoverAt(string modsDirectory, AssetTarget target, CancellationToken cancellationToken,
+        bool legacyMetadataOnly, FrozenSet<string>? disabledIds = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         string contentSide = target.ToCanonicalString();
         var diagnostics = new List<string>();
         var declarations = new Dictionary<string, DiscoveredMod>(StringComparer.Ordinal);
+        var firstPaths = new Dictionary<string, string>(StringComparer.Ordinal);
         var duplicatePaths = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var candidates = new List<ModDefinition>();
         var scripted = new List<ModDefinition>();
@@ -149,16 +199,19 @@ public class ModsRegistry : IModsRegistry
                 bool linked = linkedEntry || linkedRoot is not null;
                 string source = linkedEntry ? Directory.ResolveLinkTarget(discovered, returnFinalTarget: true)?.FullName
                     ?? throw new InvalidDataException("Cannot resolve the mod directory link.") : discovered;
-                var (metadata, dependencies) = ReadMetadata(source, serializer, cancellationToken, legacyMetadataOnly);
-                var definition = new ModDefinition(metadata, entry);
-                var declared = new DiscoveredMod(definition, dependencies, source);
-                if (!declarations.TryAdd(metadata.Id, declared))
+                var manifest = ReadMetadata(source, serializer, cancellationToken, legacyMetadataOnly, disabledIds, out string id);
+                if (!firstPaths.TryAdd(id, entry))
                 {
-                    if (!duplicatePaths.TryGetValue(metadata.Id, out var paths))
-                        duplicatePaths.Add(metadata.Id, paths = [declarations[metadata.Id].Definition.Directory]);
+                    if (!duplicatePaths.TryGetValue(id, out var paths))
+                        duplicatePaths.Add(id, paths = [firstPaths[id]]);
                     paths.Add(entry);
                     continue;
                 }
+                if (manifest is not { } active) continue;
+                var (metadata, dependencies) = active;
+                var definition = new ModDefinition(metadata, entry);
+                var declared = new DiscoveredMod(definition, dependencies, source);
+                declarations.Add(id, declared);
                 if (metadata.ContentOnly)
                 {
                     if (linked)
@@ -205,7 +258,7 @@ public class ModsRegistry : IModsRegistry
             Array.AsReadOnly(declarations.Keys.Order(StringComparer.Ordinal).ToArray()),
             Array.AsReadOnly(diagnostics.Order(StringComparer.Ordinal).ToArray()),
             Array.AsReadOnly(scripted.OrderBy(mod => mod.MetaData.Id, StringComparer.Ordinal).ToArray()), linkedRoot,
-            declarations.ToFrozenDictionary(StringComparer.Ordinal));
+            declarations.ToFrozenDictionary(StringComparer.Ordinal), disabledIds ?? FrozenSet<string>.Empty);
     }
 
     private static string[] ReadModEntries(string directory, List<string> diagnostics, out string? linkedRoot)
@@ -237,8 +290,8 @@ public class ModsRegistry : IModsRegistry
         }
     }
 
-    private static (ModMetaData, ModDependencyManifest) ReadMetadata(string directory, JsonSerializer serializer,
-        CancellationToken cancellationToken, bool legacyMetadataOnly)
+    private static (ModMetaData, ModDependencyManifest)? ReadMetadata(string directory, JsonSerializer serializer,
+        CancellationToken cancellationToken, bool legacyMetadataOnly, FrozenSet<string>? disabledIds, out string id)
     {
         string path = Path.Combine(directory, "mod_info.json");
         byte[] metadata = (legacyMetadataOnly ? ReadLegacyMetadata(path, cancellationToken) : ContentCaptureFiles.ReadMetadata(path, cancellationToken))
@@ -256,6 +309,21 @@ public class ModsRegistry : IModsRegistry
             if (json.SawDependencyProperty)
                 _ = ModDependencyManifest.Parse(json.ObservedId ?? "<unknown>", ReadCompletedDependency(metadata));
             throw;
+        }
+        JsonReaderException? trailingError = null;
+        if (disabledIds is { Count: > 0 } && ReadManifestId(document) is { } manifestId && disabledIds.Contains(manifestId))
+        {
+            try
+            {
+                while (json.Read()) { }
+                id = manifestId;
+                return null;
+            }
+            catch (JsonReaderException error)
+            {
+                // A syntactically broken manifest still follows the existing error precedence.
+                trailingError = error;
+            }
         }
         if (json.DuplicatePath is { } duplicate)
             throw DuplicateProperty(duplicate);
@@ -276,11 +344,23 @@ public class ModsRegistry : IModsRegistry
             throw;
         }
         var dependencies = ModDependencyManifest.Parse(result.Id, document["dependencies"]);
+        if (trailingError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(trailingError);
         while (json.Read()) { } // Reject trailing values without masking an explicit dependency error.
+        id = result.Id;
         return (result, dependencies);
 
         ModDependencyException DuplicateProperty(string propertyPath) =>
             new($"Mod '{json.ObservedId ?? "<unknown>"}': Duplicate dependency property at '{propertyPath}' in '{path}'.");
+    }
+
+    private static string? ReadManifestId(JObject document)
+    {
+        // Keep legacy case-insensitive property binding and scalar-to-string conversion.
+        JToken? id = null;
+        foreach (var property in document.Properties())
+            if (string.Equals(property.Name, "id", StringComparison.OrdinalIgnoreCase)) id = property.Value;
+        return id?.Type is JTokenType.String or JTokenType.Boolean or JTokenType.Integer or JTokenType.Float
+            ? (string?)id : null;
     }
 
     // The first reader already completed this value. Replay only the bounded in-memory prefix,
@@ -416,7 +496,7 @@ public class ModsRegistry : IModsRegistry
 
 internal sealed record ModDiscoveryResult(IReadOnlyList<ModDefinition> Candidates, IReadOnlyList<string> InstalledOwnerIds,
     IReadOnlyList<string> Diagnostics, IReadOnlyList<ModDefinition> ScriptedMods, string? LinkedRoot,
-    FrozenDictionary<string, DiscoveredMod> DeclaredMods);
+    FrozenDictionary<string, DiscoveredMod> DeclaredMods, FrozenSet<string> DisabledIds);
 
 internal readonly record struct DiscoveredMod(ModDefinition Definition, ModDependencyManifest Dependencies, string? UncapturableCookedSource);
 

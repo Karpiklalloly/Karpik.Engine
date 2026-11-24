@@ -212,7 +212,8 @@ public sealed partial class ContentReloadHostTests
         var first = WithStore(firstActual!.Package, firstStore);
         var next = WithStore(nextActual!.Package, nextStore);
         var refresh = new LuaModContentRefresh(Path.Combine(tree.Root, "Mods"), AssetTarget.Server,
-            new(System.Collections.Frozen.FrozenDictionary<string, ModDependencyNode>.Empty, ModDependencyResolver.Resolve([], AssetTarget.Server), []), []);
+            new(System.Collections.Frozen.FrozenDictionary<string, ModDependencyNode>.Empty, ModDependencyResolver.Resolve([], AssetTarget.Server), []),
+            [], System.Collections.Frozen.FrozenSet<string>.Empty);
         Exception error = await Assert.ThrowsAnyAsync<Exception>(() => refresh.CaptureAsync([first, next], _ => { }, default));
         Assert.Equal((1, 1), (firstStore.Releases, nextStore.Releases));
         Assert.Contains("z-broken", error.ToString());

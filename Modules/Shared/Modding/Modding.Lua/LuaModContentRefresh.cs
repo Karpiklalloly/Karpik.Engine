@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Karpik.Content.Core;
@@ -10,16 +11,18 @@ internal sealed class LuaModContentRefresh
     private readonly string _modsDirectory;
     private readonly AssetTarget _target;
     private readonly ModStartupDependencies _startup;
+    private readonly FrozenSet<string> _disabledIds;
     private readonly Dictionary<string, string> _scripted;
     // Only the coordinator's committed package list decides which entries survive a refresh.
     private readonly ConditionalWeakTable<ModContentPackage, PackageDependencies> _dependencies = new();
 
     public LuaModContentRefresh(string modsDirectory, AssetTarget target, ModStartupDependencies startup,
-        IReadOnlyList<ModContentPackage> startupPackages)
+        IReadOnlyList<ModContentPackage> startupPackages, FrozenSet<string> disabledIds)
     {
         _modsDirectory = modsDirectory;
         _target = target;
         _startup = startup;
+        _disabledIds = disabledIds;
         _scripted = startup.ScriptedMods.ToDictionary(static mod => mod.MetaData.Id, static mod => mod.Directory, StringComparer.Ordinal);
         foreach (var package in startupPackages)
         {
@@ -35,7 +38,7 @@ internal sealed class LuaModContentRefresh
         string modsDirectory = _modsDirectory;
         AssetTarget target = _target;
         var scripted = _scripted;
-        ModDiscoveryResult discovery = ModsRegistry.DiscoverAt(modsDirectory, target, cancellation);
+        ModDiscoveryResult discovery = ModsRegistry.DiscoverAt(modsDirectory, target, cancellation, _disabledIds);
         if (discovery.Diagnostics.Count != 0)
             throw new InvalidDataException(string.Join(Environment.NewLine, discovery.Diagnostics));
 
