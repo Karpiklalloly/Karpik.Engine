@@ -516,6 +516,106 @@ public sealed class ModDiscoveryTests
         Assert.Empty(removed.Candidates);
     }
 
+    [Fact]
+    public async Task ModActivation_ReadsSelectionFromInjectedRootAndSkipsDisabledPayloadAndDeclarations()
+    {
+        using var tree = new ModTree();
+        tree.WriteMod("invalid-dependencies", """{"id":"patch","dependencies":null}""");
+        string invalidPayload = tree.WriteMod("invalid-payload", """{"id":"broken","contentOnly":true}""");
+        File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(invalidPayload, "Shared")).FullName, "main.lua"), "not Lua");
+        tree.WriteMod("case-control", """{"id":"Patch"}""");
+        File.WriteAllText(Path.Combine(tree.Root, "mods.json"), """{"disabled":["patch","patch","broken","absent"]}""");
+        var logger = new RegistryLogger();
+        var fs = tree.FromRoot(() => new PhysicalFileSystem());
+        var registry = new ModsRegistry(logger: logger, fileSystem: fs);
+
+        await registry.Scan(ExecutionSide.Server);
+
+        Assert.Equal("Patch", Assert.Single(registry.GetMods()).MetaData.Id);
+        Assert.Equal(["Patch"], registry.StartupDiscovery.InstalledOwnerIds);
+        Assert.Equal("Patch", Assert.Single(registry.StartupDiscovery.Candidates).MetaData.Id);
+        Assert.Empty(logger.Errors);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{}")]
+    [InlineData("{\"disabled\":null}")]
+    [InlineData("{\"disabled\":[1]}")]
+    [InlineData("{\"disabled\":[\" \"]}")]
+    [InlineData("{\"disabled\":[],\"disabled\":[]}")]
+    [InlineData("{\"disabled\":[],\"other\":true}")]
+    [InlineData("{\"disabled\":[]} {}")]
+    [InlineData(null)]
+    public async Task ModActivation_RejectsInvalidSelectionBeforePublishingDiscovery(string? json)
+    {
+        using var tree = new ModTree();
+        tree.WriteMod("active", """{"id":"active"}""");
+        string path = Path.Combine(tree.Root, "mods.json");
+        if (json is null) Directory.CreateDirectory(path);
+        else File.WriteAllText(path, json);
+        var registry = tree.CreateRegistry();
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(async () => await registry.Scan(ExecutionSide.Server));
+
+        Assert.Contains(path, error.Message);
+        Assert.Throws<InvalidOperationException>(() => registry.GetMods());
+        if (json is null) Directory.Delete(path);
+        File.WriteAllText(path, """{"disabled":[]}""");
+        await registry.Scan(ExecutionSide.Server);
+        Assert.Equal("active", Assert.Single(registry.GetMods()).MetaData.Id);
+    }
+
+    [Theory]
+    [InlineData("{\"id\":\"old\",\"ID\":\"new\"}")]
+    [InlineData("{\"ID\":\"old\",\"id\":\"new\",\"ID\":\"updated\"}")]
+    [InlineData("{\"id\":123}")]
+    public async Task ModActivation_UsesSameIdAsLegacyManifestBinding(string manifest)
+    {
+        using var tree = new ModTree();
+        tree.WriteMod("folder", manifest);
+        var original = tree.CreateRegistry();
+        await original.Scan(ExecutionSide.Server);
+        string id = Assert.Single(original.GetMods()).MetaData.Id;
+        File.WriteAllText(Path.Combine(tree.Root, "mods.json"),
+            System.Text.Json.JsonSerializer.Serialize(new { disabled = new[] { id } }));
+        var selected = tree.CreateRegistry();
+
+        await selected.Scan(ExecutionSide.Server);
+
+        Assert.Empty(selected.GetMods());
+    }
+
+    [Theory]
+    [InlineData("{\"dependencies\":null,\"id\":\"dup\"}")]
+    [InlineData("{\"dependencies\":{},\"dependencies\":null,\"ID\":\"dup\"}")]
+    public async Task ModActivation_RejectsDuplicateIdsEvenWhenDisabled(string first)
+    {
+        using var tree = new ModTree();
+        string pathA = tree.WriteMod("first", first);
+        string pathB = tree.WriteMod("second", """{"id":"dup"}""");
+        File.WriteAllText(Path.Combine(tree.Root, "mods.json"), """{"disabled":["dup"]}""");
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await tree.CreateRegistry().Scan(ExecutionSide.Server));
+
+        Assert.Contains("Duplicate mod id 'dup'", error.Message);
+        Assert.Contains(pathA, error.Message);
+        Assert.Contains(pathB, error.Message);
+    }
+
+    [Fact]
+    public async Task ModActivation_DoesNotHideMalformedDependencyJsonOfDisabledMod()
+    {
+        using var tree = new ModTree();
+        string path = tree.WriteMod("disabled", """{"id":"disabled","dependencies" {}}""");
+        File.WriteAllText(Path.Combine(tree.Root, "mods.json"), """{"disabled":["disabled"]}""");
+
+        var error = await Assert.ThrowsAsync<ModDependencyException>(async () => await tree.CreateRegistry().Scan(ExecutionSide.Server));
+
+        Assert.Contains(path, error.Message);
+        Assert.Contains("dependencies", error.Message);
+    }
+
     private sealed class RegistryLogger : ILogger<IModsRegistry>
     {
         public List<string> Errors { get; } = [];

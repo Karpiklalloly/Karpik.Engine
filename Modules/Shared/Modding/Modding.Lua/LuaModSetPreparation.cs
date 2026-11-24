@@ -112,7 +112,7 @@ public sealed class LuaModSetPreparation(IModsRegistry registry, Application app
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
-        _refresh = new LuaModContentRefresh(mods.ModsDirectoryPath, ContentSide, startup, packages);
+        _refresh = new LuaModContentRefresh(mods.ModsDirectoryPath, ContentSide, startup, packages, mods.StartupDiscovery.DisabledIds);
         mods.PublishStartupDependencies(startup);
     }
 
