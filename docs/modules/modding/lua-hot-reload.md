@@ -80,4 +80,22 @@ Custom host, считающий dt по wall clock, использует вир�
 
 `LastCodeReloadMetrics` — согласованный snapshot последней операции: PauseSeconds, PreparationSeconds, CommitSeconds, RetirementSeconds и ProcessAllocatedBytes. Allocation — process-wide delta, включая конкурентную работу и instrumentation; это не бюджет одного потока. Quiescing/очередь учитываются отдельно при внешнем wall-clock measurement. Пиковая память/threads — отдельные probes; [команды](../../../plans/probes/lua-hot-reload/README.md).
 
-Не заявляются network/save integration, миграции, NativeAOT, editor UI/watcher, hot reload CLR-assembly или ограничение времени исполнения Lua.
+Этот локальный API не выполняет сетевое согласование или миграции. Сетевой состав блокирует односторонний вызов.
+
+## Согласованный Debug reload
+
+На выделенном сервере администратор может запустить замену кода и схем **только уже активных** модов. Хост должен явно подключить координатор, прикладной drain, baseline и локальную политику разрешений. Новый Lua захватывается до исполнения; клиент без разрешённого артефакта или совместимого подготовленного отпечатка блокирует всю операцию. Скачивания нет. Пример с сервером и двумя клиентами — [headless-тест](../../../tests/Karpik.Engine.Core.Runner.Tests/ModLiveTransitionEndToEndTests.cs).
+
+Миграция меняет только затронутые пулы. В объявлении компонента с новой `version` можно указать:
+
+```lua
+migrate = { from = 1, fields = {
+    Renamed = { from = 'Previous' },
+    Wide = { from = 'Narrow', convert = 'i32_to_i64' },
+    Added = { default = 7 },
+} }
+```
+
+Старые поля, которые не меняются, копируются. Нужно точно указать принятую версию; недопустимы потеря живых данных, коллизия и сужение. В сеть попадают только поля, явно перечисленные в `wire` в Shared-объявлении. После подготовки и Commit клиенты сверяют baseline и только затем возобновляют игру. Сбой до Commit оставляет старую ревизию; после Commit хост останавливает сессию, а не откатывает одну сторону. См. [сетевой контракт](../../02_ADR/mod-live-revision-protocol.md).
+
+Disk save/restore, NativeAOT, UI/watcher, hot reload CLR и принудительное прерывание Lua этим срезом не покрыты.

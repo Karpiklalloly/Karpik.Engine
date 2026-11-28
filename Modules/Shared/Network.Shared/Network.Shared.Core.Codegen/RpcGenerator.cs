@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -72,7 +72,8 @@ public class RpcGenerator : IIncrementalGenerator
         // C. Server Dispatcher (Только в ServerApp). Наполняет partial class.
         if (projectType == ProjectTypeDetector.ProjectType.Server && allTotal.Count != 0)
         {
-            context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(GenerateServerDispatcher(allTotal), Encoding.UTF8));
+            context.AddSource("ServerCommandDispatcher.g.cs", SourceText.From(GenerateServerDispatcher(allTotal,
+                compilation.GetTypeByMetadataName("Karpik.Engine.Shared.Network.Core.RevisionGameplayEvent") is not null), Encoding.UTF8));
         }
     }
 
@@ -139,9 +140,14 @@ public class RpcGenerator : IIncrementalGenerator
             """;
     }
 
-    private static string GenerateServerDispatcher(List<CommandInfo> infos)
+    private static string GenerateServerDispatcher(List<CommandInfo> infos, bool stampRevision)
     {
         var cases = new StringBuilder();
+        var enqueue = stampRevision
+            ? "RevisionGameplayEvent.Enqueue(_eventWorld, _stamps, cmd, reader.GameplayRevision);"
+            : "_eventWorld.SendEvent(cmd);";
+        var stampField = stampRevision ? "private readonly EcsPool<RevisionGameplayStamp> _stamps;" : "";
+        var stampInit = stampRevision ? "_stamps = eventWorld.GetPool<RevisionGameplayStamp>();" : "";
         foreach (var cmd in infos.OrderBy(x => x.Id))
         {
             var r = new StringBuilder();
@@ -151,7 +157,7 @@ public class RpcGenerator : IIncrementalGenerator
                         case {{cmd.Id}}: // {{cmd.FullName}}
                         {
                             var cmd = new {{cmd.FullName}}();
-            {{r}}                    _eventWorld.SendEvent(cmd);
+            {{r}}                    {{enqueue}}
                             break;
                         }
             """);
@@ -170,10 +176,12 @@ public class RpcGenerator : IIncrementalGenerator
                 public partial class {{ServerDispatcherClass}}
                 {
                     private readonly EcsEventWorld _eventWorld;
+                    {{stampField}}
 
                     public {{ServerDispatcherClass}}(EcsEventWorld eventWorld)
                     {
                         _eventWorld = eventWorld;
+                        {{stampInit}}
                     }
 
                     public void Dispatch(int playerEntity, IReader reader)

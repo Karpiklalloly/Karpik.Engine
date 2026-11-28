@@ -290,6 +290,167 @@ public sealed class NetworkSnapshotGeneratorTests
         Assert.Equal(0, allocated);
     }
 
+    [Fact]
+    public void Generated_rpc_dispatch_stamps_deferred_ecs_event_before_application_consumes_it()
+    {
+        var result = GeneratorTestHarness.Run(new RpcGenerator(), RevisionRpcProbe,
+            assemblyName: "AnyGame.Server.RevisionRpcProbe", side: "Server",
+            additionalReferences: GeneratorTestHarness.RealSnapshotReferences.Concat([
+                GeneratorTestHarness.AssemblyReference<Karpik.Engine.Shared.DragonECS.IEcsComponentEvent>(),
+            ]));
+        Assert.Contains("RevisionGameplayEvent.Enqueue", result.GeneratedSources["ServerCommandDispatcher.g.cs"], StringComparison.Ordinal);
+        result.AssertNoErrors();
+        var probe = GeneratorTestHarness.EmitAndLoad(result).GetType("RevisionRpcProbe", throwOnError: true)!;
+        Assert.True((bool)probe.GetMethod("Run", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, null)!);
+    }
+
+    private static readonly string RevisionRpcProbe = """
+        using System;
+        using System.Drawing;
+        using DCFApixels.DragonECS;
+        using Karpik.Engine.Generated;
+        using Karpik.Engine.Shared.Extensions;
+        using Karpik.Engine.Shared.Network.Core;
+
+        public struct ProbeCommand : IEventCommand
+        {
+            public int Source { get; set; }
+            public int Target { get; set; }
+            public int Value;
+        }
+
+        public static class RevisionRpcProbe
+        {
+            private sealed class Aspect : EcsAspect { public EcsPool<ProbeCommand> Commands = Inc; }
+            public static bool Run()
+            {
+                var world = new EcsEventWorld();
+                var rpc = new Rpc();
+                rpc.Probe(new ProbeCommand { Value = 42 });
+                rpc.Buffer.Rewind();
+                if (rpc.Buffer.GetByte() != (byte)PacketType.Command) return false;
+                new CommandDispatcher(world).Dispatch(5, rpc.Buffer);
+                var pending = world.Where(out Aspect aspect);
+                var stamps = world.GetPool<RevisionGameplayStamp>();
+                if (pending.Count != 1 || !RevisionGameplayEvent.IsCurrent(stamps, pending[0], 31) ||
+                    RevisionGameplayEvent.IsCurrent(stamps, pending[0], 32)) return false;
+                return aspect.Commands.Get(pending[0]).Value == 42;
+            }
+            private sealed class Rpc : IRpc
+            {
+                public BufferCodec Buffer = new(128) { GameplayRevision = 31 };
+                public IWriter GetWriter() => Buffer;
+                public void Send(DeliveryMethod method) { }
+            }
+        }
+        """ + SnapshotProbeSource[SnapshotProbeSource.IndexOf("public sealed class BufferCodec", StringComparison.Ordinal)..];
+
+    [Fact]
+    public void Generated_revision_baseline_validates_before_reconciling_owned_incarnations_and_fields()
+    {
+        var result = GeneratorTestHarness.Run(new NetworkGenerator(), RevisionBaselineProbe,
+            assemblyName: "AnyGame.Shared.RevisionBaselineProbe",
+            additionalReferences: GeneratorTestHarness.RealSnapshotReferences);
+        Assert.Contains("IRevisionReplicaProjection", result.SnapshotSource, StringComparison.Ordinal);
+        result.AssertNoErrors();
+        var probe = GeneratorTestHarness.EmitAndLoad(result).GetType("RevisionBaselineProbe", throwOnError: true)!;
+        var failure = probe.GetMethod("Run", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, null);
+        Assert.Null(failure);
+    }
+
+    private const string RevisionBaselineProbe = """
+        using System;
+        using DCFApixels.DragonECS;
+        using Karpik.Engine.Generated;
+        using Karpik.Engine.Shared.Network.Core;
+
+        [NetworkedComponent]
+        public struct Position : IEcsComponent
+        {
+            [NetworkedField] public int X;
+            public int LocalValue;
+        }
+        [NetworkedComponent]
+        public struct Removed : IEcsComponent { [NetworkedField] public int Value; }
+        public struct ModField : IEcsComponent { public int Projected; public int Private; }
+        public struct ClientOnly : IEcsComponent { public int Sentinel; }
+
+        public sealed class TestModProjection(long hash) : IRevisionReplicaProjection
+        {
+            public long SchemaHash => hash;
+            public void Write(EcsWorld world, int entity, IWriter writer)
+            {
+                var pool = world.GetPool<ModField>();
+                writer.Put(pool.Has(entity));
+                if (pool.Has(entity)) writer.Put(pool.Get(entity).Projected);
+            }
+            public void Validate(IReader reader) { if (reader.GetBool()) _ = reader.GetInt(); }
+            public void Apply(EcsWorld world, int entity, IReader reader)
+            {
+                var pool = world.GetPool<ModField>();
+                if (reader.GetBool()) pool.TryAddOrGet(entity).Projected = reader.GetInt();
+                else pool.TryDel(entity);
+            }
+        }
+
+        public static class RevisionBaselineProbe
+        {
+            public static string Run()
+            {
+                var s = new EcsWorld();
+                var c = new EcsWorld();
+                var projection = new NetworkSnapshotRegistry();
+                // Position and Removed each use 5 bytes; referenced Transform2D uses 1 + 16 + 4 + 8.
+                if (((IRevisionReplicaProjection)projection).MaximumRowBytes != 39) return "Generated bound omits presence bytes or fields.";
+                var sender = new RevisionReplicaBaseline(s, 4, projection, new TestModProjection(808));
+                var receiver = new RevisionReplicaBaseline(c, 4, projection, new TestModProjection(808));
+                var otherSchema = new RevisionReplicaBaseline(c, 4, projection, new TestModProjection(809));
+                int a = s.NewEntity(), b = s.NewEntity();
+                s.GetPool<Position>().Add(a).X = 101;
+                s.GetPool<Position>().Add(b).X = 202;
+                s.GetPool<ModField>().Add(a).Projected = 301;
+                s.GetPool<ModField>().Get(a).Private = -100;
+
+                int survivor = Existing(c, 7, 1, 4), oldIncarnation = Existing(c, 8, 1, 4), absent = Existing(c, 9, 1, 4);
+                int differentStream = Existing(c, 7, 99, 5), local = c.NewEntity();
+                var oldHandle = c.GetEntityLong(oldIncarnation);
+                c.GetPool<NetworkId>().Add(local).Id = 7; // network-looking data is not ownership
+                c.GetPool<ClientOnly>().Add(local).Sentinel = 42;
+                c.GetPool<Position>().Add(survivor).LocalValue = 54;
+                c.GetPool<Removed>().Add(survivor).Value = 63;
+                c.GetPool<ModField>().Add(survivor).Private = 88;
+
+                if (!sender.TryCapture([new(a, 7, 1), new(b, 8, 2)], 32)) return "capture";
+                var bytes = sender.Encoded.ToArray();
+                if (sender.TryCapture([new(a, 7, 1), new(b, 7, 2)], 32)) return "duplicate numeric identity";
+                if (receiver.TryApply(bytes.AsMemory(0, bytes.Length - 1), 32) ||
+                    receiver.TryApply(new byte[RevisionReplicaBaseline.MaxBytes + 1], 32) ||
+                    receiver.TryApply(bytes, 31) || otherSchema.TryApply(bytes, 32)) return "invalid baseline accepted";
+                if (!c.GetPool<Removed>().Has(survivor) || !oldHandle.IsAlive || !c.GetEntityLong(absent).IsAlive ||
+                    c.GetPool<Position>().Get(survivor).X != 0 || c.GetPool<ModField>().Get(survivor).Projected != 0)
+                    return "invalid baseline published partial changes";
+                if (!receiver.TryApply(bytes, 32)) return "valid baseline rejected";
+                if (!receiver.TryFind(7, 1, out var same) || same != survivor || c.GetPool<Removed>().Has(survivor) ||
+                    c.GetPool<Position>().Get(survivor).LocalValue != 54 || c.GetPool<Position>().Get(survivor).X != 101 ||
+                    c.GetPool<ModField>().Get(survivor).Private != 88 || c.GetPool<ModField>().Get(survivor).Projected != 301)
+                    return "survivor or component absence";
+                if (receiver.TryFind(8, 1, out _) || !receiver.TryFind(8, 2, out var replacement) ||
+                    oldHandle.IsAlive || c.GetPool<Position>().Get(replacement).X != 202 || receiver.TryFind(9, 1, out _))
+                    return "replacement/absence";
+                if (!c.GetEntityLong(differentStream).IsAlive || c.GetPool<ClientOnly>().Get(local).Sentinel != 42)
+                    return "foreign or local-only entity changed";
+                return null;
+            }
+
+            private static int Existing(EcsWorld world, int id, long incarnation, long stream)
+            {
+                var entity = world.NewEntity();
+                world.GetPool<NetworkReplica>().Add(entity) = new NetworkReplica { Stream = stream, Id = id, Incarnation = incarnation };
+                return entity;
+            }
+        }
+        """;
+
     private static string ComponentSource(string ns, string name) => $$"""
         using DCFApixels.DragonECS;
         using Karpik.Engine.Shared.Network.Core;
@@ -409,6 +570,7 @@ public sealed class NetworkSnapshotGeneratorTests
             private readonly byte[] _buffer;
             private int _position;
             public BufferCodec(int capacity) => _buffer = new byte[capacity];
+            public long GameplayRevision { get; set; }
             public int AvailableBytes => _buffer.Length - _position;
             public void Reset() => _position = 0;
             public void Rewind() => _position = 0;

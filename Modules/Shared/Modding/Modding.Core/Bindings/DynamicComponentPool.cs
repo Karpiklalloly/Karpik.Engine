@@ -7,11 +7,14 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandCompo
     private int[] _mapping;
     private int[] _entities;
     private IColumn[] _columns;
+    private readonly Dictionary<string, List<IColumn>> _fieldColumns = new(StringComparer.Ordinal);
     private int _count;
+    internal ComponentSchema Schema { get; }
 
     internal DynamicComponentPool(DynamicComponentStorage storage, ComponentSchema schema, int worldCapacity, int initialCapacity)
     {
         _storage = storage;
+        Schema = schema;
         _mapping = new int[worldCapacity]; Array.Fill(_mapping, -1);
         int capacity = 1;
         while (capacity < initialCapacity) capacity = checked(capacity * 2);
@@ -100,13 +103,51 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandCompo
     internal void ResizeMapping(int newSize)
     {
         int previous = _mapping.Length;
+        if (previous == newSize) return;
         Array.Resize(ref _mapping, newSize);
         Array.Fill(_mapping, -1, previous, newSize - previous);
+    }
+
+    // The destination is detached. Copy dense membership without calling Add/Del or touching Dragon anchors.
+    internal void CopyRowsFrom(DynamicComponentPool source, ComponentFieldTransfer[] transfers, CancellationToken cancellationToken)
+    {
+        int count = source._count;
+        if (count == 0) return;
+        if (_entities.Length < count)
+        {
+            int capacity = _entities.Length;
+            while (capacity < count) capacity = checked(capacity * 2);
+            _entities = new int[capacity];
+            foreach (var column in _columns) column.Resize(capacity);
+        }
+        source._entities.AsSpan(0, count).CopyTo(_entities);
+        for (int row = 0; row < count; row++) _mapping[_entities[row]] = row;
+        foreach (var (targetName, rule) in transfers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var target = _fieldColumns[targetName];
+            if (rule.Source is not { } sourceName)
+            {
+                target[0].FillRows(rule.DefaultValue!, count);
+                continue;
+            }
+            var previous = source._fieldColumns[sourceName];
+            if (rule.WidenI32)
+            {
+                Span<int> from = ((Column<int>)previous[0]).Rows(count);
+                Span<long> into = ((Column<long>)target[0]).Rows(count);
+                for (int row = 0; row < count; row++) into[row] = from[row];
+                continue;
+            }
+            for (int i = 0; i < target.Count; i++) target[i].CopyRows(previous[i], count);
+        }
+        _count = count;
     }
 
     internal void Clear()
     {
         foreach (var column in _columns) column.Clear();
+        _fieldColumns.Clear();
         _mapping = []; _entities = []; _columns = []; _count = 0;
     }
 
@@ -128,6 +169,9 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandCompo
         {
             existing = new Column<T>(this, capacity, leaf.Width, pointers, pointerType);
             columns.Add(leaf.ColumnKey, existing);
+            string root = leaf.Path[0].Name!;
+            if (!_fieldColumns.TryGetValue(root, out var group)) _fieldColumns.Add(root, group = []);
+            group.Add(existing);
         }
         var column = (Column<T>)existing;
         IComponentField<T> accessor = leaf.Width == 1 ? column : new OffsetField<T>(column, leaf.Offset);
@@ -142,6 +186,8 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandCompo
         void Resize(int capacity);
         void Reset(int index);
         void Move(int from, int to);
+        void CopyRows(IColumn source, int count);
+        void FillRows(object value, int count);
         void Clear();
     }
 
@@ -174,6 +220,9 @@ internal sealed class DynamicComponentPool : IComponentPoolAccess, ICommandCompo
             _values.AsSpan(checked(from * width), width).CopyTo(_values.AsSpan(checked(to * width), width));
             Reset(from);
         }
+        internal Span<T> Rows(int count) => _values.AsSpan(0, checked(count * width));
+        public void CopyRows(IColumn source, int count) => ((Column<T>)source).Rows(count).CopyTo(Rows(count));
+        public void FillRows(object value, int count) => Rows(count).Fill((T)value);
         public void Clear() => _values = [];
     }
 

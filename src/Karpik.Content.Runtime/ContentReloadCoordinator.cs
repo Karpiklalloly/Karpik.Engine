@@ -23,6 +23,7 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
     private bool _baseFirst;
     private Request? _active;
     private Publication? _ready;
+    private ContentAssetChange[]? _externalChanges;
     private Exception? _failure;
     private int _stopping;
     private int _publishedCount;
@@ -60,7 +61,7 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
             var failure = Failure;
             if (_stopping != 0 || failure != null)
                 return Task.FromResult(new ContentReloadResult(ContentReloadOutcome.Failed, failure?.Message ?? "Content reload is stopping."));
-            if (_pendingMod != null || IsModPreparing())
+            if (HasExternalReservation() || _pendingMod != null || IsModPreparing())
                 return Task.FromResult(new ContentReloadResult(ContentReloadOutcome.Busy));
 
             var request = new ModRequest(capture, report);
@@ -70,6 +71,35 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
             return request.Result.Task;
         }
     }
+
+    /// <summary>Stage an ordered mod layer on the cold worker. Returns null if another update or handoff owns the coordinator.</summary>
+    /// <remarks>
+    /// The capture has the same ownership contract as EnqueueModRefreshAsync. Cancellation and stop can prevent readiness;
+    /// once ready, only the host can commit or abort. Settle the token before awaiting coordinator disposal.
+    /// </remarks>
+    public Task<PreparedModUpdate?> PrepareModUpdateAsync(ModContentRefreshCapture capture,
+        Action<ContentDiagnostic>? report = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(capture);
+        lock (_sync)
+        {
+            if (_stopping != 0 || Failure != null)
+                return Task.FromException<PreparedModUpdate?>(new InvalidOperationException("Content reload is stopping or has failed.", Failure));
+            if (cancellationToken.IsCancellationRequested) return Task.FromCanceled<PreparedModUpdate?>(cancellationToken);
+            if (_active != null || _pendingBase != null || _pendingMod != null || Volatile.Read(ref _externalChanges) != null)
+                return Task.FromResult<PreparedModUpdate?>(null);
+
+            var request = new ExternalModRequest(capture, report, cancellationToken);
+            _pendingMod = request;
+            _wake.Release();
+            return request.Prepared.Task;
+        }
+    }
+
+    // Called under _sync; normal admission resumes after the host decision, while the worker still serializes retirement.
+    private bool HasExternalReservation() => _pendingMod is ExternalModRequest ||
+        (_active is ExternalModRequest external && (external.Token == null ||
+            Volatile.Read(ref external.Token.State) is Publication.Waiting or Publication.Committing));
 
     private bool IsModPreparing()
     {
@@ -97,7 +127,7 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         lock (_sync)
         {
             var failure = Failure;
-            accepted = _stopping == 0 && failure == null;
+            accepted = _stopping == 0 && failure == null && !HasExternalReservation();
             if (accepted)
             {
                 superseded = _pendingBase;
@@ -105,6 +135,7 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
                 _baseFirst = false; // Replacement also appends after any pending mod.
                 if (superseded == null) _wake.Release();
             }
+            else if (_stopping == 0 && failure == null) request.Finish(ContentReloadOutcome.Busy);
             else request.Finish(ContentReloadOutcome.Failed, failure?.Message ?? "Content reload is stopping.");
         }
         if (!accepted) Release(request);
@@ -119,18 +150,37 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
     /// <summary>No allocation, wait, lock, I/O or completion callbacks. Call once at a quiescent simulation boundary.</summary>
     public bool PublishBoundary()
     {
+        if (Volatile.Read(ref _externalChanges) is { } externalChanges)
+        {
+            PublishChanges(externalChanges, externalChanges.Length);
+            Volatile.Write(ref _externalChanges, null);
+            return false; // The host already committed; do not let an automatic update overwrite this frame's span.
+        }
+
         Volatile.Write(ref _publishedCount, 0);
         var ready = Volatile.Read(ref _ready);
         if (ready == null || Volatile.Read(ref _stopping) != 0 ||
             Interlocked.CompareExchange(ref ready.State, Publication.Committing, Publication.Waiting) != Publication.Waiting) return false;
         bool committed = _registry.TryCommit(ready.Update);
-        if (committed)
-        {
-            Array.Copy(_staged, _published, ready.Count);
-            Volatile.Write(ref _publishedCount, ready.Count);
-            if (ready.Count != 0) Interlocked.Increment(ref _sequence);
-        }
+        if (committed) PublishChanges(_staged, ready.Count);
         Volatile.Write(ref ready.State, committed ? Publication.Committed : Publication.Rejected);
+        return committed;
+    }
+
+    private void PublishChanges(ContentAssetChange[] changes, int count)
+    {
+        if (count != 0) Array.Copy(changes, _published, count);
+        Volatile.Write(ref _publishedCount, count);
+        if (count != 0) Interlocked.Increment(ref _sequence);
+    }
+
+    private bool TryCommitExternal(PreparedModUpdate prepared)
+    {
+        if (Interlocked.CompareExchange(ref prepared.State, Publication.Committing, Publication.Waiting) != Publication.Waiting)
+            return false;
+        bool committed = _registry.TryCommit(prepared.Update);
+        if (committed) Volatile.Write(ref _externalChanges, prepared.Changes);
+        Volatile.Write(ref prepared.State, committed ? Publication.Committed : Publication.Rejected);
         return committed;
     }
 
@@ -143,9 +193,14 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
             if (_stopping != 0) return;
             Volatile.Write(ref _stopping, 1);
             _pendingBase?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
-            _pendingMod?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
+            if (_pendingMod is ExternalModRequest queuedExternal) queuedExternal.Prepared.TrySetCanceled();
+            else _pendingMod?.Finish(ContentReloadOutcome.Failed, StoppedBeforeApplication);
             var ready = Volatile.Read(ref _ready);
-            if (ready != null && ReferenceEquals(ready.Request, _active))
+            if (_active is ExternalModRequest)
+            {
+                // Cancel preparation below, but only the host can settle a Ready reservation.
+            }
+            else if (ready != null && ReferenceEquals(ready.Request, _active))
             {
                 int state = Interlocked.CompareExchange(ref ready.State, Publication.Aborted, Publication.Waiting);
                 if (state == Publication.Waiting)
@@ -230,24 +285,43 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
     {
         PreparedContentUpdate? update = null;
         Publication? publication = null;
+        var external = request as ExternalModRequest;
+        Exception? preparationFailure = null;
         try
         {
             if (Failure is { } prior) throw new InvalidOperationException("Previous Content retirement failed.", prior);
-            var cancellation = _stop.Token;
+            using var linked = external?.Cancellation.CanBeCanceled == true
+                ? CancellationTokenSource.CreateLinkedTokenSource(_stop.Token, external.Cancellation) : null;
+            var cancellation = linked?.Token ?? _stop.Token;
             cancellation.ThrowIfCancellationRequested();
             if (request is ModRequest mod)
             {
-                var batch = await mod.Capture(_registry.CommittedSnapshot.Packages, cancellation).ConfigureAwait(false);
+                IReadOnlyList<ModContentCapture>? captures = null;
                 Exception? releaseFailure = null;
                 try
                 {
-                    cancellation.ThrowIfCancellationRequested();
-                    update = await _registry.PrepareModUpdateAsync(batch.Packages, batch.InstalledModIds, mod.Report, cancellation).ConfigureAwait(false);
+                    if (external != null)
+                        update = await _registry.PrepareModUpdateAsync(CaptureReserved, mod.Report, cancellation).ConfigureAwait(false);
+                    else
+                    {
+                        var batch = await mod.Capture(_registry.CommittedSnapshot.Packages, cancellation).ConfigureAwait(false);
+                        captures = batch.Captures;
+                        cancellation.ThrowIfCancellationRequested();
+                        update = await _registry.PrepareModUpdateAsync(batch.Packages, batch.InstalledModIds, mod.Report, cancellation).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
                     // If preparation succeeded, the candidate owns every store it uses.
-                    releaseFailure = ReleaseCaptures(batch.Captures);
+                    if (captures != null) releaseFailure = ReleaseCaptures(captures);
+                }
+
+                async Task<(IReadOnlyList<ModContentPackage>, IReadOnlyCollection<string>, IReadOnlyList<ModContentCapture>)>
+                    CaptureReserved(IReadOnlyList<ModContentPackage> previous, CancellationToken ct)
+                {
+                    var batch = await mod.Capture(previous, ct).ConfigureAwait(false);
+                    captures = batch.Captures;
+                    return batch;
                 }
                 if (releaseFailure != null) throw new InvalidOperationException(releaseFailure.Message, releaseFailure);
             }
@@ -258,6 +332,19 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
                 Release(baseRequest);
             }
             int count = StageChanges(update);
+            if (external != null)
+            {
+                // Keep the handoff independent of _staged: ordinary preparation can resume after the host decision.
+                var token = new PreparedModUpdate(this, update, _staged.AsSpan(0, count).ToArray());
+                lock (_sync)
+                {
+                    if (_stopping != 0) throw new OperationCanceledException(_stop.Token);
+                    cancellation.ThrowIfCancellationRequested();
+                    external.Token = token;
+                    external.Prepared.SetResult(token);
+                }
+                return; // The finally block joins the host's decision and retirement.
+            }
             publication = new Publication(request, update, count);
             lock (_sync)
             {
@@ -276,19 +363,38 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         }
         catch (Exception error)
         {
-            request.Finish(ContentReloadOutcome.Failed, error.Message);
+            if (external != null) preparationFailure = error;
+            else request.Finish(ContentReloadOutcome.Failed, error.Message);
             update?.Dispose();
         }
         finally
         {
             // Applied is acknowledged before retirement, including when renderer claims delay cleanup.
+            Exception? retirementFailure = null;
             if (update != null)
             {
                 try { await update.Completion.ConfigureAwait(false); }
-                catch (Exception error) { Volatile.Write(ref _failure, error); }
+                catch (Exception error) { Volatile.Write(ref _failure, error); retirementFailure = error; }
             }
             if (publication != null) Interlocked.CompareExchange(ref _ready, null, publication);
             if (request is BaseRequest baseRequest) Release(baseRequest);
+            if (external != null)
+            {
+                var token = external.Token;
+                // Retirement may finish on another thread before the committing host arms the span handoff.
+                if (token != null)
+                    while (Volatile.Read(ref token.State) == Publication.Committing) await Task.Delay(1).ConfigureAwait(false);
+                lock (_sync) _active = null;
+                if (token != null)
+                {
+                    if (retirementFailure == null) token.Finished.SetResult();
+                    else token.Finished.SetException(retirementFailure);
+                }
+                else if (preparationFailure is OperationCanceledException canceled)
+                    external.Prepared.SetCanceled(canceled.CancellationToken);
+                else
+                    external.Prepared.SetException(preparationFailure!);
+            }
         }
     }
 
@@ -356,7 +462,7 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         internal readonly IContentStore Store = store;
         internal int StoreReleased;
     }
-    private sealed class ModRequest(
+    private class ModRequest(
         Func<IReadOnlyList<ModContentPackage>, CancellationToken, Task<(IReadOnlyList<ModContentPackage> Packages,
             IReadOnlyCollection<string> InstalledModIds, IReadOnlyList<ModContentCapture> Captures)>> capture,
         Action<ContentDiagnostic>? report) : Request(report)
@@ -364,6 +470,44 @@ public sealed class ContentReloadCoordinator : IContentChangeSource, IContentRel
         internal readonly Func<IReadOnlyList<ModContentPackage>, CancellationToken, Task<(IReadOnlyList<ModContentPackage> Packages,
             IReadOnlyCollection<string> InstalledModIds, IReadOnlyList<ModContentCapture> Captures)>> Capture = capture;
     }
+    private sealed class ExternalModRequest(ModContentRefreshCapture capture, Action<ContentDiagnostic>? report,
+        CancellationToken cancellation) : ModRequest(capture.Invoke, report)
+    {
+        internal readonly TaskCompletionSource<PreparedModUpdate?> Prepared = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal readonly CancellationToken Cancellation = cancellation;
+        internal PreparedModUpdate? Token;
+    }
+
+    /// <summary>One-shot publication reservation for the host's coordinated barrier.</summary>
+    public sealed class PreparedModUpdate : IDisposable
+    {
+        private readonly ContentReloadCoordinator _owner;
+        internal readonly PreparedContentUpdate Update;
+        internal readonly ContentAssetChange[] Changes;
+        internal readonly TaskCompletionSource Finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int State;
+
+        internal PreparedModUpdate(ContentReloadCoordinator owner, PreparedContentUpdate update, ContentAssetChange[] changes)
+        {
+            _owner = owner;
+            Update = update;
+            Changes = changes;
+        }
+
+        /// <summary>Await on the cold path after a decision; includes retirement and release of the worker reservation.</summary>
+        public Task Completion => Finished.Task;
+
+        /// <summary>Commit once at the host's quiescent barrier, before the first resumed PublishBoundary call.</summary>
+        public bool TryCommitAtBarrier() => _owner.TryCommitExternal(this);
+
+        /// <summary>Abort if still waiting for the host's decision. Retirement remains asynchronous.</summary>
+        public void Dispose()
+        {
+            if (Interlocked.CompareExchange(ref State, Publication.Aborted, Publication.Waiting) == Publication.Waiting)
+                Update.Dispose();
+        }
+    }
+
     private sealed class Publication(Request request, PreparedContentUpdate update, int count)
     {
         internal const int Waiting = 0, Committing = 1, Committed = 2, Rejected = 3, Aborted = 4;

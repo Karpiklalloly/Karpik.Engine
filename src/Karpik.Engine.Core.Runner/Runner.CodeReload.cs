@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Karpik.Engine.Shared.ECS.Scheduling;
+using LiveCommand = Karpik.Engine.Core.ModLiveTransition.Command;
 
 namespace Karpik.Engine.Core;
 
@@ -12,7 +13,7 @@ public partial class EngineRunner
     private sealed class MetricsSnapshot(SimulationCodeReloadMetrics value) { internal readonly SimulationCodeReloadMetrics Value = value; }
     private MetricsSnapshot _codeReloadMetrics = new(default);
     public SimulationCodeReloadMetrics LastCodeReloadMetrics => Volatile.Read(ref _codeReloadMetrics).Value;
-    private bool _localCodeReloadEnabled;
+    private bool _localCodeReloadEnabled, _networkedSimulation;
     private MainThreadScheduler? _codeReloadMainScheduler;
     private ISimulationCodeReloadParticipant? _codeReloadParticipant;
     private ISimulationCodeReloadBoundary? _codeReloadBoundary;
@@ -23,6 +24,8 @@ public partial class EngineRunner
     private readonly object _codeReloadRequestGate = new(); // explicit requests/shutdown only, never frame execution
     private CancellationTokenSource? _codeReloadCancellation;
     private Task<SimulationCodeReloadResult>? _codeReloadTask;
+    private int _codeReloadCaptureCount;
+    private TaskCompletionSource? _codeReloadCaptureDrain;
 
     public bool LocalCodeReloadEnabled => _localCodeReloadEnabled;
     public bool IsCodeReloading => Volatile.Read(ref _codeReloadBusy) != 0;
@@ -50,37 +53,64 @@ public partial class EngineRunner
     {
         lock (_codeReloadRequestGate)
         {
-            if (IsCodeReloading) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Busy));
-            if (!_localCodeReloadEnabled) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
-            if (_pipeline is null || _setupPending || _codeReloadMainScheduler is null ||
-                Volatile.Read(ref _codeReloadShuttingDown) != 0 || Volatile.Read(ref _codeReloadExecutionFault) != 0 || !_application.IsRunning)
-                return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.InvalidState));
-            if (_codeReloadParticipant is null) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
+            if (IsLiveReloadReserved || IsCodeReloading || _codeReloadCaptureCount != 0) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Busy));
+            if (!_localCodeReloadEnabled || _hostModLiveReload || _networkedSimulation
+#if DEBUG
+                || _hostSchemaReload
+#endif
+                )
+                return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
+            if (!CanStartCodeReload()) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.InvalidState));
+            if (_codeReloadParticipant is not { } participant) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Unsupported));
             if (cancellationToken.IsCancellationRequested) return Task.FromResult(new SimulationCodeReloadResult(SimulationCodeReloadStatus.Cancelled));
-            var completion = new TaskCompletionSource<SimulationCodeReloadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _codeReloadCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _codeReloadTask = completion.Task;
-            Volatile.Write(ref _codeReloadBusy, 1);
-            var cancellation = _codeReloadCancellation;
-            _ = _codeReloadMainScheduler.ScheduleAsync(async () =>
-            {
-                SimulationCodeReloadResult result;
-                try { result = await ExecuteCodeReloadAsync(cancellation.Token); }
-                catch (Exception error) { _application.Stop(); result = new(SimulationCodeReloadStatus.Faulted, error); }
-                lock (_codeReloadRequestGate)
-                {
-                    _codeReloadCancellation = null;
-                    cancellation.Dispose();
-                    Volatile.Write(ref _codeReloadBusy, 0);
-                    completion.TrySetResult(result);
-                    _codeReloadTask = null;
-                }
-            });
-            return completion.Task;
+            return StartCodeReload(async ct => await participant.PrepareReloadAsync(ct), cancellationToken);
         }
     }
 
-    private async Task<SimulationCodeReloadResult> ExecuteCodeReloadAsync(CancellationToken cancellationToken)
+    private bool CanStartCodeReload() => _pipeline is not null && !_setupPending && _codeReloadMainScheduler is not null &&
+        Volatile.Read(ref _codeReloadShuttingDown) == 0 && Volatile.Read(ref _codeReloadExecutionFault) == 0 && _application.IsRunning;
+
+    // The caller holds the request gate until the admission and its completion task are visible.
+    private Task<SimulationCodeReloadResult> StartCodeReload(Func<CancellationToken, ValueTask<ISimulationCodeReloadCandidate?>> prepare,
+        CancellationToken cancellationToken, LiveModReload? live = null)
+    {
+        var completion = new TaskCompletionSource<SimulationCodeReloadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellation = _codeReloadCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _codeReloadTask = completion.Task;
+        Volatile.Write(ref _codeReloadBusy, 1);
+        _ = _codeReloadMainScheduler!.ScheduleAsync(async () =>
+        {
+            SimulationCodeReloadResult result;
+            try { result = await ExecuteCodeReloadAsync(prepare, live, cancellation.Token); }
+            catch (Exception error) { _application.Stop(); result = new(SimulationCodeReloadStatus.Faulted, error); }
+            lock (_codeReloadRequestGate)
+            {
+                if (live is not null)
+                {
+                    if (live.FailStopped) result = new(SimulationCodeReloadStatus.Faulted, result.Error);
+                    if (result.Status == SimulationCodeReloadStatus.Faulted)
+                    {
+                        Volatile.Write(ref _codeReloadShuttingDown, 1);
+                        _application.Stop();
+                    }
+                    if (result.Status == SimulationCodeReloadStatus.Success) _liveModRevision = live.Operation.Target;
+                    live.ReadySource.TrySetResult(result);
+                    live.CommittedSource.TrySetResult(result);
+                    _liveModReload = null;
+                }
+                _codeReloadCancellation = null;
+                cancellation.Dispose();
+                _codeReloadTask = null;
+                Volatile.Write(ref _codeReloadBusy, 0);
+                completion.TrySetResult(result);
+            }
+        });
+        return completion.Task;
+    }
+
+    private async Task<SimulationCodeReloadResult> ExecuteCodeReloadAsync(
+        Func<CancellationToken, ValueTask<ISimulationCodeReloadCandidate?>> prepare, LiveModReload? live,
+        CancellationToken cancellationToken)
     {
         var main = _codeReloadMainScheduler!;
         ISimulationCodeReloadCandidate? candidate = null;
@@ -105,44 +135,11 @@ public partial class EngineRunner
             await main.InvokeAsync(() => { _fixedRunTicker.PauseForMaintenance(); tickerPaused = true; pauseStarted = Stopwatch.GetTimestamp(); });
             preparing = true;
             preparationStarted = Stopwatch.GetTimestamp();
-            var preparation = await main.InvokeAsync(() => _codeReloadParticipant!.PrepareReloadAsync(cancellationToken));
+            var preparation = await main.InvokeAsync(() => prepare(cancellationToken));
             candidate = await preparation;
-            await main.InvokeAsync(() =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var systems = new ISystemUpdate[_codeReloadStableSystems.Length + candidate.Systems.Length];
-                var descriptors = new EcsUpdateSystemDescriptor[_codeReloadStableDescriptors.Length + candidate.Descriptors.Length];
-                _codeReloadStableSystems.CopyTo(systems, 0);
-                candidate.Systems.Span.CopyTo(systems.AsSpan(_codeReloadStableSystems.Length));
-                _codeReloadStableDescriptors.CopyTo(descriptors, 0);
-                candidate.Descriptors.Span.CopyTo(descriptors.AsSpan(_codeReloadStableDescriptors.Length));
-                preparedScheduler = new EcsUpdateScheduler();
-                preparedScheduler.InitializeInstances(systems, descriptors, UpdateSchedulerMode);
-                candidate.PrepareActivation(cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                preparationTicks = Stopwatch.GetTimestamp() - preparationStarted;
-                preparationStarted = 0;
-                committed = true; // no cancellation or user code after this point
-                var previous = _ecsUpdateScheduler;
-                long commitStarted = Stopwatch.GetTimestamp();
-                try
-                {
-                    candidate.Activate();
-                    _ecsUpdateScheduler = preparedScheduler;
-                    preparedScheduler = null;
-                }
-                finally { commitTicks = Stopwatch.GetTimestamp() - commitStarted; }
-                long retirementStarted = Stopwatch.GetTimestamp();
-                try
-                {
-                    List<Exception>? errors = null;
-                    try { previous.Dispose(); } catch (Exception error) { (errors ??= []).Add(error); }
-                    try { candidate.RetirePrevious(); } catch (Exception error) { (errors ??= []).Add(error); }
-                    if (errors is not null) throw new AggregateException("Retired execution resources could not be released.", errors);
-                }
-                finally { retirementTicks += Stopwatch.GetTimestamp() - retirementStarted; }
-            });
-            result = new(SimulationCodeReloadStatus.Success);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (candidate is null) result = new(SimulationCodeReloadStatus.Busy);
+            else result = await ActivatePreparedAsync(candidate);
         }
         catch (Exception error)
         {
@@ -180,6 +177,83 @@ public partial class EngineRunner
             if (result.Status == SimulationCodeReloadStatus.Faulted) _application.Stop();
         }
         return result;
+
+        async Task<SimulationCodeReloadResult> ActivatePreparedAsync(ISimulationCodeReloadCandidate prepared)
+        {
+            await main.InvokeAsync(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var systems = new ISystemUpdate[_codeReloadStableSystems.Length + prepared.Systems.Length];
+                var descriptors = new EcsUpdateSystemDescriptor[_codeReloadStableDescriptors.Length + prepared.Descriptors.Length];
+                _codeReloadStableSystems.CopyTo(systems, 0);
+                _codeReloadStableDescriptors.CopyTo(descriptors, 0);
+                prepared.Systems.Span.CopyTo(systems.AsSpan(_codeReloadStableSystems.Length));
+                prepared.Descriptors.Span.CopyTo(descriptors.AsSpan(_codeReloadStableDescriptors.Length));
+                preparedScheduler = new EcsUpdateScheduler();
+                preparedScheduler.InitializeInstances(systems, descriptors, UpdateSchedulerMode);
+                prepared.PrepareActivation(cancellationToken);
+                preparationTicks = Stopwatch.GetTimestamp() - preparationStarted;
+                preparationStarted = 0;
+            });
+            if (live is not null)
+            {
+                lock (_codeReloadRequestGate)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    live.SharedSchemaProof = prepared.SharedSchemaProof;
+                    live.MaximumModReplicaRowBytes = prepared.MaximumModReplicaRowBytes;
+#if DEBUG
+                    if (live.IsSchemaReload)
+                    {
+                        live.SharedSchemaProof = ((IPreparedSchemaReload)prepared).SharedSchemaProof;
+                        if (live.SharedSchemaProof.Length != 32) throw new InvalidDataException("No exact prepared Shared schema proof.");
+                    }
+#endif
+                    live.ReadySource.SetResult(new(SimulationCodeReloadStatus.Success));
+                }
+                // After Ready, local shutdown cannot infer that the coordinator decided Abort.
+                if (await live.Decision.Task.ConfigureAwait(false) != LiveCommand.Commit)
+                    throw new OperationCanceledException("The host did not commit the live mod revision.");
+                committed = true;
+            }
+            await main.InvokeAsync(() =>
+            {
+                if (live is null) cancellationToken.ThrowIfCancellationRequested();
+                else if (live.FailStopped) throw new InvalidOperationException("The host failed before local publication began.");
+                committed = true;
+                var previous = _ecsUpdateScheduler;
+                long commitStarted = Stopwatch.GetTimestamp();
+                try
+                {
+                    prepared.Activate();
+                    _ecsUpdateScheduler = preparedScheduler!;
+                    preparedScheduler = null;
+                }
+                finally { commitTicks = Stopwatch.GetTimestamp() - commitStarted; }
+                long retirementStarted = Stopwatch.GetTimestamp();
+                try
+                {
+                    List<Exception>? errors = null;
+                    try { previous.Dispose(); } catch (Exception error) { (errors ??= []).Add(error); }
+                    try { prepared.RetirePrevious(); } catch (Exception error) { (errors ??= []).Add(error); }
+                    if (errors is not null) throw new AggregateException("Retired execution resources could not be released.", errors);
+                    candidate = null;
+                    prepared.Dispose();
+                }
+                finally { retirementTicks += Stopwatch.GetTimestamp() - retirementStarted; }
+            });
+            if (live is not null)
+            {
+                lock (_codeReloadRequestGate)
+                {
+                    if (live.FailStopped) throw new InvalidOperationException("The host failed the live mod revision.");
+                    live.CommittedSource.SetResult(new(SimulationCodeReloadStatus.Success));
+                }
+                if (await live.Settlement.Task.ConfigureAwait(false) != LiveCommand.Resume)
+                    throw new InvalidOperationException("The host failed the committed live mod revision.");
+            }
+            return new(SimulationCodeReloadStatus.Success);
+        }
     }
 
     private static bool IsCodeReloadIntegrityFailure(Exception error) =>
@@ -263,8 +337,31 @@ public partial class EngineRunner
         lock (_codeReloadRequestGate)
         {
             Volatile.Write(ref _codeReloadShuttingDown, 1);
-            _codeReloadCancellation?.Cancel();
-            return _codeReloadTask is { } task ? task : Task.CompletedTask;
+            if (_liveModReload is not { Ready.IsCompleted: true }) _codeReloadCancellation?.Cancel();
+            if (_codeReloadTask is { } task) return task;
+            if (_codeReloadCaptureCount == 0) return Task.CompletedTask;
+            return (_codeReloadCaptureDrain ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+        }
+    }
+
+    private T CaptureOutsideCodeReload<T>(Func<T> capture)
+    {
+        lock (_codeReloadRequestGate)
+        {
+            if (IsLiveReloadReserved || CodeReloadFrameEntryClosed) throw new InvalidOperationException("State capture is unavailable during maintenance or shutdown.");
+            _codeReloadCaptureCount++;
+        }
+        try { return capture(); }
+        finally
+        {
+            lock (_codeReloadRequestGate)
+            {
+                if (--_codeReloadCaptureCount == 0)
+                {
+                    _codeReloadCaptureDrain?.TrySetResult();
+                    _codeReloadCaptureDrain = null;
+                }
+            }
         }
     }
 

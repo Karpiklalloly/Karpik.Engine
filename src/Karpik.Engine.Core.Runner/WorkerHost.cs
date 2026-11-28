@@ -5,7 +5,9 @@ using Microsoft.Extensions.Logging;
 namespace Karpik.Engine.Core.Runner;
 
 /// <summary>Runtime resources owned for the whole worker lifetime.</summary>
-internal sealed record WorkerRuntimeConfiguration(string ModuleDirectory, IDisposable? RuntimeLifetime);
+internal sealed record WorkerRuntimeConfiguration(string ModuleDirectory, IDisposable? RuntimeLifetime,
+    WorkerModLiveSupport? ModLiveSupport = null, Action? PumpRevisionControl = null,
+    Action? StopRevisionControl = null);
 
 /// <summary>
 /// Registers engine types or a static composition into the worker bootstrap.
@@ -24,7 +26,7 @@ internal delegate WorkerRuntimeConfiguration ConfigureWorkerRuntime(
 /// (<see cref="Program"/>) and game-specific Static hosts
 /// (<see cref="StaticEngineHost"/>) both drive this class.
 /// </summary>
-internal sealed class WorkerHost
+internal sealed partial class WorkerHost
 {
     private readonly ILoggerFactory _hostLoggerFactory = HostLogging.CreateDefaultFactory();
     private readonly ILogger<WorkerHost> _logger;
@@ -109,6 +111,9 @@ internal sealed class WorkerHost
         CancellationToken cancellationToken)
     {
         var pipeName = launch.PipeName;
+        using var association = ModLiveLaunchAssociation.TakeFromEnvironment();
+        if (association is not null && (string.IsNullOrWhiteSpace(pipeName) || association.Identity.Side != launch.Side))
+            throw new InvalidDataException("Mod-live launch does not match this worker side or pipe.");
         var stateBase64 = launch.State;
         var stateFile = launch.StateFile;
         var waitForDebugger = launch.WaitForDebugger;
@@ -163,6 +168,7 @@ internal sealed class WorkerHost
         if (!string.IsNullOrEmpty(pipeName))
         {
             _ipcClient = new IpcClient(pipeName, _hostLoggerFactory);
+            if (association is not null) _ipcClient.ConfigureModLive(association);
 
             _ipcClient.OnStateRequest = GetHotReloadState;
             _ipcClient.OnMessageReceived += message =>
@@ -180,9 +186,9 @@ internal sealed class WorkerHost
 
             try
             {
-                _ipcClient.ConnectAsync().GetAwaiter().GetResult();
+                _ipcClient.ConnectAsync(cancellationToken).GetAwaiter().GetResult();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (association is null)
             {
                 _logger.LogWarning(ex, "Failed to connect to watcher; running in standalone mode");
                 StopIpc();
@@ -301,8 +307,16 @@ internal sealed class WorkerHost
         WorkerRuntimeConfiguration runtimeConfiguration =
             configureRuntime(side, bundleRoot, engineRoot, _bootstrap);
         _runtimeConfiguration = runtimeConfiguration;
-        if (_contentReloadInstanceId is { } instance)
-            ((EngineRunner)_bootstrap.Runner).EnableContentReload(instance);
+        var runner = (EngineRunner)_bootstrap.Runner;
+        if (_contentReloadInstanceId is { } instance) runner.EnableContentReload(instance);
+        if (_ipcClient?.ModLivePeer is { } peer)
+        {
+            var support = runtimeConfiguration.ModLiveSupport
+                ?? throw new InvalidOperationException("This worker runtime does not support paired mod-live control.");
+            support.BindIdentity?.Invoke(peer.Identity);
+            runner.EnableHostModLiveReload(ModLiveIpcProtocol.InitialRevision);
+            _liveControl = new(peer, runner, support);
+        }
 
         Dictionary<string, byte[]>? initialHotReloadData = null;
         if (_initialState != null && _initialState.ModuleStates.Count > 0)
@@ -319,6 +333,8 @@ internal sealed class WorkerHost
         // Awaiting in a console host may resume on a thread-pool thread instead.
 
         _ipcClient?.SetScheduler(mainThreadScheduler);
+        if (_ipcClient is { } ipc && _liveControl is { } control)
+            ConfigureModLiveCapture(ipc, control, mainThreadScheduler);
 
         switch (side)
         {
@@ -333,13 +349,15 @@ internal sealed class WorkerHost
                     try
                     {
                         _ipcClient?.SendReadyAsync(runtimeConfiguration.ModuleDirectory).Wait(cancellationToken);
-                        ClientLoop(mainThreadScheduler, simulationWorker, cancellationToken);
+                        RunWithModLiveControl(mainThreadScheduler,
+                            token => ClientLoop(mainThreadScheduler, simulationWorker, token), cancellationToken);
                     }
                     finally
                     {
                         _bootstrap.StopContentReloadAdmission();
                         try
                         {
+                            runtimeConfiguration.StopRevisionControl?.Invoke();
                             // Cleanup needs the control pump and the still-live worker/lease.
                             mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync());
                         }
@@ -353,10 +371,11 @@ internal sealed class WorkerHost
                 break;
             case Side.Server:
                 _ipcClient?.SendReadyAsync(runtimeConfiguration.ModuleDirectory).Wait(cancellationToken);
-                try { ServerLoop(mainThreadScheduler, cancellationToken); }
+                try { RunWithModLiveControl(mainThreadScheduler, token => ServerLoop(mainThreadScheduler, token), cancellationToken); }
                 finally
                 {
                     _bootstrap.StopContentReloadAdmission();
+                    runtimeConfiguration.StopRevisionControl?.Invoke();
                     mainThreadScheduler.RunUntilCompleted(_bootstrap.DrainCodeReloadForShutdownAsync());
                 }
                 break;
@@ -430,9 +449,11 @@ internal sealed class WorkerHost
         var stopwatch = Stopwatch.StartNew();
         double nextTickTime = stopwatch.Elapsed.TotalSeconds;
         bool overloaded = false;
+        var pump = _runtimeConfiguration?.PumpRevisionControl;
 
         while (_isRunning.Value && !cancellationToken.IsCancellationRequested)
         {
+            if (pump is not null) { mainThreadScheduler.Execute(); pump(); }
             double currentTime = stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds;
             int loops = 0;
 
@@ -496,6 +517,7 @@ internal sealed class WorkerHost
         var stopwatch = Stopwatch.StartNew();
         double lastSimulationRequestTime = 0;
         var metrics = _bootstrap.ClientFrameMetrics;
+        var pump = _runtimeConfiguration?.PumpRevisionControl;
 
         while (_isRunning.Value && !cancellationToken.IsCancellationRequested)
         {
@@ -504,6 +526,15 @@ internal sealed class WorkerHost
 
             if (_stateCollected || _bootstrap.IsCodeReloading)
             {
+                if (!_stateCollected && pump is not null)
+                {
+                    if (simulationWorker.OwnsMaintenanceOnCurrentThread) pump();
+                    else if (simulationWorker.TryReserveFrame())
+                    {
+                        try { pump(); }
+                        finally { simulationWorker.CancelReservedFrame(); }
+                    }
+                }
                 Thread.Yield();
                 continue;
             }
@@ -526,6 +557,9 @@ internal sealed class WorkerHost
             {
                 try
                 {
+                    pump?.Invoke();
+                    if (!_bootstrap.IsApplicationRunning || _bootstrap.IsCodeReloading)
+                    { simulationWorker.CancelReservedFrame(); continue; }
                     _bootstrap.RunMainThreadFrameBegin();
                     // Sample after the control pump, using time that excludes completed reload pauses.
                     double currentTime = stopwatch.Elapsed.TotalSeconds - _bootstrap.CodeReloadPausedSeconds;

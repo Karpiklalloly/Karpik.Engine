@@ -133,11 +133,13 @@ internal static class SchemaTree
         _ => throw new InvalidDataException("Unsupported scalar schema kind.")
     };
 
-    internal static bool Same(ComponentSchema a, ComponentSchema b)
+    internal static bool Same(ComponentSchema a, ComponentSchema b) =>
+        a.Id == b.Id && a.Version == b.Version && SameFields(a.Fields, b.Fields);
+
+    internal static bool SameFields(SchemaField[] a, SchemaField[] b)
     {
-        if (a.Id != b.Id || a.Version != b.Version) return false;
         var pending = new Stack<(SchemaField[] A, SchemaField[] B)>();
-        pending.Push((a.Fields, b.Fields));
+        pending.Push((a, b));
         var values = new Stack<(SchemaValue A, SchemaValue B)>();
         while (pending.Count != 0 || values.Count != 0)
         {

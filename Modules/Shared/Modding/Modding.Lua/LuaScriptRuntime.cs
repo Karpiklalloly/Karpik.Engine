@@ -1,4 +1,4 @@
-﻿using MoonSharp.Interpreter;
+using MoonSharp.Interpreter;
 
 using Karpik.Engine.Shared.Modding.Bindings;
 using Microsoft.Extensions.Logging;
@@ -24,6 +24,9 @@ public sealed class LuaScriptRuntime : IScriptRuntime
     internal LuaSystemDeclaration[] Systems { get; }
     internal bool HasDeclaredSystems { get; }
     internal ComponentSchema[] Components { get; }
+    internal int SharedSchemaCount { get; }
+    internal LuaWireComponent[] WireComponents { get; }
+    internal Dictionary<string, ComponentMigration>? Migrations { get; }
     private LuaEcsContext[]? _contexts;
     private ScriptSystemOptions _systemOptions = new();
     private ILogger _systemLogger = NullLogger.Instance;
@@ -34,14 +37,17 @@ public sealed class LuaScriptRuntime : IScriptRuntime
     private readonly DynValue[] _dtArguments = new DynValue[1];
     private bool _invoking;
     
-    internal LuaScriptRuntime(Script script, Table[] entryPoints, string modId, string[] paths)
+    internal LuaScriptRuntime(Script script, Table[] entryPoints, string modId, string[] paths, int sharedEntryCount = 0)
     {
         _script = script;
         try
         {
             Systems = LuaSystemDeclarations.Read(modId, entryPoints, out bool declared);
             HasDeclaredSystems = declared;
-            Components = LuaComponentDeclarations.Read(modId, entryPoints);
+            Components = LuaComponentDeclarations.Read(modId, entryPoints, sharedEntryCount, out var wire, out var migrations, out int sharedSchemaCount);
+            SharedSchemaCount = sharedSchemaCount;
+            WireComponents = wire;
+            Migrations = migrations;
         }
         catch (InvalidDataException error)
         {

@@ -16,12 +16,10 @@ public class LuaScriptLoader(
 {
     public async JobHandle<IScriptRuntime> Load(ModDefinition definition, ExecutionSide side)
     {
-        string sideDirectory = side switch
-        {
-            ExecutionSide.Client => "Client",
-            ExecutionSide.Server => "Server",
-            _ => throw new ArgumentOutOfRangeException(nameof(side))
-        };
+        string sideDirectory = LuaSourceCapture.SideDirectory(side);
+        var source = definition.ScriptSource ?? (LuaSourceCapture.IsSupported
+            ? LuaSourceCapture.Capture(definition.Directory, side) : null);
+        if (source is not null && source.Side != side) throw new InvalidDataException($"Lua source for '{definition.MetaData.Id}' was captured for {source.Side}, not {side}.");
 
         var script = new Script(CoreModules.Preset_SoftSandbox | CoreModules.LoadMethods);
         LuaExactValues.Register(script);
@@ -30,12 +28,14 @@ public class LuaScriptLoader(
         {
             logger.LogInformation("[Mod: {mod_id}] {Message}", definition.MetaData.Id, message);
         };
-        script.Options.ScriptLoader = new ModScriptLoader(definition.Directory, fileSystem, side);
+        script.Options.ScriptLoader = source is null
+            ? new ModScriptLoader(definition.Directory, fileSystem, side) : new ModScriptLoader(source);
         
         var entryPoints = new List<Table>(2);
         var entryPointPaths = new List<string>(2);
         
         LoadEntryPoint("Shared");
+        int sharedEntryCount = entryPoints.Count;
         LoadEntryPoint(sideDirectory);
         
         if (entryPoints.Count == 0)
@@ -43,21 +43,25 @@ public class LuaScriptLoader(
             logger.LogWarning("Mod '{Id}' has no main.lua entry point.", definition.MetaData.Id);
         }
         
-        return new LuaScriptRuntime(script, entryPoints.ToArray(), definition.MetaData.Id, entryPointPaths.ToArray());
+        return new LuaScriptRuntime(script, entryPoints.ToArray(), definition.MetaData.Id, entryPointPaths.ToArray(), sharedEntryCount);
         
         void LoadEntryPoint(string directory)
         {
             string path = fileSystem.Combine(definition.Directory, directory, "main.lua");
-
-            if (!fileSystem.Exists(path))
+            string? text = null;
+            if (source is not null ? !source.TryGetFile(directory + "/main.lua", out text) : !fileSystem.Exists(path))
                 return;
 
             try
             {
-                using Stream stream = fileSystem.OpenRead(path);
-
-                DynValue result = script.DoStream(
-                    stream, codeFriendlyName: path);
+                DynValue result;
+                if (source is not null) result = script.DoString(text!, codeFriendlyName: path);
+                else
+                {
+                    // Legacy startup/reload only. Explicit live candidates require verified capture.
+                    using var stream = fileSystem.OpenRead(path);
+                    result = script.DoStream(stream, codeFriendlyName: path);
+                }
 
                 entryPoints.Add(ReadCallbacks(result, path));
                 entryPointPaths.Add(path);

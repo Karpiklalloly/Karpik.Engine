@@ -19,6 +19,8 @@ public interface ISimulationCodeReloadCandidate : IDisposable
     ReadOnlyMemory<ISystemUpdate> Systems { get; }
     ReadOnlyMemory<EcsUpdateSystemDescriptor> Descriptors { get; }
     void PrepareActivation(CancellationToken cancellationToken);
+    ReadOnlyMemory<byte> SharedSchemaProof => default;
+    int? MaximumModReplicaRowBytes => null;
     void Activate();
     void RetirePrevious();
 }

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using DCFApixels.DragonECS;
 
 namespace Karpik.Engine.Shared.Modding.Bindings;
@@ -12,12 +13,13 @@ public sealed class PreparedComponentQuery : IEcsWorldEventListener, IDisposable
     private int _length, _cursor;
     private bool _disposed;
     public IReadOnlyDictionary<string, PreparedComponentHandle> Components { get; }
+    internal string Owner => _owner;
 
     internal PreparedComponentQuery(EcsDefaultWorld world, ComponentCallbackScope scope, string owner,
         Dictionary<string, PreparedComponentHandle> components, PreparedComponentHandle[] inc, PreparedComponentHandle[] exc)
     {
         _world = world; _scope = scope; _owner = owner; _inc = inc; _exc = exc;
-        Components = components; _snapshot = new int[world.Capacity]; world.AddListener(this);
+        Components = new ReadOnlyDictionary<string, PreparedComponentHandle>(components); _snapshot = new int[world.Capacity]; world.AddListener(this);
     }
 
     public void Capture()

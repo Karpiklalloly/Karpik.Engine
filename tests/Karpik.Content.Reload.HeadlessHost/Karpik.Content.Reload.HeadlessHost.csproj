@@ -7,5 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Karpik.Engine.Core.Runner/Karpik.Engine.Core.Runner.csproj" />
+      <ProjectReference Include="../../Modules/Shared/Modding/Modding.Lua/Modding.Lua.csproj" />
+    <ProjectReference Include="../../Modules/Shared/Network.Shared.LiteNetLib/Network.Shared.LiteNetLib.csproj" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Composition;
+using System.Security.Cryptography;
 using Karpik.Content.Core;
 using Karpik.Engine.Core;
 using Karpik.Engine.Core.FileSystem;
@@ -21,8 +22,8 @@ public class ModsRegistry : IModsRegistry
 {
     private static readonly string[] EntryPointDirectories = ["Shared", "Client", "Server"];
     private readonly string _modsDirectory;
-    private readonly ILogger<IModsRegistry> _logger;
     private readonly IFileSystem? _fileSystem;
+    private readonly ILogger<IModsRegistry> _logger;
     private ModDiscoveryResult? _startupDiscovery;
     private ModStartupDependencies? _startupDependencies;
     private int _scanStarted;
@@ -85,35 +86,69 @@ public class ModsRegistry : IModsRegistry
     internal ModStartupDependencies? StartupDependencies => Volatile.Read(ref _startupDependencies);
 
     internal ModStartupDependencies ResolveStartupDependencies(AssetTarget side,
-        IReadOnlyDictionary<string, ModCookedAvailability> cooked, CancellationToken cancellationToken)
+        IReadOnlyDictionary<string, ModCookedAvailability> cooked, CancellationToken cancellationToken) =>
+        Compose(side, StartupDiscovery.DeclaredMods, cooked, cancellationToken, _fileSystem);
+
+    private static ModStartupDependencies Compose(AssetTarget side, IReadOnlyDictionary<string, DiscoveredMod> selected,
+        IReadOnlyDictionary<string, ModCookedAvailability> cooked, CancellationToken cancellationToken, IFileSystem? legacyFileSystem = null)
     {
-        var discovery = StartupDiscovery;
-        var scripted = discovery.ScriptedMods.ToDictionary(static mod => mod.MetaData.Id, StringComparer.Ordinal);
-        string sideDirectory = side.ToCanonicalString();
-        var nodes = new List<ModDependencyNode>(discovery.DeclaredMods.Count);
-        foreach (string id in discovery.InstalledOwnerIds)
+        var budget = new LuaSourceCapture.Budget();
+        var packages = new Dictionary<string, DiscoveredMod>(selected.Count, StringComparer.Ordinal);
+        var nodes = new List<ModDependencyNode>(selected.Count);
+        var executionSide = side == AssetTarget.Client ? ExecutionSide.Client : ExecutionSide.Server;
+        // Charge survivor sources first so fresh captures cannot temporarily exceed the candidate budget.
+        foreach (var (id, package) in selected.OrderBy(static item => item.Value.Definition.ScriptSource is null)
+                     .ThenBy(static item => item.Key, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var declared = discovery.DeclaredMods[id];
-            bool hasScript = scripted.TryGetValue(id, out var mod) &&
-                (HasEntryPoint(mod.Directory, "Shared") || HasEntryPoint(mod.Directory, sideDirectory));
-            nodes.Add(new ModDependencyNode(id, declared.Definition.MetaData.Version, declared.Dependencies,
-                hasScript, cooked.GetValueOrDefault(id)));
+            var mod = package.Definition;
+            if (LuaSourceCapture.IsSupported)
+            {
+                if (mod.MetaData.ContentOnly && mod.ResolvedDirectDependencies is null)
+                    VerifyManifest(package, LuaSourceCapture.ResolveRoot(mod.Directory), cancellationToken);
+                mod = budget.Pin(mod, executionSide, cancellationToken,
+                    verifyManifest: root => VerifyManifest(package, root, cancellationToken));
+                if (!package.ExpectedLuaEntries.IsDefault && mod.ScriptSource is { } fresh)
+                    foreach (string path in package.ExpectedLuaEntries)
+                        if (!fresh.TryGetFile(path, out _))
+                            throw new InvalidDataException($"Selected Lua entry point '{Path.Combine(mod.Directory, path)}' is missing.");
+            }
+            bool hasScript = mod.ScriptSource is { } source ? LuaSourceCapture.HasEntryPoint(source) :
+                !LuaSourceCapture.IsSupported && !mod.MetaData.ContentOnly &&
+                (LegacyHasEntryPoint(legacyFileSystem, mod.Directory, "Shared") ||
+                 LegacyHasEntryPoint(legacyFileSystem, mod.Directory, LuaSourceCapture.SideDirectory(executionSide)));
+            packages.Add(id, package with { Definition = mod });
+            nodes.Add(new ModDependencyNode(id, mod.MetaData.Version, package.Dependencies, hasScript, cooked.GetValueOrDefault(id)));
         }
         var resolution = ModDependencyResolver.Resolve(nodes, side, cancellationToken);
-        var orderedScripts = resolution.OrderedIds.Where(scripted.ContainsKey).Select(id => scripted[id] with
+        var scripted = ImmutableArray.CreateBuilder<ModDefinition>();
+        foreach (string id in resolution.OrderedIds)
         {
-            ResolvedDirectDependencies = resolution.DirectTargetsById[id]
-        }).ToImmutableArray();
-        return new ModStartupDependencies(nodes.ToFrozenDictionary(static node => node.Id, StringComparer.Ordinal),
-            resolution, orderedScripts);
+            var package = packages[id];
+            var mod = package.Definition with { ResolvedDirectDependencies = resolution.DirectTargetsById[id] };
+            packages[id] = package with { Definition = mod };
+            if (!mod.MetaData.ContentOnly) scripted.Add(mod);
+        }
+        return new ModStartupDependencies(side, nodes.ToFrozenDictionary(static node => node.Id, StringComparer.Ordinal),
+            resolution, scripted.ToImmutable(), packages.ToFrozenDictionary(StringComparer.Ordinal));
     }
 
-    internal void PublishStartupDependencies(ModStartupDependencies startup) => Volatile.Write(ref _startupDependencies, startup);
+    private static bool LegacyHasEntryPoint(IFileSystem? fs, string directory, string side) => fs is not null
+        ? fs.Exists(fs.Combine(directory, side, "main.lua")) : File.Exists(Path.Combine(directory, side, "main.lua"));
 
-    private bool HasEntryPoint(string directory, string side) => _fileSystem is { } fileSystem
-        ? fileSystem.Exists(fileSystem.Combine(directory, side, "main.lua"))
-        : File.Exists(Path.Combine(directory, side, "main.lua"));
+    private static void VerifyManifest(DiscoveredMod package, string root, CancellationToken cancellationToken)
+    {
+        string path = Path.Combine(root, "mod_info.json");
+        if (!LuaSourceCapture.PhysicalPathComparer.Equals(root, package.SourceDirectory) ||
+            !string.Equals(package.ManifestIdentity, ReadManifestIdentity(path, cancellationToken), StringComparison.Ordinal))
+            throw new InvalidDataException($"Mod manifest changed or disappeared during capture: '{package.Definition.Directory}'.");
+    }
+
+    private static string? ReadManifestIdentity(string path, CancellationToken cancellationToken) =>
+        (LegacyMetadataOnly ? ReadLegacyMetadata(path, cancellationToken) : ContentCaptureFiles.ReadMetadata(path, cancellationToken)) is { } bytes
+            ? Convert.ToHexString(SHA256.HashData(bytes)) : null;
+
+    internal void PublishStartupDependencies(ModStartupDependencies startup) => Volatile.Write(ref _startupDependencies, startup);
 
     private static bool LegacyMetadataOnly => !OperatingSystem.IsLinux() && !OperatingSystem.IsWindows();
 
@@ -161,7 +196,67 @@ public class ModsRegistry : IModsRegistry
 
     // Repeatable cold I/O. Does not log, publish, or read cooked payloads; refresh can reject Diagnostics.
     internal ModDiscoveryResult Discover(AssetTarget target, CancellationToken cancellationToken = default) =>
-        DiscoverAt(ModsDirectoryPath, target, cancellationToken, Volatile.Read(ref _startupDiscovery)?.DisabledIds);
+        DiscoverAt(ModsDirectoryPath, target, cancellationToken);
+
+    internal ModSelection DiscoverSelection(ModStartupDependencies basis, IReadOnlyCollection<string> selectedIds,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!LuaSourceCapture.IsSupported) throw new PlatformNotSupportedException("Live mod selection requires verified Lua source capture.");
+        if (selectedIds.Count > LuaSourceCapture.MaximumPackages)
+            throw new InvalidDataException($"Selected mod set exceeds {LuaSourceCapture.MaximumPackages} packages.");
+        var packages = new Dictionary<string, DiscoveredMod>(StringComparer.Ordinal);
+        var newIds = new HashSet<string>(StringComparer.Ordinal);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var acceptedPaths = new HashSet<string>(LuaSourceCapture.PhysicalPathComparer);
+        foreach (string id in selectedIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(id) || !ids.Add(id))
+                throw new InvalidDataException($"Invalid or duplicate selected mod ID '{id}'.");
+            if (basis.PackagesById.TryGetValue(id, out var accepted))
+            {
+                packages.Add(id, accepted);
+                acceptedPaths.Add(accepted.Definition.Directory);
+                acceptedPaths.Add(accepted.SourceDirectory);
+            }
+            else newIds.Add(id);
+        }
+        if (newIds.Count != 0)
+        {
+            var discovered = DiscoverCore(_modsDirectory, basis.Side, cancellationToken, LegacyMetadataOnly,
+                selectedIds: newIds, skipPaths: acceptedPaths);
+            foreach (string id in newIds.Order(StringComparer.Ordinal))
+            {
+                if (!discovered.DeclaredMods.TryGetValue(id, out var package) || discovered.InvalidPaths.Contains(package.Definition.Directory))
+                    throw new InvalidDataException($"Selected mod '{id}' is missing or invalid on {basis.Side}. {string.Join("; ", discovered.Diagnostics)}");
+                if (!package.Definition.MetaData.ContentOnly)
+                {
+                    var side = basis.Side == AssetTarget.Client ? ExecutionSide.Client : ExecutionSide.Server;
+                    package = package with { ExpectedLuaEntries = LuaSourceCapture.ObserveEntryPoints(package.SourceDirectory, side) };
+                }
+                packages.Add(id, package);
+            }
+        }
+        var cookedSurvivors = packages.Keys.Where(id => basis.NodesById.TryGetValue(id, out var node) &&
+            node.CookedAvailability == ModCookedAvailability.AdmittedCandidate).ToFrozenSet(StringComparer.Ordinal);
+        return new ModSelection(basis.Side, packages.ToFrozenDictionary(StringComparer.Ordinal),
+            newIds.ToFrozenSet(StringComparer.Ordinal), cookedSurvivors);
+    }
+
+    internal static ModStartupDependencies ComposeSelection(ModSelection selection, IReadOnlyCollection<string> newlyAcceptedCookedIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (!LuaSourceCapture.IsSupported) throw new PlatformNotSupportedException("Live mod selection requires verified Lua source capture.");
+        var cooked = selection.AcceptedCookedSurvivors.ToDictionary(static id => id,
+            static _ => ModCookedAvailability.AdmittedCandidate, StringComparer.Ordinal);
+        foreach (string id in newlyAcceptedCookedIds)
+        {
+            if (!selection.NewIds.Contains(id) || !cooked.TryAdd(id, ModCookedAvailability.AdmittedCandidate))
+                throw new InvalidDataException($"Cooked Content '{id}' is not a newly selected package.");
+        }
+        return Compose(selection.Side, selection.PackagesById, cooked, cancellationToken);
+    }
 
     internal string ModsDirectoryPath => _modsDirectory;
 
@@ -170,11 +265,20 @@ public class ModsRegistry : IModsRegistry
         DiscoverAt(modsDirectory, target, cancellationToken, LegacyMetadataOnly, disabledIds);
 
     internal static ModDiscoveryResult DiscoverAt(string modsDirectory, AssetTarget target, CancellationToken cancellationToken,
-        bool legacyMetadataOnly, FrozenSet<string>? disabledIds = null)
+        bool legacyMetadataOnly, FrozenSet<string>? disabledIds = null) =>
+        DiscoverCore(modsDirectory, target, cancellationToken, legacyMetadataOnly, disabledIds);
+
+    internal ModDiscoveryResult DiscoverInstalled(AssetTarget target, CancellationToken cancellationToken = default) =>
+        DiscoverCore(_modsDirectory, target, cancellationToken, LegacyMetadataOnly, inventoryOnly: true);
+
+    private static ModDiscoveryResult DiscoverCore(string modsDirectory, AssetTarget target, CancellationToken cancellationToken,
+        bool legacyMetadataOnly, FrozenSet<string>? disabledIds = null, HashSet<string>? selectedIds = null,
+        HashSet<string>? skipPaths = null, bool inventoryOnly = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         string contentSide = target.ToCanonicalString();
         var diagnostics = new List<string>();
+        var invalidPaths = new HashSet<string>(LuaSourceCapture.PhysicalPathComparer);
         var declarations = new Dictionary<string, DiscoveredMod>(StringComparer.Ordinal);
         var firstPaths = new Dictionary<string, string>(StringComparer.Ordinal);
         var duplicatePaths = new Dictionary<string, List<string>>(StringComparer.Ordinal);
@@ -199,7 +303,10 @@ public class ModsRegistry : IModsRegistry
                 bool linked = linkedEntry || linkedRoot is not null;
                 string source = linkedEntry ? Directory.ResolveLinkTarget(discovered, returnFinalTarget: true)?.FullName
                     ?? throw new InvalidDataException("Cannot resolve the mod directory link.") : discovered;
-                var manifest = ReadMetadata(source, serializer, cancellationToken, legacyMetadataOnly, disabledIds, out string id);
+                if (skipPaths is not null && (skipPaths.Contains(entry) || skipPaths.Contains(source))) continue;
+                var manifest = ReadMetadata(source, serializer, cancellationToken, legacyMetadataOnly,
+                    disabledIds, selectedIds, inventoryOnly, out string id, out string? manifestIdentity);
+                if (selectedIds is not null && !selectedIds.Contains(id)) continue;
                 if (!firstPaths.TryAdd(id, entry))
                 {
                     if (!duplicatePaths.TryGetValue(id, out var paths))
@@ -210,7 +317,7 @@ public class ModsRegistry : IModsRegistry
                 if (manifest is not { } active) continue;
                 var (metadata, dependencies) = active;
                 var definition = new ModDefinition(metadata, entry);
-                var declared = new DiscoveredMod(definition, dependencies, source);
+                var declared = new DiscoveredMod(definition, dependencies, source, manifestIdentity!, source);
                 declarations.Add(id, declared);
                 if (metadata.ContentOnly)
                 {
@@ -235,12 +342,13 @@ public class ModsRegistry : IModsRegistry
                         ? "Cooked Content cannot be captured from a linked mod directory."
                         : "Cooked Content cannot be captured on this platform.");
             }
-            catch (ModDependencyException error)
+            catch (ModDependencyException error) when (!inventoryOnly && selectedIds is null)
             {
                 throw new ModDependencyException($"Error loading mod '{entry}' on {contentSide}: {error.Message}");
             }
-            catch (Exception error) when (IsDiscoveryError(error))
+            catch (Exception error) when (IsDiscoveryError(error) || error is ModDependencyException)
             {
+                invalidPaths.Add(entry);
                 diagnostics.Add($"Error loading mod '{entry}': {error.Message}");
             }
         }
@@ -250,15 +358,17 @@ public class ModsRegistry : IModsRegistry
         {
             var duplicates = duplicatePaths.OrderBy(static item => item.Key, StringComparer.Ordinal)
                 .Select(item => $"Duplicate mod id '{item.Key}' on {contentSide} in '{string.Join("', '", item.Value.Order(StringComparer.Ordinal))}'.");
-            throw new ModDependencyException(string.Join(Environment.NewLine, duplicates));
+            if (!inventoryOnly) throw new ModDependencyException(string.Join(Environment.NewLine, duplicates));
+            diagnostics.AddRange(duplicates);
         }
 
         return new ModDiscoveryResult(
             Array.AsReadOnly(candidates.OrderBy(mod => mod.MetaData.Id, StringComparer.Ordinal).ToArray()),
-            Array.AsReadOnly(declarations.Keys.Order(StringComparer.Ordinal).ToArray()),
+            Array.AsReadOnly((inventoryOnly ? firstPaths.Keys.AsEnumerable() : declarations.Keys).Order(StringComparer.Ordinal).ToArray()),
             Array.AsReadOnly(diagnostics.Order(StringComparer.Ordinal).ToArray()),
             Array.AsReadOnly(scripted.OrderBy(mod => mod.MetaData.Id, StringComparer.Ordinal).ToArray()), linkedRoot,
-            declarations.ToFrozenDictionary(StringComparer.Ordinal), disabledIds ?? FrozenSet<string>.Empty);
+            declarations.ToFrozenDictionary(StringComparer.Ordinal), disabledIds ?? FrozenSet<string>.Empty,
+            firstPaths.ToFrozenDictionary(StringComparer.Ordinal), invalidPaths.ToFrozenSet(LuaSourceCapture.PhysicalPathComparer));
     }
 
     private static string[] ReadModEntries(string directory, List<string> diagnostics, out string? linkedRoot)
@@ -291,9 +401,11 @@ public class ModsRegistry : IModsRegistry
     }
 
     private static (ModMetaData, ModDependencyManifest)? ReadMetadata(string directory, JsonSerializer serializer,
-        CancellationToken cancellationToken, bool legacyMetadataOnly, FrozenSet<string>? disabledIds, out string id)
+        CancellationToken cancellationToken, bool legacyMetadataOnly, FrozenSet<string>? disabledIds,
+        HashSet<string>? selectedIds, bool inventoryOnly, out string id, out string? manifestIdentity)
     {
         string path = Path.Combine(directory, "mod_info.json");
+        manifestIdentity = null;
         byte[] metadata = (legacyMetadataOnly ? ReadLegacyMetadata(path, cancellationToken) : ContentCaptureFiles.ReadMetadata(path, cancellationToken))
             ?? throw new InvalidDataException("Missing mod_info.json.");
         using var reader = new StreamReader(new MemoryStream(metadata, writable: false));
@@ -311,7 +423,10 @@ public class ModsRegistry : IModsRegistry
             throw;
         }
         JsonReaderException? trailingError = null;
-        if (disabledIds is { Count: > 0 } && ReadManifestId(document) is { } manifestId && disabledIds.Contains(manifestId))
+        string? manifestId = ReadManifestId(document);
+        if (inventoryOnly && string.IsNullOrWhiteSpace(manifestId)) throw new InvalidDataException("Invalid mod Id.");
+        if (manifestId is not null && (inventoryOnly || disabledIds?.Contains(manifestId) == true ||
+            (selectedIds is not null && !selectedIds.Contains(manifestId))))
         {
             try
             {
@@ -347,6 +462,7 @@ public class ModsRegistry : IModsRegistry
         if (trailingError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(trailingError);
         while (json.Read()) { } // Reject trailing values without masking an explicit dependency error.
         id = result.Id;
+        manifestIdentity = Convert.ToHexString(SHA256.HashData(metadata));
         return (result, dependencies);
 
         ModDependencyException DuplicateProperty(string propertyPath) =>
@@ -496,9 +612,40 @@ public class ModsRegistry : IModsRegistry
 
 internal sealed record ModDiscoveryResult(IReadOnlyList<ModDefinition> Candidates, IReadOnlyList<string> InstalledOwnerIds,
     IReadOnlyList<string> Diagnostics, IReadOnlyList<ModDefinition> ScriptedMods, string? LinkedRoot,
-    FrozenDictionary<string, DiscoveredMod> DeclaredMods, FrozenSet<string> DisabledIds);
+    FrozenDictionary<string, DiscoveredMod> DeclaredMods, FrozenSet<string> DisabledIds,
+    FrozenDictionary<string, string> InstalledPaths, FrozenSet<string> InvalidPaths);
 
-internal readonly record struct DiscoveredMod(ModDefinition Definition, ModDependencyManifest Dependencies, string? UncapturableCookedSource);
+internal readonly record struct DiscoveredMod(ModDefinition Definition, ModDependencyManifest Dependencies,
+    string? UncapturableCookedSource, string ManifestIdentity, string SourceDirectory, ImmutableArray<string> ExpectedLuaEntries = default);
 
-internal sealed record ModStartupDependencies(FrozenDictionary<string, ModDependencyNode> NodesById,
-    ModDependencyResolution Resolution, ImmutableArray<ModDefinition> ScriptedMods);
+internal sealed record ModSelection(AssetTarget Side, FrozenDictionary<string, DiscoveredMod> PackagesById,
+    FrozenSet<string> NewIds, FrozenSet<string> AcceptedCookedSurvivors);
+
+// Startup is the initial composition; Simulation owns subsequent accepted revisions.
+internal sealed record ModStartupDependencies(AssetTarget Side, FrozenDictionary<string, ModDependencyNode> NodesById,
+    ModDependencyResolution Resolution, ImmutableArray<ModDefinition> ScriptedMods,
+    FrozenDictionary<string, DiscoveredMod> PackagesById)
+{
+    internal ModStartupDependencies AcceptCooked(IReadOnlySet<string> acceptedIds) => this with
+    {
+        NodesById = NodesById.ToFrozenDictionary(static pair => pair.Key, pair => pair.Value with
+        {
+            CookedAvailability = acceptedIds.Contains(pair.Key) ? ModCookedAvailability.AdmittedCandidate : ModCookedAvailability.Absent
+        }, StringComparer.Ordinal)
+    };
+
+    internal ModStartupDependencies WithScriptDefinitions(IReadOnlyList<ModDefinition> definitions)
+    {
+        var packages = PackagesById.ToDictionary(StringComparer.Ordinal);
+        foreach (var definition in definitions)
+        {
+            string id = definition.MetaData.Id;
+            packages[id] = packages[id] with { Definition = definition };
+        }
+        return this with
+        {
+            ScriptedMods = definitions.ToImmutableArray(),
+            PackagesById = packages.ToFrozenDictionary(StringComparer.Ordinal)
+        };
+    }
+}

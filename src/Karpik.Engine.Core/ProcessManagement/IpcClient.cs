@@ -15,6 +15,22 @@ internal class IpcClient : IDisposable
     private readonly ILogger<IpcClient> _logger;
     private readonly ILoggerFactory? _ownedLoggerFactory;
     private int _disposeRequested;
+    private ModLiveLaunchAssociation? _modLiveAssociation;
+    private int _modLiveConnectAttempted;
+    private ModLiveIpcPeer? _modLivePeer;
+    private int _modLiveCapturePending;
+
+    internal ModLiveIpcPeer? ModLivePeer => Volatile.Read(ref _modLivePeer);
+    // The host owns admission and scheduling. In maintenance return null without posting to the leased queue.
+    internal Func<CancellationToken, Task<HotReloadState?>>? OnModLiveStateRequest { get; set; }
+    internal Func<CancellationToken, Task<EditorRuntimeSnapshot?>>? OnModLiveEditorSnapshotRequest { get; set; }
+
+    internal void ConfigureModLive(ModLiveLaunchAssociation association)
+    {
+        if (_pipe is not null || _modLiveAssociation is not null)
+            throw new InvalidOperationException("Mod-live IPC must be configured before connecting.");
+        _modLiveAssociation = association;
+    }
     
     public event Action<IpcMessage>? OnMessageReceived;
     public bool IsConnected => _pipe?.IsConnected ?? false;
@@ -47,25 +63,64 @@ internal class IpcClient : IDisposable
     
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        _pipe = new NamedPipeClientStream(
-            ".",
-            _pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
-        
+        var association = _modLiveAssociation;
+        if (association is not null)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
+            if (Interlocked.Exchange(ref _modLiveConnectAttempted, 1) != 0)
+                throw new InvalidOperationException("An associated IPC connection cannot be reused.");
+        }
+        var pipe = new NamedPipeClientStream(
+            ".", _pipeName, PipeDirection.InOut,
+            association is null ? PipeOptions.Asynchronous : PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        _pipe = pipe;
+
         _logger.LogInformation("Connecting to watcher on pipe {PipeName}", _pipeName);
-        await _pipe.ConnectAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        if (association is null)
+        {
+            await pipe.ConnectAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        }
+        else
+        {
+            using var connect = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+            connect.CancelAfter(TimeSpan.FromSeconds(30));
+            try
+            {
+                await pipe.ConnectAsync(connect.Token);
+                await association.AuthenticateAsync(pipe, isOwner: false, SendFrameAsync, connect.Token);
+                Volatile.Write(ref _modLivePeer, new ModLiveIpcPeer(
+                    association.Identity, isOwner: false, SendFrameAsync, pipe.Dispose));
+                ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeRequested) != 0, this);
+            }
+            catch
+            {
+                ModLivePeer?.Close();
+                pipe.Dispose();
+                throw;
+            }
+            finally
+            {
+                association.Dispose();
+            }
+        }
         _logger.LogInformation("Connected to watcher");
-        
-        _listenTask = ListenLoop(_cts.Token);
+        _listenTask = ListenLoop(pipe, _cts.Token);
     }
-    
-    public async Task SendAsync(IpcMessage message, CancellationToken cancellationToken = default)
+
+    public Task SendAsync(IpcMessage message, CancellationToken cancellationToken = default)
+    {
+        if (ModLiveIpcProtocol.IsReserved(message.Type))
+            throw new ArgumentException("Reserved IPC frame type.", nameof(message));
+        return SendFrameAsync(message, cancellationToken);
+    }
+
+    private async Task SendFrameAsync(IpcMessage message, CancellationToken cancellationToken)
     {
         await _sendGate.WaitAsync(cancellationToken);
         try
         {
-            if (_pipe == null || !_pipe.IsConnected)
+            if (_pipe == null || !_pipe.IsConnected ||
+                (message.Type == ModLiveIpcProtocol.Control && ModLivePeer?.Loss.IsCompleted != false))
                 throw new InvalidOperationException("Pipe is not connected");
 
             var bytes = message.ToBytes();
@@ -102,56 +157,28 @@ internal class IpcClient : IDisposable
         _logger.LogInformation("Sent HotReloadRequest to watcher");
     }
     
-    private async Task ListenLoop(CancellationToken cancellationToken)
+    private async Task ListenLoop(NamedPipeClientStream pipe, CancellationToken cancellationToken)
     {
-        var headerBuffer = new byte[5]; // 4 bytes length + 1 byte type
-        
+        var headerBuffer = new byte[5];
+        var live = ModLivePeer;
         try
         {
-            while (!cancellationToken.IsCancellationRequested && _pipe?.IsConnected == true)
+            while (!cancellationToken.IsCancellationRequested && pipe.IsConnected)
             {
-                // Read header
-                var bytesRead = await _pipe.ReadAsync(headerBuffer.AsMemory(0, 5), cancellationToken);
-                if (bytesRead == 0)
+                IpcMessage? received = await IpcFrame.ReadAsync(pipe, headerBuffer, cancellationToken);
+                if (received is not { } message)
                 {
                     _logger.LogInformation("Watcher disconnected");
                     break;
                 }
-                
-                if (bytesRead < 5)
+                if (ModLiveIpcProtocol.IsReserved(message.Type))
                 {
-                    // Read remaining header bytes
-                    var remaining = 5 - bytesRead;
-                    while (remaining > 0)
-                    {
-                        var n = await _pipe.ReadAsync(headerBuffer.AsMemory(bytesRead, remaining), cancellationToken);
-                        if (n == 0) break;
-                        bytesRead += n;
-                        remaining -= n;
-                    }
+                    if (live is not null && !live.TryReceive(message)) break;
+                    continue;
                 }
-                
-                var (totalLength, type) = IpcMessage.ReadHeader(headerBuffer);
-                var payloadLength = totalLength - 5;
-                
-                // Read payload if any
-                var payload = Array.Empty<byte>();
-                if (payloadLength > 0)
-                {
-                    payload = new byte[payloadLength];
-                    var payloadRead = 0;
-                    while (payloadRead < payloadLength)
-                    {
-                        var n = await _pipe.ReadAsync(payload.AsMemory(payloadRead, payloadLength - payloadRead), cancellationToken);
-                        if (n == 0) break;
-                        payloadRead += n;
-                    }
-                }
-                
-                var message = new IpcMessage(type, payload);
-                
+                if (live is not null && await TryHandleAssociatedRequestAsync(live, message, cancellationToken))
+                    continue;
                 await HandleMessageAsync(message, cancellationToken);
-                
                 OnMessageReceived?.Invoke(message);
             }
         }
@@ -167,8 +194,81 @@ internal class IpcClient : IDisposable
         {
             _logger.LogError(ex, "Listen error");
         }
+        finally
+        {
+            if (live is not null)
+            {
+                live.Close();
+                pipe.Dispose();
+            }
+        }
     }
-    
+
+    private async ValueTask<bool> TryHandleAssociatedRequestAsync(
+        ModLiveIpcPeer live, IpcMessage request, CancellationToken token)
+    {
+        switch (request.Type)
+        {
+            case IpcMessageType.ShutdownRequest:
+                live.Close();
+                await SendShutdownAckAsync(token);
+                if (OnShutdownRequest is { } shutdown)
+                {
+                    if (_scheduler is { } scheduler) _ = scheduler.InvokeAsync(shutdown);
+                    else _ = Task.Run(shutdown);
+                }
+                return true;
+            case IpcMessageType.StateRequest:
+            case IpcMessageType.EditorSnapshotRequest:
+                if (!live.Loss.IsCompleted && Interlocked.CompareExchange(ref _modLiveCapturePending, 1, 0) == 0)
+                {
+                    _ = Task.Run(() => RespondToAssociatedCaptureAsync(live, request, token));
+                }
+                else
+                {
+                    await SendAsync(new(CaptureResponseType(request.Type)), token);
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private async Task RespondToAssociatedCaptureAsync(ModLiveIpcPeer live, IpcMessage request, CancellationToken token)
+    {
+        try
+        {
+            byte[]? payload = null;
+            try
+            {
+                if (!live.Loss.IsCompleted && request.Type == IpcMessageType.StateRequest && OnModLiveStateRequest is { } state)
+                    payload = (await state(token).ConfigureAwait(false))?.Serialize();
+                else if (!live.Loss.IsCompleted && request.Type == IpcMessageType.EditorSnapshotRequest && OnModLiveEditorSnapshotRequest is { } snapshot)
+                    payload = (await snapshot(token).ConfigureAwait(false))?.Serialize();
+            }
+            catch
+            {
+                // Capture rejection uses the legacy empty-response format.
+            }
+            if (live.Loss.IsCompleted) payload = null;
+            await SendAsync(new(CaptureResponseType(request.Type), payload), token).ConfigureAwait(false);
+            if (payload is not null) OnMessageReceived?.Invoke(request);
+        }
+        catch
+        {
+            live.Close();
+            _pipe?.Dispose();
+        }
+        finally
+        {
+            Volatile.Write(ref _modLiveCapturePending, 0);
+        }
+    }
+
+    private static IpcMessageType CaptureResponseType(IpcMessageType request) => request == IpcMessageType.StateRequest
+        ? IpcMessageType.StateResponse
+        : IpcMessageType.EditorSnapshotResponse;
+
     private async Task HandleMessageAsync(IpcMessage message, CancellationToken cancellationToken)
     {
         switch (message.Type)
@@ -255,6 +355,7 @@ internal class IpcClient : IDisposable
             return;
         }
 
+        ModLivePeer?.Close();
         _cts.Cancel();
         try
         {

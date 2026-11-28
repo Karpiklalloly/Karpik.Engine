@@ -1,4 +1,4 @@
-﻿using Autofac;
+using Autofac;
 using Karpik.Engine.Core;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
@@ -7,4 +7,6 @@ namespace Karpik.Engine.Shared.Network.LiteNetLib;
 public class NetworkModuleInstaller : IModuleInstaller
 {
     public string Name => "Network.Shared.Core";
+
+    public void OnRegisterServices(ContainerBuilder builder) => builder.RegisterInstance(new NetworkedSimulation());
 }

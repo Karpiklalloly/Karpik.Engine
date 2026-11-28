@@ -1,4 +1,6 @@
 using Autofac;
+using Karpik.Content.Core;
+using Karpik.Content.Runtime;
 using Karpik.Engine.Core;
 using Karpik.Engine.Shared.ECS.Scheduling;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +16,45 @@ public sealed class LuaHotReloadOrchestrationTests
         Assert.Equal(SimulationCodeReloadStatus.Unsupported, f.Reload().Status);
         Assert.Empty(f.Preparation.Events);
     }
+
+    [Fact]
+    public void NetworkCompositionBlocksIndependentReloadEvenWithLocalOptIn()
+    {
+        using var f = new Fixture(true, networked: true);
+        Assert.Equal(SimulationCodeReloadStatus.Unsupported, f.Reload().Status);
+        Assert.Empty(f.Preparation.Events);
+    }
+
+#if DEBUG
+    [Fact]
+    public void SchemaReloadReservesCaptureAndHoldsTheExistingLeaseUntilResume()
+    {
+        using var f = new Fixture(true, schemaReload: true);
+        var host = Assert.IsAssignableFrom<ISimulationSchemaReloadHost>(f.Runner);
+        var boundary = new LiveBoundary();
+        f.Runner.SetCodeReloadBoundary(boundary);
+        Assert.Equal(SimulationCodeReloadStatus.Success, host.TryReserve(1, 5, 6, out var handle));
+        var reload = Assert.IsAssignableFrom<ISimulationSchemaReload>(handle);
+        Assert.Throws<InvalidOperationException>(() => f.Runner.GetHotReloadData());
+        f.Runner.RunGameplayFrame(.02);
+        Assert.Equal(1, f.Preparation.Old.Calls); // Reservation does not stop frames during drain.
+        Assert.False(boundary.Held);
+        Assert.True(reload.TryPrepare(digest => digest == "probe"));
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(reload.Ready).Status);
+        Assert.Equal(32, reload.SharedSchemaProof.Length);
+        Assert.True(boundary.Held);
+        Assert.Equal(new[] { "prepare", "activation" }, f.Preparation.Events);
+        Assert.True(reload.TryCommit());
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(reload.Committed).Status);
+        Assert.True(boundary.Held);
+        Assert.True(reload.TryResume());
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(reload.Completion).Status);
+        Assert.False(boundary.Held);
+        Assert.Throws<InvalidOperationException>(() => f.Runner.GetHotReloadData()); // Await network settlement too.
+        reload.Release();
+        Assert.NotNull(f.Runner.GetHotReloadData());
+    }
+#endif
 
     [Theory]
     [InlineData(EcsUpdateSchedulerMode.Deterministic)]
@@ -205,6 +246,141 @@ public sealed class LuaHotReloadOrchestrationTests
         finally { release.Set(); }
     }
 
+    private static readonly ModLiveTransition.Operation LiveOperation = new(1, 0, 1);
+
+    [Fact]
+    public void LiveReloadRequiresInternalHostOptIn()
+    {
+        using var f = new Fixture(true);
+        Assert.Equal(SimulationCodeReloadStatus.Unsupported, f.Runner.BeginLiveModReload(LiveOperation, [], out _));
+        Assert.Empty(f.Preparation.Events);
+    }
+
+    [Fact]
+    public void LiveReloadHoldsLeaseCaptureRefreshAndVirtualTimeUntilResume()
+    {
+        using var f = new Fixture(false, live: true);
+        var boundary = new LiveBoundary();
+        f.Runner.SetCodeReloadBoundary(boundary);
+        f.Runner.RunGameplayFrame(.02);
+        double before = f.Preparation.Time.TotalTime;
+        var live = f.BeginLive();
+        Assert.False(f.Command(ModLiveTransition.Command.Commit));
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Ready).Status);
+        Assert.True(boundary.Held);
+        Assert.Equal(new[] { "prepare", "activation" }, f.Preparation.Events);
+        Assert.False(f.Runner.TryApplyLiveModCommand(LiveOperation with { Target = 2 }, ModLiveTransition.Command.Commit));
+        Assert.False(f.Command(ModLiveTransition.Command.Resume));
+        Assert.True(f.Command(ModLiveTransition.Command.Commit));
+        Assert.False(f.Command(ModLiveTransition.Command.Commit));
+        Assert.False(f.Command(ModLiveTransition.Command.Abort));
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Committed).Status);
+        Assert.Equal(new[] { "prepare", "activation", "activate", "retire", "dispose" }, f.Preparation.Events);
+        Assert.True(boundary.Held);
+        Assert.False(live.Completion.IsCompleted);
+        Assert.Equal(SimulationCodeReloadStatus.Busy, f.Runner.BeginLiveModReload(LiveOperation with { Id = 2 }, [], out _));
+        Assert.Equal(ModContentRefreshStatus.Busy, f.Finish(f.Runner.RequestModContentRefreshAsync()).Status);
+        Assert.Throws<InvalidOperationException>(() => f.Runner.GetHotReloadData());
+        Assert.Throws<InvalidOperationException>(() => f.Runner.CaptureEditorSnapshot());
+        f.Runner.RunGameplayFrame(100);
+        Assert.Equal(0, f.Preparation.Next.Calls);
+        Assert.Equal(before, f.Preparation.Time.TotalTime);
+
+        f.Preparation.Time.IsPaused = true;
+        Assert.True(f.Command(ModLiveTransition.Command.Resume));
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Completion).Status);
+        Assert.False(boundary.Held);
+        Assert.False(f.Command(ModLiveTransition.Command.Resume));
+        Assert.Equal(SimulationCodeReloadStatus.InvalidState, f.Runner.BeginLiveModReload(LiveOperation with { Id = 2 }, [], out _));
+        Assert.Empty(f.Runner.GetHotReloadData());
+        f.Runner.RunGameplayFrame(.02);
+        Assert.Equal(1, f.Preparation.Next.Calls);
+        Assert.True(f.Preparation.Time.IsPaused);
+        Assert.Equal(before, f.Preparation.Time.TotalTime);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LiveReadyShutdownJoinsTheHostDecision(bool channelLost)
+    {
+        using var f = new Fixture(false, live: true);
+        var boundary = new LiveBoundary();
+        f.Runner.SetCodeReloadBoundary(boundary);
+        var live = f.BeginLive();
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Ready).Status);
+        Task stopping = f.Runner.DrainCodeReloadForShutdownAsync();
+        f.Scheduler.Execute();
+        Assert.False(stopping.IsCompleted);
+        Assert.True(boundary.Held);
+        Assert.True(f.Command(channelLost ? ModLiveTransition.Command.FailStop : ModLiveTransition.Command.Abort));
+        f.Scheduler.RunUntilCompleted(stopping);
+        Assert.Equal(channelLost ? SimulationCodeReloadStatus.Faulted : SimulationCodeReloadStatus.Cancelled, f.Finish(live.Completion).Status);
+        Assert.Equal(new[] { "prepare", "activation", "dispose" }, f.Preparation.Events);
+        Assert.False(boundary.Held);
+        Assert.Equal(!channelLost, f.Runner.IsApplicationRunning);
+        f.Runner.RunGameplayFrame(.02);
+        Assert.Equal(0, f.Preparation.Old.Calls);
+    }
+
+    [Fact]
+    public void LiveCommitFollowedByShutdownCannotResumeOrRollback()
+    {
+        using var f = new Fixture(false, live: true);
+        var boundary = new LiveBoundary();
+        f.Runner.SetCodeReloadBoundary(boundary);
+        var live = f.BeginLive();
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Ready).Status);
+        Task stopping = f.Runner.DrainCodeReloadForShutdownAsync();
+        Assert.True(f.Command(ModLiveTransition.Command.Commit));
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Committed).Status);
+        Assert.False(stopping.IsCompleted);
+        Assert.False(f.Command(ModLiveTransition.Command.Resume));
+        Assert.False(f.Command(ModLiveTransition.Command.Abort));
+        Assert.True(f.Command(ModLiveTransition.Command.FailStop));
+        f.Scheduler.RunUntilCompleted(stopping);
+        Assert.Equal(SimulationCodeReloadStatus.Faulted, f.Finish(live.Completion).Status);
+        Assert.Equal(new[] { "prepare", "activation", "activate", "retire", "dispose" }, f.Preparation.Events);
+        Assert.False(boundary.Held);
+        Assert.False(f.Runner.IsApplicationRunning);
+        f.Runner.RunGameplayFrame(.02);
+        Assert.Equal(0, f.Preparation.Next.Calls);
+    }
+
+    [Fact]
+    public void LiveFailStopBeforeOwnerPublicationSkipsActivation()
+    {
+        using var f = new Fixture(false, live: true);
+        var boundary = new LiveBoundary();
+        f.Runner.SetCodeReloadBoundary(boundary);
+        var live = f.BeginLive();
+        Assert.Equal(SimulationCodeReloadStatus.Success, f.Finish(live.Ready).Status);
+
+        // The owner does not pump between the two commands, so activation cannot start first.
+        Assert.True(f.Command(ModLiveTransition.Command.Commit));
+        Assert.True(f.Command(ModLiveTransition.Command.FailStop));
+        Assert.Equal(SimulationCodeReloadStatus.Faulted, f.Finish(live.Completion).Status);
+        Assert.Equal(new[] { "prepare", "activation", "dispose" }, f.Preparation.Events);
+        Assert.Equal(SimulationCodeReloadStatus.Faulted, f.Finish(live.Committed).Status);
+        Assert.False(boundary.Held);
+        Assert.False(f.Runner.IsApplicationRunning);
+        f.Runner.RunGameplayFrame(.02);
+        Assert.Equal(0, f.Preparation.Old.Calls);
+        Assert.Equal(0, f.Preparation.Next.Calls);
+    }
+
+    private sealed class LiveBoundary : ISimulationCodeReloadBoundary, IDisposable
+    {
+        internal bool Held;
+        public ValueTask<IDisposable> EnterAsync(CancellationToken cancellationToken)
+        {
+            Assert.False(Held);
+            Held = true;
+            return ValueTask.FromResult<IDisposable>(this);
+        }
+        public void Dispose() => Held = false;
+    }
+
     private sealed class RunnerLoop(EngineRunner runner) : IClientSimulationLoop
     {
         public bool IsApplicationRunning => runner.IsApplicationRunning;
@@ -216,10 +392,16 @@ public sealed class LuaHotReloadOrchestrationTests
         public readonly EngineRunner Runner = new(NullLoggerFactory.Instance);
         public readonly MainThreadScheduler Scheduler = new(Environment.CurrentManagedThreadId, NullLoggerFactory.Instance);
         public readonly Preparation Preparation = new();
-        public Fixture(bool optIn, EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Deterministic, Side side = Side.Server)
+        public Fixture(bool optIn, EcsUpdateSchedulerMode mode = EcsUpdateSchedulerMode.Deterministic, Side side = Side.Server,
+            bool live = false, bool networked = false, bool schemaReload = false)
         {
             Runner.UpdateSchedulerMode = mode;
             if (optIn) Runner.EnableLocalCodeReload();
+            if (live) Runner.EnableHostModLiveReload();
+#if DEBUG
+            if (schemaReload) Runner.EnableDebugSchemaReload(5);
+#endif
+            if (networked) Runner.RegisterModule(new Karpik.Engine.Shared.Network.LiteNetLib.NetworkModuleInstaller());
             Runner.RegisterModule(new Installer(Preparation));
             Runner.Setup(new Application(side), Scheduler);
             Scheduler.Execute();
@@ -230,7 +412,23 @@ public sealed class LuaHotReloadOrchestrationTests
             Scheduler.RunUntilCompleted(task);
             return task.GetAwaiter().GetResult();
         }
-        public void Dispose() { Runner.Destroy(); Scheduler.Dispose(); }
+        internal EngineRunner.LiveModReload BeginLive()
+        {
+            Assert.Equal(SimulationCodeReloadStatus.Success, Runner.BeginLiveModReload(LiveOperation, [], out var live));
+            return Assert.IsType<EngineRunner.LiveModReload>(live);
+        }
+        internal bool Command(ModLiveTransition.Command command) => Runner.TryApplyLiveModCommand(LiveOperation, command);
+        internal T Finish<T>(Task<T> task)
+        {
+            Scheduler.RunUntilCompleted(task);
+            return task.GetAwaiter().GetResult();
+        }
+        public void Dispose()
+        {
+            Command(ModLiveTransition.Command.FailStop);
+            Runner.Destroy();
+            Scheduler.Dispose();
+        }
     }
 
     [Module(ModuleScope.Simulation)]
@@ -238,7 +436,7 @@ public sealed class LuaHotReloadOrchestrationTests
     {
         public string Name => "ReloadProbe";
         public void OnRegisterServices(ContainerBuilder builder) =>
-            builder.Register(context => preparation.Bind(context.Resolve<ISystemRuntimeRegistry>()))
+            builder.Register(context => preparation.Bind(context.Resolve<ISystemRuntimeRegistry>(), context.Resolve<Time>()))
                 .As<ISimulationPreparation>().SingleInstance();
     }
 
@@ -249,8 +447,16 @@ public sealed class LuaHotReloadOrchestrationTests
         public void Update() { OnUpdate?.Invoke(); Calls++; }
     }
 
-    private sealed class Preparation : ISimulationPreparation, ISimulationCodeReloadParticipant, IDisposable
+    private sealed class Preparation : ISimulationPreparation, ISimulationLiveModParticipant, IDisposable
+#if DEBUG
+        , ISimulationSchemaReloadParticipant
+#endif
     {
+#if DEBUG
+        public bool SupportsSchemaReload => true;
+        public async ValueTask<IPreparedSchemaReload> PrepareSchemaReloadAsync(Func<string, bool> admission, CancellationToken token) =>
+            admission("probe") ? (IPreparedSchemaReload)await PrepareReloadAsync(token) : throw new UnauthorizedAccessException();
+#endif
         public readonly Counter Old = new(), Next = new();
         public readonly List<string> Events = [];
         public bool InvalidGraph, CleanupFailure;
@@ -260,7 +466,8 @@ public sealed class LuaHotReloadOrchestrationTests
         public void Dispose() => Disposed = true;
         private ISystemRuntimeRegistry _registry = null!;
         public ReadOnlyMemory<ISystemUpdate> ActiveSystems => new ISystemUpdate[] { Old };
-        public Preparation Bind(ISystemRuntimeRegistry registry) { _registry = registry; return this; }
+        public Time Time = null!;
+        public Preparation Bind(ISystemRuntimeRegistry registry, Time time) { _registry = registry; Time = time; return this; }
         public ValueTask PrepareAsync(CancellationToken cancellationToken)
         {
             _registry.AddInstance(Old, Descriptor("probe:old"));
@@ -272,9 +479,19 @@ public sealed class LuaHotReloadOrchestrationTests
             if (PreparationGate is not null) await PreparationGate;
             return new Candidate(this);
         }
+        public ModContentRefreshCapture? CreateLiveModRefreshCapture(Action<ContentDiagnostic> report) => null;
+        public async ValueTask<ISimulationCodeReloadCandidate?> PrepareLiveModAsync(ContentReloadCoordinator? coordinator,
+            IReadOnlyCollection<string> selectedIds, Action<ContentDiagnostic> report, CancellationToken cancellationToken) =>
+            await PrepareReloadAsync(cancellationToken);
         private static EcsUpdateSystemDescriptor Descriptor(string id) => new(typeof(Counter), true, Array.Empty<EcsComponentAccessDescriptor>(), Array.Empty<EcsSystemOrderDescriptor>(), id);
         private sealed class Candidate(Preparation owner) : ISimulationCodeReloadCandidate
+#if DEBUG
+            , IPreparedSchemaReload
+#endif
         {
+#if DEBUG
+            public ReadOnlyMemory<byte> SharedSchemaProof { get; } = new byte[32];
+#endif
             public ReadOnlyMemory<ISystemUpdate> Systems => new ISystemUpdate[] { owner.Next };
             public ReadOnlyMemory<EcsUpdateSystemDescriptor> Descriptors => owner.InvalidGraph
                 ? new[] { Descriptor("duplicate"), Descriptor("duplicate") } : new[] { Descriptor("probe:next") };

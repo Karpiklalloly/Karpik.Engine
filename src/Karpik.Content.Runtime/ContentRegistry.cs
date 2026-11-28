@@ -282,6 +282,11 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
         return PrepareCoreAsync(null, null, packages, installedModIds, report, cancellationToken);
     }
 
+    // Capture against the reserved basis. The coordinator owns the capture wrappers until this settles.
+    internal Task<PreparedContentUpdate> PrepareModUpdateAsync(ModContentRefreshCapture capture,
+        Action<ContentDiagnostic>? report, CancellationToken cancellationToken) =>
+        PrepareCoreAsync(null, null, null, null, report, cancellationToken, capture);
+
     // Borrowed by the serialized cold coordinator, which keeps this root current
     // while it captures the next mod layer. No ownership transfers to the reader.
     internal ContentSnapshot CommittedSnapshot => Volatile.Read(ref _root) is { Revision: > 0 } root
@@ -289,7 +294,7 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
 
     private async Task<PreparedContentUpdate> PrepareCoreAsync(ContentManifest? manifest, IContentStore? candidateStore,
         IReadOnlyList<ModContentPackage>? packages, IReadOnlyCollection<string>? installedModIds,
-        Action<ContentDiagnostic>? report, CancellationToken cancellationToken)
+        Action<ContentDiagnostic>? report, CancellationToken cancellationToken, ModContentRefreshCapture? capture = null)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (Interlocked.CompareExchange(ref _updating, 1, 0) != 0) throw new InvalidOperationException("An update is preparing or retiring. Await its Completion first.");
@@ -300,6 +305,13 @@ public sealed class ContentRegistry : IContentRegistry, IContentUpdateRegistry, 
             ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             var basis = CommittedSnapshot;
             cancellationToken.ThrowIfCancellationRequested();
+            if (capture != null)
+            {
+                (packages, installedModIds, _) = await capture(basis.Packages, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                ArgumentNullException.ThrowIfNull(packages);
+                ArgumentNullException.ThrowIfNull(installedModIds);
+            }
             var store = candidateStore ?? basis.Store;
             var entries = packages == null ? ContentComposition.Normalize(manifest!) : basis.BaseEntries;
             var composition = ContentComposition.Build(entries, store, packages ?? basis.Packages,

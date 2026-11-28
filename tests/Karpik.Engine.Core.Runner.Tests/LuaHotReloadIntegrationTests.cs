@@ -113,6 +113,31 @@ public sealed partial class LuaPreparationTests
     }
 
     [Fact]
+    public async Task LuaHotReload_RejectsMissingPreviouslyCapturedEntryAndKeepsLazySource()
+    {
+        if (!LuaSourceCapture.IsSupported) return;
+        await WithLuaFiles("return { on_update = function() assert(require('late') == 'old') end }", null,
+            (_, definition) =>
+            {
+                string shared = Path.Combine(definition.Directory, "Shared");
+                string helper = Path.Combine(shared, "late.lua");
+                File.WriteAllText(helper, "return 'old'");
+                using var fixture = new ReloadRunnerFixture(definition, false, EcsUpdateSchedulerMode.Deterministic);
+                var oldOwner = fixture.Owner;
+                File.Delete(Path.Combine(shared, "main.lua"));
+                File.Delete(helper);
+
+                var result = fixture.Reload();
+
+                Assert.Equal(SimulationCodeReloadStatus.Rejected, result.Status);
+                Assert.Contains("main.lua", result.Error!.ToString());
+                Assert.Same(oldOwner, fixture.Owner);
+                fixture.Tick();
+                return Task.CompletedTask;
+            });
+    }
+
+    [Fact]
     public async Task LuaHotReload_SeededSuccessRejectCancelSequencesReleaseRetiredRevisions()
     {
         WeakReference[] retired = [];

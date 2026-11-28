@@ -66,6 +66,8 @@ public partial class EngineRunner
     {
         _contentEndpoint = _engineContainer!.ResolveOptional<ContentReloadHostRuntime>();
         _contentEndpoint?.Start();
+        if (_hostModLiveReload)
+            refreshCapture = (_codeReloadParticipant as ISimulationLiveModParticipant)?.CreateLiveModRefreshCapture(ReportContentDiagnostic);
         if (_contentCoordinator is { } coordinator && refreshCapture is not null)
             Volatile.Write(ref _requestModContentRefresh, () => RequestModContentRefreshCoreAsync(coordinator, refreshCapture));
     }
@@ -75,9 +77,17 @@ public partial class EngineRunner
             "{Code}: {Path}: {Message}", diagnostic.Code, diagnostic.RelativePath, diagnostic.Message);
 
     /// <summary>Queue a local mod-content refresh for the next quiescent publication boundary.</summary>
-    public Task<ModContentRefreshResult> RequestModContentRefreshAsync() =>
-        Volatile.Read(ref _requestModContentRefresh)?.Invoke() ??
-        Task.FromResult(new ModContentRefreshResult(ModContentRefreshStatus.Unavailable));
+    public Task<ModContentRefreshResult> RequestModContentRefreshAsync()
+    {
+        lock (_codeReloadRequestGate)
+        {
+            if (IsLiveReloadReserved) return Task.FromResult(new ModContentRefreshResult(ModContentRefreshStatus.Busy));
+            if (Volatile.Read(ref _codeReloadShuttingDown) != 0)
+                return Task.FromResult(new ModContentRefreshResult(ModContentRefreshStatus.Unavailable));
+            return Volatile.Read(ref _requestModContentRefresh)?.Invoke() ??
+                Task.FromResult(new ModContentRefreshResult(ModContentRefreshStatus.Unavailable));
+        }
+    }
 
     private async Task<ModContentRefreshResult> RequestModContentRefreshCoreAsync(ContentReloadCoordinator coordinator,
         ModContentRefreshCapture capture)

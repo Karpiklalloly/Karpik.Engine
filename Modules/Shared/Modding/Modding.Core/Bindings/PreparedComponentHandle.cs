@@ -10,12 +10,18 @@ public sealed class PreparedComponentHandle
     public string ComponentId { get; }
     public Type? ClrType { get; }
     public bool Readonly { get; }
-    public ReadOnlyMemory<ComponentFieldDescriptor> Fields => Pool.Fields;
+    // Public descriptors must not hand out column access that bypasses this domain.
+    public ReadOnlyMemory<ComponentFieldDescriptor> Fields { get; }
+    internal ReadOnlyMemory<ComponentFieldDescriptor> DirectFields => Pool.Fields;
 
     internal PreparedComponentHandle(string id, Type? clrType, bool readOnly, IComponentPoolAccess pool, ComponentCallbackScope scope, string owner)
     {
         ComponentId = id; ClrType = clrType; Readonly = readOnly; Pool = pool; _scope = scope; _owner = owner;
         _view = new PreparedComponentView(this);
+        var source = pool.Fields.Span;
+        var fields = new ComponentFieldDescriptor[source.Length];
+        for (int i = 0; i < fields.Length; i++) fields[i] = source[i].BindTo(this);
+        Fields = fields;
     }
 
     public bool Has(int entityId) { Require(); return Pool.Has(entityId); }
@@ -32,7 +38,7 @@ public sealed class PreparedComponentHandle
     public ComponentSnapshot NewSnapshot()
     {
         Require();
-        return new ComponentSnapshot(ComponentId, ClrType, _scope, Fields.Span);
+        return new ComponentSnapshot(ComponentId, ClrType, _scope, DirectFields.Span);
     }
     public ComponentSnapshot Copy(int entityId)
     {
@@ -100,12 +106,12 @@ public sealed class PreparedComponentView : IComponentDataView
     public void WriteNUInt(int field, nuint value) => WriteField(field).NUInt.Write(EntityId, value);
     private ComponentFieldDescriptor ReadField(int field)
     {
-        _handle.Require(); return _handle.Fields.Span[field];
+        _handle.Require(); return _handle.DirectFields.Span[field];
     }
     private ComponentFieldDescriptor WriteField(int field)
     {
         _handle.RequireMutable();
-        ComponentFieldDescriptor descriptor = _handle.Fields.Span[field];
+        ComponentFieldDescriptor descriptor = _handle.DirectFields.Span[field];
         if (!descriptor.CanWrite) throw new InvalidOperationException($"Field '{descriptor.Name}' is readonly.");
         return descriptor;
     }
