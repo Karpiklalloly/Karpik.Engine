@@ -14,6 +14,8 @@ public sealed class ComponentCallbackScope : IDisposable
     public ComponentCallbackScope() { }
     internal ComponentCallbackScope(bool active) => _active = active;
 
+    internal bool IsEntered => _owner is not null;
+
     internal void Activate()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

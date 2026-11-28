@@ -128,6 +128,8 @@ its startup capture and validation hooks (or its no-Content startup hook).
 Replacing the participant with an unrelated implementation alone does not
 complete the stock ModSet dependency preparation.
 
+Opt-in live selection reserves this same registry basis before Ready and stages an ordered package root separately from ordinary `PublishBoundary`. The host publishes Lua/ECS and the prepared Content root under one quiescent Commit decision; abort releases candidate ownership only. The first resumed boundary delivers the prepared change span once, before another queued base update can replace it. Mod refresh uses the accepted Simulation set and returns Busy during competing transitions. Neither Commit nor Resume waits for old renderer/read claims; retirement uses the existing owner order. See [live revision protocol](mod-live-revision-protocol.md).
+
 ## GPU contract
 
 Shared Runtime knows only `IContentPayloadLoader`, `IContentTrackedResource`, `ContentResourceLifetime` and preallocated `ContentResourcePins`; it imports no Client/backend types. The OpenGL `ContentTextureLoader` exports a stable loader for declared type `texture` and payload `ITexture2D`. The interface has `[ContentType("texture")]`, so generated Client refs can use it. Cooked PNG/JPEG bytes retain the existing format. Shader/pipeline and font-content decoding are separate adapters, not implemented by this texture adapter.

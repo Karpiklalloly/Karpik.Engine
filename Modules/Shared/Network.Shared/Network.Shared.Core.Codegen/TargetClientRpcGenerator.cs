@@ -61,7 +61,8 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         // B. Client Dispatcher (Только ClientApp)
         if (projectType == ProjectTypeDetector.ProjectType.Client && (allTarget.Count != 0 || allClient.Count != 0))
         {
-            context.AddSource("TargetClientRpcDispatcher.g.cs", SourceText.From(GenerateClientDispatcher(allTarget, allClient), Encoding.UTF8));
+            context.AddSource("TargetClientRpcDispatcher.g.cs", SourceText.From(GenerateClientDispatcher(allTarget, allClient,
+                compilation.GetTypeByMetadataName("Karpik.Engine.Shared.Network.Core.RevisionGameplayEvent") is not null), Encoding.UTF8));
         }
     }
 
@@ -122,9 +123,14 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
         return baseMethod;
     }
 
-    private static string GenerateClientDispatcher(List<CommandInfo> tCmds, List<CommandInfo> cCmds)
+    private static string GenerateClientDispatcher(List<CommandInfo> tCmds, List<CommandInfo> cCmds, bool stampRevision)
     {
         var cases = new StringBuilder();
+        var enqueue = stampRevision
+            ? "RevisionGameplayEvent.Enqueue(_eventWorld, _stamps, cmd, reader.GameplayRevision);"
+            : "_eventWorld.SendEvent(cmd);";
+        var stampField = stampRevision ? "private readonly EcsPool<RevisionGameplayStamp> _stamps;" : "";
+        var stampInit = stampRevision ? "_stamps = eventWorld.GetPool<RevisionGameplayStamp>();" : "";
         foreach (var cmd in tCmds.Concat(cCmds))
         {
             var r = new StringBuilder();
@@ -134,7 +140,7 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
                         case {{cmd.Id}}: // {{cmd.FullName}}
                         {
                             var cmd = new {{cmd.FullName}}();
-            {{r}}                    _eventWorld.SendEvent(cmd);
+            {{r}}                    {{enqueue}}
                             break;
                         }
             """);
@@ -153,10 +159,12 @@ public class TargetClientRpcGenerator : IIncrementalGenerator
                 public partial class {{ClientDispatcherClass}}
                 {
                     private readonly EcsEventWorld _eventWorld;
+                    {{stampField}}
 
                     public {{ClientDispatcherClass}}(EcsEventWorld eventWorld)
                     {
                         _eventWorld = eventWorld;
+                        {{stampInit}}
                     }
 
                     public void Dispatch(IReader reader)

@@ -212,7 +212,8 @@ public sealed partial class ContentReloadHostTests
         var first = WithStore(firstActual!.Package, firstStore);
         var next = WithStore(nextActual!.Package, nextStore);
         var refresh = new LuaModContentRefresh(Path.Combine(tree.Root, "Mods"), AssetTarget.Server,
-            new(System.Collections.Frozen.FrozenDictionary<string, ModDependencyNode>.Empty, ModDependencyResolver.Resolve([], AssetTarget.Server), []),
+            new(AssetTarget.Server, System.Collections.Frozen.FrozenDictionary<string, ModDependencyNode>.Empty,
+                ModDependencyResolver.Resolve([], AssetTarget.Server), [], System.Collections.Frozen.FrozenDictionary<string, DiscoveredMod>.Empty),
             [], System.Collections.Frozen.FrozenSet<string>.Empty);
         Exception error = await Assert.ThrowsAnyAsync<Exception>(() => refresh.CaptureAsync([first, next], _ => { }, default));
         Assert.Equal((1, 1), (firstStore.Releases, nextStore.Releases));
@@ -448,6 +449,149 @@ public sealed partial class ContentReloadHostTests
                 item.Message.Contains(scriptedAsset.ToCanonicalString(), StringComparison.OrdinalIgnoreCase));
         }
         finally { await runner.DestroyAsync(); }
+    }
+
+    [Fact]
+    public async Task ModLiveContent_StagesApplyAndReusesTheActualSurvivingCapture()
+    {
+        if (!LuaSourceCapture.IsSupported) return;
+        using var tree = new HostTree(Side.Server);
+        using var initial = tree.Build(1);
+        tree.BuildMod("keep", 2, contentOnly: false);
+        var removedId = tree.BuildMod("z-remove", 3);
+        var addedId = tree.BuildMod("a-add", 4);
+        var config = Path.Combine(tree.Root, "mods.json");
+        File.WriteAllText(config, """{"disabled":["a-add"]}""");
+        using var store = new FileContentStore(tree.FileSystem);
+        await using var content = new ContentRegistry(tree.FileSystem, store, deferredStartup: new DeferredContentStartup());
+        var (mods, preparation) = await PrepareContentFixtureAsync(tree, content);
+        await using var coordinator = new ContentReloadCoordinator(content);
+        var basis = mods.StartupDependencies!;
+        var script = Assert.Single(basis.ScriptedMods);
+        var capture = preparation.CreateLiveRefreshCapture(() => basis, static _ => { });
+        Assert.NotNull(capture);
+        var keepId = tree.BuildMod("keep", 5, contentOnly: false);
+        using (var refreshed = await coordinator.PrepareModUpdateAsync(capture))
+        {
+            Assert.NotNull(refreshed);
+            Assert.True(refreshed.TryCommitAtBarrier());
+            Assert.False(coordinator.PublishBoundary());
+            await refreshed.Completion;
+        }
+        var survivor = await ReadIdAsync(content, keepId);
+        Assert.Equal(5, survivor.Value);
+        DeleteMod(tree, "keep"); // Apply must borrow the latest cooked store and pinned Lua, not reopen the install.
+        var before = coordinator.Sequence;
+
+        var aborted = await preparation.PrepareLiveSelectionAsync(coordinator, basis, ["keep", "a-add"], static _ => { });
+        Assert.NotNull(aborted);
+        using (aborted.Value.Update)
+        {
+            Assert.Equal(Karpik.Content.Runtime.ContentReloadOutcome.Busy, (await coordinator.EnqueueModRefreshAsync(capture.Invoke)).Outcome);
+            Assert.False(coordinator.PublishBoundary());
+            Assert.False(content.TryResolve<string>(addedId, out _));
+            Assert.True(content.TryResolve<string>(removedId, out _));
+        }
+        await aborted.Value.Update.Completion;
+        Assert.Equal(before, coordinator.Sequence);
+
+        var committed = await preparation.PrepareLiveSelectionAsync(coordinator, basis, ["keep", "a-add"], static _ => { });
+        Assert.NotNull(committed);
+        using (committed.Value.Update)
+        {
+            Assert.Same(script.ScriptSource, Assert.Single(committed.Value.Composition.ScriptedMods).ScriptSource);
+            Assert.True(committed.Value.Update.TryCommitAtBarrier());
+            basis = committed.Value.Composition;
+            Assert.Equal(before, coordinator.Sequence);
+            Assert.False(coordinator.PublishBoundary());
+            Assert.Equal(before + 1, coordinator.Sequence);
+            Assert.Contains(new ContentAssetChange(addedId, ContentAssetChangeKind.Added), coordinator.Changes.ToArray());
+            Assert.Contains(new ContentAssetChange(removedId, ContentAssetChangeKind.Removed), coordinator.Changes.ToArray());
+            Assert.False(coordinator.PublishBoundary());
+            Assert.Empty(coordinator.Changes.ToArray());
+        }
+        await committed.Value.Update.Completion;
+        Assert.Equal(survivor, await ReadIdAsync(content, keepId));
+        Assert.Equal(4, (await ReadIdAsync(content, addedId)).Value);
+        Assert.False(content.TryResolve<string>(removedId, out _));
+
+        tree.BuildMod("a-add", 6);
+        var refresh = coordinator.EnqueueModRefreshAsync(capture.Invoke);
+        await PumpContentBoundaryAsync(coordinator, refresh);
+        Assert.Equal(Karpik.Content.Runtime.ContentReloadOutcome.Applied, (await refresh).Outcome);
+        Assert.Equal(6, (await ReadIdAsync(content, addedId)).Value);
+        Assert.Equal(survivor, await ReadIdAsync(content, keepId));
+        Assert.False(content.TryResolve<string>(removedId, out _));
+        Assert.Equal("""{"disabled":["a-add"]}""", File.ReadAllText(config));
+    }
+
+    [Fact]
+    public async Task ModLiveContent_RefreshOnlyFollowsTheCurrentAcceptedBasis()
+    {
+        if (!LuaSourceCapture.IsSupported) return;
+        using var tree = new HostTree(Side.Server);
+        using var initial = tree.Build(1);
+        tree.BuildMod("script", 2, contentOnly: false);
+        tree.BuildMod("provider", 3, target: AssetTarget.Client);
+        File.WriteAllText(Path.Combine(tree.ModDirectory("script"), "mod_info.json"),
+            """{"id":"script","dependencies":{"shared":[{"id":"provider","optional":true}]}}""");
+        using var store = new FileContentStore(tree.FileSystem);
+        await using var content = new ContentRegistry(tree.FileSystem, store, deferredStartup: new DeferredContentStartup());
+        var (mods, preparation) = await PrepareContentFixtureAsync(tree, content);
+        await using var coordinator = new ContentReloadCoordinator(content);
+        ModStartupDependencies? basis = null;
+        var capture = preparation.CreateLiveRefreshCapture(() => basis!, static _ => { });
+        Assert.NotNull(capture);
+        basis = mods.StartupDependencies!;
+        var script = Assert.Single(basis.ScriptedMods);
+        Assert.Empty(script.ResolvedDirectDependencies!);
+        var notSelected = tree.BuildMod("deselected", 4);
+
+        var refresh = coordinator.EnqueueModRefreshAsync(capture.Invoke);
+        await PumpContentBoundaryAsync(coordinator, refresh);
+        Assert.Equal(Karpik.Content.Runtime.ContentReloadOutcome.Applied, (await refresh).Outcome);
+        Assert.False(content.TryResolve<string>(notSelected, out _));
+
+        // Edits to the installed Lua manifest do not release the accepted optional edge contract.
+        tree.BuildMod("script", 6, contentOnly: false);
+        var provider = tree.BuildMod("provider", 5);
+        refresh = coordinator.EnqueueModRefreshAsync(capture.Invoke);
+        await PumpContentBoundaryAsync(coordinator, refresh);
+        var result = await refresh;
+        Assert.Equal(Karpik.Content.Runtime.ContentReloadOutcome.Failed, result.Outcome);
+        Assert.Contains("direct dependencies of active Lua mod 'script' would change", result.Error);
+        Assert.False(content.TryResolve<string>(provider, out _));
+        Assert.False(content.TryResolve<string>(notSelected, out _));
+        Assert.Equal((2, 1u), await ReadIdAsync(content, tree.AssetId));
+        Assert.Same(script.ScriptSource, Assert.Single(basis.ScriptedMods).ScriptSource);
+        Assert.Empty(Assert.Single(basis.ScriptedMods).ResolvedDirectDependencies!);
+        Assert.Equal(0UL, coordinator.Sequence);
+    }
+
+    private static async Task<(ModsRegistry Mods, LuaModSetPreparation Preparation)> PrepareContentFixtureAsync(HostTree tree, ContentRegistry content)
+    {
+        content.Start();
+        var mods = new ModsRegistry(fileSystem: tree.FileSystem);
+        var preparation = new LuaModSetPreparation(mods, new Application(Side.Server));
+        await preparation.PrepareAsync(default);
+        var (captures, owners) = await preparation.CaptureStartupAsync(static _ => { }, default);
+        try
+        {
+            var packages = captures.Select(static capture => capture.Package).ToArray();
+            content.CompleteStartup(packages, owners, null, accepted => preparation.ValidateStartupPackages(accepted, default));
+        }
+        finally { ModContentCapture.DisposeAll(captures); }
+        return (mods, preparation);
+    }
+
+    private static async Task PumpContentBoundaryAsync(ContentReloadCoordinator coordinator, Task request)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (!request.IsCompleted)
+        {
+            coordinator.PublishBoundary();
+            await Task.Delay(1, deadline.Token);
+        }
     }
 
     private sealed class HostLog : ILoggerProvider, ILogger

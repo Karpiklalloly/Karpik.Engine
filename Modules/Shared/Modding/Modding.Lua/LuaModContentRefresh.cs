@@ -136,6 +136,67 @@ internal sealed class LuaModContentRefresh
             ContentDiagnosticSeverity.Warning, path, $"Restart required to change scripted mod '{id}'."));
     }
 
+    internal static async Task<(IReadOnlyList<ModContentPackage>, IReadOnlyCollection<string>, IReadOnlyList<ModContentCapture>)> CaptureLiveAsync(
+        ModStartupDependencies basis, IReadOnlyList<ModContentPackage> previous, Action<ContentDiagnostic> report, CancellationToken cancellation)
+    {
+        var previousById = IndexAcceptedPackages(basis, previous);
+        var selected = new Dictionary<string, ModContentPackage>(StringComparer.Ordinal);
+        var captures = new List<ModContentCapture>();
+        try
+        {
+            foreach (string id in basis.Resolution.OrderedIds)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var accepted = basis.PackagesById[id];
+                string path = accepted.Definition.Directory;
+                previousById.TryGetValue(id, out var prior);
+                // A disappeared install does not deselect an accepted mod. Also, Lua-only links cannot supply cooked assets.
+                if (accepted.UncapturableCookedSource is not null || !ContentCaptureFiles.DirectoryExists(path))
+                {
+                    if (prior is not null) selected.Add(id, prior);
+                    continue;
+                }
+
+                var capture = await ModContentCapture.CaptureAsync(path, id, basis.Side, prior, report, cancellation).ConfigureAwait(false);
+                if (capture is not null)
+                {
+                    captures.Add(capture);
+                    selected.Add(id, capture.Package);
+                }
+                else if (prior is not null)
+                    throw new InvalidDataException($"Previously accepted {basis.Side} Content for mod '{id}' is missing from '{path}'.");
+                if (!ContentCaptureFiles.DirectoryExists(path))
+                    throw new InvalidDataException($"Mod '{id}' disappeared during Content refresh: '{path}'.");
+            }
+
+            // Live metadata stays pinned. A new cooked provider may still change Lua availability; require Apply for that.
+            var nodes = basis.NodesById.Values.Select(node => node with
+            {
+                CookedAvailability = selected.ContainsKey(node.Id) ? ModCookedAvailability.AdmittedCandidate : ModCookedAvailability.Absent
+            }).ToArray();
+            var resolution = ModDependencyResolver.Resolve(nodes, basis.Side, cancellation);
+            ValidateFrozenLua(basis, resolution, cancellation);
+            return (resolution.OrderedIds.Where(selected.ContainsKey).Select(id => selected[id]).ToArray(), basis.PackagesById.Keys, captures);
+        }
+        catch (Exception error)
+        {
+            ModContentCapture.DisposeAll(captures, error);
+            throw;
+        }
+    }
+
+    internal static Dictionary<string, ModContentPackage> IndexAcceptedPackages(ModStartupDependencies basis, IReadOnlyList<ModContentPackage> previous)
+    {
+        var packages = new Dictionary<string, ModContentPackage>(previous.Count, StringComparer.Ordinal);
+        foreach (var package in previous)
+        {
+            if (!basis.PackagesById.ContainsKey(package.ModId))
+                throw new InvalidDataException($"Committed {basis.Side} Content for mod '{package.ModId}' is outside the accepted live composition.");
+            packages.Add(package.ModId, package);
+        }
+        return packages;
+    }
+
     private ModContentPackage AttachDependencies(ModContentPackage package, DiscoveredMod mod)
     {
         string? version = mod.Definition.MetaData.Version;
@@ -170,25 +231,25 @@ internal sealed class LuaModContentRefresh
             nodes.Add(new ModDependencyNode(id, metadata.Version, metadata.Manifest, false, ModCookedAvailability.AdmittedCandidate));
         }
         var resolution = ModDependencyResolver.Resolve(nodes, _target, cancellation);
-        ValidateFrozenLua(resolution, cancellation);
+        ValidateFrozenLua(_startup, resolution, cancellation);
         return resolution.OrderedIds.Where(selected.ContainsKey).Select(id => selected[id]).ToArray();
     }
 
-    private void ValidateFrozenLua(ModDependencyResolution candidate, CancellationToken cancellation)
+    private static void ValidateFrozenLua(ModStartupDependencies basis, ModDependencyResolution candidate, CancellationToken cancellation)
     {
         int index = 0;
         foreach (string id in candidate.OrderedIds)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (!_scripted.ContainsKey(id)) continue;
-            var before = _startup.Resolution.DirectTargetsById[id];
+            if (!basis.PackagesById.TryGetValue(id, out var package) || package.Definition.MetaData.ContentOnly) continue;
+            var before = basis.Resolution.DirectTargetsById[id];
             var after = candidate.DirectTargetsById[id];
             if (!before.SetEquals(after))
-                throw new ModDependencyException($"Restart required on {_target}: direct dependencies of active Lua mod '{id}' would change " +
+                throw new ModDependencyException($"Restart required on {basis.Side}: direct dependencies of active Lua mod '{id}' would change " +
                     $"from [{string.Join(", ", before.Order(StringComparer.Ordinal))}] to [{string.Join(", ", after.Order(StringComparer.Ordinal))}].");
-            string expected = _startup.ScriptedMods[index++].MetaData.Id;
+            string expected = basis.ScriptedMods[index++].MetaData.Id;
             if (id != expected)
-                throw new ModDependencyException($"Restart required on {_target}: active Lua order would place '{id}' where '{expected}' was loaded.");
+                throw new ModDependencyException($"Restart required on {basis.Side}: active Lua order would place '{id}' where '{expected}' was loaded.");
         }
     }
 

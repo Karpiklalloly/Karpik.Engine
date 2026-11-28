@@ -74,6 +74,36 @@ public sealed record ComponentFieldDescriptor
         if (Kind != KindOf<TValue>() || _field is not IComponentField<TValue> accessor) throw WrongKind();
         return accessor;
     }
+    internal ComponentFieldDescriptor BindTo(PreparedComponentHandle handle)
+    {
+        return new(Name, CanWrite, Kind, Kind switch
+        {
+            SchemaScalarKind.Bool => Guard<bool>(), SchemaScalarKind.I8 => Guard<sbyte>(),
+            SchemaScalarKind.U8 => Guard<byte>(), SchemaScalarKind.I16 => Guard<short>(),
+            SchemaScalarKind.U16 => Guard<ushort>(), SchemaScalarKind.Char => Guard<char>(),
+            SchemaScalarKind.I32 => Guard<int>(), SchemaScalarKind.U32 => Guard<uint>(),
+            SchemaScalarKind.I64 => Guard<long>(), SchemaScalarKind.U64 => Guard<ulong>(),
+            SchemaScalarKind.F32 => Guard<float>(), SchemaScalarKind.F64 => Guard<double>(),
+            SchemaScalarKind.Decimal => Guard<decimal>(), SchemaScalarKind.NInt => Guard<nint>(),
+            SchemaScalarKind.NUInt => Guard<nuint>(), SchemaScalarKind.Pointer => Guard<ComponentPointerValue>(),
+            _ => throw WrongKind()
+        }) { Path = Path, PointerRegistry = PointerRegistry, PointerType = PointerType };
+
+        ScopedField<T> Guard<T>() where T : unmanaged => new(handle, Get<T>(), CanWrite);
+    }
+
+    private sealed class ScopedField<T>(PreparedComponentHandle handle, IComponentField<T> field, bool canWrite) :
+        IComponentField<T> where T : unmanaged
+    {
+        public T Read(int entityId) { handle.Require(); return field.Read(entityId); }
+        public void Write(int entityId, T value)
+        {
+            handle.RequireMutable();
+            if (!canWrite) throw new InvalidOperationException("Component field is readonly.");
+            field.Write(entityId, value);
+        }
+    }
+
     // The JIT specializes this immutable type-to-kind mapping; values are never boxed.
     private static SchemaScalarKind KindOf<TValue>() where TValue : unmanaged =>
         typeof(TValue) == typeof(bool) ? SchemaScalarKind.Bool :

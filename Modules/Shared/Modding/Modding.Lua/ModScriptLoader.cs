@@ -6,21 +6,22 @@ namespace Karpik.Engine.Shared.Modding.Lua;
 
 public class ModScriptLoader : ScriptLoaderBase
 {
-    private readonly string _root;
+    private readonly ModScriptSource? _source;
     private readonly string _side;
-    private readonly IFileSystem _fileSystem;
+    private readonly string? _legacyRoot;
+    private readonly IFileSystem? _legacyFileSystem;
 
-    public ModScriptLoader(string root, IFileSystem fileSystem, ExecutionSide side)
+    public ModScriptLoader(string root, IFileSystem fileSystem, ExecutionSide side) : this(side)
     {
-        _root = root;
-        _fileSystem = fileSystem;
-        _side = side switch
-        {
-            ExecutionSide.Client => "Client",
-            ExecutionSide.Server => "Server",
-            _ => throw new ArgumentOutOfRangeException(nameof(side))
-        };
+        if (LuaSourceCapture.IsSupported) _source = LuaSourceCapture.Capture(root, side);
+        else (_legacyRoot, _legacyFileSystem) = (root, fileSystem);
+    }
 
+    internal ModScriptLoader(ModScriptSource source) : this(source.Side) => _source = source;
+
+    private ModScriptLoader(ExecutionSide side)
+    {
+        _side = LuaSourceCapture.SideDirectory(side);
         IgnoreLuaPathGlobal = true;
         ModulePaths =
         [
@@ -33,26 +34,30 @@ public class ModScriptLoader : ScriptLoaderBase
 
     public override object LoadFile(string file, Table globalContext)
     {
-        using Stream stream = _fileSystem.OpenRead(ResolvePath(file));
+        string path = ResolvePath(file);
+        if (_source is not null)
+            return _source.TryGetFile(path, out var text) ? text! :
+                throw new FileNotFoundException($"Script was not present in the captured source: '{file}'.", file);
+
+        using var stream = _legacyFileSystem!.OpenRead(_legacyFileSystem.Combine(_legacyRoot!, path));
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
 
-    public override bool ScriptFileExists(string name) => _fileSystem.Exists(ResolvePath(name));
+    public override bool ScriptFileExists(string name)
+    {
+        string path = ResolvePath(name);
+        return _source is not null ? _source.TryGetFile(path, out _) :
+            _legacyFileSystem!.Exists(_legacyFileSystem.Combine(_legacyRoot!, path));
+    }
 
     private string ResolvePath(string file)
     {
         string relative = file.Replace('\\', '/');
         string[] parts = relative.Split('/');
-
-        if (_fileSystem.IsPathRooted(relative)
-            || relative.Contains(':')
-            || parts.Any(part => part is "" or "." or "..")
-            || (parts[0] != "Shared" && parts[0] != _side))
-        {
+        if (relative.Contains(':') || parts.Any(part => part is "" or "." or "..") ||
+            (parts[0] != "Shared" && parts[0] != _side))
             throw new InvalidOperationException($"Script path is not allowed: '{file}'.");
-        }
-
-        return _fileSystem.Combine(_root, relative);
+        return relative;
     }
 }

@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using System.Text;
 
 namespace Karpik.Engine.Core;
@@ -71,6 +72,26 @@ public readonly struct IpcMessage
         var payloadLength = BitConverter.ToInt32(buffer, offset);
         var type = (IpcMessageType)buffer[offset + 4];
         return (5 + payloadLength, type);
+    }
+}
+
+internal static class IpcFrame
+{
+    // Retain legacy framing. Bound private frames at the header before allocating any payload.
+    internal static async ValueTask<IpcMessage?> ReadAsync(
+        PipeStream pipe, byte[] header, CancellationToken token, IpcMessageType? expectedProof = null)
+    {
+        int first = await pipe.ReadAsync(header, token).ConfigureAwait(false);
+        if (first == 0) return null;
+        await pipe.ReadExactlyAsync(header.AsMemory(first), token).ConfigureAwait(false);
+        int length = BitConverter.ToInt32(header);
+        var type = (IpcMessageType)header[4];
+        if ((expectedProof is { } expected && type != expected) || !ModLiveIpcProtocol.HasValidLength(type, length))
+            throw new InvalidDataException("Invalid IPC frame header.");
+
+        var payload = length == 0 ? Array.Empty<byte>() : new byte[length];
+        await pipe.ReadExactlyAsync(payload, token).ConfigureAwait(false);
+        return new(type, payload);
     }
 }
 

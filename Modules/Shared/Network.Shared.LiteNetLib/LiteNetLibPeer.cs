@@ -1,24 +1,34 @@
-﻿using Karpik.Engine.Shared.Network.Core;
+using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
 using ConnectionState = Karpik.Engine.Shared.Network.Core.ConnectionState;
 using DeliveryMethod = Karpik.Engine.Shared.Network.Core.DeliveryMethod;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
 
-public class LiteNetLibPeer : IPeer
+internal enum PeerWireMode : byte
 {
-    public NetPeer Peer { get; }
-    
-    public LiteNetLibPeer(NetPeer peer)
+    Legacy,
+    AwaitingServerHandshake,
+    Revision,
+}
+
+public sealed class LiteNetLibPeer : IPeer
+{
+    internal LiteNetLibPeer(LiteNetLibNetworkManager owner, NetPeer peer)
     {
-        Peer = peer;
+        Owner = owner;
+        RawPeer = peer;
     }
 
-    public int Id => Peer.Id;
-    public ConnectionState ConnectionState => (ConnectionState)Peer.ConnectionState;
+    internal LiteNetLibNetworkManager Owner { get; }
+    internal NetPeer RawPeer { get; }
+    internal PeerWireMode WireMode { get; set; }
+    internal bool SchemaValidated { get; set; }
 
-    public void Send(IWriter writer, DeliveryMethod deliveryMethod)
-    {
-        Peer.Send(((LiteNetLibWriter)writer).Writer, (global::LiteNetLib.DeliveryMethod)deliveryMethod);
-    }
+    public int Id => RawPeer.Id;
+    public ConnectionState ConnectionState => (ConnectionState)RawPeer.ConnectionState;
+
+    public void Disconnect() => RawPeer.Disconnect();
+
+    public void Send(IWriter writer, DeliveryMethod deliveryMethod) => Owner.SendGameplay(this, writer, deliveryMethod);
 }

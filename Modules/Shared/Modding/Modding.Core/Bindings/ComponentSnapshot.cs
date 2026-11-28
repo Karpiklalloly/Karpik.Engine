@@ -109,7 +109,7 @@ public sealed class ComponentSnapshot : IComponentDataView
         source.Require();
         if (!ReferenceEquals(source.SimulationScope, _simulation) || source.ComponentId != ComponentId || source.ClrType != ClrType)
             throw new InvalidOperationException("Snapshot buffer belongs to another component or Simulation.");
-        ReadOnlySpan<ComponentFieldDescriptor> fields = source.Fields.Span;
+        ReadOnlySpan<ComponentFieldDescriptor> fields = source.DirectFields.Span;
         if (fields.Length != _fields.Length) throw LayoutMismatch();
         // Complete compatibility validation before changing any data. Similar layouts are not
         // interchangeable across components, types, domains or frozen schema versions.

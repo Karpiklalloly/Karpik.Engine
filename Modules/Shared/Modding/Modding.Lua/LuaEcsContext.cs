@@ -25,14 +25,14 @@ internal sealed class LuaEcsContext
         for (int i = 0; i < definitions.Length; i++)
             queries.Set(definitions[i].Name, UserData.Create(new LuaQuery(script, Queries[i], $"System '{owner}', query '{definitions[i].Name}'"), new QueryDescriptor()));
         context.Set("queries", DynValue.NewTable(queries));
-        context.Set("commands", UserData.Create(new LuaCommands(_commands, owner), CommandsDescriptor.Instance));
+        context.Set("commands", UserData.Create(new LuaCommands(_commands, scope, owner), CommandsDescriptor.Instance));
         Value = DynValue.NewTable(context);
     }
 
     internal void Enter()
     {
         _scope.Enter(_owner);
-        try { _commands.Begin(_owner); foreach (var query in Queries) query.Reset(); }
+        try { _commands.Begin(_scope, _owner); foreach (var query in Queries) query.Reset(); }
         catch { _scope.Exit(); throw; }
     }
     internal void Complete() => _commands.Complete();
@@ -134,13 +134,14 @@ internal sealed class LuaEcsContext
     private sealed class LuaCommands
     {
         private readonly StructuralCommandBuffer _buffer;
+        private readonly ComponentCallbackScope _scope;
         private readonly string _owner;
         internal DynValue Create { get; }
         internal DynValue Add { get; }
         internal DynValue Del { get; }
-        internal LuaCommands(StructuralCommandBuffer buffer, string owner)
+        internal LuaCommands(StructuralCommandBuffer buffer, ComponentCallbackScope scope, string owner)
         {
-            _buffer = buffer; _owner = owner;
+            _buffer = buffer; _scope = scope; _owner = owner;
             Create = DynValue.NewCallback((_, args) =>
             {
                 try
@@ -187,15 +188,15 @@ internal sealed class LuaEcsContext
         }
         private void Require(CallbackArguments args, int min, int max)
         {
-            _buffer.RequireOwner(_owner);
+            _buffer.RequireOwner(_scope, _owner);
             if (args.Count < min || args.Count > max || args[0].Type != DataType.UserData ||
                 !ReferenceEquals(args[0].UserData.Object, this))
                 throw new ScriptRuntimeException("Command requires ':' syntax and the expected arguments.");
         }
-        internal void ValidateOwner() => _buffer.RequireOwner(_owner);
+        internal void ValidateOwner() => _buffer.RequireOwner(_scope, _owner);
         internal ScriptRuntimeException Reject(Exception error)
         {
-            _buffer.Invalidate();
+            _buffer.Invalidate(_scope);
             return OperationError("System '" + _owner + "', commands", error);
         }
         private static bool IsCommandError(Exception error) =>

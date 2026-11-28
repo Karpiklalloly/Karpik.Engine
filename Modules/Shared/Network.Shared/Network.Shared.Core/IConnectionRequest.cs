@@ -1,6 +1,6 @@
-﻿namespace Karpik.Engine.Shared.Network.Core;
+namespace Karpik.Engine.Shared.Network.Core;
 
 public interface IConnectionRequest
 {
-    public IPeer AcceptIfKey(string key);
+    public IPeer? AcceptIfKey(string key);
 }

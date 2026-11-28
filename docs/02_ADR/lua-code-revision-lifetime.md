@@ -36,7 +36,9 @@ Commit публикует runtime revision и scheduler при закрытом 
 
 Обычный common tick остаётся без новых allocations и locks; gate использует предсказуемые атомарные счётчики. Maintenance может выделять память и временно держать два набора scheduler workers/буферов. Пауза и peak resources измеряются отдельно; SLA для Lua не обещается. Свежие snapshots/logs/скрипты не означают state migration: VM locals теряются, сохраняются ECS компоненты.
 
-Local host должен явно включить режим до Setup. Сетевое согласование, metadata/set/schema changes, save/assets/CLR reload не входят. Cancellation cooperative; зависшую VM нельзя безопасно прервать этим API.
+Local host явно включает режим до Setup. Односторонний reload не меняет metadata, набор, схемы или assets и недоступен в сетевом составе. Cancellation cooperative; зависшую VM нельзя безопасно прервать этим API.
+
+Согласованный переход расширяет этот ADR без замены DI-дерева: ModSet держит стартовый anchor, Simulation — принятый набор и текущий каталог. Совместимые плотные пулы и нетронутые VM сохраняются; `inc`/`opt`/`exc` и wire/host-домены регистрируют заимствования. Снятие пула с живыми строками или оставшимися привязками запрещено. Хост с live-переходом создаёт доступные новым Lua queries нативные CLR-пулы при старте Simulation: одна регистрация типа не создаёт пул, а staged-кандидат не публикует нативные пулы до Commit. Декларативная Debug-миграция готовит только затронутые пулы до Commit; Release Apply не меняет схему остающегося мода. Последовательные Lua callbacks разделяют один командный буфер с проверкой домена, системы и вызова. См. [ExecPlan смены набора](../../plans/modding-live-set-execplan.md) и [сетевой ADR](mod-live-revision-protocol.md).
 
 ## Verification
 

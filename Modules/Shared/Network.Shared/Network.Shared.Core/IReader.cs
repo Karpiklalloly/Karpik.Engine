@@ -1,10 +1,13 @@
-﻿using System.Drawing;
+using System.Drawing;
 
 namespace Karpik.Engine.Shared.Network.Core;
 
 public interface IReader
 {
     public int AvailableBytes { get; }
+
+    /// <summary>Copy this transport-validated value into deferred work, not the reader; zero denotes unversioned gameplay.</summary>
+    public long GameplayRevision => 0;
     
     public void Recycle();
     

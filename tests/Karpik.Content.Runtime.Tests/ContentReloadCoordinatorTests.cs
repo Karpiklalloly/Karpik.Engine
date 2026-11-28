@@ -630,6 +630,202 @@ public sealed class ContentReloadCoordinatorTests
         Assert.Equal(0, mod.References);
     }
 
+    [Fact]
+    public async Task ExternalReservationRejectsOverlappingReloads_AndAbortPreservesRoot()
+    {
+        var store = new Store();
+        var mod = new Store();
+        await using var registry = new ContentRegistry(null!, store);
+        registry.RegisterManifest(Manifest("a"), store);
+        Assert.Equal("a", await ReadAsync(registry, A));
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        var staged = await StageExternalAsync(coordinator, Package(mod, "m"));
+        try
+        {
+            Assert.False(coordinator.PublishBoundary());
+            Assert.False(registry.TryResolve<string>(B, out _));
+            Assert.Equal("a", await ReadAsync(registry, A));
+            var refresh = await coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Busy capture ran"))
+                .WaitAsync(TestTimeout);
+            Assert.Equal(ContentReloadOutcome.Busy, refresh.Outcome);
+            var reload = await coordinator.EnqueueAsync(Manifest("b"), store).WaitAsync(TestTimeout);
+            Assert.Equal(ContentReloadOutcome.Busy, reload.Outcome);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => registry.PrepareAsync(Manifest("b")));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => registry.DisposeAsync().AsTask());
+        }
+        finally
+        {
+            staged.Dispose();
+            await staged.Completion.WaitAsync(TestTimeout);
+        }
+        Assert.False(staged.TryCommitAtBarrier());
+        Assert.Equal(0, mod.References);
+        Assert.Equal("a", await ReadAsync(registry, A));
+        Assert.False(registry.TryResolve<string>(B, out _));
+        Assert.Empty(coordinator.Changes.ToArray());
+        Assert.Equal(0ul, coordinator.Sequence);
+        var retry = coordinator.EnqueueAsync(Manifest("b"), store);
+        await PublishAsync(coordinator, retry);
+        Assert.Equal(ContentReloadOutcome.Applied, (await retry).Outcome);
+    }
+
+    [Fact]
+    public async Task ExternalCommitDeliversSortedChangesExactlyOnceAtTheFirstResumedBoundary()
+    {
+        var store = new Store();
+        var mod = new Store();
+        var package = Package(mod, "m");
+        await using var registry = new ContentRegistry(null!, store);
+        registry.RegisterManifest(Manifest("a"), store);
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        for (int i = 0; i < 8; i++)
+        {
+            bool adding = i % 2 == 0;
+            var staged = await StageExternalAsync(coordinator, adding ? package : null);
+            try
+            {
+                Assert.False(coordinator.PublishBoundary()); // Never auto-publish the externally staged root.
+                Assert.Equal(!adding, registry.TryResolve<string>(B, out _));
+
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                bool committed = staged.TryCommitAtBarrier();
+                bool automaticCommit = coordinator.PublishBoundary(); // No automatic work, but external changes must survive.
+                int count = coordinator.Changes.Length;
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                Assert.True(committed);
+                Assert.False(automaticCommit);
+                Assert.Equal(2, count);
+                if (i != 0) Assert.Equal(0, allocated);
+                Assert.Equal(adding, registry.TryResolve<string>(B, out _));
+                Assert.Equal(new[] { new ContentAssetChange(A, ContentAssetChangeKind.Updated),
+                    new ContentAssetChange(B, adding ? ContentAssetChangeKind.Added : ContentAssetChangeKind.Removed) }, coordinator.Changes.ToArray());
+                Assert.False(staged.TryCommitAtBarrier());
+                Assert.Equal((ulong)i + 1, coordinator.Sequence);
+                Assert.False(coordinator.PublishBoundary());
+                Assert.Empty(coordinator.Changes.ToArray());
+                Assert.Equal((ulong)i + 1, coordinator.Sequence);
+            }
+            finally
+            {
+                staged.Dispose();
+                await staged.Completion.WaitAsync(TestTimeout);
+            }
+        }
+        var noOp = await StageExternalAsync(coordinator, null);
+        try
+        {
+            Assert.True(noOp.TryCommitAtBarrier());
+            Assert.False(coordinator.PublishBoundary());
+            Assert.Empty(coordinator.Changes.ToArray());
+            Assert.Equal(8ul, coordinator.Sequence);
+        }
+        finally
+        {
+            noOp.Dispose();
+            await noOp.Completion.WaitAsync(TestTimeout);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShutdownJoinsTheHostDecisionAndRetirement_WithoutRevokingReady(bool commit)
+    {
+        var old = new ContentResourceLifetime(() => { });
+        int loads = 0;
+        var loader = new Loader(() => new Payload(Interlocked.Increment(ref loads) == 1 ? old : new ContentResourceLifetime(() => { })));
+        var store = new Store();
+        var mod = new Store();
+        await using var registry = new ContentRegistry(null!, store, [loader]);
+        registry.RegisterManifest(Manifest("a"), store);
+        await registry.LoadAsync(new AssetRef<Payload>(A));
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        var staged = await StageExternalAsync(coordinator, Package(mod, "m"));
+        Assert.True(old.TryRetain());
+        try
+        {
+            coordinator.RequestStop();
+            Task stopped = coordinator.DisposeAsync().AsTask();
+            Assert.False(stopped.IsCompleted);
+            Assert.False(coordinator.PublishBoundary());
+            Assert.False(registry.TryResolve<string>(B, out _));
+            if (commit)
+            {
+                Assert.True(await Task.Run(staged.TryCommitAtBarrier).WaitAsync(TestTimeout));
+                Assert.True(registry.TryResolve<string>(B, out _));
+                Assert.False(staged.Completion.IsCompleted);
+                Assert.False(stopped.IsCompleted);
+                Assert.False(old.Completion.IsCompleted);
+            }
+            else staged.Dispose();
+        }
+        finally
+        {
+            old.Release();
+            staged.Dispose();
+            await staged.Completion.WaitAsync(TestTimeout);
+        }
+        await coordinator.DisposeAsync().AsTask().WaitAsync(TestTimeout);
+        Assert.Equal(commit, old.Completion.IsCompletedSuccessfully);
+        Assert.Equal(commit, registry.TryResolve<string>(B, out _));
+        Assert.Equal(commit ? 3 : 0, mod.References);
+    }
+
+    [Fact]
+    public async Task ExternalCaptureReservesAdmissionBeforeReady_AndStopWinsBeforeReady()
+    {
+        var store = new Store();
+        var mod = new Store();
+        await using var registry = new ContentRegistry(null!, store);
+        registry.RegisterManifest(Manifest("a"), store);
+        await using var coordinator = new ContentReloadCoordinator(registry);
+        using var cleanup = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stagedTask = coordinator.PrepareModUpdateAsync(async (previous, ct) =>
+        {
+            Assert.Empty(previous);
+            entered.SetResult();
+            await release.Task.WaitAsync(ct);
+            return await Batch(Claim(Package(mod, "m")));
+        }, cancellationToken: cleanup.Token);
+        try
+        {
+            await entered.Task.WaitAsync(TestTimeout);
+            Assert.Null(await coordinator.PrepareModUpdateAsync((_, _) => throw new InvalidOperationException("Busy capture ran")));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => registry.PrepareAsync(Manifest("b")));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => registry.DisposeAsync().AsTask());
+            Assert.Equal(ContentReloadOutcome.Busy, (await coordinator.EnqueueAsync(Manifest("b"), store)
+                .WaitAsync(TestTimeout)).Outcome);
+            Assert.Equal(ContentReloadOutcome.Busy, (await coordinator.EnqueueModRefreshAsync((_, _) => throw new InvalidOperationException("Busy capture ran"))
+                .WaitAsync(TestTimeout)).Outcome);
+            coordinator.RequestStop();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stagedTask.WaitAsync(TestTimeout));
+            await coordinator.DisposeAsync().AsTask().WaitAsync(TestTimeout);
+            Assert.False(registry.TryResolve<string>(B, out _));
+            Assert.False(coordinator.PublishBoundary());
+        }
+        finally
+        {
+            cleanup.Cancel();
+            release.TrySetResult();
+            try
+            {
+                if (await stagedTask.WaitAsync(TestTimeout) is { } staged)
+                {
+                    staged.Dispose();
+                    await staged.Completion.WaitAsync(TestTimeout);
+                }
+            }
+            catch (OperationCanceledException) { }
+        }
+        Assert.Equal(0, mod.References);
+    }
+
+    private static async Task<ContentReloadCoordinator.PreparedModUpdate> StageExternalAsync(
+        ContentReloadCoordinator coordinator, ModContentPackage? package) => Assert.IsType<ContentReloadCoordinator.PreparedModUpdate>(
+        await coordinator.PrepareModUpdateAsync((_, _) => package == null ? Batch() : Batch(Claim(package))).WaitAsync(TestTimeout));
+
     private static Task<ModBatch> Batch(params ModContentCapture[] captures) =>
         Task.FromResult<ModBatch>((captures.Select(c => c.Package).ToArray(), captures.Select(c => c.Package.ModId).ToArray(), captures));
 

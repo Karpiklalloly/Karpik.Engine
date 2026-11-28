@@ -1,16 +1,18 @@
-﻿using Karpik.Engine.Shared.Network.Core;
+using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
 
-public class LiteNetLibConnectionRequest : IConnectionRequest
+public sealed class LiteNetLibConnectionRequest : IConnectionRequest
 {
-    public ConnectionRequest Request { get; }
-    
-    public LiteNetLibConnectionRequest(ConnectionRequest request)
+    private readonly LiteNetLibNetworkManager _owner;
+    private readonly ConnectionRequest _request;
+
+    internal LiteNetLibConnectionRequest(LiteNetLibNetworkManager owner, ConnectionRequest request)
     {
-        Request = request;
+        _owner = owner;
+        _request = request;
     }
 
-    public IPeer AcceptIfKey(string key) => new LiteNetLibPeer(Request.AcceptIfKey(key));
+    public IPeer? AcceptIfKey(string key) => _owner.AcceptIfKey(_request, key);
 }

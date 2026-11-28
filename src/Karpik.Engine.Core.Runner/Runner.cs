@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Diagnostics;
 using System.Text;
 using Autofac;
@@ -332,6 +332,7 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
                 systemRegistry.RegisterTypes(builder);
             });
             _serviceResolver = _simulationScope.Resolve<IServiceResolver>();
+            _networkedSimulation = _simulationScope.IsRegistered<NetworkedSimulation>();
             RestoreRestartWorkerState(_serviceResolver, hotReloadData);
             return _simulationScope.Resolve<ISimulationPreparation[]>();
         });
@@ -450,9 +451,10 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
             _lateRunner);
     }
 
-    public EditorRuntimeSnapshot CaptureEditorSnapshot()
+    public EditorRuntimeSnapshot CaptureEditorSnapshot() => CaptureOutsideCodeReload(CaptureEditorSnapshotCore);
+
+    private EditorRuntimeSnapshot CaptureEditorSnapshotCore()
     {
-        if (CodeReloadFrameEntryClosed) throw new InvalidOperationException("Editor snapshots are unavailable during code reload.");
         var world = _serviceResolver?.GetService(typeof(EcsDefaultWorld)) as EcsDefaultWorld;
         if (world is null || world.IsDestroyed)
         {
@@ -609,9 +611,10 @@ public partial class EngineRunner : IEngineRunner, IStaticModuleRegistry
         logger.LogError(exception, "Job failed");
     }
 
-    public Dictionary<string, byte[]> GetHotReloadData()
+    public Dictionary<string, byte[]> GetHotReloadData() => CaptureOutsideCodeReload(GetHotReloadDataCore);
+
+    private Dictionary<string, byte[]> GetHotReloadDataCore()
     {
-        if (CodeReloadFrameEntryClosed) throw new InvalidOperationException("Restart state cannot be captured during code reload.");
         IServiceResolver services = _serviceResolver
             ?? throw new InvalidOperationException("Runner must be set up before capturing restart-worker state.");
 

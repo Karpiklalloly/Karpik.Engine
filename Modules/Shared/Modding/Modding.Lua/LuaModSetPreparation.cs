@@ -99,9 +99,9 @@ public sealed class LuaModSetPreparation(IModsRegistry registry, Application app
         var startup = _startupCandidate ?? throw new InvalidOperationException("Startup Content was not captured.");
         _startupCandidate = null;
         var participating = startup.Resolution.ParticipatingCookedOnlyProviderIds;
+        var accepted = packages.Select(static package => package.ModId).ToHashSet(StringComparer.Ordinal);
         if (participating.Count != 0)
         {
-            var accepted = packages.Select(static package => package.ModId).ToHashSet(StringComparer.Ordinal);
             foreach (string id in startup.Resolution.OrderedIds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -112,6 +112,7 @@ public sealed class LuaModSetPreparation(IModsRegistry registry, Application app
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
+        startup = startup.AcceptCooked(accepted);
         _refresh = new LuaModContentRefresh(mods.ModsDirectoryPath, ContentSide, startup, packages, mods.StartupDiscovery.DisabledIds);
         mods.PublishStartupDependencies(startup);
     }
@@ -123,6 +124,66 @@ public sealed class LuaModSetPreparation(IModsRegistry registry, Application app
         return _refresh is { } refresh
             ? (previous, cancellation) => refresh.CaptureAsync(previous, report, cancellation)
             : null;
+    }
+
+    // The opt-in host supplies the accepted Simulation view; it is read only on the serialized cold worker.
+    internal ModContentRefreshCapture? CreateLiveRefreshCapture(Func<ModStartupDependencies> getBasis, Action<ContentDiagnostic> report)
+    {
+        return _refresh is not null && LuaSourceCapture.IsSupported
+            ? (previous, cancellation) => LuaModContentRefresh.CaptureLiveAsync(getBasis(), previous, report, cancellation)
+            : null;
+    }
+
+    // Null means Busy. A non-null result belongs to the host: commit at its barrier or dispose to abort,
+    // then join Update.Completion on the cold path (not while holding a read or renderer claim).
+    internal async Task<(ModStartupDependencies Composition, ContentReloadCoordinator.PreparedModUpdate Update)?> PrepareLiveSelectionAsync(
+        ContentReloadCoordinator coordinator, ModStartupDependencies basis, IReadOnlyCollection<string> selectedIds,
+        Action<ContentDiagnostic> report, CancellationToken cancellationToken = default)
+    {
+        if (registry is not ModsRegistry mods || _refresh is null || basis.Side != ContentSide)
+            throw new InvalidOperationException("Live mod selection requires stock ModSet Content startup on the same side.");
+        if (selectedIds.Count > LuaSourceCapture.MaximumPackages)
+            throw new InvalidDataException($"Selected mod set exceeds {LuaSourceCapture.MaximumPackages} packages.");
+        var ids = selectedIds.ToArray();
+        ModStartupDependencies? composition = null;
+        var update = await coordinator.PrepareModUpdateAsync(CaptureSelectionAsync, report, cancellationToken).ConfigureAwait(false);
+        return update is null ? null : (composition!, update);
+
+        async Task<(IReadOnlyList<ModContentPackage>, IReadOnlyCollection<string>, IReadOnlyList<ModContentCapture>)> CaptureSelectionAsync(
+            IReadOnlyList<ModContentPackage> previous, CancellationToken cancellation)
+        {
+            var packages = LuaModContentRefresh.IndexAcceptedPackages(basis, previous);
+            // Refresh can change cooked availability without changing the accepted Lua composition.
+            var selection = mods.DiscoverSelection(basis.AcceptCooked(packages.Keys.ToHashSet(StringComparer.Ordinal)), ids, cancellation);
+            var captures = new List<ModContentCapture>();
+            try
+            {
+                foreach (string id in selection.NewIds.Order(StringComparer.Ordinal))
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    var discovered = selection.PackagesById[id];
+                    if (discovered.UncapturableCookedSource is not null) continue;
+                    string path = discovered.Definition.Directory;
+                    var capture = await ModContentCapture.CaptureAsync(path, id, basis.Side, report: report, ct: cancellation).ConfigureAwait(false);
+                    if (capture is not null)
+                    {
+                        captures.Add(capture);
+                        packages.Add(id, capture.Package);
+                    }
+                    if (!ContentCaptureFiles.DirectoryExists(path))
+                        throw new InvalidDataException($"Selected mod '{id}' disappeared during Content capture: '{path}'.");
+                }
+
+                composition = ModsRegistry.ComposeSelection(selection, captures.Select(static capture => capture.Package.ModId).ToArray(), cancellation);
+                return (composition.Resolution.OrderedIds.Where(packages.ContainsKey).Select(id => packages[id]).ToArray(),
+                    selection.PackagesById.Keys, captures);
+            }
+            catch (Exception error)
+            {
+                ModContentCapture.DisposeAll(captures, error);
+                throw;
+            }
+        }
     }
 
     private AssetTarget ContentSide => application.ApplicationSide == Side.Client ? AssetTarget.Client : AssetTarget.Server;

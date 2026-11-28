@@ -1,4 +1,4 @@
-﻿using System.Composition;
+using System.Composition;
 using Karpik.Engine.Core;
 using Karpik.Jobs;
 using Microsoft.Extensions.Logging;
@@ -34,6 +34,7 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
 
         try
         {
+            definitions = PinLuaDefinitions(definitions, side, fresh: false, cancellationToken);
             foreach (ModDefinition definition in definitions)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -70,9 +71,27 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
         }
     }
     
-    public async JobHandle<ModContainer[]> PrepareReload(IReadOnlyList<ModDefinition> definitions,
+    public JobHandle<ModContainer[]> PrepareReload(IReadOnlyList<ModDefinition> definitions,
         ExecutionSide side, MainThreadScheduler? scheduler, ILogger logger,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) => PrepareInactive(definitions, side, scheduler, logger, fresh: true, cancellationToken);
+
+    internal JobHandle<ModContainer[]> PreparePinned(IReadOnlyList<ModDefinition> definitions,
+        ExecutionSide side, MainThreadScheduler? scheduler, ILogger logger, CancellationToken cancellationToken, bool recaptureSource = false,
+        Action<IReadOnlyList<ModDefinition>>? checkCapture = null)
+    {
+        if (scriptLoader is not LuaScriptLoader lua || lua.GetType() != typeof(LuaScriptLoader) ||
+            (recaptureSource && !LuaSourceCapture.IsSupported))
+            return JobHandle<ModContainer[]>.FromException(new NotSupportedException("Live mods require the standard pinned Lua loader and verified capture."));
+        foreach (var definition in definitions)
+            if (definition.ScriptSource is null || definition.ScriptSource.Side != side)
+                return JobHandle<ModContainer[]>.FromException(new InvalidDataException($"Mod '{definition.MetaData.Id}' has no accepted source for {side}."));
+        return PrepareInactive(definitions, side, scheduler, logger, fresh: recaptureSource, cancellationToken, pinnedLoader: lua, checkCapture);
+    }
+
+    private async JobHandle<ModContainer[]> PrepareInactive(IReadOnlyList<ModDefinition> definitions,
+        ExecutionSide side, MainThreadScheduler? scheduler, ILogger logger, bool fresh,
+        CancellationToken cancellationToken, LuaScriptLoader? pinnedLoader = null,
+        Action<IReadOnlyList<ModDefinition>>? checkCapture = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_loaded || _loading) throw new InvalidOperationException("Mods must be loaded before code reload.");
@@ -82,12 +101,25 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
         var pending = new List<ModContainer>(definitions.Count);
         try
         {
+            if (fresh && checkCapture is not null && scheduler is not null)
+            {
+                // Coordinated capture must not block the owner that also services revision control.
+                var inputs = definitions;
+                definitions = await Task.Run(() => PinLuaDefinitions(inputs, side, fresh: true, cancellationToken), cancellationToken);
+                await scheduler.InvokeAsync(() => { cancellationToken.ThrowIfCancellationRequested(); checkCapture(definitions); });
+            }
+            else
+            {
+                if (fresh) definitions = PinLuaDefinitions(definitions, side, fresh: true, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                checkCapture?.Invoke(definitions);
+            }
             foreach (ModDefinition definition in definitions)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 JobHandle<IScriptRuntime> loading = scheduler is null
-                    ? scriptLoader.Load(definition, side)
-                    : await scheduler.InvokeAsync(() => scriptLoader.Load(definition, side));
+                    ? LoadOne(definition)
+                    : await scheduler.InvokeAsync(() => LoadOne(definition));
                 IScriptRuntime runtime = await loading;
                 var container = new ModContainer(definition, runtime);
                 pending.Add(container);
@@ -139,6 +171,24 @@ public class ModsLifecycleManager(IScriptLoader scriptLoader) : IModsLifecycleMa
             }
             throw;
         }
+
+        // The real Lua loader grants only the sandbox globals and accepted imports in live mode.
+        JobHandle<IScriptRuntime> LoadOne(ModDefinition definition) => pinnedLoader is null
+            ? scriptLoader.Load(definition, side) : pinnedLoader.Load(definition, side);
+    }
+
+    private IReadOnlyList<ModDefinition> PinLuaDefinitions(IReadOnlyList<ModDefinition> definitions, ExecutionSide side,
+        bool fresh, CancellationToken cancellationToken)
+    {
+        if (scriptLoader is not LuaScriptLoader || !LuaSourceCapture.IsSupported) return definitions;
+        var budget = new LuaSourceCapture.Budget();
+        var pinned = new ModDefinition[definitions.Count];
+        for (int i = 0; i < pinned.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            pinned[i] = budget.Pin(definitions[i], side, cancellationToken, fresh);
+        }
+        return pinned;
     }
 
     public ModContainer[] ReplaceForReload(ModContainer[] containers)

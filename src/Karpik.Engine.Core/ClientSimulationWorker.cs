@@ -44,6 +44,9 @@ internal sealed class ClientSimulationWorker : IDisposable
 
     public bool IsSimulationRunning => Volatile.Read(ref _simulationRunning) != 0;
 
+    internal bool OwnsMaintenanceOnCurrentThread => Volatile.Read(ref _maintenanceActive) != 0 &&
+        _maintenanceOwnerThreadId == Environment.CurrentManagedThreadId;
+
     internal bool TryEnterMaintenance(out MaintenanceLease? lease)
     {
         lease = null;

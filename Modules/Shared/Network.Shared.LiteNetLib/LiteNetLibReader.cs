@@ -1,67 +1,35 @@
-﻿using System.Drawing;
+using System.Drawing;
 using Karpik.Engine.Shared.Network.Core;
 using LiteNetLib;
 
 namespace Karpik.Engine.Shared.Network.LiteNetLib;
 
-public class LiteNetLibReader : IReader
+public sealed class LiteNetLibReader : IReader
 {
-    public NetPacketReader Reader { get; }
-    
-    public LiteNetLibReader(NetPacketReader reader)
+    private NetPacketReader? _reader;
+    private readonly bool _borrowed;
+
+    private NetPacketReader Reader => _reader ?? throw new InvalidOperationException("The reader is not in a receive callback.");
+    public long GameplayRevision { get; private set; }
+
+    public LiteNetLibReader(NetPacketReader reader) => _reader = reader;
+    internal LiteNetLibReader() => _borrowed = true;
+
+    internal void Bind(NetPacketReader? reader, long revision)
     {
-        Reader = reader;
+        _reader = reader;
+        GameplayRevision = revision;
     }
-    
+
     public int AvailableBytes => Reader.AvailableBytes;
-
-    public void Recycle()
-    {
-        Reader.Recycle();
-    }
-
-    public float GetFloat()
-    {
-        return Reader.GetFloat();
-    }
-
-    public byte GetByte()
-    {
-        return Reader.GetByte();
-    }
-
-    public ushort GetUShort()
-    {
-        return Reader.GetUShort();
-    }
-
-    public int GetInt()
-    {
-        return Reader.GetInt();
-    }
-
-    public long GetLong()
-    {
-        return Reader.GetLong();
-    }
-
-    public double GetDouble()
-    {
-        return Reader.GetDouble();
-    }
-
-    public bool GetBool()
-    {
-        return Reader.GetBool();
-    }
-
-    public string GetString()
-    {
-        return Reader.GetString();
-    }
-
-    public Color GetColor()
-    {
-        return Color.FromArgb(Reader.GetInt());
-    }
+    public void Recycle() { if (!_borrowed) Reader.Recycle(); }
+    public float GetFloat() => Reader.GetFloat();
+    public byte GetByte() => Reader.GetByte();
+    public ushort GetUShort() => Reader.GetUShort();
+    public int GetInt() => Reader.GetInt();
+    public long GetLong() => Reader.GetLong();
+    public double GetDouble() => Reader.GetDouble();
+    public bool GetBool() => Reader.GetBool();
+    public string GetString() => Reader.GetString();
+    public Color GetColor() => Color.FromArgb(Reader.GetInt());
 }

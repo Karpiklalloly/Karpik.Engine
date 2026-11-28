@@ -38,6 +38,8 @@ internal class ProcessManager : IDisposable
     private Action<IpcMessage>? _workerMessageHandler;
     private WorkerGeneration? _workerGeneration;
     private Action? _beforeLifecycleCallbackCommit;
+    private ModLiveLaunchOwner? _modLiveLaunchOwner;
+    private bool _launchConfigurationFrozen;
     
     public event Action<int>? OnWorkerExited;
     public event Action? OnWorkerReady;
@@ -137,6 +139,29 @@ internal class ProcessManager : IDisposable
         Volatile.Write(ref _beforeLifecycleCallbackCommit, callback);
     }
     
+    internal void OptInModLive(ModLiveLaunchOwner owner)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        lock (_transitionIntentGate)
+        {
+            ObjectDisposedException.ThrowIf(IsDisposeRequested, this);
+            if (_launchConfigurationFrozen || _modLiveLaunchOwner is not null)
+                throw new InvalidOperationException("Mod-live launch ownership must be configured before the first start.");
+            Volatile.Write(ref _modLiveLaunchOwner, owner);
+        }
+    }
+
+    internal ModLiveIpcPeer? GetModLivePeer(ModLiveLaunchOwner owner)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        if (!ReferenceEquals(Volatile.Read(ref _modLiveLaunchOwner), owner) || ShouldStopTransition) return null;
+        WorkerGeneration? generation = Volatile.Read(ref _workerGeneration);
+        if (generation?.IpcServer.ModLivePeer is { } peer && !peer.Loss.IsCompleted &&
+            generation.Readiness.IsReady && generation.IsActive && IsCurrentGeneration(generation))
+            return peer;
+        return null;
+    }
+
     public async Task StartWorkerAsync(HotReloadState? initialState = null, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(IsDisposeRequested, this);
@@ -197,6 +222,13 @@ internal class ProcessManager : IDisposable
             // Added by CreateStartInfo below.
         }
 
+        ModLiveLaunchOwner? modLiveOwner;
+        lock (_transitionIntentGate)
+        {
+            _launchConfigurationFrozen = true;
+            modLiveOwner = _modLiveLaunchOwner;
+        }
+        using var modLiveAssociation = modLiveOwner?.CreateAssociation(_side);
         var startInfo = CreateStartInfo(
             new RuntimeLaunchOptions(_side, _workerExePath, _bundlePath, _engineRoot)
             { ContentReloadInstanceId = _contentReloadInstanceId },
@@ -217,6 +249,7 @@ internal class ProcessManager : IDisposable
         connectionCts.CancelAfter(_options.WorkerConnectionTimeout);
         var readiness = new WorkerReadiness();
         var ipcServer = new IpcServer(_pipeName, _loggerFactory);
+        if (modLiveAssociation is not null) ipcServer.ConfigureModLive(modLiveAssociation);
         var generation = new WorkerGeneration(readiness, ipcServer);
         Volatile.Write(ref _workerGeneration, generation);
         Volatile.Write(ref _workerReadiness, readiness);
@@ -262,7 +295,7 @@ internal class ProcessManager : IDisposable
             generation.ExitedHandler = exitedHandler;
             workerProcess.Exited += exitedHandler;
 
-            if (!TryCommitWorkerStart(workerProcess, out bool startAttempted))
+            if (!TryCommitWorkerStart(workerProcess, modLiveAssociation, out bool startAttempted))
             {
                 if (!startAttempted)
                 {
@@ -370,6 +403,7 @@ internal class ProcessManager : IDisposable
 
     private void HandleWorkerExited(WorkerGeneration generation)
     {
+        generation.IpcServer.ModLivePeer?.Close();
         generation.TryRun(() =>
         {
             if (!IsCurrentGeneration(generation) || generation.Process is not { } process)
@@ -636,6 +670,7 @@ internal class ProcessManager : IDisposable
 
         Process? workerProcess = generation.Process;
         IpcServer? ipcServer = generation.IpcServer;
+        ipcServer.ModLivePeer?.Close();
         if (workerProcess is not null && IsProcessRunning(workerProcess))
         {
             _logger.LogInformation("Stopping worker");
@@ -650,6 +685,10 @@ internal class ProcessManager : IDisposable
                 catch (IOException)
                 {
                     // A broken pipe can mean the worker exited before acknowledging.
+                }
+                catch (InvalidOperationException) when (_modLiveLaunchOwner is not null && !ipcServer.IsConnected)
+                {
+                    // Associated IPC owns a terminal disconnect, even before process exit.
                 }
                 exited = await WaitForExitAsync(workerProcess, _options.GracefulShutdownTimeout);
             }
@@ -725,7 +764,7 @@ internal class ProcessManager : IDisposable
         }
     }
 
-    private bool TryCommitWorkerStart(Process process, out bool startAttempted)
+    private bool TryCommitWorkerStart(Process process, ModLiveLaunchAssociation? association, out bool startAttempted)
     {
         lock (_transitionIntentGate)
         {
@@ -736,7 +775,16 @@ internal class ProcessManager : IDisposable
             }
 
             startAttempted = true;
-            return process.Start();
+            if (association is null) return process.Start();
+            process.StartInfo.Environment[ModLiveLaunchAssociation.EnvironmentKey] = association.ToLaunchValue();
+            try
+            {
+                return process.Start();
+            }
+            finally
+            {
+                process.StartInfo.Environment.Remove(ModLiveLaunchAssociation.EnvironmentKey);
+            }
         }
     }
 
@@ -767,6 +815,7 @@ internal class ProcessManager : IDisposable
         bool disposeProcess,
         bool cleanupShadowCopies)
     {
+        generation.IpcServer.ModLivePeer?.Close();
         Task callbacksDrained = generation.Deactivate();
         Interlocked.CompareExchange(ref _workerGeneration, null, generation);
 
@@ -1087,6 +1136,7 @@ internal class ProcessManager : IDisposable
             RedirectStandardError = captureOutput,
             WorkingDirectory = launchOptions.BundlePath
         };
+        startInfo.Environment.Remove(ModLiveLaunchAssociation.EnvironmentKey);
         if (captureEditorLogs)
         {
             startInfo.EnvironmentVariables["KARPIK_EDITOR_LOG_CAPTURE"] = "1";
@@ -1246,6 +1296,7 @@ internal class ProcessManager : IDisposable
             return;
         }
 
+        Volatile.Read(ref _workerGeneration)?.IpcServer.ModLivePeer?.Close();
         _cts.Cancel();
         if (ReferenceEquals(s_lifecycleCallbackOwner.Value, this)
             || IpcServer.IsInListenerContext)

@@ -1,10 +1,14 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Karpik.Engine.Client.Publish")]
 [assembly: InternalsVisibleTo("Karpik.Engine.Server.Publish")]
 [assembly: InternalsVisibleTo("DebugModule")]
 [assembly: InternalsVisibleTo("Karpik.Engine.Core.Runner")]
 [assembly: InternalsVisibleTo("Karpik.Engine.Core.Runner.Tests")]
+[assembly: InternalsVisibleTo("Karpik.Content.Reload.HeadlessHost")]
+#if DEBUG
+[assembly: InternalsVisibleTo("Network.Shared.Core")]
+#endif
 namespace Karpik.Engine.Core;
 
 public class Application

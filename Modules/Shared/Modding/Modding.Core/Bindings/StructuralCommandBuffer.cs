@@ -42,7 +42,8 @@ internal interface ICommandComponentPool
 public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposable
 {
     private readonly EcsDefaultWorld _world;
-    private readonly ComponentCallbackScope _scope;
+    private readonly ComponentCallbackScope? _defaultScope;
+    private ComponentCallbackScope? _scope;
     private readonly DynamicComponentStorage _dynamic;
     private readonly Command[] _commands;
     private readonly byte[] _payload;
@@ -57,7 +58,9 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
     private ulong _invocation;
     private bool _active, _invalid, _completed, _playing, _disposed, _scratchUsed;
 
-    internal StructuralCommandBuffer(EcsDefaultWorld world, ComponentCallbackScope scope,
+    internal bool IsActive => _active;
+
+    internal StructuralCommandBuffer(EcsDefaultWorld world, ComponentCallbackScope? scope,
         DynamicComponentStorage dynamic, StructuralCommandOptions options)
     {
         if (options.MaxCommands < 0 || options.MaxPendingEntities < 0 || options.MaxPayloadBytes < 0)
@@ -65,7 +68,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
         int scratch = 4;
         int requested = checked(Math.Max(1, options.MaxCommands) * 4);
         while (scratch < requested) scratch = checked(scratch * 2);
-        _world = world; _scope = scope; _dynamic = dynamic;
+        _world = world; _defaultScope = scope; _dynamic = dynamic;
         _commands = new Command[options.MaxCommands];
         _targets = new TargetState[options.MaxCommands];
         _payload = new byte[options.MaxPayloadBytes];
@@ -75,13 +78,28 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
         world.AddListener(this);
     }
 
-    public void Begin(string owner)
+    public void Begin(string owner) => Begin(_defaultScope ?? throw new InvalidOperationException("A VM scope is required."), owner);
+
+    internal void Begin(ComponentCallbackScope scope, string owner)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _scope.Require(owner);
-        if (_active) { _invalid = true; throw new InvalidOperationException("A command callback is already active."); }
+        scope.Require(owner);
+        if (_defaultScope is not null && !ReferenceEquals(_defaultScope, scope))
+            throw new InvalidOperationException("Command arena belongs to another access domain.");
+        if (_active) throw new InvalidOperationException("A command callback is already active.");
         if (_invocation == ulong.MaxValue) throw new InvalidOperationException("Command invocation identity exhausted.");
-        _invocation++; _owner = owner; _active = true; _invalid = false; _completed = false;
+        _invocation++; _scope = scope; _owner = owner; _active = true; _invalid = false; _completed = false;
+    }
+
+    internal void RequireOwner(ComponentCallbackScope scope, string owner)
+    {
+        if (!ReferenceEquals(_scope, scope)) throw new InvalidOperationException("Commands belong to another VM.");
+        RequireOwner(owner);
+    }
+
+    internal void Invalidate(ComponentCallbackScope scope)
+    {
+        if (ReferenceEquals(_scope, scope)) Invalidate();
     }
 
     public void RequireOwner(string owner)
@@ -138,11 +156,11 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
             {
                 ValidateSnapshot(handle, snapshot);
                 int required = 0;
-                foreach (var field in handle.Fields.Span)
+                foreach (var field in handle.DirectFields.Span)
                     if (field.CanWrite) required = checked(required + StructuralCommandPayload.Size(field.Kind));
                 if (required > _payload.Length - _bytes) throw new InvalidOperationException("Command payload limit exceeded.");
                 offset = _bytes;
-                var fields = handle.Fields.Span;
+                var fields = handle.DirectFields.Span;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     if (!fields[i].CanWrite) continue;
@@ -161,7 +179,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
         snapshot.ValidateAccess();
         if (!ReferenceEquals(snapshot.SimulationScope, handle.SimulationScope) || snapshot.ComponentId != handle.ComponentId || snapshot.ClrType != handle.ClrType)
             throw new InvalidOperationException("Snapshot belongs to another component or Simulation.");
-        var source = snapshot.Fields.Span; var target = handle.Fields.Span;
+        var source = snapshot.Fields.Span; var target = handle.DirectFields.Span;
         if (source.Length != target.Length) throw new InvalidOperationException("Incompatible snapshot layout.");
         for (int i = 0; i < source.Length; i++)
         {
@@ -287,7 +305,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
     {
         if (command.PayloadOffset < 0) return;
         int offset = command.PayloadOffset;
-        foreach (var field in command.Handle!.Fields.Span)
+        foreach (var field in command.Handle!.DirectFields.Span)
         {
             if (!field.CanWrite) continue;
             int size = StructuralCommandPayload.Size(field.Kind);
@@ -323,7 +341,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
             {
                 version = _world.Version;
                 int offset = command.PayloadOffset;
-                foreach (var field in command.Handle.Fields.Span)
+                foreach (var field in command.Handle.DirectFields.Span)
                 {
                     if (!field.CanWrite) continue;
                     int size = StructuralCommandPayload.Size(field.Kind);
@@ -362,7 +380,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_active || _owner is null) throw new InvalidOperationException("Commands require an active owning callback.");
-        _scope.Require(_owner);
+        _scope!.Require(_owner);
         if (_invalid) throw new InvalidOperationException("The callback command batch is invalid.");
         if (_playing || _completed) throw new InvalidOperationException("Command submission is closed.");
     }
@@ -375,7 +393,7 @@ public sealed class StructuralCommandBuffer : IEcsWorldEventListener, IDisposabl
         if (_scratchUsed) { Array.Clear(_pools); Array.Clear(_membership); _scratchUsed = false; }
         _payload.AsSpan(0, _bytes).Clear();
         _count = _pending = _bytes = _targetCount = 0;
-        _active = _invalid = _completed = _playing = false; _owner = null;
+        _active = _invalid = _completed = _playing = false; _owner = null; _scope = null;
     }
 
     public void OnWorldResize(int newSize)

@@ -12,8 +12,10 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        Console.SetOut(new ProbeOutput(Console.Out));
         Side side = Enum.Parse<Side>(args[0]);
+        if (Environment.GetEnvironmentVariable("KARPIK_HEADLESS_LIVE_MODE") is { } mode)
+            return await LiveProbe.RunAsync(side, mode, args[1..]);
+        Console.SetOut(new ProbeOutput(Console.Out));
         bool holdChangedFrame = args.Length > 1 && args[1] == "hold";
         using var state = new ProbeState { HoldChangedFrame = holdChangedFrame };
         using var stop = new CancellationTokenSource();

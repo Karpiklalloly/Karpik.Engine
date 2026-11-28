@@ -517,6 +517,23 @@ public sealed class ModDiscoveryTests
     }
 
     [Fact]
+    public async Task Discovery_DoesNotFilterDiskInventoryByStartupPolicy()
+    {
+        using var tree = new ModTree();
+        tree.WriteMod("active", """{"id":"active"}""");
+        tree.WriteMod("disabled", """{"id":"disabled"}""");
+        string config = Path.Combine(tree.Root, "mods.json");
+        const string startupPolicy = """{"disabled":["disabled"]}""";
+        File.WriteAllText(config, startupPolicy);
+        var registry = tree.CreateRegistry();
+        await registry.Scan(ExecutionSide.Server);
+
+        Assert.Equal(["active", "disabled"], registry.Discover(AssetTarget.Server).InstalledOwnerIds);
+        Assert.Equal("active", Assert.Single(registry.GetMods()).MetaData.Id);
+        Assert.Equal(startupPolicy, File.ReadAllText(config));
+    }
+
+    [Fact]
     public async Task ModActivation_ReadsSelectionFromInjectedRootAndSkipsDisabledPayloadAndDeclarations()
     {
         using var tree = new ModTree();
